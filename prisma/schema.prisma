@@ -1,0 +1,962 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum RoleName {
+  ADMIN
+  MANAGER
+  SALES_REP
+  OFFICE_STAFF
+  MARKETING
+  READ_ONLY
+}
+
+enum PropertyType {
+  RESIDENTIAL
+  COMMERCIAL
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ActivityType {
+  NOTE
+  STAGE_CHANGE
+  ASSIGNMENT_CHANGE
+  TASK_CREATED
+  TASK_COMPLETED
+  CALL_LOGGED
+  SMS_LOGGED
+  EMAIL_LOGGED
+  PERMIT_ADDED
+  FILE_UPLOADED
+  LEAD_CREATED
+  LEAD_UPDATED
+  JOB_CREATED
+  JOB_STAGE_CHANGE
+  PAYMENT_RECEIVED
+  CREW_ASSIGNED
+  INSPECTION_SCHEDULED
+  INSPECTION_COMPLETED
+  REVIEW_REQUESTED
+  REFERRAL_CREATED
+}
+
+enum PaymentType {
+  DEPOSIT
+  PROGRESS
+  FINAL
+  FINANCING_FUNDING
+}
+
+enum PaymentStatus {
+  PENDING
+  RECEIVED
+  OVERDUE
+  WAIVED
+  REFUNDED
+}
+
+enum FinancingStatus {
+  NOT_NEEDED
+  PENDING_APPLICATION
+  SUBMITTED
+  APPROVED
+  DENIED
+  FUNDED
+}
+
+enum InspectionResult {
+  PENDING
+  PASSED
+  FAILED
+  PARTIAL
+  RESCHEDULED
+}
+
+enum ReviewStatus {
+  PENDING
+  SENT
+  COMPLETED
+  DECLINED
+}
+
+enum ReferralStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  DECLINED
+}
+
+enum EmailProcessingStatus {
+  PENDING
+  PROCESSING
+  PARSED
+  LEAD_CREATED
+  DUPLICATE
+  IGNORED
+  FAILED
+}
+
+enum NotificationChannel {
+  SMS
+  EMAIL
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  CLICKED
+}
+
+enum TrackedActionType {
+  OPEN_LEAD
+  ACKNOWLEDGE
+  START_CALL
+  MARK_ATTEMPTED
+  MARK_CONTACTED
+}
+
+enum CommunicationType {
+  SMS
+  CALL
+  EMAIL
+}
+
+enum CommunicationDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CommunicationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  RECEIVED
+}
+
+enum ChannelType {
+  PAID
+  ORGANIC
+  REFERRAL
+  DIRECT
+  SOCIAL
+  OTHER
+}
+
+enum FileCategory {
+  PHOTOS
+  ESTIMATE
+  PERMIT
+  SIGNED_DOC
+  INSURANCE
+  INSPECTION
+  OTHER
+}
+
+enum PermitStatus {
+  APPLIED
+  ISSUED
+  IN_PROGRESS
+  FINAL
+  EXPIRED
+  DENIED
+  UNKNOWN
+}
+
+enum LookupStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+// ─── Core Tables ────────────────────────────────────────────────────────────
+
+model Role {
+  id          String   @id @default(cuid())
+  name        RoleName @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  roleId       String   @map("role_id")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  role Role @relation(fields: [roleId], references: [id])
+
+  assignedLeads     Lead[]             @relation("AssignedUser")
+  createdLeads      Lead[]             @relation("CreatedByUser")
+  assignmentsGiven  LeadAssignment[]   @relation("AssignedByUser")
+  assignmentsOwned  LeadAssignment[]   @relation("AssignedToUser")
+  stageChanges      LeadStageHistory[] @relation("ChangedByUser")
+  tasksAssigned     Task[]             @relation("TaskAssignedUser")
+  tasksCreated      Task[]             @relation("TaskCreatedByUser")
+  activityLogs      ActivityLog[]
+  communications    Communication[]
+  filesUploaded     File[]
+  permitLookupRuns  PermitLookupRun[]
+  managedJobs       Job[]              @relation("ProjectManager")
+  soldJobs          Job[]              @relation("SalesRep")
+  jobStageChanges   JobStageHistory[]  @relation("JobChangedByUser")
+  assignedPermits   JobPermit[]        @relation("PermitAssignedUser")
+  inspections       Inspection[]
+
+  @@map("users")
+}
+
+// ─── Lead Management ────────────────────────────────────────────────────────
+
+model LeadSource {
+  id          String      @id @default(cuid())
+  name        String
+  parentId    String?     @map("parent_id")
+  channelType ChannelType @default(OTHER) @map("channel_type")
+  isActive    Boolean     @default(true) @map("is_active")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  parent   LeadSource?  @relation("SourceHierarchy", fields: [parentId], references: [id])
+  children LeadSource[] @relation("SourceHierarchy")
+  leads    Lead[]
+
+  @@map("lead_sources")
+}
+
+model ServiceCategory {
+  id             String   @id @default(cuid())
+  name           String
+  parentId       String?  @map("parent_id")
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  parent       ServiceCategory?  @relation("ServiceHierarchy", fields: [parentId], references: [id])
+  children     ServiceCategory[] @relation("ServiceHierarchy")
+  leadServices LeadService[]
+
+  @@map("service_categories")
+}
+
+model LeadStage {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  stageOrder Int      @map("stage_order")
+  isClosed   Boolean  @default(false) @map("is_closed")
+  isWon      Boolean  @default(false) @map("is_won")
+  isLost     Boolean  @default(false) @map("is_lost")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  leads         Lead[]
+  historyFrom   LeadStageHistory[] @relation("FromStage")
+  historyTo     LeadStageHistory[] @relation("ToStage")
+
+  @@map("lead_stages")
+}
+
+model Lead {
+  id                   String       @id @default(cuid())
+  firstName            String       @map("first_name")
+  lastName             String       @map("last_name")
+  fullName             String       @map("full_name")
+  companyName          String?      @map("company_name")
+  primaryPhone         String       @map("primary_phone")
+  secondaryPhone       String?      @map("secondary_phone")
+  email                String?
+  propertyAddress1     String       @map("property_address_1")
+  propertyAddress2     String?      @map("property_address_2")
+  mailingAddress1      String?      @map("mailing_address_1")
+  mailingAddress2      String?      @map("mailing_address_2")
+  city                 String
+  county               String?
+  state                String       @default("FL")
+  zipCode              String       @map("zip_code")
+  propertyType         PropertyType @default(RESIDENTIAL) @map("property_type")
+  sourceId             String?      @map("source_id")
+  sourceDetail         String?      @map("source_detail")
+  assignedUserId       String?      @map("assigned_user_id")
+  currentStageId       String       @map("current_stage_id")
+  estimatedJobValue    Decimal?     @map("estimated_job_value") @db.Decimal(12, 2)
+  residentialCommercial String?     @map("residential_commercial")
+  insuranceClaim       Boolean      @default(false) @map("insurance_claim")
+  financingNeeded      Boolean      @default(false) @map("financing_needed")
+  urgent               Boolean      @default(false)
+  preferredContactMethod String?    @map("preferred_contact_method")
+  notesSummary         String?      @map("notes_summary") @db.Text
+  lastContactAt        DateTime?    @map("last_contact_at")
+  nextFollowUpAt       DateTime?    @map("next_follow_up_at")
+  isDuplicateFlag      Boolean      @default(false) @map("is_duplicate_flag")
+  duplicateGroupId     String?      @map("duplicate_group_id")
+  createdByUserId      String       @map("created_by_user_id")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+
+  source       LeadSource?      @relation(fields: [sourceId], references: [id])
+  assignedUser User?            @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  currentStage LeadStage        @relation(fields: [currentStageId], references: [id])
+  createdBy    User             @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+
+  services       LeadService[]
+  stageHistory   LeadStageHistory[]
+  assignments    LeadAssignment[]
+  tasks          Task[]
+  activityLogs   ActivityLog[]
+  communications Communication[]
+  permits        Permit[]
+  permitLookups  PermitLookupRun[]
+  files          File[]
+  jobs           Job[]
+  reviewRequests ReviewRequest[]
+  referrals      Referral[]
+
+  @@index([primaryPhone])
+  @@index([email])
+  @@index([propertyAddress1, city, zipCode])
+  @@index([assignedUserId])
+  @@index([currentStageId])
+  @@index([sourceId])
+  @@index([nextFollowUpAt])
+  @@index([createdAt])
+  @@map("leads")
+}
+
+model LeadService {
+  id                String   @id @default(cuid())
+  leadId            String   @map("lead_id")
+  serviceCategoryId String   @map("service_category_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  lead            Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  serviceCategory ServiceCategory @relation(fields: [serviceCategoryId], references: [id])
+
+  @@unique([leadId, serviceCategoryId])
+  @@map("lead_services")
+}
+
+model LeadStageHistory {
+  id              String   @id @default(cuid())
+  leadId          String   @map("lead_id")
+  fromStageId     String?  @map("from_stage_id")
+  toStageId       String   @map("to_stage_id")
+  changedByUserId String   @map("changed_by_user_id")
+  changedAt       DateTime @default(now()) @map("changed_at")
+  reason          String?
+
+  lead      Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromStage LeadStage? @relation("FromStage", fields: [fromStageId], references: [id])
+  toStage   LeadStage  @relation("ToStage", fields: [toStageId], references: [id])
+  changedBy User       @relation("ChangedByUser", fields: [changedByUserId], references: [id])
+
+  @@index([leadId])
+  @@index([changedAt])
+  @@map("lead_stage_history")
+}
+
+model LeadAssignment {
+  id               String    @id @default(cuid())
+  leadId           String    @map("lead_id")
+  assignedUserId   String    @map("assigned_user_id")
+  assignedByUserId String    @map("assigned_by_user_id")
+  assignedAt       DateTime  @default(now()) @map("assigned_at")
+  unassignedAt     DateTime? @map("unassigned_at")
+  reason           String?
+
+  lead       Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedTo User @relation("AssignedToUser", fields: [assignedUserId], references: [id])
+  assignedBy User @relation("AssignedByUser", fields: [assignedByUserId], references: [id])
+
+  @@index([leadId])
+  @@map("lead_assignments")
+}
+
+// ─── Tasks ──────────────────────────────────────────────────────────────────
+
+model Task {
+  id              String      @id @default(cuid())
+  leadId          String?     @map("lead_id")
+  jobId           String?     @map("job_id")
+  title           String
+  description     String?     @db.Text
+  assignedUserId  String?     @map("assigned_user_id")
+  createdByUserId String      @map("created_by_user_id")
+  dueAt           DateTime?   @map("due_at")
+  priority        Priority    @default(MEDIUM)
+  status          TaskStatus  @default(PENDING)
+  completedAt     DateTime?   @map("completed_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  lead       Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  job        Job?  @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  assignedTo User? @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
+  createdBy  User  @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
+
+  @@index([assignedUserId])
+  @@index([dueAt])
+  @@index([status])
+  @@map("tasks")
+}
+
+// ─── Activity Log ───────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id              String       @id @default(cuid())
+  leadId          String       @map("lead_id")
+  activityType    ActivityType @map("activity_type")
+  title           String
+  description     String?      @db.Text
+  metadataJson    Json?        @map("metadata_json")
+  createdByUserId String?      @map("created_by_user_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy User? @relation(fields: [createdByUserId], references: [id])
+
+  @@index([leadId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ─── Communications ─────────────────────────────────────────────────────────
+
+model Communication {
+  id                 String                 @id @default(cuid())
+  leadId             String                 @map("lead_id")
+  communicationType  CommunicationType      @map("communication_type")
+  direction          CommunicationDirection
+  provider           String?
+  externalMessageId  String?                @map("external_message_id")
+  fromValue          String                 @map("from_value")
+  toValue            String                 @map("to_value")
+  subject            String?
+  body               String                 @db.Text
+  status             CommunicationStatus    @default(PENDING)
+  sentAt             DateTime?              @map("sent_at")
+  receivedAt         DateTime?              @map("received_at")
+  createdByUserId    String?                @map("created_by_user_id")
+  createdAt          DateTime               @default(now()) @map("created_at")
+
+  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy User? @relation(fields: [createdByUserId], references: [id])
+
+  @@index([leadId])
+  @@map("communications")
+}
+
+// ─── Permits ────────────────────────────────────────────────────────────────
+
+model Permit {
+  id                String       @id @default(cuid())
+  leadId            String?      @map("lead_id")
+  addressNormalized String       @map("address_normalized")
+  municipality      String
+  sourceSystem      String?      @map("source_system")
+  permitNumber      String?      @map("permit_number")
+  permitType        String?      @map("permit_type")
+  permitDescription String?      @map("permit_description") @db.Text
+  permitStatus      PermitStatus @default(UNKNOWN) @map("permit_status")
+  contractorName    String?      @map("contractor_name")
+  ownerName         String?      @map("owner_name")
+  issueDate         DateTime?    @map("issue_date")
+  finalDate         DateTime?    @map("final_date")
+  lastCheckedAt     DateTime?    @map("last_checked_at")
+  rawDataJson       Json?        @map("raw_data_json")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([addressNormalized])
+  @@map("permits")
+}
+
+model PermitLookupRun {
+  id              String       @id @default(cuid())
+  leadId          String?      @map("lead_id")
+  lookupAddress   String       @map("lookup_address")
+  municipality    String
+  connectorName   String       @map("connector_name")
+  status          LookupStatus @default(PENDING)
+  startedAt       DateTime     @default(now()) @map("started_at")
+  completedAt     DateTime?    @map("completed_at")
+  errorMessage    String?      @map("error_message") @db.Text
+  responseSummary String?      @map("response_summary") @db.Text
+  createdByUserId String?      @map("created_by_user_id")
+
+  lead      Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  createdBy User? @relation(fields: [createdByUserId], references: [id])
+
+  @@index([leadId])
+  @@map("permit_lookup_runs")
+}
+
+// ─── Files ──────────────────────────────────────────────────────────────────
+
+model File {
+  id               String       @id @default(cuid())
+  leadId           String       @map("lead_id")
+  fileName         String       @map("file_name")
+  fileType         String       @map("file_type")
+  storageKey       String       @map("storage_key")
+  fileSize         Int          @map("file_size")
+  category         FileCategory @default(OTHER)
+  uploadedByUserId String       @map("uploaded_by_user_id")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  lead       Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation(fields: [uploadedByUserId], references: [id])
+
+  @@index([leadId])
+  @@map("files")
+}
+
+// ─── Automation (Future) ────────────────────────────────────────────────────
+
+model FollowUpRule {
+  id                String   @id @default(cuid())
+  name              String
+  triggerEvent      String   @map("trigger_event")
+  delayMinutes      Int      @map("delay_minutes")
+  messageTemplateId String?  @map("message_template_id")
+  taskTemplateJson  Json?    @map("task_template_json")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  messageTemplate MessageTemplate? @relation(fields: [messageTemplateId], references: [id])
+
+  @@map("follow_up_rules")
+}
+
+model MessageTemplate {
+  id           String   @id @default(cuid())
+  name         String
+  channel      String
+  templateBody String   @map("template_body") @db.Text
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  followUpRules FollowUpRule[]
+
+  @@map("message_templates")
+}
+
+model DashboardMetricSnapshot {
+  id           String   @id @default(cuid())
+  snapshotDate DateTime @map("snapshot_date") @db.Date
+  metricName   String   @map("metric_name")
+  metricValue  Decimal  @map("metric_value") @db.Decimal(18, 4)
+  metadataJson Json?    @map("metadata_json")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([snapshotDate, metricName])
+  @@map("dashboard_metric_snapshots")
+}
+
+// ─── CRM 2.0: Jobs + Production ─────────────────────────────────────────────
+
+model JobStage {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  stageOrder Int      @map("stage_order")
+  isClosed   Boolean  @default(false) @map("is_closed")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  jobs        Job[]
+  historyFrom JobStageHistory[] @relation("JobFromStage")
+  historyTo   JobStageHistory[] @relation("JobToStage")
+
+  @@map("job_stages")
+}
+
+model Job {
+  id                  String          @id @default(cuid())
+  leadId              String          @map("lead_id")
+  jobNumber           String          @unique @map("job_number")
+  title               String
+  serviceType         String          @map("service_type")
+  contractAmount      Decimal         @map("contract_amount") @db.Decimal(12, 2)
+  depositRequired     Decimal         @default(0) @map("deposit_required") @db.Decimal(12, 2)
+  depositReceived     Decimal         @default(0) @map("deposit_received") @db.Decimal(12, 2)
+  depositReceivedDate DateTime?       @map("deposit_received_date")
+  financingRequired   Boolean         @default(false) @map("financing_required")
+  financingProvider   String?         @map("financing_provider")
+  financingStatus     FinancingStatus @default(NOT_NEEDED) @map("financing_status")
+  financingApprovedDate DateTime?     @map("financing_approved_date")
+  balanceDue          Decimal         @default(0) @map("balance_due") @db.Decimal(12, 2)
+  finalPaymentReceived Boolean        @default(false) @map("final_payment_received")
+  finalPaymentDate    DateTime?       @map("final_payment_date")
+  projectManagerId    String?         @map("project_manager_id")
+  salesRepId          String?         @map("sales_rep_id")
+  currentStageId      String          @map("current_stage_id")
+  nextAction          String?         @map("next_action")
+  targetStartDate     DateTime?       @map("target_start_date")
+  scheduledDate       DateTime?       @map("scheduled_date")
+  completionDate      DateTime?       @map("completion_date")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  lead           Lead      @relation(fields: [leadId], references: [id])
+  currentStage   JobStage  @relation(fields: [currentStageId], references: [id])
+  projectManager User?     @relation("ProjectManager", fields: [projectManagerId], references: [id])
+  salesRep       User?     @relation("SalesRep", fields: [salesRepId], references: [id])
+
+  stageHistory    JobStageHistory[]
+  permits         JobPermit[]
+  crewAssignments CrewAssignment[]
+  inspections     Inspection[]
+  payments        Payment[]
+  tasks           Task[]
+  reviewRequests  ReviewRequest[]
+  referrals       Referral[]
+
+  @@index([leadId])
+  @@index([currentStageId])
+  @@index([salesRepId])
+  @@index([projectManagerId])
+  @@index([scheduledDate])
+  @@map("jobs")
+}
+
+model JobStageHistory {
+  id              String   @id @default(cuid())
+  jobId           String   @map("job_id")
+  fromStageId     String?  @map("from_stage_id")
+  toStageId       String   @map("to_stage_id")
+  changedByUserId String   @map("changed_by_user_id")
+  changedAt       DateTime @default(now()) @map("changed_at")
+  reason          String?
+
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  fromStage JobStage? @relation("JobFromStage", fields: [fromStageId], references: [id])
+  toStage   JobStage  @relation("JobToStage", fields: [toStageId], references: [id])
+  changedBy User      @relation("JobChangedByUser", fields: [changedByUserId], references: [id])
+
+  @@index([jobId])
+  @@map("job_stage_history")
+}
+
+// ─── CRM 2.0: Permits (Job-linked) ─────────────────────────────────────────
+
+model JobPermit {
+  id              String       @id @default(cuid())
+  jobId           String       @map("job_id")
+  municipality    String
+  permitType      String?      @map("permit_type")
+  permitNumber    String?      @map("permit_number")
+  submittedDate   DateTime?    @map("submitted_date")
+  approvedDate    DateTime?    @map("approved_date")
+  status          PermitStatus @default(APPLIED)
+  assignedUserId  String?      @map("assigned_user_id")
+  notes           String?      @db.Text
+  finalPassedDate DateTime?    @map("final_passed_date")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  job        Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("PermitAssignedUser", fields: [assignedUserId], references: [id])
+
+  @@index([jobId])
+  @@index([status])
+  @@map("job_permits")
+}
+
+// ─── CRM 2.0: Crews + Scheduling ───────────────────────────────────────────
+
+model Crew {
+  id        String   @id @default(cuid())
+  name      String
+  tradeType String   @map("trade_type")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  assignments CrewAssignment[]
+
+  @@map("crews")
+}
+
+model CrewAssignment {
+  id           String    @id @default(cuid())
+  jobId        String    @map("job_id")
+  crewId       String    @map("crew_id")
+  assignedDate DateTime  @default(now()) @map("assigned_date")
+  installDate  DateTime? @map("install_date")
+
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  crew Crew @relation(fields: [crewId], references: [id])
+
+  @@index([jobId])
+  @@index([crewId])
+  @@map("crew_assignments")
+}
+
+// ─── CRM 2.0: Inspections ──────────────────────────────────────────────────
+
+model Inspection {
+  id            String           @id @default(cuid())
+  jobId         String           @map("job_id")
+  type          String
+  scheduledDate DateTime?        @map("scheduled_date")
+  result        InspectionResult @default(PENDING)
+  notes         String?          @db.Text
+  inspectorId   String?          @map("inspector_id")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  job       Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  inspector User? @relation(fields: [inspectorId], references: [id])
+
+  @@index([jobId])
+  @@map("inspections")
+}
+
+// ─── CRM 2.0: Payments ─────────────────────────────────────────────────────
+
+model Payment {
+  id           String        @id @default(cuid())
+  jobId        String        @map("job_id")
+  paymentType  PaymentType   @map("payment_type")
+  amount       Decimal       @db.Decimal(12, 2)
+  status       PaymentStatus @default(PENDING)
+  dueDate      DateTime?     @map("due_date")
+  receivedDate DateTime?     @map("received_date")
+  notes        String?       @db.Text
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([status])
+  @@map("payments")
+}
+
+// ─── CRM 2.0: Reviews + Referrals ──────────────────────────────────────────
+
+model ReviewRequest {
+  id          String       @id @default(cuid())
+  jobId       String       @map("job_id")
+  leadId      String       @map("lead_id")
+  platform    String       @default("Google")
+  status      ReviewStatus @default(PENDING)
+  sentAt      DateTime?    @map("sent_at")
+  completedAt DateTime?    @map("completed_at")
+  reviewUrl   String?      @map("review_url")
+  rating      Int?
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([jobId])
+  @@map("review_requests")
+}
+
+model Referral {
+  id              String         @id @default(cuid())
+  jobId           String         @map("job_id")
+  referredByLeadId String        @map("referred_by_lead_id")
+  referredName    String         @map("referred_name")
+  referredPhone   String?        @map("referred_phone")
+  referredEmail   String?        @map("referred_email")
+  status          ReferralStatus @default(NEW)
+  convertedLeadId String?        @map("converted_lead_id")
+  notes           String?        @db.Text
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  job        Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  referredBy Lead @relation(fields: [referredByLeadId], references: [id])
+
+  @@index([jobId])
+  @@map("referrals")
+}
+
+// ─── CRM 2.0: AI Sessions (Future) ─────────────────────────────────────────
+
+model AiSession {
+  id          String   @id @default(cuid())
+  leadId      String?  @map("lead_id")
+  jobId       String?  @map("job_id")
+  channel     String
+  status      String   @default("active")
+  startedAt   DateTime @default(now()) @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+  handedOff   Boolean  @default(false) @map("handed_off")
+  handoffReason String? @map("handoff_reason")
+  messagesJson Json?   @map("messages_json")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([leadId])
+  @@map("ai_sessions")
+}
+
+// ─── Lead Intake: Inbound Email Events ──────────────────────────────────────
+
+model InboundEmailEvent {
+  id                String                @id @default(cuid())
+  provider          String                @default("outlook_graph")
+  externalMessageId String                @unique @map("external_message_id")
+  senderEmail       String                @map("sender_email")
+  subject           String
+  receivedAt        DateTime              @map("received_at")
+  rawBodyText       String?               @map("raw_body_text") @db.Text
+  rawBodyHtml       String?               @map("raw_body_html") @db.Text
+  processingStatus  EmailProcessingStatus @default(PENDING) @map("processing_status")
+  parsedPayloadJson Json?                 @map("parsed_payload_json")
+  parsingError      String?               @map("parsing_error") @db.Text
+  leadId            String?               @map("lead_id")
+  processedAt       DateTime?             @map("processed_at")
+  createdAt         DateTime              @default(now()) @map("created_at")
+
+  @@index([processingStatus])
+  @@index([senderEmail])
+  @@index([receivedAt])
+  @@map("inbound_email_events")
+}
+
+// ─── Notification Events ────────────────────────────────────────────────────
+
+model NotificationEvent {
+  id                String             @id @default(cuid())
+  leadId            String             @map("lead_id")
+  recipientUserId   String             @map("recipient_user_id")
+  channel           NotificationChannel
+  provider          String
+  providerMessageId String?            @map("provider_message_id")
+  recipientAddress  String             @map("recipient_address")
+  messageBody       String             @map("message_body") @db.Text
+  status            NotificationStatus @default(QUEUED)
+  sentAt            DateTime?          @map("sent_at")
+  deliveredAt       DateTime?          @map("delivered_at")
+  failedAt          DateTime?          @map("failed_at")
+  errorMessage      String?            @map("error_message")
+  createdAt         DateTime           @default(now()) @map("created_at")
+
+  @@index([leadId])
+  @@index([recipientUserId])
+  @@index([status])
+  @@map("notification_events")
+}
+
+// ─── Tracked Action Links ───────────────────────────────────────────────────
+
+model TrackedActionLink {
+  id         String            @id @default(cuid())
+  token      String            @unique
+  leadId     String            @map("lead_id")
+  userId     String            @map("user_id")
+  actionType TrackedActionType @map("action_type")
+  expiresAt  DateTime          @map("expires_at")
+  clickedAt  DateTime?         @map("clicked_at")
+  ipAddress  String?           @map("ip_address")
+  userAgent  String?           @map("user_agent")
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  @@index([token])
+  @@index([leadId])
+  @@map("tracked_action_links")
+}
+
+// ─── Lead Response Metrics ──────────────────────────────────────────────────
+
+model LeadResponseMetric {
+  id                    String    @id @default(cuid())
+  leadId                String    @unique @map("lead_id")
+  emailReceivedAt       DateTime? @map("email_received_at")
+  leadCreatedAt         DateTime? @map("lead_created_at")
+  smsSentAt             DateTime? @map("sms_sent_at")
+  firstOpenAt           DateTime? @map("first_open_at")
+  acknowledgedAt        DateTime? @map("acknowledged_at")
+  startCallAt           DateTime? @map("start_call_at")
+  firstAttemptAt        DateTime? @map("first_attempt_at")
+  firstContactedAt      DateTime? @map("first_contacted_at")
+  responseTimeSeconds   Int?      @map("response_time_seconds")
+  assignedUserId        String?   @map("assigned_user_id")
+  source                String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@index([assignedUserId])
+  @@index([source])
+  @@map("lead_response_metrics")
+}
+
+// ─── Manager Alert Settings ─────────────────────────────────────────────────
+
+model ManagerAlertSettings {
+  id                    String  @id @default(cuid())
+  userId                String  @unique @map("user_id")
+  smsEnabled            Boolean @default(true) @map("sms_enabled")
+  smsPhoneNumber        String? @map("sms_phone_number")
+  emailEnabled          Boolean @default(true) @map("email_enabled")
+  alertEmail            String? @map("alert_email")
+  slaThresholdMinutes   Int     @default(5) @map("sla_threshold_minutes")
+  escalationEnabled     Boolean @default(false) @map("escalation_enabled")
+  escalationAfterMinutes Int    @default(15) @map("escalation_after_minutes")
+  escalationContactId   String? @map("escalation_contact_id")
+
+  @@map("manager_alert_settings")
+}
+
+// ─── Intake Settings ────────────────────────────────────────────────────────
+
+model IntakeSettings {
+  id                  String   @id @default(cuid())
+  name                String
+  provider            String   @default("outlook_graph")
+  mailboxAddress      String?  @map("mailbox_address")
+  allowedSenders      Json?    @map("allowed_senders")
+  allowedSubjects     Json?    @map("allowed_subjects")
+  processedFolderName String?  @map("processed_folder_name")
+  pollingIntervalSec  Int      @default(60) @map("polling_interval_sec")
+  sourceMapping       String?  @map("source_mapping")
+  isActive            Boolean  @default(true) @map("is_active")
+  twilioFromNumber    String?  @map("twilio_from_number")
+  twilioEnabled       Boolean  @default(false) @map("twilio_enabled")
+  defaultAssignUserId String?  @map("default_assign_user_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("intake_settings")
+}
