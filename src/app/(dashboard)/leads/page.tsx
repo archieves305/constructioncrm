@@ -1,11 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
-import { StageBadge } from "@/components/shared/stage-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,10 +29,28 @@ import { format } from "date-fns";
 
 export default function LeadsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [stageId, setStageId] = useState("");
   const [sourceId, setSourceId] = useState("");
   const [page, setPage] = useState(1);
+
+  const changeStage = useMutation({
+    mutationFn: ({ leadId, stageId }: { leadId: string; stageId: string }) =>
+      fetch(`/api/leads/${leadId}/stage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stageId }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed to update stage");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      toast.success("Stage updated");
+    },
+    onError: () => toast.error("Failed to update stage"),
+  });
 
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -159,6 +177,7 @@ export default function LeadsPage() {
                   propertyAddress1: string;
                   city: string;
                   state: string;
+                  currentStageId: string;
                   currentStage: { name: string };
                   source: { name: string } | null;
                   assignedUser: { firstName: string; lastName: string } | null;
@@ -194,8 +213,29 @@ export default function LeadsPage() {
                       <TableCell className="max-w-[200px] truncate">
                         {lead.propertyAddress1}, {lead.city}
                       </TableCell>
-                      <TableCell>
-                        <StageBadge stage={lead.currentStage.name} />
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Select
+                          value={lead.currentStageId}
+                          onValueChange={(v: string | null) => {
+                            if (v && v !== lead.currentStageId) {
+                              changeStage.mutate({
+                                leadId: lead.id,
+                                stageId: v,
+                              });
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-7 w-[160px] text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {stages?.map((s: { id: string; name: string }) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>{lead.source?.name || "—"}</TableCell>
                       <TableCell>

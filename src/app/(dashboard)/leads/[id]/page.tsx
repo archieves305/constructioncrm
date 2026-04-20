@@ -35,6 +35,7 @@ import {
   MessageSquare,
   ShieldCheck,
   StickyNote,
+  Pencil,
 } from "lucide-react";
 
 export default function LeadDetailPage() {
@@ -189,6 +190,13 @@ export default function LeadDetailPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/leads/${id}/edit`)}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
           <Select
             value={lead.currentStage.id}
             onValueChange={(v: string | null) => v && changeStage.mutate(v)}
