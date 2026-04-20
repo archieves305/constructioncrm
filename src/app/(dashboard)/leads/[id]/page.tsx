@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { LeadFiles } from "@/components/files/lead-files";
 import {
   ArrowLeft,
   Phone,
@@ -202,7 +203,12 @@ export default function LeadDetailPage() {
             onValueChange={(v: string | null) => v && changeStage.mutate(v)}
           >
             <SelectTrigger className="w-[200px]">
-              <SelectValue />
+              <SelectValue>
+                {(v: string) =>
+                  stages?.find((s: { id: string; name: string }) => s.id === v)?.name ??
+                  lead.currentStage.name
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {stages?.map((s: { id: string; name: string }) => (
@@ -620,9 +626,7 @@ export default function LeadDetailPage() {
             </TabsContent>
 
             <TabsContent value="files">
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                File uploads coming soon
-              </p>
+              <LeadFiles leadId={id} />
             </TabsContent>
 
             <TabsContent value="history" className="space-y-2">

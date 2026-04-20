@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "./options";
-import type { RoleName } from "@/generated/prisma";
+import type { RoleName } from "@/generated/prisma/client";
 import { NextResponse } from "next/server";
 
 export async function getSession() {

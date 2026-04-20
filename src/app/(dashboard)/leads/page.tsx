@@ -108,7 +108,14 @@ export default function LeadsPage() {
           }}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Stages" />
+            <SelectValue placeholder="All Stages">
+              {(v: string) =>
+                !v
+                  ? "All Stages"
+                  : stages?.find((s: { id: string; name: string }) => s.id === v)?.name ??
+                    "All Stages"
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Stages</SelectItem>
@@ -127,7 +134,14 @@ export default function LeadsPage() {
           }}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Sources" />
+            <SelectValue placeholder="All Sources">
+              {(v: string) =>
+                !v
+                  ? "All Sources"
+                  : sources?.find((s: { id: string; name: string }) => s.id === v)?.name ??
+                    "All Sources"
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Sources</SelectItem>
@@ -226,7 +240,13 @@ export default function LeadsPage() {
                           }}
                         >
                           <SelectTrigger className="h-7 w-[160px] text-xs">
-                            <SelectValue />
+                            <SelectValue>
+                              {(v: string) =>
+                                stages?.find(
+                                  (s: { id: string; name: string }) => s.id === v,
+                                )?.name ?? lead.currentStage.name
+                              }
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {stages?.map((s: { id: string; name: string }) => (

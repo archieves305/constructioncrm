@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { randomBytes } from "crypto";
-import type { TrackedActionType } from "@/generated/prisma";
+import type { TrackedActionType } from "@/generated/prisma/client";
 import { env } from "@/lib/env";
 
 const BASE_URL = env.NEXTAUTH_URL;

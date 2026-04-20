@@ -31,6 +31,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["richards-mac-studio", "richards-mac-studio:4000"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,7 +51,7 @@ function LoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Construction CRM</CardTitle>
+          <CardTitle className="text-2xl font-bold">Knu Construction</CardTitle>
           <p className="text-muted-foreground text-sm">Sign in to your account</p>
         </CardHeader>
         <CardContent>
@@ -84,6 +85,12 @@ function LoginForm() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </Button>
+            <Link
+              href="/forgot-password"
+              className="block text-center text-sm text-blue-600 hover:underline"
+            >
+              Forgot password?
+            </Link>
           </form>
         </CardContent>
       </Card>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { emitLeadEvent } from "@/lib/follow-ups/events";
 
 export async function POST(
   request: NextRequest,
@@ -59,6 +60,10 @@ export async function POST(
       createdByUserId: session.user.id,
     },
   });
+
+  await emitLeadEvent("LEAD_ASSIGNED", id).catch((e) =>
+    console.error("emitLeadEvent LEAD_ASSIGNED failed", e),
+  );
 
   return NextResponse.json(updated);
 }

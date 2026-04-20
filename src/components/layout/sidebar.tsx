@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import type { RoleName } from "@/generated/prisma";
+import type { RoleName } from "@/generated/prisma/client";
+import { NotificationBell } from "./notification-bell";
 import {
   LayoutDashboard,
   Users,
@@ -22,6 +23,7 @@ import {
   Shield,
   Calendar,
   Hammer,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -57,6 +59,18 @@ const navItems: NavItem[] = [
     roles: ["ADMIN", "MANAGER"],
   },
   {
+    href: "/admin/templates",
+    label: "Templates",
+    icon: MessageSquare,
+    roles: ["ADMIN", "MANAGER"],
+  },
+  {
+    href: "/admin/follow-up-rules",
+    label: "Follow-ups",
+    icon: Zap,
+    roles: ["ADMIN", "MANAGER"],
+  },
+  {
     href: "/admin/settings",
     label: "Settings",
     icon: Settings,
@@ -83,7 +97,7 @@ export function Sidebar({ user }: SidebarProps) {
     <aside className="flex h-screen w-64 flex-col border-r bg-white">
       <div className="flex items-center gap-2 border-b px-6 py-4">
         <HardHat className="h-6 w-6 text-blue-600" />
-        <span className="text-lg font-bold">BuildFlow CRM</span>
+        <span className="text-lg font-bold">Knu Construction</span>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
@@ -110,6 +124,10 @@ export function Sidebar({ user }: SidebarProps) {
           );
         })}
       </nav>
+
+      <div className="border-t px-3 py-3">
+        <NotificationBell />
+      </div>
 
       <div className="border-t px-3 py-4">
         <div className="mb-2 px-3 text-sm">

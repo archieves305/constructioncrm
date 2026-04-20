@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/helpers";
 import { unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createLeadSchema } from "@/lib/validators/lead";
-import { Prisma } from "@/generated/prisma";
+import { Prisma } from "@/generated/prisma/client";
+import { emitLeadEvent } from "@/lib/follow-ups/events";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -163,6 +164,10 @@ export async function POST(request: NextRequest) {
       changedByUserId: session.user.id,
     },
   });
+
+  await emitLeadEvent("LEAD_CREATED", lead.id).catch((e) =>
+    console.error("emitLeadEvent LEAD_CREATED failed", e),
+  );
 
   return NextResponse.json(
     { lead, duplicates: duplicates.length > 0 ? duplicates : undefined },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createJobFromLead } from "@/lib/services/jobs";
+import { emitLeadEvent } from "@/lib/follow-ups/events";
 
 export async function POST(
   request: NextRequest,
@@ -54,6 +55,10 @@ export async function POST(
       },
     }),
   ]);
+
+  await emitLeadEvent("LEAD_STAGE_CHANGED", id).catch((e) =>
+    console.error("emitLeadEvent LEAD_STAGE_CHANGED failed", e),
+  );
 
   // Auto-create job when lead is Won
   let job = null;

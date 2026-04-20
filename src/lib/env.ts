@@ -16,6 +16,11 @@ const schema = z.object({
   OUTLOOK_CLIENT_ID: z.string().optional(),
   OUTLOOK_CLIENT_SECRET: z.string().optional(),
   OUTLOOK_MAILBOX_ADDRESS: z.string().email().optional(),
+
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().email().optional(),
+
+  CRON_SECRET: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -45,9 +50,13 @@ const requiredInProd: RequiredGroup[] = [
       "OUTLOOK_MAILBOX_ADDRESS",
     ],
   },
+  {
+    name: "Resend (email)",
+    keys: ["RESEND_API_KEY", "EMAIL_FROM"],
+  },
 ];
 
-export function assertProviderEnv(name: "Twilio (SMS)" | "Outlook (intake)") {
+export function assertProviderEnv(name: "Twilio (SMS)" | "Outlook (intake)" | "Resend (email)") {
   const group = requiredInProd.find((g) => g.name === name);
   if (!group) return;
   const missing = group.keys.filter((k) => !env[k]);

@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BuildFlow CRM",
+  title: "Knu Construction",
   description: "Construction Company CRM & Lead Intelligence Platform",
 };
 

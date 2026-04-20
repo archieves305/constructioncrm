@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { TwilioSmsProvider } from "./twilio-provider";
 import { createTrackedLinks } from "@/lib/services/tracking/tracked-links";
 import { env } from "@/lib/env";
+import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 
 const twilio = new TwilioSmsProvider();
 
@@ -102,11 +103,33 @@ export async function sendLeadAlertSms(leadId: string, userId: string) {
       },
     });
 
-    // Fallback: log the failure, could trigger email fallback here
     console.error(`SMS alert failed for lead ${leadId}:`, err);
 
-    // TODO: Email fallback
-    // await sendEmailFallback(leadId, userId);
+    if (user?.email && isEmailConfigured()) {
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: `🔔 New Lead: ${lead.fullName} (SMS failed)`,
+          html: `<p>SMS alert to ${phone} failed — emailing you instead.</p>
+<pre style="font-family:monospace">${messageBody.replace(/</g, "&lt;")}</pre>`,
+          text: messageBody,
+        });
+        await prisma.notificationEvent.create({
+          data: {
+            leadId,
+            recipientUserId: userId,
+            channel: "EMAIL",
+            provider: "resend",
+            recipientAddress: user.email,
+            messageBody,
+            status: "SENT",
+            sentAt: new Date(),
+          },
+        });
+      } catch (emailErr) {
+        console.error(`Email fallback also failed for lead ${leadId}:`, emailErr);
+      }
+    }
 
     throw err;
   }

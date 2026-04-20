@@ -236,8 +236,25 @@ model User {
   jobStageChanges   JobStageHistory[]  @relation("JobChangedByUser")
   assignedPermits   JobPermit[]        @relation("PermitAssignedUser")
   inspections       Inspection[]
+  passwordResetTokens PasswordResetToken[]
+  notifications     NotificationEvent[]
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 // ─── Lead Management ────────────────────────────────────────────────────────
@@ -345,6 +362,8 @@ model Lead {
   jobs           Job[]
   reviewRequests ReviewRequest[]
   referrals      Referral[]
+  notifications  NotificationEvent[]
+  followUps      FollowUpExecution[]
 
   @@index([primaryPhone])
   @@index([email])
@@ -561,9 +580,38 @@ model FollowUpRule {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  messageTemplate MessageTemplate? @relation(fields: [messageTemplateId], references: [id])
+  messageTemplate MessageTemplate?     @relation(fields: [messageTemplateId], references: [id])
+  executions      FollowUpExecution[]
 
+  @@index([triggerEvent, isActive])
   @@map("follow_up_rules")
+}
+
+enum FollowUpExecutionStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+model FollowUpExecution {
+  id            String                  @id @default(cuid())
+  ruleId        String                  @map("rule_id")
+  leadId        String                  @map("lead_id")
+  scheduledAt   DateTime                @map("scheduled_at")
+  executedAt    DateTime?               @map("executed_at")
+  status        FollowUpExecutionStatus @default(PENDING)
+  errorMessage  String?                 @map("error_message")
+  attemptCount  Int                     @default(0) @map("attempt_count")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+
+  rule FollowUpRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  lead Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@index([leadId])
+  @@map("follow_up_executions")
 }
 
 model MessageTemplate {
@@ -871,11 +919,16 @@ model NotificationEvent {
   deliveredAt       DateTime?          @map("delivered_at")
   failedAt          DateTime?          @map("failed_at")
   errorMessage      String?            @map("error_message")
+  readAt            DateTime?          @map("read_at")
   createdAt         DateTime           @default(now()) @map("created_at")
+
+  lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  recipient User @relation(fields: [recipientUserId], references: [id])
 
   @@index([leadId])
   @@index([recipientUserId])
   @@index([status])
+  @@index([recipientUserId, readAt])
   @@map("notification_events")
 }
 
