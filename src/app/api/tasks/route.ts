@@ -11,21 +11,30 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const assignedUserId = searchParams.get("assignedUserId") || undefined;
   const status = searchParams.get("status") || undefined;
+  const priority = searchParams.get("priority") || undefined;
   const leadId = searchParams.get("leadId") || undefined;
+  const jobId = searchParams.get("jobId") || undefined;
   const overdue = searchParams.get("overdue") === "true";
+  const includeCompleted = searchParams.get("includeCompleted") === "true";
 
   const where: Prisma.TaskWhereInput = {};
 
   if (assignedUserId) where.assignedUserId = assignedUserId;
-  if (status) where.status = status as Prisma.EnumTaskStatusFilter["equals"];
+  if (priority) where.priority = priority as Prisma.EnumPriorityFilter["equals"];
   if (leadId) where.leadId = leadId;
+  if (jobId) where.jobId = jobId;
+
+  if (status) {
+    where.status = status as Prisma.EnumTaskStatusFilter["equals"];
+  } else if (!includeCompleted && !overdue) {
+    where.status = { in: ["PENDING", "IN_PROGRESS"] };
+  }
 
   if (overdue) {
     where.dueAt = { lt: new Date() };
     where.status = { in: ["PENDING", "IN_PROGRESS"] };
   }
 
-  // Sales reps see only their tasks
   if (session.user.role === "SALES_REP") {
     where.assignedUserId = session.user.id;
   }
@@ -34,6 +43,7 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       lead: { select: { id: true, fullName: true } },
+      job: { select: { id: true, jobNumber: true, title: true } },
       assignedTo: { select: { id: true, firstName: true, lastName: true } },
       createdBy: { select: { firstName: true, lastName: true } },
     },

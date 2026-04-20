@@ -75,6 +75,16 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PaymentMethod {
+  CHECK
+  CARD
+  ACH
+  CASH
+  FINANCING
+  WIRE
+  OTHER
+}
+
 enum FinancingStatus {
   NOT_NEEDED
   PENDING_APPLICATION
@@ -238,6 +248,9 @@ model User {
   inspections       Inspection[]
   passwordResetTokens PasswordResetToken[]
   notifications     NotificationEvent[]
+  expensesCreated   JobExpense[]
+  receiptsUploaded  IncomingReceipt[]
+  jobTaskTemplatesDefault JobTaskTemplate[]
 
   @@map("users")
 }
@@ -650,11 +663,31 @@ model JobStage {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  jobs        Job[]
-  historyFrom JobStageHistory[] @relation("JobFromStage")
-  historyTo   JobStageHistory[] @relation("JobToStage")
+  jobs          Job[]
+  historyFrom   JobStageHistory[]  @relation("JobFromStage")
+  historyTo     JobStageHistory[]  @relation("JobToStage")
+  taskTemplates JobTaskTemplate[]
 
   @@map("job_stages")
+}
+
+model JobTaskTemplate {
+  id                     String   @id @default(cuid())
+  stageId                String   @map("stage_id")
+  title                  String
+  description            String?  @db.Text
+  priority               Priority @default(MEDIUM)
+  relativeDueInDays      Int?     @map("relative_due_in_days")
+  defaultAssignedUserId  String?  @map("default_assigned_user_id")
+  isActive               Boolean  @default(true) @map("is_active")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  stage            JobStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  defaultAssignee  User?    @relation(fields: [defaultAssignedUserId], references: [id])
+
+  @@index([stageId, isActive])
+  @@map("job_task_templates")
 }
 
 model Job {
@@ -694,6 +727,9 @@ model Job {
   crewAssignments CrewAssignment[]
   inspections     Inspection[]
   payments        Payment[]
+  invoices        Invoice[]
+  expenses        JobExpense[]
+  incomingReceipts IncomingReceipt[]
   tasks           Task[]
   reviewRequests  ReviewRequest[]
   referrals       Referral[]
@@ -754,7 +790,10 @@ model JobPermit {
 model Crew {
   id        String   @id @default(cuid())
   name      String
-  tradeType String   @map("trade_type")
+  phone     String?
+  email     String?
+  trades    String[] @default([])
+  counties  String[] @default([])
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -801,17 +840,119 @@ model Inspection {
 
 // ─── CRM 2.0: Payments ─────────────────────────────────────────────────────
 
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  VOID
+}
+
+enum IncomingReceiptStatus {
+  UNMATCHED
+  MATCHED
+  DISMISSED
+}
+
+model IncomingReceipt {
+  id               String                @id @default(cuid())
+  vendor           String
+  poText           String?               @map("po_text")
+  purchaseDate     DateTime              @map("purchase_date")
+  amount           Decimal               @db.Decimal(12, 2)
+  reference        String?
+  notes            String?               @db.Text
+  status           IncomingReceiptStatus @default(UNMATCHED)
+  matchedJobId     String?               @map("matched_job_id")
+  jobExpenseId     String?               @map("job_expense_id")
+  uploadedByUserId String                @map("uploaded_by_user_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  matchedJob Job?        @relation(fields: [matchedJobId], references: [id])
+  jobExpense JobExpense? @relation(fields: [jobExpenseId], references: [id])
+  uploadedBy User        @relation(fields: [uploadedByUserId], references: [id])
+
+  @@index([status])
+  @@index([matchedJobId])
+  @@map("incoming_receipts")
+}
+
+model PaymentSource {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("payment_sources")
+}
+
+enum JobExpenseType {
+  MATERIAL
+  LABOR
+  EQUIPMENT
+  PERMIT_FEE
+  SUBCONTRACTOR
+  CHANGE_ORDER
+  OTHER
+}
+
+model JobExpense {
+  id              String         @id @default(cuid())
+  jobId           String         @map("job_id")
+  type            JobExpenseType @default(OTHER)
+  vendor          String?
+  description     String?        @db.Text
+  amount          Decimal        @db.Decimal(12, 2)
+  incurredDate    DateTime       @default(now()) @map("incurred_date")
+  paidMethod      PaymentMethod? @map("paid_method")
+  paidFrom        String?        @map("paid_from")
+  billable        Boolean        @default(false)
+  createdByUserId String         @map("created_by_user_id")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  job              Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdBy        User              @relation(fields: [createdByUserId], references: [id])
+  incomingReceipts IncomingReceipt[]
+
+  @@index([jobId])
+  @@index([type])
+  @@map("job_expenses")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  jobId         String        @map("job_id")
+  invoiceNumber String        @unique @map("invoice_number")
+  issueDate     DateTime      @default(now()) @map("issue_date")
+  dueDate       DateTime?     @map("due_date")
+  amount        Decimal       @db.Decimal(12, 2)
+  status        InvoiceStatus @default(DRAFT)
+  notes         String?       @db.Text
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([status])
+  @@map("invoices")
+}
+
 model Payment {
-  id           String        @id @default(cuid())
-  jobId        String        @map("job_id")
-  paymentType  PaymentType   @map("payment_type")
-  amount       Decimal       @db.Decimal(12, 2)
-  status       PaymentStatus @default(PENDING)
-  dueDate      DateTime?     @map("due_date")
-  receivedDate DateTime?     @map("received_date")
-  notes        String?       @db.Text
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  id           String         @id @default(cuid())
+  jobId        String         @map("job_id")
+  paymentType  PaymentType    @map("payment_type")
+  method       PaymentMethod?
+  reference    String?
+  amount       Decimal        @db.Decimal(12, 2)
+  status       PaymentStatus  @default(PENDING)
+  dueDate      DateTime?      @map("due_date")
+  receivedDate DateTime?      @map("received_date")
+  notes        String?        @db.Text
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
 
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
@@ -850,6 +991,8 @@ model Referral {
   referredEmail   String?        @map("referred_email")
   status          ReferralStatus @default(NEW)
   convertedLeadId String?        @map("converted_lead_id")
+  commissionAmount Decimal?      @map("commission_amount") @db.Decimal(12, 2)
+  commissionPaidAt DateTime?     @map("commission_paid_at")
   notes           String?        @db.Text
   createdAt       DateTime       @default(now()) @map("created_at")
 

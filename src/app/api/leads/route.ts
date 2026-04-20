@@ -22,8 +22,13 @@ export async function GET(request: NextRequest) {
   const county = searchParams.get("county") || undefined;
   const dateFrom = searchParams.get("dateFrom") || undefined;
   const dateTo = searchParams.get("dateTo") || undefined;
+  const includeClosed = searchParams.get("includeClosed") === "true";
 
   const where: Prisma.LeadWhereInput = {};
+
+  if (!includeClosed && !stageId) {
+    where.currentStage = { isClosed: false };
+  }
 
   if (search) {
     where.OR = [

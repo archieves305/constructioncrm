@@ -17,7 +17,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { AlertTriangle, Shield } from "lucide-react";
+import { AlertTriangle, Shield, Download } from "lucide-react";
+import { toCsv, downloadCsv } from "@/lib/csv";
 
 const STATUS_COLORS: Record<string, string> = {
   APPLIED: "bg-blue-100 text-blue-800",
@@ -81,7 +82,49 @@ export default function PermitCenterPage() {
 
   return (
     <div>
-      <PageHeader title="Permit Center" description={`${allPermits.length} permits tracked`} />
+      <PageHeader
+        title="Permit Center"
+        description={`${allPermits.length} permits tracked`}
+        actions={
+          <Button
+            variant="outline"
+            onClick={() => {
+              const rows = allPermits.map((p) => ({
+                jobNumber: p.job.jobNumber,
+                customer: p.job.lead.fullName,
+                address: `${p.job.lead.propertyAddress1}, ${p.job.lead.city}`,
+                municipality: p.municipality,
+                permitType: p.permitType ?? "",
+                permitNumber: p.permitNumber ?? "",
+                status: p.status,
+                submittedDate: p.submittedDate ?? "",
+                approvedDate: p.approvedDate ?? "",
+                agingDays: p.agingDays ?? "",
+                assignedTo: p.assignedTo
+                  ? `${p.assignedTo.firstName} ${p.assignedTo.lastName}`
+                  : "",
+              }));
+              const csv = toCsv(rows, [
+                { key: "jobNumber", header: "Job #" },
+                { key: "customer", header: "Customer" },
+                { key: "address", header: "Address" },
+                { key: "municipality", header: "Municipality" },
+                { key: "permitType", header: "Type" },
+                { key: "permitNumber", header: "Permit #" },
+                { key: "status", header: "Status" },
+                { key: "submittedDate", header: "Submitted" },
+                { key: "approvedDate", header: "Approved" },
+                { key: "agingDays", header: "Aging (days)" },
+                { key: "assignedTo", header: "Assigned To" },
+              ]);
+              downloadCsv(`permits-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+            }}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+        }
+      />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>

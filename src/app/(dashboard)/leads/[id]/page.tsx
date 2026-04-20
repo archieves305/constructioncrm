@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { LeadFiles } from "@/components/files/lead-files";
+import { FilesPanel } from "@/components/files/files-panel";
 import {
   ArrowLeft,
   Phone,
@@ -626,7 +626,7 @@ export default function LeadDetailPage() {
             </TabsContent>
 
             <TabsContent value="files">
-              <LeadFiles leadId={id} />
+              <FilesPanel leadId={id} />
             </TabsContent>
 
             <TabsContent value="history" className="space-y-2">

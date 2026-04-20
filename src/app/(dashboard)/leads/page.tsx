@@ -24,7 +24,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, AlertTriangle } from "lucide-react";
+import { Plus, Search, AlertTriangle, Download } from "lucide-react";
+import { toCsv, downloadCsv } from "@/lib/csv";
 import { format } from "date-fns";
 
 export default function LeadsPage() {
@@ -33,6 +34,7 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [stageId, setStageId] = useState("");
   const [sourceId, setSourceId] = useState("");
+  const [includeClosed, setIncludeClosed] = useState(false);
   const [page, setPage] = useState(1);
 
   const changeStage = useMutation({
@@ -56,10 +58,11 @@ export default function LeadsPage() {
   if (search) params.set("search", search);
   if (stageId) params.set("stageId", stageId);
   if (sourceId) params.set("sourceId", sourceId);
+  if (includeClosed) params.set("includeClosed", "true");
   params.set("page", String(page));
 
   const { data, isLoading } = useQuery({
-    queryKey: ["leads", search, stageId, sourceId, page],
+    queryKey: ["leads", search, stageId, sourceId, includeClosed, page],
     queryFn: () =>
       fetch(`/api/leads?${params.toString()}`).then((r) => r.json()),
   });
@@ -80,10 +83,59 @@ export default function LeadsPage() {
         title="Leads"
         description={`${data?.total || 0} total leads`}
         actions={
-          <Button onClick={() => router.push("/leads/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Lead
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const exportParams = new URLSearchParams(params);
+                exportParams.set("pageSize", "5000");
+                exportParams.delete("page");
+                const res = await fetch(`/api/leads?${exportParams.toString()}`);
+                const body = await res.json();
+                const rows = (body.data || []).map((l: {
+                  fullName: string;
+                  primaryPhone: string;
+                  email: string | null;
+                  propertyAddress1: string;
+                  city: string;
+                  zipCode: string;
+                  currentStage: { name: string };
+                  source: { name: string } | null;
+                  assignedUser: { firstName: string; lastName: string } | null;
+                  createdAt: string;
+                }) => ({
+                  fullName: l.fullName,
+                  phone: l.primaryPhone,
+                  email: l.email ?? "",
+                  address: `${l.propertyAddress1}, ${l.city} ${l.zipCode}`,
+                  stage: l.currentStage.name,
+                  source: l.source?.name ?? "",
+                  assignedTo: l.assignedUser
+                    ? `${l.assignedUser.firstName} ${l.assignedUser.lastName}`
+                    : "",
+                  createdAt: l.createdAt,
+                }));
+                const csv = toCsv(rows, [
+                  { key: "fullName", header: "Name" },
+                  { key: "phone", header: "Phone" },
+                  { key: "email", header: "Email" },
+                  { key: "address", header: "Address" },
+                  { key: "stage", header: "Stage" },
+                  { key: "source", header: "Source" },
+                  { key: "assignedTo", header: "Assigned To" },
+                  { key: "createdAt", header: "Created" },
+                ]);
+                downloadCsv(`leads-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+            <Button onClick={() => router.push("/leads/new")}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Lead
+            </Button>
+          </>
         }
       />
 
@@ -152,6 +204,17 @@ export default function LeadsPage() {
             ))}
           </SelectContent>
         </Select>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={includeClosed}
+            onChange={(e) => {
+              setIncludeClosed(e.target.checked);
+              setPage(1);
+            }}
+          />
+          Show won/lost
+        </label>
       </div>
 
       <div className="rounded-md border bg-white">

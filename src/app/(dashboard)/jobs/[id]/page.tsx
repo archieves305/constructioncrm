@@ -20,6 +20,9 @@ import {
   ArrowLeft, DollarSign, MapPin, User, Calendar, Hammer, Shield, ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
+import { FilesPanel } from "@/components/files/files-panel";
+import { InvoicesPanel } from "@/components/jobs/invoices-panel";
+import { ExpensesPanel } from "@/components/jobs/expenses-panel";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -53,9 +56,16 @@ export default function JobDetailPage() {
 
   const [payAmount, setPayAmount] = useState("");
   const [payType, setPayType] = useState("DEPOSIT");
+  const [payMethod, setPayMethod] = useState("CHECK");
+  const [payReference, setPayReference] = useState("");
 
   const recordPayment = useMutation({
-    mutationFn: (data: { paymentType: string; amount: number }) =>
+    mutationFn: (data: {
+      paymentType: string;
+      amount: number;
+      method: string;
+      reference: string;
+    }) =>
       fetch(`/api/jobs/${id}/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -64,6 +74,7 @@ export default function JobDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["job", id] });
       setPayAmount("");
+      setPayReference("");
       toast.success("Payment recorded");
     },
   });
@@ -118,7 +129,14 @@ export default function JobDetailPage() {
             </span>
           )}
           <Select value={job.currentStage.id} onValueChange={(v: string | null) => v && changeStage.mutate(v)}>
-            <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue>
+                {(v: string) =>
+                  stages?.find((s: { id: string; name: string }) => s.id === v)?.name ??
+                  job.currentStage.name
+                }
+              </SelectValue>
+            </SelectTrigger>
             <SelectContent>
               {stages?.map((s: { id: string; name: string }) => (
                 <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -220,19 +238,24 @@ export default function JobDetailPage() {
           <Tabs defaultValue="payments">
             <TabsList>
               <TabsTrigger value="payments">Payments ({job.payments?.length || 0})</TabsTrigger>
+              <TabsTrigger value="invoices">Invoices</TabsTrigger>
+              <TabsTrigger value="expenses">Expenses</TabsTrigger>
               <TabsTrigger value="permits">Permits ({job.permits?.length || 0})</TabsTrigger>
               <TabsTrigger value="crews">Crews</TabsTrigger>
               <TabsTrigger value="inspections">Inspections</TabsTrigger>
               <TabsTrigger value="tasks">Tasks ({job.tasks?.length || 0})</TabsTrigger>
+              <TabsTrigger value="files">Files</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
             <TabsContent value="payments" className="space-y-4">
               <Card>
-                <CardContent className="pt-4">
-                  <div className="flex gap-2">
+                <CardContent className="space-y-2 pt-4">
+                  <div className="flex flex-wrap gap-2">
                     <Select value={payType} onValueChange={(v: string | null) => setPayType(v ?? "DEPOSIT")}>
-                      <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue>{(v: string) => v?.replace("_", " ") || "Type"}</SelectValue>
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="DEPOSIT">Deposit</SelectItem>
                         <SelectItem value="PROGRESS">Progress</SelectItem>
@@ -240,35 +263,89 @@ export default function JobDetailPage() {
                         <SelectItem value="FINANCING_FUNDING">Financing</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Select value={payMethod} onValueChange={(v: string | null) => setPayMethod(v ?? "CHECK")}>
+                      <SelectTrigger className="w-[130px]">
+                        <SelectValue>{(v: string) => v || "Method"}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CHECK">Check</SelectItem>
+                        <SelectItem value="CARD">Card</SelectItem>
+                        <SelectItem value="ACH">ACH</SelectItem>
+                        <SelectItem value="CASH">Cash</SelectItem>
+                        <SelectItem value="FINANCING">Financing</SelectItem>
+                        <SelectItem value="WIRE">Wire</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Input
                       type="number" placeholder="Amount" value={payAmount}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayAmount(e.target.value)}
-                      className="w-[140px]"
+                      className="w-[130px]"
+                    />
+                    <Input
+                      placeholder="Check # / ref."
+                      value={payReference}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayReference(e.target.value)}
+                      className="w-[160px]"
                     />
                     <Button size="sm" disabled={!payAmount || recordPayment.isPending}
-                      onClick={() => recordPayment.mutate({ paymentType: payType, amount: Number(payAmount) })}>
+                      onClick={() => recordPayment.mutate({
+                        paymentType: payType,
+                        amount: Number(payAmount),
+                        method: payMethod,
+                        reference: payReference,
+                      })}>
                       Record Payment
                     </Button>
                   </div>
                 </CardContent>
               </Card>
               <div className="space-y-2">
-                {job.payments?.map((p: { id: string; paymentType: string; amount: string; status: string; receivedDate: string | null; notes: string | null }) => (
+                {job.payments?.map((p: { id: string; paymentType: string; method: string | null; reference: string | null; amount: string; status: string; receivedDate: string | null; notes: string | null }) => (
                   <Card key={p.id}>
-                    <CardContent className="flex items-center justify-between py-3 px-4">
-                      <div>
-                        <Badge variant="outline" className="text-xs mr-2">{p.paymentType}</Badge>
-                        <span className="font-medium">${Number(p.amount).toLocaleString()}</span>
-                        {p.notes && <span className="text-xs text-muted-foreground ml-2">— {p.notes}</span>}
+                    <CardContent className="flex items-center justify-between gap-3 py-3 px-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className="text-xs">{p.paymentType}</Badge>
+                          {p.method && (
+                            <Badge variant="secondary" className="text-xs">{p.method}</Badge>
+                          )}
+                          <span className="font-medium">${Number(p.amount).toLocaleString()}</span>
+                          {p.reference && (
+                            <span className="text-xs text-muted-foreground">#{p.reference}</span>
+                          )}
+                        </div>
+                        {p.notes && <div className="mt-1 text-xs text-muted-foreground">{p.notes}</div>}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         {p.receivedDate ? format(new Date(p.receivedDate), "MMM d, yyyy") : p.status}
+                        {p.status === "RECEIVED" && (
+                          <a
+                            href={`/api/payments/${p.id}/receipt`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded border px-2 py-1 text-[11px] hover:bg-gray-50"
+                          >
+                            Receipt PDF
+                          </a>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
                 ))}
                 {!job.payments?.length && <p className="py-6 text-center text-sm text-muted-foreground">No payments recorded</p>}
               </div>
+            </TabsContent>
+
+            <TabsContent value="invoices">
+              <InvoicesPanel jobId={id} />
+            </TabsContent>
+
+            <TabsContent value="expenses">
+              <ExpensesPanel
+                jobId={id}
+                contractAmount={Number(job.contractAmount)}
+              />
             </TabsContent>
 
             <TabsContent value="permits" className="space-y-4">
@@ -307,12 +384,12 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="crews" className="space-y-2">
-              {job.crewAssignments?.map((ca: { id: string; crew: { name: string; tradeType: string }; installDate: string | null }) => (
+              {job.crewAssignments?.map((ca: { id: string; crew: { name: string; trades: string[] }; installDate: string | null }) => (
                 <Card key={ca.id}>
                   <CardContent className="flex items-center justify-between py-3 px-4">
                     <div>
                       <span className="text-sm font-medium">{ca.crew.name}</span>
-                      <Badge variant="outline" className="text-[10px] ml-2">{ca.crew.tradeType}</Badge>
+                      <Badge variant="outline" className="text-[10px] ml-2">{ca.crew.trades?.join(", ") || "—"}</Badge>
                     </div>
                     {ca.installDate && <span className="text-xs text-muted-foreground">{format(new Date(ca.installDate), "MMM d, yyyy")}</span>}
                   </CardContent>
@@ -352,6 +429,10 @@ export default function JobDetailPage() {
                 </Card>
               ))}
               {!job.tasks?.length && <p className="py-6 text-center text-sm text-muted-foreground">No tasks</p>}
+            </TabsContent>
+
+            <TabsContent value="files">
+              <FilesPanel leadId={job.leadId} />
             </TabsContent>
 
             <TabsContent value="history" className="space-y-2">

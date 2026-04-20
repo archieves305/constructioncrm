@@ -44,6 +44,13 @@ const navItems: NavItem[] = [
   { href: "/schedule", label: "Schedule", icon: Calendar },
   { href: "/crews", label: "Crews", icon: Hammer, roles: ["ADMIN", "MANAGER"] },
   { href: "/collections", label: "Collections", icon: DollarSign },
+  { href: "/referrals", label: "Referrals", icon: DollarSign, roles: ["ADMIN", "MANAGER"] },
+  {
+    href: "/incoming-receipts",
+    label: "Incoming Receipts",
+    icon: DollarSign,
+    roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
+  },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   {
@@ -68,6 +75,12 @@ const navItems: NavItem[] = [
     href: "/admin/follow-up-rules",
     label: "Follow-ups",
     icon: Zap,
+    roles: ["ADMIN", "MANAGER"],
+  },
+  {
+    href: "/admin/job-task-templates",
+    label: "Job Task Templates",
+    icon: CheckSquare,
     roles: ["ADMIN", "MANAGER"],
   },
   {

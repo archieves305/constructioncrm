@@ -12,7 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Image as ImageIcon, Download, Trash2, Upload } from "lucide-react";
+import {
+  FileText,
+  Image as ImageIcon,
+  Download,
+  Trash2,
+  Upload,
+  Camera,
+} from "lucide-react";
 
 const CATEGORIES = [
   "PHOTOS",
@@ -41,10 +48,12 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function LeadFiles({ leadId }: { leadId: string }) {
+export function FilesPanel({ leadId }: { leadId: string }) {
   const queryClient = useQueryClient();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [category, setCategory] = useState<Category>("OTHER");
+  const [uploadingCount, setUploadingCount] = useState(0);
 
   const { data: files = [], isLoading } = useQuery<FileRecord[]>({
     queryKey: ["lead-files", leadId],
@@ -52,7 +61,7 @@ export function LeadFiles({ leadId }: { leadId: string }) {
       fetch(`/api/files?leadId=${leadId}`).then((r) => r.json()),
   });
 
-  const upload = useMutation({
+  const uploadOne = useMutation({
     mutationFn: async (file: File) => {
       const form = new FormData();
       form.append("file", file);
@@ -65,13 +74,33 @@ export function LeadFiles({ leadId }: { leadId: string }) {
       }
       return res.json();
     },
-    onSuccess: () => {
-      toast.success("File uploaded");
-      queryClient.invalidateQueries({ queryKey: ["lead-files", leadId] });
-      if (inputRef.current) inputRef.current.value = "";
-    },
-    onError: (e: Error) => toast.error(e.message),
   });
+
+  async function handleFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList);
+    setUploadingCount(files.length);
+
+    let ok = 0;
+    let failed = 0;
+    for (const f of files) {
+      try {
+        await uploadOne.mutateAsync(f);
+        ok += 1;
+      } catch (e) {
+        failed += 1;
+        toast.error(`${f.name}: ${(e as Error).message}`);
+      }
+    }
+    setUploadingCount(0);
+    if (ok > 0) toast.success(`Uploaded ${ok} file${ok === 1 ? "" : "s"}`);
+    queryClient.invalidateQueries({ queryKey: ["lead-files", leadId] });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (failed === 0 && ok === 0) {
+      // No files were valid
+    }
+  }
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
@@ -86,19 +115,18 @@ export function LeadFiles({ leadId }: { leadId: string }) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (f) upload.mutate(f);
-  }
+  const uploading = uploadingCount > 0;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end gap-2">
-        <div className="flex-1 max-w-xs space-y-1">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex-1 min-w-0 space-y-1 sm:max-w-xs">
           <label className="text-xs text-muted-foreground">Category</label>
           <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
-            <SelectTrigger>
-              <SelectValue />
+            <SelectTrigger className="w-full">
+              <SelectValue>
+                {(v: string) => (v ? v.replace("_", " ") : "OTHER")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {CATEGORIES.map((c) => (
@@ -110,33 +138,60 @@ export function LeadFiles({ leadId }: { leadId: string }) {
           </Select>
         </div>
         <input
-          ref={inputRef}
+          ref={fileInputRef}
           type="file"
+          multiple
           className="hidden"
-          onChange={onFileChange}
+          onChange={(e) => handleFiles(e.target.files)}
         />
-        <Button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={upload.isPending}
-        >
-          <Upload className="mr-2 h-4 w-4" />
-          {upload.isPending ? "Uploading..." : "Upload"}
-        </Button>
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 sm:hidden"
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <Camera className="mr-2 h-4 w-4" />
+            Photo
+          </Button>
+          <Button
+            type="button"
+            className="flex-1 sm:flex-none"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {uploading
+              ? `Uploading ${uploadingCount}…`
+              : "Upload"}
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
         <p className="py-4 text-sm text-muted-foreground">Loading…</p>
       ) : files.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          No files yet. Upload estimates, photos, signed docs, permits, etc.
+          No files yet. Upload photos, estimates, signed docs, permits, etc.
         </p>
       ) : (
         <ul className="divide-y rounded border">
           {files.map((f) => {
             const isImage = f.fileType.startsWith("image/");
             return (
-              <li key={f.id} className="flex items-center gap-3 p-3">
+              <li
+                key={f.id}
+                className="flex items-center gap-3 p-3 text-sm"
+              >
                 <div className="text-muted-foreground">
                   {isImage ? (
                     <ImageIcon className="h-5 w-5" />
@@ -145,7 +200,7 @@ export function LeadFiles({ leadId }: { leadId: string }) {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{f.fileName}</div>
+                  <div className="truncate font-medium">{f.fileName}</div>
                   <div className="text-xs text-muted-foreground">
                     {f.category.replace("_", " ")} · {formatSize(f.fileSize)} ·{" "}
                     {f.uploadedBy.firstName} {f.uploadedBy.lastName} ·{" "}
@@ -156,14 +211,14 @@ export function LeadFiles({ leadId }: { leadId: string }) {
                   href={`/api/files/${f.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="rounded p-2 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
                   title="Open"
                 >
                   <Download className="h-4 w-4" />
                 </a>
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-destructive"
+                  className="rounded p-2 text-muted-foreground hover:bg-red-50 hover:text-destructive"
                   onClick={() => {
                     if (confirm(`Delete "${f.fileName}"?`)) remove.mutate(f.id);
                   }}

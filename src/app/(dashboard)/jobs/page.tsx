@@ -13,7 +13,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
-import { Search, AlertTriangle } from "lucide-react";
+import { Search, AlertTriangle, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toCsv, downloadCsv } from "@/lib/csv";
 
 const stageColors: Record<string, string> = {
   "Won": "bg-green-100 text-green-800",
@@ -69,6 +71,49 @@ export default function JobsPage() {
       <PageHeader
         title="Jobs"
         description={`${data?.total || 0} active jobs`}
+        actions={
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const exportParams = new URLSearchParams(params);
+              exportParams.set("pageSize", "5000");
+              const res = await fetch(`/api/jobs?${exportParams.toString()}`);
+              const body = await res.json();
+              const rows = (body.data || []).map((j: JobRow) => ({
+                jobNumber: j.jobNumber,
+                title: j.title,
+                customer: j.lead.fullName,
+                serviceType: j.serviceType,
+                stage: j.currentStage.name,
+                contractAmount: j.contractAmount,
+                depositReceived: j.depositReceived,
+                balanceDue: j.balanceDue,
+                salesRep: j.salesRep
+                  ? `${j.salesRep.firstName} ${j.salesRep.lastName}`
+                  : "",
+                scheduledDate: j.scheduledDate ?? "",
+                createdAt: j.createdAt,
+              }));
+              const csv = toCsv(rows, [
+                { key: "jobNumber", header: "Job #" },
+                { key: "title", header: "Title" },
+                { key: "customer", header: "Customer" },
+                { key: "serviceType", header: "Service" },
+                { key: "stage", header: "Stage" },
+                { key: "contractAmount", header: "Contract" },
+                { key: "depositReceived", header: "Deposit" },
+                { key: "balanceDue", header: "Balance" },
+                { key: "salesRep", header: "Sales Rep" },
+                { key: "scheduledDate", header: "Scheduled" },
+                { key: "createdAt", header: "Created" },
+              ]);
+              downloadCsv(`jobs-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+            }}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+        }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -86,7 +131,14 @@ export default function JobsPage() {
           onValueChange={(v: string | null) => setStageId(!v || v === "all" ? "" : v)}
         >
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All Stages" />
+            <SelectValue placeholder="All Stages">
+              {(v: string) =>
+                !v
+                  ? "All Stages"
+                  : stages?.find((s: { id: string; name: string }) => s.id === v)?.name ??
+                    "All Stages"
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Stages</SelectItem>

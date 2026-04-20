@@ -3,9 +3,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Download } from "lucide-react";
+import { toCsv, downloadCsv } from "@/lib/csv";
 import {
   BarChart,
   Bar,
@@ -49,7 +52,60 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <PageHeader title="Reports" description="Sales performance and conversion analysis" />
+      <PageHeader
+        title="Reports"
+        description="Sales performance and conversion analysis"
+        actions={
+          <Button
+            variant="outline"
+            disabled={!conversions && !dashboard}
+            onClick={() => {
+              const sections: { name: string; rows: Record<string, unknown>[] }[] = [];
+              if (funnel) {
+                sections.push({
+                  name: "Funnel",
+                  rows: [
+                    { metric: "Lead to Contact", percent: funnel.leadToContact },
+                    { metric: "Contact to Appointment", percent: funnel.contactToAppointment },
+                    {
+                      metric: "Appointment to Estimate",
+                      percent: funnel.appointmentToEstimate,
+                    },
+                    { metric: "Estimate to Won", percent: funnel.estimateToWon },
+                    { metric: "Lead to Won", percent: funnel.leadToWon },
+                  ],
+                });
+              }
+              if (conversions?.stageCounts) {
+                sections.push({
+                  name: "Stage Distribution",
+                  rows: conversions.stageCounts,
+                });
+              }
+              if (dashboard?.bySource) {
+                sections.push({ name: "By Source", rows: dashboard.bySource });
+              }
+              if (dashboard?.byRep) {
+                sections.push({ name: "By Rep", rows: dashboard.byRep });
+              }
+
+              const parts: string[] = [];
+              for (const s of sections) {
+                if (!s.rows?.length) continue;
+                const cols = Object.keys(s.rows[0]).map((k) => ({ key: k, header: k }));
+                parts.push(`# ${s.name}\r\n${toCsv(s.rows, cols)}`);
+              }
+              downloadCsv(
+                `report-${new Date().toISOString().slice(0, 10)}.csv`,
+                parts.join("\r\n"),
+              );
+            }}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+        }
+      />
 
       <div className="mb-6 flex gap-4">
         <div>

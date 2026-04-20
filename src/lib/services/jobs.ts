@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 
 let jobCounter: number | null = null;
 
@@ -145,12 +146,122 @@ export async function changeJobStage(jobId: string, stageId: string, userId: str
     }),
   ]);
 
+  if (newStage.isClosed) {
+    await sendReviewRequestIfNeeded(jobId, job.leadId, userId).catch((e) =>
+      console.error("sendReviewRequestIfNeeded failed", e),
+    );
+  }
+
+  await spawnTasksFromTemplates(jobId, stageId, userId).catch((e) =>
+    console.error("spawnTasksFromTemplates failed", e),
+  );
+
   return updated;
+}
+
+async function spawnTasksFromTemplates(
+  jobId: string,
+  stageId: string,
+  userId: string,
+): Promise<void> {
+  const templates = await prisma.jobTaskTemplate.findMany({
+    where: { stageId, isActive: true },
+  });
+  if (templates.length === 0) return;
+
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: { leadId: true, salesRepId: true, projectManagerId: true },
+  });
+  if (!job) return;
+
+  const now = Date.now();
+  for (const t of templates) {
+    const assignee =
+      t.defaultAssignedUserId || job.projectManagerId || job.salesRepId || null;
+    const dueAt =
+      t.relativeDueInDays != null
+        ? new Date(now + t.relativeDueInDays * 86400000)
+        : null;
+
+    await prisma.task.create({
+      data: {
+        jobId,
+        leadId: job.leadId,
+        title: t.title,
+        description: t.description,
+        priority: t.priority,
+        assignedUserId: assignee,
+        createdByUserId: userId,
+        dueAt,
+      },
+    });
+  }
+}
+
+async function sendReviewRequestIfNeeded(
+  jobId: string,
+  leadId: string,
+  userId: string,
+): Promise<void> {
+  const existing = await prisma.reviewRequest.findFirst({
+    where: { jobId },
+    select: { id: true },
+  });
+  if (existing) return;
+
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: { lead: { select: { fullName: true, email: true, firstName: true } } },
+  });
+  if (!job) return;
+
+  const request = await prisma.reviewRequest.create({
+    data: {
+      jobId,
+      leadId,
+      platform: "Google",
+      status: "PENDING",
+    },
+  });
+
+  if (job.lead.email && isEmailConfigured()) {
+    try {
+      await sendEmail({
+        to: job.lead.email,
+        subject: `Quick favor? Share your experience with us`,
+        html: `<p>Hi ${job.lead.firstName},</p>
+<p>Thanks for choosing us for your recent project (${job.jobNumber}). If you have a moment, we'd really appreciate an honest review — it helps other homeowners make informed decisions.</p>
+<p>Thank you!</p>`,
+        text: `Hi ${job.lead.firstName}, thanks for choosing us for ${job.jobNumber}. If you have a moment, we'd appreciate a review.`,
+      });
+      await prisma.reviewRequest.update({
+        where: { id: request.id },
+        data: { status: "SENT", sentAt: new Date() },
+      });
+      await prisma.activityLog.create({
+        data: {
+          leadId,
+          activityType: "REVIEW_REQUESTED",
+          title: "Review request email sent",
+          createdByUserId: userId,
+        },
+      });
+    } catch (err) {
+      console.error("review request email failed", err);
+    }
+  }
 }
 
 export async function recordPayment(
   jobId: string,
-  data: { paymentType: string; amount: number; notes?: string },
+  data: {
+    paymentType: string;
+    amount: number;
+    notes?: string;
+    method?: string | null;
+    reference?: string | null;
+  },
   userId: string
 ) {
   const job = await prisma.job.findUnique({ where: { id: jobId }, select: { leadId: true, balanceDue: true, depositReceived: true } });
@@ -161,6 +272,8 @@ export async function recordPayment(
       jobId,
       paymentType: data.paymentType as "DEPOSIT" | "PROGRESS" | "FINAL" | "FINANCING_FUNDING",
       amount: data.amount,
+      method: (data.method as "CHECK" | "CARD" | "ACH" | "CASH" | "FINANCING" | "WIRE" | "OTHER" | null) || null,
+      reference: data.reference?.trim() || null,
       status: "RECEIVED",
       receivedDate: new Date(),
       notes: data.notes,

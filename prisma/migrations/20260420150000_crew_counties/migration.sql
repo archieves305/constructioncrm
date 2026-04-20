@@ -1,0 +1,1 @@
+ALTER TABLE "crews" ADD COLUMN "counties" TEXT[] NOT NULL DEFAULT '{}';

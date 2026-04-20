@@ -37,11 +37,11 @@ async function main() {
 
   // Seed some crews
   const crews = [
-    { name: "Alpha Roofing Crew", tradeType: "Roofing" },
-    { name: "Bravo Windows Crew", tradeType: "Windows" },
-    { name: "Charlie Doors Crew", tradeType: "Doors" },
-    { name: "Delta Interior Crew", tradeType: "Interior Renovations" },
-    { name: "Echo Drywall Crew", tradeType: "Drywall" },
+    { name: "Alpha Roofing Crew", trades: ["Roofing"] },
+    { name: "Bravo Windows Crew", trades: ["Windows"] },
+    { name: "Charlie Doors Crew", trades: ["Doors"] },
+    { name: "Delta Interior Crew", trades: ["Interior Renovations"] },
+    { name: "Echo Drywall Crew", trades: ["Drywall"] },
   ];
 
   for (const c of crews) {
