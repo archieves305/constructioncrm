@@ -34,6 +34,7 @@ type JobRow = {
   jobNumber: string;
   title: string;
   serviceType: string;
+  jobType: "FIXED_PRICE" | "COST_PLUS";
   contractAmount: string;
   depositReceived: string;
   depositRequired: string;
@@ -195,7 +196,12 @@ export default function JobsPage() {
                         {job.currentStage.name}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right font-medium">${Number(job.contractAmount).toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      <div>${Number(job.contractAmount).toLocaleString()}</div>
+                      {job.jobType === "COST_PLUS" && (
+                        <div className="text-[10px] font-normal text-muted-foreground">Cost+</div>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
                         <div className="w-12 h-2 bg-gray-100 rounded-full overflow-hidden">

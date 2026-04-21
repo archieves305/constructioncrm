@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { recomputeCostPlusJob } from "@/lib/services/job-pricing";
 
 const TYPES = [
   "MATERIAL",
@@ -67,12 +68,14 @@ export async function POST(
 
   const job = await prisma.job.findUnique({
     where: { id },
-    select: { leadId: true, contractAmount: true, balanceDue: true },
+    select: { leadId: true, jobType: true },
   });
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
   const amount = parsed.data.amount;
-  const billable = parsed.data.billable;
+  const isCostPlus = job.jobType === "COST_PLUS";
+  // On cost-plus, billable is irrelevant — every expense rolls into the contract via recompute
+  const billable = isCostPlus ? false : parsed.data.billable;
 
   const [expense] = await prisma.$transaction([
     prisma.jobExpense.create({
@@ -107,14 +110,18 @@ export async function POST(
       : []),
   ]);
 
+  if (isCostPlus) await recomputeCostPlusJob(id);
+
   await prisma.activityLog.create({
     data: {
       leadId: job.leadId,
       activityType: "NOTE",
       title: `Expense added: ${parsed.data.type.replace(/_/g, " ")} — $${amount.toLocaleString()}`,
-      description: billable
-        ? `Billable; added to contract${parsed.data.vendor ? ` · ${parsed.data.vendor}` : ""}`
-        : parsed.data.vendor || undefined,
+      description: isCostPlus
+        ? `Cost-plus; rolled into contract${parsed.data.vendor ? ` · ${parsed.data.vendor}` : ""}`
+        : billable
+          ? `Billable; added to contract${parsed.data.vendor ? ` · ${parsed.data.vendor}` : ""}`
+          : parsed.data.vendor || undefined,
       createdByUserId: session.user.id,
     },
   });

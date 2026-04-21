@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { recomputeCostPlusJob } from "@/lib/services/job-pricing";
 
 const TYPES = [
   "MATERIAL",
@@ -47,19 +48,25 @@ export async function PATCH(
   if (!parsed.success)
     return badRequest(parsed.error.issues[0]?.message || "invalid payload");
 
-  const existing = await prisma.jobExpense.findUnique({ where: { id } });
+  const existing = await prisma.jobExpense.findUnique({
+    where: { id },
+    include: { job: { select: { jobType: true } } },
+  });
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const isCostPlus = existing.job.jobType === "COST_PLUS";
   const prevBillable = existing.billable;
   const prevAmount = Number(existing.amount);
-  const nextBillable = parsed.data.billable ?? prevBillable;
+  const nextBillable = isCostPlus
+    ? false
+    : parsed.data.billable ?? prevBillable;
   const nextAmount =
     parsed.data.amount !== undefined ? parsed.data.amount : prevAmount;
 
   const prevBillableAmount = prevBillable ? prevAmount : 0;
   const nextBillableAmount = nextBillable ? nextAmount : 0;
-  const delta = nextBillableAmount - prevBillableAmount;
+  const delta = isCostPlus ? 0 : nextBillableAmount - prevBillableAmount;
 
   const data: Record<string, unknown> = {};
   if (parsed.data.type !== undefined) data.type = parsed.data.type;
@@ -74,7 +81,8 @@ export async function PATCH(
     data.paidMethod = parsed.data.paidMethod ?? null;
   if (parsed.data.paidFrom !== undefined)
     data.paidFrom = parsed.data.paidFrom?.trim() || null;
-  if (parsed.data.billable !== undefined) data.billable = parsed.data.billable;
+  if (parsed.data.billable !== undefined && !isCostPlus)
+    data.billable = parsed.data.billable;
 
   await prisma.$transaction([
     prisma.jobExpense.update({ where: { id }, data }),
@@ -91,6 +99,8 @@ export async function PATCH(
       : []),
   ]);
 
+  if (isCostPlus) await recomputeCostPlusJob(existing.jobId);
+
   const record = await prisma.jobExpense.findUnique({
     where: { id },
     include: { createdBy: { select: { firstName: true, lastName: true } } },
@@ -106,11 +116,15 @@ export async function DELETE(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const existing = await prisma.jobExpense.findUnique({ where: { id } });
+  const existing = await prisma.jobExpense.findUnique({
+    where: { id },
+    include: { job: { select: { jobType: true } } },
+  });
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const reverseAmount = existing.billable ? Number(existing.amount) : 0;
+  const isCostPlus = existing.job.jobType === "COST_PLUS";
+  const reverseAmount = !isCostPlus && existing.billable ? Number(existing.amount) : 0;
 
   await prisma.$transaction([
     prisma.jobExpense.delete({ where: { id } }),
@@ -126,6 +140,8 @@ export async function DELETE(
         ]
       : []),
   ]);
+
+  if (isCostPlus) await recomputeCostPlusJob(existing.jobId);
 
   return NextResponse.json({ ok: true });
 }

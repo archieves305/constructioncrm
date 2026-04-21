@@ -85,6 +85,23 @@ enum PaymentMethod {
   OTHER
 }
 
+enum JobType {
+  FIXED_PRICE
+  COST_PLUS
+}
+
+enum MarginType {
+  PERCENT
+  FLAT
+}
+
+enum BuildiumSyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+  SKIPPED
+}
+
 enum FinancingStatus {
   NOT_NEEDED
   PENDING_APPLICATION
@@ -696,6 +713,10 @@ model Job {
   jobNumber           String          @unique @map("job_number")
   title               String
   serviceType         String          @map("service_type")
+  jobType             JobType         @default(FIXED_PRICE) @map("job_type")
+  laborCost           Decimal?        @map("labor_cost") @db.Decimal(12, 2)
+  marginType          MarginType?     @map("margin_type")
+  marginValue         Decimal?        @map("margin_value") @db.Decimal(12, 2)
   contractAmount      Decimal         @map("contract_amount") @db.Decimal(12, 2)
   depositRequired     Decimal         @default(0) @map("deposit_required") @db.Decimal(12, 2)
   depositReceived     Decimal         @default(0) @map("deposit_received") @db.Decimal(12, 2)
@@ -714,6 +735,12 @@ model Job {
   targetStartDate     DateTime?       @map("target_start_date")
   scheduledDate       DateTime?       @map("scheduled_date")
   completionDate      DateTime?       @map("completion_date")
+  isRentalTurnover    Boolean         @default(false) @map("is_rental_turnover")
+  buildiumPropertyId  String?         @map("buildium_property_id")
+  buildiumUnitId      String?         @map("buildium_unit_id")
+  priorTenantName     String?         @map("prior_tenant_name")
+  turnoverStartedAt   DateTime?       @map("turnover_started_at")
+  turnoverCompletedAt DateTime?       @map("turnover_completed_at")
   createdAt           DateTime        @default(now()) @map("created_at")
   updatedAt           DateTime        @updatedAt @map("updated_at")
 
@@ -739,6 +766,8 @@ model Job {
   @@index([salesRepId])
   @@index([projectManagerId])
   @@index([scheduledDate])
+  @@index([isRentalTurnover])
+  @@index([buildiumPropertyId])
   @@map("jobs")
 }
 
@@ -898,19 +927,23 @@ enum JobExpenseType {
 }
 
 model JobExpense {
-  id              String         @id @default(cuid())
-  jobId           String         @map("job_id")
-  type            JobExpenseType @default(OTHER)
-  vendor          String?
-  description     String?        @db.Text
-  amount          Decimal        @db.Decimal(12, 2)
-  incurredDate    DateTime       @default(now()) @map("incurred_date")
-  paidMethod      PaymentMethod? @map("paid_method")
-  paidFrom        String?        @map("paid_from")
-  billable        Boolean        @default(false)
-  createdByUserId String         @map("created_by_user_id")
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
+  id                  String              @id @default(cuid())
+  jobId               String              @map("job_id")
+  type                JobExpenseType      @default(OTHER)
+  vendor              String?
+  description         String?             @db.Text
+  amount              Decimal             @db.Decimal(12, 2)
+  incurredDate        DateTime            @default(now()) @map("incurred_date")
+  paidMethod          PaymentMethod?      @map("paid_method")
+  paidFrom            String?             @map("paid_from")
+  billable            Boolean             @default(false)
+  buildiumBillId      String?             @map("buildium_bill_id")
+  buildiumSyncStatus  BuildiumSyncStatus? @map("buildium_sync_status")
+  buildiumSyncError   String?             @map("buildium_sync_error") @db.Text
+  buildiumSyncedAt    DateTime?           @map("buildium_synced_at")
+  createdByUserId     String              @map("created_by_user_id")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
 
   job              Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
   createdBy        User              @relation(fields: [createdByUserId], references: [id])
@@ -918,7 +951,16 @@ model JobExpense {
 
   @@index([jobId])
   @@index([type])
+  @@index([buildiumSyncStatus])
   @@map("job_expenses")
+}
+
+model BuildiumSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("buildium_settings")
 }
 
 model Invoice {

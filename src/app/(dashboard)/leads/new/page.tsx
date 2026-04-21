@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -20,6 +21,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { UserCheck, X } from "lucide-react";
+
+type ContactMatch = {
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  primaryPhone: string;
+  secondaryPhone: string | null;
+  companyName: string | null;
+  leadCount: number;
+  latestLeadId: string;
+};
 
 export default function NewLeadPage() {
   const router = useRouter();
@@ -81,6 +94,56 @@ export default function NewLeadPage() {
   });
 
   const selectedServices = watch("serviceCategoryIds") || [];
+  const phoneInput = watch("primaryPhone") || "";
+  const emailInput = watch("email") || "";
+
+  const [matches, setMatches] = useState<ContactMatch[]>([]);
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
+  const [appliedKey, setAppliedKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const phoneDigits = phoneInput.replace(/\D/g, "");
+    const phoneReady = phoneDigits.length >= 10;
+    const emailReady = emailInput.includes("@") && emailInput.includes(".");
+    if (!phoneReady && !emailReady) {
+      setMatches([]);
+      return;
+    }
+    const controller = new AbortController();
+    const t = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (phoneReady) params.set("phone", phoneInput);
+      if (emailReady) params.set("email", emailInput);
+      fetch(`/api/leads/contact-lookup?${params.toString()}`, {
+        signal: controller.signal,
+      })
+        .then((r) => (r.ok ? r.json() : { matches: [] }))
+        .then((d) => setMatches(d.matches || []))
+        .catch(() => {});
+    }, 350);
+    return () => {
+      controller.abort();
+      clearTimeout(t);
+    };
+  }, [phoneInput, emailInput]);
+
+  const matchKey = (m: ContactMatch) =>
+    `${m.primaryPhone}|${m.email ?? ""}|${m.firstName} ${m.lastName}`;
+
+  const visibleMatches = matches.filter(
+    (m) => matchKey(m) !== dismissedKey && matchKey(m) !== appliedKey,
+  );
+
+  function applyContact(m: ContactMatch) {
+    setValue("firstName", m.firstName);
+    setValue("lastName", m.lastName);
+    setValue("primaryPhone", m.primaryPhone);
+    if (m.secondaryPhone) setValue("secondaryPhone", m.secondaryPhone);
+    if (m.email) setValue("email", m.email);
+    if (m.companyName) setValue("companyName", m.companyName);
+    setAppliedKey(matchKey(m));
+    toast.success(`Contact filled from ${m.leadCount} prior lead${m.leadCount === 1 ? "" : "s"}`);
+  }
 
   function toggleService(serviceId: string) {
     const current = selectedServices;
@@ -107,7 +170,56 @@ export default function NewLeadPage() {
           <CardHeader>
             <CardTitle className="text-base">Contact Information</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
+          <CardContent className="space-y-4">
+            {visibleMatches.length > 0 && (
+              <div className="space-y-2">
+                {visibleMatches.map((m) => {
+                  const key = matchKey(m);
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-start justify-between gap-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm"
+                    >
+                      <div className="flex items-start gap-2">
+                        <UserCheck className="mt-0.5 h-4 w-4 text-blue-700" />
+                        <div>
+                          <div className="font-medium text-blue-900">
+                            Existing contact: {m.firstName} {m.lastName}
+                          </div>
+                          <div className="text-xs text-blue-800">
+                            {m.primaryPhone}
+                            {m.email ? ` · ${m.email}` : ""}
+                            {m.companyName ? ` · ${m.companyName}` : ""}
+                          </div>
+                          <div className="text-xs text-blue-700">
+                            {m.leadCount} prior lead{m.leadCount === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => applyContact(m)}
+                        >
+                          Use this contact
+                        </Button>
+                        <button
+                          type="button"
+                          className="rounded p-1 text-blue-700 hover:bg-blue-100"
+                          onClick={() => setDismissedKey(key)}
+                          aria-label="Dismiss"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="grid gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="firstName">First Name *</Label>
               <Input id="firstName" {...register("firstName")} />
@@ -135,6 +247,7 @@ export default function NewLeadPage() {
             <div>
               <Label htmlFor="companyName">Company Name</Label>
               <Input id="companyName" {...register("companyName")} />
+            </div>
             </div>
           </CardContent>
         </Card>

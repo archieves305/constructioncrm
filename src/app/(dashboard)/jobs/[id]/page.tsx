@@ -23,6 +23,8 @@ import Link from "next/link";
 import { FilesPanel } from "@/components/files/files-panel";
 import { InvoicesPanel } from "@/components/jobs/invoices-panel";
 import { ExpensesPanel } from "@/components/jobs/expenses-panel";
+import { PricingPanel } from "@/components/jobs/pricing-panel";
+import { RentalTurnoverPanel } from "@/components/jobs/rental-turnover-panel";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -150,8 +152,16 @@ export default function JobDetailPage() {
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         <Card>
           <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><DollarSign className="h-4 w-4" /> Contract</div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <DollarSign className="h-4 w-4" />
+              {job.jobType === "COST_PLUS" ? "Contract (cost-plus)" : "Contract"}
+            </div>
             <div className="text-2xl font-bold">${Number(job.contractAmount).toLocaleString()}</div>
+            {job.jobType === "COST_PLUS" && (
+              <div className="text-[11px] text-muted-foreground mt-1">
+                Labor ${Number(job.laborCost ?? 0).toLocaleString()} + expenses + margin
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -231,6 +241,9 @@ export default function JobDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          <PricingPanel job={job} />
+          <RentalTurnoverPanel job={job} />
         </div>
 
         {/* Right column: tabs */}
@@ -344,7 +357,22 @@ export default function JobDetailPage() {
             <TabsContent value="expenses">
               <ExpensesPanel
                 jobId={id}
+                jobType={job.jobType}
                 contractAmount={Number(job.contractAmount)}
+                costPlus={
+                  job.jobType === "COST_PLUS"
+                    ? {
+                        laborCost: Number(job.laborCost ?? 0),
+                        marginType: job.marginType,
+                        marginValue: Number(job.marginValue ?? 0),
+                      }
+                    : undefined
+                }
+                rentalTurnover={
+                  job.isRentalTurnover
+                    ? { linked: Boolean(job.buildiumPropertyId) }
+                    : undefined
+                }
               />
             </TabsContent>
 

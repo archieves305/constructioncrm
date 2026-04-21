@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { recomputeCostPlusJob } from "@/lib/services/job-pricing";
 
 export async function GET(
   _request: NextRequest,
@@ -73,12 +74,15 @@ export async function PATCH(
     "financingProvider", "financingStatus", "financingApprovedDate",
     "projectManagerId", "salesRepId", "nextAction",
     "targetStartDate", "scheduledDate",
+    "jobType", "laborCost", "marginType", "marginValue",
+    "isRentalTurnover", "buildiumPropertyId", "buildiumUnitId",
+    "priorTenantName", "turnoverStartedAt", "turnoverCompletedAt",
   ];
 
   const updateData: Record<string, unknown> = {};
   for (const field of allowedFields) {
     if (body[field] !== undefined) {
-      if (field.endsWith("Date") && body[field]) {
+      if ((field.endsWith("Date") || field.endsWith("At")) && body[field]) {
         updateData[field] = new Date(body[field]);
       } else {
         updateData[field] = body[field];
@@ -86,12 +90,20 @@ export async function PATCH(
     }
   }
 
-  // Recalculate balance if contract amount changed
-  if (body.contractAmount !== undefined) {
-    const job = await prisma.job.findUnique({ where: { id }, select: { depositReceived: true } });
-    if (job) {
-      updateData.balanceDue = Number(body.contractAmount) - Number(job.depositReceived);
-    }
+  const existing = await prisma.job.findUnique({
+    where: { id },
+    select: { jobType: true, depositReceived: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+
+  const nextType = (body.jobType as "FIXED_PRICE" | "COST_PLUS" | undefined) ?? existing.jobType;
+
+  if (nextType === "FIXED_PRICE" && body.contractAmount !== undefined) {
+    updateData.balanceDue = Number(body.contractAmount) - Number(existing.depositReceived);
+  }
+
+  if (nextType === "COST_PLUS") {
+    delete updateData.contractAmount;
   }
 
   const job = await prisma.job.update({
@@ -99,6 +111,15 @@ export async function PATCH(
     data: updateData,
     include: { currentStage: true },
   });
+
+  if (nextType === "COST_PLUS") {
+    await recomputeCostPlusJob(id);
+    const refreshed = await prisma.job.findUnique({
+      where: { id },
+      include: { currentStage: true },
+    });
+    return NextResponse.json(refreshed);
+  }
 
   return NextResponse.json(job);
 }

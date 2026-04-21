@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Plus, DollarSign, Receipt, Download } from "lucide-react";
+import { Trash2, Plus, DollarSign, Receipt, Download, CloudUpload, CheckCircle2, AlertCircle } from "lucide-react";
+import { BuildiumSyncDialog } from "@/components/jobs/buildium-sync-dialog";
 
 const TYPES = [
   "MATERIAL",
@@ -39,6 +40,8 @@ const METHODS = [
   "OTHER",
 ] as const;
 
+type BuildiumSyncStatus = "PENDING" | "SYNCED" | "FAILED" | "SKIPPED";
+
 type Expense = {
   id: string;
   type: (typeof TYPES)[number];
@@ -49,6 +52,10 @@ type Expense = {
   paidMethod: (typeof METHODS)[number] | null;
   paidFrom: string | null;
   billable: boolean;
+  buildiumBillId: string | null;
+  buildiumSyncStatus: BuildiumSyncStatus | null;
+  buildiumSyncError: string | null;
+  buildiumSyncedAt: string | null;
   createdBy: { firstName: string; lastName: string };
 };
 
@@ -76,13 +83,28 @@ const emptyForm: Form = {
 
 type PaymentSource = { id: string; name: string; isActive: boolean };
 
+type CostPlusMeta = {
+  laborCost: number;
+  marginType: "PERCENT" | "FLAT" | null;
+  marginValue: number;
+};
+
 export function ExpensesPanel({
   jobId,
+  jobType,
   contractAmount,
+  costPlus,
+  rentalTurnover,
 }: {
   jobId: string;
+  jobType: "FIXED_PRICE" | "COST_PLUS";
   contractAmount: number;
+  costPlus?: CostPlusMeta;
+  rentalTurnover?: { linked: boolean };
 }) {
+  const isCostPlus = jobType === "COST_PLUS";
+  const isRentalTurnover = Boolean(rentalTurnover);
+  const buildiumLinked = Boolean(rentalTurnover?.linked);
   const qc = useQueryClient();
   const [form, setForm] = useState<Form>(emptyForm);
 
@@ -172,70 +194,165 @@ export function ExpensesPanel({
     },
   });
 
-  const { totalNonBillable, totalBillable } = useMemo(() => {
+  const [syncExpense, setSyncExpense] = useState<Expense | null>(null);
+
+  const { totalNonBillable, totalBillable, totalAll, totalSynced, totalUnsynced } = useMemo(() => {
     let totalNonBillable = 0;
     let totalBillable = 0;
+    let totalAll = 0;
+    let totalSynced = 0;
+    let totalUnsynced = 0;
     for (const e of expenses) {
       const n = Number(e.amount);
+      totalAll += n;
       if (e.billable) totalBillable += n;
       else totalNonBillable += n;
+      if (e.buildiumBillId) totalSynced += n;
+      else totalUnsynced += n;
     }
-    return { totalNonBillable, totalBillable };
+    return { totalNonBillable, totalBillable, totalAll, totalSynced, totalUnsynced };
   }, [expenses]);
 
   const estimatedProfit = contractAmount - totalNonBillable;
+
+  const marginAmount = (() => {
+    if (!isCostPlus || !costPlus) return 0;
+    const base = costPlus.laborCost + totalAll;
+    if (costPlus.marginType === "FLAT") return costPlus.marginValue;
+    if (costPlus.marginType === "PERCENT") return base * (costPlus.marginValue / 100);
+    return 0;
+  })();
+
+  const totalBillableCostPlus = isCostPlus && costPlus
+    ? costPlus.laborCost + totalAll + marginAmount
+    : 0;
 
   const canSave = form.amount && Number(form.amount) > 0;
 
   return (
     <div className="space-y-4">
-      {/* Profit summary */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-[10px] uppercase text-muted-foreground">
-              Contract
+      {/* Rental turnover summary */}
+      {isRentalTurnover && (
+        <div className="grid grid-cols-3 gap-3 rounded-md border border-blue-200 bg-blue-50/60 p-2">
+          <div>
+            <div className="text-[10px] uppercase text-blue-900">Turnover cost</div>
+            <div className="text-lg font-semibold text-blue-900">
+              ${totalAll.toLocaleString()}
             </div>
-            <div className="text-lg font-semibold">
-              ${contractAmount.toLocaleString()}
+          </div>
+          <div>
+            <div className="text-[10px] uppercase text-blue-900">Posted to Buildium</div>
+            <div className="text-lg font-semibold text-emerald-700">
+              ${totalSynced.toLocaleString()}
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-[10px] uppercase text-muted-foreground">
-              Billable add-ons
+          </div>
+          <div>
+            <div className="text-[10px] uppercase text-blue-900">Not yet posted</div>
+            <div className={`text-lg font-semibold ${totalUnsynced > 0 ? "text-amber-700" : "text-muted-foreground"}`}>
+              ${totalUnsynced.toLocaleString()}
             </div>
-            <div className="text-lg font-semibold text-blue-700">
-              +${totalBillable.toLocaleString()}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-[10px] uppercase text-muted-foreground">
-              Costs (non-billable)
-            </div>
-            <div className="text-lg font-semibold text-red-700">
-              -${totalNonBillable.toLocaleString()}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3">
-            <div className="text-[10px] uppercase text-muted-foreground">
-              Est. profit
-            </div>
-            <div
-              className={`text-lg font-semibold ${
-                estimatedProfit >= 0 ? "text-emerald-700" : "text-red-700"
-              }`}
-            >
-              ${estimatedProfit.toLocaleString()}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
+      )}
+
+      {/* Summary — differs by job type */}
+      {isCostPlus ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Labor
+              </div>
+              <div className="text-lg font-semibold">
+                ${(costPlus?.laborCost ?? 0).toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Expenses
+              </div>
+              <div className="text-lg font-semibold">
+                ${totalAll.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Margin{" "}
+                {costPlus?.marginType === "PERCENT"
+                  ? `(${costPlus.marginValue}%)`
+                  : ""}
+              </div>
+              <div className="text-lg font-semibold text-emerald-700">
+                ${Math.round(marginAmount).toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Total billable
+              </div>
+              <div className="text-lg font-semibold">
+                ${Math.round(totalBillableCostPlus).toLocaleString()}
+              </div>
+              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                Labor + Expenses + Margin
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Contract
+              </div>
+              <div className="text-lg font-semibold">
+                ${contractAmount.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Billable add-ons
+              </div>
+              <div className="text-lg font-semibold text-blue-700">
+                +${totalBillable.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Costs (non-billable)
+              </div>
+              <div className="text-lg font-semibold text-red-700">
+                -${totalNonBillable.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Est. profit
+              </div>
+              <div
+                className={`text-lg font-semibold ${
+                  estimatedProfit >= 0 ? "text-emerald-700" : "text-red-700"
+                }`}
+              >
+                ${estimatedProfit.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Create form */}
       <Card>
@@ -292,16 +409,22 @@ export function ExpensesPanel({
               />
             </div>
             <div className="flex flex-col justify-end">
-              <Label className="mb-1 flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={form.billable}
-                  onChange={(e) =>
-                    setForm({ ...form, billable: e.target.checked })
-                  }
-                />
-                Billable (adds to contract)
-              </Label>
+              {isCostPlus ? (
+                <p className="mb-1 text-[11px] text-muted-foreground">
+                  Cost-plus: all expenses roll into contract automatically.
+                </p>
+              ) : (
+                <Label className="mb-1 flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={form.billable}
+                    onChange={(e) =>
+                      setForm({ ...form, billable: e.target.checked })
+                    }
+                  />
+                  Billable (adds to contract)
+                </Label>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -431,7 +554,31 @@ export function ExpensesPanel({
                         Billable
                       </Badge>
                     )}
+                    {isRentalTurnover && (
+                      <>
+                        {e.buildiumBillId ? (
+                          <Badge variant="outline" className="border-emerald-500 text-[10px] text-emerald-700">
+                            <CheckCircle2 className="mr-1 inline h-3 w-3" />
+                            Buildium #{e.buildiumBillId}
+                          </Badge>
+                        ) : e.buildiumSyncStatus === "FAILED" ? (
+                          <Badge variant="outline" className="border-red-500 text-[10px] text-red-700" title={e.buildiumSyncError ?? undefined}>
+                            <AlertCircle className="mr-1 inline h-3 w-3" />
+                            Sync failed
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-gray-300 text-[10px] text-gray-600">
+                            Not posted
+                          </Badge>
+                        )}
+                      </>
+                    )}
                   </div>
+                  {isRentalTurnover && e.buildiumSyncStatus === "FAILED" && e.buildiumSyncError && (
+                    <div className="mt-1 text-[10px] text-red-700">
+                      {e.buildiumSyncError}
+                    </div>
+                  )}
                   {(e.paidMethod || e.paidFrom) && (
                     <div className="mt-1 flex flex-wrap items-center gap-1 text-xs">
                       {e.paidMethod && (
@@ -457,20 +604,40 @@ export function ExpensesPanel({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={e.billable}
-                      onChange={(ev) =>
-                        toggleBillable.mutate({
-                          id: e.id,
-                          billable: ev.target.checked,
-                        })
+                  {!isCostPlus && (
+                    <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={e.billable}
+                        onChange={(ev) =>
+                          toggleBillable.mutate({
+                            id: e.id,
+                            billable: ev.target.checked,
+                          })
+                        }
+                      />
+                      <DollarSign className="h-3 w-3" />
+                      Bill
+                    </label>
+                  )}
+                  {isRentalTurnover && !e.buildiumBillId && (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => setSyncExpense(e)}
+                      disabled={!buildiumLinked}
+                      title={
+                        !buildiumLinked
+                          ? "Link a Buildium property first"
+                          : e.buildiumSyncStatus === "FAILED"
+                            ? "Retry post to Buildium"
+                            : "Post this expense to Buildium"
                       }
-                    />
-                    <DollarSign className="h-3 w-3" />
-                    Bill
-                  </label>
+                    >
+                      <CloudUpload className="h-3 w-3" />
+                      {e.buildiumSyncStatus === "FAILED" ? "Retry" : "Post"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="rounded p-2 text-muted-foreground hover:bg-red-50 hover:text-destructive"
@@ -485,6 +652,21 @@ export function ExpensesPanel({
             </Card>
           ))}
         </div>
+      )}
+
+      {syncExpense && (
+        <BuildiumSyncDialog
+          open={Boolean(syncExpense)}
+          onOpenChange={(open) => {
+            if (!open) setSyncExpense(null);
+          }}
+          expense={{
+            id: syncExpense.id,
+            jobId,
+            vendor: syncExpense.vendor,
+            amount: syncExpense.amount,
+          }}
+        />
       )}
     </div>
   );
