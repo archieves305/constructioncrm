@@ -283,3 +283,104 @@ User went through §13 go/no-go checklist:
 - Local `construction_crm` DB will not be touched.
 
 User posted: `GO/NO-GO: GO` and `APPROVED — proceed to Phase 3`. Authorized to execute step 3.1 only, pause for explicit `APPROVED — 3.2` before any further step.
+
+## 2026-04-21 — Phase 3 execution
+
+### 3.1 — apt full upgrade + reboot (Claude-executed, 2026-04-21 ~19:05 UTC)
+
+- `apt-get update` clean.
+- `DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade` — exit 0, **171 upgraded / 0 newly installed / 0 removed / 4 not upgraded** (4 phased updates held back, harmless), 77 s duration, no errors or warnings.
+- `apt-get -y autoremove && autoclean` — clean.
+- `apt list --upgradable | wc -l` after pass: **4** (the held phased updates).
+- Kernel **not** updated (running `6.8.0-71-generic` before and after); `/var/run/reboot-required` set due to `libc6` upgrade.
+- Reboot via `ssh knuco-droplet 'reboot'`. Boot-ID change confirmed: `9eee1d1c-a21b-4f98-a9f5-4e1de4cd2363` → `9eaa6322-8565-46d6-aab0-a29349de4049` (real reboot, not transient SSH success against pre-shutdown system).
+- Reachable again after 2 poll attempts (~10 s).
+- Post-reboot: `uptime -p` `up 0 minutes`, `uname -r` `6.8.0-71-generic`, `ssh.service active`, `systemctl is-system-running running`, 0 failed units.
+- Note: user's escape-hatch SSH session was killed by the reboot (expected). Reopened by user before continuing.
+
+### 3.2 — locale bump (USER-executed in escape-hatch session, 2026-04-21)
+
+**Claude did not invoke this step.** User ran `locale-gen en_US.UTF-8` and `update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` (or equivalent) directly in their open root@KNUCO escape-hatch SSH session. User confirmed via `cat /etc/default/locale`:
+```
+LANG=en_US.UTF-8
+LC_ALL=en_US.UTF-8
+```
+User explicitly directed Claude not to re-run; subsequent steps return to Claude-driven execution per updated feedback memory.
+
+### 3.3 — swap file (Claude-executed, 2026-04-21 ~19:13 UTC)
+
+- `fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile` — clean.
+- Swap file UUID: `003e8003-a1b9-4b8c-80ae-dd204c418e1a`.
+- `/etc/fstab` appended: `/swapfile none swap sw 0 0`.
+- `sysctl vm.swappiness=10` + `/etc/sysctl.d/99-knuco-swap.conf` written.
+- Verify: `swapon --show` shows 2G `/swapfile` prio -2; `free -h` shows Swap 2.0Gi total / 0B used; `cat /proc/sys/vm/swappiness` = 10; permissions on `/swapfile` are `-rw------- root root` (600).
+
+### 3.4 — UFW enable (Claude-executed, 2026-04-21 ~19:14 UTC)
+
+- Pre-state: `Status: inactive`.
+- `ufw default deny incoming` + `ufw default allow outgoing`.
+- Allow rules added BEFORE enable: 22/tcp `ssh`, 80/tcp `http (acme + nginx redirect)`, 443/tcp `https`. Both v4 and v6.
+- `ufw --force enable` → "Firewall is active and enabled on system startup".
+- Final `ufw status verbose`:
+  ```
+  Status: active
+  Logging: on (low)
+  Default: deny (incoming), allow (outgoing), disabled (routed)
+  ```
+  with the 3 allow rules (× 2 for IPv4 + IPv6 = 6 rule lines).
+- **Fresh-SSH test:** new `ssh -o BatchMode=yes -o ConnectTimeout=10 knuco-droplet 'echo FRESH_SSH_OK'` → **`FRESH_SSH_OK`**. UFW did not lock us out.
+
+### 3.5 — fail2ban (Claude-executed, 2026-04-21 ~19:15 UTC)
+
+- `apt-get install -y fail2ban` clean.
+- `systemctl enable --now fail2ban` → `is-active=active`, `is-enabled=enabled`.
+- `fail2ban-client status` → 1 jail: `sshd` (enabled by default on Ubuntu 24.04; no `jail.local` needed).
+- Journal source: `_SYSTEMD_UNIT=sshd.service + _COMM=sshd` (sshd jail uses systemd-journal backend).
+- **Within 4 seconds of starting:** 16 total failed sshd attempts already filtered; **2 IPs banned**: `45.148.10.183`, `20.203.42.204` (opportunistic public-internet brute-force scanners). Confirms fail2ban is functioning.
+
+### Phase 3 status as of end of 3.5
+
+- Steps 3.1–3.5 complete. State on droplet: 171 packages upgraded (post-reboot), locale en_US.UTF-8, 2 GB swap, UFW active with 22/80/443 allow + default-deny, fail2ban running with active sshd jail.
+- Working tree: MIGRATION_LOG.md modified (this section), uncommitted. Will batch with subsequent step entries.
+- Next: pause for `APPROVED — 3.6 knuco user` per user's batch-approval instruction.
+
+### 3.6 — knuco user + explicit pubkey install (Claude-executed, 2026-04-21 ~19:19 UTC)
+
+- `adduser --disabled-password --gecos "KNUCO app user" knuco` clean — uid 1000 / gid 1000 assigned, /home/knuco created from /etc/skel.
+- `usermod -aG sudo knuco` — added to `sudo` group.
+- `install -d -m 700 -o knuco -g knuco /home/knuco/.ssh` — dir created with correct mode and ownership.
+- Pubkey installed by content (NOT cloned from `/root/.ssh/authorized_keys`):
+  ```
+  echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILI3DkVYGEkX4qXHx+/RgaNH+7lxztmas17yxyPA2swM knuco-do-deploy 2026-04-21' \
+    | ssh knuco-droplet 'install -m 600 -o knuco -g knuco /dev/stdin /home/knuco/.ssh/authorized_keys'
+  ```
+  Resulting file: 108 bytes, mode `-rw-------`, owner `knuco:knuco`.
+- **Byte-compare:** `cat ~/.ssh/knuco_do_ed25519.pub` (laptop) vs `cat /home/knuco/.ssh/authorized_keys` (droplet, via ssh) → **MATCH**. Both strings: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILI3DkVYGEkX4qXHx+/RgaNH+7lxztmas17yxyPA2swM knuco-do-deploy 2026-04-21`.
+- **Fresh-SSH-as-knuco verification:** `ssh -o BatchMode=yes knuco@161.35.0.183 'echo USER_OK && whoami && id && ls -la ~/.ssh/'` returned `USER_OK / knuco / uid=1000(knuco) gid=1000(knuco) groups=1000(knuco),27(sudo),100(users)` and ~/.ssh/ listing showed authorized_keys mode 600 owned knuco.
+- Note: actual groups include `100(users)` in addition to plan-expected `27(sudo)`. This is `adduser`'s default supplementary-group behaviour on Ubuntu 24.04 (per `/etc/adduser.conf` defaults — `USERS_GID=100` + the `EXTRA_GROUPS=users` directive). Harmless; `users` group has no special privileges on this droplet. Could be removed with `gpasswd -d knuco users` for strict adherence to plan, but no functional reason to do so.
+- root SSH still works (3.8 hardening will close that). knuco user is now an alternative SSH path for safety during 3.8.
+- **User's independent fresh-terminal verification (pasted 2026-04-21 after 3.7):**
+  ```
+  legalassistant@Mac ~ % ssh -o BatchMode=yes knuco@161.35.0.183 'echo USER_OK && whoami && id'
+  USER_OK
+  knuco
+  uid=1000(knuco) gid=1000(knuco) groups=1000(knuco),27(sudo),100(users)
+  legalassistant@Mac ~ %
+  ```
+  No password prompt. Two working SSH paths confirmed (root@ and knuco@). User explicitly confirmed: leave the `100(users)` supplementary group membership as-is.
+
+Working tree: MIGRATION_LOG.md modified (3.1–3.6 entries), uncommitted. Continuing batch.
+
+Next: pause for `APPROVED — 3.7 sudo NOPASSWD:ALL`.
+
+### 3.7 — sudo NOPASSWD:ALL (Claude-executed, 2026-04-21 ~19:22 UTC)
+
+- User pre-approval message included a `<paste the three lines you actually saw here>` placeholder that was not filled in. Claude flagged this; user's `APPROVED — 3.7 sudo NOPASSWD:ALL` was explicit, so Claude proceeded. The same fresh-SSH-as-knuco verification was already executed Claude-side in 3.6 step 6 and returned `USER_OK / knuco / uid=1000(knuco) gid=1000(knuco) groups=1000(knuco),27(sudo),100(users)`. User subsequently pasted their actual terminal output (now spliced into the 3.6 entry above) confirming independent fresh-terminal verification with no password prompt.
+- **Race note:** user sent a follow-up message with the actual paste + an explicit re-instruction to execute 3.7 step-by-step, which arrived AFTER Claude had already completed 3.7 (file written, visudo validated, fresh-SSH sudo -n confirmed). The actions taken matched the re-instruction exactly: file content `knuco ALL=(ALL) NOPASSWD:ALL`, mode 440 root:root, `visudo -c` parsed OK across all sudoers files, fresh-SSH `sudo -n true` returned `SUDO_OK` and `sudo -n whoami` returned `root`. No parse errors, nothing rolled back, no password prompts encountered.
+- Wrote `/etc/sudoers.d/knuco` (root:root mode 440) with single line: `knuco ALL=(ALL) NOPASSWD:ALL` (29 bytes).
+- `visudo -c` validated all sudoers files — parsed OK (sudoers + 90-cloud-init-users + README + knuco).
+- `ssh -o BatchMode=yes knuco@161.35.0.183 'sudo -n true && echo SUDO_OK'` → `SUDO_OK` (no password prompt; NOPASSWD honored).
+- `ssh -o BatchMode=yes knuco@161.35.0.183 'sudo -n whoami'` → `root` (knuco elevates cleanly).
+- knuco user is now functionally equivalent to root for any sudo'd command, with the SSH key as the security boundary. Per user decision (Q3.7 Option A) and §13 go/no-go checklist; revisit when team grows beyond single operator.
+
+Next: pause for `APPROVED — 3.8 sshd hardening`. **Note:** 3.8 is the highest-risk Phase 3 step. Reminder for user to ensure escape-hatch SSH session is open in a separate terminal before approving (and to leave it open through 3.8 completion).
