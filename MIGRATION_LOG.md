@@ -384,3 +384,72 @@ Next: pause for `APPROVED — 3.7 sudo NOPASSWD:ALL`.
 - knuco user is now functionally equivalent to root for any sudo'd command, with the SSH key as the security boundary. Per user decision (Q3.7 Option A) and §13 go/no-go checklist; revisit when team grows beyond single operator.
 
 Next: pause for `APPROVED — 3.8 sshd hardening`. **Note:** 3.8 is the highest-risk Phase 3 step. Reminder for user to ensure escape-hatch SSH session is open in a separate terminal before approving (and to leave it open through 3.8 completion).
+
+### 3.8 — sshd hardening (Claude-executed with user-dictated pause points, 2026-04-21 ~19:30–19:45 UTC)
+
+Executed with user-specified per-file edits (comment-block replacements rather than silent line deletion) and explicit pause points for inspection, post-edit review, post-write effective-config review, and post-reload verification.
+
+**Inspection (read-only; identifies files with conflicting directives):**
+- `/etc/ssh/sshd_config.d/50-cloud-init.conf` — `PasswordAuthentication yes` (27-byte file, mode 600, dated Apr 21 — created by cloud-init at droplet first boot).
+- `/etc/ssh/sshd_config.d/60-cloudimg-settings.conf` — `PasswordAuthentication no` (26-byte file, mode 644, dated Aug 5 2025 — ships in the base cloud image).
+- `/etc/ssh/sshd_config` line 42 — `PermitRootLogin yes`. Line 71 — `KbdInteractiveAuthentication no` (already at target value; left untouched).
+- OpenSSH `Include /etc/ssh/sshd_config.d/*.conf` resolves drop-ins first-match-wins; the `50-` file's `yes` silently overrode the `60-` file's `no` in the current running config.
+
+**Backups (pre-edit):**
+- `/root/sshd-config-backup-pre-phase3/sshd_config` — original 3486-byte file preserved.
+- `/root/sshd-config-backup-pre-phase3/sshd_config.d/` — both original drop-ins preserved with original modes.
+
+**Per-file edits (stdin-fed Python, same pattern as 3.13 data_directory swap):** each conflicting directive replaced with a `#`-prefixed comment block stating removal date, reason, and pointer to `00-knuco-hardening.conf`. Before/after was shown in chat for each file. Final content: all three files contain comment-only text where the directive previously lived; `KbdInteractiveAuthentication no` in main sshd_config shifted from line 71 to 72 (because 1 directive line was replaced with 2 comment lines — net +1 line).
+
+**`00-knuco-hardening.conf` written:** `/etc/ssh/sshd_config.d/00-knuco-hardening.conf` (501 bytes, mode 644, root:root). 5-line header comment + 8 directives per user's spec: `PermitRootLogin no`, `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `ChallengeResponseAuthentication no`, `PubkeyAuthentication yes`, `PermitEmptyPasswords no`, `MaxAuthTries 3`, `LoginGraceTime 30`.
+
+**Pre-reload validation:**
+- `sshd -t` → exit 0, no output (syntax valid on the combined on-disk config).
+- `sshd -T` filtered: all 8 directives at expected values; `permitrootlogin no`, `passwordauthentication no`, `maxauthtries 3`, `logingracetime 30`.
+- `ChallengeResponseAuthentication` not listed in `sshd -T` output — modern OpenSSH aliases it to `KbdInteractiveAuthentication`; accepted at parse time, functionally equivalent. Included in our file for explicit belt-and-suspenders.
+
+**Reload (on user's `RELOAD SSH` approval):**
+- `ssh knuco-droplet 'systemctl reload ssh'` → exit 0, "RELOAD_OK". `ssh.service` remained active since 19:07:26 UTC (SIGHUP reload preserves the existing daemon PID and existing connections).
+
+**Claude-side verification (3 fresh SSH attempts from laptop, immediately post-reload):**
+- 2a — knuco key auth: exit 0, `KEY_AUTH_STILL_WORKS` returned ✓
+- 2b — root key auth: exit 255, `root@161.35.0.183: Permission denied (publickey).` ✓ — `PermitRootLogin no` enforced.
+- 2c — knuco with `PubkeyAuthentication=no` + `KbdInteractiveAuthentication=no` + `PreferredAuthentications=password`: exit 255, `knuco@161.35.0.183: Permission denied (publickey).` ✓ — `PasswordAuthentication no` enforced. (The "(publickey)" in the error message is the ssh-client's normal shorthand for "the server's remaining auth-method menu"; since the server now accepts only publickey and our client forbade publickey, no method overlap → auth fails. Expected result.)
+- `sudo sshd -T` from knuco confirmed effective config post-reload matches pre-reload computed values.
+
+### 3.8 incident — fail2ban banned the operator's laptop IP (2026-04-21)
+
+**Summary.** The step 3.8 verification tests that are *designed to fail* (2b root-login-refused, 2c password-auth-refused) were logged by fail2ban as genuine sshd auth failures. Combined with Claude's Claude-side runs of the same commands from the same laptop public IP (`98.211.166.106`), the failure count crossed fail2ban's default threshold (5 failures / 10 min) and the IP was banned. The operator's Mac could no longer SSH to the droplet — neither as `knuco` (banned outright) nor as `root` (already hardened off).
+
+**Claude's contribution.** Claude ran 2a/2b/2c Claude-side immediately after reload. 2b and 2c produced `Permission denied` responses that fail2ban counted. The operator then ran the same three commands from their own Mac terminal to do their independent verification, adding more failures from the same public IP. Neither run individually crossed the threshold, but the combined count did. **Claude did not flag the fail2ban interaction before executing 2b/2c** — the original plan's 3.8 verification block assumed the intentional failures wouldn't register against the jail. That is the gap the plan amendment below closes.
+
+**Recovery via the correct out-of-band console.** DigitalOcean exposes two different web "consoles" that behave very differently after `PasswordAuthentication=no`:
+
+| Path | What it is | Works after 3.8? |
+| --- | --- | --- |
+| DO UI → Droplet → Access → **"Launch Droplet Console"** button | Authenticates via the droplet's sshd + a DO one-time-password flow | **NO** — sshd refuses password auth |
+| Direct URL `https://cloud.digitalocean.com/droplets/<droplet_id>/console?no_layout=true` | **QEMU virtual serial console** — talks to the hypervisor, not to sshd | **YES** — hypervisor-level; bypasses sshd/UFW/fail2ban entirely |
+
+The operator reached the QEMU console via the direct URL (there's no button for it in the normal UI), logged in at the serial-console prompt with the droplet's `root` password, and ran:
+- `fail2ban-client status sshd` — confirmed operator IP was banned.
+- `fail2ban-client set sshd unbanip 98.211.166.106` — removed the ban.
+- `systemctl restart fail2ban` — reset jail state.
+
+**Permanent fix — whitelist file created** at `/etc/fail2ban/jail.d/knuco-whitelist.local`:
+```
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1 98.211.166.106
+```
+`sudo fail2ban-client get sshd ignoreip` returns all three entries post-restart; `Currently banned: 0` for the operator IP. Re-tested from Mac: `ssh -o BatchMode=yes knuco@161.35.0.183 'echo WORKS'` → `WORKS`. Hardening remains functionally correct.
+
+**journalctl evidence (captured from the QEMU console during recovery):**
+- `Accepted publickey for knuco from 98.211.166.106` — knuco key auth working as designed.
+- `ROOT LOGIN REFUSED FROM 98.211.166.106` — root login blocked as designed.
+
+**Functional verdict.** Hardening is correct. The incident was a **plan-level blind spot**, not a config error. Plan amendments applied in this same commit fix the gap for future runs:
+- Step 3.5 now includes operator-IP whitelist creation immediately after fail2ban install, BEFORE any later step produces intentional auth failures.
+- Step 3.8 has an explicit pre-verification warning requiring confirmation that the whitelist is in effect before running 2b/2c.
+- Section 3 header has a prominent warning block distinguishing the "Launch Droplet Console" button (sshd-routed, becomes useless) from the QEMU serial console at `/console?no_layout=true` (hypervisor-routed, always works).
+- Section 8 RUNBOOK documents the console distinction and adds a procedure for updating the whitelist when the operator's public IP changes (including the "SSH already down" case where recovery requires QEMU console).
+
+**3.8 status:** functionally complete. Awaiting `APPROVED — 3.9` from user after plan amendments + incident log are committed and reviewed.

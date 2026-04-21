@@ -110,11 +110,20 @@ Migrate the KNUCO CRM (Next.js 16.2.3 + Prisma 7.7.0 + PostgreSQL 16 + NextAuth 
 
 ## 3. Phase 3 — Droplet preparation
 
+> **⚠ DigitalOcean console distinction — critical before Phase 3:**
+>
+> DigitalOcean exposes **two different web consoles**, and they behave very differently after step 3.8 sets `PasswordAuthentication=no`:
+>
+> 1. **"Launch Droplet Console" button** in the DO UI (Droplet → Access tab → top of page). Authenticates **via the droplet's sshd** with a DO-provided one-time-password flow. **Becomes unusable after 3.8** — sshd refuses password auth.
+> 2. **QEMU virtual serial console** at the direct URL `https://cloud.digitalocean.com/droplets/<droplet_id>/console?no_layout=true`. Talks to the **hypervisor**, not to sshd. **Always works**, independent of sshd config, UFW, or fail2ban. Authenticates at the serial console prompt with the droplet's `root` password (NOT key auth).
+>
+> **Only the QEMU URL is a real out-of-band escape hatch after 3.8.** Bookmark it before starting Phase 3. This distinction was learned the hard way during the 2026-04-21 migration run — see MIGRATION_LOG.md § 3.8 incident for the fail2ban self-ban that required QEMU-console recovery.
+
 Pre-flight (before any Phase 3 step runs):
 
 - **A.** User takes a manual DigitalOcean snapshot of the droplet via the DO panel. User posts `SNAPSHOT TAKEN <snapshot-name>` in chat.
 - **B.** User opens a **second SSH session** as escape hatch in a separate terminal window: `ssh knuco-droplet` and leaves it idle. Required during steps 3.4 (UFW), 3.8 (sshd hardening).
-- **C.** User confirms the DigitalOcean web console URL is bookmarked as last-resort recovery channel.
+- **C.** User bookmarks the **QEMU serial console URL** (`https://cloud.digitalocean.com/droplets/<droplet_id>/console?no_layout=true`) as last-resort recovery channel. Note: the "Launch Droplet Console" button on the Access tab is **not** a safe escape hatch — it authenticates via sshd and becomes unusable after 3.8. See the warning block above.
 - **D.** User posts `APPROVED — proceed to Phase 3` to authorize the entire phase. Each step still has an individual approval gate.
 
 All Phase 3 commands run via `ssh knuco-droplet` (root via the alias, until 3.9 swaps the alias to `knuco`).
@@ -192,22 +201,45 @@ ssh knuco-droplet 'ufw status verbose'
 
 **Approval gate:** APPROVED — 3.4 UFW enable. (User confirms second session is open.)
 
-### 3.5 fail2ban install + sshd jail
+### 3.5 fail2ban install + sshd jail + operator-IP whitelist
 
 **Commands:**
 ```
 ssh knuco-droplet 'apt-get install -y fail2ban'
 ssh knuco-droplet 'systemctl enable --now fail2ban'
+
+# Whitelist the operator's laptop public IP BEFORE step 3.8 runs its verification
+# tests. Without this, step 3.8's 2b (root login refused) and 2c (password auth
+# refused) are counted by fail2ban as auth failures against the operator IP;
+# combined with any Claude-side reruns of the same tests from the same laptop,
+# they cross the default 5-failure / 10-min threshold and ban the laptop.
+# Recovery then requires the QEMU serial console (see section 3 header warning).
+#
+# Added 2026-04-21 after that exact failure mode played out live during Phase 3.
+
+OPERATOR_IP=$(curl -s https://api.ipify.org)
+echo "operator IP (will be whitelisted): $OPERATOR_IP"
+[[ "$OPERATOR_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "ERROR: not a valid IPv4"; exit 1; }
+
+ssh knuco-droplet "cat > /etc/fail2ban/jail.d/knuco-whitelist.local <<EOF
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1 $OPERATOR_IP
+EOF"
+ssh knuco-droplet 'chmod 644 /etc/fail2ban/jail.d/knuco-whitelist.local'
+ssh knuco-droplet 'systemctl restart fail2ban'
+
 ssh knuco-droplet 'fail2ban-client status sshd'
+ssh knuco-droplet 'fail2ban-client get sshd ignoreip'
+# Expected: ignoreip list contains 127.0.0.1/8, ::1, and the operator IP.
 ```
 
-Default jail: 5 failures = 10 min ban. Sufficient for now.
+Default jail: 5 failures = 10 min ban. Operator IP is in `ignoreip`, so intentional auth-failure tests in step 3.8 will not count against the laptop.
 
-**Verify:** `fail2ban-client status sshd` shows `Currently banned: 0`, `Total banned: 0`, jail active.
+**Verify:** `fail2ban-client status sshd` shows jail active (may show previously-banned scanner IPs under `Total banned`; that's normal). `fail2ban-client get sshd ignoreip` returns `127.0.0.1/8 ::1 $OPERATOR_IP`.
 
-**Rollback:** `systemctl disable --now fail2ban && apt-get -y purge fail2ban`.
+**Rollback:** `systemctl disable --now fail2ban && apt-get -y purge fail2ban && rm -f /etc/fail2ban/jail.d/knuco-whitelist.local`.
 
-**Approval gate:** APPROVED — 3.5 fail2ban.
+**Approval gate:** APPROVED — 3.5 fail2ban + whitelist.
 
 ### 3.6 Create knuco user with sudo + explicit SSH pubkey install
 
@@ -312,6 +344,12 @@ ssh knuco-droplet 'sshd -T 2>/dev/null | grep -iE "^(permitrootlogin|passwordaut
 ```
 
 If `CONFIG_OK` and the effective config matches: `ssh knuco-droplet 'systemctl reload ssh'`.
+
+**⚠ Pre-verification check (added 2026-04-21 after fail2ban self-ban incident):** the verification tests below deliberately produce "Permission denied" responses (2b and 2c). Without a whitelist entry for the operator IP, fail2ban counts these as auth failures and — combined with any Claude-side runs from the same laptop — can cross the 5-failure threshold and ban the laptop. **Before running these tests, confirm the whitelist is in effect:**
+```
+ssh knuco-droplet 'fail2ban-client get sshd ignoreip'
+```
+Output must include the operator's current public IP alongside `127.0.0.1/8` and `::1`. If missing (e.g. the operator's laptop public IP changed since 3.5), re-run 3.5's whitelist sub-step with the new IP before proceeding — otherwise you're one test away from a QEMU-console recovery.
 
 **Verify (from fresh laptop terminals):**
 ```
@@ -1169,7 +1207,8 @@ Trivial change (footer string update or version bump in `package.json`), commit 
 
 Created at `/Users/legalassistant/constructioncrm/RUNBOOK.md`. Sections:
 
-- **SSH access:** `ssh knuco-droplet`. Backup access: DigitalOcean web console (always available; bookmark URL).
+- **SSH access:** `ssh knuco-droplet` (alias uses `User knuco` + key auth; `NOPASSWD:ALL` sudo for root escalation).
+- **Backup access — the real escape hatch:** the **QEMU virtual serial console** at `https://cloud.digitalocean.com/droplets/<droplet_id>/console?no_layout=true`. Talks directly to the hypervisor, independent of sshd / UFW / fail2ban. Login prompt requires the droplet's `root` password (NOT key auth). The "Launch Droplet Console" button in the DO UI Access tab is **not** a safe backup — it authenticates via the droplet's sshd and is useless because password auth is disabled. Always use the QEMU URL. This distinction was learned during the 2026-04-21 migration — see MIGRATION_LOG.md § 3.8 incident.
 - **View logs:** `ssh knuco-droplet 'sudo journalctl -u knuco -f'` (live), `... -n 200 --no-pager` (recent).
 - **Restart app:** `ssh knuco-droplet 'sudo systemctl restart knuco'`.
 - **Restart DB:** `ssh knuco-droplet 'sudo systemctl restart postgresql'`.
@@ -1184,6 +1223,16 @@ Created at `/Users/legalassistant/constructioncrm/RUNBOOK.md`. Sections:
 - **Restore procedure:** stop knuco → drop+recreate DB → pg_restore → start knuco. Full commands in RUNBOOK.
 - **TLS renewal:** automatic via certbot's systemd timer. Verify: `systemctl list-timers | grep certbot`. Manual force: `sudo certbot renew --force-renewal`.
 - **Volume detach/reattach (rebuilt droplet scenario):** stop Postgres → unmount → DO panel detach → reattach to new droplet → fix `/etc/fstab` UUID → mount → start Postgres.
+- **Updating the fail2ban operator-IP whitelist (when your laptop public IP changes):**
+  1. Find the new public IP from the laptop: `curl -s https://api.ipify.org`.
+  2. **If SSH to the droplet still works** (not yet banned): `ssh knuco@knuco-droplet`, then
+     ```
+     sudo sed -i "s/ignoreip =.*/ignoreip = 127.0.0.1\/8 ::1 <NEW_IP>/" /etc/fail2ban/jail.d/knuco-whitelist.local
+     sudo systemctl restart fail2ban
+     sudo fail2ban-client get sshd ignoreip   # confirm new IP present
+     ```
+  3. **If SSH is down** (laptop already banned by fail2ban from the old IP): connect via the QEMU serial console (see Backup access above), log in as `root`, first `fail2ban-client set sshd unbanip <OLD_IP>` to clear the ban, then run the same `sed` + `systemctl restart fail2ban` commands from step 2.
+  4. Verify: `sudo fail2ban-client get sshd ignoreip` returns the new IP alongside `127.0.0.1/8` and `::1`, and `ssh knuco@knuco-droplet 'echo WORKS'` returns `WORKS` with no delay.
 - **Admin user creation invocation** (Q2):
   ```
   cd /opt/knuco && set -a && . /etc/knuco/env && set +a && \
