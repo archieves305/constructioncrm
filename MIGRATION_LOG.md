@@ -217,3 +217,69 @@ Key outcomes (full detail in DISCOVERY.md):
 - **Q14:** Locale bump C.UTF-8 → en_US.UTF-8? My lean: yes.
 - **Q15:** SSH port 22 vs non-standard? My lean: 22.
 - **Q16:** eth1 / 10.116.0.2 — leave alone or disable? My lean: leave alone.
+
+### Phase 1 commit (2026-04-21)
+
+- Committed `DISCOVERY.md` + `MIGRATION_LOG.md` after secret-pattern scan returned no real secrets (only file paths, env-var names, the public ED25519 host-key fingerprint, and already-public values from `prisma/seed.ts` / `.github/workflows/ci.yml`).
+- Per-repo git identity set: `user.email=richard@rcareylaw.com`, `user.name=archieves305` (matches the most recent prior commits in this repo). No global git config touched.
+- Commit hash: `6d9fb9f` (full: `6d9fb9fbb5e9b21c808be8c9e7e9d0e6ed5e32ce`). Subject: `chore(migration): phase 1 discovery — local + remote inventory`. Author + Committer: `archieves305 <richard@rcareylaw.com>`.
+- **Local commit only — not pushed.** Push deferred until user satisfied with Phase 2 plan and re-confirms no secret-shaped content lurks.
+
+---
+
+## 2026-04-21 (Phase 2 kickoff)
+
+### All outstanding questions unblocked (user message)
+
+- **Q1 (local DB):** `CONFIRMED — local construction_crm DB is legacy, start fresh.` User has previously seen the app running under a different macOS user with Tailscale; doesn't care about local data. Do not touch or read the local DB further.
+- **Q2 (seed):** Option A confirmed. Reduced seed (reference rows only). Plus: write `scripts/create-admin.ts` accepting `--email --name --role` flags (and optional `--password`); generate cryptographically random password if not provided (`crypto.randomBytes`, 32+ chars); hash with bcryptjs at the app's existing cost factor (12); print generated password to stdout exactly once; **idempotent** — if email exists, print `USER EXISTS, skipping` and exit 0 (do not overwrite). Document invocation in RUNBOOK.md.
+  - Production admin: email `richard@rcareylaw.com`, name `Richard Carey`, role `ADMIN`. Force-reset on first login if app supports it; otherwise rotate manually.
+- **Q3 (intake cron):** Option A confirmed. Defer. Manual-trigger only.
+- **Q4 (file uploads):** Assume not in production use. Create `/var/lib/knuco/uploads/` with correct ownership/perms, but no code wiring. Revisit when feature ships. No file transfer in Phase 4.
+- **Q5–Q9:** All recommendations confirmed (Node 22 LTS, Postgres 16 on droplet, systemd, rsync `deploy.sh`, drop HSTS preload).
+- **Q10 (env reference):** **Skip** original dev's `.env`. Use `src/lib/env.ts` zod schema as authoritative. Claude assembles `.env.production` template with placeholders; user fills production values. Specifics: `NODE_ENV=production`, `DATABASE_URL` constructed in Phase 4 from generated DB password, `NEXTAUTH_URL=https://crm.knuconstruction.com`, `NEXTAUTH_SECRET` via `openssl rand -base64 48`. Twilio + Outlook vars left unset at launch (optional in `env.ts`; features throw at runtime when invoked). User provides Twilio values when ready.
+- **Q11 / Q12:** already resolved + committed.
+- **Q13 (block volume):** APPROVED for Postgres data directory at `/mnt/volume_nyc1_1776773233539/postgres/main`. Requirements: verify volume empty before use; mount via `/etc/fstab` by UUID (not device path); standard rsync + data_directory swap procedure; ownership `postgres:postgres` mode 0700; document detach/reattach in RUNBOOK.
+- **Q14 (locale):** bump to `en_US.UTF-8` (matches my recommendation; user confirmed).
+- **Q15 (SSH port):** stay on 22 (matches my recommendation; user confirmed).
+- **Q16 (eth1):** leave up, unused, no binds (matches my recommendation; user confirmed).
+- **Local verification risk:** CLOSED. User has previously observed app running successfully on a different macOS user account. No further local verification required.
+
+### Phase 2 drafting
+
+- Started Phase 2 drafting per user authorization.
+- Deliverable: `/Users/legalassistant/constructioncrm/MIGRATION_PLAN.md`. **Plan only** — no execution. Phase 3 awaits explicit `APPROVED — proceed to Phase 3` from user.
+- Plan includes: target architecture, every numbered Phase 3-8 step with exact commands + verify + rollback, scripts/create-admin.ts and scripts/seed-prod.ts specs, .env.production assembly template, DNS instructions, full pitfall mitigation table mapped to user's original prompt, post-Phase-8 hardening (Tailscale, FileVault, HSTS preload re-add, intake cron), and a go/no-go checklist.
+
+### Phase 2 plan review (2026-04-21)
+
+User reviewed the initial draft and returned 10 corrections. All applied:
+
+1. **3.7 sudo:** committed to Option A (NOPASSWD:ALL); RUNBOOK callout to revisit when team grows.
+2. **3.6 knuco authorized_keys:** install pubkey by content (not by cloning `/root/.ssh/authorized_keys`); added byte-compare verification (`PUBKEY MATCH`/`MISMATCH`).
+3. **3.8 sshd cleanup:** replaced blanket `sed -i ... /etc/ssh/sshd_config.d/*.conf` with `grep -lE` to identify only files containing conflicts, pause for user approval of the file list, then targeted edit per file.
+4. **4.4 env transfer:** stream content via `ssh ... 'sudo -u knuco bash -c "umask 077; cat > /etc/knuco/env"' < /tmp/...`. No intermediate plaintext file on droplet's `/tmp`.
+5. **4.4 NEXTAUTH_SECRET:** never echoed to terminal; goes silently into env file.
+6. **3.14 DB password:** stdin-fed psql (no `-c` flag, so password never in argv on either side); history hygiene (`HISTCONTROL=ignorespace HISTFILE=/dev/null`); blocking "save to 1Password" prompt.
+7. **3.13 data_directory edit:** stdin-fed Python heredoc replaces nested-quoted sed.
+8. **5.6 backup script:** added comment about URL-regex coupling and migration path to `~postgres/.pgpass`; added empty-`DB_PASS` fail-loud check with redacted error message.
+9. **§13 checklist:** DB password capture is now mandatory (no "or accepted not capturing" escape).
+10. **§13 checklist:** new mandatory item for admin-login password capture in 4.9.
+
+Plan corrections committed: hash `c162ba7` (full `c162ba770f8c0f114aa27b330c103dfdedfdefce`), subject `migration: apply review corrections to Phase 2 plan`. Local commit only — not pushed.
+
+### Phase 3 pre-flight + go/no-go (2026-04-21)
+
+User went through §13 go/no-go checklist:
+
+- **Pre-Phase-3 DigitalOcean snapshot:** **intentionally skipped.** Rationale (user): droplet is fresh (created 2026-04-21, Phase 1 3b confirmed clean base, no production data at risk). Catastrophic-failure recovery path is destroy + recreate Ubuntu 24.04 droplet + reattach the 10 GB block-storage volume (~15 min, acceptable blast radius for Phase 3 only). **Pre-3.13 snapshot remains mandatory** (Postgres data-dir move is the actually-destructive operation).
+- Second SSH session open as escape hatch (will remain open through end of Phase 3).
+- DO web console bookmarked.
+- No production traffic on droplet; reboots acceptable.
+- DB password (3.14) and admin password (4.9) will be saved to password manager on generation.
+- Sudo Option A confirmed.
+- `openssl rand -base64 48` accepted for `NEXTAUTH_SECRET`; value goes straight to env, never displayed.
+- Twilio + Outlook env vars empty at launch acceptable (manual-trigger intake at go-live).
+- Local `construction_crm` DB will not be touched.
+
+User posted: `GO/NO-GO: GO` and `APPROVED — proceed to Phase 3`. Authorized to execute step 3.1 only, pause for explicit `APPROVED — 3.2` before any further step.
