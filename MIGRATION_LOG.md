@@ -453,3 +453,30 @@ ignoreip = 127.0.0.1/8 ::1 98.211.166.106
 - Section 8 RUNBOOK documents the console distinction and adds a procedure for updating the whitelist when the operator's public IP changes (including the "SSH already down" case where recovery requires QEMU console).
 
 **3.8 status:** functionally complete. Awaiting `APPROVED — 3.9` from user after plan amendments + incident log are committed and reviewed.
+
+### 3.8 + plan amendments — committed (2026-04-21)
+
+Two-commit split (per user direction, option 2):
+
+- `87481d2` (full: `87481d20c4a1970ffa0ecefa43484ee9ce653510`) — subject `chore(migration): log phase 3 steps 3.1–3.7 (batched per-step entries)`. Captures the routine batched per-step audit-trail entries from 3.1 through 3.7 only. 1 file, +101 lines.
+- `332530a` (full: `332530a63a262fbb5767a3462d5e5c2c8599f403`) — subject `migration: document 3.8 fail2ban incident, amend plan with operator-IP whitelist + console distinction`. Captures the 3.8 entry, the fail2ban incident report (this file), and all MIGRATION_PLAN.md amendments (section 3 console-distinction warning, 3.5 operator-IP whitelist sub-step, 3.8 pre-verification warning, section 8 RUNBOOK additions). 2 files, +125 / −7 lines.
+
+Both local commits only — not pushed; push gate comes after operator review of full Phase 3 outcome.
+
+### 3.9 — SSH alias swap, root → knuco (Claude-executed, 2026-04-21)
+
+Laptop-side change only — droplet state not touched.
+
+- **Backup:** `cp ~/.ssh/config ~/.ssh/config.bak-2026-04-21-phase3` → 310 bytes (matches pre-edit file size). The earlier `~/.ssh/config.bak-2026-04-21-phase1` (48 bytes — pre-Phase-1 state with only the `Include` line) is still in place as a deeper rollback point.
+- **Edit applied to `~/.ssh/config`** (literal bytes pre-approved by user before write):
+  - Removed the `# TODO (Phase 3): switch User from root to knuco after deploy user is created on the droplet.` comment line — TODO is now closed.
+  - Changed `User root` to `User knuco` in the `Host knuco-droplet` block.
+  - Untouched: `Include /Users/legalassistant/.colima/ssh_config` (line 1), the blank line between Include and Host block (line 2), `HostName 161.35.0.183`, `IdentityFile ~/.ssh/knuco_do_ed25519`, `IdentitiesOnly yes`, `UseKeychain yes`, `AddKeysToAgent yes`.
+  - Resulting file: 217 bytes / 9 lines (was 310 bytes / 10 lines).
+- **Verification (fresh ssh from laptop, BatchMode=yes so no prompts could mask a failure):**
+  - `ssh -o BatchMode=yes knuco-droplet 'echo ALIAS_OK && whoami && hostname'` → `ALIAS_OK / knuco / KNUCO` ✓ (alias resolves to knuco user; remote hostname matches).
+  - `ssh -o BatchMode=yes knuco-droplet 'sudo -n whoami'` → `root` ✓ (NOPASSWD sudo from 3.7 works through the alias; no password prompt).
+
+**3.9 status:** complete. Phase 3 hardening is now operationally complete on both ends — droplet only accepts knuco's SSH key, and the laptop's `knuco-droplet` alias maps to the matching user with NOPASSWD root escalation available via `sudo`. The temporary "root via the alias" arrangement that lasted through 3.1–3.8 is closed.
+
+Phase 3 progress: **3.1–3.9 done**. Remaining: 3.10 (volume mount via UUID + reboot test), 3.11 (Node 22 from NodeSource + apt-mark hold), 3.12 (PostgreSQL 16 from PGDG), 3.13 (Postgres data-dir move to the 10 GB block-storage volume — pre-3.13 DO snapshot mandatory per user), 3.14 (knuco DB + knuco_app DB user with strong password to 1Password), 3.15 (Nginx install), 3.16 (Certbot install), 3.17 (application directory structure under /opt/knuco, /etc/knuco/, /var/log/knuco/, /var/backups/knuco/, /var/lib/knuco/uploads/).
