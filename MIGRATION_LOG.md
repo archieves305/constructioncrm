@@ -1083,3 +1083,82 @@ All purely additive (new tables, no `ALTER` on existing tables) — that's why t
 - **Phase 6 (reboot/restore verification) and Phase 7 proper (`deploy.sh` design + implementation) remain pending.** Phase 7.5 is the bridge — a one-time manual deploy whose lessons feed `deploy.sh`.
 
 **Phase 7.5 status: complete.**
+
+---
+
+### Phase 7 — `deploy.sh` shipped, test run green (Claude-executed, 2026-04-22)
+
+`deploy.sh` is the long-pending repeatable dev→prod workflow. Phase 7.5 was the one-time manual bridge that taught us what the script needs to handle. Phase 7 is the script itself, plus the on-droplet logrotate config for its log, plus the bootstrap test run.
+
+#### 7.1 — Scope and design principles
+
+`deploy.sh` (594 lines, mode 755, repo root) replaces the manual SSH-and-run-commands ceremony with a single invocation. Operator runs `./deploy.sh` from a workstation that has SSH access to `knuco-droplet`. The script:
+
+- **Pre-flights** the local repo (on `main`, working tree clean, in sync with `origin/main`), with a `--allow-divergent` escape hatch gated by an explicit `YES I UNDERSTAND` confirmation that bypasses even `--yes`.
+- **Captures rollback artifacts** before any change: fresh DB dump via the existing `/usr/local/bin/knuco-backup.sh`, plus a `/opt/knuco` tarball at `/var/backups/knuco/pre-deploy-<ts>.tar.gz` with a rolling 7-tarball retention.
+- **Prints a DEPLOY PLAN** before the y/N prompt — including HEAD SHA, current droplet BUILD_ID/PID/deploy SHA, and any pending Prisma migrations enumerated by name (or "none").
+- **Ships code** via rsync (same exclude set as Phase 4.5/7.5).
+- **Runs the on-droplet sequence** as a heredoc'd bash chain (`set -euo pipefail`): `npm ci --include=dev` → `npx prisma generate` → `npx prisma migrate status || true` (informational) → `npx prisma migrate deploy` → `npm run build` → `npx prisma migrate status` (strict, must contain "Database schema is up to date!").
+- **Restarts** the service, polls `is-active` for up to 30s, smoke-tests droplet-side and laptop-side curls, and scans the journal for error patterns since restart (with explicit exclusions for benign systemd SIGTERM-on-restart noise).
+- **Rolls back automatically** on any post-rsync failure: extract pre-deploy tarball back to `/opt/knuco`, restart service. DB rollback is **opt-in** via `--auto-rollback-db` (most KNUCO migrations are additive and tolerate forward-only schema; a manual restore recipe is printed when the flag is off and a code rollback happens).
+- **Records the deployed SHA** at `/opt/knuco/.deploy-sha` for traceability across deploys.
+- **Logs everything** locally to `~/knuco-deploys/<ts>.log` (tee'd from script start) and ships the local log to the droplet's `/var/log/knuco/deploy.log` on every exit (success OR failure), via scp + sudo cat.
+
+#### 7.2 — Phase 7.5 lessons baked into the script
+
+- **`npm ci --include=dev`** (not plain `npm ci`). `/etc/knuco/env` sets `NODE_ENV=production`, which makes npm omit devDependencies. The codebase keeps build-time deps (`@tailwindcss/postcss`, `tailwindcss`, `typescript`, `@types/*`) in devDependencies. On our build-on-server model, those are needed at build time. Documented as a comment in the script header.
+- **`prisma migrate status || true` pre-deploy, strict post-deploy.** `prisma migrate status` exits 1 when migrations are pending — documented Prisma behavior, not a failure. Pre-deploy call is informational and wrapped in `|| true`. Post-deploy call is strict and asserts the literal string `"Database schema is up to date!"` because exit 0 alone is not sufficient evidence `migrate deploy` finished everything.
+- **Journal scan filter.** Excludes systemd's SIGTERM-on-restart noise: `status=143` (signal 128+15), `Failed with result 'exit-code'`, `Main process exited, code=exited, status=143`. These three patterns appeared in the Phase 7.5 journal during a healthy restart and would have falsely failed the deploy without exclusion.
+- **mkdir-based lock, not flock.** `flock` is Linux-only (util-linux); macOS doesn't ship it by default. We use `mkdir /tmp/knuco-deploy.lock.d` for atomicity, write `$$` to `<lock_dir>/pid`, and recover stale locks via `kill -0 $pid` liveness check. Portable across macOS/Linux/BSD.
+- **Divergence pre-flight + `--allow-divergent` + `YES I UNDERSTAND`.** The pre-flight refuses to deploy when local is ahead OR behind origin/main. The escape hatch (`--allow-divergent`) requires a literal `YES I UNDERSTAND` typed at a prompt that is NOT auto-answered by `--yes`. Reflects the Phase 7.5 lesson that "I have origin and local out of sync" is exactly the failure mode that needs explicit acknowledgment.
+- **`LOCK_HELD` defensive flag** (small enhancement beyond bare-minimum spec). The on_exit cleanup `rm -rf "$LOCK_DIR"` only runs if `LOCK_HELD=1` (set inside `acquire_lock` only on successful acquisition). Without this guard, an operator running `./deploy.sh` while another deploy is in progress would race-condition the live deploy's lock. Costs 3 lines, prevents a real footgun.
+
+#### 7.3 — Test runs (three iterations to pass)
+
+**Run 1 (failed at pre-flight):** Tested as `echo y | ./deploy.sh` immediately after writing `deploy.sh`. The script's own pre-flight (correctly) caught `deploy.sh` as an untracked file in the working tree and exited rc=3. Bootstrap chicken-and-egg: the test required the script to be present on disk, but the pre-flight check rejects untracked files. Resolution: **Path R** — commit deploy.sh first (no log entry yet), push, then test against the now-clean working tree. If the test failed, plan was `git revert HEAD` to roll back the commit.
+
+**Run 2 (failed at post-DEPLOY-PLAN read):** After committing deploy.sh and pushing, re-tested as `echo y | ./deploy.sh`. Pre-flight passed cleanly. DEPLOY PLAN printed correctly, including "MIGRATIONS TO APPLY: none". Then exited rc=1 at `last phase=migrate-preview` after 7s, with no visible "Proceed?" prompt. **Root cause:** `ssh` forwards the parent shell's stdin to the remote process by default. The pre-flight made ~6 ssh calls (read BUILD_ID, deploy SHA, PID, migrate status), and each one consumed whatever stdin we'd piped. By the time `read -r -p "Proceed with deploy? (y/N) "` ran, stdin was at EOF; `read` returned non-zero; `set -e` killed the script. Bash also silently skips the prompt text when stdin is not a tty, which masked the failure mode.
+
+**Resolution:** patched all 26 non-heredoc `ssh` invocations to use `ssh -n`, which redirects ssh's stdin from `/dev/null` and leaves the script's own stdin untouched for `read`. Left unchanged: line 454 `rsync -e ssh` transport spec, line 467 heredoc-feeding `ssh "$DROPLET" bash <<'REMOTE'` (stdin = the heredoc, intentional), and the `scp` call (different stdin semantics). Committed as `2bd6336`. Interactive operator use (real tty) was always unaffected.
+
+**Run 3 (SUCCESS, elapsed 103s):** Re-ran `echo y | ./deploy.sh`. Full end-to-end:
+- Pre-flight: branch=main, clean, 0 ahead, 0 behind, ssh reachable, BUILD_ID/SHA/PID read ✓
+- MIGRATIONS TO APPLY: none ✓
+- Backup: `/var/backups/knuco/postgres-2026-04-22-165428.dump` (124K)
+- Tarball: `/var/backups/knuco/pre-deploy-20260422-125420.tar.gz` (278K)
+- rsync: ok (no-op transfer, code already in sync)
+- npm ci --include=dev: 913 packages, 24s (devDeps fully restored)
+- prisma generate: 1.18s
+- migrate status pre-deploy: "Database schema is up to date!" (informational)
+- migrate deploy: "No pending migrations to apply." (no-op, expected)
+- npm run build: 25.7s compile + 18.6s tsc, 56/56 static pages, 92 routes
+- migrate status post-deploy (strict): "Database schema is up to date!" ✓
+- BUILD_ID: `J1Y1vvczKSjHx7sN1F7Bd` → `L0_57ZlDpqOndo3twVOMz` ✓
+- Restart: active after 1s, PID `9266` → `14594`
+- Smoke tests: droplet curl 307 ✓, laptop curl 307 ✓
+- Journal scan: no error patterns ✓
+- `/opt/knuco/.deploy-sha`: `2bd6336256685671736d06cabe1ba5af4b0bb9d5` ✓
+- DEPLOY SUCCESS banner printed, 103s total elapsed
+
+Bash quirk noted: `read -r -p` doesn't print its prompt when stdin is a pipe (not a tty). The `y` was still consumed correctly and the deploy proceeded — just no visible prompt under `echo y |`. Interactive operator use prints the prompt normally. This is documented bash behavior, not a script bug.
+
+#### 7.4 — On-droplet logrotate config
+
+Installed at `/etc/logrotate.d/knuco-deploy` (mode 644 root:root, 141 bytes) via `ssh knuco-droplet 'sudo install -m 644 -o root -g root /dev/stdin /etc/logrotate.d/knuco-deploy' < heredoc`. Config: weekly rotation × 12 weeks retention, compress + delaycompress (most recent rotated log readable without `zcat`), missingok, notifempty, create 0644 root:root. `logrotate -d` dry-run reported clean parse.
+
+This config lives only on the droplet — nothing to commit to the repo. Documented here so future operators / Phase 8 RUNBOOK know where to find it.
+
+#### 7.5 — Tech debt carried forward (NOT addressed in this phase)
+
+- **devDeps-on-server install strategy.** Status quo: `npm ci --include=dev` in deploy.sh. Alternative: move build-time deps from `devDependencies` to `dependencies` in `package.json`. The latter changes the dependency graph for everyone (including the developer) and may have second-order effects on dev installs. Decision deferred to a conversation with the developer; flag this for the Phase 8 RUNBOOK so the next operator understands the constraint.
+- **Next.js `"middleware"` → `"proxy"` file convention.** Build still emits the deprecation warning. Single-file rename + content shape change per the docs link. Not blocking until Next 17 lands. Phase 8 or later.
+
+#### Phase 7 end state
+
+- **`deploy.sh`** at `/Users/legalassistant/constructioncrm/deploy.sh`, mode 755, committed as `2bd6336` (after the original `8543337` plus the ssh -n fix).
+- **`/etc/logrotate.d/knuco-deploy`** on the droplet, 644 root:root.
+- **Production fully deployed** with `deploy.sh` itself, end-to-end smoke-tested green: HEAD `2bd6336`, BUILD_ID `L0_57ZlDpqOndo3twVOMz`, PID `14594`, all smoke checks pass.
+- **Audit trail:** local log at `~/knuco-deploys/20260422-125420.log` (and earlier failed runs), shipped to droplet `/var/log/knuco/deploy.log` per script's exit handler.
+- **Phase 6 (reboot/restore verification)** and **Phase 8 (RUNBOOK.md)** remain pending. Future deploys to KNUCO can use `./deploy.sh` directly.
+
+**Phase 7 status: complete.**
