@@ -565,3 +565,61 @@ Already UUID-based, already enabled, already includes `nofail`. Operator chose o
 - Working tree: MIGRATION_LOG.md modified (this section), uncommitted (will commit immediately after this entry). Plan amendments already committed separately as `dda5149`.
 - **Pre-3.13 DigitalOcean snapshot remains mandatory** per the §13 go/no-go checklist before operator authorizes 3.13 (Postgres data-dir move to volume — destructive in case of misconfiguration).
 - Next: pause for operator's Batch A review and pre-3.13 snapshot, then `APPROVED — 3.13`.
+
+### Pre-3.13 DigitalOcean snapshot — operator-confirmed (2026-04-22)
+
+Operator took manual DO snapshot before authorizing 3.13:
+- Snapshot ID: `KNUCO-1776849230023` (DO-internal); operator-friendly name: `knuco-pre-3.13-postgres-data-move-2026-04-22`
+- Status: Complete (verified in DO panel)
+- After snapshot Complete, operator posted `APPROVED — 3.13`.
+
+### 3.13 — Postgres data-dir move to block-storage volume (Claude-executed, 2026-04-22)
+
+Three phases per operator-specified gate structure (separate approval between each).
+
+**Phase 1: stop, verify, rsync, diff.**
+- First attempt aborted partway due to a bash scripting bug: `set -e` + `systemctl is-active <stopped service>` returned exit 3 (systemd's normal "inactive" exit code), terminating the script before any output. `sudo systemctl stop postgresql` had already succeeded; nothing else changed. Operator authorized retry with `is-active` wrapped in `|| true` + `case` match on the string output rather than relying on exit code (rule now also documented in the kernel-bump feedback memory entry, generalized to any systemctl/similar invocation under `set -e`).
+- Second attempt aborted on a self-matching `pgrep -fa "/usr/lib/postgresql/16/bin/postgres"` — the bash command line containing the literal binary path matched the pgrep regex against itself. Removed the pgrep belt-and-suspenders entirely; systemd `is-active` is the authoritative source for postgres being stopped.
+- Third attempt clean. Outcome:
+  - Volume verified mounted (`/mnt/volume_nyc1_1776773233539`) with only `lost+found/` present (safe to use).
+  - `sudo install -d -o postgres -g postgres -m 700 /mnt/volume_nyc1_1776773233539/postgres` created the parent dir.
+  - `sudo rsync -aXS --info=stats /var/lib/postgresql/16/main/ /mnt/volume_nyc1_1776773233539/postgres/main/` — sent **40,480,827 bytes** (~40 MB), received 18,558 bytes, speedup 1.00, no errors.
+  - `sudo diff -rq` between source and dest: **`DIFF_OK — no differences whatsoever`** (empty output).
+  - Note on `du -sh` size discrepancy (39M source vs 28M dest): caused by `rsync -S` recreating sparse holes at destination — postgres pre-allocates large segment files that are mostly zero until written. Content is byte-identical per `diff -rq`. Not data loss; in fact saves ~11 MB on the volume.
+
+**Phase 2: postgresql.conf edit + mv old data dir + start + verify.**
+- `sudo cp /etc/postgresql/16/main/postgresql.conf /etc/postgresql/16/main/postgresql.conf.bak-pre-volume-move-2026-04-22` (30,136 bytes; root:root via sudo).
+- Stdin-fed Python heredoc replaced the `data_directory` line with `'/mnt/volume_nyc1_1776773233539/postgres/main'`; Python returned `OK: data_directory line replaced` and confirmed it wasn't a no-op (would have raised SystemExit(1) otherwise).
+- `sudo grep "^data_directory" /etc/postgresql/16/main/postgresql.conf` → `data_directory = '/mnt/volume_nyc1_1776773233539/postgres/main'` ✓
+- `sudo mv /var/lib/postgresql/16/main /var/lib/postgresql/16/main.old-pre-volume-move-2026-04-22` (NOT deleted; kept for 7-day rollback per plan).
+- `sudo systemctl start postgresql` → wrapper `active`, cluster `postgresql@16-main active`.
+- `sudo -u postgres psql -tAc "SHOW data_directory;"` → `/mnt/volume_nyc1_1776773233539/postgres/main` (MATCH ✓).
+- Smoke-test query: `current_user=postgres`, `current_database=postgres`, `pg_postmaster_start_time=2026-04-22 09:28:44+00` (matches post-mv start).
+- `sudo pg_lsclusters` confirms cluster `16/main port 5432 online postgres /mnt/volume_nyc1_1776773233539/postgres/main /var/log/postgresql/postgresql-16-main.log`.
+
+**Phase 3: reboot test + post-reboot verification.**
+- Pre-reboot `boot_id=30ea17da-d242-497a-8e21-e52439da02ac`, kernel `6.8.0-110-generic`.
+- `sudo reboot` issued; reconnected with new boot_id `d20f8c2e-bee3-4231-842a-f6d88cadec6c` after **1 poll attempt** (~5 s).
+- `postgresql@16-main` came up on its own after **1 poll attempt** (~1 s post-reconnect).
+- Post-reboot verification (all checks passed):
+  - `uptime -p`: `up 0 minutes`; boot time `2026-04-22 09:32:03 UTC`.
+  - `systemctl is-system-running`: `running`, **0 failed units**.
+  - All configured services `active`: `ssh`, `ufw`, `fail2ban`, `mnt-volume_nyc1_1776773233539.mount`, `postgresql`, `postgresql@16-main`.
+  - Swap: 2.0 GiB active (from /swapfile).
+  - UFW: active (default deny + 22/80/443 allow).
+  - fail2ban sshd `ignoreip` still contains `127.0.0.0/8`, `98.211.166.106`, `::1` — operator-IP whitelist file in `/etc/fail2ban/jail.d/` survived reboot as expected.
+  - Volume mount: `/mnt/volume_nyc1_1776773233539 /dev/sda ext4 rw,noatime,discard` — identical to pre-reboot.
+  - Old data dir still present at `/var/lib/postgresql/16/main.old-pre-volume-move-2026-04-22` (rollback insurance).
+  - Current data dir on volume: `/mnt/volume_nyc1_1776773233539/postgres/main` (postgres:postgres, 19 entries, dated 09:32 — matches post-start state).
+  - `SHOW data_directory` → `/mnt/volume_nyc1_1776773233539/postgres/main` (post-reboot MATCH ✓).
+  - Smoke-test query post-reboot succeeded; `pg_postmaster_start_time = 2026-04-22 09:32:10+00` (postgres started ~7 s after boot at 09:32:03).
+- Kernel comparison: pre `6.8.0-110-generic`, post `6.8.0-110-generic` — **no kernel bump** this reboot (~3 min gap; no new unattended-upgrades cycle in between).
+
+**3.13 status:** complete. Postgres now serves from the 10 GB DigitalOcean Block Storage volume at `/mnt/volume_nyc1_1776773233539/postgres/main`; data dir survived a reboot; cluster registry agrees; smoke queries pass.
+
+**Rollback artifacts on disk** (delete after 7 days of stable production at the operator's discretion):
+- `/var/lib/postgresql/16/main.old-pre-volume-move-2026-04-22` (~39 MB, original data dir on root disk)
+- `/etc/postgresql/16/main/postgresql.conf.bak-pre-volume-move-2026-04-22` (30,136 bytes, original conf with `data_directory = '/var/lib/postgresql/16/main'`)
+- DO snapshot `KNUCO-1776849230023` / `knuco-pre-3.13-postgres-data-move-2026-04-22` (whole-droplet, retain per operator policy)
+
+Phase 3 progress: **3.1–3.13 done**. Remaining Batch C: 3.14 (knuco DB + knuco_app DB user with strong password to 1Password), 3.15 (Nginx install), 3.16 (Certbot install), 3.17 (application directory structure). Awaiting operator's `APPROVED — Batch C`.
