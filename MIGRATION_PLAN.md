@@ -386,31 +386,49 @@ ssh knuco-droplet 'sudo -n whoami'   # expect: root
 
 **Approval gate:** APPROVED — 3.9 alias swap.
 
-### 3.10 Mount block-storage volume by UUID
+### 3.10 Verify volume mount survives reboot (DO-managed systemd .mount unit)
 
-**Action:** ensure `/mnt/volume_nyc1_1776773233539` is in `/etc/fstab` by UUID (not device path) for reboot safety. Verify volume is empty before assigning to Postgres.
+**Action:** confirm the DigitalOcean-managed systemd `.mount` unit for the block-storage volume is enabled, UUID-based, and survives reboot. **Do not add a fstab entry** — DO's tooling installs `/etc/systemd/system/mnt-volume_nyc1_<id>.mount` at volume-attach time with `What=/dev/disk/by-uuid/<UUID>` and `Options=defaults,nofail,discard,noatime`, which already provides the persistent UUID-based mount we want. Verify volume is empty before assigning to Postgres in 3.13.
 
-**Commands:**
+> **Background (added 2026-04-22 after Phase 3 discovery):** the original 3.10 plan assumed `/etc/fstab` had a `/dev/sda` line that needed to be replaced with a `UUID=` entry. On Ubuntu 24.04 droplets with DigitalOcean Block Storage volumes, that's NOT how the volume is mounted. Instead, DO's `droplet-agent` (or the volume-attach automation it triggers) installs a regular systemd `.mount` unit file like `/etc/systemd/system/mnt-volume_nyc1_<id>.mount` with `What=/dev/disk/by-uuid/<UUID>`. The unit is enabled into `multi-user.target.wants/`, so it auto-mounts at boot independently of fstab. Adding a fstab entry on top of that creates a redundant `systemd-fstab-generator` unit at `/run/systemd/generator/` which the explicit `/etc/systemd/system/` version takes precedence over — pointless duplication that also fights DO's tooling (which may overwrite/recreate its file on volume operations). **Adapt to the existing mechanism rather than replacing it.**
+
+**Commands (inspect + verify, no edits):**
 ```
+# 1. Inspect existing mount mechanism BEFORE assuming fstab is the source
 ssh knuco-droplet 'mount | grep /mnt/volume; cat /etc/fstab; lsblk -f /dev/sda'
+ssh knuco-droplet 'systemctl list-unit-files --type=mount | grep -i volume'
+# Find the actual unit name (volume id varies per attachment), then:
+ssh knuco-droplet 'systemctl cat mnt-volume_nyc1_<id>.mount'
 
-# If fstab uses /dev/sda (not UUID), update:
-ssh knuco-droplet 'UUID=$(blkid -s UUID -o value /dev/sda); echo "UUID=$UUID"; sudo cp /etc/fstab /etc/fstab.bak-pre-knuco; sudo sed -i "s|^/dev/sda |UUID=$UUID |" /etc/fstab; cat /etc/fstab'
+# Confirm the unit has all of these properties:
+#   What=/dev/disk/by-uuid/<UUID>   (UUID-based, not /dev/sdX)
+#   Options=...,nofail,...           (boot doesn't drop to emergency on missing volume)
+#   [Install] WantedBy=multi-user.target  (auto-starts on boot)
+# Plus: `systemctl is-active <unit>` → active, `systemctl is-enabled <unit>` → enabled.
 
-# Test fstab without rebooting
-ssh knuco-droplet 'sudo mount -a && mount | grep /mnt/volume'
+# 2. (Only if no .mount unit exists AND the volume is mounted via fstab using /dev/sdX):
+#    Then and only then, convert fstab to UUID-based — see git history for the
+#    archived original plan procedure. On standard DO droplets this branch is unused.
 
-# Verify volume is empty (only lost+found acceptable)
-ssh knuco-droplet 'ls -la /mnt/volume_nyc1_1776773233539/'
+# 3. Verify volume is empty (only lost+found acceptable for Postgres data dir use):
+ssh knuco-droplet 'ls -la /mnt/volume_nyc1_<id>/'
 ```
 
-If volume contains anything other than `lost+found/`: **abort and ask user.**
+If the volume contains anything other than `lost+found/`: **abort and ask user.**
 
-**Verify:** reboot droplet (`ssh knuco-droplet sudo reboot`), wait 60s, reconnect, confirm: `ssh knuco-droplet 'df -h /mnt/volume_nyc1_1776773233539 && lsblk -f /dev/sda'`.
+**Verify (reboot test):** capture `cat /proc/sys/kernel/random/boot_id` pre-reboot, run `ssh knuco-droplet 'sudo reboot'`, poll until the boot_id changes (same pattern as 3.1 reboot), then confirm post-reboot:
+- `systemctl is-active mnt-volume_nyc1_<id>.mount` → `active`
+- `findmnt /mnt/volume_nyc1_<id>` → same source (`/dev/sda` or whatever the kernel resolves the UUID to), same options as pre-reboot
+- `ls -la /mnt/volume_nyc1_<id>/` → contents identical to pre-reboot
+- Other configured services still up: `systemctl is-active ssh ufw fail2ban`, `swapon --show`
 
-**Rollback:** `mv /etc/fstab.bak-pre-knuco /etc/fstab && mount -a`.
+> **Note on kernel bumps across the reboot:** if `unattended-upgrades` ran during the gap since the previous reboot (e.g. 3.1's), this reboot may pick up a newer kernel (`uname -r` will differ pre- vs post-reboot). This is **expected and non-blocking** as long as all configured services come back (ssh, UFW, fail2ban, the volume `.mount` unit, swap, postgresql once installed). Halt only if a load-bearing service fails post-reboot, regardless of whether the kernel changed. Confirmed during the 2026-04-22 Phase 3 run: 3.10's reboot bumped the kernel from `6.8.0-71-generic` to `6.8.0-110-generic` because `unattended-upgrades` had landed a newer kernel image during the ~14h gap since 3.1; everything else came back clean.
 
-**Approval gate:** APPROVED — 3.10 fstab UUID + reboot test + volume-empty confirmed.
+**Rollback:** if the `.mount` unit somehow ends up disabled or the unit file is missing and the volume fails to mount post-reboot, recover via QEMU serial console (see section 3 header warning) and either:
+- `systemctl enable --now mnt-volume_nyc1_<id>.mount` if the file still exists in `/etc/systemd/system/`, or
+- Reinstall DO's tooling / restore the unit file from a snapshot.
+
+**Approval gate:** APPROVED — 3.10 verify mount survives reboot.
 
 ### 3.11 Install Node 22 LTS via NodeSource + hold
 
@@ -1222,7 +1240,7 @@ Created at `/Users/legalassistant/constructioncrm/RUNBOOK.md`. Sections:
 - **Backups location:** `/var/backups/knuco/postgres-YYYY-MM-DD-HHMMSS.dump`. 14-day retention. Tagged systemd timer `knuco-backup.timer`.
 - **Restore procedure:** stop knuco → drop+recreate DB → pg_restore → start knuco. Full commands in RUNBOOK.
 - **TLS renewal:** automatic via certbot's systemd timer. Verify: `systemctl list-timers | grep certbot`. Manual force: `sudo certbot renew --force-renewal`.
-- **Volume detach/reattach (rebuilt droplet scenario):** stop Postgres → unmount → DO panel detach → reattach to new droplet → fix `/etc/fstab` UUID → mount → start Postgres.
+- **Volume detach/reattach (rebuilt droplet scenario):** stop Postgres → unmount → DO panel detach → reattach to new droplet. On reattach, **DigitalOcean's tooling typically recreates `/etc/systemd/system/mnt-volume_nyc1_<id>.mount` automatically** (it's NOT a fstab entry, despite what the original plan suggested — see § 3.10 for the discovery). Verify with `systemctl is-enabled mnt-volume_nyc1_<id>.mount` and `systemctl cat mnt-volume_nyc1_<id>.mount` before assuming. If the unit is missing after reattach, either wait for DO's automation to run or create a minimal replacement modeled on the original (`What=/dev/disk/by-uuid/<UUID>`, `Where=/mnt/volume_nyc1_<id>`, `Options=defaults,nofail,discard,noatime`, `Type=ext4`, `[Install] WantedBy=multi-user.target`). Then `systemctl daemon-reload && systemctl enable --now mnt-volume_nyc1_<id>.mount` → start Postgres.
 - **Updating the fail2ban operator-IP whitelist (when your laptop public IP changes):**
   1. Find the new public IP from the laptop: `curl -s https://api.ipify.org`.
   2. **If SSH to the droplet still works** (not yet banned): `ssh knuco@knuco-droplet`, then
