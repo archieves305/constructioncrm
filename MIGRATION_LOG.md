@@ -1162,3 +1162,33 @@ This config lives only on the droplet — nothing to commit to the repo. Documen
 - **Phase 6 (reboot/restore verification)** and **Phase 8 (RUNBOOK.md)** remain pending. Future deploys to KNUCO can use `./deploy.sh` directly.
 
 **Phase 7 status: complete.**
+
+---
+
+### Phase 9 — pending: `equifirst-site` on same droplet (stub, scope to be expanded in Phase 9 discovery)
+
+**Scope:** Deploy a second site — **`equifirst-site`** (folder name exact, with the hyphen — do NOT rename) — to the same droplet (`knuco-droplet`, `161.35.0.183`) as KNUCO. Cohabitation without resource sharing. **KNUCO must remain isolated from any failure mode introduced by equifirst-site, and vice versa.**
+
+**Required isolation dimensions (each gets its own — no sharing):**
+- **System user:** dedicated user (e.g., `equifirst`), own home dir, NOT a member of `knuco` group, no read access to `/etc/knuco/env` or `/opt/knuco/`. Sudo policy TBD (least-privilege; probably no sudo or scoped to its own service only).
+- **Service port:** separate listen on `127.0.0.1` (e.g., `:4001` if KNUCO stays on `:4000`). Choose in Phase 9 plan.
+- **Nginx vhost:** separate `server_name` (e.g., `equifirst.knuconstruction.com` or whatever domain is chosen), separate file at `/etc/nginx/sites-available/equifirst-site`, separate `sites-enabled/` symlink. Nginx multiplexes 80/443 by Host header — both vhosts cohabit fine.
+- **TLS cert:** separate LE cert via `certbot --nginx -d <equifirst-domain>`, separate `/etc/letsencrypt/live/<equifirst-domain>/` tree. Auto-renewal piggybacks on the existing `certbot.timer`.
+- **Database:** TBD in discovery — separate Postgres DB? separate role? schema-level isolation in shared DB? external DB? Drives backup-script design.
+- **Backups:** if equifirst has its own DB, separate `/usr/local/bin/equifirst-backup.sh` + systemd timer + retention. Do NOT share `/var/backups/knuco/`.
+- **systemd service:** separate `equifirst.service` unit, separate `EnvironmentFile`, sandbox flags scoped to equifirst's user/group.
+- **Deploy log:** separate `/var/log/equifirst/deploy.log` if it gets its own deploy.sh.
+- **Logrotate:** separate `/etc/logrotate.d/equifirst-deploy`.
+- **Resource limits:** consider systemd `MemoryMax`/`CPUQuota` if either site could starve the other. TBD from observed load.
+
+**Unknowns to resolve in Phase 9 discovery (read-only first, per the migration playbook):**
+- equifirst-site source: repo URL, whether it lives on this Mac or elsewhere, current state.
+- Tech stack: Next.js version? Same Prisma 7 setup? Different framework entirely?
+- Env vars and secrets: does it need `/etc/equifirst/env`? Twilio/Outlook integrations?
+- DNS: domain(s) to use; GoDaddy alongside `knuconstruction.com` or elsewhere?
+- Database needs: separate Postgres DB on the same instance, schema in shared DB, or external?
+- Disk-space headroom on the droplet (current `/var/lib/postgresql` is on the block-storage volume; `/opt` is on root partition; equifirst footprint TBD).
+- Nginx body-size and proxy-timeout requirements (KNUCO's are 25M / 60s).
+- Whether equifirst needs its own `deploy.sh`, or whether KNUCO's `deploy.sh` should be parameterized to handle multiple sites. The latter is a bigger refactor — probably not worth it for 2 sites; revisit at 3+.
+
+**Status: pending. Phase 9 discovery has not started.** Phase 8 (KNUCO `RUNBOOK.md` handover) is the immediate next-up; Phase 9 follows after Phase 8 lands.
