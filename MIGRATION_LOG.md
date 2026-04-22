@@ -623,3 +623,98 @@ Three phases per operator-specified gate structure (separate approval between ea
 - DO snapshot `KNUCO-1776849230023` / `knuco-pre-3.13-postgres-data-move-2026-04-22` (whole-droplet, retain per operator policy)
 
 Phase 3 progress: **3.1–3.13 done**. Remaining Batch C: 3.14 (knuco DB + knuco_app DB user with strong password to 1Password), 3.15 (Nginx install), 3.16 (Certbot install), 3.17 (application directory structure). Awaiting operator's `APPROVED — Batch C`.
+
+### 3.14 — knuco DB + knuco_app DB user (Claude-executed, two calls, 2026-04-22)
+
+Operator split off 3.14 from Batch C ("password-capture ceremony deserves my full attention; I don't want to juggle other step outputs while I'm copying a secret into 1Password"). Approved 3.14 alone; 3.15–3.17 to be authorized as a separate batch after 3.14 lands cleanly.
+
+**Two-call adaptation of the planned `read -p` ceremony.** The original 3.14 plan had `read -p "Press Enter ONLY after the password is saved..."` between display and CREATE USER, gating DB creation behind operator's 1Password save. Claude Code's Bash tool runs non-interactive bash without a TTY, so `read -p` either returns immediately or hangs until tool-timeout. Adapted: split into two bash calls, password persisted between them via a mode-600 temp file at `/tmp/knuco_dbpass.tmp` (since shell vars don't survive across Bash tool invocations). Operator confirmed save in-thread before authorizing Call 2.
+
+**Call 1 — password generation + display + temp file:**
+- History hygiene: `HISTCONTROL=ignorespace`, `HISTFILE=/dev/null` (symbolic in non-interactive bash but per spec).
+- Password generated via `openssl rand -base64 32 | tr -d '/+=' | cut -c1-32` — leading-space convention applied. 32 bytes, base64 alphabet minus `/+=` (no SQL-quoting hazards).
+- Written to `/tmp/knuco_dbpass.tmp` (laptop) with `umask 077; printf '%s' "$PGPASS" > ...` — mode 600, owner `legalassistant:wheel`, no trailing newline, exactly 32 bytes.
+- Printed to tool output per operator's literal spec.
+- **Conversation-log capture caveat flagged to operator before Call 1 ran:** Claude Code's Bash tool output is captured into the local conversation transcript (`~/.claude/projects/-Users-legalassistant-constructioncrm/`), so `echo "$PGPASS"` deposits the password there in addition to terminal scrollback. Operator accepted the trade-off (local-disk only, user-permission restricted, equivalent threat-model to terminal scrollback).
+- Operator saved password to 1Password vault item `KNUCO prod DB — knuco_app`, verified by reopening the entry and matching character count.
+
+**Call 2 — DB creation + verification + shred:**
+- `ssh knuco-droplet 'sudo -u postgres psql -v ON_ERROR_STOP=1' <<SQL ... SQL` — heredoc with command-substituted password from `$(cat /tmp/knuco_dbpass.tmp)`, piped into ssh stdin (psql receives via sudo's stdin forwarding). Password never appears in argv on either side. Local heredoc terminator unquoted so `$(cat ...)` expands locally.
+- Output: `CREATE ROLE` / `CREATE DATABASE` / `GRANT` — all succeeded with no errors (ON_ERROR_STOP would have aborted on any).
+- Verification 3a (role exists, no password exposure): `SELECT rolname FROM pg_roles WHERE rolname = 'knuco_app';` returned `knuco_app` (1 row) ✓
+- Verification 3b (database + owner): `SELECT datname, pg_catalog.pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = 'knuco';` returned `knuco | knuco_app` (1 row) ✓
+- `/tmp/knuco_dbpass.tmp` removal: macOS doesn't ship `shred` or `gshred` (no GNU coreutils installed via Homebrew). Fallback: `dd if=/dev/urandom of=/tmp/knuco_dbpass.tmp bs=32 count=1 conv=notrunc` (overwrite with random bytes), then `rm`. File confirmed gone via `ls`.
+- **Honest caveat noted in report:** on APFS (modern macOS), copy-on-write semantics mean the original physical SSD blocks may not be overwritten despite the `dd`; secure-delete is largely cosmetic on Mac SSDs. The file is unlinked and overwritten at the FS layer; SSD controller GC eventually reclaims. The redundant copies in 1Password + conversation log + terminal scrollback dominate the threat model. `brew install coreutils` would provide `gshred` for stronger semantics in future password-handling steps.
+
+**Where the password lives now:**
+- 1Password vault: item `KNUCO prod DB — knuco_app` (operator's canonical copy)
+- Claude Code conversation transcript on the laptop
+- Operator's terminal scrollback (transient)
+- PostgreSQL on droplet: hashed in `pg_authid.rolpassword` (SCRAM-SHA-256, the cluster's default password hash)
+- **Not yet** in `/etc/knuco/env` on the droplet — added during 4.4 env assembly.
+
+**DATABASE_URL shape for 4.4:** `postgresql://knuco_app:<PGPASS>@127.0.0.1:5432/knuco?schema=public` (replace `<PGPASS>` with the 1Password value at env-assembly time).
+
+**3.14 status:** complete. Working tree: MIGRATION_LOG.md modified (this section, uncommitted; will batch with 3.15/3.16/3.17 entries per operator instruction).
+
+Phase 3 progress: **3.1–3.14 done**. Remaining: 3.15 (Nginx install), 3.16 (Certbot install), 3.17 (application directory structure). Awaiting operator's `APPROVED — 3.15/3.16/3.17 batch`.
+
+### 3.15 — Nginx install (Claude-executed, 2026-04-22)
+
+- `sudo apt-get install -y nginx` succeeded; needrestart reported nothing to restart.
+- `sudo systemctl enable --now nginx` ran SysV-script sync; nginx active + enabled (auto-starts on boot).
+- `systemctl is-active nginx` → `active` ✓; `systemctl is-enabled nginx` → `enabled` ✓
+- nginx version: `nginx/1.24.0 (Ubuntu)` from Ubuntu's apt repo.
+- **Droplet-side** `curl -sI http://127.0.0.1/` → `HTTP/1.1 200 OK`, Content-Length 615 (default Nginx welcome page from the package). Confirms nginx listening on port 80 internally.
+- **Laptop-side canary** `curl -sI --max-time 10 http://161.35.0.183/` → `HTTP/1.1 200 OK` (HTTP_CODE 200). Confirms UFW allow-rule for 80/tcp (from 3.4) is in effect AND nginx is reachable from the public internet. Both sides match — same Server header, same ETag, same Content-Length.
+- Default Nginx vhost is the only site enabled at this point. KNUCO vhost (proxy_pass to 127.0.0.1:4000) is added in step 5.2.
+
+### 3.16 — Certbot install (Claude-executed, 2026-04-22)
+
+- `sudo apt-get install -y certbot python3-certbot-nginx` succeeded; needrestart reported nothing to restart.
+- `certbot --version` → `certbot 2.9.0` (Ubuntu 24.04 apt distribution; expected 2.x).
+- Package versions: `ii certbot 2.9.0-1`, `ii python3-certbot-nginx 2.9.0-1`. Binary at `/usr/bin/certbot`.
+- `systemctl list-unit-files | grep certbot` → `certbot.service static`, `certbot.timer enabled enabled`. The renewal timer is enabled at package-install time; it exits cleanly without doing anything until a cert exists.
+- **No cert acquired in this step** — 3.16 is install-only. First cert acquisition is step 5.4, after operator adds the DNS A record for `crm.knuconstruction.com → 161.35.0.183` at GoDaddy.
+
+### 3.17 — Application directory structure (Claude-executed, 2026-04-22)
+
+Created 6 directories with knuco:knuco ownership and per-spec modes via `sudo install -d`. All 6 verified via `ls -ld`:
+
+| Path | Spec | Actual | Match |
+| --- | --- | --- | --- |
+| `/opt/knuco` | knuco:knuco 755 | `drwxr-xr-x 2 knuco knuco` | ✓ |
+| `/etc/knuco` | knuco:knuco 750 | `drwxr-x--- 2 knuco knuco` | ✓ |
+| `/var/log/knuco` | knuco:knuco 750 | `drwxr-x--- 2 knuco knuco` | ✓ |
+| `/var/backups/knuco` | knuco:knuco 750 | `drwxr-x--- 2 knuco knuco` | ✓ |
+| `/var/lib/knuco` | knuco:knuco 755 | `drwxr-xr-x 3 knuco knuco` (link-count 3 from uploads subdir) | ✓ |
+| `/var/lib/knuco/uploads` | knuco:knuco 700 | `drwx------ 2 knuco knuco` | ✓ |
+
+No symlinks, no incorrect owner, no incorrect mode. The plan spec is met exactly.
+
+### Phase 3 complete (3.1–3.17 all done) — droplet state summary as of 2026-04-22
+
+- **OS:** Ubuntu 24.04.3 LTS, kernel `6.8.0-110-generic` (post-3.10 reboot picked up unattended-upgrades' security kernel), routine apt updates applied.
+- **Locale:** `en_US.UTF-8`.
+- **Swap:** 2 GiB at `/swapfile`, `vm.swappiness=10`, persisted via `/etc/fstab` and `/etc/sysctl.d/99-knuco-swap.conf`.
+- **UFW:** active, default deny incoming + allow outgoing, allow rules for 22/80/443 (v4 + v6).
+- **fail2ban:** active with sshd jail; operator-IP whitelist `127.0.0.0/8 ::1 98.211.166.106` in `/etc/fail2ban/jail.d/knuco-whitelist.local`.
+- **Users:** `root` (no SSH access via password or key after 3.8 hardening; only via QEMU console) + `knuco` (uid 1000, key-only SSH, NOPASSWD:ALL sudo).
+- **sshd:** `PermitRootLogin no`, `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `ChallengeResponseAuthentication no`, `PubkeyAuthentication yes`, `PermitEmptyPasswords no`, `MaxAuthTries 3`, `LoginGraceTime 30`, port 22.
+- **SSH alias** `knuco-droplet` → `knuco@161.35.0.183` with `IdentityFile ~/.ssh/knuco_do_ed25519`, `IdentitiesOnly yes`, `UseKeychain yes`, `AddKeysToAgent yes`.
+- **Volume mount:** DO-managed `mnt-volume_nyc1_1776773233539.mount` unit, UUID-based (`/dev/disk/by-uuid/ef4df794-37a2-4545-8153-1f1739707241`), `Options=defaults,nofail,discard,noatime`, enabled into multi-user.target.wants/. NOT in fstab (per 3.10 amendment).
+- **PostgreSQL 16.13** (pgdg24.04+1): cluster `16/main` on port 5432, data dir `/mnt/volume_nyc1_1776773233539/postgres/main` (on the volume per 3.13), knuco DB exists owned by knuco_app DB role with strong password (in 1Password vault as `KNUCO prod DB — knuco_app`). Connection string shape: `postgresql://knuco_app:<PGPASS>@127.0.0.1:5432/knuco?schema=public`.
+- **Node 22.22.2** + npm 10.9.7 (NodeSource, `apt-mark hold` against unattended-upgrades).
+- **Nginx 1.24.0** (Ubuntu apt): default site responds on port 80 from internet (`200 OK` from laptop-side curl). KNUCO vhost added in 5.2.
+- **Certbot 2.9.0** + `python3-certbot-nginx` 2.9.0 installed; renewal timer enabled. No cert yet (5.4).
+- **App dirs:** `/opt/knuco` (755), `/etc/knuco` (750), `/var/log/knuco` (750), `/var/backups/knuco` (750), `/var/lib/knuco` (755), `/var/lib/knuco/uploads` (700) — all knuco:knuco.
+- **Rollback artifacts** still present (delete after 7 days of stable production at operator's discretion):
+  - `/var/lib/postgresql/16/main.old-pre-volume-move-2026-04-22` (~39 MB, original Postgres data dir on root disk)
+  - `/etc/postgresql/16/main/postgresql.conf.bak-pre-volume-move-2026-04-22` (30,136 bytes, original conf)
+  - `/root/sshd-config-backup-pre-phase3/` (original sshd_config + drop-ins from 3.8)
+  - `/etc/postgresql/16/main/postgresql.conf.bak` (sed -i.bak from 3.13 phase 2 — minor, can delete sooner)
+  - DO snapshot `KNUCO-1776849230023` / `knuco-pre-3.13-postgres-data-move-2026-04-22`
+
+**Phase 3 exit criteria** per plan section "Phase 3 exit criteria": final reboot test pending operator authorization. Confirms ALL configured services come back from a cold boot — most things have already been individually tested across 3.1, 3.10, 3.13 reboots, but the wrap-up reboot is the one that proves the entire post-3.17 state is reboot-survivable end-to-end.
+
+Standing by for `APPROVED — phase 3 final reboot test` (or equivalent), then we proceed to Phase 4 (transfer).
