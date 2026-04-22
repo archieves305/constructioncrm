@@ -173,18 +173,18 @@ rollback_code() {
         return 1
     fi
     # Sanity-check the tarball still exists and has reasonable size.
-    if ! ssh "$DROPLET" "sudo test -s $TARBALL_FILE"; then
+    if ! ssh -n "$DROPLET" "sudo test -s $TARBALL_FILE"; then
         echo "ROLLBACK ERROR: tarball $TARBALL_FILE missing or empty. Manual recovery needed."
         return 1
     fi
     echo "Restoring /opt/knuco from $TARBALL_FILE ..."
-    ssh "$DROPLET" "sudo tar xzf $TARBALL_FILE -C /opt && sudo chown -R knuco:knuco /opt/knuco" || {
+    ssh -n "$DROPLET" "sudo tar xzf $TARBALL_FILE -C /opt && sudo chown -R knuco:knuco /opt/knuco" || {
         echo "ROLLBACK FAILED: tar xzf returned non-zero. Manual recovery needed."
         return 1
     }
     if [ $RESTART_DONE -eq 1 ]; then
         echo "Restarting knuco.service after code restore ..."
-        ssh "$DROPLET" "sudo systemctl restart knuco" || echo "ROLLBACK WARNING: systemctl restart failed; service may be down"
+        ssh -n "$DROPLET" "sudo systemctl restart knuco" || echo "ROLLBACK WARNING: systemctl restart failed; service may be down"
     fi
     if [ $MIGRATE_DEPLOY_DONE -eq 1 ]; then
         echo ""
@@ -192,9 +192,9 @@ rollback_code() {
         echo "WARNING: prisma migrate deploy completed before this failure."
         echo "DB schema is now AHEAD of restored code."
         if [ $AUTO_ROLLBACK_DB -eq 1 ]; then
-            if [ -n "$BACKUP_FILE" ] && ssh "$DROPLET" "sudo test -s $BACKUP_FILE"; then
+            if [ -n "$BACKUP_FILE" ] && ssh -n "$DROPLET" "sudo test -s $BACKUP_FILE"; then
                 echo "Restoring DB from $BACKUP_FILE (--auto-rollback-db)..."
-                ssh "$DROPLET" "sudo systemctl stop knuco && sudo -u postgres pg_restore --clean --if-exists -d knuco $BACKUP_FILE && sudo systemctl start knuco" \
+                ssh -n "$DROPLET" "sudo systemctl stop knuco && sudo -u postgres pg_restore --clean --if-exists -d knuco $BACKUP_FILE && sudo systemctl start knuco" \
                     && echo "DB restored." \
                     || echo "DB RESTORE FAILED. Manual intervention required."
             else
@@ -234,10 +234,10 @@ on_exit() {
     fi
     echo "================================================================"
     # Always try to ship the local log to the droplet for the audit trail.
-    if ssh -o ConnectTimeout=5 -o BatchMode=yes "$DROPLET" 'true' 2>/dev/null; then
-        ssh "$DROPLET" "sudo install -d -m 755 -o root -g root $REMOTE_LOG_DIR" 2>/dev/null || true
+    if ssh -n -o ConnectTimeout=5 -o BatchMode=yes "$DROPLET" 'true' 2>/dev/null; then
+        ssh -n "$DROPLET" "sudo install -d -m 755 -o root -g root $REMOTE_LOG_DIR" 2>/dev/null || true
         if scp -q "$LOCAL_LOG_FILE" "$DROPLET:/tmp/knuco-deploy-${TS}.log" 2>/dev/null; then
-            ssh "$DROPLET" "sudo bash -c 'cat /tmp/knuco-deploy-${TS}.log >> $REMOTE_LOG_FILE && rm /tmp/knuco-deploy-${TS}.log'" 2>/dev/null \
+            ssh -n "$DROPLET" "sudo bash -c 'cat /tmp/knuco-deploy-${TS}.log >> $REMOTE_LOG_FILE && rm /tmp/knuco-deploy-${TS}.log'" 2>/dev/null \
                 || echo "WARNING: failed to append local log to $REMOTE_LOG_FILE"
         else
             echo "WARNING: scp of local log to droplet failed"
@@ -338,14 +338,14 @@ fi
 PHASE="ssh-check"
 echo ""
 echo "[PRE-FLIGHT] SSH connectivity ..."
-if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$DROPLET" 'true' 2>/dev/null; then
+if ! ssh -n -o ConnectTimeout=5 -o BatchMode=yes "$DROPLET" 'true' 2>/dev/null; then
     fail 6 "cannot ssh to $DROPLET (key auth failed or host unreachable)"
 fi
 echo "  $DROPLET: reachable ✓"
 
-CUR_BUILD_ID="$(ssh "$DROPLET" 'cat /opt/knuco/.next/BUILD_ID 2>/dev/null || echo unknown')"
-CUR_DEPLOY_SHA="$(ssh "$DROPLET" 'cat /opt/knuco/.deploy-sha 2>/dev/null || echo unknown')"
-CUR_PID="$(ssh "$DROPLET" 'systemctl show knuco -p MainPID --value 2>/dev/null || echo unknown')"
+CUR_BUILD_ID="$(ssh -n "$DROPLET" 'cat /opt/knuco/.next/BUILD_ID 2>/dev/null || echo unknown')"
+CUR_DEPLOY_SHA="$(ssh -n "$DROPLET" 'cat /opt/knuco/.deploy-sha 2>/dev/null || echo unknown')"
+CUR_PID="$(ssh -n "$DROPLET" 'systemctl show knuco -p MainPID --value 2>/dev/null || echo unknown')"
 echo "  current BUILD_ID:    $CUR_BUILD_ID"
 echo "  current deploy SHA:  $CUR_DEPLOY_SHA"
 echo "  current PID:         $CUR_PID"
@@ -357,7 +357,7 @@ echo "  current PID:         $CUR_PID"
 PHASE="migrate-preview"
 echo ""
 echo "[PRE-FLIGHT] Pending migrations preview ..."
-MIGRATE_STATUS_OUT="$(ssh "$DROPLET" "cd $REMOTE_APP && set -a && . /etc/knuco/env && set +a && npx prisma migrate status 2>&1" || true)"
+MIGRATE_STATUS_OUT="$(ssh -n "$DROPLET" "cd $REMOTE_APP && set -a && . /etc/knuco/env && set +a && npx prisma migrate status 2>&1" || true)"
 PENDING_LIST="$(echo "$MIGRATE_STATUS_OUT" | awk '
     /Following migrations have not yet been applied:/ { capture=1; next }
     /^To apply migrations/ { capture=0 }
@@ -416,9 +416,9 @@ fi
 PHASE="backup"
 echo ""
 echo "[BACKUP] Running nightly DB backup script ..."
-ssh "$DROPLET" 'sudo /usr/local/bin/knuco-backup.sh' || fail 7 "DB backup script failed"
-BACKUP_FILE="$(ssh "$DROPLET" "ls -1t $REMOTE_BACKUP_DIR/postgres-*.dump | head -1")"
-BACKUP_SIZE="$(ssh "$DROPLET" "stat -c%s $BACKUP_FILE")"
+ssh -n "$DROPLET" 'sudo /usr/local/bin/knuco-backup.sh' || fail 7 "DB backup script failed"
+BACKUP_FILE="$(ssh -n "$DROPLET" "ls -1t $REMOTE_BACKUP_DIR/postgres-*.dump | head -1")"
+BACKUP_SIZE="$(ssh -n "$DROPLET" "stat -c%s $BACKUP_FILE")"
 if [ "$BACKUP_SIZE" -lt 10240 ]; then
     fail 8 "DB backup $BACKUP_FILE is suspiciously small ($BACKUP_SIZE bytes < 10K)"
 fi
@@ -428,14 +428,14 @@ PHASE="tarball"
 echo ""
 echo "[BACKUP] Creating pre-deploy /opt/knuco tarball ..."
 TARBALL_FILE="${REMOTE_BACKUP_DIR}/pre-deploy-${TS}.tar.gz"
-ssh "$DROPLET" "sudo tar czf $TARBALL_FILE \
+ssh -n "$DROPLET" "sudo tar czf $TARBALL_FILE \
     --exclude=node_modules --exclude=.next --exclude=src/generated/prisma \
     -C /opt knuco" || fail 9 "tarball creation failed"
-TARBALL_SIZE="$(ssh "$DROPLET" "stat -c%s $TARBALL_FILE")"
+TARBALL_SIZE="$(ssh -n "$DROPLET" "stat -c%s $TARBALL_FILE")"
 echo "  tarball: $TARBALL_FILE ($TARBALL_SIZE bytes) ✓"
 
 # Trim old tarballs: keep newest $TARBALL_RETENTION (current included).
-ssh "$DROPLET" "ls -1t $REMOTE_BACKUP_DIR/pre-deploy-*.tar.gz 2>/dev/null | tail -n +$((TARBALL_RETENTION + 1)) | xargs -r sudo rm -f" || true
+ssh -n "$DROPLET" "ls -1t $REMOTE_BACKUP_DIR/pre-deploy-*.tar.gz 2>/dev/null | tail -n +$((TARBALL_RETENTION + 1)) | xargs -r sudo rm -f" || true
 
 # ============================================================================
 # Phase 6 — rsync code
@@ -509,12 +509,12 @@ BUILD_DONE=1
 PHASE="restart"
 echo ""
 echo "[DEPLOY] Restarting knuco.service ..."
-ssh "$DROPLET" 'sudo systemctl restart knuco' || fail 16 "systemctl restart failed"
+ssh -n "$DROPLET" 'sudo systemctl restart knuco' || fail 16 "systemctl restart failed"
 
 ACTIVE_OK=0
 STATE=""
 for i in $(seq 1 30); do
-    STATE="$(ssh "$DROPLET" 'systemctl is-active knuco' 2>&1 || true)"
+    STATE="$(ssh -n "$DROPLET" 'systemctl is-active knuco' 2>&1 || true)"
     if [ "$STATE" = "active" ]; then
         echo "  active after ${i}s ✓"
         ACTIVE_OK=1
@@ -527,8 +527,8 @@ if [ $ACTIVE_OK -eq 0 ]; then
 fi
 RESTART_DONE=1
 
-NEW_PID="$(ssh "$DROPLET" 'systemctl show knuco -p MainPID --value')"
-NEW_BUILD_ID="$(ssh "$DROPLET" 'cat /opt/knuco/.next/BUILD_ID')"
+NEW_PID="$(ssh -n "$DROPLET" 'systemctl show knuco -p MainPID --value')"
+NEW_BUILD_ID="$(ssh -n "$DROPLET" 'cat /opt/knuco/.next/BUILD_ID')"
 echo "  new PID:        $NEW_PID"
 echo "  new BUILD_ID:   $NEW_BUILD_ID"
 
@@ -539,7 +539,7 @@ echo "  new BUILD_ID:   $NEW_BUILD_ID"
 PHASE="smoke-droplet"
 echo ""
 echo "[SMOKE] droplet curl $LOCAL_PORT_URL ..."
-DROPLET_HTTP="$(ssh "$DROPLET" "curl -sI --max-time 5 -o /dev/null -w '%{http_code}' $LOCAL_PORT_URL")"
+DROPLET_HTTP="$(ssh -n "$DROPLET" "curl -sI --max-time 5 -o /dev/null -w '%{http_code}' $LOCAL_PORT_URL")"
 case "$DROPLET_HTTP" in
     200|307) echo "  HTTP $DROPLET_HTTP ✓" ;;
     *) fail 18 "droplet-side curl returned HTTP $DROPLET_HTTP (expected 200 or 307)" ;;
@@ -557,7 +557,7 @@ esac
 PHASE="smoke-journal"
 echo ""
 echo "[SMOKE] journal scan for errors since restart ..."
-JOURNAL_BAD="$(ssh "$DROPLET" "sudo journalctl -u knuco --since '2 minutes ago' --no-pager" \
+JOURNAL_BAD="$(ssh -n "$DROPLET" "sudo journalctl -u knuco --since '2 minutes ago' --no-pager" \
     | grep -iE 'error|fatal|throw|PrismaClientInitialization|ECONNREFUSED|ZodError' \
     | grep -vE 'status=143|Failed with result .exit-code.|Main process exited, code=exited, status=143' \
     || true)"
@@ -572,7 +572,7 @@ echo "  no error patterns found ✓"
 # ============================================================================
 
 PHASE="record-sha"
-ssh "$DROPLET" "echo $LOCAL_SHA | sudo tee $REMOTE_APP/.deploy-sha >/dev/null && sudo chown knuco:knuco $REMOTE_APP/.deploy-sha"
+ssh -n "$DROPLET" "echo $LOCAL_SHA | sudo tee $REMOTE_APP/.deploy-sha >/dev/null && sudo chown knuco:knuco $REMOTE_APP/.deploy-sha"
 echo ""
 echo "  /opt/knuco/.deploy-sha: $LOCAL_SHA ✓"
 
