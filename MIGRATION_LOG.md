@@ -769,3 +769,122 @@ Both queries returned expected values; the `knuco` DB is reachable, the cluster 
 - DO snapshot `KNUCO-1776849230023` / `knuco-pre-3.13-postgres-data-move-2026-04-22`
 
 **Phase 3 status: complete and reboot-survived.** Droplet is in the stable post-Phase-3 state described above. Ready for Phase 4 (transfer) — pending operator's `APPROVED — proceed to Phase 4`.
+
+## 2026-04-22 — Phase 4 execution
+
+Operator authorized Phase 4 as a **single batch** with two hard pause points (DB password input pre-4.4, admin password capture post-4.9). No per-step approval gates. Hard halt conditions: `npm ci` fail, `npm run build` fail, `prisma migrate deploy` fail, env validation fail, or any unexpected exit code.
+
+### 4.1 — Drop HSTS preload (Claude-executed, 2026-04-22)
+
+- `next.config.ts` Strict-Transport-Security header changed from `max-age=63072000; includeSubDomains; preload` → `max-age=63072000; includeSubDomains`. Per Q9 / RUNBOOK plan: re-add `; preload` and submit at https://hstspreload.org only after 6+ months of stable production (preload submission is effectively permanent).
+- Committed as `1a0c431` — subject `security: drop HSTS preload until prod stable`.
+
+### 4.2 — scripts/create-admin.ts (Claude-executed, 2026-04-22)
+
+- Authored per Q2 spec: CLI flags `--email`, `--name "<First Last>"`, `--role` (default ADMIN, validated against the 6 RoleName values), optional `--password` (if omitted, generates 24 random bytes via `crypto.randomBytes` and base64-encodes → ~32 chars; printed once); bcrypt cost factor 12 matching `prisma/seed.ts`; idempotent (`USER EXISTS, skipping: <email>` + exit 0 if email already exists).
+- Connects via the same PrismaPg adapter pattern as `prisma/seed.ts`; reads `DATABASE_URL` from `process.env` (loaded by `import "dotenv/config"`).
+- Imports `PrismaClient` from `../src/generated/prisma/client` (correct subpath — the bug surfaced in 4.6 was in app code, not these scripts).
+- Committed as `f5122b5` — subject `migration: add scripts/create-admin.ts`.
+
+### 4.3 — scripts/seed-prod.ts (Claude-executed, 2026-04-22)
+
+- Reduced reference-data seed: 6 roles, 11 lead stages, 10 lead sources, 21 service categories (5 parents + 16 children), 15 job stages, 5 crews. **No User rows** — explicitly avoids the demo-user trap from `prisma/seed.ts`.
+- Idempotent: upserts where the schema has a unique-name constraint (roles, lead_stages, job_stages); findFirst+create where it doesn't (lead_sources, service_categories, crews).
+- Committed as `16d61dd` — subject `migration: add scripts/seed-prod.ts`.
+
+### 4.4 — Env assembly + transfer (Claude-executed with operator-supplied DB password, 2026-04-22)
+
+**First hard pause:** operator wrote DB password (from 1Password "KNUCO prod DB — knuco_app") to `/tmp/knuco_dbpass_4_4.tmp` (mode 600, 32 bytes) on the laptop. After confirmation, Claude continued.
+
+- DB password read from `/tmp/knuco_dbpass_4_4.tmp` into shell variable `PGPASS`; length validated (32 bytes).
+- `NEXTAUTH_SECRET=$(openssl rand -base64 48)` generated silently — never echoed to stdout or tool output.
+- Local env file assembled at `/tmp/knuco.env.production` with `umask 077` (mode 600 from creation): NODE_ENV, DATABASE_URL, NEXTAUTH_URL, NEXTAUTH_SECRET set; Twilio + Outlook vars commented out (set when those features are wired).
+- Streamed to droplet via `ssh knuco-droplet 'sudo install -m 600 -o knuco -g knuco /dev/stdin /etc/knuco/env' < /tmp/knuco.env.production` — no intermediate plaintext file lands on the droplet's disk; install creates `/etc/knuco/env` with mode 600 owned `knuco:knuco` from the first byte.
+- Verified on droplet: `-rw------- knuco knuco 465 bytes`, line count 13, exactly 4 uncommented var names (NODE_ENV, DATABASE_URL, NEXTAUTH_URL, NEXTAUTH_SECRET).
+- Both local temp files (`/tmp/knuco_dbpass_4_4.tmp` and `/tmp/knuco.env.production`) overwritten with random bytes via `dd if=/dev/urandom ... conv=notrunc` and `rm`'d (macOS lacks `shred`; APFS-secure-delete caveat per the 3.14 entry applies).
+- Shell variables `PGPASS` and `NEXTAUTH_SECRET` `unset`.
+
+### 4.5 — Rsync to /opt/knuco/ (Claude-executed, 2026-04-22)
+
+- First attempt aborted on a zsh glob-expansion error: `--exclude=.env*` got eaten by zsh's default `NOMATCH` behavior (no `.env*` files exist locally). Fix: quoted the wildcard-containing excludes (`'--exclude=.env*'`, `'--exclude=*.log'`, `'--exclude=*.tsbuildinfo'`) so zsh passes them literally to rsync.
+- Dry-run + real run both clean. 228 files transferred, 261,550 bytes sent, speedup 3.53.
+- Verified `/opt/knuco/` contains: package.json, package-lock.json, prisma/, src/, scripts/ (incl. create-admin.ts + seed-prod.ts), next.config.ts, tsconfig.json. Verified absent: node_modules, .next, .git, .env*, DISCOVERY.md, MIGRATION_LOG.md, MIGRATION_PLAN.md.
+
+### 4.6 — npm ci + prisma generate + build (HIGH RISK STEP)
+
+**First build attempt — FAILED. Halt-on-failure rule was disobeyed by Claude's tooling (postmortem below).**
+
+- `npm ci`: ✓ clean. 811 packages installed in 28s, 4 moderate-severity audit findings (not actioned this pass), no errors.
+- `npx prisma generate`: ✓ clean. Generated Prisma Client 7.7.0 to `./src/generated/prisma` in 610ms.
+- `npm run build`: **❌ FAILED.** Turbopack module-resolution error:
+  ```
+  ./src/lib/db/prisma.ts:1:1
+  Module not found: Can't resolve '@/generated/prisma'
+  > 1 | import { PrismaClient } from "@/generated/prisma";
+  Import map: aliased to relative './src/generated/prisma' inside of [project]/
+  ```
+- **Root cause:** Prisma 7's `prisma-client` generator outputs files at the configured output path (`client.ts`, `models.ts`, `enums.ts`, `commonInputTypes.ts`, etc.) but does NOT generate an `index.ts`. So `import from "@/generated/prisma"` (no subpath) finds no entry point. The seed scripts (`prisma/seed.ts`, `prisma/seed-jobs.ts`) and the new `scripts/create-admin.ts` / `scripts/seed-prod.ts` already use the correct `/client` subpath; the bug was confined to app code on `main`.
+- **Phase 1 receipt:** the Phase 1 3a finding "the project has never been run on this laptop" (no `node_modules/`, no `.next/`, no `.env`) had a concrete consequence here — the bad import had been sitting on `main` for who-knows-how-long because nobody had ever attempted a build of this codebase before. The first production build was the first build, period. **Phase 1 observations now have real receipts.**
+
+**Disobeyed-halt incident.** Claude used `set -e -o pipefail` + `npm run build 2>&1 | tail -50`. In bash, `pipefail` would propagate the build's non-zero exit through the pipe and trip `set -e`. In **zsh** (Claude Code's Bash tool on macOS), `set -o pipefail` exists but interacts differently with subshell exit propagation; the pipe returned `tail`'s exit code (0) and `set -e` didn't trip. The chain continued through 4.7 (migrate), 4.8 (seed), and 4.9 part 1 (admin user) despite the build failure. **Operationally fine** because those steps use `npx tsx` and the prisma binary directly — neither depends on the next build artifact — and the DB end-state matched the intended Phase 4 outcome regardless. **But the halt rule was bypassed by accident, not by judgment.** Captured as a workflow rule in the feedback memory: for halt-on-failure command sequences in the Bash tool on macOS, either use `setopt PIPE_FAIL` explicitly before `set -e`, or skip pipes entirely on the command whose exit code matters.
+
+### 4.7 — Prisma migrate deploy (executed 2026-04-22 ~10:31 UTC, despite halt rule)
+
+- `npx prisma migrate deploy` applied 3 migrations: `20260411232709_init`, `20260411234607_crm2_jobs_production`, `20260412030110_intake_notifications_tracking`. All `finished_at` populated.
+
+### 4.8 — Reduced seed (executed 2026-04-22, despite halt rule)
+
+- `npx tsx scripts/seed-prod.ts` ran successfully. Counts: roles=6, lead_stages=11, lead_sources=10, service_categories=21, job_stages=15, crews=5, **users=0** (intentional — no demo users).
+
+### 4.9 part 1 — Admin user creation (executed 2026-04-22, despite halt rule)
+
+- `npx tsx scripts/create-admin.ts --email "richard@rcareylaw.com" --name "Richard Carey" --role "ADMIN"` succeeded. Output: `CREATED user richard@rcareylaw.com | password: <32-char generated>`.
+- Generated password extracted from stdout via `grep "^CREATED user" | sed 's/.*password: //'`, written to `/tmp/knuco_admin_pass.tmp` (mode 600, 32 bytes), and printed in tool output for operator capture.
+
+**Second hard pause:** operator saved password to 1Password vault item `KNUCO prod admin login — richard@rcareylaw.com` and verified character-for-character match before authorizing shred.
+
+### Prisma-import bug fix + rebuild (Claude-executed, 2026-04-22)
+
+After operator chose option A (fix in source), Claude addressed the latent bug in two commits:
+
+- **`00e126c`** — `fix(db): import PrismaClient from @/generated/prisma/client subpath` — fixed `src/lib/db/prisma.ts` only. Rsync'd to droplet. Build attempt 2: Turbopack compiled successfully in 20.7s, but TypeScript type-check then failed on `src/app/api/leads/route.ts` with the same `@/generated/prisma` (no /client) bug.
+- **`7a2dcb2`** — `fix(types): import Prisma types from @/generated/prisma/client subpath (sweep)` — full sweep via `grep -rn 'from "@/generated/prisma"' src/` found 6 more occurrences:
+  - `src/lib/services/tracking/tracked-links.ts` (`TrackedActionType`)
+  - `src/types/index.ts` (`RoleName`)
+  - `src/lib/auth/options.ts` (`RoleName`)
+  - `src/lib/auth/helpers.ts` (`RoleName`)
+  - `src/components/layout/sidebar.tsx` (`RoleName`)
+  - `src/app/api/leads/route.ts` (`Prisma`)
+  - `src/app/api/tasks/route.ts` (`Prisma`)
+  
+  All changed to `from "@/generated/prisma/client"`. Post-edit grep confirmed zero remaining bare `@/generated/prisma` imports. Rsync'd 7 files to droplet.
+
+- **Build attempt 3 — PASSED.** Turbopack compiled successfully in 19.7s; TypeScript checked in 15.5s; 37 static pages generated; BUILD_ID `5U5qKJVVy-dPIQXJrElzF`; routes-manifest.json present; .next size 38M.
+- Single non-blocking warning from Next.js: `The "middleware" file convention is deprecated. Please use "proxy" instead.` (Next 16 still accepts `src/middleware.ts`; Next 17 will require `src/proxy.ts`. Worth a future cleanup but not migration-blocking.)
+
+### 4.9 part 2 — Admin password shred + verification (Claude-executed, 2026-04-22)
+
+After operator confirmed `admin saved`:
+- `/tmp/knuco_admin_pass.tmp` shredded (overwrite with 32 random bytes via `dd if=/dev/urandom ... conv=notrunc` then `rm`). Confirmed gone.
+- Final users-table verification: `SELECT u.email, u.first_name, u.last_name, r.name AS role, u.is_active, u.created_at FROM users u JOIN roles r ON u.role_id = r.id;` returned 1 row: `richard@rcareylaw.com | Richard | Carey | ADMIN | t | 2026-04-22 10:31:39.64`.
+
+### Phase 4 commit chain (5 code commits + this log commit)
+
+```
+1a0c431  security: drop HSTS preload until prod stable
+f5122b5  migration: add scripts/create-admin.ts
+16d61dd  migration: add scripts/seed-prod.ts
+00e126c  fix(db): import PrismaClient from @/generated/prisma/client subpath
+7a2dcb2  fix(types): import Prisma types from @/generated/prisma/client subpath (sweep)
++ this Phase 4 wrap-up log commit
+```
+
+### Phase 4 end state
+
+- **Code on droplet:** `/opt/knuco/` synced from `main` HEAD (post-fix), 228 files, plus `node_modules/` (1.1 GB, 811 packages installed by `npm ci`) and `src/generated/prisma/` (Prisma client) and `.next/` (38 MB build artifact, BUILD_ID `5U5qKJVVy-dPIQXJrElzF`).
+- **Env file:** `/etc/knuco/env` mode 600 owned `knuco:knuco`, contains NODE_ENV, DATABASE_URL (with strong password from 1Password), NEXTAUTH_URL, NEXTAUTH_SECRET (generated silently in 4.4); Twilio/Outlook commented.
+- **Database state:** 3 migrations applied; reference seed in place (6/11/10/21/15/5); 1 admin user (`richard@rcareylaw.com` / Richard Carey / ADMIN / active) with bcrypt(12) hash of the 1Password-saved generated password.
+- **Build artifact:** `.next/` valid, ready for `next start` (which Phase 5's systemd unit will invoke).
+- **App not yet serving:** no systemd unit yet (5.1), no Nginx vhost for KNUCO (5.2), no TLS (5.4). Build artifacts ready but `next start` hasn't been invoked.
+
+**Phase 4 status: complete.** Pending operator's `APPROVED — proceed to Phase 5` (systemd unit + Nginx vhost + DNS + Certbot + logrotate + nightly DB backup).
