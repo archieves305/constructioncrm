@@ -480,3 +480,88 @@ Laptop-side change only — droplet state not touched.
 **3.9 status:** complete. Phase 3 hardening is now operationally complete on both ends — droplet only accepts knuco's SSH key, and the laptop's `knuco-droplet` alias maps to the matching user with NOPASSWD root escalation available via `sudo`. The temporary "root via the alias" arrangement that lasted through 3.1–3.8 is closed.
 
 Phase 3 progress: **3.1–3.9 done**. Remaining: 3.10 (volume mount via UUID + reboot test), 3.11 (Node 22 from NodeSource + apt-mark hold), 3.12 (PostgreSQL 16 from PGDG), 3.13 (Postgres data-dir move to the 10 GB block-storage volume — pre-3.13 DO snapshot mandatory per user), 3.14 (knuco DB + knuco_app DB user with strong password to 1Password), 3.15 (Nginx install), 3.16 (Certbot install), 3.17 (application directory structure under /opt/knuco, /etc/knuco/, /var/log/knuco/, /var/backups/knuco/, /var/lib/knuco/uploads/).
+
+### 3.10 plan amendment — committed (2026-04-22)
+
+Plan amendment to MIGRATION_PLAN.md § 3.10 + section 8 RUNBOOK volume-detach/reattach line committed as `dda5149` (full: `dda51493345cc3634da2b759f419c419484915ce`), subject `migration: amend 3.10 plan — prefer vendor-managed systemd .mount over fstab replacement for DO volumes`. Discovered during 3.10 inspection that DigitalOcean mounts the volume via a systemd `.mount` unit, not fstab; rewrote 3.10 to verify the existing mechanism rather than replace it with fstab, and updated the RUNBOOK to reflect the correct reattach procedure. Local commit only — not pushed.
+
+### 3.10 — Verify DO volume mount survives reboot (Claude-executed, 2026-04-22)
+
+**Approach revised mid-execution.** Original plan was "convert fstab `/dev/sda` line to `UUID=`". Inspection revealed there IS no `/dev/sda` line in fstab — DO mounts the volume via a systemd `.mount` unit at `/etc/systemd/system/mnt-volume_nyc1_1776773233539.mount`:
+```
+[Mount]
+What=/dev/disk/by-uuid/ef4df794-37a2-4545-8153-1f1739707241
+Where=/mnt/volume_nyc1_1776773233539
+Options=defaults,nofail,discard,noatime
+Type=ext4
+[Install]
+WantedBy = multi-user.target
+```
+Already UUID-based, already enabled, already includes `nofail`. Operator chose option X (do nothing on disk; document + verify) over option Y (replace with fstab). Plan amended in commit `dda5149` above.
+
+**Step 1: cleanup no-op fstab backup.** Earlier 3.10 attempt left `/etc/fstab.bak-pre-knuco-uuid` from a no-op sed (no `/dev/sda` line existed to replace). md5 comparison confirmed backup was byte-identical to current fstab (`82e7363405c5458c452afd96381023d8`); backup removed via `sudo rm /etc/fstab.bak-pre-knuco-uuid`.
+
+**Step 2: pre-reboot verification.**
+- `systemctl is-active mnt-volume_nyc1_1776773233539.mount` → `active`
+- `systemctl is-enabled mnt-volume_nyc1_1776773233539.mount` → `enabled`
+- `findmnt /mnt/volume_nyc1_1776773233539 -o TARGET,SOURCE,FSTYPE,OPTIONS,FSROOT`:
+  ```
+  /mnt/volume_nyc1_1776773233539 /dev/sda ext4 rw,noatime,discard /
+  ```
+- Volume contents: only `lost+found/` (ready for Postgres data dir in 3.13).
+
+**Step 3: reboot test.** Pre-reboot `boot_id=9eaa6322-8565-46d6-aab0-a29349de4049`; issued `sudo reboot` as knuco (NOPASSWD); polled until `boot_id` changed; post-reboot `boot_id=30ea17da-d242-497a-8e21-e52439da02ac` after 2 poll attempts (~10 s).
+
+**Post-reboot verification (all checks passed):**
+- `uptime -p`: `up 0 minutes`; boot time `2026-04-22 09:02:49 UTC`
+- `systemctl is-active mnt-volume_nyc1_1776773233539.mount` → `active` ✓
+- `systemctl is-enabled mnt-volume_nyc1_1776773233539.mount` → `enabled` ✓
+- `findmnt`: identical to pre-reboot (same source `/dev/sda`, same options `rw,noatime,discard`)
+- Volume contents: identical (`lost+found/` only, sizes match)
+- `swapon --show`: `/swapfile 2G prio -2` ✓
+- `ufw status verbose`: `Status: active`, default-deny + 22/80/443 allow ✓
+- `systemctl is-system-running`: `running`, 0 failed units
+- `systemctl is-active ssh`: `active` ✓
+
+#### Benign kernel bump during 3.10 reboot
+
+| | Pre-reboot | Post-reboot |
+| --- | --- | --- |
+| `uname -r` | `6.8.0-71-generic` | `6.8.0-110-generic` |
+
+**Cause:** `unattended-upgrades` ran during the ~14-hour gap between 3.1's reboot (2026-04-21 ~19:05 UTC) and 3.10's reboot (2026-04-22 09:02 UTC); during that window it installed `linux-image-6.8.0-110-generic` (same-major, same-HWE-series security-patch kernel update). The 3.10 reboot then picked up the new kernel.
+
+**All services survived reboot** (volume mount unit, swap, UFW, ssh, fail2ban via subsequent commands, zero failed units). **Expected behavior on droplets with `unattended-upgrades` enabled — not a regression.** Per operator decision (2026-04-22), kernel-version-bump-across-reboot is benign-and-note-it going forward, not a halt condition, unless a load-bearing service fails post-reboot. Captured as durable feedback in `~/.claude/projects/.../memory/feedback_infra_approval_gates.md`.
+
+### 3.11 — Node 22 LTS via NodeSource + apt-mark hold (Claude-executed, 2026-04-22)
+
+- `curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -` configured `/etc/apt/sources.list.d/nodesource.sources` (deb822 format) and added the NodeSource GPG key. Output: `Repository configured successfully`.
+- `sudo apt-get install -y nodejs` succeeded. needrestart reported "no services need restart".
+- `sudo apt-mark hold nodejs` → `nodejs set on hold` (prevents unattended-upgrades from inadvertently jumping to a different major version).
+- Verify:
+  - `node --version` → `v22.22.2` (Node 22 Active LTS)
+  - `npm --version` → `10.9.7`
+  - `command -v node` / `command -v npm` → `/usr/bin/node` / `/usr/bin/npm`
+  - `apt-mark showhold` → `nodejs`
+  - `dpkg -l nodejs` → `hi  nodejs  22.22.2-1nodesource1 amd64` (`hi` = hold + installed; package source confirmed as NodeSource, not Ubuntu's repo).
+
+### 3.12 — PostgreSQL 16 from PGDG (Claude-executed, 2026-04-22)
+
+- `sudo apt-get install -y postgresql-common` — already installed (no-op).
+- `sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y` configured `/etc/apt/sources.list.d/pgdg.sources` and ran `apt-get update`. Output: "You can now start installing packages from apt.postgresql.org."
+- `sudo apt-get install -y postgresql-16` succeeded. debconf "falling back to frontend: Teletype" warnings are normal for non-interactive ssh (no controlling tty); no errors.
+- Verify:
+  - `systemctl status postgresql --no-pager`: `active (exited)` — the wrapper service.
+  - `systemctl is-active postgresql@16-main`: `active` — the actual running cluster.
+  - `systemctl is-enabled postgresql`: `enabled` (auto-starts on boot).
+  - `sudo -u postgres psql -c "SELECT version();"` → `PostgreSQL 16.13 (Ubuntu 16.13-1.pgdg24.04+1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit` — **same point release as local Homebrew (16.13)**.
+  - `pg_lsclusters`: `16/main`, port 5432, online, owner postgres, data dir `/var/lib/postgresql/16/main` (default location; will move to `/mnt/volume_nyc1_1776773233539/postgres/main` in 3.13).
+  - `dpkg -l postgresql-16` → `ii  postgresql-16  16.13-1.pgdg24.04+1 amd64`.
+  - `apt-cache policy postgresql-16` → only PGDG repo provides this version (priority 500); not installed from Ubuntu's noble repo.
+
+### Phase 3 status as of end of 3.12
+
+- 3.1–3.12 complete. State on droplet: ~171+ packages upgraded (post-3.1 + unattended-upgrades since); current kernel `6.8.0-110-generic`; locale `en_US.UTF-8`; 2 GB swap; UFW active with 22/80/443 allow + default-deny; fail2ban running with active sshd jail and operator-IP `98.211.166.106` whitelisted; knuco user (uid 1000) with NOPASSWD sudo + key auth; sshd hardened (no root login, no password auth); SSH alias `knuco-droplet` resolves to knuco user; DO-managed volume `.mount` unit verified reboot-survival (UUID-based, nofail, enabled); **Node 22.22.2 + npm 10.9.7 installed via NodeSource and apt-marked hold**; **PostgreSQL 16.13 from PGDG installed and running on default data dir** (cluster `16/main` on port 5432).
+- Working tree: MIGRATION_LOG.md modified (this section), uncommitted (will commit immediately after this entry). Plan amendments already committed separately as `dda5149`.
+- **Pre-3.13 DigitalOcean snapshot remains mandatory** per the §13 go/no-go checklist before operator authorizes 3.13 (Postgres data-dir move to volume — destructive in case of misconfiguration).
+- Next: pause for operator's Batch A review and pre-3.13 snapshot, then `APPROVED — 3.13`.
