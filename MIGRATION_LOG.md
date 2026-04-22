@@ -964,3 +964,122 @@ Operator authorized Phase 5 as fast-batch with literal-content review pauses at 
 - **All Phase 3+4 state preserved:** UFW, fail2ban, sshd hardened, knuco user with NOPASSWD sudo, Postgres on volume, env file mode 600
 
 **Phase 5 status: complete.** Pending operator's `APPROVED — proceed to Phase 6` (verification: full eyes-on browser test + reboot + backup restore-ability test).
+
+---
+
+### Phase 7.5 — first application deploy after rebase (Claude-executed, 2026-04-22)
+
+**Context:** Phase 7 was originally scoped as "build and ship `deploy.sh` (the repeatable dev→prod workflow)." That work paused when divergence between this laptop's local `main` and `origin/main` was discovered during Phase 7's design phase. Phase 7.5 is the bridge: a one-time **manual** deploy that resolved the divergence, applied 14 backlog migrations, and shipped the developer's 3 large feature commits to production. `deploy.sh` proper is still pending — to be written in light of the lessons logged here.
+
+#### 7.5.1 — Divergence discovery
+
+- This laptop's repo at `/Users/legalassistant/constructioncrm/` was an older clone. The developer (separate workspace at `/Users/legalassistant/construction-crm/constructioncrm/` — note hyphen in parent dir) had been pushing newer feature work directly to `origin/main`. Result: local was 18 commits ahead (all migration work) AND 3 behind (dev's feature work).
+- Read-only inspection (no fetch/pull/merge): the 3 origin commits were
+  - `0fa7e9e` "drag-and-drop pipeline + inline stage editing + lead edit page + Mapbox autofill" (8 files, +1338/-145)
+  - `6d97bf2` "file uploads, email, password reset, notifications, follow-up automation" (50 files, +2333/-23, 4 migrations) — **also contained the same `@/generated/prisma/client` import fix we'd already done locally in `00e126c` + `7a2dcb2`.**
+  - `5d1a7fe` "phase 3 + 4 — financials, mobile, scheduling, receipts, task workflow" (67 files, +6962/-499, 8 migrations) — also renamed brand from "BuildFlow CRM" → "Knu Construction".
+- **14 new prisma migrations** total in origin/main, none of which we had locally.
+- File-overlap surface: 9 files. 7 were the prisma-import fix on both sides (no real semantic conflict — identical patches). 2 (`src/app/api/leads/route.ts`, `src/components/layout/sidebar.tsx`) had real overlap from origin adding a new import line immediately after the prisma-fix line.
+- **Confirmation that the dev's separate workspace is `/Users/legalassistant/construction-crm/constructioncrm/`** (their `next dev -p 4000` ran from there, per `lsof`/`ps` inspection). NOT to be touched as part of this migration; renaming/deprecating that path is the developer's call.
+
+#### 7.5.2 — Rebase decision (strategy A) and outcome
+
+- Chose **rebase** over merge or cherry-pick. Rationale: our 18 commits are infra/ops work that conceptually sits *on top of* application code. Rebasing puts the timeline in correct semantic order and makes the eventual push a fast-forward.
+- Pre-rebase HEAD captured to `/tmp/knuco_pre_rebase_sha.txt` for rollback: `6027d818d65a77a9b449995bb60f66e77740485e`.
+- `git pull --rebase origin main`:
+  - 15 of our 18 commits applied cleanly.
+  - **1 auto-dropped as redundant:** `00e126c` ("fix(db): import PrismaClient from @/generated/prisma/client subpath"). Git printed `dropping ... -- patch contents already upstream`. Identical to upstream's same fix.
+  - **1 conflict on `7a2dcb2`** (the prisma-import sweep) in 2 files: `src/app/api/leads/route.ts` (origin added `emitLeadEvent` import on the next line after the prisma fix) and `src/components/layout/sidebar.tsx` (origin added `NotificationBell` import). Resolution: keep HEAD-side (preserve dev's new imports). Resolved files diffed clean against `origin/main` for both. The sweep commit itself became empty after resolution — git also dropped it.
+  - 2 remaining commits applied without further conflict (`663518c` Phase 4 → `c3186d4`; `6027d81` Phase 5 → `a6f85a7`).
+- Post-rebase: **16 of our original 18 commits remain on top of origin's tip `5d1a7fe`.** Linearized history pushed cleanly to origin in 7.5.7.
+
+#### 7.5.3 — Pre-deploy safeguards (rollback artifacts retained)
+
+- **Fresh DB backup** via `sudo /usr/local/bin/knuco-backup.sh`: `/var/backups/knuco/postgres-2026-04-22-121317.dump` (98K on disk, > 10K threshold, success in journal).
+- **`/opt/knuco` tarball** (excludes `node_modules`, `.next`, `src/generated/prisma`): `/var/backups/knuco/pre-rebase-deploy-20260422-121343.tar.gz` (204K).
+- **Pre-deploy state recorded:** BUILD_ID `5U5qKJVVy-dPIQXJrElzF`, service PID `3930`, started `2026-04-22 10:55:51 UTC`.
+- **rsync** with same exclude set as Phase 4.5 (zsh-quoted wildcards, per Phase 4 lesson): 109 files transferred, 0 deletions, 168K sent, 7.13× speedup. The 14 new migration directories shipped over.
+
+#### 7.5.4 — Step 6 deploy chain — two trips on shell-tooling pitfalls
+
+**Trip 1 — `prisma migrate status` exits 1 on pending migrations.** First Step 6 chain was structured `set -e` → `npm ci` → `prisma generate` → `prisma migrate status` (intended as informational pre-check) → `migrate deploy` → `npm run build`. The status check returned exit 1 because 14 migrations were pending — *exactly* what the next line was about to apply. `set -e` killed the chain before `migrate deploy` ran. State left intact (migrations not applied, BUILD_ID unchanged, service unaffected). Resolution: re-ran with `npx prisma migrate status || true` for the pre-check; post-deploy status check kept strict. Same family as the 3.13 `systemctl is-active` exit-3 issue and the 4.6 zsh-pipefail issue: **any command whose non-zero exit means something other than "failure" must not sit inside a `set -e` chain without explicit handling.** Recorded as a feedback memory rule for future Prisma deploys.
+
+**Trip 2 — `NODE_ENV=production` + devDependencies.** Step 6 sources `/etc/knuco/env` (which contains `NODE_ENV=production`) before running `npm ci`. With `NODE_ENV=production`, npm sets `omit=dev` automatically and skips devDependencies. The dev's commit `5d1a7fe` introduced Tailwind v4 with `@tailwindcss/postcss` placed in `devDependencies` (standard pattern, since CSS gets compiled at build time). On our build-on-server model, this devDep is needed at build time but never got installed. Build failed: `Cannot find module '@tailwindcss/postcss'`. **Critical state at this point:**
+- 14 migrations had **already applied** (`migrate deploy` succeeded before the build crashed).
+- The partial build had **deleted `.next/BUILD_ID`** (so the running service couldn't survive a restart).
+- The service itself was still active on PID 3930, holding old `.next` artifacts in process memory (Linux: deleted-but-open files remain readable to the process that has them open).
+- **Production was stable but fragile** — any restart, OOM, or droplet reboot would have caused an outage.
+
+Resolution: re-ran `npm ci --include=dev` (added 913 packages vs. 676 prod-only — 237 devDeps installed) → `prisma generate` (regenerates client into the fresh `node_modules`) → `npm run build` (succeeded, new BUILD_ID `J1Y1vvczKSjHx7sN1F7Bd`). Fragile window closed.
+
+#### 7.5.5 — Migrations applied (14 in one batch via `prisma migrate deploy`)
+
+```
+20260420122551_password_reset_tokens
+20260420124426_notification_read_at
+20260420124512_notification_relations
+20260420124715_follow_up_executions
+20260420140000_crew_contact_and_trades
+20260420142422_payment_method
+20260420142650_referral_commission
+20260420143111_invoices
+20260420150000_crew_counties
+20260420162701_job_expenses
+20260420164011_expense_paid_from
+20260420164800_payment_sources
+20260420165912_incoming_receipts
+20260420180433_job_task_templates
+```
+
+All purely additive (new tables, no `ALTER` on existing tables) — that's why the running service kept working between "migrations applied" and "new build serving." Post-deploy `prisma migrate status` reported **"Database schema is up to date!"** against all 17 migrations.
+
+#### 7.5.6 — Build artifacts
+
+- **Compiler:** Next.js 16.2.3 (Turbopack)
+- **Compile:** 24.5s, succeeded
+- **TypeScript:** 19.1s, zero errors
+- **Static pages:** 56/56 generated in 569ms
+- **Total routes:** 92 (vs. ~37 pre-rebase) — 88 dynamic + 4 static
+- **BUILD_ID:** `5U5qKJVVy-dPIQXJrElzF` → `J1Y1vvczKSjHx7sN1F7Bd`
+- **Build warning (non-blocking):** `"middleware" file convention is deprecated. Please use "proxy" instead.` Next 16 → 17 deprecation. Tech debt — single file rename + content shape change per the docs link in the warning.
+
+#### 7.5.7 — Service restart + smoke test (Step 7, 12:29 UTC)
+
+- `sudo systemctl restart knuco`: clean. `is-active` → `active` after 0s.
+- **PID:** `3930` → `9266`. Started `2026-04-22 12:29:25 UTC`.
+- Boot journal: `▲ Next.js 16.2.3` / `Local: http://127.0.0.1:4000` / `✓ Ready in 176ms`. No errors, no warnings, no Prisma init failures. (Systemd's `Main process exited, code=exited, status=143/n/a` + `Failed with result 'exit-code'` for the prior PID is normal SIGTERM-on-restart, not a fault.)
+- Droplet curl `http://127.0.0.1:4000/`: **HTTP 307** → `/login?callbackUrl=%2F` with all 6 security headers present (HSTS no-preload, X-Content-Type-Options, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy, CSP).
+- Laptop curl `https://crm.knuconstruction.com/`: **HTTP 307** → `/login` over valid TLS via nginx with all security headers preserved through the proxy.
+- **New-route existence checks** (proves new code is live, not old):
+  - `/referrals` → 307 → `/login?callbackUrl=%2Freferrals`
+  - `/incoming-receipts` → 307 → `/login?callbackUrl=%2Fincoming-receipts`
+  - `/admin/templates` → 307 → `/login?callbackUrl=%2Fadmin%2Ftemplates`
+  Pre-rebase code didn't have these routes; they would have 404'd. They don't.
+- **End-to-end browser verification by operator (Richard):** logged in successfully as `richard@rcareylaw.com`, new "Knu Construction" branding visible, all new sidebar items (Referrals, Incoming Receipts, Templates, Follow-ups, Job Task Templates) present and rendering.
+
+#### 7.5.8 — Push to origin (Step 8, 12:3X UTC)
+
+- `git push origin main`: fast-forward `5d1a7fe..a6f85a7`, 16 commits pushed.
+- HEAD = origin/main = `a6f85a78fcea5ce92b173622d9decdc7a8c5811a`.
+- Working tree clean, in sync with origin.
+
+#### 7.5.9 — Tech debt noted (not fixing reactively)
+
+- **devDeps-for-build-on-server.** `@tailwindcss/postcss`, `tailwindcss`, possibly `typescript` and `@types/*` are in `devDependencies` but our deploy model needs them at build time on the server. Two viable fixes:
+  - (A) Move build-time deps from `devDependencies` to `dependencies` in `package.json`. Discuss with developer first — changes the dependency graph for everyone, may have unintended effects on dev installs.
+  - (B) Codify `npm ci --include=dev` as the install command in `deploy.sh`. Cleaner — the choice lives in the deploy script, not upstream `package.json`. Means deploy always installs the full dep tree on the server.
+
+  Decision deferred to `deploy.sh` design.
+- **`prisma migrate status` exit-1 inside `set -e`.** Already documented as feedback memory. `deploy.sh` contract should: (1) make pre-deploy status non-fatal; (2) keep post-deploy status strict; (3) treat post-deploy "Database schema is up to date!" as a required substring match.
+- **Next.js `"middleware"` → `"proxy"` file convention.** Build prints a deprecation warning. Need to migrate the file before Next 17 lands. Single file rename + content shape change per the docs link in the warning. Not blocking.
+
+#### Phase 7.5 end state
+
+- **Production fully on rebased main:** HEAD `a6f85a7`, `origin/main` `a6f85a7`, droplet `/opt/knuco` synced via rsync from same checkout.
+- **DB:** 17 migrations applied, schema up to date.
+- **Service:** PID `9266`, BUILD_ID `J1Y1vvczKSjHx7sN1F7Bd`, ready in 176ms post-restart, zero errors in journal.
+- **Public URL:** `https://crm.knuconstruction.com` serving new code; operator browser-verified end-to-end.
+- **Rollback artifacts retained:** `pre-rebase-deploy-20260422-121343.tar.gz`, two recent DB dumps (`postgres-2026-04-22-{111555,121317}.dump`), pre-rebase SHA in `/tmp/knuco_pre_rebase_sha.txt` (note: `/tmp` is volatile; copy to durable storage if rollback window needs to outlive the next reboot).
+- **Phase 6 (reboot/restore verification) and Phase 7 proper (`deploy.sh` design + implementation) remain pending.** Phase 7.5 is the bridge — a one-time manual deploy whose lessons feed `deploy.sh`.
+
+**Phase 7.5 status: complete.**
