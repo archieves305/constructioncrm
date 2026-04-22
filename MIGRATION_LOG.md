@@ -888,3 +888,79 @@ f5122b5  migration: add scripts/create-admin.ts
 - **App not yet serving:** no systemd unit yet (5.1), no Nginx vhost for KNUCO (5.2), no TLS (5.4). Build artifacts ready but `next start` hasn't been invoked.
 
 **Phase 4 status: complete.** Pending operator's `APPROVED — proceed to Phase 5` (systemd unit + Nginx vhost + DNS + Certbot + logrotate + nightly DB backup).
+
+## 2026-04-22 — Phase 5 execution (systemd + nginx + DNS + TLS + backups)
+
+Operator authorized Phase 5 as fast-batch with literal-content review pauses at 5.1 (systemd unit), 5.2 (vhost), 5.3 (DNS — operator action), 5.4 (certbot dry-run), and 5.6 (backup unit content).
+
+### 5.1 — systemd unit knuco.service (Claude-executed, 2026-04-22 ~10:55 UTC)
+
+- `/etc/systemd/system/knuco.service` written (570 bytes, root:root mode 644, 26 lines): `User=knuco`/`Group=knuco`, `WorkingDirectory=/opt/knuco`, `EnvironmentFile=/etc/knuco/env` plus belt-and-suspenders `Environment=NODE_ENV=production`/`PORT=4000`/`HOSTNAME=127.0.0.1`, `ExecStart=/usr/bin/node /opt/knuco/node_modules/.bin/next start -p 4000 -H 127.0.0.1`, `Restart=on-failure`/`RestartSec=5`, sandboxing flags (`NoNewPrivileges=true`, `ProtectSystem=full`, `ProtectHome=true`, `PrivateTmp=true`), `After=network.target postgresql.service`/`Requires=postgresql.service`, `WantedBy=multi-user.target`.
+- `daemon-reload` + `enable --now` → `multi-user.target.wants/knuco.service` symlink. `is-active` returned `active` after 0s polling.
+- Boot journal: `▲ Next.js 16.2.3` / `Local: http://127.0.0.1:4000` / `✓ Ready in 211ms` — no errors, no warnings.
+- Droplet-side `curl -I http://127.0.0.1:4000/` returned **HTTP 307** to `/login?callbackUrl=%2F` (NextAuth middleware doing its job). All security headers present (HSTS without preload per 4.1, CSP, X-Frame-Options DENY, etc.). `ss -tlnp` confirmed app listening on `127.0.0.1:4000` only (NOT `0.0.0.0`).
+
+### 5.2 — Nginx vhost (Claude-executed, 2026-04-22 ~11:03 UTC)
+
+- `/etc/nginx/sites-available/knuco` written (1258 bytes, 40 lines): HTTP-only vhost (5.4 certbot adds the SSL block) with `listen 80` + `listen [::]:80`, `server_name crm.knuconstruction.com`, ACME challenge path `/.well-known/acme-challenge/` rooted at `/var/www/html`, dotfile deny `location ~ /\.`, `client_max_body_size 25M`, three 60s proxy timeouts, gzip enabled, `proxy_pass http://127.0.0.1:4000` with full WebSocket-ready proxy headers (Upgrade/Connection/Host/X-Real-IP/X-Forwarded-For/X-Forwarded-Proto/proxy_cache_bypass).
+- Symlinked to `/etc/nginx/sites-enabled/knuco`; removed `/etc/nginx/sites-enabled/default`. `nginx -t` syntax OK; `systemctl reload nginx`.
+- Verification: `curl -I http://161.35.0.183/` from laptop returned **HTTP 307** (the only enabled vhost serves all port-80 requests regardless of Host header — nginx's "first-server-block-becomes-default-when-no-default_server-defined" behavior). Not the literal 404 the operator anticipated, but consistent with the "or whatever Nginx default response is" caveat.
+
+### 5.3 — DNS (operator-executed at GoDaddy, 2026-04-22)
+
+- Operator added A record at GoDaddy: Type `A`, Host `crm`, Value `161.35.0.183`, TTL 600.
+- Posted `DNS PROPAGATED` after `dig +short crm.knuconstruction.com @1.1.1.1` returned `161.35.0.183` from their Mac.
+- Claude verified from laptop: all three resolvers (Cloudflare 1.1.1.1, Google 8.8.8.8, Quad9 9.9.9.9) returned `161.35.0.183` — DNS fully propagated.
+- Sub-quirk noted: `curl http://crm.knuconstruction.com/` from laptop initially returned `HTTP_CODE:000` due to macOS local DNS cache holding stale NXDOMAIN. Did not affect certbot (LE staging/prod resolvers use authoritative DNS, not the laptop's cache). Operator subsequently flushed via `dscacheutil -flushcache; killall -HUP mDNSResponder` and laptop resolution worked.
+
+### 5.4 — Certbot (Claude-executed, 2026-04-22 ~11:09 UTC)
+
+- **First dry-run attempt FAILED** — used `certbot --nginx --dry-run -d ... --redirect`. Certbot 2.x removed `--dry-run` from the implicit `run` subcommand: `--dry-run currently only works with the 'certonly' or 'renew' subcommands`. No nginx config modified; no cert acquired. Halted, reported, operator chose option A (use `certonly --nginx --dry-run`).
+- **Dry-run via `certbot certonly --nginx --dry-run`:** ✓ "The dry run was successful." LE staging account registered, HTTP-01 challenge worked end-to-end, no nginx-vhost modification.
+- **Real run** `sudo certbot --nginx -d crm.knuconstruction.com --non-interactive --agree-tos -m richard@rcareylaw.com --redirect`: ✓ "Successfully received certificate." Cert at `/etc/letsencrypt/live/crm.knuconstruction.com/fullchain.pem`, key at `.../privkey.pem`. Cert expires **2026-07-21** (~90 days). Certbot rewrote `/etc/nginx/sites-available/knuco`: original server block lost `listen 80;` and gained `listen 443 ssl;` + `listen [::]:443 ssl ipv6only=on;` + ssl_certificate paths + `include options-ssl-nginx.conf` + `ssl_dhparam`; new HTTP→HTTPS redirect server block added (returns 301 if Host matches, 404 otherwise). All certbot edits marked `# managed by Certbot`.
+- **Verification from laptop (post-DNS-cache-flush):**
+  - `curl -I https://crm.knuconstruction.com/` → **HTTP 307** to `/login?callbackUrl=%2F` over valid TLS, all security headers present (HSTS without preload, CSP, X-Frame-Options DENY, etc.).
+  - `curl -I http://crm.knuconstruction.com/` → **HTTP 301** with `Location: https://crm.knuconstruction.com/` (certbot `--redirect` confirmed working).
+  - `openssl s_client | openssl x509 -noout -dates -subject -issuer`: subject `CN=crm.knuconstruction.com`, issuer `C=US, O=Let's Encrypt, CN=E7` (LE's current ECDSA intermediate), `notBefore=Apr 22 10:11:07 2026 GMT`, `notAfter=Jul 21 10:11:06 2026 GMT`.
+  - `certbot.timer`: `active`/`enabled`, next run `Wed 2026-04-22 12:36:39 UTC` (~1h 26min after cert acquisition).
+
+### 5.5 — logrotate audit (Claude-executed, 2026-04-22; no changes needed)
+
+- `/etc/logrotate.d/nginx` is stock Ubuntu 24.04 config: `daily` rotation, `rotate 14` (14-day retention), `compress` + `delaycompress`, `notifempty`, `create 0640 www-data adm`, `prerotate`/`postrotate` hooks (`postrotate` invokes `nginx rotate` to reopen log fds).
+- `logrotate -d` (dry-run) reports clean parse and "Handling 1 logs".
+- `logrotate.timer` is `active`, next run `Thu 2026-04-23 00:00:00 UTC`. Plus legacy `/etc/cron.daily/logrotate` exists (Ubuntu 24.04 ships both — harmless redundancy).
+- App logs go to journald (no file-rotation needed — journald handles rotation).
+- Plan-spec'd defaults all met. **No edits made.**
+
+### 5.6 — Nightly DB backup (Claude-executed, 2026-04-22 ~11:15 UTC)
+
+- `/usr/local/bin/knuco-backup.sh` written (1513 bytes, mode 750 root:knuco): pg_dump `-Fc` from `/etc/knuco/env`'s `DATABASE_URL`, 14-day retention via `find -mtime +14 -delete`, fail-loud on empty `DB_PASS` with redacted error (per the 5.6 plan amendment). URL-regex-coupling comment included for future operator clarity.
+- `/etc/systemd/system/knuco-backup.service` (208 bytes, root:root mode 644): `Type=oneshot`, `ExecStart=/usr/local/bin/knuco-backup.sh`, `User=root`, `After/Requires=postgresql.service`, journal logging.
+- `/etc/systemd/system/knuco-backup.timer` (168 bytes, root:root mode 644): `OnCalendar=*-*-* 02:30:00 America/New_York`, `Persistent=true`, `RandomizedDelaySec=300`, `WantedBy=timers.target`.
+- `daemon-reload` + `enable --now knuco-backup.timer` → `timers.target.wants/knuco-backup.timer` symlink.
+- **Smoke test** `sudo systemctl start knuco-backup.service` (one-shot, runs synchronously since `Type=oneshot`):
+  - Journal: `OK: /var/backups/knuco/postgres-2026-04-22-111555.dump (100K)` then clean exit.
+  - `ls -lh /var/backups/knuco/`: one file, 97K, named `postgres-2026-04-22-111555.dump`.
+  - Byte-size assertion: 98579 bytes > 10K threshold ✓.
+- Timer next scheduled: **Thu 2026-04-23 06:30:07 UTC** = 02:30:07 EDT (= `02:30 America/New_York` + 7s of `RandomizedDelaySec=300` jitter; April 22 is in DST so EDT = UTC−4).
+- Minor hygiene note for future tightening: dump file ends up `root:root mode 644` (script runs as root, default umask). The parent dir `/var/backups/knuco/` is `knuco:knuco mode 750` so other users can't traverse in regardless. Tightening to `chmod 640` or `chown knuco:knuco` on the dump file is a future hardening — not blocking.
+
+### 5.7 — Live URL milestone (2026-04-22)
+
+**`https://crm.knuconstruction.com` is now live and serving the KNUCO CRM app over valid Let's Encrypt TLS.**
+- HTTPS landing returns 307 to `/login?callbackUrl=/` (NextAuth middleware redirecting unauthenticated requests).
+- HTTP requests to `http://crm.knuconstruction.com/` return 301 to the HTTPS URL (certbot `--redirect`).
+- Cert is valid (LE production), HSTS without preload (per 4.1), all CSP/X-Frame-Options/Referrer-Policy/Permissions-Policy headers present.
+- **Operator is now browser-testing the live login flow** as the `richard@rcareylaw.com` admin user (password from 1Password vault item `KNUCO prod admin login — richard@rcareylaw.com`). End-to-end Phase 6 verification (login + create lead + stage transition + reboot survival + backup restore-ability) follows in the Phase 6 work.
+
+### Phase 5 end state
+
+- **Live URL:** `https://crm.knuconstruction.com` (TLS, HSTS, HTTP→HTTPS redirect, NextAuth login gate)
+- **App service:** `knuco.service` (active + enabled, next start on 127.0.0.1:4000, sandboxed via systemd flags, env from `/etc/knuco/env`, ~98 MB resident, tasks 13)
+- **Reverse proxy:** Nginx vhost `crm.knuconstruction.com` proxying 127.0.0.1:4000 with TLS, 25M body limit, 60s proxy timeouts, dotfile deny block, gzip, WebSocket-ready proxy headers
+- **TLS:** LE cert valid through 2026-07-21, auto-renewal via `certbot.timer` (next run within ~12h, then daily)
+- **Logs:** App→journald (auto-managed), Nginx→stock daily/14-day-retention/compress logrotate
+- **Nightly backup:** systemd timer scheduled for `02:30 America/New_York` daily, smoke-tested 97K dump in `/var/backups/knuco/`, 14-day retention
+- **All Phase 3+4 state preserved:** UFW, fail2ban, sshd hardened, knuco user with NOPASSWD sudo, Postgres on volume, env file mode 600
+
+**Phase 5 status: complete.** Pending operator's `APPROVED — proceed to Phase 6` (verification: full eyes-on browser test + reboot + backup restore-ability test).
