@@ -674,7 +674,7 @@ Phase 3 progress: **3.1–3.14 done**. Remaining: 3.15 (Nginx install), 3.16 (Ce
 - `sudo apt-get install -y certbot python3-certbot-nginx` succeeded; needrestart reported nothing to restart.
 - `certbot --version` → `certbot 2.9.0` (Ubuntu 24.04 apt distribution; expected 2.x).
 - Package versions: `ii certbot 2.9.0-1`, `ii python3-certbot-nginx 2.9.0-1`. Binary at `/usr/bin/certbot`.
-- `systemctl list-unit-files | grep certbot` → `certbot.service static`, `certbot.timer enabled enabled`. The renewal timer is enabled at package-install time; it exits cleanly without doing anything until a cert exists.
+- `systemctl list-unit-files | grep certbot` → `certbot.service static`, `certbot.timer enabled enabled`. The renewal timer is enabled at package-install time; it exits cleanly without doing anything until a cert exists. (Note: this is **certbot 2.x behavior** — earlier 1.x versions only created the timer after the first successful `certbot run`. The original MIGRATION_PLAN.md may carry the older assumption in places; benign discrepancy noted for future operators.)
 - **No cert acquired in this step** — 3.16 is install-only. First cert acquisition is step 5.4, after operator adds the DNS A record for `crm.knuconstruction.com → 161.35.0.183` at GoDaddy.
 
 ### 3.17 — Application directory structure (Claude-executed, 2026-04-22)
@@ -718,3 +718,54 @@ No symlinks, no incorrect owner, no incorrect mode. The plan spec is met exactly
 **Phase 3 exit criteria** per plan section "Phase 3 exit criteria": final reboot test pending operator authorization. Confirms ALL configured services come back from a cold boot — most things have already been individually tested across 3.1, 3.10, 3.13 reboots, but the wrap-up reboot is the one that proves the entire post-3.17 state is reboot-survivable end-to-end.
 
 Standing by for `APPROVED — phase 3 final reboot test` (or equivalent), then we proceed to Phase 4 (transfer).
+
+### Phase 3 exit-criteria reboot test (Claude-executed, 2026-04-22 ~10:04 UTC)
+
+Operator authorized the final wrap-up reboot. Pre-reboot snapshot captured all configured services + UFW + Postgres data dir + volume mount + swap + knuco user; reboot issued; post-reboot snapshot re-captured every check.
+
+**Reboot timing:** boot_id changed `d20f8c2e-bee3-4231-842a-f6d88cadec6c` → `c91bbd01-bd65-47f7-9bb6-6b25050d9de3` after 1 poll attempt (~5s). `postgresql@16-main` came up after 1 additional poll attempt (~1s). Boot time `2026-04-22 10:04:11 UTC`.
+
+**Kernel:** `6.8.0-110-generic` pre = post — no kernel bump this reboot (only ~30 min gap since 3.13's reboot, no unattended-upgrades cycle in between).
+
+**Post-reboot service status — all green:**
+- `systemctl is-system-running`: `running`, **0 failed units**.
+- `systemctl is-active`:
+  - `postgresql` → `active`
+  - `postgresql@16-main` → `active`
+  - `nginx` → `active`
+  - `ssh` → `active`
+  - `fail2ban` → `active`
+  - `ufw` → `active`
+  - `mnt-volume_nyc1_1776773233539.mount` → `active`
+- `systemctl is-enabled`:
+  - `postgresql` → `enabled`
+  - `nginx` → `enabled`
+  - `fail2ban` → `enabled`
+  - `ssh` → **`disabled`** (this is correct on Ubuntu 24.04 — `ssh` ships as socket-activated; `ssh.socket` is enabled and listens on 22, and `ssh.service` is started on demand by the socket. `is-enabled ssh.service = disabled` does NOT mean SSH won't come up at boot. Verified by the fact that we successfully SSH'd back in immediately post-reboot. To audit the socket directly: `systemctl is-enabled ssh.socket`.)
+
+**Post-reboot config + state checks:**
+- `ufw status verbose`: active, default deny + 22/80/443 allow (v4 + v6) — same as pre-reboot.
+- `fail2ban-client get sshd ignoreip`: `127.0.0.0/8`, **`98.211.166.106`** (operator IP), `::1` — whitelist file in `/etc/fail2ban/jail.d/` survived reboot.
+- `SHOW data_directory` (psql as postgres) → `/mnt/volume_nyc1_1776773233539/postgres/main` ✓
+- `findmnt /mnt/volume_nyc1_1776773233539`: `/dev/sda ext4 rw,noatime,discard` — identical to pre-reboot.
+- `swapon --show`: `/swapfile 2G prio -2` — same as pre-reboot.
+- `id knuco`: `uid=1000(knuco) gid=1000(knuco) groups=1000(knuco),27(sudo),100(users)` — same as before.
+
+**Postgres sanity query (against the `knuco` database):**
+```sql
+SELECT version();              -- PostgreSQL 16.13 (Ubuntu 16.13-1.pgdg24.04+1) ...
+SELECT current_database(),     -- knuco
+       current_user;           -- postgres
+```
+Both queries returned expected values; the `knuco` DB is reachable, the cluster is healthy, the data dir on the volume is being used.
+
+**Laptop-side external reachability canary post-reboot:**
+- `curl -sI --max-time 10 http://161.35.0.183/` → `HTTP/1.1 200 OK`, same `Server: nginx/1.24.0 (Ubuntu)`, same `ETag: "69e89b5c-267"`, same `Last-Modified` as the pre-3.15-reboot capture. Confirms UFW allow-rule for 80/tcp + nginx + DigitalOcean edge routing all clean post-reboot. Internet → droplet path is exercised end-to-end.
+
+**Rollback artifacts confirmed still present:**
+- `/var/lib/postgresql/16/main.old-pre-volume-move-2026-04-22` — postgres:postgres, 19 entries, original Postgres data dir
+- `/etc/postgresql/16/main/postgresql.conf.bak-pre-volume-move-2026-04-22` — root:root, 30,136 bytes
+- `/root/sshd-config-backup-pre-phase3/sshd_config` (3486 bytes — original from 3.8) + `sshd_config.d/50-cloud-init.conf` (27 bytes) + `sshd_config.d/60-cloudimg-settings.conf` (26 bytes) — verified via `sudo ls -la` after the initial `ls` failed with permission denied (knuco can't read `/root/`; backup is owned by root)
+- DO snapshot `KNUCO-1776849230023` / `knuco-pre-3.13-postgres-data-move-2026-04-22`
+
+**Phase 3 status: complete and reboot-survived.** Droplet is in the stable post-Phase-3 state described above. Ready for Phase 4 (transfer) — pending operator's `APPROVED — proceed to Phase 4`.
