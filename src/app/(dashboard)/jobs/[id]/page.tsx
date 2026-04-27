@@ -368,11 +368,7 @@ export default function JobDetailPage() {
                       }
                     : undefined
                 }
-                rentalTurnover={
-                  job.isRentalTurnover
-                    ? { linked: Boolean(job.buildiumPropertyId) }
-                    : undefined
-                }
+                isRentalTurnover={Boolean(job.isRentalTurnover)}
               />
             </TabsContent>
 

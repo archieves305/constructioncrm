@@ -95,13 +95,6 @@ enum MarginType {
   FLAT
 }
 
-enum BuildiumSyncStatus {
-  PENDING
-  SYNCED
-  FAILED
-  SKIPPED
-}
-
 enum FinancingStatus {
   NOT_NEEDED
   PENDING_APPLICATION
@@ -268,6 +261,7 @@ model User {
   expensesCreated   JobExpense[]
   receiptsUploaded  IncomingReceipt[]
   jobTaskTemplatesDefault JobTaskTemplate[]
+  auditEvents       AuditEvent[]
 
   @@map("users")
 }
@@ -736,8 +730,6 @@ model Job {
   scheduledDate       DateTime?       @map("scheduled_date")
   completionDate      DateTime?       @map("completion_date")
   isRentalTurnover    Boolean         @default(false) @map("is_rental_turnover")
-  buildiumPropertyId  String?         @map("buildium_property_id")
-  buildiumUnitId      String?         @map("buildium_unit_id")
   priorTenantName     String?         @map("prior_tenant_name")
   turnoverStartedAt   DateTime?       @map("turnover_started_at")
   turnoverCompletedAt DateTime?       @map("turnover_completed_at")
@@ -767,7 +759,6 @@ model Job {
   @@index([projectManagerId])
   @@index([scheduledDate])
   @@index([isRentalTurnover])
-  @@index([buildiumPropertyId])
   @@map("jobs")
 }
 
@@ -937,10 +928,6 @@ model JobExpense {
   paidMethod          PaymentMethod?      @map("paid_method")
   paidFrom            String?             @map("paid_from")
   billable            Boolean             @default(false)
-  buildiumBillId      String?             @map("buildium_bill_id")
-  buildiumSyncStatus  BuildiumSyncStatus? @map("buildium_sync_status")
-  buildiumSyncError   String?             @map("buildium_sync_error") @db.Text
-  buildiumSyncedAt    DateTime?           @map("buildium_synced_at")
   createdByUserId     String              @map("created_by_user_id")
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
@@ -951,16 +938,7 @@ model JobExpense {
 
   @@index([jobId])
   @@index([type])
-  @@index([buildiumSyncStatus])
   @@map("job_expenses")
-}
-
-model BuildiumSetting {
-  key       String   @id
-  value     String
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("buildium_settings")
 }
 
 model Invoice {
@@ -1175,6 +1153,28 @@ model ManagerAlertSettings {
   escalationContactId   String? @map("escalation_contact_id")
 
   @@map("manager_alert_settings")
+}
+
+// ─── Audit Log ──────────────────────────────────────────────────────────────
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  actorUserId String?  @map("actor_user_id")
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  action      String
+  beforeJson  Json?    @map("before_json")
+  afterJson   Json?    @map("after_json")
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@index([createdAt])
+  @@map("audit_events")
 }
 
 // ─── Intake Settings ────────────────────────────────────────────────────────

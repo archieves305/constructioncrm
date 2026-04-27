@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createJobFromLead } from "@/lib/services/jobs";
 import { emitLeadEvent } from "@/lib/follow-ups/events";
+import { recordAudit } from "@/lib/audit/record";
+import { logger } from "@/lib/logger";
 
 export async function POST(
   request: NextRequest,
@@ -56,8 +58,19 @@ export async function POST(
     }),
   ]);
 
+  await recordAudit({
+    actorUserId: session.user.id,
+    entityType: "Lead",
+    entityId: id,
+    action: "stage_change",
+    before: { stageId: lead.currentStageId },
+    after: { stageId, reason: reason ?? null },
+    ipAddress: request.headers.get("x-forwarded-for") ?? null,
+    userAgent: request.headers.get("user-agent"),
+  });
+
   await emitLeadEvent("LEAD_STAGE_CHANGED", id).catch((e) =>
-    console.error("emitLeadEvent LEAD_STAGE_CHANGED failed", e),
+    logger.exception(e, { where: "emitLeadEvent", event: "LEAD_STAGE_CHANGED", leadId: id }),
   );
 
   // Auto-create job when lead is Won
@@ -66,7 +79,7 @@ export async function POST(
     try {
       job = await createJobFromLead(id, session.user.id);
     } catch (err) {
-      console.error("Failed to auto-create job:", err);
+      logger.exception(err, { where: "createJobFromLead", leadId: id });
     }
   }
 

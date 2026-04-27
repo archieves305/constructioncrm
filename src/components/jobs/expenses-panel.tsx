@@ -17,8 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Plus, DollarSign, Receipt, Download, CloudUpload, CheckCircle2, AlertCircle } from "lucide-react";
-import { BuildiumSyncDialog } from "@/components/jobs/buildium-sync-dialog";
+import { Trash2, Plus, DollarSign, Receipt, Download } from "lucide-react";
 
 const TYPES = [
   "MATERIAL",
@@ -40,8 +39,6 @@ const METHODS = [
   "OTHER",
 ] as const;
 
-type BuildiumSyncStatus = "PENDING" | "SYNCED" | "FAILED" | "SKIPPED";
-
 type Expense = {
   id: string;
   type: (typeof TYPES)[number];
@@ -52,10 +49,6 @@ type Expense = {
   paidMethod: (typeof METHODS)[number] | null;
   paidFrom: string | null;
   billable: boolean;
-  buildiumBillId: string | null;
-  buildiumSyncStatus: BuildiumSyncStatus | null;
-  buildiumSyncError: string | null;
-  buildiumSyncedAt: string | null;
   createdBy: { firstName: string; lastName: string };
 };
 
@@ -94,17 +87,15 @@ export function ExpensesPanel({
   jobType,
   contractAmount,
   costPlus,
-  rentalTurnover,
+  isRentalTurnover = false,
 }: {
   jobId: string;
   jobType: "FIXED_PRICE" | "COST_PLUS";
   contractAmount: number;
   costPlus?: CostPlusMeta;
-  rentalTurnover?: { linked: boolean };
+  isRentalTurnover?: boolean;
 }) {
   const isCostPlus = jobType === "COST_PLUS";
-  const isRentalTurnover = Boolean(rentalTurnover);
-  const buildiumLinked = Boolean(rentalTurnover?.linked);
   const qc = useQueryClient();
   const [form, setForm] = useState<Form>(emptyForm);
 
@@ -194,23 +185,17 @@ export function ExpensesPanel({
     },
   });
 
-  const [syncExpense, setSyncExpense] = useState<Expense | null>(null);
-
-  const { totalNonBillable, totalBillable, totalAll, totalSynced, totalUnsynced } = useMemo(() => {
+  const { totalNonBillable, totalBillable, totalAll } = useMemo(() => {
     let totalNonBillable = 0;
     let totalBillable = 0;
     let totalAll = 0;
-    let totalSynced = 0;
-    let totalUnsynced = 0;
     for (const e of expenses) {
       const n = Number(e.amount);
       totalAll += n;
       if (e.billable) totalBillable += n;
       else totalNonBillable += n;
-      if (e.buildiumBillId) totalSynced += n;
-      else totalUnsynced += n;
     }
-    return { totalNonBillable, totalBillable, totalAll, totalSynced, totalUnsynced };
+    return { totalNonBillable, totalBillable, totalAll };
   }, [expenses]);
 
   const estimatedProfit = contractAmount - totalNonBillable;
@@ -233,24 +218,10 @@ export function ExpensesPanel({
     <div className="space-y-4">
       {/* Rental turnover summary */}
       {isRentalTurnover && (
-        <div className="grid grid-cols-3 gap-3 rounded-md border border-blue-200 bg-blue-50/60 p-2">
-          <div>
-            <div className="text-[10px] uppercase text-blue-900">Turnover cost</div>
-            <div className="text-lg font-semibold text-blue-900">
-              ${totalAll.toLocaleString()}
-            </div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase text-blue-900">Posted to Buildium</div>
-            <div className="text-lg font-semibold text-emerald-700">
-              ${totalSynced.toLocaleString()}
-            </div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase text-blue-900">Not yet posted</div>
-            <div className={`text-lg font-semibold ${totalUnsynced > 0 ? "text-amber-700" : "text-muted-foreground"}`}>
-              ${totalUnsynced.toLocaleString()}
-            </div>
+        <div className="rounded-md border border-blue-200 bg-blue-50/60 p-2">
+          <div className="text-[10px] uppercase text-blue-900">Turnover cost</div>
+          <div className="text-lg font-semibold text-blue-900">
+            ${totalAll.toLocaleString()}
           </div>
         </div>
       )}
@@ -554,31 +525,7 @@ export function ExpensesPanel({
                         Billable
                       </Badge>
                     )}
-                    {isRentalTurnover && (
-                      <>
-                        {e.buildiumBillId ? (
-                          <Badge variant="outline" className="border-emerald-500 text-[10px] text-emerald-700">
-                            <CheckCircle2 className="mr-1 inline h-3 w-3" />
-                            Buildium #{e.buildiumBillId}
-                          </Badge>
-                        ) : e.buildiumSyncStatus === "FAILED" ? (
-                          <Badge variant="outline" className="border-red-500 text-[10px] text-red-700" title={e.buildiumSyncError ?? undefined}>
-                            <AlertCircle className="mr-1 inline h-3 w-3" />
-                            Sync failed
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="border-gray-300 text-[10px] text-gray-600">
-                            Not posted
-                          </Badge>
-                        )}
-                      </>
-                    )}
                   </div>
-                  {isRentalTurnover && e.buildiumSyncStatus === "FAILED" && e.buildiumSyncError && (
-                    <div className="mt-1 text-[10px] text-red-700">
-                      {e.buildiumSyncError}
-                    </div>
-                  )}
                   {(e.paidMethod || e.paidFrom) && (
                     <div className="mt-1 flex flex-wrap items-center gap-1 text-xs">
                       {e.paidMethod && (
@@ -620,24 +567,6 @@ export function ExpensesPanel({
                       Bill
                     </label>
                   )}
-                  {isRentalTurnover && !e.buildiumBillId && (
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
-                      onClick={() => setSyncExpense(e)}
-                      disabled={!buildiumLinked}
-                      title={
-                        !buildiumLinked
-                          ? "Link a Buildium property first"
-                          : e.buildiumSyncStatus === "FAILED"
-                            ? "Retry post to Buildium"
-                            : "Post this expense to Buildium"
-                      }
-                    >
-                      <CloudUpload className="h-3 w-3" />
-                      {e.buildiumSyncStatus === "FAILED" ? "Retry" : "Post"}
-                    </button>
-                  )}
                   <button
                     type="button"
                     className="rounded p-2 text-muted-foreground hover:bg-red-50 hover:text-destructive"
@@ -652,21 +581,6 @@ export function ExpensesPanel({
             </Card>
           ))}
         </div>
-      )}
-
-      {syncExpense && (
-        <BuildiumSyncDialog
-          open={Boolean(syncExpense)}
-          onOpenChange={(open) => {
-            if (!open) setSyncExpense(null);
-          }}
-          expense={{
-            id: syncExpense.id,
-            jobId,
-            vendor: syncExpense.vendor,
-            amount: syncExpense.amount,
-          }}
-        />
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { env } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 type SendEmailArgs = {
   to: string | string[];
@@ -20,7 +21,7 @@ function getClient(): Resend | null {
 export async function sendEmail(args: SendEmailArgs): Promise<{ id: string } | null> {
   const c = getClient();
   if (!c || !env.EMAIL_FROM) {
-    console.warn("[email] Resend not configured — skipping send", { subject: args.subject });
+    logger.warn("email send skipped: Resend not configured", { subject: args.subject });
     return null;
   }
 

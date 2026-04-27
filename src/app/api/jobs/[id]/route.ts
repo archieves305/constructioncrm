@@ -75,7 +75,7 @@ export async function PATCH(
     "projectManagerId", "salesRepId", "nextAction",
     "targetStartDate", "scheduledDate",
     "jobType", "laborCost", "marginType", "marginValue",
-    "isRentalTurnover", "buildiumPropertyId", "buildiumUnitId",
+    "isRentalTurnover",
     "priorTenantName", "turnoverStartedAt", "turnoverCompletedAt",
   ];
 

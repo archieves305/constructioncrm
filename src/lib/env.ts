@@ -21,13 +21,6 @@ const schema = z.object({
   EMAIL_FROM: z.string().email().optional(),
 
   CRON_SECRET: z.string().optional(),
-
-  BUILDIUM_BASE_URL: z.string().url().default("https://api.buildium.com/v1"),
-  BUILDIUM_CLIENT_ID: z.string().optional(),
-  BUILDIUM_CLIENT_SECRET: z.string().optional(),
-  BUILDIUM_VENDOR_NAME: z.string().default("Knu Construction"),
-  BUILDIUM_DEFAULT_GL_ACCOUNT_ID: z.string().optional(),
-  BUILDIUM_DEFAULT_BANK_ACCOUNT_ID: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
