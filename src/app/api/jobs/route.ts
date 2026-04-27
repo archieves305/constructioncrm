@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search") || undefined;
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "50");
+  const withTaskCounts = searchParams.get("withTaskCounts") === "true";
 
   const where: Record<string, unknown> = {};
   if (stageId) where.currentStageId = stageId;
@@ -46,5 +47,45 @@ export async function GET(request: NextRequest) {
     prisma.job.count({ where }),
   ]);
 
-  return NextResponse.json({ data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
+  let taskCountsByJob: Record<string, { pending: number; overdue: number }> = {};
+  if (withTaskCounts && data.length > 0) {
+    const jobIds = data.map((j) => j.id);
+    const now = new Date();
+    const [pendingTasks, overdueTasks] = await Promise.all([
+      prisma.task.groupBy({
+        by: ["jobId"],
+        where: { jobId: { in: jobIds }, status: { in: ["PENDING", "IN_PROGRESS"] } },
+        _count: { _all: true },
+      }),
+      prisma.task.groupBy({
+        by: ["jobId"],
+        where: {
+          jobId: { in: jobIds },
+          status: { in: ["PENDING", "IN_PROGRESS"] },
+          dueAt: { lt: now },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+    taskCountsByJob = Object.fromEntries(
+      pendingTasks
+        .filter((g) => g.jobId)
+        .map((g) => [g.jobId as string, { pending: g._count._all, overdue: 0 }]),
+    );
+    for (const g of overdueTasks) {
+      const id = g.jobId as string | null;
+      if (!id) continue;
+      if (!taskCountsByJob[id]) taskCountsByJob[id] = { pending: 0, overdue: 0 };
+      taskCountsByJob[id].overdue = g._count._all;
+    }
+  }
+
+  const enriched = withTaskCounts
+    ? data.map((j) => ({
+        ...j,
+        taskCounts: taskCountsByJob[j.id] ?? { pending: 0, overdue: 0 },
+      }))
+    : data;
+
+  return NextResponse.json({ data: enriched, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 }
