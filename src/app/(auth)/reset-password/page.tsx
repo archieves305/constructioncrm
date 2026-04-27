@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
+
+const MIN_LENGTH = 12;
 
 export default function ResetPasswordPage() {
   return (
@@ -29,8 +32,8 @@ function ResetPasswordForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+    if (password.length < MIN_LENGTH) {
+      setError(`Password must be at least ${MIN_LENGTH} characters`);
       return;
     }
     if (password !== confirm) {
@@ -86,8 +89,9 @@ function ResetPasswordForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={8}
+                  minLength={MIN_LENGTH}
                 />
+                <PasswordStrengthMeter password={password} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirm">Confirm password</Label>
@@ -97,7 +101,7 @@ function ResetPasswordForm() {
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   required
-                  minLength={8}
+                  minLength={MIN_LENGTH}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>

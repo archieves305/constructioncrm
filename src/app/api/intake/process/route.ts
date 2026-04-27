@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { processInboundEmails } from "@/lib/services/intake/intake-service";
 import { OutlookInboxProvider } from "@/lib/services/intake/outlook-provider";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
-/**
- * POST /api/intake/process
- * Triggers email intake processing. Can be called manually or via cron.
- * Protected — requires admin/manager role.
- */
 export async function POST(request: NextRequest) {
+  const limited = enforceRateLimit(request, {
+    name: "intake.process",
+    limit: 10,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
@@ -21,7 +25,7 @@ export async function POST(request: NextRequest) {
     const results = await processInboundEmails(provider);
     return NextResponse.json({ processed: results.length, results });
   } catch (err) {
-    console.error("Intake processing error:", err);
+    logger.exception(err, { where: "intake.process" });
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Processing failed" },
       { status: 500 }

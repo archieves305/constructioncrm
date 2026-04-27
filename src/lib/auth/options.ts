@@ -3,6 +3,12 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 import type { RoleName } from "@/generated/prisma/client";
+import {
+  clearLoginFailures,
+  isLockedOut,
+  recordLoginFailure,
+} from "@/lib/auth/lockout";
+import { logger } from "@/lib/logger";
 
 declare module "next-auth" {
   interface Session {
@@ -42,16 +48,36 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+        const email = credentials.email.trim().toLowerCase();
+
+        if (isLockedOut(email).locked) {
+          logger.warn("login attempt on locked account", { email });
+          return null;
+        }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
           include: { role: true },
         });
 
-        if (!user || !user.isActive) return null;
+        if (!user || !user.isActive) {
+          recordLoginFailure(email);
+          return null;
+        }
 
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!valid) return null;
+        if (!valid) {
+          const result = recordLoginFailure(email);
+          if (result.locked) {
+            logger.warn("account locked due to repeated failures", {
+              userId: user.id,
+              until: new Date(result.until).toISOString(),
+            });
+          }
+          return null;
+        }
+
+        clearLoginFailures(email);
 
         return {
           id: user.id,

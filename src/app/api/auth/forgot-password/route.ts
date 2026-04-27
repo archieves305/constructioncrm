@@ -1,18 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes, createHash } from "node:crypto";
+import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { sendEmail } from "@/lib/email/send";
 import { env } from "@/lib/env";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { validateBody } from "@/lib/validation/body";
+import { logger } from "@/lib/logger";
 
 const TOKEN_TTL_MINUTES = 30;
 
+const schema = z.object({
+  email: z.string().trim().toLowerCase().email().optional().or(z.literal("")),
+});
+
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
-  const email = typeof body?.email === "string" ? body.email.toLowerCase().trim() : "";
+  const ipLimited = enforceRateLimit(request, {
+    name: "auth.forgot.ip",
+    limit: 5,
+    windowMs: 60_000,
+  });
+  if (ipLimited) return ipLimited;
+
+  const v = await validateBody(request, schema);
+  if (!v.ok) return v.response;
+  const email = v.data.email ?? "";
 
   if (!email) {
     return NextResponse.json({ ok: true });
   }
+
+  const emailLimited = enforceRateLimit(request, {
+    name: "auth.forgot.email",
+    limit: 3,
+    windowMs: 15 * 60_000,
+    identifier: email,
+  });
+  if (emailLimited) return emailLimited;
 
   const user = await prisma.user.findUnique({
     where: { email },
@@ -44,7 +68,7 @@ export async function POST(request: NextRequest) {
         text: `Reset your password: ${resetUrl}\nExpires in ${TOKEN_TTL_MINUTES} minutes.`,
       });
     } catch (err) {
-      console.error("[forgot-password] email send failed", err);
+      logger.exception(err, { where: "forgot-password.sendEmail", userId: user.id });
     }
   }
 

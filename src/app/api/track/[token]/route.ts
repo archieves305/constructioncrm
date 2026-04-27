@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveTrackedLink } from "@/lib/services/tracking/tracked-links";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
-/**
- * GET /api/track/:token — Resolve tracked action link
- * Redirects to the mobile quick-action page.
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
+  const limited = enforceRateLimit(request, {
+    name: "track.resolve",
+    limit: 60,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   const { token } = await params;
 
   const result = await resolveTrackedLink(
