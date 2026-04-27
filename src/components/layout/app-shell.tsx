@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
 import { Menu, HardHat, X } from "lucide-react";
 import type { RoleName } from "@/generated/prisma/client";
 import { Sidebar } from "./sidebar";
@@ -23,10 +22,12 @@ export function AppShell({
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const [prevPathname, setPrevPathname] = useState(pathname);
 
-  useEffect(() => {
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">

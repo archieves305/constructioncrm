@@ -127,13 +127,16 @@ export default function TemplatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const isEmptyBody = !form.templateBody.trim();
+  const [prevEmptyBody, setPrevEmptyBody] = useState(isEmptyBody);
+  if (isEmptyBody !== prevEmptyBody) {
+    setPrevEmptyBody(isEmptyBody);
+    if (isEmptyBody) setPreview(null);
+  }
+
   // Live preview: re-render whenever the body or channel changes (debounced)
   useEffect(() => {
-    if (!open) return;
-    if (!form.templateBody.trim()) {
-      setPreview(null);
-      return;
-    }
+    if (!open || !form.templateBody.trim()) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
@@ -317,7 +320,7 @@ export default function TemplatesPage() {
                 </pre>
               )}
               <p className="text-[11px] text-muted-foreground">
-                Preview uses sample lead data ("Sarah Johnson, Boca Raton") so you can see
+                Preview uses sample lead data (&ldquo;Sarah Johnson, Boca Raton&rdquo;) so you can see
                 how variables render.
               </p>
             </div>

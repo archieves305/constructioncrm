@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -42,14 +42,16 @@ export function PricingPanel({ job }: { job: Job }) {
   const [marginValue, setMarginValue] = useState(
     job.marginValue ? String(Number(job.marginValue)) : "",
   );
+  const [prevJobId, setPrevJobId] = useState(job.id);
 
-  useEffect(() => {
+  if (prevJobId !== job.id) {
+    setPrevJobId(job.id);
     setJobType(job.jobType);
     setContractAmount(String(Number(job.contractAmount || 0)));
     setLaborCost(job.laborCost ? String(Number(job.laborCost)) : "");
     setMarginType(job.marginType ?? "PERCENT");
     setMarginValue(job.marginValue ? String(Number(job.marginValue)) : "");
-  }, [job.id, job.jobType, job.contractAmount, job.laborCost, job.marginType, job.marginValue]);
+  }
 
   const save = useMutation({
     mutationFn: async () => {

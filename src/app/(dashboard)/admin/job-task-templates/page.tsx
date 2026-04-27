@@ -289,7 +289,7 @@ export default function JobTaskTemplatesPage() {
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">Use job's PM / rep</SelectItem>
+                  <SelectItem value="__none">Use job&apos;s PM / rep</SelectItem>
                   {activeUsers.map((u) => (
                     <SelectItem key={u.id} value={u.id}>
                       {u.firstName} {u.lastName}

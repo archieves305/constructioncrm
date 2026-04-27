@@ -357,12 +357,14 @@ echo "  current PID:         $CUR_PID"
 PHASE="migrate-preview"
 echo ""
 echo "[PRE-FLIGHT] Pending migrations preview ..."
-MIGRATE_STATUS_OUT="$(ssh -n "$DROPLET" "cd $REMOTE_APP && set -a && . /etc/knuco/env && set +a && npx prisma migrate status 2>&1" || true)"
-PENDING_LIST="$(echo "$MIGRATE_STATUS_OUT" | awk '
-    /Following migrations have not yet been applied:/ { capture=1; next }
-    /^To apply migrations/ { capture=0 }
-    capture && /^[0-9]/ { print "    - " $0 }
-')"
+# Diff the local prisma/migrations/ directory against the droplet's. Anything
+# local-only is what this deploy will apply via `prisma migrate deploy`.
+# (Running `prisma migrate status` on the droplet would only see migrations
+# already deployed there, so it would always report "none" pre-rsync — that
+# was the bug fixed here.)
+LOCAL_MIGRATIONS="$(cd "$LOCAL_REPO/prisma/migrations" 2>/dev/null && ls -d */ 2>/dev/null | sed 's|/$||' | sort)"
+REMOTE_MIGRATIONS="$(ssh -n "$DROPLET" "ls -d $REMOTE_APP/prisma/migrations/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null | sort" || true)"
+PENDING_LIST="$(comm -23 <(echo "$LOCAL_MIGRATIONS") <(echo "$REMOTE_MIGRATIONS") | grep -v '^$' | sed 's/^/    - /')"
 PENDING_COUNT=$(echo -n "$PENDING_LIST" | grep -c '^' || true)
 
 # ============================================================================

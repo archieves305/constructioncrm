@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -22,10 +22,12 @@ type Job = {
 export function RentalTurnoverPanel({ job }: { job: Job }) {
   const qc = useQueryClient();
   const [priorTenant, setPriorTenant] = useState(job.priorTenantName ?? "");
+  const [prevJobId, setPrevJobId] = useState(job.id);
 
-  useEffect(() => {
+  if (prevJobId !== job.id) {
+    setPrevJobId(job.id);
     setPriorTenant(job.priorTenantName ?? "");
-  }, [job.id, job.priorTenantName]);
+  }
 
   const patchJob = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {

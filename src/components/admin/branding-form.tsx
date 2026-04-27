@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -52,9 +52,11 @@ export function BrandingForm() {
     queryFn: () => fetch("/api/admin/email-brand").then((r) => r.json()),
   });
 
-  useEffect(() => {
-    if (data) setForm(data);
-  }, [data]);
+  const [prevData, setPrevData] = useState<Brand | undefined>(undefined);
+  if (data && data !== prevData) {
+    setPrevData(data);
+    setForm(data);
+  }
 
   const save = useMutation({
     mutationFn: async () => {
