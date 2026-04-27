@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
   const dateFrom = searchParams.get("dateFrom") || undefined;
   const dateTo = searchParams.get("dateTo") || undefined;
   const includeClosed = searchParams.get("includeClosed") === "true";
+  const withTaskCounts = searchParams.get("withTaskCounts") === "true";
 
   const where: Prisma.LeadWhereInput = {};
 
@@ -77,8 +78,45 @@ export async function GET(request: NextRequest) {
     prisma.lead.count({ where }),
   ]);
 
+  let taskCountsByLead: Record<string, { pending: number; overdue: number }> = {};
+  if (withTaskCounts && data.length > 0) {
+    const leadIds = data.map((l) => l.id);
+    const now = new Date();
+    const [pendingTasks, overdueTasks] = await Promise.all([
+      prisma.task.groupBy({
+        by: ["leadId"],
+        where: { leadId: { in: leadIds }, status: { in: ["PENDING", "IN_PROGRESS"] } },
+        _count: { _all: true },
+      }),
+      prisma.task.groupBy({
+        by: ["leadId"],
+        where: {
+          leadId: { in: leadIds },
+          status: { in: ["PENDING", "IN_PROGRESS"] },
+          dueAt: { lt: now },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+    taskCountsByLead = Object.fromEntries(
+      pendingTasks.map((g) => [g.leadId, { pending: g._count._all, overdue: 0 }]),
+    );
+    for (const g of overdueTasks) {
+      const id = g.leadId as string;
+      if (!taskCountsByLead[id]) taskCountsByLead[id] = { pending: 0, overdue: 0 };
+      taskCountsByLead[id].overdue = g._count._all;
+    }
+  }
+
+  const enriched = withTaskCounts
+    ? data.map((l) => ({
+        ...l,
+        taskCounts: taskCountsByLead[l.id] ?? { pending: 0, overdue: 0 },
+      }))
+    : data;
+
   return NextResponse.json({
-    data,
+    data: enriched,
     total,
     page,
     pageSize,
