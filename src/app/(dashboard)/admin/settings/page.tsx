@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import { BrandingForm } from "@/components/admin/branding-form";
 
 export default function AdminSettingsPage() {
   const queryClient = useQueryClient();
@@ -81,7 +82,12 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="sources">Lead Sources</TabsTrigger>
           <TabsTrigger value="services">Service Categories</TabsTrigger>
           <TabsTrigger value="stages">Lead Stages</TabsTrigger>
+          <TabsTrigger value="branding">Email Branding</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="branding" className="mt-4">
+          <BrandingForm />
+        </TabsContent>
 
         <TabsContent value="sources" className="mt-4">
           <Card>

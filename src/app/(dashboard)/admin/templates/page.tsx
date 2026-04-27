@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Send, Eye } from "lucide-react";
 import { TEMPLATE_VARIABLES } from "@/lib/templates/render";
 
 type Template = {
@@ -42,11 +42,18 @@ type Template = {
   isActive: boolean;
 };
 
+type PreviewResult = {
+  channel: Template["channel"];
+  subject: string;
+  html: string | null;
+  text: string;
+};
+
 const CHANNELS = ["SMS", "EMAIL", "IN_APP"] as const;
 
 const empty: Omit<Template, "id"> = {
   name: "",
-  channel: "SMS",
+  channel: "EMAIL",
   templateBody: "",
   isActive: true,
 };
@@ -56,6 +63,7 @@ export default function TemplatesPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<Template, "id">>(empty);
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
 
   const { data: templates = [], isLoading } = useQuery<Template[]>({
     queryKey: ["templates"],
@@ -104,9 +112,55 @@ export default function TemplatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const testSend = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/templates/${id}/test-send`, { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Test send failed" }));
+        throw new Error(err.error || "Test send failed");
+      }
+      return res.json();
+    },
+    onSuccess: (data: { sentTo: string }) => {
+      toast.success(`Test email sent to ${data.sentTo}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Live preview: re-render whenever the body or channel changes (debounced)
+  useEffect(() => {
+    if (!open) return;
+    if (!form.templateBody.trim()) {
+      setPreview(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/templates/draft/preview`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ templateBody: form.templateBody }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as PreviewResult;
+        if (!cancelled) {
+          setPreview({ ...data, channel: form.channel });
+        }
+      } catch {
+        // ignore preview errors
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [form.templateBody, form.channel, open]);
+
   function startCreate() {
     setEditingId(null);
     setForm(empty);
+    setPreview(null);
     setOpen(true);
   }
 
@@ -118,6 +172,7 @@ export default function TemplatesPage() {
       templateBody: t.templateBody,
       isActive: t.isActive,
     });
+    setPreview(null);
     setOpen(true);
   }
 
@@ -125,7 +180,7 @@ export default function TemplatesPage() {
     <div>
       <PageHeader
         title="Message Templates"
-        description="SMS and email bodies used by follow-up rules. Use {{lead.firstName}}, {{lead.fullName}}, etc."
+        description="SMS and email bodies used by follow-up rules. Email templates render with company branding, signature, and unsubscribe footer."
         actions={
           <Button type="button" onClick={startCreate}>
             <Plus className="mr-2 h-4 w-4" />
@@ -135,68 +190,137 @@ export default function TemplatesPage() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Template" : "New Template"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Name</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. New lead welcome SMS"
-              />
-            </div>
-            <div>
-              <Label>Channel</Label>
-              <Select
-                value={form.channel}
-                onValueChange={(v) => setForm({ ...form, channel: v as Template["channel"] })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CHANNELS.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="space-y-3">
+              <div>
+                <Label>Name / subject</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="e.g. New lead welcome"
+                />
+                {form.channel === "EMAIL" && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    For email channel, this is the subject line. Variables work here too.
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label>Channel</Label>
+                <Select
+                  value={form.channel}
+                  onValueChange={(v) =>
+                    setForm({ ...form, channel: (v as Template["channel"]) || "EMAIL" })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CHANNELS.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Body {form.channel === "EMAIL" && "(markdown)"}</Label>
+                <Textarea
+                  rows={12}
+                  value={form.templateBody}
+                  onChange={(e) => setForm({ ...form, templateBody: e.target.value })}
+                  placeholder={
+                    form.channel === "EMAIL"
+                      ? "Hi {{lead.firstName}},\n\nThanks for reaching out about your project at {{lead.addressLine1}}. I'd love to walk you through our process.\n\n**Next step:** I'll call you within 24 hours.\n\nReach out anytime if you have questions."
+                      : "Hi {{lead.firstName}}, thanks for reaching out..."
+                  }
+                  className="font-mono text-sm"
+                />
+                {form.channel === "EMAIL" && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Markdown supported: **bold**, *italic*, [links](url), bullet lists, paragraphs.
+                    Email layout, signature, and unsubscribe footer are added automatically.
+                  </p>
+                )}
+                <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-muted-foreground">
+                  Variables:{" "}
+                  {TEMPLATE_VARIABLES.map((v) => (
+                    <code key={v} className="rounded bg-muted px-1">
+                      {`{{${v}}}`}
+                    </code>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="active"
+                  checked={form.isActive}
+                  onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                />
+                <Label htmlFor="active" className="cursor-pointer">
+                  Active
+                </Label>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  disabled={save.isPending}
+                  onClick={() => save.mutate()}
+                >
+                  {save.isPending ? "Saving..." : editingId ? "Update" : "Create"}
+                </Button>
+                {editingId && form.channel === "EMAIL" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={testSend.isPending}
+                    onClick={() => testSend.mutate(editingId)}
+                  >
+                    <Send className="mr-1 h-4 w-4" />
+                    {testSend.isPending ? "Sending…" : "Send test to me"}
+                  </Button>
+                )}
+              </div>
             </div>
-            <div>
-              <Label>Body</Label>
-              <Textarea
-                rows={6}
-                value={form.templateBody}
-                onChange={(e) => setForm({ ...form, templateBody: e.target.value })}
-                placeholder="Hi {{lead.firstName}}, thanks for reaching out..."
-              />
-              <p className="mt-2 text-xs text-muted-foreground">
-                Variables:{" "}
-                {TEMPLATE_VARIABLES.map((v) => (
-                  <code key={v} className="mr-1 rounded bg-muted px-1">
-                    {`{{${v}}}`}
-                  </code>
-                ))}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Eye className="h-4 w-4" />
+                Live preview
+              </div>
+              {!preview ? (
+                <p className="rounded border border-dashed p-6 text-center text-xs text-muted-foreground">
+                  Type a body to see the preview.
+                </p>
+              ) : preview.channel === "EMAIL" && preview.html ? (
+                <div className="rounded border bg-gray-50">
+                  <div className="border-b px-3 py-2 text-xs">
+                    <div className="text-muted-foreground">Subject</div>
+                    <div className="font-medium">{preview.subject}</div>
+                  </div>
+                  <iframe
+                    title="Email preview"
+                    srcDoc={preview.html}
+                    className="h-[460px] w-full bg-white"
+                    sandbox=""
+                  />
+                </div>
+              ) : (
+                <pre className="rounded border bg-gray-50 p-3 text-xs whitespace-pre-wrap">
+                  {preview.text}
+                </pre>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Preview uses sample lead data ("Sarah Johnson, Boca Raton") so you can see
+                how variables render.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="active"
-                checked={form.isActive}
-                onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-              />
-              <Label htmlFor="active" className="cursor-pointer">
-                Active
-              </Label>
-            </div>
-            <Button className="w-full" disabled={save.isPending} onClick={() => save.mutate()}>
-              {save.isPending ? "Saving..." : editingId ? "Update" : "Create"}
-            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -263,6 +263,9 @@ model User {
   jobTaskTemplatesDefault JobTaskTemplate[]
   auditEvents       AuditEvent[]
 
+  signatureHtml String? @map("signature_html") @db.Text
+  signatureText String? @map("signature_text") @db.Text
+
   @@map("users")
 }
 
@@ -365,6 +368,8 @@ model Lead {
   nextFollowUpAt       DateTime?    @map("next_follow_up_at")
   isDuplicateFlag      Boolean      @default(false) @map("is_duplicate_flag")
   duplicateGroupId     String?      @map("duplicate_group_id")
+  emailOptedOut        Boolean      @default(false) @map("email_opted_out")
+  emailOptedOutAt      DateTime?    @map("email_opted_out_at")
   createdByUserId      String       @map("created_by_user_id")
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
@@ -1175,6 +1180,29 @@ model AuditEvent {
   @@index([actorUserId])
   @@index([createdAt])
   @@map("audit_events")
+}
+
+// ─── Email Brand (singleton) ────────────────────────────────────────────────
+
+model EmailBrand {
+  id              String   @id @default("default")
+  companyName     String   @map("company_name")
+  addressLine1    String?  @map("address_line_1")
+  addressLine2    String?  @map("address_line_2")
+  city            String?
+  state           String?
+  zip             String?
+  officePhone     String?  @map("office_phone")
+  mobilePhone     String?  @map("mobile_phone")
+  contactEmail    String?  @map("contact_email")
+  website         String?
+  logoUrl         String?  @map("logo_url")
+  primaryColor    String   @default("#1f2937") @map("primary_color")
+  signatureHtml   String?  @map("signature_html") @db.Text
+  signatureText   String?  @map("signature_text") @db.Text
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("email_brand")
 }
 
 // ─── Intake Settings ────────────────────────────────────────────────────────

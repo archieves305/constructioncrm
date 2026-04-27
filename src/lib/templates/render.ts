@@ -23,4 +23,11 @@ export const TEMPLATE_VARIABLES = [
   "assignedTo.firstName",
   "assignedTo.lastName",
   "company.name",
+  "company.brand",
+  "company.phone",
+  "company.mobile",
+  "company.email",
+  "company.website",
+  "company.address",
+  "unsubscribeUrl",
 ];

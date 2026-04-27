@@ -8,6 +8,7 @@ type SendEmailArgs = {
   html: string;
   text?: string;
   replyTo?: string;
+  headers?: Record<string, string>;
 };
 
 let client: Resend | null = null;
@@ -32,6 +33,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<{ id: string } | n
     html: args.html,
     text: args.text,
     replyTo: args.replyTo,
+    headers: args.headers,
   });
 
   if (error) {

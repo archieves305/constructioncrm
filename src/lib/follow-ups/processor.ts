@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/db/prisma";
 import { renderTemplate } from "@/lib/templates/render";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
+import { getEmailBrand } from "@/lib/email/brand";
+import { renderLeadEmail } from "@/lib/email/render-template";
+import { buildUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { TwilioSmsProvider } from "@/lib/services/notifications/twilio-provider";
 import { env } from "@/lib/env";
 
@@ -23,7 +26,15 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
       rule: { include: { messageTemplate: true } },
       lead: {
         include: {
-          assignedUser: { select: { firstName: true, lastName: true, email: true } },
+          assignedUser: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              signatureHtml: true,
+              signatureText: true,
+            },
+          },
         },
       },
     },
@@ -45,6 +56,7 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
 
     const context = {
       lead: {
+        id: exec.lead.id,
         firstName: exec.lead.firstName,
         lastName: exec.lead.lastName,
         fullName: exec.lead.fullName,
@@ -56,6 +68,8 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
       assignedTo: {
         firstName: exec.lead.assignedUser?.firstName ?? "",
         lastName: exec.lead.assignedUser?.lastName ?? "",
+        signatureHtml: exec.lead.assignedUser?.signatureHtml ?? null,
+        signatureText: exec.lead.assignedUser?.signatureText ?? null,
       },
       company: { name: exec.lead.companyName ?? "" },
     };
@@ -86,12 +100,26 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
           });
         } else if (template.channel === "EMAIL") {
           if (!exec.lead.email) throw new Error("lead has no email");
+          if (exec.lead.emailOptedOut) throw new Error("lead has unsubscribed from email");
           if (!isEmailConfigured()) throw new Error("email provider not configured");
+
+          const brand = await getEmailBrand();
+          const rendered = renderLeadEmail({
+            templateBody: template.templateBody,
+            context,
+            brand,
+            includeUnsubscribe: true,
+          });
+
           await sendEmail({
             to: exec.lead.email,
-            subject: template.name,
-            html: `<div style="font-family:sans-serif">${body.replace(/\n/g, "<br/>")}</div>`,
-            text: body,
+            subject: renderTemplate(template.name, { ...context, company: { ...context.company, brand: brand.companyName } }),
+            html: rendered.html,
+            text: rendered.text,
+            headers: {
+              "List-Unsubscribe": `<${buildUnsubscribeUrl(exec.leadId)}>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
           });
           await prisma.notificationEvent.create({
             data: {

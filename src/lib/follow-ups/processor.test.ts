@@ -25,6 +25,37 @@ vi.mock("@/lib/email/send", () => ({
   isEmailConfigured: isEmailConfiguredMock,
 }));
 
+vi.mock("@/lib/email/brand", () => ({
+  getEmailBrand: async () => ({
+    id: "default",
+    companyName: "Knu Construction",
+    addressLine1: "2500 N Federal Highway, Suite 102",
+    addressLine2: null,
+    city: "Ft Lauderdale",
+    state: "FL",
+    zip: "33305",
+    officePhone: "(561) 910-0142",
+    mobilePhone: "(561) 785-9122",
+    contactEmail: null,
+    website: null,
+    logoUrl: null,
+    primaryColor: "#1f2937",
+    signatureHtml: null,
+    signatureText: null,
+  }),
+}));
+
+vi.mock("@/lib/email/render-template", () => ({
+  renderLeadEmail: (opts: { templateBody: string }) => ({
+    html: `<div>${opts.templateBody}</div>`,
+    text: opts.templateBody,
+  }),
+}));
+
+vi.mock("@/lib/email/unsubscribe", () => ({
+  buildUnsubscribeUrl: (leadId: string) => `https://example.com/api/email/unsubscribe?token=t-${leadId}`,
+}));
+
 vi.mock("@/lib/templates/render", () => ({
   renderTemplate: (tpl: string, ctx: Record<string, unknown>) =>
     tpl.replace(/\{\{([\w.]+)\}\}/g, (_, path: string) => {
@@ -37,7 +68,11 @@ vi.mock("@/lib/templates/render", () => ({
 }));
 
 vi.mock("@/lib/env", () => ({
-  env: { TWILIO_FROM_NUMBER: "+15555555555" },
+  env: {
+    TWILIO_FROM_NUMBER: "+15555555555",
+    NEXTAUTH_SECRET: "test_placeholder_secret_test_placeholder_secret",
+    NEXTAUTH_URL: "http://localhost:4000",
+  },
 }));
 
 import { processPendingFollowUps } from "./processor";
@@ -55,6 +90,7 @@ type Exec = {
       | null;
   };
   lead: {
+    id: string;
     firstName: string;
     lastName: string;
     fullName: string;
@@ -65,7 +101,14 @@ type Exec = {
     companyName: string | null;
     assignedUserId: string | null;
     createdByUserId: string;
-    assignedUser: { firstName: string; lastName: string; email: string } | null;
+    emailOptedOut: boolean;
+    assignedUser: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      signatureHtml: string | null;
+      signatureText: string | null;
+    } | null;
   };
 };
 
@@ -80,6 +123,7 @@ function execFixture(overrides: Partial<Exec> = {}): Exec {
       taskTemplateJson: null,
     },
     lead: {
+      id: "lead1",
       firstName: "Ada",
       lastName: "Lovelace",
       fullName: "Ada Lovelace",
@@ -90,7 +134,14 @@ function execFixture(overrides: Partial<Exec> = {}): Exec {
       companyName: null,
       assignedUserId: "user1",
       createdByUserId: "user-creator",
-      assignedUser: { firstName: "Sam", lastName: "Rep", email: "sam@x.com" },
+      emailOptedOut: false,
+      assignedUser: {
+        firstName: "Sam",
+        lastName: "Rep",
+        email: "sam@x.com",
+        signatureHtml: null,
+        signatureText: null,
+      },
     },
     ...overrides,
   };
