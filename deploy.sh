@@ -364,7 +364,7 @@ echo "[PRE-FLIGHT] Pending migrations preview ..."
 # was the bug fixed here.)
 LOCAL_MIGRATIONS="$(cd "$LOCAL_REPO/prisma/migrations" 2>/dev/null && ls -d */ 2>/dev/null | sed 's|/$||' | sort)"
 REMOTE_MIGRATIONS="$(ssh -n "$DROPLET" "ls -d $REMOTE_APP/prisma/migrations/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null | sort" || true)"
-PENDING_LIST="$(comm -23 <(echo "$LOCAL_MIGRATIONS") <(echo "$REMOTE_MIGRATIONS") | grep -v '^$' | sed 's/^/    - /')"
+PENDING_LIST="$(comm -23 <(echo "$LOCAL_MIGRATIONS") <(echo "$REMOTE_MIGRATIONS") | sed -n 's/^./    - &/p')"
 PENDING_COUNT=$(echo -n "$PENDING_LIST" | grep -c '^' || true)
 
 # ============================================================================
