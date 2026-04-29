@@ -21,6 +21,11 @@ const schema = z.object({
   EMAIL_FROM: z.string().email().optional(),
 
   CRON_SECRET: z.string().optional(),
+
+  // Bearer token cc-allocator's worker presents on integration calls.
+  // Optional at server-start so the app boots without it; the integration
+  // routes 503 when unset.
+  CC_ALLOCATOR_API_KEY: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

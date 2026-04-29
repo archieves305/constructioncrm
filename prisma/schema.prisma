@@ -934,6 +934,9 @@ model JobExpense {
   paidFrom            String?             @map("paid_from")
   billable            Boolean             @default(false)
   createdByUserId     String              @map("created_by_user_id")
+  // Idempotency key for upstream integrations (cc-allocator sends txn.id).
+  // Nullable so manually-created expenses are unaffected.
+  externalId          String?             @unique @map("external_id")
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
 
