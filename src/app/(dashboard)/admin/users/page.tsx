@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -31,11 +31,49 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, KeyRound } from "lucide-react";
+import { roleDisplayName } from "@/lib/auth/role-display";
+import type { RoleName } from "@/generated/prisma/client";
+
+type SelectableRole = {
+  id: string;
+  name: RoleName;
+  displayName: string;
+  description: string;
+};
+
+type UserRow = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: { id: string; name: RoleName };
+  isActive: boolean;
+};
+
+async function parseError(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const json = JSON.parse(text) as {
+      error?: string;
+      suggestions?: string[];
+    };
+    if (json?.error) {
+      return json.suggestions?.length
+        ? `${json.error} — ${json.suggestions.join(" ")}`
+        : json.error;
+    }
+  } catch {
+    /* not json */
+  }
+  return text || `Request failed (${res.status})`;
+}
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [pwUser, setPwUser] = useState<UserRow | null>(null);
+  const [newPassword, setNewPassword] = useState("");
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -44,37 +82,29 @@ export default function AdminUsersPage() {
     roleId: "",
   });
 
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading } = useQuery<UserRow[]>({
     queryKey: ["users"],
     queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
   });
 
-  const { data: roles } = useQuery({
-    queryKey: ["roles-raw"],
-    queryFn: async () => {
-      // Roles come embedded in users
-      const usersData = await fetch("/api/admin/users").then((r) => r.json());
-      const roleMap = new Map<string, { id: string; name: string }>();
-      for (const u of usersData) {
-        if (u.role) roleMap.set(u.role.id, u.role);
-      }
-      return Array.from(roleMap.values());
-    },
+  const { data: roles } = useQuery<SelectableRole[]>({
+    queryKey: ["roles"],
+    queryFn: () => fetch("/api/admin/roles").then((r) => r.json()),
   });
 
   const createUser = useMutation({
-    mutationFn: (data: typeof form) =>
-      fetch("/api/admin/users", {
+    mutationFn: async (data: typeof form) => {
+      const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.json();
-      }),
+      });
+      if (!res.ok) throw new Error(await parseError(res));
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      setOpen(false);
+      setCreateOpen(false);
       setForm({ firstName: "", lastName: "", email: "", password: "", roleId: "" });
       toast.success("User created");
     },
@@ -82,16 +112,38 @@ export default function AdminUsersPage() {
   });
 
   const toggleActive = useMutation({
-    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      fetch(`/api/admin/users/${id}`, {
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const res = await fetch(`/api/admin/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
-      }).then((r) => r.json()),
+      });
+      if (!res.ok) throw new Error(await parseError(res));
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("User updated");
     },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const changePassword = useMutation({
+    mutationFn: async ({ id, password }: { id: string; password: string }) => {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) throw new Error(await parseError(res));
+      return res.json();
+    },
+    onSuccess: () => {
+      setPwUser(null);
+      setNewPassword("");
+      toast.success("Password updated");
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   return (
@@ -100,7 +152,7 @@ export default function AdminUsersPage() {
         title="Users"
         description="Manage CRM users and roles"
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger>
               <Button type="button">
                 <Plus className="mr-2 h-4 w-4" />
@@ -117,14 +169,14 @@ export default function AdminUsersPage() {
                     <Label>First Name</Label>
                     <Input
                       value={form.firstName}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, firstName: e.target.value })}
+                      onChange={(e) => setForm({ ...form, firstName: e.target.value })}
                     />
                   </div>
                   <div>
                     <Label>Last Name</Label>
                     <Input
                       value={form.lastName}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, lastName: e.target.value })}
+                      onChange={(e) => setForm({ ...form, lastName: e.target.value })}
                     />
                   </div>
                 </div>
@@ -133,7 +185,7 @@ export default function AdminUsersPage() {
                   <Input
                     type="email"
                     value={form.email}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, email: e.target.value })}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
                   />
                 </div>
                 <div>
@@ -141,19 +193,34 @@ export default function AdminUsersPage() {
                   <Input
                     type="password"
                     value={form.password}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, password: e.target.value })}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Min 12 characters. Avoid common words and the user&apos;s name.
+                  </p>
                 </div>
                 <div>
                   <Label>Role</Label>
-                  <Select onValueChange={(v: string | null) => v && setForm({ ...form, roleId: v })}>
+                  <Select
+                    value={form.roleId}
+                    onValueChange={(v: string | null) => v && setForm({ ...form, roleId: v })}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
+                      <SelectValue placeholder="Select role">
+                        {(v: string | null) =>
+                          roles?.find((r) => r.id === v)?.displayName ?? "Select role"
+                        }
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {roles?.map((r: { id: string; name: string }) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name.replace("_", " ")}
+                      {roles?.map((r) => (
+                        <SelectItem key={r.id} value={r.id} label={r.displayName}>
+                          <div className="flex flex-col">
+                            <span>{r.displayName}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {r.description}
+                            </span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -181,7 +248,7 @@ export default function AdminUsersPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead></TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -192,52 +259,95 @@ export default function AdminUsersPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                users?.map(
-                  (user: {
-                    id: string;
-                    firstName: string;
-                    lastName: string;
-                    email: string;
-                    role: { name: string };
-                    isActive: boolean;
-                  }) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">
-                        {user.firstName} {user.lastName}
-                      </TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {user.role.name.replace("_", " ")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={user.isActive ? "default" : "secondary"}>
-                          {user.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            toggleActive.mutate({
-                              id: user.id,
-                              isActive: !user.isActive,
-                            })
-                          }
-                        >
-                          {user.isActive ? "Deactivate" : "Activate"}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                )
+                users?.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">
+                      {user.firstName} {user.lastName}
+                    </TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {roleDisplayName(user.role.name)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={user.isActive ? "default" : "secondary"}>
+                        {user.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setPwUser(user);
+                          setNewPassword("");
+                        }}
+                      >
+                        <KeyRound className="mr-1 h-4 w-4" />
+                        Password
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          toggleActive.mutate({
+                            id: user.id,
+                            isActive: !user.isActive,
+                          })
+                        }
+                      >
+                        {user.isActive ? "Deactivate" : "Activate"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={pwUser !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPwUser(null);
+            setNewPassword("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Change password — {pwUser?.firstName} {pwUser?.lastName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>New password</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Min 12 characters. Avoid common words and the user&apos;s name.
+              </p>
+            </div>
+            <Button
+              className="w-full"
+              disabled={changePassword.isPending || !newPassword || !pwUser}
+              onClick={() =>
+                pwUser && changePassword.mutate({ id: pwUser.id, password: newPassword })
+              }
+            >
+              {changePassword.isPending ? "Saving..." : "Save new password"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
