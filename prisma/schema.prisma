@@ -329,9 +329,10 @@ model LeadStage {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  leads         Lead[]
-  historyFrom   LeadStageHistory[] @relation("FromStage")
-  historyTo     LeadStageHistory[] @relation("ToStage")
+  leads           Lead[]
+  historyFrom     LeadStageHistory[] @relation("FromStage")
+  historyTo       LeadStageHistory[] @relation("ToStage")
+  followUpRules   FollowUpRule[]     @relation("FollowUpRuleTargetStage")
 
   @@map("lead_stages")
 }
@@ -605,6 +606,7 @@ model FollowUpRule {
   id                String   @id @default(cuid())
   name              String
   triggerEvent      String   @map("trigger_event")
+  targetStageId     String?  @map("target_stage_id")
   delayMinutes      Int      @map("delay_minutes")
   messageTemplateId String?  @map("message_template_id")
   taskTemplateJson  Json?    @map("task_template_json")
@@ -613,9 +615,11 @@ model FollowUpRule {
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   messageTemplate MessageTemplate?     @relation(fields: [messageTemplateId], references: [id])
+  targetStage     LeadStage?           @relation("FollowUpRuleTargetStage", fields: [targetStageId], references: [id])
   executions      FollowUpExecution[]
 
   @@index([triggerEvent, isActive])
+  @@index([targetStageId])
   @@map("follow_up_rules")
 }
 

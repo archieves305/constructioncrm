@@ -136,10 +136,10 @@ export async function POST(
     data: {
       leadId: lead.id,
       activityType: "NOTE",
-      title: "Roofr report ordered",
+      title: "Sent to Roofr",
       description: validated.data.notes
-        ? `Roofr report ordered via Zapier. Notes: ${validated.data.notes}`
-        : "Roofr report ordered via Zapier.",
+        ? `Lead sent to Roofr via Zapier (Job + Customer created; report must still be ordered inside Roofr). Notes: ${validated.data.notes}`
+        : "Lead sent to Roofr via Zapier (Job + Customer created; report must still be ordered inside Roofr).",
       createdByUserId: session.user.id,
     },
   });

@@ -298,7 +298,7 @@ export default function NewLeadPage() {
                 <SelectContent>
                   {users
                     ?.filter((u: { role: { name: string }; isActive: boolean }) =>
-                      u.isActive && ["SALES_REP", "MANAGER"].includes(u.role.name)
+                      u.isActive && ["ADMIN", "MANAGER", "SALES_REP"].includes(u.role.name)
                     )
                     .map((u: { id: string; firstName: string; lastName: string }) => (
                       <SelectItem key={u.id} value={u.id}>

@@ -7,6 +7,7 @@ import { LEAD_EVENTS } from "@/lib/follow-ups/events";
 const updateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   triggerEvent: z.enum(LEAD_EVENTS).optional(),
+  targetStageId: z.string().nullable().optional(),
   delayMinutes: z.number().int().min(0).max(60 * 24 * 365).optional(),
   messageTemplateId: z.string().nullable().optional(),
   taskTemplateJson: z
@@ -34,7 +35,7 @@ export async function PUT(
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message || "invalid payload");
 
-  const { taskTemplateJson, messageTemplateId, ...rest } = parsed.data;
+  const { taskTemplateJson, messageTemplateId, targetStageId, ...rest } = parsed.data;
   const record = await prisma.followUpRule
     .update({
       where: { id },
@@ -42,6 +43,9 @@ export async function PUT(
         ...rest,
         ...(messageTemplateId !== undefined
           ? { messageTemplateId: messageTemplateId || null }
+          : {}),
+        ...(targetStageId !== undefined
+          ? { targetStageId: targetStageId || null }
           : {}),
         ...(taskTemplateJson !== undefined
           ? { taskTemplateJson: taskTemplateJson ?? undefined }

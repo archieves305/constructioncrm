@@ -37,10 +37,14 @@ const TRIGGERS = ["LEAD_CREATED", "LEAD_STAGE_CHANGED", "LEAD_ASSIGNED"] as cons
 
 type Template = { id: string; name: string; channel: string };
 
+type Stage = { id: string; name: string };
+
 type Rule = {
   id: string;
   name: string;
   triggerEvent: (typeof TRIGGERS)[number];
+  targetStageId: string | null;
+  targetStage: Stage | null;
   delayMinutes: number;
   messageTemplateId: string | null;
   messageTemplate: Template | null;
@@ -56,6 +60,7 @@ type Rule = {
 type FormState = {
   name: string;
   triggerEvent: (typeof TRIGGERS)[number];
+  targetStageId: string;
   delayMinutes: number;
   messageTemplateId: string;
   taskTitle: string;
@@ -68,6 +73,7 @@ type FormState = {
 const empty: FormState = {
   name: "",
   triggerEvent: "LEAD_CREATED",
+  targetStageId: "",
   delayMinutes: 0,
   messageTemplateId: "",
   taskTitle: "",
@@ -93,11 +99,20 @@ export default function FollowUpRulesPage() {
     queryFn: () => fetch("/api/admin/templates").then((r) => r.json()),
   });
 
+  const { data: stages = [] } = useQuery<Stage[]>({
+    queryKey: ["stages"],
+    queryFn: () => fetch("/api/admin/stages").then((r) => r.json()),
+  });
+
   const save = useMutation({
     mutationFn: async () => {
       const payload = {
         name: form.name,
         triggerEvent: form.triggerEvent,
+        targetStageId:
+          form.triggerEvent === "LEAD_STAGE_CHANGED" && form.targetStageId
+            ? form.targetStageId
+            : null,
         delayMinutes: form.delayMinutes,
         messageTemplateId: form.messageTemplateId || null,
         taskTemplateJson: form.taskTitle
@@ -157,6 +172,7 @@ export default function FollowUpRulesPage() {
     setForm({
       name: r.name,
       triggerEvent: r.triggerEvent,
+      targetStageId: r.targetStageId || "",
       delayMinutes: r.delayMinutes,
       messageTemplateId: r.messageTemplateId || "",
       taskTitle: r.taskTemplateJson?.title || "",
@@ -209,7 +225,12 @@ export default function FollowUpRulesPage() {
                 <Select
                   value={form.triggerEvent}
                   onValueChange={(v) =>
-                    setForm({ ...form, triggerEvent: v as FormState["triggerEvent"] })
+                    setForm({
+                      ...form,
+                      triggerEvent: v as FormState["triggerEvent"],
+                      targetStageId:
+                        v === "LEAD_STAGE_CHANGED" ? form.targetStageId : "",
+                    })
                   }
                 >
                   <SelectTrigger>
@@ -236,6 +257,36 @@ export default function FollowUpRulesPage() {
                 />
               </div>
             </div>
+            {form.triggerEvent === "LEAD_STAGE_CHANGED" && (
+              <div>
+                <Label>Target Stage</Label>
+                <Select
+                  value={form.targetStageId || "__any"}
+                  onValueChange={(v) =>
+                    setForm({
+                      ...form,
+                      targetStageId: v && v !== "__any" ? v : "",
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__any">— any stage —</SelectItem>
+                    {stages.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Only fire when the lead enters this stage. Leave as &quot;any
+                  stage&quot; to fire on every stage change.
+                </p>
+              </div>
+            )}
             <div>
               <Label>Message Template (optional)</Label>
               <Select
@@ -354,6 +405,11 @@ export default function FollowUpRulesPage() {
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{r.triggerEvent.replace(/_/g, " ")}</Badge>
+                      {r.targetStage && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          → {r.targetStage.name}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>{formatDelay(r.delayMinutes)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">

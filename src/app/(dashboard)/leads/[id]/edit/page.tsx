@@ -283,7 +283,7 @@ export default function EditLeadPage() {
                     ?.filter(
                       (u: { role: { name: string }; isActive: boolean }) =>
                         u.isActive &&
-                        ["SALES_REP", "MANAGER"].includes(u.role.name)
+                        ["ADMIN", "MANAGER", "SALES_REP"].includes(u.role.name)
                     )
                     .map(
                       (u: {

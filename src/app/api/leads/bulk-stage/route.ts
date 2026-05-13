@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         after: { stageId, reason: reason ?? null, bulk: true },
       });
 
-      await emitLeadEvent("LEAD_STAGE_CHANGED", leadId).catch((e) =>
+      await emitLeadEvent("LEAD_STAGE_CHANGED", leadId, { targetStageId: stageId }).catch((e) =>
         logger.exception(e, { where: "bulk-stage.emitLeadEvent", leadId }),
       );
       updated++;

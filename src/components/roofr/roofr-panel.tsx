@@ -59,9 +59,9 @@ export function RoofrPanel({ leadId }: { leadId: string }) {
       qc.invalidateQueries({ queryKey: ["lead", leadId] });
       setNotes("");
       if (order.status === "FAILED") {
-        toast.error("Order sent to Zapier failed — see error on the order row.");
+        toast.error("Send to Roofr failed — see error on the order row.");
       } else {
-        toast.success("Roofr report ordered");
+        toast.success("Sent to Roofr — finish the order in Roofr to start the measurement");
       }
     },
     onError: (err: unknown) => {
@@ -76,14 +76,17 @@ export function RoofrPanel({ leadId }: { leadId: string }) {
         <CardContent className="pt-4 space-y-3">
           <div className="flex items-center gap-2">
             <Home className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium">Order a Roofr report</p>
+            <p className="text-sm font-medium">Send to Roofr</p>
           </div>
           <p className="text-xs text-muted-foreground">
-            Sends this lead&apos;s address and contact info to Roofr via
-            Zapier. The completed report will appear here when Roofr finishes.
+            Creates a Job + Customer in Roofr with this lead&apos;s address and
+            contact info. <strong>You still need to click &ldquo;Order
+            Report&rdquo; inside Roofr</strong> to actually start the
+            measurement (Roofr charges per report, so the order step is
+            manual). The completed report will appear here when Roofr finishes.
           </p>
           <Textarea
-            placeholder="Optional notes for Zapier / Roofr (e.g. rush, special requests)"
+            placeholder="Optional notes for Roofr (rush, special requests, etc.)"
             value={notes}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
               setNotes(e.target.value)
@@ -96,7 +99,7 @@ export function RoofrPanel({ leadId }: { leadId: string }) {
               disabled={createOrder.isPending}
               onClick={() => createOrder.mutate()}
             >
-              {createOrder.isPending ? "Ordering..." : "Order Roofr Report"}
+              {createOrder.isPending ? "Sending..." : "Send to Roofr"}
             </Button>
           </div>
         </CardContent>

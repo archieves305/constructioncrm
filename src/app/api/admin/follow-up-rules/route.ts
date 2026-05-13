@@ -7,6 +7,7 @@ import { LEAD_EVENTS } from "@/lib/follow-ups/events";
 const createSchema = z.object({
   name: z.string().min(1).max(120),
   triggerEvent: z.enum(LEAD_EVENTS),
+  targetStageId: z.string().nullable().optional(),
   delayMinutes: z.number().int().min(0).max(60 * 24 * 365),
   messageTemplateId: z.string().nullable().optional(),
   taskTemplateJson: z
@@ -27,7 +28,10 @@ export async function GET() {
 
   const rules = await prisma.followUpRule.findMany({
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
-    include: { messageTemplate: { select: { id: true, name: true, channel: true } } },
+    include: {
+      messageTemplate: { select: { id: true, name: true, channel: true } },
+      targetStage: { select: { id: true, name: true } },
+    },
   });
   return NextResponse.json(rules);
 }
@@ -41,11 +45,12 @@ export async function POST(request: NextRequest) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message || "invalid payload");
 
-  const { messageTemplateId, taskTemplateJson, ...rest } = parsed.data;
+  const { messageTemplateId, taskTemplateJson, targetStageId, ...rest } = parsed.data;
   const record = await prisma.followUpRule.create({
     data: {
       ...rest,
       messageTemplateId: messageTemplateId || null,
+      targetStageId: targetStageId || null,
       taskTemplateJson: taskTemplateJson ?? undefined,
     },
   });

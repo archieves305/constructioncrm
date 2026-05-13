@@ -69,7 +69,7 @@ export async function POST(
     userAgent: request.headers.get("user-agent"),
   });
 
-  await emitLeadEvent("LEAD_STAGE_CHANGED", id).catch((e) =>
+  await emitLeadEvent("LEAD_STAGE_CHANGED", id, { targetStageId: stageId }).catch((e) =>
     logger.exception(e, { where: "emitLeadEvent", event: "LEAD_STAGE_CHANGED", leadId: id }),
   );
 
