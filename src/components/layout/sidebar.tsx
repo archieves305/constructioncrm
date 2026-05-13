@@ -45,12 +45,6 @@ const navItems: NavItem[] = [
   { href: "/crews", label: "Crews", icon: Hammer, roles: ["ADMIN", "MANAGER"] },
   { href: "/collections", label: "Collections", icon: DollarSign },
   { href: "/referrals", label: "Referrals", icon: DollarSign, roles: ["ADMIN", "MANAGER"] },
-  {
-    href: "/incoming-receipts",
-    label: "Incoming Receipts",
-    icon: DollarSign,
-    roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
-  },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   {
