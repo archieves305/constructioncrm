@@ -31,9 +31,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, KeyRound } from "lucide-react";
+import { Plus, KeyRound, Shield } from "lucide-react";
 import { roleDisplayName } from "@/lib/auth/role-display";
 import type { RoleName } from "@/generated/prisma/client";
+import { useSession } from "next-auth/react";
 
 type SelectableRole = {
   id: string;
@@ -49,6 +50,11 @@ type UserRow = {
   email: string;
   role: { id: string; name: RoleName };
   isActive: boolean;
+};
+
+type SessionUser = {
+  id?: string;
+  role?: RoleName;
 };
 
 async function parseError(res: Response): Promise<string> {
@@ -71,6 +77,9 @@ async function parseError(res: Response): Promise<string> {
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const currentUser = (session?.user as SessionUser | undefined) ?? {};
+  const isAdmin = currentUser.role === "ADMIN";
   const [createOpen, setCreateOpen] = useState(false);
   const [pwUser, setPwUser] = useState<UserRow | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -124,6 +133,23 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("User updated");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const changeRole = useMutation({
+    mutationFn: async ({ id, roleId }: { id: string; roleId: string }) => {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleId }),
+      });
+      if (!res.ok) throw new Error(await parseError(res));
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("Role updated");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -266,9 +292,47 @@ export default function AdminUsersPage() {
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {roleDisplayName(user.role.name)}
-                      </Badge>
+                      {isAdmin ? (
+                        <Select
+                          value={user.role.id}
+                          onValueChange={(v: string | null) => {
+                            if (!v || v === user.role.id) return;
+                            const next = roles?.find((r) => r.id === v);
+                            const isSelf = currentUser.id === user.id;
+                            const confirmMsg = isSelf
+                              ? `Change your own role to ${next?.displayName ?? "the selected role"}? You'll keep ADMIN access only if the new role is ADMIN.`
+                              : `Change ${user.firstName} ${user.lastName}'s role to ${next?.displayName ?? "the selected role"}?`;
+                            if (confirm(confirmMsg)) {
+                              changeRole.mutate({ id: user.id, roleId: v });
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[170px]">
+                            <SelectValue>
+                              <div className="flex items-center gap-1">
+                                <Shield className="h-3 w-3" />
+                                {roleDisplayName(user.role.name)}
+                              </div>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roles?.map((r) => (
+                              <SelectItem key={r.id} value={r.id} label={r.displayName}>
+                                <div className="flex flex-col">
+                                  <span>{r.displayName}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {r.description}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant="outline">
+                          {roleDisplayName(user.role.name)}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={user.isActive ? "default" : "secondary"}>

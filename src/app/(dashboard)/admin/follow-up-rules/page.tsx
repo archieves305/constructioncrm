@@ -33,7 +33,28 @@ import {
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
-const TRIGGERS = ["LEAD_CREATED", "LEAD_STAGE_CHANGED", "LEAD_ASSIGNED"] as const;
+const LEAD_TRIGGERS = ["LEAD_CREATED", "LEAD_STAGE_CHANGED", "LEAD_ASSIGNED"] as const;
+const PERMIT_TRIGGERS = [
+  "PERMIT_CREATED",
+  "PERMIT_STATUS_APPLIED",
+  "PERMIT_STATUS_IN_PROGRESS",
+  "PERMIT_STATUS_ISSUED",
+  "PERMIT_STATUS_FINAL",
+  "PERMIT_STATUS_EXPIRED",
+  "PERMIT_STATUS_DENIED",
+  "PERMIT_AGING_7D",
+  "PERMIT_AGING_14D",
+  "PERMIT_EXPIRING_30D",
+] as const;
+const INSPECTION_TRIGGERS = [
+  "INSPECTION_SCHEDULED",
+  "INSPECTION_REMINDER_24H",
+  "INSPECTION_PASSED",
+  "INSPECTION_FAILED",
+  "INSPECTION_CONDITIONAL",
+  "INSPECTION_CANCELLED",
+] as const;
+const TRIGGERS = [...LEAD_TRIGGERS, ...PERMIT_TRIGGERS, ...INSPECTION_TRIGGERS] as const;
 
 type Template = { id: string; name: string; channel: string };
 
@@ -196,7 +217,7 @@ export default function FollowUpRulesPage() {
     <div>
       <PageHeader
         title="Follow-Up Rules"
-        description="Automated SMS, email, and tasks triggered by lead events"
+        description="Automated SMS, email, and tasks triggered by lead, permit, and inspection events"
         actions={
           <Button type="button" onClick={startCreate}>
             <Plus className="mr-2 h-4 w-4" />
@@ -237,7 +258,20 @@ export default function FollowUpRulesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {TRIGGERS.map((t) => (
+                    <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Lead events</div>
+                    {LEAD_TRIGGERS.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t.replace(/_/g, " ")}
+                      </SelectItem>
+                    ))}
+                    <div className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Permit events</div>
+                    {PERMIT_TRIGGERS.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t.replace(/_/g, " ")}
+                      </SelectItem>
+                    ))}
+                    <div className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Inspection events</div>
+                    {INSPECTION_TRIGGERS.map((t) => (
                       <SelectItem key={t} value={t}>
                         {t.replace(/_/g, " ")}
                       </SelectItem>

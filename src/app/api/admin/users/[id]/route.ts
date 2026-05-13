@@ -6,6 +6,18 @@ import { requireRole, badRequest } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { validatePassword } from "@/lib/auth/password-policy";
 
+async function isLastAdmin(userId: string): Promise<boolean> {
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { role: true },
+  });
+  if (target?.role?.name !== "ADMIN" || !target.isActive) return false;
+  const activeAdmins = await prisma.user.count({
+    where: { isActive: true, role: { name: "ADMIN" } },
+  });
+  return activeAdmins <= 1;
+}
+
 const updateUserSchema = z
   .object({
     firstName: z.string().trim().min(1).optional(),
@@ -23,8 +35,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let session;
   try {
-    await requireRole("ADMIN");
+    session = await requireRole("ADMIN");
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -33,6 +46,39 @@ export async function PATCH(
   const v = await validateBody(request, updateUserSchema);
   if (!v.ok) return v.response;
   const body = v.data;
+
+  // Prevent an admin from locking the team out: if this is the last active
+  // admin, block role demotion + deactivation on this user.
+  if (
+    (body.roleId !== undefined || body.isActive === false) &&
+    (await isLastAdmin(id))
+  ) {
+    // Only block if the change would actually strip the ADMIN role.
+    if (body.isActive === false) {
+      return badRequest(
+        "Cannot deactivate the last remaining admin. Promote another user to ADMIN first.",
+      );
+    }
+    if (body.roleId !== undefined) {
+      const newRole = await prisma.role.findUnique({ where: { id: body.roleId } });
+      if (newRole && newRole.name !== "ADMIN") {
+        return badRequest(
+          "Cannot demote the last remaining admin. Promote another user to ADMIN first.",
+        );
+      }
+    }
+  }
+
+  // Self-demotion guard: an admin can change their own profile but should not
+  // remove their own ADMIN role in a single request (forces deliberate handoff).
+  if (session.user.id === id && body.roleId !== undefined) {
+    const newRole = await prisma.role.findUnique({ where: { id: body.roleId } });
+    if (newRole && newRole.name !== "ADMIN") {
+      return badRequest(
+        "You cannot remove your own ADMIN role. Ask another admin to do it.",
+      );
+    }
+  }
 
   const updateData: Record<string, unknown> = {};
   if (body.firstName !== undefined) updateData.firstName = body.firstName;

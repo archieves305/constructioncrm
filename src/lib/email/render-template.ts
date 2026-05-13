@@ -22,6 +22,30 @@ export type LeadTemplateContext = {
     signatureText?: string | null;
   };
   company: { name: string };
+  permit?: PermitTemplateContext;
+  inspection?: InspectionTemplateContext;
+};
+
+export type PermitTemplateContext = {
+  municipality: string;
+  permitNumber: string;
+  permitType: string;
+  status: string;
+  submittedDate: string;
+  expectedApprovalDate: string;
+  approvedDate: string;
+  expirationDate: string;
+  inspectorName: string;
+  agingDays: string;
+};
+
+export type InspectionTemplateContext = {
+  type: string;
+  scheduledFor: string;
+  scheduledTime: string;
+  completedAt: string;
+  result: string;
+  inspectorName: string;
 };
 
 function buildTemplateVarContext(
@@ -40,7 +64,35 @@ function buildTemplateVarContext(
       website: brand.website ?? "",
       address: formatBrandAddress(brand),
     },
+    permit: ctx.permit ?? emptyPermitContext(),
+    inspection: ctx.inspection ?? emptyInspectionContext(),
     unsubscribeUrl: unsubscribeUrl ?? "",
+  };
+}
+
+function emptyPermitContext(): PermitTemplateContext {
+  return {
+    municipality: "",
+    permitNumber: "",
+    permitType: "",
+    status: "",
+    submittedDate: "",
+    expectedApprovalDate: "",
+    approvedDate: "",
+    expirationDate: "",
+    inspectorName: "",
+    agingDays: "",
+  };
+}
+
+function emptyInspectionContext(): InspectionTemplateContext {
+  return {
+    type: "",
+    scheduledFor: "",
+    scheduledTime: "",
+    completedAt: "",
+    result: "",
+    inspectorName: "",
   };
 }
 

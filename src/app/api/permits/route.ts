@@ -15,7 +15,11 @@ export async function GET(request: NextRequest) {
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
   if (municipality) where.municipality = { contains: municipality, mode: "insensitive" };
-  if (assignedUserId) where.assignedUserId = assignedUserId;
+  if (assignedUserId === "unassigned") {
+    where.assignedUserId = null;
+  } else if (assignedUserId) {
+    where.assignedUserId = assignedUserId;
+  }
 
   if (aging) {
     // Permits submitted more than 14 days ago without approval

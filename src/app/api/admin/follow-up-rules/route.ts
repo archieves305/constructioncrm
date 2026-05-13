@@ -3,10 +3,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/helpers";
 import { LEAD_EVENTS } from "@/lib/follow-ups/events";
+import { PERMIT_EVENTS, INSPECTION_EVENTS } from "@/lib/follow-ups/permit-events";
+
+const ALL_EVENTS = [...LEAD_EVENTS, ...PERMIT_EVENTS, ...INSPECTION_EVENTS] as const;
 
 const createSchema = z.object({
   name: z.string().min(1).max(120),
-  triggerEvent: z.enum(LEAD_EVENTS),
+  triggerEvent: z.enum(ALL_EVENTS),
   targetStageId: z.string().nullable().optional(),
   delayMinutes: z.number().int().min(0).max(60 * 24 * 365),
   messageTemplateId: z.string().nullable().optional(),

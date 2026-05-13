@@ -2,10 +2,20 @@ import { prisma } from "@/lib/db/prisma";
 import { renderTemplate } from "@/lib/templates/render";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { getEmailBrand } from "@/lib/email/brand";
-import { renderLeadEmail } from "@/lib/email/render-template";
+import {
+  renderLeadEmail,
+  type PermitTemplateContext,
+  type InspectionTemplateContext,
+} from "@/lib/email/render-template";
 import { buildUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { TwilioSmsProvider } from "@/lib/services/notifications/twilio-provider";
 import { env } from "@/lib/env";
+
+const ISO_DATE = (d: Date | null | undefined) =>
+  d ? d.toISOString().slice(0, 10) : "";
+
+const ISO_TIME = (d: Date | null | undefined) =>
+  d ? d.toISOString().slice(11, 16) : "";
 
 const twilio = new TwilioSmsProvider();
 
@@ -37,6 +47,8 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
           },
         },
       },
+      permit: true,
+      inspection: true,
     },
   });
 
@@ -52,6 +64,40 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
       });
       result.cancelled += 1;
       continue;
+    }
+
+    let inspectionCtx: InspectionTemplateContext | undefined;
+    if (exec.inspection) {
+      inspectionCtx = {
+        type: exec.inspection.type ?? "",
+        scheduledFor: ISO_DATE(exec.inspection.scheduledFor),
+        scheduledTime: ISO_TIME(exec.inspection.scheduledFor),
+        completedAt: ISO_DATE(exec.inspection.completedAt),
+        result: exec.inspection.result ?? "",
+        inspectorName: exec.inspection.inspectorName ?? "",
+      };
+    }
+
+    let permitCtx: PermitTemplateContext | undefined;
+    if (exec.permit) {
+      const submitted = exec.permit.submittedDate
+        ? new Date(exec.permit.submittedDate).getTime()
+        : null;
+      const agingDays = submitted
+        ? Math.floor((Date.now() - submitted) / 86400000).toString()
+        : "";
+      permitCtx = {
+        municipality: exec.permit.municipality ?? "",
+        permitNumber: exec.permit.permitNumber ?? "",
+        permitType: exec.permit.permitType ?? "",
+        status: exec.permit.status ?? "",
+        submittedDate: ISO_DATE(exec.permit.submittedDate),
+        expectedApprovalDate: ISO_DATE(exec.permit.expectedApprovalDate),
+        approvedDate: ISO_DATE(exec.permit.approvedDate),
+        expirationDate: ISO_DATE(exec.permit.expirationDate),
+        inspectorName: exec.permit.inspectorName ?? "",
+        agingDays,
+      };
     }
 
     const context = {
@@ -72,6 +118,8 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
         signatureText: exec.lead.assignedUser?.signatureText ?? null,
       },
       company: { name: exec.lead.companyName ?? "" },
+      permit: permitCtx,
+      inspection: inspectionCtx,
     };
 
     try {

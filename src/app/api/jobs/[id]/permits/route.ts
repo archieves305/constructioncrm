@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { emitPermitEvent } from "@/lib/follow-ups/permit-events";
 
 export async function POST(
   request: NextRequest,
@@ -18,16 +19,19 @@ export async function POST(
     data: {
       jobId: id,
       municipality: body.municipality,
-      permitType: body.permitType,
-      permitNumber: body.permitNumber,
+      permitType: body.permitType ?? null,
+      permitNumber: body.permitNumber ?? null,
       submittedDate: body.submittedDate ? new Date(body.submittedDate) : new Date(),
+      expectedApprovalDate: body.expectedApprovalDate ? new Date(body.expectedApprovalDate) : null,
+      expirationDate: body.expirationDate ? new Date(body.expirationDate) : null,
       status: body.status || "APPLIED",
-      assignedUserId: body.assignedUserId,
-      notes: body.notes,
+      assignedUserId: body.assignedUserId ?? null,
+      inspectorName: body.inspectorName ?? null,
+      permitFee: body.permitFee != null && body.permitFee !== "" ? body.permitFee : null,
+      notes: body.notes ?? null,
     },
   });
 
-  // Log activity
   const job = await prisma.job.findUnique({ where: { id }, select: { leadId: true } });
   if (job) {
     await prisma.activityLog.create({
@@ -40,6 +44,9 @@ export async function POST(
       },
     });
   }
+
+  // Fire automation: PERMIT_CREATED for any active rule.
+  await emitPermitEvent("PERMIT_CREATED", permit.id);
 
   return NextResponse.json(permit, { status: 201 });
 }

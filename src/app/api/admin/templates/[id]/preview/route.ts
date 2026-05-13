@@ -31,6 +31,26 @@ const sampleContext = {
     signatureText: null,
   },
   company: { name: "" },
+  permit: {
+    municipality: "City of Boca Raton",
+    permitNumber: "B2026-04211",
+    permitType: "Re-roof",
+    status: "APPLIED",
+    submittedDate: "2026-05-01",
+    expectedApprovalDate: "2026-05-15",
+    approvedDate: "",
+    expirationDate: "",
+    inspectorName: "",
+    agingDays: "12",
+  },
+  inspection: {
+    type: "ROOFING_FINAL",
+    scheduledFor: "2026-05-20",
+    scheduledTime: "10:00",
+    completedAt: "",
+    result: "SCHEDULED",
+    inspectorName: "J. Martinez",
+  },
 };
 
 export async function POST(

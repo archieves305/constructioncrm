@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -33,6 +34,10 @@ import {
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Send, Eye } from "lucide-react";
 import { TEMPLATE_VARIABLES } from "@/lib/templates/render";
+import {
+  RichTextEditor,
+  type RichTextEditorHandle,
+} from "@/components/ui/rich-text-editor";
 
 type Template = {
   id: string;
@@ -58,12 +63,18 @@ const empty: Omit<Template, "id"> = {
   isActive: true,
 };
 
+// Treat the body as HTML if it contains any tag — otherwise it's legacy markdown/plain.
+function looksLikeHtml(s: string) {
+  return /<\/?[a-z][^>]*>/i.test(s);
+}
+
 export default function TemplatesPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<Template, "id">>(empty);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const editorRef = useRef<RichTextEditorHandle | null>(null);
 
   const { data: templates = [], isLoading } = useQuery<Template[]>({
     queryKey: ["templates"],
@@ -127,7 +138,7 @@ export default function TemplatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const isEmptyBody = !form.templateBody.trim();
+  const isEmptyBody = !form.templateBody.replace(/<[^>]+>/g, "").trim();
   const [prevEmptyBody, setPrevEmptyBody] = useState(isEmptyBody);
   if (isEmptyBody !== prevEmptyBody) {
     setPrevEmptyBody(isEmptyBody);
@@ -136,7 +147,7 @@ export default function TemplatesPage() {
 
   // Live preview: re-render whenever the body or channel changes (debounced)
   useEffect(() => {
-    if (!open || !form.templateBody.trim()) return;
+    if (!open || isEmptyBody) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
@@ -158,7 +169,7 @@ export default function TemplatesPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [form.templateBody, form.channel, open]);
+  }, [form.templateBody, form.channel, open, isEmptyBody]);
 
   function startCreate() {
     setEditingId(null);
@@ -179,6 +190,15 @@ export default function TemplatesPage() {
     setOpen(true);
   }
 
+  function insertVariable(varName: string) {
+    const token = `{{${varName}}}`;
+    if (form.channel === "EMAIL") {
+      editorRef.current?.insertAtCursor(token);
+    } else {
+      setForm((f) => ({ ...f, templateBody: f.templateBody + token }));
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -193,92 +213,172 @@ export default function TemplatesPage() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
+        <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] sm:max-w-6xl p-0 gap-0 grid grid-rows-[auto_minmax(0,1fr)_auto]">
+          <DialogHeader className="border-b px-5 py-3">
             <DialogTitle>{editingId ? "Edit Template" : "New Template"}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-3">
-              <div>
-                <Label>Name / subject</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. New lead welcome"
-                />
-                {form.channel === "EMAIL" && (
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    For email channel, this is the subject line. Variables work here too.
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label>Channel</Label>
-                <Select
-                  value={form.channel}
-                  onValueChange={(v) =>
-                    setForm({ ...form, channel: (v as Template["channel"]) || "EMAIL" })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CHANNELS.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
+
+          {/* Body — scrollable two-column layout */}
+          <div className="overflow-y-auto px-5 py-4">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              {/* Left column: form */}
+              <div className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+                  <div>
+                    <Label htmlFor="tpl-name">
+                      {form.channel === "EMAIL" ? "Subject line" : "Name"}
+                    </Label>
+                    <Input
+                      id="tpl-name"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder={
+                        form.channel === "EMAIL"
+                          ? "e.g. Welcome to {{company.brand}}"
+                          : "e.g. New lead welcome"
+                      }
+                    />
+                    {form.channel === "EMAIL" && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        This is the subject line. Variables work here too.
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="tpl-channel">Channel</Label>
+                    <Select
+                      value={form.channel}
+                      onValueChange={(v) =>
+                        setForm({ ...form, channel: (v as Template["channel"]) || "EMAIL" })
+                      }
+                    >
+                      <SelectTrigger id="tpl-channel">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CHANNELS.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <Label>Body</Label>
+                    {form.channel === "EMAIL" && (
+                      <span className="text-[11px] text-muted-foreground">
+                        Outlook-style formatting · HTML output
+                      </span>
+                    )}
+                  </div>
+
+                  {form.channel === "EMAIL" ? (
+                    <RichTextEditor
+                      ref={editorRef}
+                      value={
+                        // Legacy markdown bodies are rendered as plain text inside the editor;
+                        // saving them edits will silently upgrade them to HTML.
+                        looksLikeHtml(form.templateBody) || !form.templateBody
+                          ? form.templateBody
+                          : form.templateBody
+                              .split("\n")
+                              .map((line) => `<p>${escapeHtml(line)}</p>`)
+                              .join("")
+                      }
+                      onChange={(html) => setForm({ ...form, templateBody: html })}
+                      placeholder="Hi {{lead.firstName}}, thanks for reaching out…"
+                      minHeight={320}
+                    />
+                  ) : (
+                    <Textarea
+                      rows={10}
+                      value={form.templateBody}
+                      onChange={(e) => setForm({ ...form, templateBody: e.target.value })}
+                      placeholder="Hi {{lead.firstName}}, thanks for reaching out…"
+                      className="font-mono text-sm"
+                    />
+                  )}
+
+                  {form.channel === "EMAIL" && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Email layout, signature, and unsubscribe footer are added automatically.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label className="mb-1 block">Insert variable</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {TEMPLATE_VARIABLES.map((v) => (
+                      <button
+                        type="button"
+                        key={v}
+                        onClick={() => insertVariable(v)}
+                        className="rounded border bg-muted/60 px-2 py-0.5 font-mono text-[11px] hover:bg-muted"
+                        title={`Insert {{${v}}}`}
+                      >
+                        {`{{${v}}}`}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Body {form.channel === "EMAIL" && "(markdown)"}</Label>
-                <Textarea
-                  rows={12}
-                  value={form.templateBody}
-                  onChange={(e) => setForm({ ...form, templateBody: e.target.value })}
-                  placeholder={
-                    form.channel === "EMAIL"
-                      ? "Hi {{lead.firstName}},\n\nThanks for reaching out about your project at {{lead.addressLine1}}. I'd love to walk you through our process.\n\n**Next step:** I'll call you within 24 hours.\n\nReach out anytime if you have questions."
-                      : "Hi {{lead.firstName}}, thanks for reaching out..."
-                  }
-                  className="font-mono text-sm"
-                />
-                {form.channel === "EMAIL" && (
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Markdown supported: **bold**, *italic*, [links](url), bullet lists, paragraphs.
-                    Email layout, signature, and unsubscribe footer are added automatically.
-                  </p>
-                )}
-                <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-muted-foreground">
-                  Variables:{" "}
-                  {TEMPLATE_VARIABLES.map((v) => (
-                    <code key={v} className="rounded bg-muted px-1">
-                      {`{{${v}}}`}
-                    </code>
-                  ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="active"
+                    checked={form.isActive}
+                    onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                  />
+                  <Label htmlFor="active" className="cursor-pointer">
+                    Active
+                  </Label>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="active"
-                  checked={form.isActive}
-                  onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                />
-                <Label htmlFor="active" className="cursor-pointer">
-                  Active
-                </Label>
+
+              {/* Right column: live preview */}
+              <div className="space-y-2 lg:sticky lg:top-0 lg:self-start">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Eye className="h-4 w-4" />
+                  Live preview
+                </div>
+                {!preview ? (
+                  <p className="rounded border border-dashed p-6 text-center text-xs text-muted-foreground">
+                    Type a body to see the preview.
+                  </p>
+                ) : preview.channel === "EMAIL" && preview.html ? (
+                  <div className="rounded border bg-gray-50">
+                    <div className="border-b px-3 py-2 text-xs">
+                      <div className="text-muted-foreground">Subject</div>
+                      <div className="font-medium">{preview.subject}</div>
+                    </div>
+                    <iframe
+                      title="Email preview"
+                      srcDoc={preview.html}
+                      className="h-[520px] w-full bg-white"
+                      sandbox=""
+                    />
+                  </div>
+                ) : (
+                  <pre className="rounded border bg-gray-50 p-3 text-xs whitespace-pre-wrap">
+                    {preview.text}
+                  </pre>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Preview uses sample lead data (&ldquo;Sarah Johnson, Boca Raton&rdquo;).
+                </p>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  className="flex-1"
-                  disabled={save.isPending}
-                  onClick={() => save.mutate()}
-                >
-                  {save.isPending ? "Saving..." : editingId ? "Update" : "Create"}
-                </Button>
+            </div>
+          </div>
+
+          {/* Sticky footer */}
+          <DialogFooter className="mt-0 rounded-b-xl">
+            <div className="flex w-full items-center justify-between gap-2">
+              <div>
                 {editingId && form.channel === "EMAIL" && (
                   <Button
                     type="button"
@@ -291,40 +391,19 @@ export default function TemplatesPage() {
                   </Button>
                 )}
               </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Eye className="h-4 w-4" />
-                Live preview
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={save.isPending || isEmptyBody || !form.name.trim()}
+                  onClick={() => save.mutate()}
+                >
+                  {save.isPending ? "Saving…" : editingId ? "Update template" : "Create template"}
+                </Button>
               </div>
-              {!preview ? (
-                <p className="rounded border border-dashed p-6 text-center text-xs text-muted-foreground">
-                  Type a body to see the preview.
-                </p>
-              ) : preview.channel === "EMAIL" && preview.html ? (
-                <div className="rounded border bg-gray-50">
-                  <div className="border-b px-3 py-2 text-xs">
-                    <div className="text-muted-foreground">Subject</div>
-                    <div className="font-medium">{preview.subject}</div>
-                  </div>
-                  <iframe
-                    title="Email preview"
-                    srcDoc={preview.html}
-                    className="h-[460px] w-full bg-white"
-                    sandbox=""
-                  />
-                </div>
-              ) : (
-                <pre className="rounded border bg-gray-50 p-3 text-xs whitespace-pre-wrap">
-                  {preview.text}
-                </pre>
-              )}
-              <p className="text-[11px] text-muted-foreground">
-                Preview uses sample lead data (&ldquo;Sarah Johnson, Boca Raton&rdquo;) so you can see
-                how variables render.
-              </p>
             </div>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -361,7 +440,7 @@ export default function TemplatesPage() {
                       <Badge variant="outline">{t.channel}</Badge>
                     </TableCell>
                     <TableCell className="max-w-md truncate text-sm text-muted-foreground">
-                      {t.templateBody}
+                      {t.templateBody.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()}
                     </TableCell>
                     <TableCell>
                       <Badge variant={t.isActive ? "default" : "secondary"}>
@@ -391,4 +470,13 @@ export default function TemplatesPage() {
       </Card>
     </div>
   );
+}
+
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

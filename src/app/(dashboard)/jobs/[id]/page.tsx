@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -81,19 +82,43 @@ export default function JobDetailPage() {
     },
   });
 
-  const [permitMuni, setPermitMuni] = useState("");
-  const [permitType, setPermitType] = useState("");
+  const emptyPermitForm = {
+    municipality: "",
+    permitType: "",
+    permitNumber: "",
+    submittedDate: new Date().toISOString().slice(0, 10),
+    expectedApprovalDate: "",
+    expirationDate: "",
+    permitFee: "",
+    inspectorName: "",
+    assignedUserId: "",
+    notes: "",
+  };
+  const [permitForm, setPermitForm] = useState(emptyPermitForm);
+  const setPermitField = (k: keyof typeof emptyPermitForm, v: string) =>
+    setPermitForm((f) => ({ ...f, [k]: v }));
+
+  const { data: jobUsers = [] } = useQuery<{ id: string; firstName: string; lastName: string }[]>({
+    queryKey: ["users"],
+    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+  });
 
   const addPermit = useMutation({
-    mutationFn: (data: { municipality: string; permitType: string }) =>
+    mutationFn: (data: typeof emptyPermitForm) =>
       fetch(`/api/jobs/${id}/permits`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          assignedUserId: data.assignedUserId || null,
+          permitFee: data.permitFee || null,
+          expectedApprovalDate: data.expectedApprovalDate || null,
+          expirationDate: data.expirationDate || null,
+        }),
       }).then((r) => r.json()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["job", id] });
-      setPermitMuni(""); setPermitType("");
+      setPermitForm(emptyPermitForm);
       toast.success("Permit added");
     },
   });
@@ -374,21 +399,82 @@ export default function JobDetailPage() {
 
             <TabsContent value="permits" className="space-y-4">
               <Card>
-                <CardContent className="pt-4">
-                  <div className="flex gap-2">
-                    <Input placeholder="Municipality" value={permitMuni}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPermitMuni(e.target.value)} className="flex-1" />
-                    <Input placeholder="Permit type" value={permitType}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPermitType(e.target.value)} className="w-[160px]" />
-                    <Button size="sm" disabled={!permitMuni || addPermit.isPending}
-                      onClick={() => addPermit.mutate({ municipality: permitMuni, permitType })}>
-                      Add Permit
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Add a permit</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-[11px]">Municipality *</Label>
+                      <Input value={permitForm.municipality}
+                        onChange={(e) => setPermitField("municipality", e.target.value)} placeholder="City of Boca Raton" />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Permit type</Label>
+                      <Input value={permitForm.permitType}
+                        onChange={(e) => setPermitField("permitType", e.target.value)} placeholder="Re-roof, Electrical, …" />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Permit #</Label>
+                      <Input value={permitForm.permitNumber}
+                        onChange={(e) => setPermitField("permitNumber", e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Coordinator</Label>
+                      <Select value={permitForm.assignedUserId || "unassigned"}
+                        onValueChange={(v: string | null) => v && setPermitField("assignedUserId", v === "unassigned" ? "" : v)}>
+                        <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          {jobUsers.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>{u.firstName} {u.lastName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Submitted</Label>
+                      <Input type="date" value={permitForm.submittedDate}
+                        onChange={(e) => setPermitField("submittedDate", e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Expected approval</Label>
+                      <Input type="date" value={permitForm.expectedApprovalDate}
+                        onChange={(e) => setPermitField("expectedApprovalDate", e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Expires</Label>
+                      <Input type="date" value={permitForm.expirationDate}
+                        onChange={(e) => setPermitField("expirationDate", e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Permit fee</Label>
+                      <Input value={permitForm.permitFee} inputMode="decimal" placeholder="0.00"
+                        onChange={(e) => setPermitField("permitFee", e.target.value)} />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label className="text-[11px]">Inspector</Label>
+                      <Input value={permitForm.inspectorName}
+                        onChange={(e) => setPermitField("inspectorName", e.target.value)} />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label className="text-[11px]">Notes</Label>
+                      <Textarea rows={2} value={permitForm.notes}
+                        onChange={(e) => setPermitField("notes", e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button size="sm"
+                      disabled={!permitForm.municipality || addPermit.isPending}
+                      onClick={() => addPermit.mutate(permitForm)}
+                    >
+                      Add permit
                     </Button>
                   </div>
                 </CardContent>
               </Card>
               <div className="space-y-2">
-                {job.permits?.map((p: { id: string; permitType: string | null; municipality: string; status: string; permitNumber: string | null; submittedDate: string | null; approvedDate: string | null }) => (
+                {job.permits?.map((p: { id: string; permitType: string | null; municipality: string; status: string; permitNumber: string | null; submittedDate: string | null; approvedDate: string | null; expirationDate?: string | null }) => (
                   <Card key={p.id}>
                     <CardContent className="flex items-center justify-between py-3 px-4">
                       <div className="flex items-center gap-2">
@@ -397,6 +483,11 @@ export default function JobDetailPage() {
                           <span className="text-sm font-medium">{p.permitType || "General"}</span>
                           <span className="text-xs text-muted-foreground ml-2">({p.municipality})</span>
                           {p.permitNumber && <span className="text-xs ml-2">#{p.permitNumber}</span>}
+                          {p.expirationDate && (
+                            <span className="text-[10px] text-muted-foreground ml-2">
+                              exp {format(new Date(p.expirationDate), "MMM d, yyyy")}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <Badge variant="outline" className="text-xs">{p.status}</Badge>
