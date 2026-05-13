@@ -262,6 +262,7 @@ model User {
   jobTaskTemplatesDefault JobTaskTemplate[]
   auditEvents       AuditEvent[]
   roofEstimatesCreated RoofEstimate[]    @relation("RoofEstimateCreatedBy")
+  roofrOrdersCreated   RoofrOrder[]      @relation("RoofrOrderCreatedBy")
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -394,6 +395,7 @@ model Lead {
   notifications  NotificationEvent[]
   followUps      FollowUpExecution[]
   roofEstimates  RoofEstimate[]
+  roofrOrders    RoofrOrder[]
 
   @@index([primaryPhone])
   @@index([email])
@@ -1284,4 +1286,32 @@ model RoofEstimate {
 
   @@index([leadId])
   @@map("roof_estimates")
+}
+
+enum RoofrOrderStatus {
+  REQUESTED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+model RoofrOrder {
+  id              String           @id @default(cuid())
+  leadId          String           @map("lead_id")
+  status          RoofrOrderStatus @default(REQUESTED)
+  externalOrderId String?          @map("external_order_id")
+  reportUrl       String?          @map("report_url")
+  notes           String?          @db.Text
+  errorMessage    String?          @map("error_message") @db.Text
+  requestedAt     DateTime         @default(now()) @map("requested_at")
+  completedAt     DateTime?        @map("completed_at")
+  createdByUserId String           @map("created_by_user_id")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy User @relation("RoofrOrderCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([leadId])
+  @@map("roofr_orders")
 }

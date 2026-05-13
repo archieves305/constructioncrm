@@ -26,6 +26,14 @@ const schema = z.object({
   // Optional at server-start so the app boots without it; the integration
   // routes 503 when unset.
   CC_ALLOCATOR_API_KEY: z.string().optional(),
+
+  // Zapier integration for Roofr report ordering. URL is the Zapier
+  // "Catch Hook" we POST lead+order data to when the user clicks "Order
+  // Roofr Report". Secret is the shared header value we require on the
+  // inbound callback Zap that returns the completed report. Both optional
+  // so the app boots without them; routes 503 when unset.
+  ZAPIER_ROOFR_ORDER_URL: z.string().url().optional(),
+  ZAPIER_WEBHOOK_SECRET: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

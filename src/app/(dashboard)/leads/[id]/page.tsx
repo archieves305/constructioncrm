@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { FilesPanel } from "@/components/files/files-panel";
 import { EstimatesPanel } from "@/components/estimates/estimates-panel";
+import { RoofrPanel } from "@/components/roofr/roofr-panel";
 import {
   ArrowLeft,
   Phone,
@@ -366,6 +367,7 @@ export default function LeadDetailPage() {
               <TabsTrigger value="comms">Communications</TabsTrigger>
               <TabsTrigger value="permits">Permits</TabsTrigger>
               <TabsTrigger value="estimates">Estimates</TabsTrigger>
+              <TabsTrigger value="roofr">Roofr</TabsTrigger>
               <TabsTrigger value="files">Files</TabsTrigger>
               <TabsTrigger value="history">Stage History</TabsTrigger>
             </TabsList>
@@ -629,6 +631,10 @@ export default function LeadDetailPage() {
 
             <TabsContent value="estimates">
               <EstimatesPanel leadId={id} />
+            </TabsContent>
+
+            <TabsContent value="roofr">
+              <RoofrPanel leadId={id} />
             </TabsContent>
 
             <TabsContent value="files">
