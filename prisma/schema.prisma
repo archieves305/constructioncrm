@@ -262,6 +262,7 @@ model User {
   receiptsUploaded  IncomingReceipt[]
   jobTaskTemplatesDefault JobTaskTemplate[]
   auditEvents       AuditEvent[]
+  roofEstimatesCreated RoofEstimate[]    @relation("RoofEstimateCreatedBy")
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -393,6 +394,7 @@ model Lead {
   referrals      Referral[]
   notifications  NotificationEvent[]
   followUps      FollowUpExecution[]
+  roofEstimates  RoofEstimate[]
 
   @@index([primaryPhone])
   @@index([email])
@@ -1228,4 +1230,91 @@ model IntakeSettings {
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   @@map("intake_settings")
+}
+
+// ─── Roof Estimates ─────────────────────────────────────────────────────────
+
+enum RoofMaterial {
+  SHINGLE
+  TILE
+  METAL
+  FLAT
+}
+
+// Singleton (id="default") with company branding + per-proposal defaults
+// for the customer-facing roofing proposal PDF. Editable from /admin/roofing-brand.
+model RoofingBrand {
+  id                          String   @id @default("default")
+  companyName                 String   @map("company_name")
+  addressLine1                String?  @map("address_line_1")
+  addressLine2                String?  @map("address_line_2")
+  city                        String?
+  state                       String?
+  zip                         String?
+  phone                       String?
+  email                       String?
+  website                     String?
+  roofingLicense              String?  @map("roofing_license")
+  gcLicense                   String?  @map("gc_license")
+  logoStorageKey              String?  @map("logo_storage_key")
+  defaultExpirationDays       Int      @default(30) @map("default_expiration_days")
+  defaultUnderlaymentType     String?  @map("default_underlayment_type")
+  defaultPlywoodSheetsIncluded Int     @default(3) @map("default_plywood_sheets_included")
+  defaultAdditionalPlywoodPrice Decimal @default(85) @map("default_additional_plywood_price") @db.Decimal(12, 2)
+  defaultWorkmanshipWarrantyYears Int  @default(10) @map("default_workmanship_warranty_years")
+  defaultManufacturerWarranty String?  @map("default_manufacturer_warranty")
+  paymentDepositPercent       Decimal  @default(40) @map("payment_deposit_percent") @db.Decimal(5, 2)
+  paymentProgressPercent      Decimal  @default(40) @map("payment_progress_percent") @db.Decimal(5, 2)
+  paymentFinalPercent         Decimal  @default(20) @map("payment_final_percent") @db.Decimal(5, 2)
+  updatedAt                   DateTime @updatedAt @map("updated_at")
+
+  @@map("roofing_brand")
+}
+
+model RoofEstimate {
+  id                 String   @id @default(cuid())
+  leadId             String   @map("lead_id")
+  estimateNumber     String   @unique @map("estimate_number")
+  // roofTypesJson: array of { material: RoofMaterial, squares: number, laborRatePerSquare: number }
+  roofTypesJson      Json     @map("roof_types_json")
+  materialCost       Decimal  @default(0) @map("material_cost") @db.Decimal(12, 2)
+  materialSelection  String?  @map("material_selection") @db.Text
+  // Customer-facing proposal fields (defaults pulled from RoofingBrand on form load)
+  existingRoofType   String?  @map("existing_roof_type")
+  proposedRoofTypeOverride String? @map("proposed_roof_type_override")
+  underlaymentType   String?  @map("underlayment_type")
+  permitIncluded     Boolean  @default(true) @map("permit_included")
+  projectDurationText String? @map("project_duration_text")
+  plywoodSheetsIncluded Int?  @map("plywood_sheets_included")
+  additionalPlywoodPrice Decimal? @map("additional_plywood_price") @db.Decimal(12, 2)
+  workmanshipWarrantyYears Int? @map("workmanship_warranty_years")
+  manufacturerWarranty String? @map("manufacturer_warranty")
+  isEstimateOnly     Boolean  @default(false) @map("is_estimate_only")
+  permitFee          Decimal  @default(0) @map("permit_fee") @db.Decimal(12, 2)
+  dumpsterFee        Decimal  @default(0) @map("dumpster_fee") @db.Decimal(12, 2)
+  tearOffFee         Decimal  @default(0) @map("tear_off_fee") @db.Decimal(12, 2)
+  deckingFee         Decimal  @default(0) @map("decking_fee") @db.Decimal(12, 2)
+  underlaymentFee    Decimal  @default(0) @map("underlayment_fee") @db.Decimal(12, 2)
+  flashingVentFee    Decimal  @default(0) @map("flashing_vent_fee") @db.Decimal(12, 2)
+  skylightChimneyFee Decimal  @default(0) @map("skylight_chimney_fee") @db.Decimal(12, 2)
+  guttersFee         Decimal  @default(0) @map("gutters_fee") @db.Decimal(12, 2)
+  miscLabel          String?  @map("misc_label")
+  miscFee            Decimal  @default(0) @map("misc_fee") @db.Decimal(12, 2)
+  marginPercent      Decimal  @default(0) @map("margin_percent") @db.Decimal(6, 3)
+  discountEnabled    Boolean  @default(false) @map("discount_enabled")
+  discountPercent    Decimal  @default(0) @map("discount_percent") @db.Decimal(6, 3)
+  salesTaxPercent    Decimal  @default(0) @map("sales_tax_percent") @db.Decimal(6, 3)
+  validityDays       Int      @default(30) @map("validity_days")
+  specialTerms       String?  @map("special_terms") @db.Text
+  subtotalCost       Decimal  @map("subtotal_cost") @db.Decimal(12, 2)
+  totalPrice         Decimal  @map("total_price") @db.Decimal(12, 2)
+  createdByUserId    String   @map("created_by_user_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy User @relation("RoofEstimateCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([leadId])
+  @@map("roof_estimates")
 }

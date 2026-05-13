@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FilesPanel } from "@/components/files/files-panel";
+import { EstimatesPanel } from "@/components/estimates/estimates-panel";
 import {
   ArrowLeft,
   Phone,
@@ -364,6 +365,7 @@ export default function LeadDetailPage() {
               <TabsTrigger value="tasks">Tasks ({lead.tasks?.length || 0})</TabsTrigger>
               <TabsTrigger value="comms">Communications</TabsTrigger>
               <TabsTrigger value="permits">Permits</TabsTrigger>
+              <TabsTrigger value="estimates">Estimates</TabsTrigger>
               <TabsTrigger value="files">Files</TabsTrigger>
               <TabsTrigger value="history">Stage History</TabsTrigger>
             </TabsList>
@@ -623,6 +625,10 @@ export default function LeadDetailPage() {
                   </p>
                 )}
               </div>
+            </TabsContent>
+
+            <TabsContent value="estimates">
+              <EstimatesPanel leadId={id} />
             </TabsContent>
 
             <TabsContent value="files">
