@@ -17,6 +17,34 @@ const COLORS = [
   "bg-emerald-600",
 ];
 
+// Load zxcvbn + dictionaries ONCE per page, not per keystroke. The dictionary
+// merge is the slow part and would otherwise rerun on every render.
+let zxcvbnFnPromise: Promise<
+  (password: string, userInputs?: string[]) => {
+    score: 0 | 1 | 2 | 3 | 4;
+    feedback: { warning?: string | null; suggestions: string[] };
+  }
+> | null = null;
+
+function loadZxcvbn() {
+  if (!zxcvbnFnPromise) {
+    zxcvbnFnPromise = (async () => {
+      const [core, common, en] = await Promise.all([
+        import("@zxcvbn-ts/core"),
+        import("@zxcvbn-ts/language-common"),
+        import("@zxcvbn-ts/language-en"),
+      ]);
+      core.zxcvbnOptions.setOptions({
+        translations: en.translations,
+        graphs: common.adjacencyGraphs,
+        dictionary: { ...common.dictionary, ...en.dictionary },
+      });
+      return core.zxcvbn;
+    })();
+  }
+  return zxcvbnFnPromise;
+}
+
 export function PasswordStrengthMeter({
   password,
   userInputs = [],
@@ -34,17 +62,11 @@ export function PasswordStrengthMeter({
       return;
     }
     let cancelled = false;
-    void (async () => {
-      const [{ zxcvbn, zxcvbnOptions }, common, en] = await Promise.all([
-        import("@zxcvbn-ts/core"),
-        import("@zxcvbn-ts/language-common"),
-        import("@zxcvbn-ts/language-en"),
-      ]);
-      zxcvbnOptions.setOptions({
-        translations: en.translations,
-        graphs: common.adjacencyGraphs,
-        dictionary: { ...common.dictionary, ...en.dictionary },
-      });
+    // Debounce: zxcvbn is CPU-heavy and runs on the main thread. Without this
+    // every keystroke freezes the input while the analysis runs.
+    const timer = setTimeout(async () => {
+      const zxcvbn = await loadZxcvbn();
+      if (cancelled) return;
       const result = zxcvbn(password, userInputs);
       if (cancelled) return;
       setStrength({
@@ -52,11 +74,16 @@ export function PasswordStrengthMeter({
         warning: result.feedback.warning ?? "",
         suggestions: result.feedback.suggestions,
       });
-    })();
+    }, 250);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [password, userInputs]);
+    // userInputs is intentionally excluded from deps — callers commonly pass
+    // a fresh array literal each render. Re-running on every parent render
+    // is what caused the original freeze.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [password]);
 
   if (!password) return null;
 
