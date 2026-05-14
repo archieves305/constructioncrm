@@ -216,7 +216,7 @@ describe("processPendingFollowUps", () => {
     );
     expect(vi.mocked(prisma.notificationEvent.create)).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ channel: "EMAIL", provider: "resend" }),
+        data: expect.objectContaining({ channel: "EMAIL", provider: "mailersend" }),
       }),
     );
   });

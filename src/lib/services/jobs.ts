@@ -210,10 +210,16 @@ async function sendReviewRequestIfNeeded(
   });
   if (existing) return;
 
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: { lead: { select: { fullName: true, email: true, firstName: true } } },
-  });
+  const [job, sender] = await Promise.all([
+    prisma.job.findUnique({
+      where: { id: jobId },
+      include: { lead: { select: { fullName: true, email: true, firstName: true } } },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    }),
+  ]);
   if (!job) return;
 
   const request = await prisma.reviewRequest.create({
@@ -234,6 +240,9 @@ async function sendReviewRequestIfNeeded(
 <p>Thanks for choosing us for your recent project (${job.jobNumber}). If you have a moment, we'd really appreciate an honest review — it helps other homeowners make informed decisions.</p>
 <p>Thank you!</p>`,
         text: `Hi ${job.lead.firstName}, thanks for choosing us for ${job.jobNumber}. If you have a moment, we'd appreciate a review.`,
+        // Send replies to the rep who triggered the request, not the
+        // system FROM address.
+        replyTo: sender?.email ?? undefined,
       });
       await prisma.reviewRequest.update({
         where: { id: request.id },

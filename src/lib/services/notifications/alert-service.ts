@@ -119,7 +119,7 @@ export async function sendLeadAlertSms(leadId: string, userId: string) {
             leadId,
             recipientUserId: userId,
             channel: "EMAIL",
-            provider: "resend",
+            provider: "mailersend",
             recipientAddress: user.email,
             messageBody,
             status: "SENT",

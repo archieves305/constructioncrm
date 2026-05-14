@@ -17,8 +17,10 @@ const schema = z.object({
   OUTLOOK_CLIENT_SECRET: z.string().optional(),
   OUTLOOK_MAILBOX_ADDRESS: z.string().email().optional(),
 
-  RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().email().optional(),
+  MAILERSEND_API_KEY: z.string().optional(),
+  // Accepts either a bare "addr@example.com" or "Display Name <addr@example.com>";
+  // runtime parser in src/lib/email/send.ts handles both shapes.
+  EMAIL_FROM: z.string().min(3).optional(),
 
   CRON_SECRET: z.string().optional(),
 
@@ -64,12 +66,12 @@ const requiredInProd: RequiredGroup[] = [
     ],
   },
   {
-    name: "Resend (email)",
-    keys: ["RESEND_API_KEY", "EMAIL_FROM"],
+    name: "MailerSend (email)",
+    keys: ["MAILERSEND_API_KEY", "EMAIL_FROM"],
   },
 ];
 
-export function assertProviderEnv(name: "Twilio (SMS)" | "Outlook (intake)" | "Resend (email)") {
+export function assertProviderEnv(name: "Twilio (SMS)" | "Outlook (intake)" | "MailerSend (email)") {
   const group = requiredInProd.find((g) => g.name === name);
   if (!group) return;
   const missing = group.keys.filter((k) => !env[k]);

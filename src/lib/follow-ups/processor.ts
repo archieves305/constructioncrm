@@ -164,6 +164,9 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
             subject: renderTemplate(template.name, { ...context, company: { ...context.company, brand: brand.companyName } }),
             html: rendered.html,
             text: rendered.text,
+            // Route replies to the assigned rep so customers reach a human,
+            // not the system FROM address.
+            replyTo: exec.lead.assignedUser?.email ?? undefined,
             headers: {
               "List-Unsubscribe": `<${buildUnsubscribeUrl(exec.leadId)}>`,
               "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -174,7 +177,7 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
               leadId: exec.leadId,
               recipientUserId: exec.lead.assignedUserId || exec.lead.createdByUserId,
               channel: "EMAIL",
-              provider: "resend",
+              provider: "mailersend",
               recipientAddress: exec.lead.email,
               messageBody: body,
               status: "SENT",
