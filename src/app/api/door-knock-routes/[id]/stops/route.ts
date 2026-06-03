@@ -5,10 +5,12 @@ import { addStopsToRouteSchema } from "@/lib/validators/door-knock";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+
+  const { id } = await params;
 
   const body = await request.json();
   const parsed = addStopsToRouteSchema.safeParse(body);
@@ -21,7 +23,7 @@ export async function POST(
 
   // Get current max sort order for this route
   const maxSortOrder = await prisma.doorKnockRouteStop.aggregate({
-    where: { routeId: params.id },
+    where: { routeId: id },
     _max: { sortOrder: true },
   });
 
@@ -33,7 +35,7 @@ export async function POST(
     try {
       const stop = await prisma.doorKnockRouteStop.create({
         data: {
-          routeId: params.id,
+          routeId: id,
           leadId,
           sortOrder: nextSortOrder++,
         },

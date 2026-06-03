@@ -5,12 +5,12 @@ import { createDoorKnockSchema } from "@/lib/validators/door-knock";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
-  const leadId = params.id;
+  const { id: leadId } = await params;
 
   const knocks = await prisma.propertyDoorKnock.findMany({
     where: {
@@ -50,12 +50,12 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
-  const leadId = params.id;
+  const { id: leadId } = await params;
   const body = await request.json();
   const parsed = createDoorKnockSchema.safeParse(body);
 

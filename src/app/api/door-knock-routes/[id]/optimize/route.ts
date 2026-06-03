@@ -6,10 +6,12 @@ import { nearestNeighborTSP } from "@/lib/utils/route-optimizer";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+
+  const { id } = await params;
 
   const body = await request.json();
   const parsed = optimizeRouteSchema.safeParse(body);
@@ -24,7 +26,7 @@ export async function POST(
   // Note: We need to get lat/lng from leads. For now, we'll assume they're not in the schema
   // In a real implementation, you'd need to add lat/lng to the Lead model or fetch from geocoding
   const route = await prisma.doorKnockRoute.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       stops: {
         include: {
@@ -74,7 +76,7 @@ export async function POST(
 
   // Update route with start coordinates and distance
   const updatedRoute = await prisma.doorKnockRoute.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       startLatitude: input.startLat,
       startLongitude: input.startLng,

@@ -154,7 +154,7 @@ export default function CanvassingPage() {
       <PageHeader
         title="Canvassing Leads"
         description="Manage door-to-door canvassing routes and track field activity"
-        action={
+        actions={
           <Button onClick={() => setCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             New Route

@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
     if (!stats.lastKnockAt || knock.knockedAt > stats.lastKnockAt) {
       stats.lastKnockAt = knock.knockedAt;
     }
-  });
+  }
 
   // Count assigned routes per user
   const routeCounts = new Map<string, number>();

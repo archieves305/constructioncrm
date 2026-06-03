@@ -4,12 +4,12 @@ import { getSession, unauthorized } from "@/lib/auth/helpers";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string; knockId: string } }
+  { params }: { params: Promise<{ id: string; knockId: string }> }
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
-  const { knockId } = params;
+  const { knockId } = await params;
 
   // Fetch the knock to check ownership
   const knock = await prisma.propertyDoorKnock.findUnique({

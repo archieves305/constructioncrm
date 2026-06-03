@@ -5,14 +5,16 @@ import { updateDoorKnockRouteSchema } from "@/lib/validators/door-knock";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
+  const { id } = await params;
+
   const route = await prisma.doorKnockRoute.findUnique({
     where: {
-      id: params.id,
+      id,
       isDeleted: false,
     },
     include: {
@@ -67,10 +69,12 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+
+  const { id } = await params;
 
   const body = await request.json();
   const parsed = updateDoorKnockRouteSchema.safeParse(body);
@@ -82,7 +86,7 @@ export async function PATCH(
   const input = parsed.data;
 
   const route = await prisma.doorKnockRoute.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       name: input.name,
       description: input.description,
@@ -106,14 +110,16 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
+  const { id } = await params;
+
   // Soft delete
   const route = await prisma.doorKnockRoute.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       isDeleted: true,
     },
