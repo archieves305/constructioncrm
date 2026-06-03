@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -24,6 +26,7 @@ import {
   TrendingUp,
   Phone as PhoneIcon,
   Users,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -72,7 +75,9 @@ type Stats = {
 
 export default function CanvassingPage() {
   const qc = useQueryClient();
+  const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DoorKnockRoute | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [formState, setFormState] = useState({
     name: "",
@@ -123,6 +128,25 @@ export default function CanvassingPage() {
     },
     onError: () => {
       toast.error("Failed to create route");
+    },
+  });
+
+  // Delete route mutation (soft delete)
+  const deleteRouteMutation = useMutation({
+    mutationFn: async (routeId: string) => {
+      const res = await fetch(`/api/door-knock-routes/${routeId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete route");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Route deleted");
+      qc.invalidateQueries({ queryKey: ["door-knock-routes"] });
+      setDeleteTarget(null);
+    },
+    onError: () => {
+      toast.error("Failed to delete route");
     },
   });
 
@@ -253,7 +277,11 @@ export default function CanvassingPage() {
           </Card>
         ) : (
           routes.map((route) => (
-            <Card key={route.id} className="cursor-pointer hover:bg-gray-50 transition-colors">
+            <Card
+              key={route.id}
+              className="cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={() => router.push(`/canvassing/${route.id}`)}
+            >
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -304,6 +332,17 @@ export default function CanvassingPage() {
                       </div>
                     )}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(route);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -366,6 +405,37 @@ export default function CanvassingPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Route Confirm */}
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this route?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            “{deleteTarget?.name}” and its {deleteTarget?.totalStops ?? 0} stop
+            {deleteTarget?.totalStops === 1 ? "" : "s"} will be removed. Logged
+            door-knocks on the leads are kept.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() =>
+                deleteTarget && deleteRouteMutation.mutate(deleteTarget.id)
+              }
+              disabled={deleteRouteMutation.isPending}
+            >
+              {deleteRouteMutation.isPending ? "Deleting…" : "Delete route"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
