@@ -11,6 +11,9 @@ vi.mock("@/lib/db/prisma", () => ({
     followUpExecution: { findMany: vi.fn(), update: vi.fn() },
     notificationEvent: { create: vi.fn() },
     task: { create: vi.fn() },
+    communication: { create: vi.fn() },
+    lead: { update: vi.fn() },
+    $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
   },
 }));
 

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
+import { env } from "@/lib/env";
+import { logOutboundCommunication } from "@/lib/communications/log";
 
 let jobCounter: number | null = null;
 
@@ -233,13 +235,16 @@ async function sendReviewRequestIfNeeded(
 
   if (job.lead.email && isEmailConfigured()) {
     try {
-      await sendEmail({
-        to: job.lead.email,
-        subject: `Quick favor? Share your experience with us`,
-        html: `<p>Hi ${job.lead.firstName},</p>
+      const subject = `Quick favor? Share your experience with us`;
+      const html = `<p>Hi ${job.lead.firstName},</p>
 <p>Thanks for choosing us for your recent project (${job.jobNumber}). If you have a moment, we'd really appreciate an honest review — it helps other homeowners make informed decisions.</p>
-<p>Thank you!</p>`,
-        text: `Hi ${job.lead.firstName}, thanks for choosing us for ${job.jobNumber}. If you have a moment, we'd appreciate a review.`,
+<p>Thank you!</p>`;
+      const text = `Hi ${job.lead.firstName}, thanks for choosing us for ${job.jobNumber}. If you have a moment, we'd appreciate a review.`;
+      const emailResult = await sendEmail({
+        to: job.lead.email,
+        subject,
+        html,
+        text,
         // Send replies to the rep who triggered the request, not the
         // system FROM address.
         replyTo: sender?.email ?? undefined,
@@ -255,6 +260,17 @@ async function sendReviewRequestIfNeeded(
           title: "Review request email sent",
           createdByUserId: userId,
         },
+      });
+      await logOutboundCommunication({
+        leadId,
+        channel: "EMAIL",
+        provider: "mailersend",
+        from: env.EMAIL_FROM || "",
+        to: job.lead.email,
+        subject,
+        body: text,
+        externalMessageId: emailResult?.id ?? null,
+        createdByUserId: userId,
       });
     } catch (err) {
       console.error("review request email failed", err);

@@ -10,6 +10,7 @@ import {
 import { buildUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { TwilioSmsProvider } from "@/lib/services/notifications/twilio-provider";
 import { env } from "@/lib/env";
+import { logOutboundCommunication } from "@/lib/communications/log";
 
 const ISO_DATE = (d: Date | null | undefined) =>
   d ? d.toISOString().slice(0, 10) : "";
@@ -129,9 +130,10 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
 
         if (template.channel === "SMS") {
           if (!exec.lead.primaryPhone) throw new Error("lead has no phone");
-          await twilio.sendMessage({
+          const fromNumber = env.TWILIO_FROM_NUMBER || "";
+          const smsResult = await twilio.sendMessage({
             to: exec.lead.primaryPhone,
-            from: env.TWILIO_FROM_NUMBER || "",
+            from: fromNumber,
             body,
           });
           await prisma.notificationEvent.create({
@@ -146,6 +148,15 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
               sentAt: new Date(),
             },
           });
+          await logOutboundCommunication({
+            leadId: exec.leadId,
+            channel: "SMS",
+            provider: "twilio",
+            from: fromNumber,
+            to: exec.lead.primaryPhone,
+            body,
+            externalMessageId: smsResult?.externalId ?? null,
+          });
         } else if (template.channel === "EMAIL") {
           if (!exec.lead.email) throw new Error("lead has no email");
           if (exec.lead.emailOptedOut) throw new Error("lead has unsubscribed from email");
@@ -158,10 +169,14 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
             brand,
             includeUnsubscribe: true,
           });
+          const subject = renderTemplate(template.name, {
+            ...context,
+            company: { ...context.company, brand: brand.companyName },
+          });
 
-          await sendEmail({
+          const emailResult = await sendEmail({
             to: exec.lead.email,
-            subject: renderTemplate(template.name, { ...context, company: { ...context.company, brand: brand.companyName } }),
+            subject,
             html: rendered.html,
             text: rendered.text,
             // Route replies to the assigned rep so customers reach a human,
@@ -183,6 +198,16 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
               status: "SENT",
               sentAt: new Date(),
             },
+          });
+          await logOutboundCommunication({
+            leadId: exec.leadId,
+            channel: "EMAIL",
+            provider: "mailersend",
+            from: env.EMAIL_FROM || "",
+            to: exec.lead.email,
+            subject,
+            body: rendered.text || body,
+            externalMessageId: emailResult?.id ?? null,
           });
         } else if (template.channel === "IN_APP") {
           await prisma.notificationEvent.create({
