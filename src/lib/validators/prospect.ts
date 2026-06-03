@@ -42,6 +42,12 @@ export const promoteProspectSchema = z.object({
   serviceCategoryIds: z.array(z.string()).optional(),
 });
 
+// Bulk save from the property map/list. Deduped by reapiId server-side.
+export const bulkCreateProspectSchema = z.object({
+  prospects: z.array(createProspectSchema).min(1).max(200),
+});
+
 export type CreateProspectInput = z.infer<typeof createProspectSchema>;
+export type BulkCreateProspectInput = z.infer<typeof bulkCreateProspectSchema>;
 export type UpdateProspectInput = z.infer<typeof updateProspectSchema>;
 export type PromoteProspectInput = z.infer<typeof promoteProspectSchema>;
