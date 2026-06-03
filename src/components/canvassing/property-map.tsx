@@ -112,5 +112,13 @@ export default function PropertyMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points, selectedIds]);
 
-  return <div ref={containerRef} className="h-[520px] w-full rounded-md border" />;
+  // `relative z-0` isolates Leaflet's internal z-indexes (panes/controls go up
+  // to 1000) into their own stacking context so they can't paint over app
+  // dropdowns/popovers that sit earlier in the DOM.
+  return (
+    <div
+      ref={containerRef}
+      className="relative z-0 h-[520px] w-full rounded-md border"
+    />
+  );
 }
