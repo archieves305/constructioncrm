@@ -30,13 +30,15 @@ export async function POST(
     include: {
       stops: {
         include: {
-          lead: {
+          prospect: {
             select: {
               id: true,
               propertyAddress1: true,
               city: true,
               state: true,
               zipCode: true,
+              latitude: true,
+              longitude: true,
             },
           },
         },
@@ -48,12 +50,13 @@ export async function POST(
     return NextResponse.json({ error: "Route not found" }, { status: 404 });
   }
 
-  // For now, we'll create stops with null lat/lng as placeholders
-  // In production, you'd geocode the addresses or store coordinates
+  // Prospects carry coordinates (from Zylow), so optimization uses real lat/lng.
+  // Stops whose prospect lacks coordinates fall through with null and are kept
+  // in place by the optimizer.
   const stops = route.stops.map((stop) => ({
     id: stop.id,
-    lat: null as number | null, // TODO: Get from geocoded lead address
-    lng: null as number | null, // TODO: Get from geocoded lead address
+    lat: stop.prospect.latitude === null ? null : Number(stop.prospect.latitude),
+    lng: stop.prospect.longitude === null ? null : Number(stop.prospect.longitude),
     sortOrder: stop.sortOrder,
   }));
 
@@ -87,10 +90,10 @@ export async function POST(
     include: {
       stops: {
         include: {
-          lead: {
+          prospect: {
             select: {
               id: true,
-              fullName: true,
+              ownerName: true,
               propertyAddress1: true,
               city: true,
               state: true,

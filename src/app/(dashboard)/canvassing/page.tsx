@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
   Phone as PhoneIcon,
   Users,
   Trash2,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -179,10 +181,24 @@ export default function CanvassingPage() {
         title="Canvassing Leads"
         description="Manage door-to-door canvassing routes and track field activity"
         actions={
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Route
-          </Button>
+          <div className="flex gap-2">
+            <Link href="/canvassing/prospects">
+              <Button variant="outline">
+                <Users className="mr-2 h-4 w-4" />
+                Prospects
+              </Button>
+            </Link>
+            <Link href="/canvassing/properties">
+              <Button variant="outline">
+                <Search className="mr-2 h-4 w-4" />
+                Find Properties
+              </Button>
+            </Link>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Route
+            </Button>
+          </div>
         }
       />
 

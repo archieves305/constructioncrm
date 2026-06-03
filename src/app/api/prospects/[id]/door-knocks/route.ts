@@ -5,41 +5,24 @@ import { createDoorKnockSchema } from "@/lib/validators/door-knock";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
-  const { id: leadId } = await params;
+  const { id: prospectId } = await params;
 
   const knocks = await prisma.propertyDoorKnock.findMany({
-    where: {
-      leadId,
-      isDeleted: false,
-    },
+    where: { prospectId, isDeleted: false },
     include: {
-      knockedBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
+      knockedBy: { select: { id: true, firstName: true, lastName: true } },
       photos: {
-        select: {
-          id: true,
-          fileName: true,
-          storageKey: true,
-          category: true,
-        },
+        select: { id: true, fileName: true, storageKey: true, category: true },
       },
     },
-    orderBy: {
-      knockedAt: "desc",
-    },
+    orderBy: { knockedAt: "desc" },
   });
 
-  // Add photo count to each knock
   const knocksWithCount = knocks.map((knock) => ({
     ...knock,
     photoCount: knock.photos.length,
@@ -50,33 +33,27 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
-  const { id: leadId } = await params;
+  const { id: prospectId } = await params;
   const body = await request.json();
   const parsed = createDoorKnockSchema.safeParse(body);
-
   if (!parsed.success) {
     return badRequest(JSON.stringify(parsed.error.issues));
   }
-
   const input = parsed.data;
 
-  // Validate the lead exists
-  const lead = await prisma.lead.findUnique({
-    where: { id: leadId },
-  });
-
-  if (!lead) {
-    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  const prospect = await prisma.prospect.findUnique({ where: { id: prospectId } });
+  if (!prospect) {
+    return NextResponse.json({ error: "Prospect not found" }, { status: 404 });
   }
 
   const knock = await prisma.propertyDoorKnock.create({
     data: {
-      leadId,
+      prospectId,
       outcome: input.outcome,
       notes: input.notes,
       latitude: input.latitude,
@@ -86,26 +63,17 @@ export async function POST(
       knockedByUserId: session.user.id,
     },
     include: {
-      knockedBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
+      knockedBy: { select: { id: true, firstName: true, lastName: true } },
     },
   });
 
-  // Log activity
-  await prisma.activityLog.create({
-    data: {
-      leadId,
-      activityType: "NOTE",
-      title: `Door knock logged: ${input.outcome.replace(/_/g, " ")}`,
-      description: input.notes,
-      createdByUserId: session.user.id,
-    },
-  });
+  // First contact moves a fresh prospect along the funnel.
+  if (prospect.status === "NEW") {
+    await prisma.prospect.update({
+      where: { id: prospectId },
+      data: { status: "CONTACTED" },
+    });
+  }
 
   return NextResponse.json(knock, { status: 201 });
 }

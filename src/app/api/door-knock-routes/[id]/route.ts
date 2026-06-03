@@ -34,15 +34,18 @@ export async function GET(
       },
       stops: {
         include: {
-          lead: {
+          prospect: {
             select: {
               id: true,
-              fullName: true,
+              ownerName: true,
               propertyAddress1: true,
               city: true,
               state: true,
               zipCode: true,
-              primaryPhone: true,
+              latitude: true,
+              longitude: true,
+              status: true,
+              leadId: true,
             },
           },
           knock: {

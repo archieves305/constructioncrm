@@ -19,7 +19,7 @@ export async function POST(
     return badRequest(JSON.stringify(parsed.error.issues));
   }
 
-  const { leadIds } = parsed.data;
+  const { prospectIds } = parsed.data;
 
   // Get current max sort order for this route
   const maxSortOrder = await prisma.doorKnockRouteStop.aggregate({
@@ -31,19 +31,19 @@ export async function POST(
 
   // Create stops, handling duplicates via UNIQUE constraint
   const stops = [];
-  for (const leadId of leadIds) {
+  for (const prospectId of prospectIds) {
     try {
       const stop = await prisma.doorKnockRouteStop.create({
         data: {
           routeId: id,
-          leadId,
+          prospectId,
           sortOrder: nextSortOrder++,
         },
         include: {
-          lead: {
+          prospect: {
             select: {
               id: true,
-              fullName: true,
+              ownerName: true,
               propertyAddress1: true,
               city: true,
               state: true,

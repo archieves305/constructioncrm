@@ -40,15 +40,16 @@ export async function PATCH(
   const stop = await prisma.doorKnockRouteStop.findUnique({
     where: { id: stopId },
     include: {
-      lead: {
+      prospect: {
         select: {
           id: true,
-          fullName: true,
+          ownerName: true,
           propertyAddress1: true,
           city: true,
           state: true,
           zipCode: true,
-          primaryPhone: true,
+          latitude: true,
+          longitude: true,
         },
       },
       knock: {

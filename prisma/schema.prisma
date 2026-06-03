@@ -311,6 +311,8 @@ model User {
   doorKnocksDeleted    PropertyDoorKnock[] @relation("DoorKnockDeletedBy")
   doorKnockRoutesCreated DoorKnockRoute[] @relation("DoorKnockRouteCreatedBy")
   doorKnockRoutesAssigned DoorKnockRoute[] @relation("DoorKnockRouteAssignedTo")
+  prospectsCreated     Prospect[]        @relation("ProspectCreatedBy")
+  prospectsAssigned    Prospect[]        @relation("ProspectAssignedTo")
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -445,8 +447,7 @@ model Lead {
   followUps      FollowUpExecution[]
   roofEstimates  RoofEstimate[]
   roofrOrders    RoofrOrder[]
-  doorKnocks     PropertyDoorKnock[]
-  routeStops     DoorKnockRouteStop[]
+  prospect       Prospect?
 
   @@index([primaryPhone])
   @@index([email])
@@ -657,7 +658,7 @@ model File {
 
 model PropertyDoorKnock {
   id              String            @id @default(cuid())
-  leadId          String            @map("lead_id")
+  prospectId      String            @map("prospect_id")
   outcome         DoorKnockOutcome
   notes           String?           @db.Text
   latitude        Decimal?          @db.Decimal(10, 7)
@@ -671,14 +672,14 @@ model PropertyDoorKnock {
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
 
-  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  knockedBy User  @relation("DoorKnockKnockedBy", fields: [knockedByUserId], references: [id])
-  deletedBy User? @relation("DoorKnockDeletedBy", fields: [deletedByUserId], references: [id])
+  prospect  Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  knockedBy User     @relation("DoorKnockKnockedBy", fields: [knockedByUserId], references: [id])
+  deletedBy User?    @relation("DoorKnockDeletedBy", fields: [deletedByUserId], references: [id])
 
   photos     File[]
   routeStops DoorKnockRouteStop[]
 
-  @@index([leadId, knockedAt(sort: Desc)])
+  @@index([prospectId, knockedAt(sort: Desc)])
   @@index([knockedByUserId, knockedAt(sort: Desc)])
   @@index([isDeleted])
   @@map("property_door_knocks")
@@ -715,7 +716,7 @@ model DoorKnockRoute {
 model DoorKnockRouteStop {
   id          String               @id @default(cuid())
   routeId     String               @map("route_id")
-  leadId      String               @map("lead_id")
+  prospectId  String               @map("prospect_id")
   sortOrder   Int                  @map("sort_order")
   status      DoorKnockStopStatus  @default(PENDING)
   knockId     String?              @map("knock_id")
@@ -723,11 +724,11 @@ model DoorKnockRouteStop {
   createdAt   DateTime             @default(now()) @map("created_at")
   updatedAt   DateTime             @updatedAt @map("updated_at")
 
-  route DoorKnockRoute      @relation(fields: [routeId], references: [id], onDelete: Cascade)
-  lead  Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  knock PropertyDoorKnock?  @relation(fields: [knockId], references: [id], onDelete: SetNull)
+  route    DoorKnockRoute     @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  prospect Prospect           @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  knock    PropertyDoorKnock? @relation(fields: [knockId], references: [id], onDelete: SetNull)
 
-  @@unique([routeId, leadId])
+  @@unique([routeId, prospectId])
   @@index([routeId, sortOrder])
   @@map("door_knock_route_stops")
 }
@@ -1514,4 +1515,53 @@ model ZylowProperty {
   @@index([state, city])
   @@index([latitude, longitude])
   @@map("zylow_property_cache")
+}
+
+// ─── Canvassing prospects ─────────────────────────────────────────────────────
+// A prospect is the unit of door-to-door canvassing: a property (usually sourced
+// from the Zylow API by GPS/address) that we knock and track BEFORE it becomes a
+// CRM lead. Door-knock routes and knocks reference prospects; when a prospect is
+// worth pursuing it's "promoted" into a Lead (leadId set, status PROMOTED).
+enum ProspectStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  NOT_INTERESTED
+  PROMOTED
+  DEAD
+}
+
+model Prospect {
+  id               String         @id @default(cuid())
+  reapiId          String?        @map("reapi_id") // Zylow/REAPI property id, if sourced from there
+  ownerName        String?        @map("owner_name")
+  propertyAddress1 String         @map("property_address_1")
+  propertyAddress2 String?        @map("property_address_2")
+  city             String
+  state            String         @default("FL")
+  zipCode          String?        @map("zip_code")
+  county           String?
+  latitude         Decimal?       @db.Decimal(10, 7)
+  longitude        Decimal?       @db.Decimal(10, 7)
+  status           ProspectStatus @default(NEW)
+  notes            String?        @db.Text
+  assignedToUserId String?        @map("assigned_to_user_id")
+  createdByUserId  String         @map("created_by_user_id")
+  leadId           String?        @unique @map("lead_id") // set on promotion
+  promotedAt       DateTime?      @map("promoted_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  assignedTo User? @relation("ProspectAssignedTo", fields: [assignedToUserId], references: [id])
+  createdBy  User  @relation("ProspectCreatedBy", fields: [createdByUserId], references: [id])
+  lead       Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  knocks PropertyDoorKnock[]
+  stops  DoorKnockRouteStop[]
+
+  @@index([status])
+  @@index([assignedToUserId])
+  @@index([latitude, longitude])
+  @@index([reapiId])
+  @@map("prospects")
 }

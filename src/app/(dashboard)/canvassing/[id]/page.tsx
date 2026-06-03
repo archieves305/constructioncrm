@@ -41,7 +41,6 @@ import {
   Plus,
   Trash2,
   MapPin,
-  Phone as PhoneIcon,
   User,
   Calendar,
   DoorOpen,
@@ -76,20 +75,23 @@ const labelize = (s: string) =>
     .replace(/_/g, " ")
     .replace(/^\w/, (c) => c.toUpperCase());
 
+type Prospect = {
+  id: string;
+  ownerName: string | null;
+  propertyAddress1: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  status: string;
+  leadId: string | null;
+};
+
 type Stop = {
   id: string;
   sortOrder: number;
   status: StopStatus;
   notes: string | null;
-  lead: {
-    id: string;
-    fullName: string;
-    propertyAddress1: string | null;
-    city: string | null;
-    state: string | null;
-    zipCode: string | null;
-    primaryPhone: string | null;
-  };
+  prospect: Prospect;
   knock: { id: string; outcome: string; knockedAt: string } | null;
 };
 
@@ -104,13 +106,15 @@ type Route = {
   stops: Stop[];
 };
 
-type LeadSearchResult = {
+type ProspectSearchResult = {
   id: string;
-  fullName: string;
+  ownerName: string | null;
   propertyAddress1: string | null;
   city: string | null;
-  primaryPhone: string | null;
 };
+
+const propertyLabel = (p: { ownerName: string | null; propertyAddress1: string | null }) =>
+  p.propertyAddress1 || p.ownerName || "Unknown property";
 
 const statusBadgeVariant = (status: string) => {
   switch (status) {
@@ -157,21 +161,23 @@ export default function RouteDetailPage() {
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const addStops = useMutation({
-    mutationFn: async (leadIds: string[]) => {
+    mutationFn: async (prospectIds: string[]) => {
       const res = await fetch(`/api/door-knock-routes/${id}/stops`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadIds }),
+        body: JSON.stringify({ prospectIds }),
       });
-      if (!res.ok) throw new Error("Failed to add leads");
+      if (!res.ok) throw new Error("Failed to add prospects");
       return res.json();
     },
     onSuccess: (stops: unknown[]) => {
-      toast.success(`Added ${stops.length} lead${stops.length === 1 ? "" : "s"}`);
+      toast.success(
+        `Added ${stops.length} prospect${stops.length === 1 ? "" : "s"}`,
+      );
       setAddOpen(false);
       invalidate();
     },
-    onError: () => toast.error("Failed to add leads"),
+    onError: () => toast.error("Failed to add prospects"),
   });
 
   const updateStop = useMutation({
@@ -247,7 +253,7 @@ export default function RouteDetailPage() {
     onError: () => toast.error("Failed to delete route"),
   });
 
-  // Log a door-knock against the stop's lead, then link it to the stop and
+  // Log a door-knock against the stop's prospect, then link it to the stop and
   // mark the stop visited.
   const logKnock = useMutation({
     mutationFn: async ({
@@ -259,7 +265,7 @@ export default function RouteDetailPage() {
       outcome: Outcome;
       notes: string;
     }) => {
-      const res = await fetch(`/api/leads/${stop.lead.id}/door-knocks`, {
+      const res = await fetch(`/api/prospects/${stop.prospect.id}/door-knocks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ outcome, notes: notes || undefined }),
@@ -331,7 +337,7 @@ export default function RouteDetailPage() {
               <Trash2 className="mr-2 h-4 w-4" /> Delete
             </Button>
             <Button onClick={() => setAddOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Add Leads
+              <Plus className="mr-2 h-4 w-4" /> Add Prospects
             </Button>
           </div>
         }
@@ -376,10 +382,10 @@ export default function RouteDetailPage() {
             <DoorOpen className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No stops yet</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Add leads to this route to start canvassing
+              Add prospects to this route to start canvassing
             </p>
             <Button onClick={() => setAddOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Add Leads
+              <Plus className="mr-2 h-4 w-4" /> Add Prospects
             </Button>
           </CardContent>
         </Card>
@@ -392,21 +398,18 @@ export default function RouteDetailPage() {
                   {idx + 1}
                 </span>
                 <div className="flex-1 min-w-[180px]">
-                  <Link
-                    href={`/leads/${stop.lead.id}`}
-                    className="font-medium hover:underline"
-                  >
-                    {stop.lead.fullName}
-                  </Link>
+                  <div className="font-medium">
+                    {propertyLabel(stop.prospect)}
+                  </div>
                   <div className="text-sm text-muted-foreground">
-                    {[stop.lead.propertyAddress1, stop.lead.city, stop.lead.state]
+                    {[stop.prospect.city, stop.prospect.state, stop.prospect.zipCode]
                       .filter(Boolean)
                       .join(", ") || "No address"}
                   </div>
-                  {stop.lead.primaryPhone && (
+                  {stop.prospect.ownerName && stop.prospect.propertyAddress1 && (
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
-                      <PhoneIcon className="h-3 w-3" />
-                      {stop.lead.primaryPhone}
+                      <User className="h-3 w-3" />
+                      {stop.prospect.ownerName}
                     </div>
                   )}
                 </div>
@@ -456,11 +459,11 @@ export default function RouteDetailPage() {
         </div>
       )}
 
-      <AddLeadsDialog
+      <AddProspectsDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        existingLeadIds={stops.map((s) => s.lead.id)}
-        onAdd={(leadIds) => addStops.mutate(leadIds)}
+        existingProspectIds={stops.map((s) => s.prospect.id)}
+        onAdd={(prospectIds) => addStops.mutate(prospectIds)}
         isPending={addStops.isPending}
       />
 
@@ -489,8 +492,8 @@ export default function RouteDetailPage() {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             “{route.name}” and its {stops.length} stop
-            {stops.length === 1 ? "" : "s"} will be removed. Logged door-knocks
-            on the leads are kept.
+            {stops.length === 1 ? "" : "s"} will be removed. The prospects
+            themselves are kept.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>
@@ -510,50 +513,50 @@ export default function RouteDetailPage() {
   );
 }
 
-// ── Add-leads dialog ─────────────────────────────────────────────────────────
-function AddLeadsDialog({
+// ── Add-prospects dialog ─────────────────────────────────────────────────────
+function AddProspectsDialog({
   open,
   onOpenChange,
-  existingLeadIds,
+  existingProspectIds,
   onAdd,
   isPending,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  existingLeadIds: string[];
-  onAdd: (leadIds: string[]) => void;
+  existingProspectIds: string[];
+  onAdd: (prospectIds: string[]) => void;
   isPending: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const { data, isLoading } = useQuery<{ data: LeadSearchResult[] }>({
-    queryKey: ["lead-search", search],
+  const { data, isLoading } = useQuery<ProspectSearchResult[]>({
+    queryKey: ["prospect-search", search],
     queryFn: async () => {
-      const params = new URLSearchParams({ pageSize: "20" });
+      const params = new URLSearchParams({ limit: "20" });
       if (search.trim()) params.set("search", search.trim());
-      const res = await fetch(`/api/leads?${params}`);
-      if (!res.ok) throw new Error("Failed to search leads");
+      const res = await fetch(`/api/prospects?${params}`);
+      if (!res.ok) throw new Error("Failed to search prospects");
       return res.json();
     },
     enabled: open,
   });
 
-  const existing = new Set(existingLeadIds);
-  const results = (data?.data ?? []).filter((l) => !existing.has(l.id));
+  const existing = new Set(existingProspectIds);
+  const results = (data ?? []).filter((p) => !existing.has(p.id));
 
-  const toggle = (leadId: string) => {
+  const toggle = (prospectId: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(leadId)) next.delete(leadId);
-      else next.add(leadId);
+      if (next.has(prospectId)) next.delete(prospectId);
+      else next.add(prospectId);
       return next;
     });
   };
 
   const handleAdd = () => {
     if (selected.size === 0) {
-      toast.error("Select at least one lead");
+      toast.error("Select at least one prospect");
       return;
     }
     onAdd(Array.from(selected));
@@ -565,11 +568,11 @@ function AddLeadsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add leads to route</DialogTitle>
+          <DialogTitle>Add prospects to route</DialogTitle>
         </DialogHeader>
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search leads by name, address, phone…"
+            placeholder="Search prospects by address or owner…"
             value={search}
             onValueChange={setSearch}
           />
@@ -580,22 +583,22 @@ function AddLeadsDialog({
               </div>
             ) : (
               <>
-                <CommandEmpty>No leads found.</CommandEmpty>
+                <CommandEmpty>
+                  No prospects found. Save some from “Find Properties.”
+                </CommandEmpty>
                 <CommandGroup>
-                  {results.map((lead) => (
+                  {results.map((p) => (
                     <CommandItem
-                      key={lead.id}
-                      value={lead.id}
-                      onSelect={() => toggle(lead.id)}
+                      key={p.id}
+                      value={p.id}
+                      onSelect={() => toggle(p.id)}
                       className="flex items-center gap-3"
                     >
-                      <Checkbox checked={selected.has(lead.id)} />
+                      <Checkbox checked={selected.has(p.id)} />
                       <div className="flex-1">
-                        <div className="font-medium">{lead.fullName}</div>
+                        <div className="font-medium">{propertyLabel(p)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {[lead.propertyAddress1, lead.city]
-                            .filter(Boolean)
-                            .join(", ") || lead.primaryPhone || "—"}
+                          {[p.ownerName, p.city].filter(Boolean).join(" · ") || "—"}
                         </div>
                       </div>
                     </CommandItem>
@@ -744,7 +747,7 @@ function LogKnockDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Log knock{stop ? ` — ${stop.lead.fullName}` : ""}
+            Log knock{stop ? ` — ${propertyLabel(stop.prospect)}` : ""}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">

@@ -34,11 +34,6 @@ export async function GET(request: NextRequest) {
           lastName: true,
         },
       },
-      lead: {
-        select: {
-          id: true,
-        },
-      },
     },
   });
 
@@ -87,7 +82,7 @@ export async function GET(request: NextRequest) {
 
     const stats = userStats.get(userId)!;
     stats.total++;
-    stats.properties.add(knock.leadId);
+    stats.properties.add(knock.prospectId);
     stats.daysActive.add(knock.knockedAt.toISOString().split("T")[0]);
     stats.outcomes[knock.outcome] = (stats.outcomes[knock.outcome] || 0) + 1;
 

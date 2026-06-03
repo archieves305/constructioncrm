@@ -34,7 +34,7 @@ export const updateDoorKnockRouteSchema = createDoorKnockRouteSchema
   });
 
 export const addStopsToRouteSchema = z.object({
-  leadIds: z.array(z.string()).min(1, "At least one lead is required"),
+  prospectIds: z.array(z.string()).min(1, "At least one prospect is required"),
 });
 
 export const optimizeRouteSchema = z.object({
