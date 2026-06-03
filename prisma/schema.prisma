@@ -1483,3 +1483,35 @@ model RoofrOrder {
   @@index([leadId])
   @@map("roofr_orders")
 }
+
+// ─── Zylow property cache ─────────────────────────────────────────────────────
+// Local mirror of zylow.net's read-only property API (canonical shape). We serve
+// from here and refresh from Zylow on a ~24h TTL — never call Zylow from the
+// browser (the API key stays server-side). Keyed by REAPI's property id.
+model ZylowProperty {
+  reapiId              String    @id @map("reapi_id")
+  address              String?
+  city                 String?
+  state                String?
+  zip                  String?
+  county               String?
+  latitude             Decimal?  @db.Decimal(10, 7)
+  longitude            Decimal?  @db.Decimal(10, 7)
+  ownerName            String?   @map("owner_name")
+  bedrooms             Int?
+  bathrooms            Decimal?  @db.Decimal(4, 1)
+  sqft                 Int?
+  yearBuilt            Int?      @map("year_built")
+  propertyType         String?   @map("property_type")
+  roofType             String?   @map("roof_type")
+  lastSaleDate         DateTime? @map("last_sale_date") @db.Date
+  lastSaleAmount       Int?      @map("last_sale_amount")
+  outstandingMortgages Int?      @map("outstanding_mortgages")
+  estimatedValue       Int?      @map("estimated_value")
+  cachedAtZylow        DateTime? @map("cached_at_zylow")
+  fetchedAtLocal       DateTime  @default(now()) @updatedAt @map("fetched_at_local")
+
+  @@index([state, city])
+  @@index([latitude, longitude])
+  @@map("zylow_property_cache")
+}

@@ -36,6 +36,13 @@ const schema = z.object({
   // so the app boots without them; routes 503 when unset.
   ZAPIER_ROOFR_ORDER_URL: z.string().url().optional(),
   ZAPIER_WEBHOOK_SECRET: z.string().optional(),
+
+  // Zylow read-only property API (door-knock enrichment). Key is delivered
+  // over a secure channel and lives only in /etc/knuco/env — never the client.
+  // Optional at boot so the app runs without it; the /api/zylow routes 503
+  // when the key is unset. Base defaults to the public v1 path.
+  ZYLOW_API_KEY: z.string().optional(),
+  ZYLOW_API_BASE: z.string().url().default("https://zylow.net/api/public"),
 });
 
 const parsed = schema.safeParse(process.env);
