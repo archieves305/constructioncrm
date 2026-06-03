@@ -10,7 +10,9 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+    // geolocation=(self) so the canvassing "Near me" property search can read
+    // the device GPS; camera/mic stay fully disabled.
+    value: "camera=(), microphone=(), geolocation=(self), browsing-topics=()",
   },
   // Starter CSP. Tighten once we've inventoried inline scripts/fonts/images.
   // `frame-ancestors 'none'` supersedes X-Frame-Options on modern browsers.
