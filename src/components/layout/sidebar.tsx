@@ -24,6 +24,7 @@ import {
   Calendar,
   Hammer,
   MessageSquare,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { href: "/production", label: "Production", icon: Factory },
   { href: "/permits", label: "Permits", icon: Shield },
   { href: "/schedule", label: "Schedule", icon: Calendar },
+  { href: "/canvassing", label: "Canvassing Leads", icon: MapPin },
   { href: "/crews", label: "Crews", icon: Hammer, roles: ["ADMIN", "MANAGER"] },
   { href: "/collections", label: "Collections", icon: DollarSign },
   { href: "/referrals", label: "Referrals", icon: DollarSign, roles: ["ADMIN", "MANAGER"] },

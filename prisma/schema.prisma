@@ -196,6 +196,30 @@ enum FileCategory {
   OTHER
 }
 
+enum DoorKnockOutcome {
+  NO_ANSWER
+  SPOKE_WITH_OWNER
+  SPOKE_WITH_OCCUPANT
+  LEFT_DOOR_HANGER
+  VACANT
+  HOSTILE
+  GATE_BLOCKED
+  OTHER
+}
+
+enum DoorKnockRouteStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+}
+
+enum DoorKnockStopStatus {
+  PENDING
+  VISITED
+  SKIPPED
+}
+
 enum PermitStatus {
   APPLIED
   ISSUED
@@ -283,6 +307,10 @@ model User {
   auditEvents       AuditEvent[]
   roofEstimatesCreated RoofEstimate[]    @relation("RoofEstimateCreatedBy")
   roofrOrdersCreated   RoofrOrder[]      @relation("RoofrOrderCreatedBy")
+  doorKnocksCreated    PropertyDoorKnock[] @relation("DoorKnockKnockedBy")
+  doorKnocksDeleted    PropertyDoorKnock[] @relation("DoorKnockDeletedBy")
+  doorKnockRoutesCreated DoorKnockRoute[] @relation("DoorKnockRouteCreatedBy")
+  doorKnockRoutesAssigned DoorKnockRoute[] @relation("DoorKnockRouteAssignedTo")
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -417,6 +445,8 @@ model Lead {
   followUps      FollowUpExecution[]
   roofEstimates  RoofEstimate[]
   roofrOrders    RoofrOrder[]
+  doorKnocks     PropertyDoorKnock[]
+  routeStops     DoorKnockRouteStop[]
 
   @@index([primaryPhone])
   @@index([email])
@@ -611,13 +641,95 @@ model File {
   fileSize         Int          @map("file_size")
   category         FileCategory @default(OTHER)
   uploadedByUserId String       @map("uploaded_by_user_id")
+  doorKnockId      String?      @map("door_knock_id")
   createdAt        DateTime     @default(now()) @map("created_at")
 
-  lead       Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  uploadedBy User @relation(fields: [uploadedByUserId], references: [id])
+  lead       Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  uploadedBy User             @relation(fields: [uploadedByUserId], references: [id])
+  doorKnock  PropertyDoorKnock? @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
 
   @@index([leadId])
+  @@index([doorKnockId])
   @@map("files")
+}
+
+// ─── Door Knock / Canvassing ────────────────────────────────────────────────
+
+model PropertyDoorKnock {
+  id              String            @id @default(cuid())
+  leadId          String            @map("lead_id")
+  outcome         DoorKnockOutcome
+  notes           String?           @db.Text
+  latitude        Decimal?          @db.Decimal(10, 7)
+  longitude       Decimal?          @db.Decimal(10, 7)
+  accuracyMeters  Decimal?          @map("accuracy_meters") @db.Decimal(7, 2)
+  knockedAt       DateTime          @default(now()) @map("knocked_at")
+  knockedByUserId String            @map("knocked_by_user_id")
+  isDeleted       Boolean           @default(false) @map("is_deleted")
+  deletedAt       DateTime?         @map("deleted_at")
+  deletedByUserId String?           @map("deleted_by_user_id")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  knockedBy User  @relation("DoorKnockKnockedBy", fields: [knockedByUserId], references: [id])
+  deletedBy User? @relation("DoorKnockDeletedBy", fields: [deletedByUserId], references: [id])
+
+  photos     File[]
+  routeStops DoorKnockRouteStop[]
+
+  @@index([leadId, knockedAt(sort: Desc)])
+  @@index([knockedByUserId, knockedAt(sort: Desc)])
+  @@index([isDeleted])
+  @@map("property_door_knocks")
+}
+
+model DoorKnockRoute {
+  id                 String                @id @default(cuid())
+  name               String
+  description        String?               @db.Text
+  status             DoorKnockRouteStatus  @default(PLANNED)
+  scheduledFor       DateTime?             @map("scheduled_for") @db.Date
+  totalDistanceMiles Decimal?              @map("total_distance_miles") @db.Decimal(8, 2)
+  startLatitude      Decimal?              @map("start_latitude") @db.Decimal(10, 7)
+  startLongitude     Decimal?              @map("start_longitude") @db.Decimal(10, 7)
+  startLabel         String?               @map("start_label")
+  isRoundTrip        Boolean               @default(true) @map("is_round_trip")
+  createdByUserId    String                @map("created_by_user_id")
+  assignedToUserId   String?               @map("assigned_to_user_id")
+  isDeleted          Boolean               @default(false) @map("is_deleted")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+
+  createdBy  User  @relation("DoorKnockRouteCreatedBy", fields: [createdByUserId], references: [id])
+  assignedTo User? @relation("DoorKnockRouteAssignedTo", fields: [assignedToUserId], references: [id])
+
+  stops DoorKnockRouteStop[]
+
+  @@index([status, isDeleted])
+  @@index([assignedToUserId])
+  @@index([createdByUserId])
+  @@map("door_knock_routes")
+}
+
+model DoorKnockRouteStop {
+  id          String               @id @default(cuid())
+  routeId     String               @map("route_id")
+  leadId      String               @map("lead_id")
+  sortOrder   Int                  @map("sort_order")
+  status      DoorKnockStopStatus  @default(PENDING)
+  knockId     String?              @map("knock_id")
+  notes       String?              @db.Text
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  route DoorKnockRoute      @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  lead  Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  knock PropertyDoorKnock?  @relation(fields: [knockId], references: [id], onDelete: SetNull)
+
+  @@unique([routeId, leadId])
+  @@index([routeId, sortOrder])
+  @@map("door_knock_route_stops")
 }
 
 // ─── Automation (Future) ────────────────────────────────────────────────────
