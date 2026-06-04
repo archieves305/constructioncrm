@@ -25,8 +25,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, DoorOpen, MapPin, Search, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, DoorOpen, FileText, MapPin, Search, Trash2, UserPlus } from "lucide-react";
+import { CanvasserSummaryModal } from "@/components/canvassing/canvasser-summary-modal";
 
 type Outcome =
   | "NO_ANSWER"
@@ -63,6 +65,7 @@ const labelize = (s: string) =>
 
 type Prospect = {
   id: string;
+  reapiId: string | null;
   ownerName: string | null;
   propertyAddress1: string;
   city: string;
@@ -84,10 +87,12 @@ const statusVariant = (s: string) =>
 
 export default function ProspectsPage() {
   const qc = useQueryClient();
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [knockProspect, setKnockProspect] = useState<Prospect | null>(null);
   const [promoteProspect, setPromoteProspect] = useState<Prospect | null>(null);
+  const [summaryProspect, setSummaryProspect] = useState<Prospect | null>(null);
 
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ["prospects"] });
@@ -241,6 +246,16 @@ export default function ProspectsPage() {
                   </Button>
                 )}
 
+                {p.reapiId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSummaryProspect(p)}
+                  >
+                    <FileText className="mr-2 h-4 w-4" /> Canvasser Summary
+                  </Button>
+                )}
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -280,6 +295,33 @@ export default function ProspectsPage() {
         onPromoted={() => {
           setPromoteProspect(null);
           invalidate();
+        }}
+      />
+
+      <CanvasserSummaryModal
+        reapiId={summaryProspect?.reapiId ?? null}
+        open={!!summaryProspect?.reapiId}
+        onOpenChange={(o) => !o && setSummaryProspect(null)}
+        actions={{
+          saveLabel: summaryProspect?.leadId ? "View lead" : "Save as lead",
+          onSaveAsLead: () => {
+            const p = summaryProspect;
+            setSummaryProspect(null);
+            if (!p) return;
+            if (p.leadId) router.push(`/leads/${p.leadId}`);
+            else setPromoteProspect(p);
+          },
+          onMarkKnocked: () => {
+            const p = summaryProspect;
+            setSummaryProspect(null);
+            if (p) setKnockProspect(p);
+          },
+          onSchedule: () => {
+            const p = summaryProspect;
+            setSummaryProspect(null);
+            if (p?.leadId) router.push(`/leads/${p.leadId}`);
+            else router.push("/schedule");
+          },
         }}
       />
     </div>

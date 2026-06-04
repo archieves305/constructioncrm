@@ -25,6 +25,7 @@ import {
   Hammer,
   MessageSquare,
   MapPin,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -77,6 +78,12 @@ const navItems: NavItem[] = [
     href: "/admin/job-task-templates",
     label: "Job Task Templates",
     icon: CheckSquare,
+    roles: ["ADMIN", "MANAGER"],
+  },
+  {
+    href: "/admin/canvassing-settings",
+    label: "Lead Scoring",
+    icon: Gauge,
     roles: ["ADMIN", "MANAGER"],
   },
   {

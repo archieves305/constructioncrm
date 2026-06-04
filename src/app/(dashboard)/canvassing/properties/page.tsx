@@ -27,8 +27,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Crosshair, MapPin, Search } from "lucide-react";
+import { ArrowLeft, Crosshair, FileText, MapPin, Search } from "lucide-react";
 import type { MapPoint } from "@/components/canvassing/property-map";
+import { KnockScoreBadge } from "@/components/canvassing/knock-score-badge";
+import { CanvasserSummaryModal } from "@/components/canvassing/canvasser-summary-modal";
 
 const PropertyMap = dynamic(
   () => import("@/components/canvassing/property-map"),
@@ -36,20 +38,27 @@ const PropertyMap = dynamic(
 );
 
 type PropertyRecord = {
-  id: string;
+  reapiId: string;
   address: string | null;
   city: string | null;
   state: string | null;
   zip: string | null;
-  county: string | null;
+  ownerName: string | null;
+  ownerOccupied: boolean | null;
   latitude: number | null;
   longitude: number | null;
-  owner_name: string | null;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  sqft: number | null;
-  estimated_value: number | null;
-  distance_miles?: number | null;
+  distanceMiles: number | null;
+  yearBuilt: number | null;
+  ownedSince: number | null;
+  estimatedValue: number | null;
+  estimatedEquity: number | null;
+  equityPercentage: number | null;
+  roofType: string | null;
+  estimatedRoofAge: number | null;
+  roofAgeBasis: "permit" | "yearBuilt" | "unknown";
+  knockScore: number;
+  knockScoreTier: string | null;
+  priority: "high" | "medium" | "low";
 };
 
 type Center = { lat: number; lng: number; label: string };
@@ -71,28 +80,40 @@ async function fetchJson(url: string) {
 
 function toProspectPayload(p: PropertyRecord) {
   return {
-    reapiId: p.id,
-    ownerName: p.owner_name ?? undefined,
+    reapiId: p.reapiId,
+    ownerName: p.ownerName ?? undefined,
     propertyAddress1: p.address ?? "Unknown",
     city: p.city ?? "Unknown",
     state: p.state ?? "FL",
     zipCode: p.zip ?? undefined,
-    county: p.county ?? undefined,
     latitude: p.latitude ?? undefined,
     longitude: p.longitude ?? undefined,
   };
 }
 
+const roofAgeShort = (p: PropertyRecord) =>
+  p.estimatedRoofAge == null
+    ? "Unknown"
+    : p.roofAgeBasis === "permit"
+      ? `${p.estimatedRoofAge} yrs`
+      : `~${p.estimatedRoofAge} yrs`;
+
+const equityShort = (p: PropertyRecord) =>
+  p.estimatedEquity == null
+    ? "Unknown"
+    : `${money(p.estimatedEquity)}${p.equityPercentage != null ? ` / ${p.equityPercentage}%` : ""}`;
+
 export default function FindPropertiesPage() {
   const [center, setCenter] = useState<Center | null>(null);
   const [radius, setRadius] = useState("5");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [summaryReapiId, setSummaryReapiId] = useState<string | null>(null);
 
   const nearby = useQuery<{ results: PropertyRecord[]; count: number }>({
-    queryKey: ["zylow-nearby", center?.lat, center?.lng, radius],
+    queryKey: ["canvassing-properties", center?.lat, center?.lng, radius],
     queryFn: () =>
       fetchJson(
-        `/api/zylow/nearby?lat=${center!.lat}&lng=${center!.lng}&radius_miles=${radius}&limit=200`,
+        `/api/canvassing/properties?lat=${center!.lat}&lng=${center!.lng}&radius_miles=${radius}&limit=200`,
       ),
     enabled: !!center,
   });
@@ -105,10 +126,10 @@ export default function FindPropertiesPage() {
   const points: MapPoint[] = useMemo(
     () =>
       mapped.map((p) => ({
-        id: p.id,
+        id: p.reapiId,
         lat: p.latitude as number,
         lng: p.longitude as number,
-        label: `${p.address ?? "Property"}${p.owner_name ? ` — ${p.owner_name}` : ""}`,
+        label: `${p.address ?? "Property"} — ${p.knockScore}${p.ownerName ? ` · ${p.ownerName}` : ""}`,
       })),
     [mapped],
   );
@@ -116,7 +137,7 @@ export default function FindPropertiesPage() {
   // Drop selections that are no longer in the result set when the search changes.
   useEffect(() => {
     setSelected((prev) => {
-      const ids = new Set(results.map((r) => r.id));
+      const ids = new Set(results.map((r) => r.reapiId));
       const next = new Set([...prev].filter((id) => ids.has(id)));
       return next.size === prev.size ? prev : next;
     });
@@ -132,9 +153,24 @@ export default function FindPropertiesPage() {
 
   const allSelected = results.length > 0 && selected.size === results.length;
   const toggleAll = () =>
-    setSelected(allSelected ? new Set() : new Set(results.map((r) => r.id)));
+    setSelected(allSelected ? new Set() : new Set(results.map((r) => r.reapiId)));
 
-  const selectedRecords = results.filter((r) => selected.has(r.id));
+  const selectedRecords = results.filter((r) => selected.has(r.reapiId));
+
+  const saveOne = useMutation({
+    mutationFn: async (rec: PropertyRecord) => {
+      const res = await fetch("/api/prospects/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prospects: [toProspectPayload(rec)] }),
+      });
+      if (!res.ok) throw new Error("Failed to save prospect");
+      return res.json() as Promise<{ created: number; existing: number }>;
+    },
+    onSuccess: (r) =>
+      toast.success(r.created ? "Saved as prospect" : "Already a prospect"),
+    onError: () => toast.error("Failed to save prospect"),
+  });
 
   return (
     <div className="space-y-6">
@@ -197,30 +233,48 @@ export default function FindPropertiesPage() {
                 <div className="space-y-2">
                   {results.map((p) => (
                     <div
-                      key={p.id}
-                      onClick={() => toggle(p.id)}
+                      key={p.reapiId}
+                      onClick={() => toggle(p.reapiId)}
                       className="flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm hover:bg-gray-50"
                     >
                       <Checkbox
-                        checked={selected.has(p.id)}
+                        checked={selected.has(p.reapiId)}
                         className="pointer-events-none mt-0.5"
                       />
-                      <div className="flex-1">
-                        <div className="font-medium">{p.address ?? "Property"}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{p.address ?? "Property"}</span>
+                          <KnockScoreBadge
+                            score={p.knockScore}
+                            tier={p.knockScoreTier}
+                            priority={p.priority}
+                          />
+                        </div>
                         <div className="text-xs text-muted-foreground">
                           {[p.city, p.state].filter(Boolean).join(", ")}
-                          {p.owner_name ? ` · ${p.owner_name}` : ""}
+                          {p.ownerName ? ` · ${p.ownerName}` : ""}
+                          {p.ownerOccupied === false && " · Absentee"}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {money(p.estimated_value)}
-                          {p.bedrooms != null && ` · ${p.bedrooms}bd`}
-                          {p.bathrooms != null && `/${p.bathrooms}ba`}
-                          {p.latitude == null && " · no map location"}
+                        <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                          <span>Built: {p.yearBuilt ?? "—"}</span>
+                          <span>Owned since: {p.ownedSince ?? "—"}</span>
+                          <span>Roof age: {roofAgeShort(p)}</span>
+                          <span>Equity: {equityShort(p)}</span>
                         </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSummaryReapiId(p.reapiId);
+                          }}
+                          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+                        >
+                          <FileText className="h-3.5 w-3.5" /> View Canvasser Summary
+                        </button>
                       </div>
-                      {p.distance_miles != null && (
+                      {p.distanceMiles != null && (
                         <span className="whitespace-nowrap text-xs text-muted-foreground">
-                          {p.distance_miles.toFixed(2)} mi
+                          {p.distanceMiles.toFixed(2)} mi
                         </span>
                       )}
                     </div>
@@ -248,6 +302,19 @@ export default function FindPropertiesPage() {
           </CardContent>
         </Card>
       )}
+
+      <CanvasserSummaryModal
+        reapiId={summaryReapiId}
+        open={!!summaryReapiId}
+        onOpenChange={(o) => !o && setSummaryReapiId(null)}
+        actions={{
+          saveLabel: "Save as prospect",
+          onSaveAsLead: () => {
+            const rec = results.find((r) => r.reapiId === summaryReapiId);
+            if (rec) saveOne.mutate(rec);
+          },
+        }}
+      />
     </div>
   );
 }

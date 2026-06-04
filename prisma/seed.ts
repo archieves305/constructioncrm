@@ -2,6 +2,15 @@ import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
+import type { ZylowPropertyRecord } from "../src/lib/services/zylow/types";
+import { normalizeFromZylow } from "../src/lib/services/canvassing/normalize";
+import { computeKnockScore } from "../src/lib/services/canvassing/score";
+import { buildCanvasserSummary } from "../src/lib/services/canvassing/summary";
+import {
+  DEFAULT_COMPLIANCE_DISCLAIMER,
+  DEFAULT_OPENING_SCRIPT,
+  DEFAULT_SCORING_CONFIG,
+} from "../src/lib/services/canvassing/scoring-config";
 
 const connectionString = process.env.DATABASE_URL!;
 console.log("Connecting to:", connectionString.replace(/\/\/.*@/, "//***@"));
@@ -157,6 +166,124 @@ async function main() {
     },
   });
   console.log(`  Demo manager seeded: ${mgr.email}`);
+
+  // ── Canvassing lead scoring (settings + demo scored properties) ───────────
+  await prisma.canvassingSettings.upsert({
+    where: { id: "default" },
+    update: {},
+    create: {
+      id: "default",
+      scoringConfigJson: DEFAULT_SCORING_CONFIG as object,
+      defaultOpeningScript: DEFAULT_OPENING_SCRIPT,
+      complianceDisclaimer: DEFAULT_COMPLIANCE_DISCLAIMER,
+    },
+  });
+
+  // Build full Zylow-shaped records (extra fields like owner_occupied /
+  // last_roof_permit_date ride along as the raw payload), then score them through
+  // the real pipeline so demo numbers match production exactly. Spread across
+  // tiers: Excellent → Skip, incl. one absentee and one unknown-roof-age.
+  const zrec = (
+    o: Partial<ZylowPropertyRecord> & Record<string, unknown> & { id: string },
+  ): ZylowPropertyRecord =>
+    ({
+      address: null, city: null, state: "FL", zip: null, county: null,
+      latitude: null, longitude: null, owner_name: null, bedrooms: null,
+      bathrooms: null, sqft: null, year_built: null, property_type: null,
+      roof_type: null, last_sale_date: null, last_sale_amount: null,
+      outstanding_mortgages: null, estimated_value: null, cached_at: null,
+      ...o,
+    }) as ZylowPropertyRecord;
+
+  const demoRecords: ZylowPropertyRecord[] = [
+    zrec({
+      id: "demo-excellent", address: "1423 Example St", city: "Fort Lauderdale",
+      zip: "33301", owner_name: "John Smith", year_built: 1998,
+      roof_type: "Asphalt Shingle", last_sale_date: "2006-05-01",
+      last_sale_amount: 320000, outstanding_mortgages: 150000,
+      estimated_value: 600000, owner_occupied: true,
+      last_roof_permit_date: "2007-03-01", sqft: 2100, stories: 1,
+    }),
+    zrec({
+      id: "demo-strong", address: "88 Palm Ave", city: "Pompano Beach",
+      zip: "33060", owner_name: "Maria Lopez", year_built: 1992, roof_type: "Tile",
+      last_sale_date: "2014-08-15", last_sale_amount: 260000,
+      outstanding_mortgages: 240000, estimated_value: 480000, owner_occupied: true,
+      sqft: 1850, stories: 1,
+    }),
+    zrec({
+      id: "demo-average", address: "1200 Ocean Dr", city: "Hollywood",
+      zip: "33019", owner_name: "Dan Reed", year_built: 2014,
+      last_sale_date: "2015-02-01", last_sale_amount: 290000,
+      outstanding_mortgages: 245000, estimated_value: 350000, owner_occupied: true,
+      sqft: 1600,
+    }),
+    zrec({
+      id: "demo-absentee", address: "5 Rental Ct", city: "Miami", zip: "33133",
+      owner_name: "Acme Holdings LLC", year_built: 2018,
+      mailing_address: "PO Box 900, Atlanta GA", last_sale_date: "2024-01-10",
+      last_sale_amount: 295000, outstanding_mortgages: 270000,
+      estimated_value: 300000, owner_occupied: false,
+      last_roof_permit_date: "2023-06-01", sqft: 1400,
+    }),
+    zrec({
+      id: "demo-unknown-roof", address: "77 Mystery Ln", city: "Davie",
+      zip: "33324", owner_name: "Pat Kim", last_sale_date: "2010-09-20",
+      last_sale_amount: 210000, outstanding_mortgages: 100000,
+      estimated_value: 420000, sqft: 1750,
+    }),
+  ];
+
+  const toDate = (s: string | null) => (s ? new Date(s) : null);
+  for (const rec of demoRecords) {
+    const n = normalizeFromZylow(rec);
+    const result = computeKnockScore(n, DEFAULT_SCORING_CONFIG);
+    const summary = buildCanvasserSummary(n, result, {
+      defaultOpeningScript: DEFAULT_OPENING_SCRIPT,
+      complianceDisclaimer: DEFAULT_COMPLIANCE_DISCLAIMER,
+      highEquityThreshold: DEFAULT_SCORING_CONFIG.highEquityThreshold,
+    });
+    const data = {
+      reapiId: n.reapiId, propertyAddress: n.propertyAddress, city: n.city,
+      state: n.state, zip: n.zip, ownerName: n.ownerName,
+      mailingAddress: n.mailingAddress, ownerOccupied: n.ownerOccupied,
+      yearBuilt: n.yearBuilt, ownedSince: n.ownedSince,
+      lastSaleDate: toDate(n.lastSaleDate), lastSalePrice: n.lastSalePrice,
+      estimatedValue: n.estimatedValue,
+      estimatedMortgageBalance: n.estimatedMortgageBalance,
+      estimatedEquity: n.estimatedEquity, equityPercentage: n.equityPercentage,
+      lastRoofPermitDate: toDate(n.lastRoofPermitDate),
+      estimatedRoofAge: result.breakdown.roofAge.years, roofType: n.roofType,
+      propertyType: n.propertyType, buildingSqft: n.buildingSqft,
+      stories: n.stories, lotSizeSqft: n.lotSizeSqft, knockScore: result.score,
+      knockScoreTier: result.tier, recommendedOpening: summary.recommendedOpening,
+      canvasserSummaryJson: summary as object, realapiRawJson: rec as object,
+      lastRealapiSyncAt: new Date(),
+    };
+    await prisma.canvassingProperty.upsert({
+      where: { reapiId: n.reapiId },
+      update: data,
+      create: data,
+    });
+  }
+  console.log(`  Canvassing: ${demoRecords.length} demo properties scored`);
+
+  // A couple of demo prospects linked by reapiId so the Canvasser Summary button
+  // shows up on the prospects list.
+  for (const [reapiId, addr, city, zip, owner] of [
+    ["demo-excellent", "1423 Example St", "Fort Lauderdale", "33301", "John Smith"],
+    ["demo-absentee", "5 Rental Ct", "Miami", "33133", "Acme Holdings LLC"],
+  ] as const) {
+    const existing = await prisma.prospect.findFirst({ where: { reapiId } });
+    if (!existing) {
+      await prisma.prospect.create({
+        data: {
+          reapiId, ownerName: owner, propertyAddress1: addr, city, state: "FL",
+          zipCode: zip, createdByUserId: admin.id,
+        },
+      });
+    }
+  }
 
   console.log("Seeding complete!");
 }

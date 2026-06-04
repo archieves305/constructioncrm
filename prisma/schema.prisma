@@ -1565,3 +1565,68 @@ model Prospect {
   @@index([reapiId])
   @@map("prospects")
 }
+
+// ─── Canvassing lead scoring ──────────────────────────────────────────────────
+// Enriched, scored property record powering the Find Properties "Knock Score" and
+// the Canvasser One-Screen Summary. Sourced from the Zylow/REAPI data (keyed by
+// reapiId, the same id Prospect.reapiId carries). The full upstream payload is
+// kept in realapi_raw_json for re-scoring/reference; the most-used fields are
+// normalized into columns for fast list/sort/display. last_realapi_sync_at drives
+// the 30-day refresh rule (see CanvassingSettings.cacheTtlDays).
+model CanvassingProperty {
+  id                       String    @id @default(cuid())
+  reapiId                  String    @unique @map("reapi_id")
+  propertyAddress          String?   @map("property_address")
+  city                     String?
+  state                    String?
+  zip                      String?
+  ownerName                String?   @map("owner_name")
+  mailingAddress           String?   @map("mailing_address")
+  ownerOccupied            Boolean?  @map("owner_occupied")
+  yearBuilt                Int?      @map("year_built")
+  ownedSince               Int?      @map("owned_since")
+  lastSaleDate             DateTime? @map("last_sale_date") @db.Date
+  lastSalePrice            Int?      @map("last_sale_price")
+  estimatedValue           Int?      @map("estimated_value")
+  estimatedMortgageBalance Int?      @map("estimated_mortgage_balance")
+  estimatedEquity          Int?      @map("estimated_equity")
+  equityPercentage         Int?      @map("equity_percentage")
+  lastRoofPermitDate       DateTime? @map("last_roof_permit_date") @db.Date
+  estimatedRoofAge         Int?      @map("estimated_roof_age")
+  roofType                 String?   @map("roof_type")
+  propertyType             String?   @map("property_type")
+  buildingSqft             Int?      @map("building_sqft")
+  stories                  Int?
+  lotSizeSqft              Int?      @map("lot_size_sqft")
+  knockScore               Int       @default(0) @map("knock_score")
+  knockScoreTier           String?   @map("knock_score_tier")
+  recommendedOpening       String?   @map("recommended_opening") @db.Text
+  canvasserSummaryJson     Json?     @map("canvasser_summary_json")
+  realapiRawJson           Json?     @map("realapi_raw_json")
+  lastRealapiSyncAt        DateTime? @map("last_realapi_sync_at")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+
+  @@index([knockScore])
+  @@index([state, city])
+  @@map("canvassing_properties")
+}
+
+// Singleton (id = "default") admin configuration for canvassing lead scoring:
+// the full per-rule Knock Score config (JSON), display/visibility toggles, the
+// default opening script, and the compliance disclaimer. Mirrors the EmailBrand
+// singleton pattern.
+model CanvassingSettings {
+  id                     String   @id @default("default")
+  scoringConfigJson      Json     @map("scoring_config_json")
+  minPriorityScore       Int      @default(50) @map("min_priority_score")
+  showAbsenteeOwners     Boolean  @default(true) @map("show_absentee_owners")
+  hideLowScoreProperties Boolean  @default(false) @map("hide_low_score_properties")
+  cacheTtlDays           Int      @default(30) @map("cache_ttl_days")
+  defaultOpeningScript   String   @map("default_opening_script") @db.Text
+  complianceDisclaimer   String   @map("compliance_disclaimer") @db.Text
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  @@map("canvassing_settings")
+}
