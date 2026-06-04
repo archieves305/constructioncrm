@@ -42,11 +42,12 @@ describe("computeKnockScore — section logic", () => {
     expect(computeKnockScore(n, DEFAULT_SCORING_CONFIG, NOW).breakdown.roof).toBe(30);
   });
 
-  it("caps roof age inferred from year built at the unknown-but-old value", () => {
-    // No permit, built 1998 (28y old) → unknownAgeBuiltOver20 = 25, plus
-    // no-permit/15+ bonus = +5 → 30 (not the confirmed-old-roof 35).
+  it("caps roof age inferred from year built well below a confirmed old roof", () => {
+    // No permit, built 1998 (28y old) → unknownAgeBuiltOver20 = 15, and the
+    // no-permit/15+ bonus is 0 (missing permits are a data gap, not signal) → 15
+    // (far below the confirmed-old-roof 35).
     const n = mk({ yearBuilt: 1998 });
-    expect(computeKnockScore(n, DEFAULT_SCORING_CONFIG, NOW).breakdown.roof).toBe(30);
+    expect(computeKnockScore(n, DEFAULT_SCORING_CONFIG, NOW).breakdown.roof).toBe(15);
   });
 
   it("subtracts for a roof permit pulled within the last 10 years", () => {

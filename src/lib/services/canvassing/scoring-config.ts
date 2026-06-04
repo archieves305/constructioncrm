@@ -74,8 +74,14 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
       { min: 16, max: 20, points: 25 },
       { min: 21, max: null, points: 35 },
     ],
-    unknownAgeBuiltOver20Points: 25,
-    permitNoneBuilt15PlusBonus: 5,
+    // Roof age is only *inferred* from the home's age (no permit on record — the
+    // common case, since the property API rarely carries permits). Kept well below
+    // the permit-confirmed old-roof band (35) so an unconfirmed old home doesn't
+    // auto-inflate to the top of the list.
+    unknownAgeBuiltOver20Points: 15,
+    // "No roof permit on record" is a data gap, not evidence of an old roof, when
+    // the source almost never reports permits — so it carries no positive signal.
+    permitNoneBuilt15PlusBonus: 0,
     permitWithin10YearsPenalty: 10,
     permitOlderThan15YearsBonus: 5,
   },
