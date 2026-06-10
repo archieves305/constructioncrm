@@ -1034,14 +1034,12 @@ model LaborContract {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  budgetLineId String? @map("budget_line_id")
-
   job          Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
   crew         Crew?              @relation(fields: [crewId], references: [id])
   createdBy    User               @relation(fields: [createdByUserId], references: [id])
-  budgetLine   BudgetLine?        @relation(fields: [budgetLineId], references: [id], onDelete: SetNull)
   payments     LaborPayment[]
   changeOrders LaborChangeOrder[]
+  budgetAllocations BudgetAllocation[]
 
   @@index([jobId])
   @@map("labor_contracts")
@@ -1057,12 +1055,29 @@ model BudgetLine {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  job            Job             @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  expenses       JobExpense[]
-  laborContracts LaborContract[]
+  job         Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  allocations BudgetAllocation[]
 
   @@index([jobId])
   @@map("budget_lines")
+}
+
+model BudgetAllocation {
+  id              String   @id @default(cuid())
+  budgetLineId    String   @map("budget_line_id")
+  expenseId       String?  @map("expense_id")
+  laborContractId String?  @map("labor_contract_id")
+  amount          Decimal  @db.Decimal(12, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  budgetLine    BudgetLine     @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
+  expense       JobExpense?    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  laborContract LaborContract? @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
+
+  @@index([budgetLineId])
+  @@index([expenseId])
+  @@index([laborContractId])
+  @@map("budget_allocations")
 }
 
 model LaborChangeOrder {
@@ -1163,13 +1178,12 @@ model JobExpense {
   // Idempotency key for upstream integrations (cc-allocator sends txn.id).
   // Nullable so manually-created expenses are unaffected.
   externalId          String?             @unique @map("external_id")
-  budgetLineId        String?             @map("budget_line_id")
   createdAt           DateTime            @default(now()) @map("created_at")
   updatedAt           DateTime            @updatedAt @map("updated_at")
 
-  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  createdBy  User        @relation(fields: [createdByUserId], references: [id])
-  budgetLine BudgetLine? @relation(fields: [budgetLineId], references: [id], onDelete: SetNull)
+  job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdBy         User               @relation(fields: [createdByUserId], references: [id])
+  budgetAllocations BudgetAllocation[]
 
   @@index([jobId])
   @@index([type])

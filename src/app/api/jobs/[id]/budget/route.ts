@@ -15,16 +15,12 @@ export async function GET(
     where: { jobId: id },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     include: {
-      expenses: {
-        select: { id: true, vendor: true, type: true, amount: true },
-      },
-      laborContracts: {
+      allocations: {
         select: {
           id: true,
-          label: true,
-          contractAmount: true,
-          crew: { select: { name: true } },
-          changeOrders: { select: { amount: true } },
+          amount: true,
+          expenseId: true,
+          laborContractId: true,
         },
       },
     },
