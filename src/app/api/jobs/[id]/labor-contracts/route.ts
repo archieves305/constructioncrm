@@ -30,6 +30,7 @@ export async function GET(
       crew: { select: { id: true, name: true } },
       createdBy: { select: { firstName: true, lastName: true } },
       payments: { orderBy: { paidDate: "desc" } },
+      changeOrders: { orderBy: { changeDate: "asc" } },
     },
   });
   return NextResponse.json(contracts);

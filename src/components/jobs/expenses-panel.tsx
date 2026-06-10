@@ -264,12 +264,14 @@ export function ExpensesPanel({
   jobType,
   contractAmount,
   costPlus,
+  laborTotal = 0,
   isRentalTurnover = false,
 }: {
   jobId: string;
   jobType: "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB";
   contractAmount: number;
   costPlus?: CostPlusMeta;
+  laborTotal?: number;
   isRentalTurnover?: boolean;
 }) {
   const isCostPlus = jobType === "COST_PLUS";
@@ -430,7 +432,9 @@ export function ExpensesPanel({
     return { totalNonBillable, totalBillable, totalAll };
   }, [expenses]);
 
-  const estimatedProfit = contractAmount - totalNonBillable;
+  // Fixed-price profit also nets out crew labor contracts (entered in the
+  // Labor tab) so labor isn't missed when it isn't logged as an expense.
+  const estimatedProfit = contractAmount - totalNonBillable - laborTotal;
 
   const marginAmount = (() => {
     if (!isCostPlus || !costPlus) return 0;
@@ -656,6 +660,11 @@ export function ExpensesPanel({
               >
                 ${estimatedProfit.toLocaleString()}
               </div>
+              {laborTotal > 0 && (
+                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                  after ${laborTotal.toLocaleString()} labor
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

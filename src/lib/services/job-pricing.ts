@@ -82,19 +82,30 @@ export async function recomputeCostPlusJob(jobId: string, tx = prisma) {
 }
 
 /**
- * Recompute a job's labor from its per-crew labor contracts. Once any labor
- * contract exists, the crew-contract sum becomes the job's effective labor
- * (denormalized into Job.laborCost so all existing reads stay correct), then
- * the rollup contract/balance is recomputed. With zero contracts, laborCost is
- * left to the Pricing panel's single-value input.
+ * Recompute a job's labor from its per-crew labor contracts (revised totals =
+ * each contract amount + its change orders). Once any labor contract exists,
+ * the crew-contract sum becomes the job's effective labor (denormalized into
+ * Job.laborCost so all existing reads stay correct). For rollup jobs this then
+ * recomputes the contract/balance; for fixed-price, laborCost is used only to
+ * reduce estimated profit. With zero contracts, laborCost is left to the
+ * Pricing panel's single-value input.
  */
 export async function recomputeJobLabor(jobId: string, tx = prisma) {
   const contracts = await tx.laborContract.findMany({
     where: { jobId },
-    select: { contractAmount: true },
+    select: {
+      contractAmount: true,
+      changeOrders: { select: { amount: true } },
+    },
   });
   if (contracts.length > 0) {
-    const laborTotal = contracts.reduce((s, c) => s + Number(c.contractAmount), 0);
+    const laborTotal = contracts.reduce(
+      (s, c) =>
+        s +
+        Number(c.contractAmount) +
+        c.changeOrders.reduce((cs, co) => cs + Number(co.amount), 0),
+      0,
+    );
     await tx.job.update({ where: { id: jobId }, data: { laborCost: laborTotal } });
   }
   await recomputeCostPlusJob(jobId, tx);

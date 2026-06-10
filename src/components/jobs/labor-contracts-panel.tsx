@@ -45,6 +45,13 @@ type LaborPayment = {
   notes: string | null;
 };
 
+type LaborChangeOrder = {
+  id: string;
+  amount: string;
+  reason: string | null;
+  changeDate: string;
+};
+
 type LaborContract = {
   id: string;
   crewId: string | null;
@@ -54,6 +61,7 @@ type LaborContract = {
   crew: { id: string; name: string } | null;
   createdBy: { firstName: string; lastName: string };
   payments: LaborPayment[];
+  changeOrders: LaborChangeOrder[];
 };
 
 type Crew = { id: string; name: string; isActive: boolean };
@@ -223,18 +231,80 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
     },
   });
 
+  // Change-order dialog
+  const [coContract, setCoContract] = useState<LaborContract | null>(null);
+  const [coAmount, setCoAmount] = useState("");
+  const [coDate, setCoDate] = useState(new Date().toISOString().slice(0, 10));
+  const [coReason, setCoReason] = useState("");
+
+  const openChangeOrder = (c: LaborContract) => {
+    setCoAmount("");
+    setCoDate(new Date().toISOString().slice(0, 10));
+    setCoReason("");
+    setCoContract(c);
+  };
+
+  const addChangeOrder = useMutation({
+    mutationFn: async () => {
+      if (!coContract) return;
+      const res = await fetch(
+        `/api/labor-contracts/${coContract.id}/change-orders`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: Number(coAmount),
+            changeDate: coDate,
+            reason: coReason || null,
+          }),
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Save failed" }));
+        throw new Error(err.error || "Save failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+      qc.invalidateQueries({ queryKey: ["job", jobId] });
+      setCoContract(null);
+      toast.success("Change order added");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeChangeOrder = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/labor-change-orders/${id}`, { method: "DELETE" }).then((r) =>
+        r.json(),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+      qc.invalidateQueries({ queryKey: ["job", jobId] });
+      toast.success("Change order removed");
+    },
+  });
+
+  const coTotalFor = (c: LaborContract) =>
+    c.changeOrders.reduce((s, co) => s + Number(co.amount), 0);
+  // Revised contract = original + change orders.
+  const revisedFor = (c: LaborContract) =>
+    Number(c.contractAmount) + coTotalFor(c);
+  const paidFor = (c: LaborContract) =>
+    c.payments.reduce((s, p) => s + Number(p.amount), 0);
+
   const totals = useMemo(() => {
     let contracted = 0;
     let paid = 0;
     for (const c of contracts) {
-      contracted += Number(c.contractAmount);
+      contracted +=
+        Number(c.contractAmount) +
+        c.changeOrders.reduce((s, co) => s + Number(co.amount), 0);
       for (const p of c.payments) paid += Number(p.amount);
     }
     return { contracted, paid, outstanding: contracted - paid };
   }, [contracts]);
-
-  const paidFor = (c: LaborContract) =>
-    c.payments.reduce((s, p) => s + Number(p.amount), 0);
 
   const canAdd =
     amount &&
@@ -363,7 +433,9 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
         <div className="space-y-2">
           {contracts.map((c) => {
             const paid = paidFor(c);
-            const outstanding = Number(c.contractAmount) - paid;
+            const coTotal = coTotalFor(c);
+            const revised = revisedFor(c);
+            const outstanding = revised - paid;
             const name = c.crew?.name ?? c.label ?? "Labor";
             return (
               <Card key={c.id}>
@@ -379,6 +451,13 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                       )}
                     </div>
                     <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openChangeOrder(c)}
+                      >
+                        Change order
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
@@ -415,11 +494,19 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <div>
                       <div className="text-[10px] uppercase text-muted-foreground">
-                        Contract
+                        {coTotal !== 0 ? "Revised contract" : "Contract"}
                       </div>
                       <div className="font-semibold">
-                        ${Number(c.contractAmount).toLocaleString()}
+                        ${revised.toLocaleString()}
                       </div>
+                      {coTotal !== 0 && (
+                        <div className="text-[10px] text-muted-foreground">
+                          orig ${Number(c.contractAmount).toLocaleString()}
+                          {" · "}
+                          {coTotal >= 0 ? "+" : "−"}$
+                          {Math.abs(coTotal).toLocaleString()} change orders
+                        </div>
+                      )}
                     </div>
                     <div>
                       <div className="text-[10px] uppercase text-muted-foreground">
@@ -446,6 +533,53 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                   {c.description && (
                     <div className="text-xs text-muted-foreground">
                       {c.description}
+                    </div>
+                  )}
+
+                  {c.changeOrders.length > 0 && (
+                    <div className="space-y-1 border-t pt-2">
+                      <div className="text-[10px] uppercase text-muted-foreground">
+                        Change orders
+                      </div>
+                      {c.changeOrders.map((co) => {
+                        const n = Number(co.amount);
+                        return (
+                          <div
+                            key={co.id}
+                            className="flex items-center justify-between gap-2 text-xs"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`font-medium ${
+                                  n >= 0 ? "text-foreground" : "text-amber-700"
+                                }`}
+                              >
+                                {n >= 0 ? "+" : "−"}$
+                                {Math.abs(n).toLocaleString()}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {format(new Date(co.changeDate), "MMM d, yyyy")}
+                              </span>
+                              {co.reason && (
+                                <span className="text-muted-foreground">
+                                  · {co.reason}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              className="rounded p-1 text-muted-foreground hover:text-destructive"
+                              title="Remove change order"
+                              onClick={() => {
+                                if (confirm("Remove this change order?"))
+                                  removeChangeOrder.mutate(co.id);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -648,6 +782,75 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
               onClick={() => recordPayment.mutate()}
             >
               {recordPayment.isPending ? "Saving…" : "Record payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change order dialog */}
+      <Dialog
+        open={Boolean(coContract)}
+        onOpenChange={(o: boolean) => !o && setCoContract(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Change order
+              {coContract
+                ? ` — ${coContract.crew?.name ?? coContract.label ?? ""}`
+                : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Amount ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 2500 or -800"
+                  value={coAmount}
+                  onChange={(e) => setCoAmount(e.target.value)}
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Use a negative number for a credit.
+                </p>
+              </div>
+              <div>
+                <Label className="text-xs">Date</Label>
+                <Input
+                  type="date"
+                  value={coDate}
+                  onChange={(e) => setCoDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Reason</Label>
+              <Textarea
+                rows={2}
+                placeholder="What changed (extra demo, added scope, credit…)"
+                value={coReason}
+                onChange={(e) => setCoReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCoContract(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={
+                !coAmount || Number(coAmount) === 0 || addChangeOrder.isPending
+              }
+              onClick={() => addChangeOrder.mutate()}
+            >
+              {addChangeOrder.isPending ? "Saving…" : "Add change order"}
             </Button>
           </DialogFooter>
         </DialogContent>

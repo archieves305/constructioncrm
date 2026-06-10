@@ -36,6 +36,7 @@ const updateSchema = z.object({
   paidMethod: z.enum(METHODS).nullable().optional(),
   paidFrom: z.string().max(120).nullable().optional(),
   billable: z.boolean().optional(),
+  budgetLineId: z.string().nullable().optional(),
 });
 
 export async function PATCH(
@@ -86,6 +87,8 @@ export async function PATCH(
     data.paidFrom = parsed.data.paidFrom?.trim() || null;
   if (parsed.data.billable !== undefined && !isCostPlus)
     data.billable = parsed.data.billable;
+  if (parsed.data.budgetLineId !== undefined)
+    data.budgetLineId = parsed.data.budgetLineId || null;
 
   await prisma.$transaction([
     prisma.jobExpense.update({ where: { id }, data }),

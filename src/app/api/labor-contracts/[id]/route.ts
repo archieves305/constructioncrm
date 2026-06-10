@@ -9,6 +9,7 @@ const updateSchema = z.object({
   label: z.string().max(120).nullable().optional(),
   contractAmount: z.number().min(0).optional(),
   description: z.string().max(2000).nullable().optional(),
+  budgetLineId: z.string().nullable().optional(),
 });
 
 export async function PATCH(
@@ -36,6 +37,8 @@ export async function PATCH(
     data.contractAmount = parsed.data.contractAmount;
   if (parsed.data.description !== undefined)
     data.description = parsed.data.description?.trim() || null;
+  if (parsed.data.budgetLineId !== undefined)
+    data.budgetLineId = parsed.data.budgetLineId || null;
   // crewId/label are paired — a real crew clears the ad-hoc label.
   if (parsed.data.crewId !== undefined || parsed.data.label !== undefined) {
     const crewId = parsed.data.crewId || null;

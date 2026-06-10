@@ -25,6 +25,7 @@ import { FilesPanel } from "@/components/files/files-panel";
 import { InvoicesPanel } from "@/components/jobs/invoices-panel";
 import { ExpensesPanel } from "@/components/jobs/expenses-panel";
 import { LaborContractsPanel } from "@/components/jobs/labor-contracts-panel";
+import { BudgetPanel } from "@/components/jobs/budget-panel";
 import { PricingPanel } from "@/components/jobs/pricing-panel";
 import { RentalTurnoverPanel } from "@/components/jobs/rental-turnover-panel";
 
@@ -43,10 +44,38 @@ export default function JobDetailPage() {
     queryFn: () => fetch("/api/jobs/stages").then((r) => r.json()),
   });
 
-  const { data: crews } = useQuery({
-    queryKey: ["crews"],
-    queryFn: () => fetch("/api/jobs/stages").then((r) => r.json()), // placeholder, will use crews endpoint
+  const { data: crews = [] } = useQuery<{ id: string; name: string; trades: string[] }[]>({
+    queryKey: ["crews", "active"],
+    queryFn: () => fetch("/api/crews?activeOnly=true").then((r) => r.json()),
   });
+
+  const [assignCrewId, setAssignCrewId] = useState("");
+  const [assignInstallDate, setAssignInstallDate] = useState("");
+
+  const assignCrew = useMutation({
+    mutationFn: (data: { crewId: string; installDate: string }) =>
+      fetch(`/api/jobs/${id}/crews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          crewId: data.crewId,
+          installDate: data.installDate || null,
+        }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["job", id] });
+      setAssignCrewId("");
+      setAssignInstallDate("");
+      toast.success("Crew assigned");
+    },
+  });
+
+  const { data: budgetLines = [] } = useQuery<{ amount: string }[]>({
+    queryKey: ["budget", id],
+    queryFn: () => fetch(`/api/jobs/${id}/budget`).then((r) => r.json()),
+    enabled: job?.jobType === "OWNED_REHAB",
+  });
+  const totalBudget = budgetLines.reduce((s, l) => s + Number(l.amount), 0);
 
   const changeStage = useMutation({
     mutationFn: (stageId: string) =>
@@ -176,7 +205,7 @@ export default function JobDetailPage() {
 
       {/* Financial summary cards */}
       {job.jobType === "OWNED_REHAB" ? (
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
+        <div className={`grid gap-4 mb-6 ${totalBudget > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -204,6 +233,24 @@ export default function JobDetailPage() {
               <div className="text-[11px] text-muted-foreground mt-1">Labor + all expenses spent</div>
             </CardContent>
           </Card>
+          {totalBudget > 0 && (
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                  <DollarSign className="h-4 w-4" /> Budget
+                </div>
+                <div className="text-2xl font-bold">${totalBudget.toLocaleString()}</div>
+                {(() => {
+                  const v = totalBudget - Number(job.contractAmount);
+                  return (
+                    <div className={`text-[11px] mt-1 font-medium ${v >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      ${Math.abs(v).toLocaleString()} {v >= 0 ? "under budget" : "over budget"}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
         </div>
       ) : (
       <div className="grid gap-4 md:grid-cols-4 mb-6">
@@ -311,14 +358,15 @@ export default function JobDetailPage() {
               <TabsTrigger value="payments">Payments ({job.payments?.length || 0})</TabsTrigger>
               <TabsTrigger value="invoices">Invoices</TabsTrigger>
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
-              {(job.jobType === "COST_PLUS" || job.jobType === "OWNED_REHAB") && (
-                <TabsTrigger value="labor">Labor</TabsTrigger>
-              )}
+              <TabsTrigger value="labor">Labor</TabsTrigger>
               <TabsTrigger value="permits">Permits ({job.permits?.length || 0})</TabsTrigger>
               <TabsTrigger value="crews">Crews</TabsTrigger>
               <TabsTrigger value="inspections">Inspections</TabsTrigger>
               <TabsTrigger value="tasks">Tasks ({job.tasks?.length || 0})</TabsTrigger>
               <TabsTrigger value="files">Files</TabsTrigger>
+              {job.jobType === "OWNED_REHAB" && (
+                <TabsTrigger value="budget">Budget</TabsTrigger>
+              )}
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
 
@@ -429,15 +477,14 @@ export default function JobDetailPage() {
                       }
                     : undefined
                 }
+                laborTotal={Number(job.laborCost ?? 0)}
                 isRentalTurnover={Boolean(job.isRentalTurnover)}
               />
             </TabsContent>
 
-            {(job.jobType === "COST_PLUS" || job.jobType === "OWNED_REHAB") && (
-              <TabsContent value="labor">
-                <LaborContractsPanel jobId={id} />
-              </TabsContent>
-            )}
+            <TabsContent value="labor">
+              <LaborContractsPanel jobId={id} />
+            </TabsContent>
 
             <TabsContent value="permits" className="space-y-4">
               <Card>
@@ -541,6 +588,37 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="crews" className="space-y-2">
+              <Card>
+                <CardContent className="flex flex-wrap items-end gap-2 pt-4">
+                  <div className="flex-1 min-w-[180px]">
+                    <Label className="text-[11px]">Crew</Label>
+                    <Select value={assignCrewId || "__none"}
+                      onValueChange={(v: string | null) => setAssignCrewId(!v || v === "__none" ? "" : v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a crew">
+                          {(v: string) => (!v || v === "__none" ? "Select a crew" : crews.find((c) => c.id === v)?.name || "Select a crew")}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {crews.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}{c.trades?.length ? ` — ${c.trades.join(", ")}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-[11px]">Install date (optional)</Label>
+                    <Input type="date" value={assignInstallDate}
+                      onChange={(e) => setAssignInstallDate(e.target.value)} />
+                  </div>
+                  <Button size="sm" disabled={!assignCrewId || assignCrew.isPending}
+                    onClick={() => assignCrew.mutate({ crewId: assignCrewId, installDate: assignInstallDate })}>
+                    Assign crew
+                  </Button>
+                </CardContent>
+              </Card>
               {job.crewAssignments?.map((ca: { id: string; crew: { name: string; trades: string[] }; installDate: string | null }) => (
                 <Card key={ca.id}>
                   <CardContent className="flex items-center justify-between py-3 px-4">
@@ -591,6 +669,12 @@ export default function JobDetailPage() {
             <TabsContent value="files">
               <FilesPanel leadId={job.leadId} />
             </TabsContent>
+
+            {job.jobType === "OWNED_REHAB" && (
+              <TabsContent value="budget">
+                <BudgetPanel jobId={id} totalJobCost={Number(job.contractAmount)} />
+              </TabsContent>
+            )}
 
             <TabsContent value="history" className="space-y-2">
               {job.stageHistory?.map((h: { id: string; fromStage: { name: string } | null; toStage: { name: string }; changedBy: { firstName: string; lastName: string }; changedAt: string }) => (
