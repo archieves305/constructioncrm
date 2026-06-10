@@ -24,6 +24,7 @@ import Link from "next/link";
 import { FilesPanel } from "@/components/files/files-panel";
 import { InvoicesPanel } from "@/components/jobs/invoices-panel";
 import { ExpensesPanel } from "@/components/jobs/expenses-panel";
+import { LaborContractsPanel } from "@/components/jobs/labor-contracts-panel";
 import { PricingPanel } from "@/components/jobs/pricing-panel";
 import { RentalTurnoverPanel } from "@/components/jobs/rental-turnover-panel";
 
@@ -310,6 +311,9 @@ export default function JobDetailPage() {
               <TabsTrigger value="payments">Payments ({job.payments?.length || 0})</TabsTrigger>
               <TabsTrigger value="invoices">Invoices</TabsTrigger>
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
+              {(job.jobType === "COST_PLUS" || job.jobType === "OWNED_REHAB") && (
+                <TabsTrigger value="labor">Labor</TabsTrigger>
+              )}
               <TabsTrigger value="permits">Permits ({job.permits?.length || 0})</TabsTrigger>
               <TabsTrigger value="crews">Crews</TabsTrigger>
               <TabsTrigger value="inspections">Inspections</TabsTrigger>
@@ -428,6 +432,12 @@ export default function JobDetailPage() {
                 isRentalTurnover={Boolean(job.isRentalTurnover)}
               />
             </TabsContent>
+
+            {(job.jobType === "COST_PLUS" || job.jobType === "OWNED_REHAB") && (
+              <TabsContent value="labor">
+                <LaborContractsPanel jobId={id} />
+              </TabsContent>
+            )}
 
             <TabsContent value="permits" className="space-y-4">
               <Card>

@@ -314,6 +314,8 @@ model User {
   doorKnockRoutesAssigned DoorKnockRoute[] @relation("DoorKnockRouteAssignedTo")
   prospectsCreated     Prospect[]        @relation("ProspectCreatedBy")
   prospectsAssigned    Prospect[]        @relation("ProspectAssignedTo")
+  laborContractsCreated LaborContract[]
+  laborPaymentsCreated  LaborPayment[]
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -903,6 +905,7 @@ model Job {
   tasks           Task[]
   reviewRequests  ReviewRequest[]
   referrals       Referral[]
+  laborContracts  LaborContract[]
 
   @@index([leadId])
   @@index([currentStageId])
@@ -995,7 +998,8 @@ model Crew {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  assignments CrewAssignment[]
+  assignments    CrewAssignment[]
+  laborContracts LaborContract[]
 
   @@map("crews")
 }
@@ -1013,6 +1017,46 @@ model CrewAssignment {
   @@index([jobId])
   @@index([crewId])
   @@map("crew_assignments")
+}
+
+// ─── CRM 2.0: Labor contracts (owner → crew, for rollup jobs) ──────────────
+
+model LaborContract {
+  id              String   @id @default(cuid())
+  jobId           String   @map("job_id")
+  crewId          String?  @map("crew_id") // null for ad-hoc/typed labor lines
+  label           String? // ad-hoc name when no crew selected
+  contractAmount  Decimal  @map("contract_amount") @db.Decimal(12, 2)
+  description     String?  @db.Text
+  createdByUserId String   @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  job       Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  crew      Crew?          @relation(fields: [crewId], references: [id])
+  createdBy User           @relation(fields: [createdByUserId], references: [id])
+  payments  LaborPayment[]
+
+  @@index([jobId])
+  @@map("labor_contracts")
+}
+
+model LaborPayment {
+  id              String         @id @default(cuid())
+  laborContractId String         @map("labor_contract_id")
+  amount          Decimal        @db.Decimal(12, 2)
+  paidDate        DateTime       @default(now()) @map("paid_date")
+  method          PaymentMethod?
+  reference       String?
+  notes           String?        @db.Text
+  createdByUserId String         @map("created_by_user_id")
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  laborContract LaborContract @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
+  createdBy     User          @relation(fields: [createdByUserId], references: [id])
+
+  @@index([laborContractId])
+  @@map("labor_payments")
 }
 
 // ─── CRM 2.0: Inspections ──────────────────────────────────────────────────

@@ -284,6 +284,10 @@ export function ExpensesPanel({
   // Feature 1: filter the list by billable category (fixed-price only).
   const [filter, setFilter] = useState<"all" | "billable" | "nonbillable">("all");
 
+  // Vendor + type filters (all job types).
+  const [vendorFilter, setVendorFilter] = useState<string>("__all");
+  const [typeFilter, setTypeFilter] = useState<string>("__all");
+
   // Feature 2: edit dialog state for manually-entered expenses.
   const [editing, setEditing] = useState<Expense | null>(null);
   const [editForm, setEditForm] = useState<Form>(emptyForm);
@@ -446,11 +450,37 @@ export function ExpensesPanel({
   const canSave = form.amount && Number(form.amount) > 0;
   const canSaveEdit = editForm.amount && Number(editForm.amount) > 0;
 
-  // Apply the active billable filter (fixed-price only).
-  const visibleExpenses =
-    isFixedPrice && filter !== "all"
-      ? expenses.filter((e) => (filter === "billable" ? e.billable : !e.billable))
-      : expenses;
+  // Distinct vendors present, for the vendor filter dropdown.
+  const vendorOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(expenses.map((e) => e.vendor?.trim()).filter(Boolean) as string[]),
+      ).sort((a, b) => a.localeCompare(b)),
+    [expenses],
+  );
+
+  // Apply billable (fixed-price only) + vendor + type filters.
+  const visibleExpenses = expenses.filter((e) => {
+    if (isFixedPrice && filter !== "all") {
+      if (filter === "billable" && !e.billable) return false;
+      if (filter === "nonbillable" && e.billable) return false;
+    }
+    if (vendorFilter !== "__all" && (e.vendor?.trim() || "") !== vendorFilter)
+      return false;
+    if (typeFilter !== "__all" && e.type !== typeFilter) return false;
+    return true;
+  });
+
+  const anyFilterActive =
+    (isFixedPrice && filter !== "all") ||
+    vendorFilter !== "__all" ||
+    typeFilter !== "__all";
+
+  const clearAllFilters = () => {
+    setFilter("all");
+    setVendorFilter("__all");
+    setTypeFilter("__all");
+  };
 
   return (
     <div className="space-y-4">
@@ -654,23 +684,72 @@ export function ExpensesPanel({
         </CardContent>
       </Card>
 
-      {/* List + export */}
+      {/* List header: filters + export */}
       {expenses.length > 0 && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>
               {visibleExpenses.length} expense
               {visibleExpenses.length === 1 ? "" : "s"}
             </span>
+            <Select
+              value={vendorFilter}
+              onValueChange={(v: string | null) => setVendorFilter(v || "__all")}
+            >
+              <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectValue>
+                  {(v: string) =>
+                    !v || v === "__all" ? "All vendors" : v
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">All vendors</SelectItem>
+                {vendorOptions.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={typeFilter}
+              onValueChange={(v: string | null) => setTypeFilter(v || "__all")}
+            >
+              <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectValue>
+                  {(v: string) =>
+                    !v || v === "__all" ? "All types" : v.replace(/_/g, " ")
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">All types</SelectItem>
+                {TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t.replace(/_/g, " ")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {isFixedPrice && filter !== "all" && (
               <button
                 type="button"
                 onClick={() => setFilter("all")}
                 className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 hover:bg-gray-50"
               >
-                Showing: {filter === "billable" ? "Billable" : "Non-billable"}
+                {filter === "billable" ? "Billable" : "Non-billable"}
                 <X className="h-3 w-3" />
-                clear
+              </button>
+            )}
+            {anyFilterActive && (
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 hover:bg-gray-50"
+              >
+                <X className="h-3 w-3" />
+                clear filters
               </button>
             )}
           </div>
@@ -692,7 +771,7 @@ export function ExpensesPanel({
         </p>
       ) : visibleExpenses.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          No {filter === "billable" ? "billable" : "non-billable"} expenses.
+          No expenses match the current filters.
         </p>
       ) : (
         <div className="space-y-2">

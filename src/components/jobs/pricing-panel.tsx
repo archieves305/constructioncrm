@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +44,22 @@ export function PricingPanel({ job }: { job: Job }) {
   );
   const [prevJobId, setPrevJobId] = useState(job.id);
 
+  // When per-crew labor contracts exist, they own laborCost (the Labor tab
+  // drives it), so the single labor field here is shown read-only.
+  const isRollup = jobType === "COST_PLUS" || jobType === "OWNED_REHAB";
+  const { data: laborContracts = [] } = useQuery<unknown[]>({
+    queryKey: ["labor-contracts", job.id],
+    queryFn: () =>
+      fetch(`/api/jobs/${job.id}/labor-contracts`).then((r) => r.json()),
+    enabled: isRollup,
+  });
+  const laborFromCrews = laborContracts.length > 0;
+  // When crew-driven, show the live job value (kept in sync server-side) rather
+  // than the local field state, which only resets on job change.
+  const laborDisplay = laborFromCrews
+    ? String(Number(job.laborCost ?? 0))
+    : laborCost;
+
   if (prevJobId !== job.id) {
     setPrevJobId(job.id);
     setJobType(job.jobType);
@@ -59,9 +75,10 @@ export function PricingPanel({ job }: { job: Job }) {
       if (jobType === "FIXED_PRICE") {
         body.contractAmount = Number(contractAmount) || 0;
       } else if (jobType === "OWNED_REHAB") {
-        body.laborCost = Number(laborCost) || 0;
+        // When crew contracts own laborCost, don't overwrite it from here.
+        if (!laborFromCrews) body.laborCost = Number(laborCost) || 0;
       } else {
-        body.laborCost = Number(laborCost) || 0;
+        if (!laborFromCrews) body.laborCost = Number(laborCost) || 0;
         body.marginType = marginType;
         body.marginValue = Number(marginValue) || 0;
       }
@@ -140,11 +157,14 @@ export function PricingPanel({ job }: { job: Job }) {
               type="number"
               min={0}
               step="0.01"
-              value={laborCost}
+              value={laborDisplay}
               onChange={(e) => setLaborCost(e.target.value)}
+              disabled={laborFromCrews}
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Total cost = Labor contract + Expenses. No client billing.
+              {laborFromCrews
+                ? "Set per crew in the Labor tab."
+                : "Total cost = Labor contract + Expenses. No client billing."}
             </p>
           </div>
         ) : (
@@ -155,9 +175,15 @@ export function PricingPanel({ job }: { job: Job }) {
                 type="number"
                 min={0}
                 step="0.01"
-                value={laborCost}
+                value={laborDisplay}
                 onChange={(e) => setLaborCost(e.target.value)}
+                disabled={laborFromCrews}
               />
+              {laborFromCrews && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Set per crew in the Labor tab.
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
