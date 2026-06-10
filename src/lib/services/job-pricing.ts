@@ -8,6 +8,17 @@ export type CostPlusInputs = {
   marginValue: number;
 };
 
+/**
+ * Job types whose contract is a rollup of labor + expenses (recomputed as
+ * expenses change) rather than a directly-entered fixed price. COST_PLUS adds
+ * a margin on top; OWNED_REHAB is a cost-only job (no margin, never billed).
+ */
+export function rollsExpensesIntoContract(
+  jobType: JobType | string | null | undefined,
+): boolean {
+  return jobType === "COST_PLUS" || jobType === "OWNED_REHAB";
+}
+
 export function computeCostPlusContract({
   laborCost,
   expensesTotal,
@@ -36,7 +47,9 @@ export async function recomputeCostPlusJob(jobId: string, tx = prisma) {
       depositReceived: true,
     },
   });
-  if (!job || job.jobType !== ("COST_PLUS" as JobType)) return;
+  if (!job || !rollsExpensesIntoContract(job.jobType)) return;
+
+  const isOwnedRehab = job.jobType === ("OWNED_REHAB" as JobType);
 
   const expenses = await tx.jobExpense.findMany({
     where: { jobId },
@@ -44,11 +57,12 @@ export async function recomputeCostPlusJob(jobId: string, tx = prisma) {
   });
   const expensesTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
 
+  // Owned-rehab jobs are cost-only: total cost = labor + expenses, no margin.
   const { contract } = computeCostPlusContract({
     laborCost: Number(job.laborCost ?? 0),
     expensesTotal,
-    marginType: job.marginType,
-    marginValue: Number(job.marginValue ?? 0),
+    marginType: isOwnedRehab ? null : job.marginType,
+    marginValue: isOwnedRehab ? 0 : Number(job.marginValue ?? 0),
   });
 
   const payments = await tx.payment.findMany({
@@ -61,7 +75,8 @@ export async function recomputeCostPlusJob(jobId: string, tx = prisma) {
     where: { id: jobId },
     data: {
       contractAmount: contract,
-      balanceDue: Math.max(0, contract - totalReceived),
+      // Owned-rehab jobs are never billed to a client.
+      balanceDue: isOwnedRehab ? 0 : Math.max(0, contract - totalReceived),
     },
   });
 }

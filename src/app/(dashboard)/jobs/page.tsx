@@ -37,7 +37,7 @@ type JobRow = {
   jobNumber: string;
   title: string;
   serviceType: string;
-  jobType: "FIXED_PRICE" | "COST_PLUS";
+  jobType: "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB";
   contractAmount: string;
   depositReceived: string;
   depositRequired: string;
@@ -499,6 +499,9 @@ export default function JobsPage() {
                       <div>${Number(job.contractAmount).toLocaleString()}</div>
                       {job.jobType === "COST_PLUS" && (
                         <div className="text-[10px] font-normal text-muted-foreground">Cost+</div>
+                      )}
+                      {job.jobType === "OWNED_REHAB" && (
+                        <div className="text-[10px] font-normal text-muted-foreground">Owned</div>
                       )}
                     </TableCell>
                     <TableCell>

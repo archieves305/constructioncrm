@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
-import { recomputeCostPlusJob } from "@/lib/services/job-pricing";
+import {
+  recomputeCostPlusJob,
+  rollsExpensesIntoContract,
+} from "@/lib/services/job-pricing";
 
 const TYPES = [
   "MATERIAL",
@@ -55,7 +58,7 @@ export async function PATCH(
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const isCostPlus = existing.job.jobType === "COST_PLUS";
+  const isCostPlus = rollsExpensesIntoContract(existing.job.jobType);
   const prevBillable = existing.billable;
   const prevAmount = Number(existing.amount);
   const nextBillable = isCostPlus
@@ -123,7 +126,7 @@ export async function DELETE(
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const isCostPlus = existing.job.jobType === "COST_PLUS";
+  const isCostPlus = rollsExpensesIntoContract(existing.job.jobType);
   const reverseAmount = !isCostPlus && existing.billable ? Number(existing.amount) : 0;
 
   await prisma.$transaction([

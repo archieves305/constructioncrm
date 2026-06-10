@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
-import { recomputeCostPlusJob } from "@/lib/services/job-pricing";
+import {
+  recomputeCostPlusJob,
+  rollsExpensesIntoContract,
+} from "@/lib/services/job-pricing";
 
 export async function GET(
   _request: NextRequest,
@@ -96,13 +99,17 @@ export async function PATCH(
   });
   if (!existing) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
-  const nextType = (body.jobType as "FIXED_PRICE" | "COST_PLUS" | undefined) ?? existing.jobType;
+  const nextType =
+    (body.jobType as "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB" | undefined) ??
+    existing.jobType;
+  const isRollup = rollsExpensesIntoContract(nextType);
 
   if (nextType === "FIXED_PRICE" && body.contractAmount !== undefined) {
     updateData.balanceDue = Number(body.contractAmount) - Number(existing.depositReceived);
   }
 
-  if (nextType === "COST_PLUS") {
+  if (isRollup) {
+    // Contract is computed from labor + expenses; never set directly.
     delete updateData.contractAmount;
   }
 
@@ -112,7 +119,7 @@ export async function PATCH(
     include: { currentStage: true },
   });
 
-  if (nextType === "COST_PLUS") {
+  if (isRollup) {
     await recomputeCostPlusJob(id);
     const refreshed = await prisma.job.findUnique({
       where: { id },

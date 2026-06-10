@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
-import { recomputeCostPlusJob } from "@/lib/services/job-pricing";
+import {
+  recomputeCostPlusJob,
+  rollsExpensesIntoContract,
+} from "@/lib/services/job-pricing";
 
 const TYPES = [
   "MATERIAL",
@@ -73,9 +76,10 @@ export async function POST(
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
   const amount = parsed.data.amount;
-  const isCostPlus = job.jobType === "COST_PLUS";
-  // On cost-plus, billable is irrelevant — every expense rolls into the contract via recompute
-  const billable = isCostPlus ? false : parsed.data.billable;
+  const isRollup = rollsExpensesIntoContract(job.jobType);
+  // On rollup jobs (cost-plus / owned-rehab), billable is irrelevant — every
+  // expense rolls into the contract via recompute.
+  const billable = isRollup ? false : parsed.data.billable;
 
   const [expense] = await prisma.$transaction([
     prisma.jobExpense.create({
@@ -110,15 +114,15 @@ export async function POST(
       : []),
   ]);
 
-  if (isCostPlus) await recomputeCostPlusJob(id);
+  if (isRollup) await recomputeCostPlusJob(id);
 
   await prisma.activityLog.create({
     data: {
       leadId: job.leadId,
       activityType: "NOTE",
       title: `Expense added: ${parsed.data.type.replace(/_/g, " ")} — $${amount.toLocaleString()}`,
-      description: isCostPlus
-        ? `Cost-plus; rolled into contract${parsed.data.vendor ? ` · ${parsed.data.vendor}` : ""}`
+      description: isRollup
+        ? `Rolled into job total${parsed.data.vendor ? ` · ${parsed.data.vendor}` : ""}`
         : billable
           ? `Billable; added to contract${parsed.data.vendor ? ` · ${parsed.data.vendor}` : ""}`
           : parsed.data.vendor || undefined,

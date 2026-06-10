@@ -174,6 +174,37 @@ export default function JobDetailPage() {
       </div>
 
       {/* Financial summary cards */}
+      {job.jobType === "OWNED_REHAB" ? (
+        <div className="grid gap-4 md:grid-cols-3 mb-6">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                <DollarSign className="h-4 w-4" /> Labor contract
+              </div>
+              <div className="text-2xl font-bold">${Number(job.laborCost ?? 0).toLocaleString()}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                <DollarSign className="h-4 w-4" /> Expenses
+              </div>
+              <div className="text-2xl font-bold">
+                ${Math.max(0, Number(job.contractAmount) - Number(job.laborCost ?? 0)).toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                <DollarSign className="h-4 w-4" /> Total job cost
+              </div>
+              <div className="text-2xl font-bold">${Number(job.contractAmount).toLocaleString()}</div>
+              <div className="text-[11px] text-muted-foreground mt-1">Labor + all expenses spent</div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         <Card>
           <CardContent className="pt-4">
@@ -216,6 +247,7 @@ export default function JobDetailPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column */}
@@ -385,7 +417,7 @@ export default function JobDetailPage() {
                 jobType={job.jobType}
                 contractAmount={Number(job.contractAmount)}
                 costPlus={
-                  job.jobType === "COST_PLUS"
+                  job.jobType === "COST_PLUS" || job.jobType === "OWNED_REHAB"
                     ? {
                         laborCost: Number(job.laborCost ?? 0),
                         marginType: job.marginType,

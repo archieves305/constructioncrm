@@ -3,7 +3,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { verifyCcAllocatorAuth } from "@/lib/integrations/cc-allocator/auth";
 import { CC_ALLOCATOR_SYSTEM_USER_ID } from "@/lib/integrations/cc-allocator/system-user";
-import { recomputeCostPlusJob } from "@/lib/services/job-pricing";
+import {
+  recomputeCostPlusJob,
+  rollsExpensesIntoContract,
+} from "@/lib/services/job-pricing";
 
 // POST /api/integrations/cc-allocator/expense
 //
@@ -90,11 +93,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
-  const isCostPlus = job.jobType === "COST_PLUS";
-  // COST_PLUS jobs ignore the per-expense billable flag — the contract is
-  // recomputed from the expense pool. Mirrors PATCH /api/expenses/[id].
-  const effectiveBillable = isCostPlus ? false : input.billable;
-  const balanceDelta = !isCostPlus && effectiveBillable ? input.amount : 0;
+  const isRollup = rollsExpensesIntoContract(job.jobType);
+  // Rollup jobs (cost-plus / owned-rehab) ignore the per-expense billable flag —
+  // the contract is recomputed from the expense pool. Mirrors PATCH /api/expenses/[id].
+  const effectiveBillable = isRollup ? false : input.billable;
+  const balanceDelta = !isRollup && effectiveBillable ? input.amount : 0;
 
   const created = await prisma.$transaction(async (tx) => {
     const expense = await tx.jobExpense.create({
@@ -127,7 +130,7 @@ export async function POST(request: NextRequest) {
 
   // recomputeCostPlusJob is tx-aware but reads its own data; running it
   // outside the transaction matches PATCH /api/expenses/[id]'s pattern.
-  if (isCostPlus) await recomputeCostPlusJob(input.jobId);
+  if (isRollup) await recomputeCostPlusJob(input.jobId);
 
   return NextResponse.json({
     expenseId: created.id,

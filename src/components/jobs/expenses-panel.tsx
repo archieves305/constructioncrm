@@ -16,8 +16,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Plus, DollarSign, Receipt, Download } from "lucide-react";
+import { Trash2, Plus, DollarSign, Receipt, Download, Pencil, X } from "lucide-react";
 
 const TYPES = [
   "MATERIAL",
@@ -49,6 +56,7 @@ type Expense = {
   paidMethod: (typeof METHODS)[number] | null;
   paidFrom: string | null;
   billable: boolean;
+  externalId: string | null;
   createdBy: { firstName: string; lastName: string };
 };
 
@@ -74,6 +82,19 @@ const emptyForm: Form = {
   billable: false,
 };
 
+function expenseToForm(e: Expense): Form {
+  return {
+    type: e.type,
+    vendor: e.vendor ?? "",
+    description: e.description ?? "",
+    amount: String(Number(e.amount)),
+    incurredDate: new Date(e.incurredDate).toISOString().slice(0, 10),
+    paidMethod: e.paidMethod ?? "",
+    paidFrom: e.paidFrom ?? "",
+    billable: e.billable,
+  };
+}
+
 type PaymentSource = { id: string; name: string; isActive: boolean };
 
 type CostPlusMeta = {
@@ -81,6 +102,162 @@ type CostPlusMeta = {
   marginType: "PERCENT" | "FLAT" | null;
   marginValue: number;
 };
+
+/**
+ * Shared field layout used by both the "add expense" card and the edit dialog.
+ * `showBillable` is true only for fixed-price jobs (rollup jobs ignore the flag).
+ */
+function ExpenseFields({
+  form,
+  setForm,
+  sources,
+  onAddSource,
+  showBillable,
+}: {
+  form: Form;
+  setForm: (f: Form) => void;
+  sources: PaymentSource[];
+  onAddSource: (name: string) => void;
+  showBillable: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
+        <div>
+          <Label className="text-xs">Type</Label>
+          <Select
+            value={form.type}
+            onValueChange={(v: string | null) =>
+              setForm({ ...form, type: (v as Form["type"]) || "OTHER" })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue>
+                {(v: string) => v?.replace(/_/g, " ") || "Type"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {TYPES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t.replace(/_/g, " ")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Vendor</Label>
+          <Input
+            value={form.vendor}
+            onChange={(e) => setForm({ ...form, vendor: e.target.value })}
+            placeholder="Home Depot"
+          />
+        </div>
+        <div>
+          <Label className="text-xs">Amount ($)</Label>
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.amount}
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label className="text-xs">Date</Label>
+          <Input
+            type="date"
+            value={form.incurredDate}
+            onChange={(e) => setForm({ ...form, incurredDate: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col justify-end">
+          {showBillable ? (
+            <Label className="mb-1 flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={form.billable}
+                onChange={(e) => setForm({ ...form, billable: e.target.checked })}
+              />
+              Billable (adds to contract)
+            </Label>
+          ) : (
+            <p className="mb-1 text-[11px] text-muted-foreground">
+              All expenses roll into the job total automatically.
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div>
+          <Label className="text-xs">Paid method</Label>
+          <Select
+            value={form.paidMethod || "__none"}
+            onValueChange={(v: string | null) =>
+              setForm({
+                ...form,
+                paidMethod: v && v !== "__none" ? (v as Form["paidMethod"]) : "",
+              })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="—">
+                {(v: string) => (!v || v === "__none" ? "—" : v)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">— not specified —</SelectItem>
+              {METHODS.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-xs">Paid from (account / card)</Label>
+          <div className="flex gap-2">
+            <Select
+              value={form.paidFrom || "__none"}
+              onValueChange={(v: string | null) => {
+                if (!v || v === "__none") {
+                  setForm({ ...form, paidFrom: "" });
+                } else if (v === "__add") {
+                  const name = window.prompt("New payment source name")?.trim();
+                  if (name) onAddSource(name);
+                } else {
+                  setForm({ ...form, paidFrom: v });
+                }
+              }}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Select account">
+                  {(v: string) => (!v || v === "__none" ? "—" : v)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">— not specified —</SelectItem>
+                {sources.map((s) => (
+                  <SelectItem key={s.id} value={s.name}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__add">+ Add new source…</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+      <Textarea
+        placeholder="Notes / description (optional)"
+        rows={2}
+        value={form.description}
+        onChange={(e) => setForm({ ...form, description: e.target.value })}
+      />
+    </div>
+  );
+}
 
 export function ExpensesPanel({
   jobId,
@@ -90,14 +267,26 @@ export function ExpensesPanel({
   isRentalTurnover = false,
 }: {
   jobId: string;
-  jobType: "FIXED_PRICE" | "COST_PLUS";
+  jobType: "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB";
   contractAmount: number;
   costPlus?: CostPlusMeta;
   isRentalTurnover?: boolean;
 }) {
   const isCostPlus = jobType === "COST_PLUS";
+  const isOwnedRehab = jobType === "OWNED_REHAB";
+  // Rollup jobs compute their contract from the expense pool — no per-expense
+  // billable flag, no billable/non-billable split.
+  const rollsUp = isCostPlus || isOwnedRehab;
+  const isFixedPrice = jobType === "FIXED_PRICE";
   const qc = useQueryClient();
   const [form, setForm] = useState<Form>(emptyForm);
+
+  // Feature 1: filter the list by billable category (fixed-price only).
+  const [filter, setFilter] = useState<"all" | "billable" | "nonbillable">("all");
+
+  // Feature 2: edit dialog state for manually-entered expenses.
+  const [editing, setEditing] = useState<Expense | null>(null);
+  const [editForm, setEditForm] = useState<Form>(emptyForm);
 
   const { data: expenses = [], isLoading } = useQuery<Expense[]>({
     queryKey: ["expenses", jobId],
@@ -125,7 +314,9 @@ export function ExpensesPanel({
     },
     onSuccess: (s) => {
       qc.invalidateQueries({ queryKey: ["payment-sources"] });
-      setForm((f) => ({ ...f, paidFrom: s.name }));
+      // Apply the new source to whichever form is open.
+      if (editing) setEditForm((f) => ({ ...f, paidFrom: s.name }));
+      else setForm((f) => ({ ...f, paidFrom: s.name }));
       toast.success(`Added "${s.name}"`);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -162,6 +353,38 @@ export function ExpensesPanel({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const update = useMutation({
+    mutationFn: async () => {
+      if (!editing) return;
+      const res = await fetch(`/api/expenses/${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: editForm.type,
+          vendor: editForm.vendor || null,
+          description: editForm.description || null,
+          amount: Number(editForm.amount),
+          incurredDate: editForm.incurredDate,
+          paidMethod: editForm.paidMethod || null,
+          paidFrom: editForm.paidFrom || null,
+          billable: editForm.billable,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Save failed" }));
+        throw new Error(err.error || "Save failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["expenses", jobId] });
+      qc.invalidateQueries({ queryKey: ["job", jobId] });
+      setEditing(null);
+      toast.success("Expense updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const toggleBillable = useMutation({
     mutationFn: ({ id, billable }: { id: string; billable: boolean }) =>
       fetch(`/api/expenses/${id}`, {
@@ -184,6 +407,11 @@ export function ExpensesPanel({
       toast.success("Expense deleted");
     },
   });
+
+  const openEdit = (e: Expense) => {
+    setEditForm(expenseToForm(e));
+    setEditing(e);
+  };
 
   const { totalNonBillable, totalBillable, totalAll } = useMemo(() => {
     let totalNonBillable = 0;
@@ -212,7 +440,17 @@ export function ExpensesPanel({
     ? costPlus.laborCost + totalAll + marginAmount
     : 0;
 
+  const laborContract = costPlus?.laborCost ?? 0;
+  const totalJobCost = laborContract + totalAll;
+
   const canSave = form.amount && Number(form.amount) > 0;
+  const canSaveEdit = editForm.amount && Number(editForm.amount) > 0;
+
+  // Apply the active billable filter (fixed-price only).
+  const visibleExpenses =
+    isFixedPrice && filter !== "all"
+      ? expenses.filter((e) => (filter === "billable" ? e.billable : !e.billable))
+      : expenses;
 
   return (
     <div className="space-y-4">
@@ -227,7 +465,43 @@ export function ExpensesPanel({
       )}
 
       {/* Summary — differs by job type */}
-      {isCostPlus ? (
+      {isOwnedRehab ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Labor contract
+              </div>
+              <div className="text-lg font-semibold">
+                ${laborContract.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Expenses
+              </div>
+              <div className="text-lg font-semibold">
+                ${totalAll.toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">
+                Total job cost
+              </div>
+              <div className="text-lg font-semibold">
+                ${totalJobCost.toLocaleString()}
+              </div>
+              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                Labor + all expenses
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : isCostPlus ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Card>
             <CardContent className="p-3">
@@ -288,26 +562,58 @@ export function ExpensesPanel({
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
-                Billable add-ons
-              </div>
-              <div className="text-lg font-semibold text-blue-700">
-                +${totalBillable.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
-                Costs (non-billable)
-              </div>
-              <div className="text-lg font-semibold text-red-700">
-                -${totalNonBillable.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
+          <button
+            type="button"
+            onClick={() =>
+              setFilter((f) => (f === "billable" ? "all" : "billable"))
+            }
+            className="text-left"
+          >
+            <Card
+              className={
+                filter === "billable" ? "ring-2 ring-blue-500" : "hover:bg-muted/40"
+              }
+            >
+              <CardContent className="p-3">
+                <div className="text-[10px] uppercase text-muted-foreground">
+                  Billable add-ons
+                </div>
+                <div className="text-lg font-semibold text-blue-700">
+                  +${totalBillable.toLocaleString()}
+                </div>
+                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                  Click to view
+                </div>
+              </CardContent>
+            </Card>
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setFilter((f) => (f === "nonbillable" ? "all" : "nonbillable"))
+            }
+            className="text-left"
+          >
+            <Card
+              className={
+                filter === "nonbillable"
+                  ? "ring-2 ring-red-500"
+                  : "hover:bg-muted/40"
+              }
+            >
+              <CardContent className="p-3">
+                <div className="text-[10px] uppercase text-muted-foreground">
+                  Costs (non-billable)
+                </div>
+                <div className="text-lg font-semibold text-red-700">
+                  -${totalNonBillable.toLocaleString()}
+                </div>
+                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                  Click to view
+                </div>
+              </CardContent>
+            </Card>
+          </button>
           <Card>
             <CardContent className="p-3">
               <div className="text-[10px] uppercase text-muted-foreground">
@@ -328,145 +634,12 @@ export function ExpensesPanel({
       {/* Create form */}
       <Card>
         <CardContent className="space-y-3 pt-4">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
-            <div>
-              <Label className="text-xs">Type</Label>
-              <Select
-                value={form.type}
-                onValueChange={(v: string | null) =>
-                  setForm({ ...form, type: (v as Form["type"]) || "OTHER" })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue>
-                    {(v: string) => v?.replace(/_/g, " ") || "Type"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t.replace(/_/g, " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Vendor</Label>
-              <Input
-                value={form.vendor}
-                onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-                placeholder="Home Depot"
-              />
-            </div>
-            <div>
-              <Label className="text-xs">Amount ($)</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label className="text-xs">Date</Label>
-              <Input
-                type="date"
-                value={form.incurredDate}
-                onChange={(e) =>
-                  setForm({ ...form, incurredDate: e.target.value })
-                }
-              />
-            </div>
-            <div className="flex flex-col justify-end">
-              {isCostPlus ? (
-                <p className="mb-1 text-[11px] text-muted-foreground">
-                  Cost-plus: all expenses roll into contract automatically.
-                </p>
-              ) : (
-                <Label className="mb-1 flex items-center gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={form.billable}
-                    onChange={(e) =>
-                      setForm({ ...form, billable: e.target.checked })
-                    }
-                  />
-                  Billable (adds to contract)
-                </Label>
-              )}
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <div>
-              <Label className="text-xs">Paid method</Label>
-              <Select
-                value={form.paidMethod || "__none"}
-                onValueChange={(v: string | null) =>
-                  setForm({
-                    ...form,
-                    paidMethod:
-                      v && v !== "__none" ? (v as Form["paidMethod"]) : "",
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="—">
-                    {(v: string) =>
-                      !v || v === "__none" ? "—" : v
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">— not specified —</SelectItem>
-                  {METHODS.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="sm:col-span-2">
-              <Label className="text-xs">Paid from (account / card)</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={form.paidFrom || "__none"}
-                  onValueChange={(v: string | null) => {
-                    if (!v || v === "__none") {
-                      setForm({ ...form, paidFrom: "" });
-                    } else if (v === "__add") {
-                      const name = window.prompt("New payment source name")?.trim();
-                      if (name) addSource.mutate(name);
-                    } else {
-                      setForm({ ...form, paidFrom: v });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select account">
-                      {(v: string) => (!v || v === "__none" ? "—" : v)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">— not specified —</SelectItem>
-                    {sources.map((s) => (
-                      <SelectItem key={s.id} value={s.name}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="__add">+ Add new source…</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          <Textarea
-            placeholder="Notes / description (optional)"
-            rows={2}
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          <ExpenseFields
+            form={form}
+            setForm={setForm}
+            sources={sources}
+            onAddSource={(name) => addSource.mutate(name)}
+            showBillable={!rollsUp}
           />
           <div className="flex justify-end">
             <Button
@@ -484,9 +657,23 @@ export function ExpensesPanel({
       {/* List + export */}
       {expenses.length > 0 && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            {expenses.length} expense{expenses.length === 1 ? "" : "s"}
-          </p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              {visibleExpenses.length} expense
+              {visibleExpenses.length === 1 ? "" : "s"}
+            </span>
+            {isFixedPrice && filter !== "all" && (
+              <button
+                type="button"
+                onClick={() => setFilter("all")}
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 hover:bg-gray-50"
+              >
+                Showing: {filter === "billable" ? "Billable" : "Non-billable"}
+                <X className="h-3 w-3" />
+                clear
+              </button>
+            )}
+          </div>
           <a
             href={`/api/jobs/${jobId}/expenses/qbo-export`}
             className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-gray-50"
@@ -503,85 +690,135 @@ export function ExpensesPanel({
         <p className="py-6 text-center text-sm text-muted-foreground">
           No expenses recorded yet.
         </p>
+      ) : visibleExpenses.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          No {filter === "billable" ? "billable" : "non-billable"} expenses.
+        </p>
       ) : (
         <div className="space-y-2">
-          {expenses.map((e) => (
-            <Card key={e.id}>
-              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Receipt className="h-4 w-4 text-muted-foreground" />
-                    <Badge variant="outline" className="text-[10px]">
-                      {e.type.replace(/_/g, " ")}
-                    </Badge>
-                    {e.vendor && (
-                      <span className="text-sm font-medium">{e.vendor}</span>
-                    )}
-                    <span className="text-sm font-semibold">
-                      ${Number(e.amount).toLocaleString()}
-                    </span>
-                    {e.billable && (
-                      <Badge variant="default" className="text-[10px]">
-                        Billable
+          {visibleExpenses.map((e) => {
+            const fromAllocator = Boolean(e.externalId);
+            return (
+              <Card key={e.id}>
+                <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Receipt className="h-4 w-4 text-muted-foreground" />
+                      <Badge variant="outline" className="text-[10px]">
+                        {e.type.replace(/_/g, " ")}
                       </Badge>
-                    )}
-                  </div>
-                  {(e.paidMethod || e.paidFrom) && (
-                    <div className="mt-1 flex flex-wrap items-center gap-1 text-xs">
-                      {e.paidMethod && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          {e.paidMethod}
+                      {e.vendor && (
+                        <span className="text-sm font-medium">{e.vendor}</span>
+                      )}
+                      <span className="text-sm font-semibold">
+                        ${Number(e.amount).toLocaleString()}
+                      </span>
+                      {e.billable && (
+                        <Badge variant="default" className="text-[10px]">
+                          Billable
                         </Badge>
                       )}
-                      {e.paidFrom && (
-                        <span className="text-muted-foreground">
-                          from {e.paidFrom}
-                        </span>
+                      {fromAllocator && (
+                        <Badge variant="secondary" className="text-[10px]">
+                          via CC Allocator
+                        </Badge>
                       )}
                     </div>
-                  )}
-                  {e.description && (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {e.description}
+                    {(e.paidMethod || e.paidFrom) && (
+                      <div className="mt-1 flex flex-wrap items-center gap-1 text-xs">
+                        {e.paidMethod && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {e.paidMethod}
+                          </Badge>
+                        )}
+                        {e.paidFrom && (
+                          <span className="text-muted-foreground">
+                            from {e.paidFrom}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {e.description && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {e.description}
+                      </div>
+                    )}
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      {format(new Date(e.incurredDate), "MMM d, yyyy")} · added by{" "}
+                      {e.createdBy.firstName} {e.createdBy.lastName}
                     </div>
-                  )}
-                  <div className="mt-1 text-[10px] text-muted-foreground">
-                    {format(new Date(e.incurredDate), "MMM d, yyyy")} · added by{" "}
-                    {e.createdBy.firstName} {e.createdBy.lastName}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!isCostPlus && (
-                    <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={e.billable}
-                        onChange={(ev) =>
-                          toggleBillable.mutate({
-                            id: e.id,
-                            billable: ev.target.checked,
-                          })
-                        }
-                      />
-                      <DollarSign className="h-3 w-3" />
-                      Bill
-                    </label>
-                  )}
-                  <button
-                    type="button"
-                    className="rounded p-2 text-muted-foreground hover:bg-red-50 hover:text-destructive"
-                    onClick={() => {
-                      if (confirm("Delete this expense?")) remove.mutate(e.id);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex items-center gap-2">
+                    {!rollsUp && (
+                      <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={e.billable}
+                          onChange={(ev) =>
+                            toggleBillable.mutate({
+                              id: e.id,
+                              billable: ev.target.checked,
+                            })
+                          }
+                        />
+                        <DollarSign className="h-3 w-3" />
+                        Bill
+                      </label>
+                    )}
+                    {!fromAllocator && (
+                      <button
+                        type="button"
+                        className="rounded p-2 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+                        title="Edit expense"
+                        onClick={() => openEdit(e)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="rounded p-2 text-muted-foreground hover:bg-red-50 hover:text-destructive"
+                      onClick={() => {
+                        if (confirm("Delete this expense?")) remove.mutate(e.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
+
+      {/* Edit dialog (manual expenses only) */}
+      <Dialog open={Boolean(editing)} onOpenChange={(o: boolean) => !o && setEditing(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit expense</DialogTitle>
+          </DialogHeader>
+          <ExpenseFields
+            form={editForm}
+            setForm={setEditForm}
+            sources={sources}
+            onAddSource={(name) => addSource.mutate(name)}
+            showBillable={!rollsUp}
+          />
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!canSaveEdit || update.isPending}
+              onClick={() => update.mutate()}
+            >
+              {update.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

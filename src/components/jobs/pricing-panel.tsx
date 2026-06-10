@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type JobType = "FIXED_PRICE" | "COST_PLUS";
+type JobType = "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB";
 type MarginType = "PERCENT" | "FLAT";
 
 type Job = {
@@ -58,6 +58,8 @@ export function PricingPanel({ job }: { job: Job }) {
       const body: Record<string, unknown> = { jobType };
       if (jobType === "FIXED_PRICE") {
         body.contractAmount = Number(contractAmount) || 0;
+      } else if (jobType === "OWNED_REHAB") {
+        body.laborCost = Number(laborCost) || 0;
       } else {
         body.laborCost = Number(laborCost) || 0;
         body.marginType = marginType;
@@ -99,13 +101,20 @@ export function PricingPanel({ job }: { job: Job }) {
             <SelectTrigger>
               <SelectValue>
                 {(v: string) =>
-                  v === "COST_PLUS" ? "Cost-plus" : "Fixed price"
+                  v === "COST_PLUS"
+                    ? "Cost-plus"
+                    : v === "OWNED_REHAB"
+                      ? "Owned / Rehab (cost-only)"
+                      : "Fixed price"
                 }
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="FIXED_PRICE">Fixed price</SelectItem>
               <SelectItem value="COST_PLUS">Cost-plus</SelectItem>
+              <SelectItem value="OWNED_REHAB">
+                Owned / Rehab (cost-only)
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -122,6 +131,20 @@ export function PricingPanel({ job }: { job: Job }) {
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
               Profit = Contract − non-billable expenses
+            </p>
+          </div>
+        ) : jobType === "OWNED_REHAB" ? (
+          <div>
+            <Label className="text-xs">Labor contract ($)</Label>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={laborCost}
+              onChange={(e) => setLaborCost(e.target.value)}
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Total cost = Labor contract + Expenses. No client billing.
             </p>
           </div>
         ) : (

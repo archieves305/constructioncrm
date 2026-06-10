@@ -88,6 +88,7 @@ enum PaymentMethod {
 enum JobType {
   FIXED_PRICE
   COST_PLUS
+  OWNED_REHAB
 }
 
 enum MarginType {
