@@ -9,6 +9,13 @@ const createSchema = z.object({
   amount: z.number().refine((n) => n !== 0, "Amount cannot be zero"),
   reason: z.string().max(2000).nullable().optional(),
   changeDate: z.string().optional(),
+  scopeChange: z.string().max(4000).nullable().optional(),
+  addedScope: z.string().max(4000).nullable().optional(),
+  removedScope: z.string().max(4000).nullable().optional(),
+  timeAdjustmentDays: z.number().int().nullable().optional(),
+  updatedPaymentTerms: z.string().max(2000).nullable().optional(),
+  paymentImpact: z.string().max(2000).nullable().optional(),
+  retainageImpact: z.string().max(2000).nullable().optional(),
 });
 
 // POST /api/labor-contracts/[id]/change-orders — adjust a crew's labor contract.
@@ -35,6 +42,11 @@ export async function POST(
   if (!contract)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Sequential, human-friendly change-order number per labor contract.
+  const priorCount = await prisma.laborChangeOrder.count({
+    where: { laborContractId: id },
+  });
+
   const changeOrder = await prisma.laborChangeOrder.create({
     data: {
       laborContractId: id,
@@ -43,6 +55,14 @@ export async function POST(
       changeDate: parsed.data.changeDate
         ? new Date(parsed.data.changeDate)
         : new Date(),
+      changeNumber: priorCount + 1,
+      scopeChange: parsed.data.scopeChange?.trim() || null,
+      addedScope: parsed.data.addedScope?.trim() || null,
+      removedScope: parsed.data.removedScope?.trim() || null,
+      timeAdjustmentDays: parsed.data.timeAdjustmentDays ?? null,
+      updatedPaymentTerms: parsed.data.updatedPaymentTerms?.trim() || null,
+      paymentImpact: parsed.data.paymentImpact?.trim() || null,
+      retainageImpact: parsed.data.retainageImpact?.trim() || null,
       createdByUserId: session.user.id,
     },
   });

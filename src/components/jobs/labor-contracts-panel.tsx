@@ -24,7 +24,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Plus, HardHat, Pencil } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  HardHat,
+  Pencil,
+  FileText,
+  FileSignature,
+  Download,
+  ClipboardList,
+  Home,
+} from "lucide-react";
+import { TaskScheduleDialog } from "./task-schedule-dialog";
 
 const METHODS = [
   "CHECK",
@@ -50,7 +61,30 @@ type LaborChangeOrder = {
   amount: string;
   reason: string | null;
   changeDate: string;
+  changeNumber: number | null;
+  scopeChange: string | null;
+  addedScope: string | null;
+  removedScope: string | null;
+  timeAdjustmentDays: number | null;
+  updatedPaymentTerms: string | null;
+  paymentImpact: string | null;
+  retainageImpact: string | null;
 };
+
+type GeneratedDoc = {
+  id: string;
+  documentType:
+    | "LABOR_CONTRACT"
+    | "INTERIOR_RENOVATION_LABOR_CONTRACT"
+    | "CONTRACT_ADDENDUM";
+  versionNumber: number;
+  fileName: string;
+  fileId: string | null;
+  changeOrderId: string | null;
+  generatedAt: string;
+};
+
+type ContractTask = { id: string };
 
 type LaborContract = {
   id: string;
@@ -58,11 +92,69 @@ type LaborContract = {
   label: string | null;
   contractAmount: string;
   description: string | null;
+  paymentTerms: string | null;
+  startDate: string | null;
+  estimatedCompletionDate: string | null;
+  contractorLicense: string | null;
+  contractorInsurance: string | null;
+  exclusions: string | null;
+  notes: string | null;
+  retainagePercent: string | null;
+  delayDamagesPerDay: string | null;
   crew: { id: string; name: string } | null;
   createdBy: { firstName: string; lastName: string };
   payments: LaborPayment[];
   changeOrders: LaborChangeOrder[];
+  generatedDocuments: GeneratedDoc[];
+  tasks: ContractTask[];
 };
+
+const CONTRACT_DOC_TYPES = [
+  "LABOR_CONTRACT",
+  "INTERIOR_RENOVATION_LABOR_CONTRACT",
+] as const;
+
+function docTypeLabel(t: GeneratedDoc["documentType"]): string {
+  if (t === "INTERIOR_RENOVATION_LABOR_CONTRACT") return "Interior reno";
+  if (t === "CONTRACT_ADDENDUM") return "Addendum";
+  return "Basic";
+}
+
+function toDateInput(iso: string | null): string {
+  return iso ? iso.slice(0, 10) : "";
+}
+
+function DocRow({ doc, showType }: { doc: GeneratedDoc; showType?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <Badge variant="secondary" className="text-[10px]">
+          v{doc.versionNumber}
+        </Badge>
+        {showType && (
+          <Badge variant="outline" className="text-[10px]">
+            {docTypeLabel(doc.documentType)}
+          </Badge>
+        )}
+        <span className="text-muted-foreground">
+          {format(new Date(doc.generatedAt), "MMM d, yyyy h:mm a")}
+        </span>
+        <span className="truncate text-muted-foreground">{doc.fileName}</span>
+      </div>
+      {doc.fileId ? (
+        <a
+          href={`/api/files/${doc.fileId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+          title="View / download PDF"
+        >
+          <Download className="h-3.5 w-3.5" />
+        </a>
+      ) : null}
+    </div>
+  );
+}
 
 type Crew = { id: string; name: string; isActive: boolean };
 
@@ -139,10 +231,28 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
   const [editing, setEditing] = useState<LaborContract | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editPaymentTerms, setEditPaymentTerms] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editCompletionDate, setEditCompletionDate] = useState("");
+  const [editLicense, setEditLicense] = useState("");
+  const [editInsurance, setEditInsurance] = useState("");
+  const [editExclusions, setEditExclusions] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editRetainage, setEditRetainage] = useState("");
+  const [editDelay, setEditDelay] = useState("");
 
   const openEdit = (c: LaborContract) => {
     setEditAmount(String(Number(c.contractAmount)));
     setEditDescription(c.description ?? "");
+    setEditPaymentTerms(c.paymentTerms ?? "");
+    setEditStartDate(toDateInput(c.startDate));
+    setEditCompletionDate(toDateInput(c.estimatedCompletionDate));
+    setEditLicense(c.contractorLicense ?? "");
+    setEditInsurance(c.contractorInsurance ?? "");
+    setEditExclusions(c.exclusions ?? "");
+    setEditNotes(c.notes ?? "");
+    setEditRetainage(c.retainagePercent != null ? String(Number(c.retainagePercent)) : "");
+    setEditDelay(c.delayDamagesPerDay != null ? String(Number(c.delayDamagesPerDay)) : "");
     setEditing(c);
   };
 
@@ -155,6 +265,15 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
         body: JSON.stringify({
           contractAmount: Number(editAmount),
           description: editDescription || null,
+          paymentTerms: editPaymentTerms || null,
+          startDate: editStartDate || null,
+          estimatedCompletionDate: editCompletionDate || null,
+          contractorLicense: editLicense || null,
+          contractorInsurance: editInsurance || null,
+          exclusions: editExclusions || null,
+          notes: editNotes || null,
+          retainagePercent: editRetainage === "" ? null : Number(editRetainage),
+          delayDamagesPerDay: editDelay === "" ? null : Number(editDelay),
         }),
       });
       if (!res.ok) {
@@ -236,11 +355,21 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
   const [coAmount, setCoAmount] = useState("");
   const [coDate, setCoDate] = useState(new Date().toISOString().slice(0, 10));
   const [coReason, setCoReason] = useState("");
+  const [coAddedScope, setCoAddedScope] = useState("");
+  const [coRemovedScope, setCoRemovedScope] = useState("");
+  const [coTimeDays, setCoTimeDays] = useState("");
+  const [coPaymentImpact, setCoPaymentImpact] = useState("");
+  const [coRetainageImpact, setCoRetainageImpact] = useState("");
 
   const openChangeOrder = (c: LaborContract) => {
     setCoAmount("");
     setCoDate(new Date().toISOString().slice(0, 10));
     setCoReason("");
+    setCoAddedScope("");
+    setCoRemovedScope("");
+    setCoTimeDays("");
+    setCoPaymentImpact("");
+    setCoRetainageImpact("");
     setCoContract(c);
   };
 
@@ -256,6 +385,11 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
             amount: Number(coAmount),
             changeDate: coDate,
             reason: coReason || null,
+            addedScope: coAddedScope || null,
+            removedScope: coRemovedScope || null,
+            timeAdjustmentDays: coTimeDays ? Number(coTimeDays) : null,
+            paymentImpact: coPaymentImpact || null,
+            retainageImpact: coRetainageImpact || null,
           }),
         },
       );
@@ -284,6 +418,70 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
       qc.invalidateQueries({ queryKey: ["job", jobId] });
       toast.success("Change order removed");
     },
+  });
+
+  // Parse a 422 missing-fields error into a readable message.
+  async function readGenError(res: Response): Promise<string> {
+    const err = await res.json().catch(() => ({}));
+    if (res.status === 422 && Array.isArray(err.missingFields)) {
+      return `Cannot generate — missing: ${err.missingFields.join(", ")}`;
+    }
+    return err.error || "Generation failed";
+  }
+
+  const generateContract = useMutation({
+    mutationFn: async (contractId: string) => {
+      const res = await fetch(
+        `/api/labor-contracts/${contractId}/generate-contract`,
+        { method: "POST" },
+      );
+      if (!res.ok) throw new Error(await readGenError(res));
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+      toast.success("Contract PDF generated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const generateInteriorContract = useMutation({
+    mutationFn: async (contractId: string) => {
+      const res = await fetch(
+        `/api/labor-contracts/${contractId}/generate-interior-contract`,
+        { method: "POST" },
+      );
+      if (!res.ok) throw new Error(await readGenError(res));
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+      toast.success("Interior renovation contract PDF generated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Task schedule dialog
+  const [taskContract, setTaskContract] = useState<LaborContract | null>(null);
+
+  const generateAddendum = useMutation({
+    mutationFn: async (changeOrderId: string) => {
+      const res = await fetch(
+        `/api/labor-change-orders/${changeOrderId}/generate-addendum`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
+      );
+      if (!res.ok) throw new Error(await readGenError(res));
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+      toast.success("Addendum PDF generated");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const coTotalFor = (c: LaborContract) =>
@@ -450,7 +648,45 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Button
+                        size="sm"
+                        disabled={
+                          generateInteriorContract.isPending &&
+                          generateInteriorContract.variables === c.id
+                        }
+                        onClick={() => generateInteriorContract.mutate(c.id)}
+                      >
+                        <Home className="mr-1 h-4 w-4" />
+                        {generateInteriorContract.isPending &&
+                        generateInteriorContract.variables === c.id
+                          ? "Generating…"
+                          : "Interior reno contract"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setTaskContract(c)}
+                      >
+                        <ClipboardList className="mr-1 h-4 w-4" />
+                        Tasks
+                        {c.tasks.length > 0 ? ` (${c.tasks.length})` : ""}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={
+                          generateContract.isPending &&
+                          generateContract.variables === c.id
+                        }
+                        onClick={() => generateContract.mutate(c.id)}
+                      >
+                        <FileText className="mr-1 h-4 w-4" />
+                        {generateContract.isPending &&
+                        generateContract.variables === c.id
+                          ? "Generating…"
+                          : "Basic contract"}
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
@@ -536,6 +772,28 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                     </div>
                   )}
 
+                  {(() => {
+                    const contractDocs = c.generatedDocuments.filter((d) =>
+                      (CONTRACT_DOC_TYPES as readonly string[]).includes(
+                        d.documentType,
+                      ),
+                    );
+                    if (contractDocs.length === 0) return null;
+                    return (
+                      <div className="space-y-1 border-t pt-2">
+                        <div className="text-[10px] uppercase text-muted-foreground">
+                          Contract PDFs
+                        </div>
+                        {contractDocs
+                          .slice()
+                          .sort((a, b) => b.versionNumber - a.versionNumber)
+                          .map((d) => (
+                            <DocRow key={d.id} doc={d} showType />
+                          ))}
+                      </div>
+                    );
+                  })()}
+
                   {c.changeOrders.length > 0 && (
                     <div className="space-y-1 border-t pt-2">
                       <div className="text-[10px] uppercase text-muted-foreground">
@@ -543,40 +801,82 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                       </div>
                       {c.changeOrders.map((co) => {
                         const n = Number(co.amount);
+                        const addendumDocs = c.generatedDocuments.filter(
+                          (d) =>
+                            d.documentType === "CONTRACT_ADDENDUM" &&
+                            d.changeOrderId === co.id,
+                        );
+                        const genPending =
+                          generateAddendum.isPending &&
+                          generateAddendum.variables === co.id;
                         return (
-                          <div
-                            key={co.id}
-                            className="flex items-center justify-between gap-2 text-xs"
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={`font-medium ${
-                                  n >= 0 ? "text-foreground" : "text-amber-700"
-                                }`}
-                              >
-                                {n >= 0 ? "+" : "−"}$
-                                {Math.abs(n).toLocaleString()}
-                              </span>
-                              <span className="text-muted-foreground">
-                                {format(new Date(co.changeDate), "MMM d, yyyy")}
-                              </span>
-                              {co.reason && (
-                                <span className="text-muted-foreground">
-                                  · {co.reason}
+                          <div key={co.id} className="space-y-1">
+                            <div className="flex items-center justify-between gap-2 text-xs">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {co.changeNumber != null && (
+                                  <span className="font-medium text-muted-foreground">
+                                    CO #{co.changeNumber}
+                                  </span>
+                                )}
+                                <span
+                                  className={`font-medium ${
+                                    n >= 0 ? "text-foreground" : "text-amber-700"
+                                  }`}
+                                >
+                                  {n >= 0 ? "+" : "−"}$
+                                  {Math.abs(n).toLocaleString()}
                                 </span>
-                              )}
+                                <span className="text-muted-foreground">
+                                  {format(
+                                    new Date(co.changeDate),
+                                    "MMM d, yyyy",
+                                  )}
+                                </span>
+                                {co.reason && (
+                                  <span className="text-muted-foreground">
+                                    · {co.reason}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <button
+                                  type="button"
+                                  className="flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-gray-100 hover:text-foreground disabled:opacity-50"
+                                  title="Generate addendum PDF"
+                                  disabled={genPending}
+                                  onClick={() =>
+                                    generateAddendum.mutate(co.id)
+                                  }
+                                >
+                                  <FileSignature className="h-3.5 w-3.5" />
+                                  {genPending ? "Generating…" : "Addendum"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded p-1 text-muted-foreground hover:text-destructive"
+                                  title="Remove change order"
+                                  onClick={() => {
+                                    if (confirm("Remove this change order?"))
+                                      removeChangeOrder.mutate(co.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
                             </div>
-                            <button
-                              type="button"
-                              className="rounded p-1 text-muted-foreground hover:text-destructive"
-                              title="Remove change order"
-                              onClick={() => {
-                                if (confirm("Remove this change order?"))
-                                  removeChangeOrder.mutate(co.id);
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
+                            {addendumDocs.length > 0 && (
+                              <div className="ml-2 space-y-1 border-l pl-2">
+                                {addendumDocs
+                                  .slice()
+                                  .sort(
+                                    (a, b) =>
+                                      b.versionNumber - a.versionNumber,
+                                  )
+                                  .map((d) => (
+                                    <DocRow key={d.id} doc={d} />
+                                  ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -663,10 +963,97 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
             <div>
               <Label className="text-xs">Scope / description</Label>
               <Textarea
-                rows={2}
+                rows={3}
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
               />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Used verbatim as the Scope of Work on the generated contract.
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Payment terms</Label>
+              <Textarea
+                rows={2}
+                placeholder="e.g. 50% on start, balance on completion"
+                value={editPaymentTerms}
+                onChange={(e) => setEditPaymentTerms(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Start date</Label>
+                <Input
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Est. completion</Label>
+                <Input
+                  type="date"
+                  value={editCompletionDate}
+                  onChange={(e) => setEditCompletionDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div>
+                <Label className="text-xs">Contractor license #</Label>
+                <Input
+                  value={editLicense}
+                  onChange={(e) => setEditLicense(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Insurance</Label>
+                <Input
+                  placeholder="Carrier / policy"
+                  value={editInsurance}
+                  onChange={(e) => setEditInsurance(e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Exclusions</Label>
+              <Textarea
+                rows={2}
+                placeholder="Work not included"
+                value={editExclusions}
+                onChange={(e) => setEditExclusions(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Notes</Label>
+              <Textarea
+                rows={2}
+                placeholder="Any additional notes"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Retainage (%)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Default 10"
+                  value={editRetainage}
+                  onChange={(e) => setEditRetainage(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Delay damages ($/day)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Default 250"
+                  value={editDelay}
+                  onChange={(e) => setEditDelay(e.target.value)}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -826,7 +1213,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
               </div>
             </div>
             <div>
-              <Label className="text-xs">Reason</Label>
+              <Label className="text-xs">Reason / description of change</Label>
               <Textarea
                 rows={2}
                 placeholder="What changed (extra demo, added scope, credit…)"
@@ -834,6 +1221,58 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                 onChange={(e) => setCoReason(e.target.value)}
               />
             </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div>
+                <Label className="text-xs">Added scope</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="Scope added by this change order"
+                  value={coAddedScope}
+                  onChange={(e) => setCoAddedScope(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Removed scope</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="Scope removed by this change order"
+                  value={coRemovedScope}
+                  onChange={(e) => setCoRemovedScope(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div>
+                <Label className="text-xs">Time adjustment (days)</Label>
+                <Input
+                  type="number"
+                  step="1"
+                  placeholder="e.g. 5 or -2"
+                  value={coTimeDays}
+                  onChange={(e) => setCoTimeDays(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Payment impact</Label>
+                <Input
+                  placeholder="Optional"
+                  value={coPaymentImpact}
+                  onChange={(e) => setCoPaymentImpact(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Retainage impact</Label>
+                <Input
+                  placeholder="Optional"
+                  value={coRetainageImpact}
+                  onChange={(e) => setCoRetainageImpact(e.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              After saving, use the <span className="font-medium">Addendum</span>{" "}
+              button on the change order to generate a PDF.
+            </p>
           </div>
           <DialogFooter>
             <Button
@@ -855,6 +1294,24 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Task & payment schedule dialog */}
+      {taskContract && (
+        <TaskScheduleDialog
+          jobId={jobId}
+          contractId={taskContract.id}
+          contractName={
+            taskContract.crew?.name ?? taskContract.label ?? "Labor"
+          }
+          retainagePercent={
+            taskContract.retainagePercent != null
+              ? Number(taskContract.retainagePercent)
+              : 10
+          }
+          open={Boolean(taskContract)}
+          onClose={() => setTaskContract(null)}
+        />
+      )}
     </div>
   );
 }

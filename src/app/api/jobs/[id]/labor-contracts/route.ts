@@ -31,6 +31,19 @@ export async function GET(
       createdBy: { select: { firstName: true, lastName: true } },
       payments: { orderBy: { paidDate: "desc" } },
       changeOrders: { orderBy: { changeDate: "asc" } },
+      tasks: { orderBy: { sortOrder: "asc" } },
+      generatedDocuments: {
+        orderBy: { versionNumber: "asc" },
+        select: {
+          id: true,
+          documentType: true,
+          versionNumber: true,
+          fileName: true,
+          fileId: true,
+          changeOrderId: true,
+          generatedAt: true,
+        },
+      },
     },
   });
   return NextResponse.json(contracts);
