@@ -17,6 +17,7 @@ const updateSchema = z.object({
   exclusions: z.string().max(4000).nullable().optional(),
   notes: z.string().max(4000).nullable().optional(),
   retainagePercent: z.number().min(0).max(100).nullable().optional(),
+  retainageReleased: z.boolean().optional(),
   delayDamagesPerDay: z.number().min(0).nullable().optional(),
 });
 
@@ -69,6 +70,12 @@ export async function PATCH(
     data.notes = parsed.data.notes?.trim() || null;
   if (parsed.data.retainagePercent !== undefined)
     data.retainagePercent = parsed.data.retainagePercent;
+  if (parsed.data.retainageReleased !== undefined) {
+    data.retainageReleased = parsed.data.retainageReleased;
+    data.retainageReleasedDate = parsed.data.retainageReleased
+      ? new Date()
+      : null;
+  }
   if (parsed.data.delayDamagesPerDay !== undefined)
     data.delayDamagesPerDay = parsed.data.delayDamagesPerDay;
   // crewId/label are paired — a real crew clears the ad-hoc label.

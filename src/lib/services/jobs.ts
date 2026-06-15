@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db/prisma";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { env } from "@/lib/env";
 import { logOutboundCommunication } from "@/lib/communications/log";
+import { recomputeJobBalance } from "@/lib/services/job-pricing";
+import { syncInvoiceStatus } from "@/lib/services/invoices";
 
 let jobCounter: number | null = null;
 
@@ -286,11 +288,20 @@ export async function recordPayment(
     notes?: string;
     method?: string | null;
     reference?: string | null;
+    invoiceId?: string | null;
   },
   userId: string
 ) {
-  const job = await prisma.job.findUnique({ where: { id: jobId }, select: { leadId: true, balanceDue: true, depositReceived: true } });
+  const job = await prisma.job.findUnique({ where: { id: jobId }, select: { leadId: true, depositReceived: true } });
   if (!job) throw new Error("Job not found");
+
+  // Validate any applied invoice belongs to this job.
+  let invoiceId: string | null = null;
+  if (data.invoiceId) {
+    const inv = await prisma.invoice.findUnique({ where: { id: data.invoiceId }, select: { jobId: true } });
+    if (!inv || inv.jobId !== jobId) throw new Error("Invoice does not belong to this job");
+    invoiceId = data.invoiceId;
+  }
 
   const payment = await prisma.payment.create({
     data: {
@@ -302,25 +313,24 @@ export async function recordPayment(
       status: "RECEIVED",
       receivedDate: new Date(),
       notes: data.notes,
+      invoiceId,
     },
   });
 
-  // Update job financials
-  const newBalance = Number(job.balanceDue) - data.amount;
-  const updateData: Record<string, unknown> = {
-    balanceDue: Math.max(0, newBalance),
-  };
-
+  // Deposit accumulation is separate from balanceDue (which is derived).
   if (data.paymentType === "DEPOSIT") {
-    updateData.depositReceived = Number(job.depositReceived) + data.amount;
-    updateData.depositReceivedDate = new Date();
-  }
-  if (data.paymentType === "FINAL" || newBalance <= 0) {
-    updateData.finalPaymentReceived = true;
-    updateData.finalPaymentDate = new Date();
+    await prisma.job.update({
+      where: { id: jobId },
+      data: {
+        depositReceived: Number(job.depositReceived) + data.amount,
+        depositReceivedDate: new Date(),
+      },
+    });
   }
 
-  await prisma.job.update({ where: { id: jobId }, data: updateData });
+  // Single balance writer + invoice status reconciliation.
+  await recomputeJobBalance(jobId);
+  if (invoiceId) await syncInvoiceStatus(invoiceId);
 
   await prisma.activityLog.create({
     data: {

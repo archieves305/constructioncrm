@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import {
   recomputeCostPlusJob,
+  recomputeJobBalance,
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
 
@@ -105,16 +106,15 @@ export async function POST(
       ? [
           prisma.job.update({
             where: { id },
-            data: {
-              contractAmount: { increment: amount },
-              balanceDue: { increment: amount },
-            },
+            data: { contractAmount: { increment: amount } },
           }),
         ]
       : []),
   ]);
 
+  // balanceDue is derived — recompute via the single writer.
   if (isRollup) await recomputeCostPlusJob(id);
+  else if (billable) await recomputeJobBalance(id);
 
   await prisma.activityLog.create({
     data: {

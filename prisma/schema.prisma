@@ -294,39 +294,40 @@ model User {
 
   role Role @relation(fields: [roleId], references: [id])
 
-  assignedLeads     Lead[]             @relation("AssignedUser")
-  createdLeads      Lead[]             @relation("CreatedByUser")
-  assignmentsGiven  LeadAssignment[]   @relation("AssignedByUser")
-  assignmentsOwned  LeadAssignment[]   @relation("AssignedToUser")
-  stageChanges      LeadStageHistory[] @relation("ChangedByUser")
-  tasksAssigned     Task[]             @relation("TaskAssignedUser")
-  tasksCreated      Task[]             @relation("TaskCreatedByUser")
-  activityLogs      ActivityLog[]
-  communications    Communication[]
-  filesUploaded     File[]
-  permitLookupRuns  PermitLookupRun[]
-  managedJobs       Job[]              @relation("ProjectManager")
-  soldJobs          Job[]              @relation("SalesRep")
-  jobStageChanges   JobStageHistory[]  @relation("JobChangedByUser")
-  assignedPermits   JobPermit[]        @relation("PermitAssignedUser")
-  inspections       Inspection[]
-  passwordResetTokens PasswordResetToken[]
-  notifications     NotificationEvent[]
-  expensesCreated   JobExpense[]
-  jobTaskTemplatesDefault JobTaskTemplate[]
-  auditEvents       AuditEvent[]
-  roofEstimatesCreated RoofEstimate[]    @relation("RoofEstimateCreatedBy")
-  roofrOrdersCreated   RoofrOrder[]      @relation("RoofrOrderCreatedBy")
-  doorKnocksCreated    PropertyDoorKnock[] @relation("DoorKnockKnockedBy")
-  doorKnocksDeleted    PropertyDoorKnock[] @relation("DoorKnockDeletedBy")
-  doorKnockRoutesCreated DoorKnockRoute[] @relation("DoorKnockRouteCreatedBy")
-  doorKnockRoutesAssigned DoorKnockRoute[] @relation("DoorKnockRouteAssignedTo")
-  prospectsCreated     Prospect[]        @relation("ProspectCreatedBy")
-  prospectsAssigned    Prospect[]        @relation("ProspectAssignedTo")
-  laborContractsCreated LaborContract[]
-  laborPaymentsCreated  LaborPayment[]
+  assignedLeads            Lead[]               @relation("AssignedUser")
+  createdLeads             Lead[]               @relation("CreatedByUser")
+  assignmentsGiven         LeadAssignment[]     @relation("AssignedByUser")
+  assignmentsOwned         LeadAssignment[]     @relation("AssignedToUser")
+  stageChanges             LeadStageHistory[]   @relation("ChangedByUser")
+  tasksAssigned            Task[]               @relation("TaskAssignedUser")
+  tasksCreated             Task[]               @relation("TaskCreatedByUser")
+  activityLogs             ActivityLog[]
+  communications           Communication[]
+  filesUploaded            File[]
+  permitLookupRuns         PermitLookupRun[]
+  managedJobs              Job[]                @relation("ProjectManager")
+  soldJobs                 Job[]                @relation("SalesRep")
+  jobStageChanges          JobStageHistory[]    @relation("JobChangedByUser")
+  assignedPermits          JobPermit[]          @relation("PermitAssignedUser")
+  inspections              Inspection[]
+  passwordResetTokens      PasswordResetToken[]
+  notifications            NotificationEvent[]
+  expensesCreated          JobExpense[]
+  jobTaskTemplatesDefault  JobTaskTemplate[]
+  auditEvents              AuditEvent[]
+  roofEstimatesCreated     RoofEstimate[]       @relation("RoofEstimateCreatedBy")
+  roofrOrdersCreated       RoofrOrder[]         @relation("RoofrOrderCreatedBy")
+  doorKnocksCreated        PropertyDoorKnock[]  @relation("DoorKnockKnockedBy")
+  doorKnocksDeleted        PropertyDoorKnock[]  @relation("DoorKnockDeletedBy")
+  doorKnockRoutesCreated   DoorKnockRoute[]     @relation("DoorKnockRouteCreatedBy")
+  doorKnockRoutesAssigned  DoorKnockRoute[]     @relation("DoorKnockRouteAssignedTo")
+  prospectsCreated         Prospect[]           @relation("ProspectCreatedBy")
+  prospectsAssigned        Prospect[]           @relation("ProspectAssignedTo")
+  laborContractsCreated    LaborContract[]
+  laborPaymentsCreated     LaborPayment[]
   laborChangeOrdersCreated LaborChangeOrder[]
-  generatedDocuments    GeneratedDocument[]
+  changeOrdersCreated      ChangeOrder[]
+  generatedDocuments       GeneratedDocument[]
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -368,13 +369,13 @@ model LeadSource {
 }
 
 model ServiceCategory {
-  id             String   @id @default(cuid())
-  name           String
-  parentId       String?  @map("parent_id")
-  isActive       Boolean  @default(true) @map("is_active")
-  sortOrder      Int      @default(0) @map("sort_order")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(cuid())
+  name      String
+  parentId  String?  @map("parent_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   parent       ServiceCategory?  @relation("ServiceHierarchy", fields: [parentId], references: [id])
   children     ServiceCategory[] @relation("ServiceHierarchy")
@@ -393,57 +394,57 @@ model LeadStage {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  leads           Lead[]
-  historyFrom     LeadStageHistory[] @relation("FromStage")
-  historyTo       LeadStageHistory[] @relation("ToStage")
-  followUpRules   FollowUpRule[]     @relation("FollowUpRuleTargetStage")
+  leads         Lead[]
+  historyFrom   LeadStageHistory[] @relation("FromStage")
+  historyTo     LeadStageHistory[] @relation("ToStage")
+  followUpRules FollowUpRule[]     @relation("FollowUpRuleTargetStage")
 
   @@map("lead_stages")
 }
 
 model Lead {
-  id                   String       @id @default(cuid())
-  firstName            String       @map("first_name")
-  lastName             String       @map("last_name")
-  fullName             String       @map("full_name")
-  companyName          String?      @map("company_name")
-  primaryPhone         String       @map("primary_phone")
-  secondaryPhone       String?      @map("secondary_phone")
-  email                String?
-  propertyAddress1     String       @map("property_address_1")
-  propertyAddress2     String?      @map("property_address_2")
-  mailingAddress1      String?      @map("mailing_address_1")
-  mailingAddress2      String?      @map("mailing_address_2")
-  city                 String
-  county               String?
-  state                String       @default("FL")
-  zipCode              String       @map("zip_code")
-  propertyType         PropertyType @default(RESIDENTIAL) @map("property_type")
-  sourceId             String?      @map("source_id")
-  sourceDetail         String?      @map("source_detail")
-  assignedUserId       String?      @map("assigned_user_id")
-  currentStageId       String       @map("current_stage_id")
-  estimatedJobValue    Decimal?     @map("estimated_job_value") @db.Decimal(12, 2)
-  residentialCommercial String?     @map("residential_commercial")
-  insuranceClaim       Boolean      @default(false) @map("insurance_claim")
-  financingNeeded      Boolean      @default(false) @map("financing_needed")
-  urgent               Boolean      @default(false)
-  preferredContactMethod String?    @map("preferred_contact_method")
-  notesSummary         String?      @map("notes_summary") @db.Text
-  lastContactAt        DateTime?    @map("last_contact_at")
-  nextFollowUpAt       DateTime?    @map("next_follow_up_at")
-  isDuplicateFlag      Boolean      @default(false) @map("is_duplicate_flag")
-  duplicateGroupId     String?      @map("duplicate_group_id")
-  emailOptedOut        Boolean      @default(false) @map("email_opted_out")
-  emailOptedOutAt      DateTime?    @map("email_opted_out_at")
-  createdByUserId      String       @map("created_by_user_id")
-  createdAt            DateTime     @default(now()) @map("created_at")
-  updatedAt            DateTime     @updatedAt @map("updated_at")
+  id                     String       @id @default(cuid())
+  firstName              String       @map("first_name")
+  lastName               String       @map("last_name")
+  fullName               String       @map("full_name")
+  companyName            String?      @map("company_name")
+  primaryPhone           String       @map("primary_phone")
+  secondaryPhone         String?      @map("secondary_phone")
+  email                  String?
+  propertyAddress1       String       @map("property_address_1")
+  propertyAddress2       String?      @map("property_address_2")
+  mailingAddress1        String?      @map("mailing_address_1")
+  mailingAddress2        String?      @map("mailing_address_2")
+  city                   String
+  county                 String?
+  state                  String       @default("FL")
+  zipCode                String       @map("zip_code")
+  propertyType           PropertyType @default(RESIDENTIAL) @map("property_type")
+  sourceId               String?      @map("source_id")
+  sourceDetail           String?      @map("source_detail")
+  assignedUserId         String?      @map("assigned_user_id")
+  currentStageId         String       @map("current_stage_id")
+  estimatedJobValue      Decimal?     @map("estimated_job_value") @db.Decimal(12, 2)
+  residentialCommercial  String?      @map("residential_commercial")
+  insuranceClaim         Boolean      @default(false) @map("insurance_claim")
+  financingNeeded        Boolean      @default(false) @map("financing_needed")
+  urgent                 Boolean      @default(false)
+  preferredContactMethod String?      @map("preferred_contact_method")
+  notesSummary           String?      @map("notes_summary") @db.Text
+  lastContactAt          DateTime?    @map("last_contact_at")
+  nextFollowUpAt         DateTime?    @map("next_follow_up_at")
+  isDuplicateFlag        Boolean      @default(false) @map("is_duplicate_flag")
+  duplicateGroupId       String?      @map("duplicate_group_id")
+  emailOptedOut          Boolean      @default(false) @map("email_opted_out")
+  emailOptedOutAt        DateTime?    @map("email_opted_out_at")
+  createdByUserId        String       @map("created_by_user_id")
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
 
-  source       LeadSource?      @relation(fields: [sourceId], references: [id])
-  assignedUser User?            @relation("AssignedUser", fields: [assignedUserId], references: [id])
-  currentStage LeadStage        @relation(fields: [currentStageId], references: [id])
-  createdBy    User             @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+  source       LeadSource? @relation(fields: [sourceId], references: [id])
+  assignedUser User?       @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  currentStage LeadStage   @relation(fields: [currentStageId], references: [id])
+  createdBy    User        @relation("CreatedByUser", fields: [createdByUserId], references: [id])
 
   services       LeadService[]
   stageHistory   LeadStageHistory[]
@@ -496,7 +497,7 @@ model LeadStageHistory {
   changedAt       DateTime @default(now()) @map("changed_at")
   reason          String?
 
-  lead      Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead      Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
   fromStage LeadStage? @relation("FromStage", fields: [fromStageId], references: [id])
   toStage   LeadStage  @relation("ToStage", fields: [toStageId], references: [id])
   changedBy User       @relation("ChangedByUser", fields: [changedByUserId], references: [id])
@@ -526,19 +527,19 @@ model LeadAssignment {
 // ─── Tasks ──────────────────────────────────────────────────────────────────
 
 model Task {
-  id              String      @id @default(cuid())
-  leadId          String?     @map("lead_id")
-  jobId           String?     @map("job_id")
+  id              String     @id @default(cuid())
+  leadId          String?    @map("lead_id")
+  jobId           String?    @map("job_id")
   title           String
-  description     String?     @db.Text
-  assignedUserId  String?     @map("assigned_user_id")
-  createdByUserId String      @map("created_by_user_id")
-  dueAt           DateTime?   @map("due_at")
-  priority        Priority    @default(MEDIUM)
-  status          TaskStatus  @default(PENDING)
-  completedAt     DateTime?   @map("completed_at")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  description     String?    @db.Text
+  assignedUserId  String?    @map("assigned_user_id")
+  createdByUserId String     @map("created_by_user_id")
+  dueAt           DateTime?  @map("due_at")
+  priority        Priority   @default(MEDIUM)
+  status          TaskStatus @default(PENDING)
+  completedAt     DateTime?  @map("completed_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
 
   lead       Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
   job        Job?  @relation(fields: [jobId], references: [id], onDelete: SetNull)
@@ -574,21 +575,21 @@ model ActivityLog {
 // ─── Communications ─────────────────────────────────────────────────────────
 
 model Communication {
-  id                 String                 @id @default(cuid())
-  leadId             String                 @map("lead_id")
-  communicationType  CommunicationType      @map("communication_type")
-  direction          CommunicationDirection
-  provider           String?
-  externalMessageId  String?                @map("external_message_id")
-  fromValue          String                 @map("from_value")
-  toValue            String                 @map("to_value")
-  subject            String?
-  body               String                 @db.Text
-  status             CommunicationStatus    @default(PENDING)
-  sentAt             DateTime?              @map("sent_at")
-  receivedAt         DateTime?              @map("received_at")
-  createdByUserId    String?                @map("created_by_user_id")
-  createdAt          DateTime               @default(now()) @map("created_at")
+  id                String                 @id @default(cuid())
+  leadId            String                 @map("lead_id")
+  communicationType CommunicationType      @map("communication_type")
+  direction         CommunicationDirection
+  provider          String?
+  externalMessageId String?                @map("external_message_id")
+  fromValue         String                 @map("from_value")
+  toValue           String                 @map("to_value")
+  subject           String?
+  body              String                 @db.Text
+  status            CommunicationStatus    @default(PENDING)
+  sentAt            DateTime?              @map("sent_at")
+  receivedAt        DateTime?              @map("received_at")
+  createdByUserId   String?                @map("created_by_user_id")
+  createdAt         DateTime               @default(now()) @map("created_at")
 
   lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
   createdBy User? @relation(fields: [createdByUserId], references: [id])
@@ -659,9 +660,9 @@ model File {
   doorKnockId      String?      @map("door_knock_id")
   createdAt        DateTime     @default(now()) @map("created_at")
 
-  lead       Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  uploadedBy User             @relation(fields: [uploadedByUserId], references: [id])
-  doorKnock  PropertyDoorKnock? @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
+  lead               Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  uploadedBy         User                @relation(fields: [uploadedByUserId], references: [id])
+  doorKnock          PropertyDoorKnock?  @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
   generatedDocuments GeneratedDocument[]
 
   @@index([leadId])
@@ -672,20 +673,20 @@ model File {
 // ─── Door Knock / Canvassing ────────────────────────────────────────────────
 
 model PropertyDoorKnock {
-  id              String            @id @default(cuid())
-  prospectId      String            @map("prospect_id")
+  id              String           @id @default(cuid())
+  prospectId      String           @map("prospect_id")
   outcome         DoorKnockOutcome
-  notes           String?           @db.Text
-  latitude        Decimal?          @db.Decimal(10, 7)
-  longitude       Decimal?          @db.Decimal(10, 7)
-  accuracyMeters  Decimal?          @map("accuracy_meters") @db.Decimal(7, 2)
-  knockedAt       DateTime          @default(now()) @map("knocked_at")
-  knockedByUserId String            @map("knocked_by_user_id")
-  isDeleted       Boolean           @default(false) @map("is_deleted")
-  deletedAt       DateTime?         @map("deleted_at")
-  deletedByUserId String?           @map("deleted_by_user_id")
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
+  notes           String?          @db.Text
+  latitude        Decimal?         @db.Decimal(10, 7)
+  longitude       Decimal?         @db.Decimal(10, 7)
+  accuracyMeters  Decimal?         @map("accuracy_meters") @db.Decimal(7, 2)
+  knockedAt       DateTime         @default(now()) @map("knocked_at")
+  knockedByUserId String           @map("knocked_by_user_id")
+  isDeleted       Boolean          @default(false) @map("is_deleted")
+  deletedAt       DateTime?        @map("deleted_at")
+  deletedByUserId String?          @map("deleted_by_user_id")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
 
   prospect  Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
   knockedBy User     @relation("DoorKnockKnockedBy", fields: [knockedByUserId], references: [id])
@@ -701,21 +702,21 @@ model PropertyDoorKnock {
 }
 
 model DoorKnockRoute {
-  id                 String                @id @default(cuid())
+  id                 String               @id @default(cuid())
   name               String
-  description        String?               @db.Text
-  status             DoorKnockRouteStatus  @default(PLANNED)
-  scheduledFor       DateTime?             @map("scheduled_for") @db.Date
-  totalDistanceMiles Decimal?              @map("total_distance_miles") @db.Decimal(8, 2)
-  startLatitude      Decimal?              @map("start_latitude") @db.Decimal(10, 7)
-  startLongitude     Decimal?              @map("start_longitude") @db.Decimal(10, 7)
-  startLabel         String?               @map("start_label")
-  isRoundTrip        Boolean               @default(true) @map("is_round_trip")
-  createdByUserId    String                @map("created_by_user_id")
-  assignedToUserId   String?               @map("assigned_to_user_id")
-  isDeleted          Boolean               @default(false) @map("is_deleted")
-  createdAt          DateTime              @default(now()) @map("created_at")
-  updatedAt          DateTime              @updatedAt @map("updated_at")
+  description        String?              @db.Text
+  status             DoorKnockRouteStatus @default(PLANNED)
+  scheduledFor       DateTime?            @map("scheduled_for") @db.Date
+  totalDistanceMiles Decimal?             @map("total_distance_miles") @db.Decimal(8, 2)
+  startLatitude      Decimal?             @map("start_latitude") @db.Decimal(10, 7)
+  startLongitude     Decimal?             @map("start_longitude") @db.Decimal(10, 7)
+  startLabel         String?              @map("start_label")
+  isRoundTrip        Boolean              @default(true) @map("is_round_trip")
+  createdByUserId    String               @map("created_by_user_id")
+  assignedToUserId   String?              @map("assigned_to_user_id")
+  isDeleted          Boolean              @default(false) @map("is_deleted")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
 
   createdBy  User  @relation("DoorKnockRouteCreatedBy", fields: [createdByUserId], references: [id])
   assignedTo User? @relation("DoorKnockRouteAssignedTo", fields: [assignedToUserId], references: [id])
@@ -729,15 +730,15 @@ model DoorKnockRoute {
 }
 
 model DoorKnockRouteStop {
-  id          String               @id @default(cuid())
-  routeId     String               @map("route_id")
-  prospectId  String               @map("prospect_id")
-  sortOrder   Int                  @map("sort_order")
-  status      DoorKnockStopStatus  @default(PENDING)
-  knockId     String?              @map("knock_id")
-  notes       String?              @db.Text
-  createdAt   DateTime             @default(now()) @map("created_at")
-  updatedAt   DateTime             @updatedAt @map("updated_at")
+  id         String              @id @default(cuid())
+  routeId    String              @map("route_id")
+  prospectId String              @map("prospect_id")
+  sortOrder  Int                 @map("sort_order")
+  status     DoorKnockStopStatus @default(PENDING)
+  knockId    String?             @map("knock_id")
+  notes      String?             @db.Text
+  createdAt  DateTime            @default(now()) @map("created_at")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
 
   route    DoorKnockRoute     @relation(fields: [routeId], references: [id], onDelete: Cascade)
   prospect Prospect           @relation(fields: [prospectId], references: [id], onDelete: Cascade)
@@ -762,8 +763,8 @@ model FollowUpRule {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  messageTemplate MessageTemplate?     @relation(fields: [messageTemplateId], references: [id])
-  targetStage     LeadStage?           @relation("FollowUpRuleTargetStage", fields: [targetStageId], references: [id])
+  messageTemplate MessageTemplate?    @relation(fields: [messageTemplateId], references: [id])
+  targetStage     LeadStage?          @relation("FollowUpRuleTargetStage", fields: [targetStageId], references: [id])
   executions      FollowUpExecution[]
 
   @@index([triggerEvent, isActive])
@@ -779,18 +780,18 @@ enum FollowUpExecutionStatus {
 }
 
 model FollowUpExecution {
-  id            String                  @id @default(cuid())
-  ruleId        String                  @map("rule_id")
-  leadId        String                  @map("lead_id")
-  permitId      String?                 @map("permit_id")
-  inspectionId  String?                 @map("inspection_id")
-  scheduledAt   DateTime                @map("scheduled_at")
-  executedAt    DateTime?               @map("executed_at")
-  status        FollowUpExecutionStatus @default(PENDING)
-  errorMessage  String?                 @map("error_message")
-  attemptCount  Int                     @default(0) @map("attempt_count")
-  createdAt     DateTime                @default(now()) @map("created_at")
-  updatedAt     DateTime                @updatedAt @map("updated_at")
+  id           String                  @id @default(cuid())
+  ruleId       String                  @map("rule_id")
+  leadId       String                  @map("lead_id")
+  permitId     String?                 @map("permit_id")
+  inspectionId String?                 @map("inspection_id")
+  scheduledAt  DateTime                @map("scheduled_at")
+  executedAt   DateTime?               @map("executed_at")
+  status       FollowUpExecutionStatus @default(PENDING)
+  errorMessage String?                 @map("error_message")
+  attemptCount Int                     @default(0) @map("attempt_count")
+  createdAt    DateTime                @default(now()) @map("created_at")
+  updatedAt    DateTime                @updatedAt @map("updated_at")
 
   rule       FollowUpRule         @relation(fields: [ruleId], references: [id], onDelete: Cascade)
   lead       Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -841,85 +842,86 @@ model JobStage {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   jobs          Job[]
-  historyFrom   JobStageHistory[]  @relation("JobFromStage")
-  historyTo     JobStageHistory[]  @relation("JobToStage")
+  historyFrom   JobStageHistory[] @relation("JobFromStage")
+  historyTo     JobStageHistory[] @relation("JobToStage")
   taskTemplates JobTaskTemplate[]
 
   @@map("job_stages")
 }
 
 model JobTaskTemplate {
-  id                     String   @id @default(cuid())
-  stageId                String   @map("stage_id")
-  title                  String
-  description            String?  @db.Text
-  priority               Priority @default(MEDIUM)
-  relativeDueInDays      Int?     @map("relative_due_in_days")
-  defaultAssignedUserId  String?  @map("default_assigned_user_id")
-  isActive               Boolean  @default(true) @map("is_active")
-  createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(cuid())
+  stageId               String   @map("stage_id")
+  title                 String
+  description           String?  @db.Text
+  priority              Priority @default(MEDIUM)
+  relativeDueInDays     Int?     @map("relative_due_in_days")
+  defaultAssignedUserId String?  @map("default_assigned_user_id")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
-  stage            JobStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  defaultAssignee  User?    @relation(fields: [defaultAssignedUserId], references: [id])
+  stage           JobStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  defaultAssignee User?    @relation(fields: [defaultAssignedUserId], references: [id])
 
   @@index([stageId, isActive])
   @@map("job_task_templates")
 }
 
 model Job {
-  id                  String          @id @default(cuid())
-  leadId              String          @map("lead_id")
-  jobNumber           String          @unique @map("job_number")
-  title               String
-  serviceType         String          @map("service_type")
-  jobType             JobType         @default(FIXED_PRICE) @map("job_type")
-  laborCost           Decimal?        @map("labor_cost") @db.Decimal(12, 2)
-  marginType          MarginType?     @map("margin_type")
-  marginValue         Decimal?        @map("margin_value") @db.Decimal(12, 2)
-  contractAmount      Decimal         @map("contract_amount") @db.Decimal(12, 2)
-  depositRequired     Decimal         @default(0) @map("deposit_required") @db.Decimal(12, 2)
-  depositReceived     Decimal         @default(0) @map("deposit_received") @db.Decimal(12, 2)
-  depositReceivedDate DateTime?       @map("deposit_received_date")
-  financingRequired   Boolean         @default(false) @map("financing_required")
-  financingProvider   String?         @map("financing_provider")
-  financingStatus     FinancingStatus @default(NOT_NEEDED) @map("financing_status")
-  financingApprovedDate DateTime?     @map("financing_approved_date")
-  balanceDue          Decimal         @default(0) @map("balance_due") @db.Decimal(12, 2)
-  finalPaymentReceived Boolean        @default(false) @map("final_payment_received")
-  finalPaymentDate    DateTime?       @map("final_payment_date")
-  projectManagerId    String?         @map("project_manager_id")
-  salesRepId          String?         @map("sales_rep_id")
-  currentStageId      String          @map("current_stage_id")
-  nextAction          String?         @map("next_action")
-  targetStartDate     DateTime?       @map("target_start_date")
-  scheduledDate       DateTime?       @map("scheduled_date")
-  completionDate      DateTime?       @map("completion_date")
-  isRentalTurnover    Boolean         @default(false) @map("is_rental_turnover")
-  priorTenantName     String?         @map("prior_tenant_name")
-  turnoverStartedAt   DateTime?       @map("turnover_started_at")
-  turnoverCompletedAt DateTime?       @map("turnover_completed_at")
-  createdAt           DateTime        @default(now()) @map("created_at")
-  updatedAt           DateTime        @updatedAt @map("updated_at")
+  id                    String          @id @default(cuid())
+  leadId                String          @map("lead_id")
+  jobNumber             String          @unique @map("job_number")
+  title                 String
+  serviceType           String          @map("service_type")
+  jobType               JobType         @default(FIXED_PRICE) @map("job_type")
+  laborCost             Decimal?        @map("labor_cost") @db.Decimal(12, 2)
+  marginType            MarginType?     @map("margin_type")
+  marginValue           Decimal?        @map("margin_value") @db.Decimal(12, 2)
+  contractAmount        Decimal         @map("contract_amount") @db.Decimal(12, 2)
+  depositRequired       Decimal         @default(0) @map("deposit_required") @db.Decimal(12, 2)
+  depositReceived       Decimal         @default(0) @map("deposit_received") @db.Decimal(12, 2)
+  depositReceivedDate   DateTime?       @map("deposit_received_date")
+  financingRequired     Boolean         @default(false) @map("financing_required")
+  financingProvider     String?         @map("financing_provider")
+  financingStatus       FinancingStatus @default(NOT_NEEDED) @map("financing_status")
+  financingApprovedDate DateTime?       @map("financing_approved_date")
+  balanceDue            Decimal         @default(0) @map("balance_due") @db.Decimal(12, 2)
+  finalPaymentReceived  Boolean         @default(false) @map("final_payment_received")
+  finalPaymentDate      DateTime?       @map("final_payment_date")
+  projectManagerId      String?         @map("project_manager_id")
+  salesRepId            String?         @map("sales_rep_id")
+  currentStageId        String          @map("current_stage_id")
+  nextAction            String?         @map("next_action")
+  targetStartDate       DateTime?       @map("target_start_date")
+  scheduledDate         DateTime?       @map("scheduled_date")
+  completionDate        DateTime?       @map("completion_date")
+  isRentalTurnover      Boolean         @default(false) @map("is_rental_turnover")
+  priorTenantName       String?         @map("prior_tenant_name")
+  turnoverStartedAt     DateTime?       @map("turnover_started_at")
+  turnoverCompletedAt   DateTime?       @map("turnover_completed_at")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
 
-  lead           Lead      @relation(fields: [leadId], references: [id])
-  currentStage   JobStage  @relation(fields: [currentStageId], references: [id])
-  projectManager User?     @relation("ProjectManager", fields: [projectManagerId], references: [id])
-  salesRep       User?     @relation("SalesRep", fields: [salesRepId], references: [id])
+  lead           Lead     @relation(fields: [leadId], references: [id])
+  currentStage   JobStage @relation(fields: [currentStageId], references: [id])
+  projectManager User?    @relation("ProjectManager", fields: [projectManagerId], references: [id])
+  salesRep       User?    @relation("SalesRep", fields: [salesRepId], references: [id])
 
-  stageHistory    JobStageHistory[]
-  permits         JobPermit[]
-  crewAssignments CrewAssignment[]
-  inspections     Inspection[]
-  payments        Payment[]
-  invoices        Invoice[]
-  expenses        JobExpense[]
-  tasks           Task[]
-  reviewRequests  ReviewRequest[]
-  referrals       Referral[]
-  laborContracts  LaborContract[]
-  budgetLines     BudgetLine[]
+  stageHistory       JobStageHistory[]
+  permits            JobPermit[]
+  crewAssignments    CrewAssignment[]
+  inspections        Inspection[]
+  payments           Payment[]
+  invoices           Invoice[]
+  expenses           JobExpense[]
+  tasks              Task[]
+  reviewRequests     ReviewRequest[]
+  referrals          Referral[]
+  laborContracts     LaborContract[]
+  budgetLines        BudgetLine[]
   generatedDocuments GeneratedDocument[]
+  changeOrders       ChangeOrder[]
 
   @@index([leadId])
   @@index([currentStageId])
@@ -969,8 +971,8 @@ model JobPermit {
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
 
-  job                Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  assignedTo         User?               @relation("PermitAssignedUser", fields: [assignedUserId], references: [id])
+  job                Job                   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  assignedTo         User?                 @relation("PermitAssignedUser", fields: [assignedUserId], references: [id])
   followUpExecutions FollowUpExecution[]
   inspections        JobPermitInspection[]
 
@@ -1036,12 +1038,12 @@ model CrewAssignment {
 // ─── CRM 2.0: Labor contracts (owner → crew, for rollup jobs) ──────────────
 
 model LaborContract {
-  id              String   @id @default(cuid())
-  jobId           String   @map("job_id")
-  crewId          String?  @map("crew_id") // null for ad-hoc/typed labor lines
-  label           String? // ad-hoc name when no crew selected
-  contractAmount  Decimal  @map("contract_amount") @db.Decimal(12, 2)
-  description     String?  @db.Text
+  id                      String    @id @default(cuid())
+  jobId                   String    @map("job_id")
+  crewId                  String?   @map("crew_id") // null for ad-hoc/typed labor lines
+  label                   String? // ad-hoc name when no crew selected
+  contractAmount          Decimal   @map("contract_amount") @db.Decimal(12, 2)
+  description             String?   @db.Text
   // Optional contract-detail fields surfaced on generated contract PDFs.
   paymentTerms            String?   @map("payment_terms") @db.Text
   startDate               DateTime? @map("start_date")
@@ -1051,19 +1053,22 @@ model LaborContract {
   exclusions              String?   @db.Text
   notes                   String?   @db.Text
   retainagePercent        Decimal?  @map("retainage_percent") @db.Decimal(5, 2)
+  retainageReleased       Boolean   @default(false) @map("retainage_released")
+  retainageReleasedDate   DateTime? @map("retainage_released_date")
   delayDamagesPerDay      Decimal?  @map("delay_damages_per_day") @db.Decimal(12, 2)
-  createdByUserId String   @map("created_by_user_id")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdByUserId         String    @map("created_by_user_id")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
 
-  job          Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  crew         Crew?              @relation(fields: [crewId], references: [id])
-  createdBy    User               @relation(fields: [createdByUserId], references: [id])
-  payments     LaborPayment[]
-  changeOrders LaborChangeOrder[]
-  budgetAllocations BudgetAllocation[]
-  generatedDocuments GeneratedDocument[]
-  tasks        LaborContractTask[]
+  job                  Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  crew                 Crew?               @relation(fields: [crewId], references: [id])
+  createdBy            User                @relation(fields: [createdByUserId], references: [id])
+  payments             LaborPayment[]
+  changeOrders         LaborChangeOrder[]
+  customerChangeOrders ChangeOrder[]
+  budgetAllocations    BudgetAllocation[]
+  generatedDocuments   GeneratedDocument[]
+  tasks                LaborContractTask[]
 
   @@index([jobId])
   @@map("labor_contracts")
@@ -1130,29 +1135,70 @@ model BudgetAllocation {
 }
 
 model LaborChangeOrder {
-  id              String   @id @default(cuid())
-  laborContractId String   @map("labor_contract_id")
-  amount          Decimal  @db.Decimal(12, 2) // signed: positive add, negative credit (price adjustment)
-  reason          String?  @db.Text
-  changeDate      DateTime @default(now()) @map("change_date")
+  id                  String   @id @default(cuid())
+  laborContractId     String   @map("labor_contract_id")
+  amount              Decimal  @db.Decimal(12, 2) // signed: positive add, negative credit (price adjustment)
+  reason              String?  @db.Text
+  changeDate          DateTime @default(now()) @map("change_date")
   // Optional addendum-detail fields surfaced on generated addendum PDFs.
-  changeNumber        Int?    @map("change_number")
-  scopeChange         String? @map("scope_change") @db.Text
-  addedScope          String? @map("added_scope") @db.Text
-  removedScope        String? @map("removed_scope") @db.Text
-  timeAdjustmentDays  Int?    @map("time_adjustment_days")
-  updatedPaymentTerms String? @map("updated_payment_terms") @db.Text
-  paymentImpact       String? @map("payment_impact") @db.Text
-  retainageImpact     String? @map("retainage_impact") @db.Text
-  createdByUserId String   @map("created_by_user_id")
-  createdAt       DateTime @default(now()) @map("created_at")
+  changeNumber        Int?     @map("change_number")
+  scopeChange         String?  @map("scope_change") @db.Text
+  addedScope          String?  @map("added_scope") @db.Text
+  removedScope        String?  @map("removed_scope") @db.Text
+  timeAdjustmentDays  Int?     @map("time_adjustment_days")
+  updatedPaymentTerms String?  @map("updated_payment_terms") @db.Text
+  paymentImpact       String?  @map("payment_impact") @db.Text
+  retainageImpact     String?  @map("retainage_impact") @db.Text
+  createdByUserId     String   @map("created_by_user_id")
+  createdAt           DateTime @default(now()) @map("created_at")
 
-  laborContract LaborContract @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
-  createdBy     User          @relation(fields: [createdByUserId], references: [id])
+  laborContract      LaborContract       @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
+  createdBy          User                @relation(fields: [createdByUserId], references: [id])
   generatedDocuments GeneratedDocument[]
+  changeOrder        ChangeOrder?
 
   @@index([laborContractId])
   @@map("labor_change_orders")
+}
+
+// Customer-facing change order. Emailed to the homeowner as a branded bill;
+// they approve/reject via a no-login token link. On approval it bills the
+// customer (contract/balance + invoice) and, when a crew cost + labor contract
+// are set, creates a linked LaborChangeOrder so crew labor rollup stays correct.
+model ChangeOrder {
+  id                 String            @id @default(cuid())
+  jobId              String            @map("job_id")
+  laborContractId    String?           @map("labor_contract_id") // optional crew link
+  number             Int // sequential per job
+  title              String?
+  description        String?           @db.Text // scope shown to the customer
+  customerPrice      Decimal           @map("customer_price") @db.Decimal(12, 2) // what the owner is billed
+  crewCost           Decimal?          @map("crew_cost") @db.Decimal(12, 2) // optional internal cost delta (signed)
+  status             ChangeOrderStatus @default(DRAFT)
+  // Customer approval (no-login token flow)
+  token              String?           @unique
+  tokenExpiresAt     DateTime?         @map("token_expires_at")
+  sentAt             DateTime?         @map("sent_at")
+  decidedAt          DateTime?         @map("decided_at")
+  decisionName       String?           @map("decision_name") // typed name on approve/reject
+  decisionIp         String?           @map("decision_ip")
+  rejectionReason    String?           @map("rejection_reason") @db.Text
+  // Links created on approval
+  invoiceId          String?           @unique @map("invoice_id")
+  laborChangeOrderId String?           @unique @map("labor_change_order_id")
+  createdByUserId    String            @map("created_by_user_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  job              Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  laborContract    LaborContract?    @relation(fields: [laborContractId], references: [id], onDelete: SetNull)
+  invoice          Invoice?          @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  laborChangeOrder LaborChangeOrder? @relation(fields: [laborChangeOrderId], references: [id], onDelete: SetNull)
+  createdBy        User              @relation(fields: [createdByUserId], references: [id])
+
+  @@index([jobId])
+  @@index([status])
+  @@map("change_orders")
 }
 
 model GeneratedDocument {
@@ -1228,6 +1274,14 @@ enum InvoiceStatus {
   VOID
 }
 
+enum ChangeOrderStatus {
+  DRAFT
+  SENT
+  APPROVED
+  REJECTED
+  VOID
+}
+
 model PaymentSource {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -1249,22 +1303,22 @@ enum JobExpenseType {
 }
 
 model JobExpense {
-  id                  String              @id @default(cuid())
-  jobId               String              @map("job_id")
-  type                JobExpenseType      @default(OTHER)
-  vendor              String?
-  description         String?             @db.Text
-  amount              Decimal             @db.Decimal(12, 2)
-  incurredDate        DateTime            @default(now()) @map("incurred_date")
-  paidMethod          PaymentMethod?      @map("paid_method")
-  paidFrom            String?             @map("paid_from")
-  billable            Boolean             @default(false)
-  createdByUserId     String              @map("created_by_user_id")
+  id              String         @id @default(cuid())
+  jobId           String         @map("job_id")
+  type            JobExpenseType @default(OTHER)
+  vendor          String?
+  description     String?        @db.Text
+  amount          Decimal        @db.Decimal(12, 2)
+  incurredDate    DateTime       @default(now()) @map("incurred_date")
+  paidMethod      PaymentMethod? @map("paid_method")
+  paidFrom        String?        @map("paid_from")
+  billable        Boolean        @default(false)
+  createdByUserId String         @map("created_by_user_id")
   // Idempotency key for upstream integrations (cc-allocator sends txn.id).
   // Nullable so manually-created expenses are unaffected.
-  externalId          String?             @unique @map("external_id")
-  createdAt           DateTime            @default(now()) @map("created_at")
-  updatedAt           DateTime            @updatedAt @map("updated_at")
+  externalId      String?        @unique @map("external_id")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
   createdBy         User               @relation(fields: [createdByUserId], references: [id])
@@ -1283,11 +1337,14 @@ model Invoice {
   dueDate       DateTime?     @map("due_date")
   amount        Decimal       @db.Decimal(12, 2)
   status        InvoiceStatus @default(DRAFT)
+  paidAt        DateTime?     @map("paid_at")
   notes         String?       @db.Text
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job         Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  changeOrder ChangeOrder?
+  payments    Payment[]
 
   @@index([jobId])
   @@index([status])
@@ -1304,14 +1361,17 @@ model Payment {
   status       PaymentStatus  @default(PENDING)
   dueDate      DateTime?      @map("due_date")
   receivedDate DateTime?      @map("received_date")
+  invoiceId    String?        @map("invoice_id")
   notes        String?        @db.Text
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
-  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job     Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@index([jobId])
   @@index([status])
+  @@index([invoiceId])
   @@map("payments")
 }
 
@@ -1337,18 +1397,18 @@ model ReviewRequest {
 }
 
 model Referral {
-  id              String         @id @default(cuid())
-  jobId           String         @map("job_id")
-  referredByLeadId String        @map("referred_by_lead_id")
-  referredName    String         @map("referred_name")
-  referredPhone   String?        @map("referred_phone")
-  referredEmail   String?        @map("referred_email")
-  status          ReferralStatus @default(NEW)
-  convertedLeadId String?        @map("converted_lead_id")
-  commissionAmount Decimal?      @map("commission_amount") @db.Decimal(12, 2)
-  commissionPaidAt DateTime?     @map("commission_paid_at")
-  notes           String?        @db.Text
-  createdAt       DateTime       @default(now()) @map("created_at")
+  id               String         @id @default(cuid())
+  jobId            String         @map("job_id")
+  referredByLeadId String         @map("referred_by_lead_id")
+  referredName     String         @map("referred_name")
+  referredPhone    String?        @map("referred_phone")
+  referredEmail    String?        @map("referred_email")
+  status           ReferralStatus @default(NEW)
+  convertedLeadId  String?        @map("converted_lead_id")
+  commissionAmount Decimal?       @map("commission_amount") @db.Decimal(12, 2)
+  commissionPaidAt DateTime?      @map("commission_paid_at")
+  notes            String?        @db.Text
+  createdAt        DateTime       @default(now()) @map("created_at")
 
   job        Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
   referredBy Lead @relation(fields: [referredByLeadId], references: [id])
@@ -1360,17 +1420,17 @@ model Referral {
 // ─── CRM 2.0: AI Sessions (Future) ─────────────────────────────────────────
 
 model AiSession {
-  id          String   @id @default(cuid())
-  leadId      String?  @map("lead_id")
-  jobId       String?  @map("job_id")
-  channel     String
-  status      String   @default("active")
-  startedAt   DateTime @default(now()) @map("started_at")
-  endedAt     DateTime? @map("ended_at")
-  handedOff   Boolean  @default(false) @map("handed_off")
-  handoffReason String? @map("handoff_reason")
-  messagesJson Json?   @map("messages_json")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id            String    @id @default(cuid())
+  leadId        String?   @map("lead_id")
+  jobId         String?   @map("job_id")
+  channel       String
+  status        String    @default("active")
+  startedAt     DateTime  @default(now()) @map("started_at")
+  endedAt       DateTime? @map("ended_at")
+  handedOff     Boolean   @default(false) @map("handed_off")
+  handoffReason String?   @map("handoff_reason")
+  messagesJson  Json?     @map("messages_json")
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   @@index([leadId])
   @@map("ai_sessions")
@@ -1403,21 +1463,21 @@ model InboundEmailEvent {
 // ─── Notification Events ────────────────────────────────────────────────────
 
 model NotificationEvent {
-  id                String             @id @default(cuid())
-  leadId            String             @map("lead_id")
-  recipientUserId   String             @map("recipient_user_id")
+  id                String              @id @default(cuid())
+  leadId            String              @map("lead_id")
+  recipientUserId   String              @map("recipient_user_id")
   channel           NotificationChannel
   provider          String
-  providerMessageId String?            @map("provider_message_id")
-  recipientAddress  String             @map("recipient_address")
-  messageBody       String             @map("message_body") @db.Text
-  status            NotificationStatus @default(QUEUED)
-  sentAt            DateTime?          @map("sent_at")
-  deliveredAt       DateTime?          @map("delivered_at")
-  failedAt          DateTime?          @map("failed_at")
-  errorMessage      String?            @map("error_message")
-  readAt            DateTime?          @map("read_at")
-  createdAt         DateTime           @default(now()) @map("created_at")
+  providerMessageId String?             @map("provider_message_id")
+  recipientAddress  String              @map("recipient_address")
+  messageBody       String              @map("message_body") @db.Text
+  status            NotificationStatus  @default(QUEUED)
+  sentAt            DateTime?           @map("sent_at")
+  deliveredAt       DateTime?           @map("delivered_at")
+  failedAt          DateTime?           @map("failed_at")
+  errorMessage      String?             @map("error_message")
+  readAt            DateTime?           @map("read_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
 
   lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
   recipient User @relation(fields: [recipientUserId], references: [id])
@@ -1451,21 +1511,21 @@ model TrackedActionLink {
 // ─── Lead Response Metrics ──────────────────────────────────────────────────
 
 model LeadResponseMetric {
-  id                    String    @id @default(cuid())
-  leadId                String    @unique @map("lead_id")
-  emailReceivedAt       DateTime? @map("email_received_at")
-  leadCreatedAt         DateTime? @map("lead_created_at")
-  smsSentAt             DateTime? @map("sms_sent_at")
-  firstOpenAt           DateTime? @map("first_open_at")
-  acknowledgedAt        DateTime? @map("acknowledged_at")
-  startCallAt           DateTime? @map("start_call_at")
-  firstAttemptAt        DateTime? @map("first_attempt_at")
-  firstContactedAt      DateTime? @map("first_contacted_at")
-  responseTimeSeconds   Int?      @map("response_time_seconds")
-  assignedUserId        String?   @map("assigned_user_id")
-  source                String?
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
+  id                  String    @id @default(cuid())
+  leadId              String    @unique @map("lead_id")
+  emailReceivedAt     DateTime? @map("email_received_at")
+  leadCreatedAt       DateTime? @map("lead_created_at")
+  smsSentAt           DateTime? @map("sms_sent_at")
+  firstOpenAt         DateTime? @map("first_open_at")
+  acknowledgedAt      DateTime? @map("acknowledged_at")
+  startCallAt         DateTime? @map("start_call_at")
+  firstAttemptAt      DateTime? @map("first_attempt_at")
+  firstContactedAt    DateTime? @map("first_contacted_at")
+  responseTimeSeconds Int?      @map("response_time_seconds")
+  assignedUserId      String?   @map("assigned_user_id")
+  source              String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
   @@index([assignedUserId])
   @@index([source])
@@ -1475,16 +1535,16 @@ model LeadResponseMetric {
 // ─── Manager Alert Settings ─────────────────────────────────────────────────
 
 model ManagerAlertSettings {
-  id                    String  @id @default(cuid())
-  userId                String  @unique @map("user_id")
-  smsEnabled            Boolean @default(true) @map("sms_enabled")
-  smsPhoneNumber        String? @map("sms_phone_number")
-  emailEnabled          Boolean @default(true) @map("email_enabled")
-  alertEmail            String? @map("alert_email")
-  slaThresholdMinutes   Int     @default(5) @map("sla_threshold_minutes")
-  escalationEnabled     Boolean @default(false) @map("escalation_enabled")
-  escalationAfterMinutes Int    @default(15) @map("escalation_after_minutes")
-  escalationContactId   String? @map("escalation_contact_id")
+  id                     String  @id @default(cuid())
+  userId                 String  @unique @map("user_id")
+  smsEnabled             Boolean @default(true) @map("sms_enabled")
+  smsPhoneNumber         String? @map("sms_phone_number")
+  emailEnabled           Boolean @default(true) @map("email_enabled")
+  alertEmail             String? @map("alert_email")
+  slaThresholdMinutes    Int     @default(5) @map("sla_threshold_minutes")
+  escalationEnabled      Boolean @default(false) @map("escalation_enabled")
+  escalationAfterMinutes Int     @default(15) @map("escalation_after_minutes")
+  escalationContactId    String? @map("escalation_contact_id")
 
   @@map("manager_alert_settings")
 }
@@ -1514,22 +1574,22 @@ model AuditEvent {
 // ─── Email Brand (singleton) ────────────────────────────────────────────────
 
 model EmailBrand {
-  id              String   @id @default("default")
-  companyName     String   @map("company_name")
-  addressLine1    String?  @map("address_line_1")
-  addressLine2    String?  @map("address_line_2")
-  city            String?
-  state           String?
-  zip             String?
-  officePhone     String?  @map("office_phone")
-  mobilePhone     String?  @map("mobile_phone")
-  contactEmail    String?  @map("contact_email")
-  website         String?
-  logoUrl         String?  @map("logo_url")
-  primaryColor    String   @default("#1f2937") @map("primary_color")
-  signatureHtml   String?  @map("signature_html") @db.Text
-  signatureText   String?  @map("signature_text") @db.Text
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id            String   @id @default("default")
+  companyName   String   @map("company_name")
+  addressLine1  String?  @map("address_line_1")
+  addressLine2  String?  @map("address_line_2")
+  city          String?
+  state         String?
+  zip           String?
+  officePhone   String?  @map("office_phone")
+  mobilePhone   String?  @map("mobile_phone")
+  contactEmail  String?  @map("contact_email")
+  website       String?
+  logoUrl       String?  @map("logo_url")
+  primaryColor  String   @default("#1f2937") @map("primary_color")
+  signatureHtml String?  @map("signature_html") @db.Text
+  signatureText String?  @map("signature_text") @db.Text
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("email_brand")
 }
@@ -1568,73 +1628,73 @@ enum RoofMaterial {
 // Singleton (id="default") with company branding + per-proposal defaults
 // for the customer-facing roofing proposal PDF. Editable from /admin/roofing-brand.
 model RoofingBrand {
-  id                          String   @id @default("default")
-  companyName                 String   @map("company_name")
-  addressLine1                String?  @map("address_line_1")
-  addressLine2                String?  @map("address_line_2")
-  city                        String?
-  state                       String?
-  zip                         String?
-  phone                       String?
-  email                       String?
-  website                     String?
-  roofingLicense              String?  @map("roofing_license")
-  gcLicense                   String?  @map("gc_license")
-  logoStorageKey              String?  @map("logo_storage_key")
-  defaultExpirationDays       Int      @default(30) @map("default_expiration_days")
-  defaultUnderlaymentType     String?  @map("default_underlayment_type")
-  defaultPlywoodSheetsIncluded Int     @default(3) @map("default_plywood_sheets_included")
-  defaultAdditionalPlywoodPrice Decimal @default(85) @map("default_additional_plywood_price") @db.Decimal(12, 2)
-  defaultWorkmanshipWarrantyYears Int  @default(10) @map("default_workmanship_warranty_years")
-  defaultManufacturerWarranty String?  @map("default_manufacturer_warranty")
-  paymentDepositPercent       Decimal  @default(40) @map("payment_deposit_percent") @db.Decimal(5, 2)
-  paymentProgressPercent      Decimal  @default(40) @map("payment_progress_percent") @db.Decimal(5, 2)
-  paymentFinalPercent         Decimal  @default(20) @map("payment_final_percent") @db.Decimal(5, 2)
-  updatedAt                   DateTime @updatedAt @map("updated_at")
+  id                              String   @id @default("default")
+  companyName                     String   @map("company_name")
+  addressLine1                    String?  @map("address_line_1")
+  addressLine2                    String?  @map("address_line_2")
+  city                            String?
+  state                           String?
+  zip                             String?
+  phone                           String?
+  email                           String?
+  website                         String?
+  roofingLicense                  String?  @map("roofing_license")
+  gcLicense                       String?  @map("gc_license")
+  logoStorageKey                  String?  @map("logo_storage_key")
+  defaultExpirationDays           Int      @default(30) @map("default_expiration_days")
+  defaultUnderlaymentType         String?  @map("default_underlayment_type")
+  defaultPlywoodSheetsIncluded    Int      @default(3) @map("default_plywood_sheets_included")
+  defaultAdditionalPlywoodPrice   Decimal  @default(85) @map("default_additional_plywood_price") @db.Decimal(12, 2)
+  defaultWorkmanshipWarrantyYears Int      @default(10) @map("default_workmanship_warranty_years")
+  defaultManufacturerWarranty     String?  @map("default_manufacturer_warranty")
+  paymentDepositPercent           Decimal  @default(40) @map("payment_deposit_percent") @db.Decimal(5, 2)
+  paymentProgressPercent          Decimal  @default(40) @map("payment_progress_percent") @db.Decimal(5, 2)
+  paymentFinalPercent             Decimal  @default(20) @map("payment_final_percent") @db.Decimal(5, 2)
+  updatedAt                       DateTime @updatedAt @map("updated_at")
 
   @@map("roofing_brand")
 }
 
 model RoofEstimate {
-  id                 String   @id @default(cuid())
-  leadId             String   @map("lead_id")
-  estimateNumber     String   @unique @map("estimate_number")
+  id                       String   @id @default(cuid())
+  leadId                   String   @map("lead_id")
+  estimateNumber           String   @unique @map("estimate_number")
   // roofTypesJson: array of { material: RoofMaterial, squares: number, laborRatePerSquare: number }
-  roofTypesJson      Json     @map("roof_types_json")
-  materialCost       Decimal  @default(0) @map("material_cost") @db.Decimal(12, 2)
-  materialSelection  String?  @map("material_selection") @db.Text
+  roofTypesJson            Json     @map("roof_types_json")
+  materialCost             Decimal  @default(0) @map("material_cost") @db.Decimal(12, 2)
+  materialSelection        String?  @map("material_selection") @db.Text
   // Customer-facing proposal fields (defaults pulled from RoofingBrand on form load)
-  existingRoofType   String?  @map("existing_roof_type")
-  proposedRoofTypeOverride String? @map("proposed_roof_type_override")
-  underlaymentType   String?  @map("underlayment_type")
-  permitIncluded     Boolean  @default(true) @map("permit_included")
-  projectDurationText String? @map("project_duration_text")
-  plywoodSheetsIncluded Int?  @map("plywood_sheets_included")
-  additionalPlywoodPrice Decimal? @map("additional_plywood_price") @db.Decimal(12, 2)
-  workmanshipWarrantyYears Int? @map("workmanship_warranty_years")
-  manufacturerWarranty String? @map("manufacturer_warranty")
-  isEstimateOnly     Boolean  @default(false) @map("is_estimate_only")
-  permitFee          Decimal  @default(0) @map("permit_fee") @db.Decimal(12, 2)
-  dumpsterFee        Decimal  @default(0) @map("dumpster_fee") @db.Decimal(12, 2)
-  tearOffFee         Decimal  @default(0) @map("tear_off_fee") @db.Decimal(12, 2)
-  deckingFee         Decimal  @default(0) @map("decking_fee") @db.Decimal(12, 2)
-  underlaymentFee    Decimal  @default(0) @map("underlayment_fee") @db.Decimal(12, 2)
-  flashingVentFee    Decimal  @default(0) @map("flashing_vent_fee") @db.Decimal(12, 2)
-  skylightChimneyFee Decimal  @default(0) @map("skylight_chimney_fee") @db.Decimal(12, 2)
-  guttersFee         Decimal  @default(0) @map("gutters_fee") @db.Decimal(12, 2)
-  miscLabel          String?  @map("misc_label")
-  miscFee            Decimal  @default(0) @map("misc_fee") @db.Decimal(12, 2)
-  marginPercent      Decimal  @default(0) @map("margin_percent") @db.Decimal(6, 3)
-  discountEnabled    Boolean  @default(false) @map("discount_enabled")
-  discountPercent    Decimal  @default(0) @map("discount_percent") @db.Decimal(6, 3)
-  salesTaxPercent    Decimal  @default(0) @map("sales_tax_percent") @db.Decimal(6, 3)
-  validityDays       Int      @default(30) @map("validity_days")
-  specialTerms       String?  @map("special_terms") @db.Text
-  subtotalCost       Decimal  @map("subtotal_cost") @db.Decimal(12, 2)
-  totalPrice         Decimal  @map("total_price") @db.Decimal(12, 2)
-  createdByUserId    String   @map("created_by_user_id")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  existingRoofType         String?  @map("existing_roof_type")
+  proposedRoofTypeOverride String?  @map("proposed_roof_type_override")
+  underlaymentType         String?  @map("underlayment_type")
+  permitIncluded           Boolean  @default(true) @map("permit_included")
+  projectDurationText      String?  @map("project_duration_text")
+  plywoodSheetsIncluded    Int?     @map("plywood_sheets_included")
+  additionalPlywoodPrice   Decimal? @map("additional_plywood_price") @db.Decimal(12, 2)
+  workmanshipWarrantyYears Int?     @map("workmanship_warranty_years")
+  manufacturerWarranty     String?  @map("manufacturer_warranty")
+  isEstimateOnly           Boolean  @default(false) @map("is_estimate_only")
+  permitFee                Decimal  @default(0) @map("permit_fee") @db.Decimal(12, 2)
+  dumpsterFee              Decimal  @default(0) @map("dumpster_fee") @db.Decimal(12, 2)
+  tearOffFee               Decimal  @default(0) @map("tear_off_fee") @db.Decimal(12, 2)
+  deckingFee               Decimal  @default(0) @map("decking_fee") @db.Decimal(12, 2)
+  underlaymentFee          Decimal  @default(0) @map("underlayment_fee") @db.Decimal(12, 2)
+  flashingVentFee          Decimal  @default(0) @map("flashing_vent_fee") @db.Decimal(12, 2)
+  skylightChimneyFee       Decimal  @default(0) @map("skylight_chimney_fee") @db.Decimal(12, 2)
+  guttersFee               Decimal  @default(0) @map("gutters_fee") @db.Decimal(12, 2)
+  miscLabel                String?  @map("misc_label")
+  miscFee                  Decimal  @default(0) @map("misc_fee") @db.Decimal(12, 2)
+  marginPercent            Decimal  @default(0) @map("margin_percent") @db.Decimal(6, 3)
+  discountEnabled          Boolean  @default(false) @map("discount_enabled")
+  discountPercent          Decimal  @default(0) @map("discount_percent") @db.Decimal(6, 3)
+  salesTaxPercent          Decimal  @default(0) @map("sales_tax_percent") @db.Decimal(6, 3)
+  validityDays             Int      @default(30) @map("validity_days")
+  specialTerms             String?  @map("special_terms") @db.Text
+  subtotalCost             Decimal  @map("subtotal_cost") @db.Decimal(12, 2)
+  totalPrice               Decimal  @map("total_price") @db.Decimal(12, 2)
+  createdByUserId          String   @map("created_by_user_id")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
 
   lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
   createdBy User @relation("RoofEstimateCreatedBy", fields: [createdByUserId], references: [id])

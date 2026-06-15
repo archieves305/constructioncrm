@@ -5,6 +5,7 @@ import { verifyCcAllocatorAuth } from "@/lib/integrations/cc-allocator/auth";
 import { CC_ALLOCATOR_SYSTEM_USER_ID } from "@/lib/integrations/cc-allocator/system-user";
 import {
   recomputeCostPlusJob,
+  recomputeJobBalance,
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
 
@@ -119,10 +120,7 @@ export async function POST(request: NextRequest) {
     if (balanceDelta > 0) {
       await tx.job.update({
         where: { id: input.jobId },
-        data: {
-          contractAmount: { increment: balanceDelta },
-          balanceDue: { increment: balanceDelta },
-        },
+        data: { contractAmount: { increment: balanceDelta } },
       });
     }
     return expense;
@@ -130,7 +128,9 @@ export async function POST(request: NextRequest) {
 
   // recomputeCostPlusJob is tx-aware but reads its own data; running it
   // outside the transaction matches PATCH /api/expenses/[id]'s pattern.
+  // balanceDue is derived — recompute it via the single writer.
   if (isRollup) await recomputeCostPlusJob(input.jobId);
+  else if (balanceDelta > 0) await recomputeJobBalance(input.jobId);
 
   return NextResponse.json({
     expenseId: created.id,

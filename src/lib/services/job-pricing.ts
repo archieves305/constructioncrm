@@ -36,6 +36,53 @@ export function computeCostPlusContract({
   return { contract: base, margin: 0 };
 }
 
+/**
+ * The single source of truth for `Job.balanceDue`. This is the ONLY function
+ * permitted to write `balanceDue` — every code path that changes the contract
+ * amount or a payment must call this afterwards so the balance self-heals.
+ *
+ *   balanceDue = OWNED_REHAB ? 0 : max(0, contractAmount − payments received)
+ *
+ * Also flips `finalPaymentReceived` / `finalPaymentDate` when a billable job is
+ * first paid in full.
+ */
+export async function recomputeJobBalance(jobId: string, tx = prisma) {
+  const job = await tx.job.findUnique({
+    where: { id: jobId },
+    select: {
+      jobType: true,
+      contractAmount: true,
+      finalPaymentReceived: true,
+      finalPaymentDate: true,
+    },
+  });
+  if (!job) return;
+
+  const isOwnedRehab = job.jobType === ("OWNED_REHAB" as JobType);
+  const contract = Number(job.contractAmount);
+
+  const payments = await tx.payment.findMany({
+    where: { jobId, status: "RECEIVED" },
+    select: { amount: true },
+  });
+  const received = payments.reduce((s, p) => s + Number(p.amount), 0);
+
+  // Owned-rehab jobs are never billed to a client.
+  const balanceDue = isOwnedRehab ? 0 : Math.max(0, contract - received);
+
+  // A non-zero billable contract is "final-paid" once the balance reaches 0.
+  const paidInFull = !isOwnedRehab && contract > 0 && balanceDue === 0;
+  const finalPaymentReceived = paidInFull;
+  const finalPaymentDate = paidInFull
+    ? (job.finalPaymentDate ?? new Date())
+    : null;
+
+  await tx.job.update({
+    where: { id: jobId },
+    data: { balanceDue, finalPaymentReceived, finalPaymentDate },
+  });
+}
+
 export async function recomputeCostPlusJob(jobId: string, tx = prisma) {
   const job = await tx.job.findUnique({
     where: { id: jobId },
@@ -44,7 +91,6 @@ export async function recomputeCostPlusJob(jobId: string, tx = prisma) {
       laborCost: true,
       marginType: true,
       marginValue: true,
-      depositReceived: true,
     },
   });
   if (!job || !rollsExpensesIntoContract(job.jobType)) return;
@@ -65,20 +111,13 @@ export async function recomputeCostPlusJob(jobId: string, tx = prisma) {
     marginValue: isOwnedRehab ? 0 : Number(job.marginValue ?? 0),
   });
 
-  const payments = await tx.payment.findMany({
-    where: { jobId, status: "RECEIVED" },
-    select: { amount: true },
-  });
-  const totalReceived = payments.reduce((s, p) => s + Number(p.amount), 0);
-
   await tx.job.update({
     where: { id: jobId },
-    data: {
-      contractAmount: contract,
-      // Owned-rehab jobs are never billed to a client.
-      balanceDue: isOwnedRehab ? 0 : Math.max(0, contract - totalReceived),
-    },
+    data: { contractAmount: contract },
   });
+
+  // Balance is derived from the (now-updated) contract and payments.
+  await recomputeJobBalance(jobId, tx);
 }
 
 /**

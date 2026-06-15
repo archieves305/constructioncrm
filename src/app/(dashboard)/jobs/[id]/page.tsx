@@ -25,6 +25,7 @@ import { FilesPanel } from "@/components/files/files-panel";
 import { InvoicesPanel } from "@/components/jobs/invoices-panel";
 import { ExpensesPanel } from "@/components/jobs/expenses-panel";
 import { LaborContractsPanel } from "@/components/jobs/labor-contracts-panel";
+import { ChangeOrdersPanel } from "@/components/jobs/change-orders-panel";
 import { BudgetPanel } from "@/components/jobs/budget-panel";
 import { PricingPanel } from "@/components/jobs/pricing-panel";
 import { RentalTurnoverPanel } from "@/components/jobs/rental-turnover-panel";
@@ -91,6 +92,22 @@ export default function JobDetailPage() {
   const [payType, setPayType] = useState("DEPOSIT");
   const [payMethod, setPayMethod] = useState("CHECK");
   const [payReference, setPayReference] = useState("");
+  const [payInvoiceId, setPayInvoiceId] = useState("__none");
+
+  const { data: jobInvoices = [] } = useQuery<
+    { id: string; invoiceNumber: string; amount: string; status: string }[]
+  >({
+    queryKey: ["invoices", id],
+    queryFn: () => fetch(`/api/jobs/${id}/invoices`).then((r) => r.json()),
+  });
+  const openInvoices = jobInvoices.filter(
+    (inv) => inv.status !== "PAID" && inv.status !== "VOID",
+  );
+
+  const refreshFinancials = () => {
+    qc.invalidateQueries({ queryKey: ["job", id] });
+    qc.invalidateQueries({ queryKey: ["invoices", id] });
+  };
 
   const recordPayment = useMutation({
     mutationFn: (data: {
@@ -98,6 +115,7 @@ export default function JobDetailPage() {
       amount: number;
       method: string;
       reference: string;
+      invoiceId?: string | null;
     }) =>
       fetch(`/api/jobs/${id}/payments`, {
         method: "POST",
@@ -105,11 +123,25 @@ export default function JobDetailPage() {
         body: JSON.stringify(data),
       }).then((r) => r.json()),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["job", id] });
+      refreshFinancials();
       setPayAmount("");
       setPayReference("");
+      setPayInvoiceId("__none");
       toast.success("Payment recorded");
     },
+  });
+
+  const deletePayment = useMutation({
+    mutationFn: (paymentId: string) =>
+      fetch(`/api/payments/${paymentId}`, { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new Error("Delete failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      refreshFinancials();
+      toast.success("Payment deleted");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const emptyPermitForm = {
@@ -359,6 +391,7 @@ export default function JobDetailPage() {
               <TabsTrigger value="invoices">Invoices</TabsTrigger>
               <TabsTrigger value="expenses">Expenses</TabsTrigger>
               <TabsTrigger value="labor">Labor</TabsTrigger>
+              <TabsTrigger value="change-orders">Change Orders</TabsTrigger>
               <TabsTrigger value="permits">Permits ({job.permits?.length || 0})</TabsTrigger>
               <TabsTrigger value="crews">Crews</TabsTrigger>
               <TabsTrigger value="inspections">Inspections</TabsTrigger>
@@ -410,12 +443,26 @@ export default function JobDetailPage() {
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayReference(e.target.value)}
                       className="w-[160px]"
                     />
+                    <Select value={payInvoiceId} onValueChange={(v: string | null) => setPayInvoiceId(v ?? "__none")}>
+                      <SelectTrigger className="w-[190px]">
+                        <SelectValue>{(v: string) => (v === "__none" || !v ? "Apply to invoice (optional)" : v)}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">No invoice</SelectItem>
+                        {openInvoices.map((inv) => (
+                          <SelectItem key={inv.id} value={inv.id}>
+                            {inv.invoiceNumber} — ${Number(inv.amount).toLocaleString()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button size="sm" disabled={!payAmount || recordPayment.isPending}
                       onClick={() => recordPayment.mutate({
                         paymentType: payType,
                         amount: Number(payAmount),
                         method: payMethod,
                         reference: payReference,
+                        invoiceId: payInvoiceId === "__none" ? null : payInvoiceId,
                       })}>
                       Record Payment
                     </Button>
@@ -451,6 +498,15 @@ export default function JobDetailPage() {
                             Receipt PDF
                           </a>
                         )}
+                        <button
+                          onClick={() => {
+                            if (confirm("Delete this payment? The balance will be recomputed."))
+                              deletePayment.mutate(p.id);
+                          }}
+                          className="rounded border px-2 py-1 text-[11px] text-red-600 hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </CardContent>
                   </Card>
@@ -484,6 +540,10 @@ export default function JobDetailPage() {
 
             <TabsContent value="labor">
               <LaborContractsPanel jobId={id} />
+            </TabsContent>
+
+            <TabsContent value="change-orders">
+              <ChangeOrdersPanel jobId={id} jobType={job.jobType} />
             </TabsContent>
 
             <TabsContent value="permits" className="space-y-4">

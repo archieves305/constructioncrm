@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { recomputeJobLabor } from "@/lib/services/job-pricing";
+import { nextLaborChangeNumber } from "@/lib/services/change-orders";
 
 const createSchema = z.object({
   // Signed: positive = additional work, negative = credit. Non-zero.
@@ -42,10 +43,9 @@ export async function POST(
   if (!contract)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Sequential, human-friendly change-order number per labor contract.
-  const priorCount = await prisma.laborChangeOrder.count({
-    where: { laborContractId: id },
-  });
+  // Sequential, human-friendly change-order number per labor contract. Use
+  // max+1 (not count+1) so numbers are never reused after a delete.
+  const changeNumber = await nextLaborChangeNumber(prisma, id);
 
   const changeOrder = await prisma.laborChangeOrder.create({
     data: {
@@ -55,7 +55,7 @@ export async function POST(
       changeDate: parsed.data.changeDate
         ? new Date(parsed.data.changeDate)
         : new Date(),
-      changeNumber: priorCount + 1,
+      changeNumber,
       scopeChange: parsed.data.scopeChange?.trim() || null,
       addedScope: parsed.data.addedScope?.trim() || null,
       removedScope: parsed.data.removedScope?.trim() || null,

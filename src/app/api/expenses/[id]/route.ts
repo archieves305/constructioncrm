@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import {
   recomputeCostPlusJob,
+  recomputeJobBalance,
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
 
@@ -93,16 +94,15 @@ export async function PATCH(
       ? [
           prisma.job.update({
             where: { id: existing.jobId },
-            data: {
-              contractAmount: { increment: delta },
-              balanceDue: { increment: delta },
-            },
+            data: { contractAmount: { increment: delta } },
           }),
         ]
       : []),
   ]);
 
+  // balanceDue is derived — recompute it via the single writer.
   if (isCostPlus) await recomputeCostPlusJob(existing.jobId);
+  else if (delta !== 0) await recomputeJobBalance(existing.jobId);
 
   const record = await prisma.jobExpense.findUnique({
     where: { id },
@@ -135,16 +135,15 @@ export async function DELETE(
       ? [
           prisma.job.update({
             where: { id: existing.jobId },
-            data: {
-              contractAmount: { decrement: reverseAmount },
-              balanceDue: { decrement: reverseAmount },
-            },
+            data: { contractAmount: { decrement: reverseAmount } },
           }),
         ]
       : []),
   ]);
 
+  // balanceDue is derived — recompute it via the single writer.
   if (isCostPlus) await recomputeCostPlusJob(existing.jobId);
+  else if (reverseAmount > 0) await recomputeJobBalance(existing.jobId);
 
   return NextResponse.json({ ok: true });
 }

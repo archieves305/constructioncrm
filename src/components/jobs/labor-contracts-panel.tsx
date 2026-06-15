@@ -100,6 +100,8 @@ type LaborContract = {
   exclusions: string | null;
   notes: string | null;
   retainagePercent: string | null;
+  retainageReleased: boolean;
+  retainageReleasedDate: string | null;
   delayDamagesPerDay: string | null;
   crew: { id: string; name: string } | null;
   createdBy: { firstName: string; lastName: string };
@@ -225,6 +227,23 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
       qc.invalidateQueries({ queryKey: ["job", jobId] });
       toast.success("Labor contract removed");
     },
+  });
+
+  const releaseRetainage = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/labor-contracts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retainageReleased: true }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Release failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+      toast.success("Retainage released");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   // Edit-contract dialog
@@ -491,17 +510,35 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
     Number(c.contractAmount) + coTotalFor(c);
   const paidFor = (c: LaborContract) =>
     c.payments.reduce((s, p) => s + Number(p.amount), 0);
+  // Retainage withheld from the crew until released.
+  const heldRetainageFor = (c: LaborContract) =>
+    c.retainageReleased
+      ? 0
+      : (revisedFor(c) * Number(c.retainagePercent ?? 0)) / 100;
+  // What's payable to the crew right now (after retainage hold).
+  const netOwedFor = (c: LaborContract) =>
+    Math.max(0, revisedFor(c) - paidFor(c) - heldRetainageFor(c));
 
   const totals = useMemo(() => {
     let contracted = 0;
     let paid = 0;
+    let held = 0;
     for (const c of contracts) {
-      contracted +=
+      const revised =
         Number(c.contractAmount) +
         c.changeOrders.reduce((s, co) => s + Number(co.amount), 0);
+      contracted += revised;
       for (const p of c.payments) paid += Number(p.amount);
+      held += c.retainageReleased
+        ? 0
+        : (revised * Number(c.retainagePercent ?? 0)) / 100;
     }
-    return { contracted, paid, outstanding: contracted - paid };
+    return {
+      contracted,
+      paid,
+      held,
+      netOwed: Math.max(0, contracted - paid - held),
+    };
   }, [contracts]);
 
   const canAdd =
@@ -512,7 +549,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
           <CardContent className="p-3">
             <div className="text-[10px] uppercase text-muted-foreground">
@@ -536,14 +573,24 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
         <Card>
           <CardContent className="p-3">
             <div className="text-[10px] uppercase text-muted-foreground">
-              Outstanding
+              Retainage held
+            </div>
+            <div className="text-lg font-semibold text-amber-700">
+              ${totals.held.toLocaleString()}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <div className="text-[10px] uppercase text-muted-foreground">
+              Net owed now
             </div>
             <div
               className={`text-lg font-semibold ${
-                totals.outstanding > 0 ? "text-red-700" : "text-emerald-700"
+                totals.netOwed > 0 ? "text-red-700" : "text-emerald-700"
               }`}
             >
-              ${totals.outstanding.toLocaleString()}
+              ${totals.netOwed.toLocaleString()}
             </div>
           </CardContent>
         </Card>
@@ -634,6 +681,9 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
             const coTotal = coTotalFor(c);
             const revised = revisedFor(c);
             const outstanding = revised - paid;
+            const retPct = Number(c.retainagePercent ?? 0);
+            const held = heldRetainageFor(c);
+            const netOwed = netOwedFor(c);
             const name = c.crew?.name ?? c.label ?? "Labor";
             return (
               <Card key={c.id}>
@@ -765,6 +815,50 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                       </div>
                     </div>
                   </div>
+
+                  {retPct > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded bg-amber-50 px-2 py-1.5 text-xs">
+                      <div className="text-amber-800">
+                        {c.retainageReleased ? (
+                          <>
+                            Retainage ({retPct}%) released
+                            {c.retainageReleasedDate
+                              ? ` ${format(new Date(c.retainageReleasedDate), "MMM d, yyyy")}`
+                              : ""}
+                          </>
+                        ) : (
+                          <>
+                            Retainage held ({retPct}%):{" "}
+                            <span className="font-semibold">
+                              ${held.toLocaleString()}
+                            </span>{" "}
+                            · net owed now{" "}
+                            <span className="font-semibold">
+                              ${netOwed.toLocaleString()}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {!c.retainageReleased && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[11px]"
+                          disabled={releaseRetainage.isPending}
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `Release $${held.toLocaleString()} retainage to ${name}? It becomes payable now.`,
+                              )
+                            )
+                              releaseRetainage.mutate(c.id);
+                          }}
+                        >
+                          Release retainage
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   {c.description && (
                     <div className="text-xs text-muted-foreground">

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import {
   recomputeCostPlusJob,
+  recomputeJobBalance,
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
 
@@ -104,29 +105,21 @@ export async function PATCH(
     existing.jobType;
   const isRollup = rollsExpensesIntoContract(nextType);
 
-  if (nextType === "FIXED_PRICE" && body.contractAmount !== undefined) {
-    updateData.balanceDue = Number(body.contractAmount) - Number(existing.depositReceived);
-  }
-
   if (isRollup) {
     // Contract is computed from labor + expenses; never set directly.
     delete updateData.contractAmount;
   }
 
-  const job = await prisma.job.update({
+  await prisma.job.update({ where: { id }, data: updateData });
+
+  // balanceDue is derived — recompute via the single writer after any
+  // contract/type change (rollup also recomputes contractAmount first).
+  if (isRollup) await recomputeCostPlusJob(id);
+  else await recomputeJobBalance(id);
+
+  const refreshed = await prisma.job.findUnique({
     where: { id },
-    data: updateData,
     include: { currentStage: true },
   });
-
-  if (isRollup) {
-    await recomputeCostPlusJob(id);
-    const refreshed = await prisma.job.findUnique({
-      where: { id },
-      include: { currentStage: true },
-    });
-    return NextResponse.json(refreshed);
-  }
-
-  return NextResponse.json(job);
+  return NextResponse.json(refreshed);
 }

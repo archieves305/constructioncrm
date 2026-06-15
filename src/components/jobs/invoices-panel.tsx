@@ -15,6 +15,13 @@ import {
 } from "@/components/ui/select";
 import { FileText, Plus } from "lucide-react";
 
+type InvoicePayment = {
+  id: string;
+  amount: string;
+  receivedDate: string | null;
+  method: string | null;
+};
+
 type Invoice = {
   id: string;
   invoiceNumber: string;
@@ -22,6 +29,9 @@ type Invoice = {
   dueDate: string | null;
   amount: string;
   status: "DRAFT" | "SENT" | "PAID" | "VOID";
+  paidAt: string | null;
+  payments: InvoicePayment[];
+  changeOrder: { number: number } | null;
 };
 
 const STATUSES = ["DRAFT", "SENT", "PAID", "VOID"] as const;
@@ -62,6 +72,21 @@ export function InvoicesPanel({ jobId }: { jobId: string }) {
       qc.invalidateQueries({ queryKey: ["invoices", jobId] });
     },
   });
+
+  function paidTotal(inv: Invoice) {
+    return inv.payments.reduce((s, p) => s + Number(p.amount), 0);
+  }
+
+  function changeStatus(inv: Invoice, status: string) {
+    // Payments drive status — warn if marking PAID without covering payments.
+    if (status === "PAID" && paidTotal(inv) < Number(inv.amount)) {
+      const ok = confirm(
+        "No payment covers this invoice yet. Marking it Paid here won't record money received or reduce the balance. Record a payment on the Payments tab instead?\n\nClick OK to mark Paid anyway, Cancel to stop.",
+      );
+      if (!ok) return;
+    }
+    updateStatus.mutate({ id: inv.id, status });
+  }
 
   return (
     <div className="space-y-4">
@@ -109,13 +134,25 @@ export function InvoicesPanel({ jobId }: { jobId: string }) {
                     Issued {format(new Date(inv.issueDate), "MMM d, yyyy")}
                     {inv.dueDate &&
                       ` · Due ${format(new Date(inv.dueDate), "MMM d, yyyy")}`}
+                    {inv.changeOrder && ` · from CO-${inv.changeOrder.number}`}
                   </div>
+                  {inv.payments.length > 0 && (
+                    <div className="mt-1 text-xs text-green-700">
+                      Paid ${paidTotal(inv).toLocaleString()} of $
+                      {Number(inv.amount).toLocaleString()}
+                      {" · "}
+                      {inv.payments.length} payment
+                      {inv.payments.length > 1 ? "s" : ""}
+                      {inv.paidAt &&
+                        ` · settled ${format(new Date(inv.paidAt), "MMM d, yyyy")}`}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Select
                     value={inv.status}
                     onValueChange={(v: string | null) =>
-                      v && updateStatus.mutate({ id: inv.id, status: v })
+                      v && changeStatus(inv, v)
                     }
                   >
                     <SelectTrigger className="h-7 w-[100px] text-xs">

@@ -21,6 +21,13 @@ export async function GET(
   const invoices = await prisma.invoice.findMany({
     where: { jobId: id },
     orderBy: { createdAt: "desc" },
+    include: {
+      payments: {
+        select: { id: true, amount: true, receivedDate: true, method: true },
+        orderBy: { receivedDate: "asc" },
+      },
+      changeOrder: { select: { number: true } },
+    },
   });
   return NextResponse.json(invoices);
 }
@@ -48,13 +55,18 @@ export async function POST(
   const count = await prisma.invoice.count({ where: { jobId: id } });
   const invoiceNumber = `${job.jobNumber.replace("JOB-", "INV-")}-${String(count + 1).padStart(2, "0")}`;
 
+  // Default to net-30 so unpaid invoices age into A/R.
+  const dueDate = parsed.data.dueDate
+    ? new Date(parsed.data.dueDate)
+    : new Date(Date.now() + 30 * 86400000);
+
   const invoice = await prisma.invoice.create({
     data: {
       jobId: id,
       invoiceNumber,
       amount,
       status: parsed.data.status ?? "DRAFT",
-      dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
+      dueDate,
       notes: parsed.data.notes,
     },
   });

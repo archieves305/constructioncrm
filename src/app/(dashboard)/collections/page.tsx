@@ -25,6 +25,54 @@ type CollectionJob = {
   salesRep: { firstName: string; lastName: string } | null;
 };
 
+type AgingBucket = "current" | "d1_30" | "d31_60" | "d61_90" | "d90plus";
+
+type FinancialsResponse = {
+  aging: {
+    rows: {
+      invoiceId: string;
+      invoiceNumber: string;
+      jobId: string;
+      jobNumber: string;
+      customer: string;
+      remaining: number;
+      dueDate: string | null;
+      ageDays: number;
+      bucket: AgingBucket;
+    }[];
+    buckets: Record<AgingBucket, number>;
+    totalOutstanding: number;
+    totalOverdue: number;
+  };
+  summary: {
+    totalContracted: number;
+    totalCollected: number;
+    totalOutstandingAR: number;
+    jobs: {
+      jobId: string;
+      jobNumber: string;
+      title: string;
+      jobType: string;
+      revenue: number;
+      cost: number;
+      profit: number;
+      margin: number;
+    }[];
+  };
+};
+
+const BUCKET_LABELS: Record<AgingBucket, string> = {
+  current: "Current",
+  d1_30: "1–30",
+  d31_60: "31–60",
+  d61_90: "61–90",
+  d90plus: "90+",
+};
+
+function money(n: number) {
+  return `$${Math.round(n).toLocaleString()}`;
+}
+
 export default function CollectionsPage() {
   const router = useRouter();
 
@@ -33,7 +81,15 @@ export default function CollectionsPage() {
     queryFn: () => fetch("/api/jobs?pageSize=500").then((r) => r.json()),
   });
 
+  const { data: financials } = useQuery<FinancialsResponse>({
+    queryKey: ["reports", "financials"],
+    queryFn: () => fetch("/api/reports/financials").then((r) => r.json()),
+  });
+
   const jobs: CollectionJob[] = jobsData?.data || [];
+  const aging = financials?.aging;
+  const profitability = financials?.summary.jobs ?? [];
+  const overdueRows = (aging?.rows ?? []).filter((r) => r.ageDays > 0);
 
   const depositsMissing = jobs.filter(
     (j) => Number(j.depositReceived) < Number(j.depositRequired)
@@ -54,10 +110,11 @@ export default function CollectionsPage() {
     <div>
       <PageHeader title="Collections" description="Track deposits, balances, and payments" />
 
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-6">
         <KpiCard title="Total Contracted" value={`$${totalContracted.toLocaleString()}`} icon={DollarSign} />
         <KpiCard title="Total Collected" value={`$${totalCollected.toLocaleString()}`} icon={CheckCircle} />
         <KpiCard title="Outstanding" value={`$${totalOutstanding.toLocaleString()}`} icon={Clock} />
+        <KpiCard title="Overdue A/R" value={money(aging?.totalOverdue ?? 0)} icon={AlertTriangle} />
         <KpiCard title="Deposits Missing" value={depositsMissing.length} icon={AlertTriangle} />
       </div>
 
@@ -121,6 +178,88 @@ export default function CollectionsPage() {
                       <TableCell className="text-sm">{j.lead.primaryPhone}</TableCell>
                       <TableCell className="text-right text-red-600 font-medium">
                         ${Number(j.balanceDue).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="text-base">A/R Aging (unpaid invoices)</CardTitle></CardHeader>
+          <CardContent>
+            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {(["current", "d1_30", "d31_60", "d61_90", "d90plus"] as AgingBucket[]).map((b) => (
+                <div key={b} className="rounded border p-2 text-center">
+                  <div className="text-[10px] uppercase text-muted-foreground">{BUCKET_LABELS[b]}</div>
+                  <div className={`text-sm font-semibold ${b === "d90plus" && (aging?.buckets[b] ?? 0) > 0 ? "text-red-600" : ""}`}>
+                    {money(aging?.buckets[b] ?? 0)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {overdueRows.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">No overdue invoices</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Job</TableHead>
+                    <TableHead className="text-right">Days past due</TableHead>
+                    <TableHead className="text-right">Remaining</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {overdueRows.map((r) => (
+                    <TableRow key={r.invoiceId} className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => router.push(`/jobs/${r.jobId}`)}>
+                      <TableCell className="font-mono text-xs">{r.invoiceNumber}</TableCell>
+                      <TableCell className="text-sm">{r.customer}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.jobNumber}</TableCell>
+                      <TableCell className="text-right">{r.ageDays}</TableCell>
+                      <TableCell className="text-right font-medium text-red-600">{money(r.remaining)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="text-base">Job Profitability</CardTitle></CardHeader>
+          <CardContent>
+            {profitability.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">No billable jobs yet</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Job</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
+                    <TableHead className="text-right">Profit</TableHead>
+                    <TableHead className="text-right">Margin</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {profitability.map((j) => (
+                    <TableRow key={j.jobId} className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => router.push(`/jobs/${j.jobId}`)}>
+                      <TableCell className="font-mono text-xs">{j.jobNumber}</TableCell>
+                      <TableCell className="text-sm">{j.title}</TableCell>
+                      <TableCell className="text-right">{money(j.revenue)}</TableCell>
+                      <TableCell className="text-right">{money(j.cost)}</TableCell>
+                      <TableCell className={`text-right font-medium ${j.profit < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                        {money(j.profit)}
+                      </TableCell>
+                      <TableCell className={`text-right ${j.margin < 0 ? "text-red-600" : ""}`}>
+                        {(j.margin * 100).toFixed(0)}%
                       </TableCell>
                     </TableRow>
                   ))}
