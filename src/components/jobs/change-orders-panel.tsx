@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -99,6 +99,7 @@ export function ChangeOrdersPanel({
     session?.user?.role === "ADMIN" || session?.user?.role === "MANAGER";
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ChangeOrder | null>(null);
+  const [viewing, setViewing] = useState<ChangeOrder | null>(null);
   const [decideFor, setDecideFor] = useState<ChangeOrder | null>(null);
   const [decideName, setDecideName] = useState("");
   const [decideReason, setDecideReason] = useState("");
@@ -276,8 +277,19 @@ export function ChangeOrdersPanel({
         </p>
       ) : (
         <div className="space-y-2">
-          {changeOrders.map((co) => (
-            <Card key={co.id}>
+          {changeOrders.map((co) => {
+            const clickable = co.status === "APPROVED";
+            return (
+            <Card
+              key={co.id}
+              className={
+                clickable
+                  ? "cursor-pointer transition-colors hover:border-green-300 hover:bg-green-50/40"
+                  : undefined
+              }
+              onClick={clickable ? () => setViewing(co) : undefined}
+              title={clickable ? "View change order" : undefined}
+            >
               <CardContent className="space-y-2 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -385,7 +397,10 @@ export function ChangeOrdersPanel({
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => copyLink(co.token!)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyLink(co.token!);
+                          }}
                           title="Copy customer link"
                         >
                           <Copy className="h-4 w-4" />
@@ -395,9 +410,128 @@ export function ChangeOrdersPanel({
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      <Dialog
+        open={!!viewing}
+        onOpenChange={(open) => !open && setViewing(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {viewing ? `CO-${viewing.number}` : "Change order"}
+              {viewing?.title ? (
+                <span className="font-normal text-gray-600">
+                  — {viewing.title}
+                </span>
+              ) : null}
+              {viewing && (
+                <Badge className={STATUS_STYLES[viewing.status]}>
+                  {viewing.status}
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {viewing && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-xs uppercase text-gray-400">
+                    Customer price
+                  </div>
+                  <div className="font-semibold text-gray-900">
+                    {money(viewing.customerPrice)}
+                  </div>
+                </div>
+                {viewing.crewCost != null && (
+                  <div>
+                    <div className="text-xs uppercase text-gray-400">
+                      Crew cost
+                    </div>
+                    <div className="font-semibold text-gray-900">
+                      {money(viewing.crewCost)}
+                    </div>
+                  </div>
+                )}
+                {viewing.laborContract && (
+                  <div>
+                    <div className="text-xs uppercase text-gray-400">Crew</div>
+                    <div className="text-gray-900">
+                      {contractName(viewing.laborContract)}
+                    </div>
+                  </div>
+                )}
+                {viewing.decisionName && (
+                  <div>
+                    <div className="text-xs uppercase text-gray-400">
+                      Approved by
+                    </div>
+                    <div className="text-gray-900">
+                      {viewing.decisionName}
+                      {viewing.decidedAt
+                        ? ` · ${format(new Date(viewing.decidedAt), "MMM d, yyyy")}`
+                        : ""}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="text-xs uppercase text-gray-400">
+                  Scope / description
+                </div>
+                {viewing.description ? (
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">
+                    {viewing.description}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-sm text-gray-400">
+                    No description provided.
+                  </p>
+                )}
+              </div>
+
+              {viewing.invoice && (
+                <div className="flex items-center gap-1 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+                  <FileText className="h-4 w-4" />
+                  Invoice {viewing.invoice.invoiceNumber} · {viewing.invoice.status}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {viewing.invoice && (
+                  <a
+                    href={`/api/invoices/${viewing.invoice.id}/pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                  >
+                    <FileText className="mr-1 h-4 w-4" /> View invoice
+                  </a>
+                )}
+                {viewing.token && (
+                  <a
+                    href={`/co/${viewing.token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                  >
+                    <FileText className="mr-1 h-4 w-4" /> View change order
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewing(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!decideFor}

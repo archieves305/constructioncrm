@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     color: "#6b7280",
   },
+  paragraph: { marginTop: 2, lineHeight: 1.4 },
   row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
   label: { color: "#6b7280" },
   value: { fontWeight: 700 },
@@ -83,6 +84,13 @@ export type InvoiceData = {
   amount: number;
   status: string;
   notes: string | null;
+  // When the invoice was raised from an approved change order, carry its scope
+  // so the detailed description is visible on the invoice.
+  changeOrder?: {
+    number: number;
+    title: string | null;
+    description: string | null;
+  } | null;
   job: {
     jobNumber: string;
     title: string;
@@ -152,25 +160,46 @@ function InvoiceDoc({ data }: { data: InvoiceData }) {
           <Text style={styles.colDesc}>Description</Text>
           <Text style={styles.colAmount}>Amount</Text>
         </View>
-        <View style={styles.lineItemRow}>
-          <Text style={styles.colDesc}>
-            {data.job.serviceType} — {data.job.title}
-          </Text>
-          <Text style={styles.colAmount}>{money(data.job.contractAmount)}</Text>
-        </View>
-        {data.job.depositReceived > 0 ? (
+        {data.changeOrder ? (
           <View style={styles.lineItemRow}>
-            <Text style={styles.colDesc}>Less: deposit received</Text>
-            <Text style={styles.colAmount}>
-              -{money(data.job.depositReceived)}
+            <Text style={styles.colDesc}>
+              Change Order CO-{data.changeOrder.number}
+              {data.changeOrder.title ? ` — ${data.changeOrder.title}` : ""}
             </Text>
+            <Text style={styles.colAmount}>{money(data.amount)}</Text>
           </View>
-        ) : null}
+        ) : (
+          <>
+            <View style={styles.lineItemRow}>
+              <Text style={styles.colDesc}>
+                {data.job.serviceType} — {data.job.title}
+              </Text>
+              <Text style={styles.colAmount}>
+                {money(data.job.contractAmount)}
+              </Text>
+            </View>
+            {data.job.depositReceived > 0 ? (
+              <View style={styles.lineItemRow}>
+                <Text style={styles.colDesc}>Less: deposit received</Text>
+                <Text style={styles.colAmount}>
+                  -{money(data.job.depositReceived)}
+                </Text>
+              </View>
+            ) : null}
+          </>
+        )}
 
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>Amount Due</Text>
           <Text style={styles.totalValue}>{money(data.amount)}</Text>
         </View>
+
+        {data.changeOrder?.description ? (
+          <View style={[styles.section, { marginTop: 16 }]}>
+            <Text style={styles.sectionTitle}>Scope of change</Text>
+            <Text style={styles.paragraph}>{data.changeOrder.description}</Text>
+          </View>
+        ) : null}
 
         {data.notes ? (
           <View style={[styles.section, { marginTop: 16 }]}>

@@ -14,6 +14,9 @@ export async function GET(
   const invoice = await prisma.invoice.findUnique({
     where: { id },
     include: {
+      changeOrder: {
+        select: { number: true, title: true, description: true },
+      },
       job: {
         include: {
           lead: {
@@ -48,6 +51,7 @@ export async function GET(
     amount: Number(invoice.amount),
     status: invoice.status,
     notes: invoice.notes,
+    changeOrder: invoice.changeOrder,
     job: {
       jobNumber: invoice.job.jobNumber,
       title: invoice.job.title,
