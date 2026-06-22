@@ -183,6 +183,7 @@ export function ChangeOrdersPanel({
     },
     onSuccess: () => {
       toast.success("Change order deleted");
+      setViewing(null);
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -526,6 +527,24 @@ export function ChangeOrdersPanel({
             </div>
           )}
           <DialogFooter>
+            {viewing && canDecide && (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (
+                    confirm(
+                      `Delete CO-${viewing.number}? This removes its invoice` +
+                        `${viewing.invoice ? ` (${viewing.invoice.invoiceNumber})` : ""}` +
+                        ` and backs the change out of the contract. This cannot be undone.`,
+                    )
+                  )
+                    remove.mutate(viewing.id);
+                }}
+                disabled={remove.isPending}
+              >
+                <Trash2 className="mr-1 h-4 w-4" /> Delete
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setViewing(null)}>
               Close
             </Button>

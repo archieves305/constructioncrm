@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import {
+  getSession,
+  unauthorized,
+  forbidden,
+  badRequest,
+  hasMinRole,
+} from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
+import { deleteChangeOrder } from "@/lib/services/change-orders";
 
 const updateSchema = z.object({
   title: z.string().trim().max(200).nullable().optional(),
@@ -66,9 +73,30 @@ export async function DELETE(
     select: { status: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (existing.status !== "DRAFT")
-    return badRequest("Only draft change orders can be deleted");
 
-  await prisma.changeOrder.delete({ where: { id } });
+  // Deleting an APPROVED change order reverses billing (removes its invoice,
+  // backs out the contract change) — restrict that to Admin/Manager.
+  if (existing.status === "APPROVED" && !hasMinRole(session.user.role, "MANAGER"))
+    return forbidden();
+
+  if (
+    existing.status !== "DRAFT" &&
+    existing.status !== "APPROVED"
+  )
+    return badRequest("Only draft or approved change orders can be deleted");
+
+  const result = await deleteChangeOrder(id);
+  if (!result.ok) {
+    if (result.reason === "not_found")
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (result.reason === "has_payments")
+      return NextResponse.json(
+        {
+          error: `Invoice ${result.invoiceNumber} already has payments recorded. Remove those payments before deleting this change order.`,
+        },
+        { status: 409 },
+      );
+  }
+
   return NextResponse.json({ ok: true });
 }

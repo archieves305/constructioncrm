@@ -247,6 +247,101 @@ export async function decideChangeOrderById(
   return applyDecision(co, decision, name, null, reason, "internal");
 }
 
+export type DeleteResult =
+  | { ok: true }
+  | { ok: false; reason: "not_found" | "has_payments"; invoiceNumber?: string };
+
+/**
+ * Delete a change order and unwind anything its approval created. Draft (and
+ * other un-billed) change orders are removed directly. Approving a change order
+ * issues a customer invoice, may file a crew-side labor change order, and moves
+ * the job's contract/balance — so deleting an APPROVED one reverses all of that:
+ *
+ *  - the issued invoice is deleted (blocked if payments are already recorded
+ *    against it — those must be removed first so we never orphan money),
+ *  - the linked labor change order is deleted (its generated addendum docs
+ *    cascade away),
+ *  - fixed-price contracts, which were incremented directly on approval, are
+ *    decremented back; cost-plus / owned-rehab contracts self-heal from the
+ *    labor rollup recompute below.
+ */
+export async function deleteChangeOrder(id: string): Promise<DeleteResult> {
+  const co = await prisma.changeOrder.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      jobId: true,
+      customerPrice: true,
+      invoiceId: true,
+      laborChangeOrderId: true,
+      createdByUserId: true,
+      job: { select: { id: true, jobType: true, leadId: true } },
+      invoice: {
+        select: {
+          invoiceNumber: true,
+          _count: { select: { payments: true } },
+        },
+      },
+    },
+  });
+  if (!co) return { ok: false, reason: "not_found" };
+
+  if (co.status !== "APPROVED") {
+    // No financial artifacts to unwind for draft / sent / rejected / void.
+    await prisma.changeOrder.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  if (co.invoice && co.invoice._count.payments > 0) {
+    return {
+      ok: false,
+      reason: "has_payments",
+      invoiceNumber: co.invoice.invoiceNumber,
+    };
+  }
+
+  const isFixedPrice = co.job.jobType === "FIXED_PRICE";
+  const customerPrice = Number(co.customerPrice);
+  const invoiceNumber = co.invoice?.invoiceNumber;
+
+  await prisma.$transaction(async (tx) => {
+    // Delete the change order first so its FK references to the invoice and
+    // labor change order clear before we remove those rows.
+    await tx.changeOrder.delete({ where: { id: co.id } });
+    if (co.invoiceId) await tx.invoice.delete({ where: { id: co.invoiceId } });
+    if (co.laborChangeOrderId)
+      await tx.laborChangeOrder.delete({ where: { id: co.laborChangeOrderId } });
+
+    if (isFixedPrice) {
+      await tx.job.update({
+        where: { id: co.job.id },
+        data: { contractAmount: { decrement: customerPrice } },
+      });
+    }
+
+    await tx.activityLog.create({
+      data: {
+        leadId: co.job.leadId,
+        activityType: "NOTE",
+        title: `Change order CO-${co.number} deleted`,
+        description: `Approved change order reversed${
+          invoiceNumber ? ` — invoice ${invoiceNumber} removed` : ""
+        }.`,
+        createdByUserId: co.createdByUserId,
+      },
+    });
+  });
+
+  // Recompute labor rollup (fixes cost-plus / owned-rehab contractAmount) and
+  // the derived balance, mirroring the approval flow.
+  await recomputeJobLabor(co.jobId);
+  await recomputeJobBalance(co.jobId);
+
+  return { ok: true };
+}
+
 /**
  * Core decision logic shared by the customer (token) and internal flows. The
  * caller is responsible for validating the change order's current status.
