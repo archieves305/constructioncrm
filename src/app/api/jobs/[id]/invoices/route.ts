@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { nextInvoiceNumber } from "@/lib/services/invoices";
 
 const createSchema = z.object({
   amount: z.number().min(0).optional(),
@@ -52,8 +53,7 @@ export async function POST(
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
   const amount = parsed.data.amount ?? Number(job.balanceDue);
-  const count = await prisma.invoice.count({ where: { jobId: id } });
-  const invoiceNumber = `${job.jobNumber.replace("JOB-", "INV-")}-${String(count + 1).padStart(2, "0")}`;
+  const invoiceNumber = await nextInvoiceNumber(job.jobNumber, id);
 
   // Default to net-30 so unpaid invoices age into A/R.
   const dueDate = parsed.data.dueDate

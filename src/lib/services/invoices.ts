@@ -1,6 +1,30 @@
 import { prisma } from "@/lib/db/prisma";
 
 /**
+ * Next invoice number for a job, e.g. "INV-1234-03". Derived from the highest
+ * existing suffix on the job's invoices rather than the invoice count, so that
+ * deleting an invoice (e.g. reversing an approved change order) never leaves a
+ * gap that makes a later create collide with a surviving number.
+ */
+export async function nextInvoiceNumber(
+  jobNumber: string,
+  jobId: string,
+  tx = prisma,
+): Promise<string> {
+  const prefix = jobNumber.replace("JOB-", "INV-");
+  const existing = await tx.invoice.findMany({
+    where: { jobId },
+    select: { invoiceNumber: true },
+  });
+  let max = 0;
+  for (const { invoiceNumber } of existing) {
+    const m = invoiceNumber.match(/-(\d+)$/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return `${prefix}-${String(max + 1).padStart(2, "0")}`;
+}
+
+/**
  * Reconcile an invoice's status with the payments applied to it. Payments drive
  * status: an invoice flips to PAID once received payments cover its amount, and
  * reverts to SENT if a later edit/delete drops coverage below the amount. VOID

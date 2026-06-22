@@ -6,6 +6,7 @@ import { recomputeJobLabor, recomputeJobBalance } from "@/lib/services/job-prici
 import { getEmailBrand } from "@/lib/email/brand";
 import { sendEmail } from "@/lib/email/send";
 import { renderChangeOrderBillPdf } from "@/lib/pdf/change-order-bill";
+import { nextInvoiceNumber } from "@/lib/services/invoices";
 import { logger } from "@/lib/logger";
 
 // Customer approval links are long-lived (30 days) since the homeowner may take
@@ -417,10 +418,11 @@ async function applyDecision(
     }
 
     // 3. Issue a customer invoice for the change-order amount.
-    const count = await tx.invoice.count({ where: { jobId: co.job.id } });
-    const invoiceNumber = `${co.job.jobNumber.replace("JOB-", "INV-")}-${String(
-      count + 1,
-    ).padStart(2, "0")}`;
+    const invoiceNumber = await nextInvoiceNumber(
+      co.job.jobNumber,
+      co.job.id,
+      tx as typeof prisma,
+    );
     const invoice = await tx.invoice.create({
       data: {
         jobId: co.job.id,
