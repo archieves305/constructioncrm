@@ -2,9 +2,19 @@ import path from "node:path";
 import { prisma } from "@/lib/db/prisma";
 import { readFile } from "@/lib/files/storage";
 
-// Shared brand/letterhead data for estimate PDFs. The roofing PDF route keeps
-// its own private copy of this loader (to stay untouched); the generic estimate
-// engine uses this shared one.
+// Brand/letterhead data for estimate PDFs.
+//
+// The brand table (RoofingBrand) holds one row per company:
+//   - "default" → NewCoast Roofing (used by the roofing estimator, unchanged)
+//   - "knu"     → Knu Construction (used by the generic/non-roofing estimator)
+//
+// Per business rule, non-roofing estimates differ from roofing ONLY by company
+// name + logo; all other letterhead (address, phone, email, website, licenses,
+// payment terms) is shared. So the non-roofing brand inherits the NewCoast row
+// and overrides just the name + logo — they can never drift out of sync.
+export const NEWCOAST_BRAND_ID = "default";
+export const KNU_BRAND_ID = "knu";
+
 export type EstimateBrand = {
   companyName: string;
   addressLine1: string | null;
@@ -23,52 +33,65 @@ export type EstimateBrand = {
   paymentFinalPercent: number;
 };
 
-export async function loadEstimateBrand(): Promise<EstimateBrand> {
-  let brand = await prisma.roofingBrand.findUnique({ where: { id: "default" } });
+export async function ensureBrandRow(id: string, defaultName: string) {
+  let brand = await prisma.roofingBrand.findUnique({ where: { id } });
   if (!brand) {
     brand = await prisma.roofingBrand.create({
-      data: { id: "default", companyName: "NewCoast Roofing" },
+      data: { id, companyName: defaultName },
     });
   }
+  return brand;
+}
 
-  // Encode the logo as a data URI so @react-pdf can render it without
-  // depending on a live HTTP fetch at PDF-generation time.
-  let logoDataUri: string | null = null;
-  if (brand.logoStorageKey) {
-    try {
-      const buf = await readFile(brand.logoStorageKey);
-      const ext = path.extname(brand.logoStorageKey).toLowerCase();
-      const mime =
-        ext === ".jpg" || ext === ".jpeg"
-          ? "image/jpeg"
-          : ext === ".webp"
-            ? "image/webp"
-            : ext === ".gif"
-              ? "image/gif"
-              : "image/png";
-      logoDataUri = `data:${mime};base64,${buf.toString("base64")}`;
-    } catch {
-      logoDataUri = null;
-    }
+// Encode a stored logo as a data URI so @react-pdf can render it without a live
+// HTTP fetch at PDF-generation time.
+async function encodeLogo(storageKey: string | null): Promise<string | null> {
+  if (!storageKey) return null;
+  try {
+    const buf = await readFile(storageKey);
+    const ext = path.extname(storageKey).toLowerCase();
+    const mime =
+      ext === ".jpg" || ext === ".jpeg"
+        ? "image/jpeg"
+        : ext === ".webp"
+          ? "image/webp"
+          : ext === ".gif"
+            ? "image/gif"
+            : "image/png";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
   }
+}
 
+type BrandRow = Awaited<ReturnType<typeof ensureBrandRow>>;
+
+function mapBrand(row: BrandRow, logoDataUri: string | null): EstimateBrand {
   return {
-    companyName: brand.companyName,
-    addressLine1: brand.addressLine1,
-    addressLine2: brand.addressLine2,
-    city: brand.city,
-    state: brand.state,
-    zip: brand.zip,
-    phone: brand.phone,
-    email: brand.email,
-    website: brand.website,
-    roofingLicense: brand.roofingLicense,
-    gcLicense: brand.gcLicense,
+    companyName: row.companyName,
+    addressLine1: row.addressLine1,
+    addressLine2: row.addressLine2,
+    city: row.city,
+    state: row.state,
+    zip: row.zip,
+    phone: row.phone,
+    email: row.email,
+    website: row.website,
+    roofingLicense: row.roofingLicense,
+    gcLicense: row.gcLicense,
     logoDataUri,
-    paymentDepositPercent: Number(brand.paymentDepositPercent),
-    paymentProgressPercent: Number(brand.paymentProgressPercent),
-    paymentFinalPercent: Number(brand.paymentFinalPercent),
+    paymentDepositPercent: Number(row.paymentDepositPercent),
+    paymentProgressPercent: Number(row.paymentProgressPercent),
+    paymentFinalPercent: Number(row.paymentFinalPercent),
   };
+}
+
+// Brand for non-roofing (generic) estimates: NewCoast letterhead + Knu name/logo.
+export async function loadEstimateBrand(): Promise<EstimateBrand> {
+  const base = await ensureBrandRow(NEWCOAST_BRAND_ID, "NewCoast Roofing");
+  const knu = await ensureBrandRow(KNU_BRAND_ID, "Knu Construction");
+  const logoDataUri = await encodeLogo(knu.logoStorageKey);
+  return { ...mapBrand(base, logoDataUri), companyName: knu.companyName };
 }
 
 export function safeSlug(s: string): string {

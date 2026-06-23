@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { BrandingForm } from "@/components/admin/branding-form";
 import { RoofingBrandForm } from "@/components/admin/roofing-brand-form";
+import { EstimateBrandForm } from "@/components/admin/estimate-brand-form";
 
 export default function AdminSettingsPage() {
   const queryClient = useQueryClient();
@@ -85,6 +86,7 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="stages">Lead Stages</TabsTrigger>
           <TabsTrigger value="branding">Email Branding</TabsTrigger>
           <TabsTrigger value="roofing-brand">Roofing Proposal</TabsTrigger>
+          <TabsTrigger value="estimate-brand">Other Trades Proposal</TabsTrigger>
         </TabsList>
 
         <TabsContent value="branding" className="mt-4">
@@ -93,6 +95,10 @@ export default function AdminSettingsPage() {
 
         <TabsContent value="roofing-brand" className="mt-4">
           <RoofingBrandForm />
+        </TabsContent>
+
+        <TabsContent value="estimate-brand" className="mt-4">
+          <EstimateBrandForm />
         </TabsContent>
 
         <TabsContent value="sources" className="mt-4">

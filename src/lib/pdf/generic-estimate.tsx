@@ -117,6 +117,27 @@ const styles = StyleSheet.create({
   },
   itemNote: { fontSize: 8.5, color: "#6b7280", marginTop: 1 },
   optionalTag: { fontSize: 8, color: "#92400e" },
+  scopeSummaryHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginTop: 10,
+    marginBottom: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: "#cbd5e1",
+    paddingBottom: 3,
+  },
+  scopeSummaryTitle: { fontSize: 11, fontWeight: 700, color: "#0f766e" },
+  scopeSummaryAmount: { fontSize: 11, fontWeight: 700 },
+  scopeBullet: { marginLeft: 10, marginBottom: 1, fontSize: 10 },
+  scopeTotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#0f766e",
+  },
   internalTotalBox: {
     marginTop: 16,
     padding: 16,
@@ -397,6 +418,83 @@ function ScopeTable({
   );
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+// Allocate the client list price (price WITH margin, before discount/tax) across
+// sections in proportion to each section's cost, so section amounts sum exactly
+// to the list price. This shows client-facing section prices WITHOUT revealing
+// the underlying cost or margin. Rounding remainder lands on the largest section.
+function allocateClientAmounts(breakdown: GenericEstimateBreakdown): number[] {
+  const cost = breakdown.subtotalCost;
+  const target = breakdown.priceWithMargin;
+  const amounts = breakdown.sections.map((s) =>
+    cost > 0 ? round2((s.sectionSubtotal / cost) * target) : 0,
+  );
+  const sum = round2(amounts.reduce((a, b) => a + b, 0));
+  const diff = round2(target - sum);
+  if (diff !== 0 && amounts.length > 0) {
+    let idx = 0;
+    amounts.forEach((a, i) => {
+      if (a > amounts[idx]) idx = i;
+    });
+    amounts[idx] = round2(amounts[idx] + diff);
+  }
+  return amounts;
+}
+
+// Client-facing scope: section name + client price, with the included work
+// listed as bullets — NO per-line quantities or unit pricing, and NO underlying
+// cost or margin (those live on the internal PDF only).
+function ClientScopeSummary({
+  breakdown,
+}: {
+  breakdown: GenericEstimateBreakdown;
+}) {
+  const amounts = allocateClientAmounts(breakdown);
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Scope of work</Text>
+      {breakdown.sections.map((section, si) => (
+        <View key={si} wrap={false}>
+          <View style={styles.scopeSummaryHeader}>
+            <Text style={styles.scopeSummaryTitle}>{section.title}</Text>
+            <Text style={styles.scopeSummaryAmount}>{money(amounts[si])}</Text>
+          </View>
+          {section.items.map((item, ii) => (
+            <Text key={ii} style={styles.scopeBullet}>
+              {"• "}
+              {item.description}
+              {item.isOptional ? (
+                <Text style={styles.optionalTag}> (optional)</Text>
+              ) : null}
+            </Text>
+          ))}
+        </View>
+      ))}
+      <View style={styles.scopeTotalRow}>
+        <Text style={styles.bold}>Subtotal</Text>
+        <Text style={styles.bold}>{money(breakdown.priceWithMargin)}</Text>
+      </View>
+      {breakdown.discountEnabled && breakdown.discountAmount > 0 ? (
+        <View style={styles.payRow}>
+          <Text>Discount ({pct(breakdown.discountPercent)})</Text>
+          <Text>-{money(breakdown.discountAmount)}</Text>
+        </View>
+      ) : null}
+      {breakdown.salesTaxAmount > 0 ? (
+        <View style={styles.payRow}>
+          <Text>Sales tax ({pct(breakdown.salesTaxPercent)})</Text>
+          <Text>{money(breakdown.salesTaxAmount)}</Text>
+        </View>
+      ) : null}
+      <View style={styles.scopeTotalRow}>
+        <Text style={styles.bold}>Total</Text>
+        <Text style={styles.bold}>{money(breakdown.totalPrice)}</Text>
+      </View>
+    </View>
+  );
+}
+
 // ─── Client proposal ─────────────────────────────────────────────────────────
 function ClientDoc({ data }: { data: GenericEstimatePdfData }) {
   const { brand, breakdown, customer } = data;
@@ -496,7 +594,7 @@ function ClientDoc({ data }: { data: GenericEstimatePdfData }) {
             </View>
           }
         />
-        <ScopeTable breakdown={breakdown} showAmounts={true} />
+        <ClientScopeSummary breakdown={breakdown} />
 
         {data.notes ? (
           <View style={styles.section} wrap={false}>
