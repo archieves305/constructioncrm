@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -288,7 +288,12 @@ const money = (n: number) =>
     maximumFractionDigits: 2,
   })}`;
 
-export function EstimatesPanel({ leadId }: { leadId: string }) {
+export type EstimatesPanelHandle = { openCreate: () => void };
+
+export const EstimatesPanel = forwardRef<
+  EstimatesPanelHandle,
+  { leadId: string; hideNewButton?: boolean }
+>(function EstimatesPanel({ leadId, hideNewButton = false }, ref) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -341,6 +346,8 @@ export function EstimatesPanel({ leadId }: { leadId: string }) {
     );
     setDialogOpen(true);
   }
+
+  useImperativeHandle(ref, () => ({ openCreate }));
 
   function openEdit(r: EstimateRecord) {
     setEditingId(r.id);
@@ -426,17 +433,19 @@ export function EstimatesPanel({ leadId }: { leadId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Roofing estimates for this lead. Generated PDFs are saved to the
-          Files tab tagged as &ldquo;ESTIMATE&rdquo; and labeled Client or
-          Internal.
-        </p>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="mr-1 h-4 w-4" />
-          New estimate
-        </Button>
-      </div>
+      {!hideNewButton && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Roofing estimates for this lead. Generated PDFs are saved to the
+            Files tab tagged as &ldquo;ESTIMATE&rdquo; and labeled Client or
+            Internal.
+          </p>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="mr-1 h-4 w-4" />
+            New estimate
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="py-4 text-sm text-muted-foreground">Loading…</p>
@@ -933,7 +942,7 @@ export function EstimatesPanel({ leadId }: { leadId: string }) {
       </Dialog>
     </div>
   );
-}
+});
 
 function RoofTypesEditor({
   rows,

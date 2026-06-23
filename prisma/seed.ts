@@ -11,6 +11,7 @@ import {
   DEFAULT_OPENING_SCRIPT,
   DEFAULT_SCORING_CONFIG,
 } from "../src/lib/services/canvassing/scoring-config";
+import { seedEstimateTemplates } from "./seed-estimate-templates";
 
 const connectionString = process.env.DATABASE_URL!;
 console.log("Connecting to:", connectionString.replace(/\/\/.*@/, "//***@"));
@@ -284,6 +285,8 @@ async function main() {
       });
     }
   }
+
+  await seedEstimateTemplates(prisma);
 
   console.log("Seeding complete!");
 }

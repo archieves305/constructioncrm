@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FilesPanel } from "@/components/files/files-panel";
-import { EstimatesPanel } from "@/components/estimates/estimates-panel";
+import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
 import { RoofrPanel } from "@/components/roofr/roofr-panel";
 import {
   ArrowLeft,
@@ -630,7 +630,7 @@ export default function LeadDetailPage() {
             </TabsContent>
 
             <TabsContent value="estimates">
-              <EstimatesPanel leadId={id} />
+              <LeadEstimatesPanel leadId={id} services={lead.services ?? []} />
             </TabsContent>
 
             <TabsContent value="roofr">

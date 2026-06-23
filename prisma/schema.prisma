@@ -316,6 +316,7 @@ model User {
   jobTaskTemplatesDefault  JobTaskTemplate[]
   auditEvents              AuditEvent[]
   roofEstimatesCreated     RoofEstimate[]       @relation("RoofEstimateCreatedBy")
+  estimatesCreated         Estimate[]           @relation("EstimateCreatedBy")
   roofrOrdersCreated       RoofrOrder[]         @relation("RoofrOrderCreatedBy")
   doorKnocksCreated        PropertyDoorKnock[]  @relation("DoorKnockKnockedBy")
   doorKnocksDeleted        PropertyDoorKnock[]  @relation("DoorKnockDeletedBy")
@@ -461,6 +462,7 @@ model Lead {
   notifications  NotificationEvent[]
   followUps      FollowUpExecution[]
   roofEstimates  RoofEstimate[]
+  estimates      Estimate[]
   roofrOrders    RoofrOrder[]
   prospect       Prospect?
 
@@ -1875,4 +1877,151 @@ model CanvassingSettings {
   updatedAt              DateTime @updatedAt @map("updated_at")
 
   @@map("canvassing_settings")
+}
+
+// ─── Generic Estimate Engine (template-driven, non-roofing) ──────────────────
+// Roofing keeps its specialized RoofEstimate model above. These tables power
+// the template-driven estimate builder for Drywall, Interior Renovation, and
+// Windows & Doors (and any future trade), with sectioned line items + units.
+
+enum EstimateTemplateCategory {
+  ROOFING
+  DRYWALL
+  INTERIOR_RENOVATION
+  WINDOWS_DOORS
+}
+
+enum EstimateUnitType {
+  EACH
+  OPENING
+  SHEET
+  SQ_FT
+  LINEAR_FT
+  ROOM
+  LUMP_SUM
+  LABOR_HOUR
+}
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+}
+
+model EstimateTemplate {
+  id        String                   @id @default(cuid())
+  key       String                   @unique
+  category  EstimateTemplateCategory
+  name      String
+  isActive  Boolean                  @default(true) @map("is_active")
+  sortOrder Int                      @default(0) @map("sort_order")
+  createdAt DateTime                 @default(now()) @map("created_at")
+  updatedAt DateTime                 @updatedAt @map("updated_at")
+
+  sections  EstimateTemplateSection[]
+  estimates Estimate[]
+
+  @@map("estimate_templates")
+}
+
+model EstimateTemplateSection {
+  id         String   @id @default(cuid())
+  templateId String   @map("template_id")
+  title      String
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  template EstimateTemplate           @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  items    EstimateTemplateLineItem[]
+
+  @@index([templateId])
+  @@map("estimate_template_sections")
+}
+
+model EstimateTemplateLineItem {
+  id               String           @id @default(cuid())
+  sectionId        String           @map("section_id")
+  description      String
+  unitType         EstimateUnitType @map("unit_type")
+  defaultQuantity  Decimal?         @map("default_quantity") @db.Decimal(12, 2)
+  defaultUnitPrice Decimal?         @map("default_unit_price") @db.Decimal(12, 2)
+  defaultNotes     String?          @map("default_notes") @db.Text
+  isOptional       Boolean          @default(false) @map("is_optional")
+  isActive         Boolean          @default(true) @map("is_active")
+  sortOrder        Int              @default(0) @map("sort_order")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  section EstimateTemplateSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+  @@map("estimate_template_line_items")
+}
+
+model Estimate {
+  id               String                   @id @default(cuid())
+  leadId           String                   @map("lead_id")
+  templateId       String?                  @map("template_id")
+  templateCategory EstimateTemplateCategory @map("template_category")
+  estimateNumber   String                   @unique @map("estimate_number")
+  name             String
+  status           EstimateStatus           @default(DRAFT)
+  marginPercent    Decimal                  @default(0) @map("margin_percent") @db.Decimal(6, 3)
+  discountEnabled  Boolean                  @default(false) @map("discount_enabled")
+  discountPercent  Decimal                  @default(0) @map("discount_percent") @db.Decimal(6, 3)
+  salesTaxPercent  Decimal                  @default(0) @map("sales_tax_percent") @db.Decimal(6, 3)
+  validityDays     Int                      @default(30) @map("validity_days")
+  notes            String?                  @db.Text
+  exclusions       String?                  @db.Text
+  subtotalCost     Decimal                  @map("subtotal_cost") @db.Decimal(12, 2)
+  totalPrice       Decimal                  @map("total_price") @db.Decimal(12, 2)
+  createdByUserId  String                   @map("created_by_user_id")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+
+  lead      Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  template  EstimateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy User              @relation("EstimateCreatedBy", fields: [createdByUserId], references: [id])
+  sections  EstimateSection[]
+
+  @@index([leadId])
+  @@index([templateCategory])
+  @@map("estimates")
+}
+
+model EstimateSection {
+  id         String   @id @default(cuid())
+  estimateId String   @map("estimate_id")
+  title      String
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  estimate Estimate           @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  items    EstimateLineItem[]
+
+  @@index([estimateId])
+  @@map("estimate_sections")
+}
+
+model EstimateLineItem {
+  id          String           @id @default(cuid())
+  sectionId   String           @map("section_id")
+  description String
+  unitType    EstimateUnitType @map("unit_type")
+  quantity    Decimal          @default(0) @db.Decimal(12, 2)
+  unitPrice   Decimal          @default(0) @map("unit_price") @db.Decimal(12, 2)
+  lineTotal   Decimal          @default(0) @map("line_total") @db.Decimal(12, 2)
+  isOptional  Boolean          @default(false) @map("is_optional")
+  notes       String?          @db.Text
+  sortOrder   Int              @default(0) @map("sort_order")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  section EstimateSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+  @@map("estimate_line_items")
 }
