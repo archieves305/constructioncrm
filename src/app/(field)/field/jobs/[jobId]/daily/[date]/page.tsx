@@ -32,6 +32,12 @@ import {
 } from "@/hooks/use-labor-sheet";
 import { TouchTimeField } from "@/components/field/touch-time-field";
 import { AutosaveIndicator } from "@/components/field/autosave-indicator";
+import { WorkLogSection } from "@/components/field/work-log-section";
+import {
+  narrativeFromLog,
+  useLogNarrative,
+} from "@/hooks/use-log-narrative";
+import type { SaveStatus } from "@/hooks/use-labor-sheet";
 
 const DEFAULT_START = 7 * 60; // 7:00 AM
 const DEFAULT_END = 15 * 60 + 30; // 3:30 PM
@@ -63,6 +69,13 @@ export default function DailyLaborPage({
   const log = sheet.log;
   const logStatus = log?.status ?? "DRAFT";
   const editable = logStatus === "DRAFT";
+
+  const narrative = useLogNarrative(
+    jobId,
+    date,
+    sheet.isLoading ? null : narrativeFromLog(log as Record<string, unknown> | null),
+  );
+  const [section, setSection] = useState<"crew" | "work">("crew");
 
   const { data: fieldToday } = useQuery<{
     jobs: { id: string; title: string; jobNumber: string }[];
@@ -190,8 +203,13 @@ export default function DailyLaborPage({
   const [submitOpen, setSubmitOpen] = useState(false);
   const submit = useMutation({
     mutationFn: async () => {
-      const ok = await sheet.flush();
-      if (!ok) throw new Error("Sync failed — check your connection and try again");
+      const [sheetOk, narrativeOk] = await Promise.all([
+        sheet.flush(),
+        narrative.flush(),
+      ]);
+      if (!sheetOk || !narrativeOk) {
+        throw new Error("Sync failed — check your connection and try again");
+      }
       const res = await fetch(`/api/jobs/${jobId}/daily-logs/${date}/submit`, {
         method: "POST",
       });
@@ -255,6 +273,37 @@ export default function DailyLaborPage({
         </div>
       )}
 
+      <div className="mb-4 grid grid-cols-2 gap-1 rounded-lg bg-gray-200/70 p-1">
+        {(
+          [
+            ["crew", "Crew"],
+            ["work", "Work Log"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setSection(value)}
+            className={cn(
+              "h-11 rounded-md text-sm font-semibold transition-colors",
+              section === value ? "bg-white shadow" : "text-gray-600",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {section === "work" ? (
+        <WorkLogSection
+          jobId={jobId}
+          date={date}
+          draft={narrative.draft}
+          set={narrative.set}
+          editable={editable}
+        />
+      ) : (
+        <>
       {editable && (
         <div className="mb-4 flex gap-2">
           <Button
@@ -426,6 +475,9 @@ export default function DailyLaborPage({
         })}
       </div>
 
+        </>
+      )}
+
       {/* Bottom action bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-white px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
@@ -443,7 +495,7 @@ export default function DailyLaborPage({
                 </span>
               )}
             </div>
-            <AutosaveIndicator status={sheet.status} />
+            <AutosaveIndicator status={combineStatus(sheet.status, narrative.status)} />
           </div>
           {editable && (
             <Button
@@ -544,4 +596,10 @@ export default function DailyLaborPage({
       </Dialog>
     </div>
   );
+}
+
+const STATUS_PRIORITY: SaveStatus[] = ["conflict", "error", "saving", "local", "saved", "idle"];
+
+function combineStatus(a: SaveStatus, b: SaveStatus): SaveStatus {
+  return STATUS_PRIORITY[Math.min(STATUS_PRIORITY.indexOf(a), STATUS_PRIORITY.indexOf(b))];
 }

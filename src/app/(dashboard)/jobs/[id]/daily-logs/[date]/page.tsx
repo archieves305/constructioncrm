@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ArrowLeft, CheckCircle2, RotateCcw, Undo2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileDown, RotateCcw, Undo2 } from "lucide-react";
 import { formatMinutes } from "@/components/field/touch-time-field";
 import type { ServerLog } from "@/hooks/use-labor-sheet";
 
@@ -33,6 +33,22 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   SUBMITTED: { label: "Submitted", className: "bg-amber-100 text-amber-800" },
   APPROVED: { label: "Approved", className: "bg-green-100 text-green-800" },
 };
+
+const NARRATIVE_LABELS: [string, string][] = [
+  ["workPerformed", "Work performed"],
+  ["areasWorked", "Areas worked"],
+  ["materialsDelivered", "Materials delivered"],
+  ["equipmentUsed", "Equipment used"],
+  ["subcontractorsOnsite", "Subcontractors onsite"],
+  ["inspectionsNotes", "Inspections"],
+  ["delays", "Delays"],
+  ["safetyIssues", "Safety"],
+  ["changeOrderItems", "Change-order items observed"],
+  ["ownerInstructions", "Owner / client instructions"],
+  ["officeFollowUps", "Office follow-ups"],
+  ["tomorrowPlan", "Plan for tomorrow"],
+  ["notes", "General notes"],
+];
 
 export default function DailyLogReviewPage({
   params,
@@ -98,6 +114,20 @@ export default function DailyLogReviewPage({
   if (isLoading) return <div className="text-muted-foreground p-6">Loading…</div>;
   if (!log) return <div className="text-muted-foreground p-6">Log not found.</div>;
 
+  const record = log as unknown as Record<string, string | number | null>;
+  const narrativeSections = NARRATIVE_LABELS.filter(
+    ([key]) => typeof record[key] === "string" && (record[key] as string).trim(),
+  );
+  const weatherText = [
+    record.weatherSummary,
+    record.weatherTempHighF != null && record.weatherTempLowF != null
+      ? `${record.weatherTempLowF}–${record.weatherTempHighF}°F`
+      : null,
+    record.weatherWindMph != null ? `wind ${record.weatherWindMph} mph` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   const badge = STATUS_BADGE[log.status];
   const canModerate = role === "ADMIN" || role === "MANAGER";
   const present = log.entries.filter((e) => !e.isAbsent);
@@ -116,6 +146,15 @@ export default function DailyLogReviewPage({
         </h1>
         <Badge className={badge.className}>{badge.label}</Badge>
         <div className="flex-1" />
+        <a
+          href={`/api/jobs/${jobId}/daily-logs/${date}/pdf`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <Button variant="outline">
+            <FileDown className="mr-1 h-4 w-4" /> PDF
+          </Button>
+        </a>
         {canModerate && log.status === "SUBMITTED" && (
           <>
             <Button
@@ -149,6 +188,7 @@ export default function DailyLogReviewPage({
       </div>
 
       <div className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        {weatherText && <span>Weather: {weatherText}</span>}
         {log.manager && (
           <span>
             Crew lead: {log.manager.firstName} {log.manager.lastName}
@@ -256,6 +296,24 @@ export default function DailyLogReviewPage({
           )}
         </CardContent>
       </Card>
+
+      {narrativeSections.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Jobsite Report</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {narrativeSections.map(([key, label]) => (
+              <div key={key}>
+                <div className="text-muted-foreground text-xs font-semibold uppercase">
+                  {label}
+                </div>
+                <p className="text-sm whitespace-pre-line">{record[key] as string}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
         <DialogContent>
