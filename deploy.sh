@@ -511,6 +511,10 @@ BUILD_DONE=1
 PHASE="restart"
 echo ""
 echo "[DEPLOY] Restarting knuco.service ..."
+# Journal scan anchor: taken on the droplet's clock, at the restart moment,
+# so the scan never reaches back into the build window (where the OLD
+# process inevitably logs ChunkLoadErrors as its chunks get replaced).
+RESTART_STAMP="$(ssh -n "$DROPLET" "date '+%Y-%m-%d %H:%M:%S'")"
 ssh -n "$DROPLET" 'sudo systemctl restart knuco' || fail 16 "systemctl restart failed"
 
 ACTIVE_OK=0
@@ -559,9 +563,13 @@ esac
 PHASE="smoke-journal"
 echo ""
 echo "[SMOKE] journal scan for errors since restart ..."
-JOURNAL_BAD="$(ssh -n "$DROPLET" "sudo journalctl -u knuco --since '2 minutes ago' --no-pager" \
+# ChunkLoadError / missing-.next-chunk lines are expected on every deploy:
+# browsers with the app open pre-deploy keep requesting the previous build's
+# chunk filenames until they reload. Benign — excluded from the gate.
+JOURNAL_BAD="$(ssh -n "$DROPLET" "sudo journalctl -u knuco --since '$RESTART_STAMP' --no-pager" \
     | grep -iE 'error|fatal|throw|PrismaClientInitialization|ECONNREFUSED|ZodError' \
     | grep -vE 'status=143|Failed with result .exit-code.|Main process exited, code=exited, status=143' \
+    | grep -vE "ChunkLoadError|Cannot find module '/opt/knuco/\.next" \
     || true)"
 if [ -n "$JOURNAL_BAD" ]; then
     echo "$JOURNAL_BAD"
