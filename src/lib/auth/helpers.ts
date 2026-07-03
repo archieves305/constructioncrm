@@ -40,6 +40,7 @@ const ROLE_HIERARCHY: Record<RoleName, number> = {
   MANAGER: 80,
   SALES_REP: 60,
   OFFICE_STAFF: 50,
+  CREW_LEAD: 45,
   MARKETING: 40,
   READ_ONLY: 10,
 };

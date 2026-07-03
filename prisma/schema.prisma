@@ -16,6 +16,28 @@ enum RoleName {
   OFFICE_STAFF
   MARKETING
   READ_ONLY
+  CREW_LEAD
+}
+
+enum EmploymentType {
+  W2
+  CONTRACTOR_1099
+  SUB_CREW
+  TEMP
+}
+
+enum PersonnelStatus {
+  ACTIVE
+  ON_LEAVE
+  INACTIVE
+  TERMINATED
+}
+
+enum PersonnelDocumentType {
+  W9
+  GOVERNMENT_ID
+  CERTIFICATION
+  OTHER
 }
 
 enum PropertyType {
@@ -292,6 +314,12 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  // Field-module grants. Checked fresh from DB per request (never baked into
+  // the JWT) so revocation is instant. ADMIN implicitly has all three.
+  canViewSensitivePersonnel Boolean @default(false) @map("can_view_sensitive_personnel")
+  canEditPayRates           Boolean @default(false) @map("can_edit_pay_rates")
+  canViewPayrollReports     Boolean @default(false) @map("can_view_payroll_reports")
+
   role Role @relation(fields: [roleId], references: [id])
 
   assignedLeads            Lead[]               @relation("AssignedUser")
@@ -329,6 +357,9 @@ model User {
   laborChangeOrdersCreated LaborChangeOrder[]
   changeOrdersCreated      ChangeOrder[]
   generatedDocuments       GeneratedDocument[]
+  personnelRecord          Personnel?           @relation("PersonnelUser")
+  personnelCreated         Personnel[]          @relation("PersonnelCreatedBy")
+  personnelDocsUploaded    PersonnelDocument[]  @relation("PersonnelDocUploadedBy")
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -1018,6 +1049,7 @@ model Crew {
 
   assignments    CrewAssignment[]
   laborContracts LaborContract[]
+  members        Personnel[]
 
   @@map("crews")
 }
@@ -2024,4 +2056,77 @@ model EstimateLineItem {
 
   @@index([sectionId])
   @@map("estimate_line_items")
+}
+
+// ─── Field Operations ───────────────────────────────────────────────────────
+
+model Personnel {
+  id        String  @id @default(cuid())
+  firstName String  @map("first_name")
+  lastName  String  @map("last_name")
+  phone     String?
+  email     String?
+  address1  String?
+  address2  String?
+  city      String?
+  state     String?
+  zipCode   String? @map("zip_code")
+
+  emergencyContactName     String? @map("emergency_contact_name")
+  emergencyContactPhone    String? @map("emergency_contact_phone")
+  emergencyContactRelation String? @map("emergency_contact_relation")
+
+  trade          String?
+  title          String?
+  hourlyRate     Decimal?        @map("hourly_rate") @db.Decimal(10, 2)
+  employmentType EmploymentType  @default(W2) @map("employment_type")
+  status         PersonnelStatus @default(ACTIVE)
+  startDate      DateTime?       @map("start_date") @db.Date
+  endDate        DateTime?       @map("end_date") @db.Date
+  entityName     String?         @map("entity_name")
+  crewId         String?         @map("crew_id")
+  userId         String?         @unique @map("user_id")
+  notes          String?         @db.Text
+  isActive       Boolean         @default(true) @map("is_active")
+  deletedAt      DateTime?       @map("deleted_at")
+
+  // Encrypted SSN (AES-256-GCM, src/lib/crypto/field-encryption.ts).
+  // Ciphertext is self-describing "v{n}:{iv}:{tag}:{ct}"; keyVersion is
+  // duplicated as a column so key-rotation sweeps can filter by version.
+  ssnCiphertext String? @map("ssn_ciphertext")
+  ssnLast4      String? @map("ssn_last4")
+  ssnKeyVersion Int?    @map("ssn_key_version")
+
+  createdByUserId String   @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  crew      Crew?               @relation(fields: [crewId], references: [id])
+  user      User?               @relation("PersonnelUser", fields: [userId], references: [id])
+  createdBy User                @relation("PersonnelCreatedBy", fields: [createdByUserId], references: [id])
+  documents PersonnelDocument[]
+
+  @@index([lastName, firstName])
+  @@index([crewId])
+  @@index([isActive])
+  @@map("personnel")
+}
+
+model PersonnelDocument {
+  id               String                @id @default(cuid())
+  personnelId      String                @map("personnel_id")
+  type             PersonnelDocumentType @default(OTHER)
+  fileName         String                @map("file_name")
+  fileType         String                @map("file_type")
+  fileSize         Int                   @map("file_size")
+  storageKey       String                @map("storage_key")
+  notes            String?
+  uploadedByUserId String                @map("uploaded_by_user_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+
+  personnel  Personnel @relation(fields: [personnelId], references: [id], onDelete: Cascade)
+  uploadedBy User      @relation("PersonnelDocUploadedBy", fields: [uploadedByUserId], references: [id])
+
+  @@index([personnelId])
+  @@map("personnel_documents")
 }

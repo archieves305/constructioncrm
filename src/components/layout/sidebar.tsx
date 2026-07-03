@@ -46,6 +46,18 @@ const navItems: NavItem[] = [
   { href: "/schedule", label: "Schedule", icon: Calendar },
   { href: "/canvassing", label: "Canvassing Leads", icon: MapPin },
   { href: "/crews", label: "Crews", icon: Hammer, roles: ["ADMIN", "MANAGER"] },
+  {
+    href: "/personnel",
+    label: "Personnel",
+    icon: Users,
+    roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
+  },
+  {
+    href: "/field",
+    label: "Field Mode",
+    icon: HardHat,
+    roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
+  },
   { href: "/collections", label: "Collections", icon: DollarSign },
   { href: "/referrals", label: "Referrals", icon: DollarSign, roles: ["ADMIN", "MANAGER"] },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },

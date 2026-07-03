@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireRole, badRequest } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { validatePassword } from "@/lib/auth/password-policy";
+import { recordAudit } from "@/lib/audit/record";
 
 async function isLastAdmin(userId: string): Promise<boolean> {
   const target = await prisma.user.findUnique({
@@ -26,6 +27,9 @@ const updateUserSchema = z
     roleId: z.string().min(1).optional(),
     isActive: z.boolean().optional(),
     password: z.string().min(1).optional(),
+    canViewSensitivePersonnel: z.boolean().optional(),
+    canEditPayRates: z.boolean().optional(),
+    canViewPayrollReports: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "No fields to update",
@@ -87,6 +91,21 @@ export async function PATCH(
   if (body.roleId !== undefined) updateData.roleId = body.roleId;
   if (body.isActive !== undefined) updateData.isActive = body.isActive;
 
+  // Field-module grants (SSN/doc access, pay-rate edits, payroll reports).
+  // ADMIN-only route; every change is audited below.
+  const GRANT_KEYS = [
+    "canViewSensitivePersonnel",
+    "canEditPayRates",
+    "canViewPayrollReports",
+  ] as const;
+  const grantChanges: Record<string, boolean> = {};
+  for (const key of GRANT_KEYS) {
+    if (body[key] !== undefined) {
+      updateData[key] = body[key];
+      grantChanges[key] = body[key]!;
+    }
+  }
+
   if (body.password !== undefined) {
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) return badRequest("User not found");
@@ -109,11 +128,34 @@ export async function PATCH(
     return badRequest("No fields to update");
   }
 
+  const before =
+    Object.keys(grantChanges).length > 0
+      ? await prisma.user.findUnique({
+          where: { id },
+          select: {
+            canViewSensitivePersonnel: true,
+            canEditPayRates: true,
+            canViewPayrollReports: true,
+          },
+        })
+      : null;
+
   const user = await prisma.user.update({
     where: { id },
     data: updateData,
     include: { role: true },
   });
+
+  if (before) {
+    await recordAudit({
+      actorUserId: session.user.id,
+      entityType: "User",
+      entityId: id,
+      action: "grant_change",
+      before,
+      after: grantChanges,
+    });
+  }
 
   const { passwordHash: _, ...safeUser } = user;
   return NextResponse.json(safeUser);

@@ -50,7 +50,28 @@ type UserRow = {
   email: string;
   role: { id: string; name: RoleName };
   isActive: boolean;
+  canViewSensitivePersonnel: boolean;
+  canEditPayRates: boolean;
+  canViewPayrollReports: boolean;
 };
+
+const GRANT_OPTIONS = [
+  {
+    key: "canViewSensitivePersonnel" as const,
+    label: "View sensitive personnel data",
+    description: "Reveal SSNs and open W-9/ID documents (every access is logged)",
+  },
+  {
+    key: "canEditPayRates" as const,
+    label: "Edit pay rates",
+    description: "Set hourly rates on personnel records",
+  },
+  {
+    key: "canViewPayrollReports" as const,
+    label: "View payroll reports",
+    description: "Cross-job per-person labor reports and payroll exports",
+  },
+];
 
 type SessionUser = {
   id?: string;
@@ -81,6 +102,7 @@ export default function AdminUsersPage() {
   const currentUser = (session?.user as SessionUser | undefined) ?? {};
   const isAdmin = currentUser.role === "ADMIN";
   const [createOpen, setCreateOpen] = useState(false);
+  const [grantsUserId, setGrantsUserId] = useState<string | null>(null);
   const [pwUser, setPwUser] = useState<UserRow | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [form, setForm] = useState({
@@ -150,6 +172,31 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("Role updated");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const updateGrant = useMutation({
+    mutationFn: async ({
+      id,
+      key,
+      value,
+    }: {
+      id: string;
+      key: (typeof GRANT_OPTIONS)[number]["key"];
+      value: boolean;
+    }) => {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+      if (!res.ok) throw new Error(await parseError(res));
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("Permissions updated");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -340,6 +387,16 @@ export default function AdminUsersPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setGrantsUserId(user.id)}
+                        >
+                          <Shield className="mr-1 h-4 w-4" />
+                          Permissions
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -371,6 +428,70 @@ export default function AdminUsersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={grantsUserId !== null}
+        onOpenChange={(open) => {
+          if (!open) setGrantsUserId(null);
+        }}
+      >
+        <DialogContent>
+          {(() => {
+            const gu = users?.find((u) => u.id === grantsUserId);
+            if (!gu) return null;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>
+                    Field permissions — {gu.firstName} {gu.lastName}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {gu.role.name === "ADMIN" ? (
+                    <p className="text-muted-foreground text-sm">
+                      Admins implicitly hold all field permissions.
+                    </p>
+                  ) : (
+                    GRANT_OPTIONS.map((opt) => (
+                      <label
+                        key={opt.key}
+                        className="flex cursor-pointer items-start gap-3"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={gu[opt.key]}
+                          disabled={updateGrant.isPending}
+                          onChange={(e) =>
+                            updateGrant.mutate({
+                              id: gu.id,
+                              key: opt.key,
+                              value: e.target.checked,
+                            })
+                          }
+                        />
+                        <span>
+                          <span className="block text-sm font-medium">
+                            {opt.label}
+                          </span>
+                          <span className="text-muted-foreground block text-xs">
+                            {opt.description}
+                          </span>
+                        </span>
+                      </label>
+                    ))
+                  )}
+                  <p className="text-muted-foreground text-xs">
+                    Grants apply on top of the user&apos;s role: they only take
+                    effect for Sales Manager and Accounting roles. Changes are
+                    audited.
+                  </p>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={pwUser !== null}

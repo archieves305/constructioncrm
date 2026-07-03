@@ -37,6 +37,14 @@ const schema = z.object({
   ZAPIER_ROOFR_ORDER_URL: z.string().url().optional(),
   ZAPIER_WEBHOOK_SECRET: z.string().optional(),
 
+  // Keyring for field-level encryption of sensitive personnel data (SSNs).
+  // Comma-separated "v<version>:<base64 32-byte key>" entries, e.g.
+  // "v1:8mF3...==". The highest version encrypts new writes; older versions
+  // stay listed until a rotation sweep re-encrypts their rows. Generate a key
+  // with: openssl rand -base64 32. Optional at boot; the SSN set/reveal
+  // endpoints 503 when unset (src/lib/crypto/field-encryption.ts).
+  FIELD_ENCRYPTION_KEYS: z.string().optional(),
+
   // Zylow read-only property API (door-knock enrichment). Key is delivered
   // over a secure channel and lives only in /etc/knuco/env — never the client.
   // Optional at boot so the app runs without it; the /api/zylow routes 503

@@ -11,6 +11,7 @@ const VALID_ROLES = [
   "OFFICE_STAFF",
   "MARKETING",
   "READ_ONLY",
+  "CREW_LEAD",
 ] as const;
 type RoleString = (typeof VALID_ROLES)[number];
 

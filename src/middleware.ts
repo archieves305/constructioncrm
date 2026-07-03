@@ -39,6 +39,16 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Crew leads live in field mode: keep them off office pages entirely.
+  // API routes enforce their own role checks.
+  if (
+    (token.role as string) === "CREW_LEAD" &&
+    !pathname.startsWith("/field") &&
+    !pathname.startsWith("/api")
+  ) {
+    return NextResponse.redirect(new URL("/field", request.url));
+  }
+
   return NextResponse.next();
 }
 

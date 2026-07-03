@@ -30,6 +30,11 @@ async function main() {
       { name: "OFFICE_STAFF" as const, description: "Lead intake and data entry" },
       { name: "MARKETING" as const, description: "View reports and source data" },
       { name: "READ_ONLY" as const, description: "View-only access" },
+      {
+        name: "CREW_LEAD" as const,
+        description:
+          "Field access to assigned jobs: daily logs, hours, photos, issues. No financials.",
+      },
     ].map((r) =>
       prisma.role.upsert({
         where: { name: r.name },
