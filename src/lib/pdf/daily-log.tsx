@@ -77,6 +77,19 @@ const styles = StyleSheet.create({
   photoCell: { width: "31%" },
   photoImg: { width: "100%", height: 150, objectFit: "cover", borderRadius: 3 },
   photoCaption: { fontSize: 8, color: "#374151", marginTop: 2 },
+  signatureBlock: {
+    marginTop: 18,
+    paddingTop: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: "#cbd5e1",
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 16,
+  },
+  signatureImg: { width: 160, height: 50, objectFit: "contain" },
+  coverPage: { padding: 60, fontFamily: "Helvetica", color: "#111" },
+  coverTitle: { fontSize: 24, fontWeight: 700, marginBottom: 6 },
+  coverSub: { fontSize: 12, color: "#6b7280", marginBottom: 24 },
 });
 
 export type DailyLogPdfEntry = {
@@ -108,15 +121,18 @@ export type DailyLogPdfData = {
   sections: { label: string; text: string }[];
   photos: { dataUri: string; caption: string | null; label: string }[];
   photosOmitted: number;
+  safetyChecklist: { label: string; done: boolean }[];
+  signatureDataUri: string | null;
+  signedByName: string | null;
+  signedAt: string | null;
   showCost: boolean;
   generatedAt: string;
 };
 
-function DailyLogDoc({ data }: { data: DailyLogPdfData }) {
+function DailyLogPage({ data }: { data: DailyLogPdfData }) {
   const present = data.entries.filter((e) => !e.isAbsent);
   const absent = data.entries.filter((e) => e.isAbsent);
   return (
-    <Document>
       <Page size="LETTER" style={styles.page}>
         <View style={styles.header}>
           <View>
@@ -217,6 +233,31 @@ function DailyLogDoc({ data }: { data: DailyLogPdfData }) {
           </View>
         ))}
 
+        {data.safetyChecklist.length > 0 ? (
+          <View wrap={false}>
+            <Text style={styles.sectionTitle}>Safety Checklist</Text>
+            {data.safetyChecklist.map((item) => (
+              <Text key={item.label} style={styles.body}>
+                {item.done ? "[x]" : "[ ]"} {item.label}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+
+        {data.signatureDataUri || data.signedByName ? (
+          <View style={styles.signatureBlock} wrap={false}>
+            {data.signatureDataUri ? (
+              <Image style={styles.signatureImg} src={data.signatureDataUri} />
+            ) : null}
+            <View>
+              <Text style={{ fontWeight: 700 }}>{data.signedByName ?? ""}</Text>
+              <Text style={styles.muted}>
+                Crew lead signature{data.signedAt ? ` · ${data.signedAt}` : ""}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         {data.photos.length > 0 ? (
           <View break>
             <Text style={styles.sectionTitle}>Photos ({data.photos.length})</Text>
@@ -242,10 +283,81 @@ function DailyLogDoc({ data }: { data: DailyLogPdfData }) {
           {COMPANY.name} — Daily Report · Generated {data.generatedAt}
         </Text>
       </Page>
-    </Document>
   );
 }
 
 export async function renderDailyLogPdf(data: DailyLogPdfData): Promise<Buffer> {
-  return renderToBuffer(<DailyLogDoc data={data} />);
+  return renderToBuffer(
+    <Document>
+      <DailyLogPage data={data} />
+    </Document>,
+  );
+}
+
+export type PackageCover = {
+  jobNumber: string;
+  jobTitle: string;
+  jobAddress: string | null;
+  rangeLabel: string;
+  dayCount: number;
+  totalHours: number;
+  totalOtHours: number;
+  totalCost?: number;
+  generatedAt: string;
+};
+
+// Multi-day "hotel package": cover page + each day's full report in one
+// document. Callers cap the range (≤14 days) and per-day photos.
+export async function renderDailyLogPackagePdf(
+  cover: PackageCover,
+  days: DailyLogPdfData[],
+): Promise<Buffer> {
+  return renderToBuffer(
+    <Document>
+      <Page size="LETTER" style={styles.coverPage}>
+        <Text style={styles.coverTitle}>Daily Report Package</Text>
+        <Text style={styles.coverSub}>
+          {cover.jobNumber} — {cover.jobTitle}
+          {cover.jobAddress ? `\n${cover.jobAddress}` : ""}
+        </Text>
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaLabel}>Period</Text>
+            <Text style={styles.metaValue}>{cover.rangeLabel}</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaLabel}>Reports</Text>
+            <Text style={styles.metaValue}>{cover.dayCount} days</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaLabel}>Labor</Text>
+            <Text style={styles.metaValue}>
+              {cover.totalHours} hrs
+              {cover.totalOtHours > 0 ? ` (${cover.totalOtHours} OT)` : ""}
+              {cover.totalCost != null ? ` · $${cover.totalCost.toLocaleString()}` : ""}
+            </Text>
+          </View>
+        </View>
+        <View style={{ marginTop: 24 }}>
+          {days.map((d) => (
+            <View key={d.date} style={styles.tr}>
+              <Text style={{ flex: 2 }}>{d.date}</Text>
+              <Text style={{ flex: 1, textAlign: "right" }}>
+                {d.totals.workers} workers
+              </Text>
+              <Text style={{ flex: 1, textAlign: "right" }}>
+                {d.totals.regularHours + d.totals.otHours} hrs
+              </Text>
+            </View>
+          ))}
+        </View>
+        <Text style={styles.footer} fixed>
+          {COMPANY.name} · Generated {cover.generatedAt}
+        </Text>
+      </Page>
+      {days.map((d) => (
+        <DailyLogPage key={d.date} data={d} />
+      ))}
+    </Document>,
+  );
 }

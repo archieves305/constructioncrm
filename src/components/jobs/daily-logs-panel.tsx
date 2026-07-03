@@ -13,7 +13,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
-import { HardHat } from "lucide-react";
+import { FileDown, HardHat } from "lucide-react";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type LogSummary = {
   id: string;
@@ -35,6 +43,9 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
 };
 
 export function DailyLogsPanel({ jobId }: { jobId: string }) {
+  const [packageOpen, setPackageOpen] = useState(false);
+  const [pkgStart, setPkgStart] = useState("");
+  const [pkgEnd, setPkgEnd] = useState("");
   const { data: logs = [], isLoading } = useQuery<LogSummary[]>({
     queryKey: ["daily-logs", jobId],
     queryFn: () => fetch(`/api/jobs/${jobId}/daily-logs`).then((r) => r.json()),
@@ -48,13 +59,61 @@ export function DailyLogsPanel({ jobId }: { jobId: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Daily Logs</h3>
-        <Link href={`/field/jobs/${jobId}/daily/${todayStr}`}>
-          <Button variant="outline" size="sm">
-            <HardHat className="mr-1 h-4 w-4" />
-            Open in Field Mode
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={logs.length === 0}
+            onClick={() => {
+              setPkgEnd(logs[0]?.logDate ?? todayStr);
+              setPkgStart(logs[Math.min(logs.length - 1, 13)]?.logDate ?? todayStr);
+              setPackageOpen(true);
+            }}
+          >
+            <FileDown className="mr-1 h-4 w-4" />
+            Report package
           </Button>
-        </Link>
+          <Link href={`/field/jobs/${jobId}/daily/${todayStr}`}>
+            <Button variant="outline" size="sm">
+              <HardHat className="mr-1 h-4 w-4" />
+              Open in Field Mode
+            </Button>
+          </Link>
+        </div>
       </div>
+
+      <Dialog open={packageOpen} onOpenChange={setPackageOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Daily report package (PDF)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-muted-foreground text-sm">
+              Bundles every daily report in the range — cover page, crew,
+              narrative, and photos — into one PDF. Up to 14 days per package.
+            </p>
+            <div className="flex items-center gap-2">
+              <Input type="date" value={pkgStart} onChange={(e) => setPkgStart(e.target.value)} />
+              <span className="text-muted-foreground text-sm">to</span>
+              <Input type="date" value={pkgEnd} onChange={(e) => setPkgEnd(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setPackageOpen(false)}>
+                Cancel
+              </Button>
+              <a
+                href={`/api/jobs/${jobId}/daily-report-package?start=${pkgStart}&end=${pkgEnd}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Button disabled={!pkgStart || !pkgEnd}>
+                  <FileDown className="mr-1 h-4 w-4" /> Generate PDF
+                </Button>
+              </a>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="text-muted-foreground py-8 text-center">Loading…</div>

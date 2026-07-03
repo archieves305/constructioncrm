@@ -124,6 +124,9 @@ export const dailyLogUpsertSchema = z.object({
   officeFollowUps: optionalTrimmed(4000),
   tomorrowPlan: optionalTrimmed(4000),
   notes: optionalTrimmed(10000),
+  safetyToolboxTalk: z.boolean().optional(),
+  safetyPpeVerified: z.boolean().optional(),
+  safetyHousekeeping: z.boolean().optional(),
   baseUpdatedAt: z.string().optional(),
 });
 

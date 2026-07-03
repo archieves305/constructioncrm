@@ -19,6 +19,8 @@ import {
   ArrowLeft,
   Check,
   ClipboardCopy,
+  LogIn,
+  LogOut,
   Send,
   UserCheck,
   Users,
@@ -34,6 +36,8 @@ import { TouchTimeField } from "@/components/field/touch-time-field";
 import { AutosaveIndicator } from "@/components/field/autosave-indicator";
 import { WorkLogSection } from "@/components/field/work-log-section";
 import { PhotoSection } from "@/components/field/photo-section";
+import { SignaturePad } from "@/components/field/signature-pad";
+import { Input } from "@/components/ui/input";
 import {
   narrativeFromLog,
   useLogNarrative,
@@ -202,6 +206,8 @@ export default function DailyLaborPage({
   });
 
   const [submitOpen, setSubmitOpen] = useState(false);
+  const [signatureUri, setSignatureUri] = useState<string | null>(null);
+  const [signedByName, setSignedByName] = useState("");
   const submit = useMutation({
     mutationFn: async () => {
       const [sheetOk, narrativeOk] = await Promise.all([
@@ -210,6 +216,23 @@ export default function DailyLaborPage({
       ]);
       if (!sheetOk || !narrativeOk) {
         throw new Error("Sync failed — check your connection and try again");
+      }
+      if (signatureUri && signedByName.trim()) {
+        const sigRes = await fetch(
+          `/api/jobs/${jobId}/daily-logs/${date}/signature`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              dataUri: signatureUri,
+              signedByName: signedByName.trim(),
+            }),
+          },
+        );
+        if (!sigRes.ok) {
+          const body = await sigRes.json().catch(() => ({}));
+          throw new Error(body.error || "Signature upload failed");
+        }
       }
       const res = await fetch(`/api/jobs/${jobId}/daily-logs/${date}/submit`, {
         method: "POST",
@@ -223,6 +246,48 @@ export default function DailyLaborPage({
       await qc.invalidateQueries({ queryKey: ["daily-log", jobId, date] });
       await qc.invalidateQueries({ queryKey: ["field-today"] });
       toast.success("Daily report submitted");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const clock = useMutation({
+    mutationFn: async ({ entryId, action }: { entryId: string; action: "check-in" | "check-out" }) => {
+      const now = new Date();
+      const minutes = Math.round((now.getHours() * 60 + now.getMinutes()) / 15) * 15;
+      const coords = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+          () => resolve(null),
+          { timeout: 4000, maximumAge: 300_000 },
+        );
+      });
+      // Flush drafts first so the entry exists server-side.
+      const ok = await sheet.flush();
+      if (!ok) throw new Error("Couldn't sync the sheet — check your connection");
+      const res = await fetch(
+        `/api/jobs/${jobId}/daily-logs/${date}/labor/${entryId}/${action}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ minutes, ...(coords ?? {}) }),
+        },
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `${action} failed`);
+      return { entryId, action, minutes };
+    },
+    onSuccess: async ({ entryId, action, minutes }) => {
+      sheet.update((prev) =>
+        prev.map((e) =>
+          e.id === entryId
+            ? action === "check-in"
+              ? { ...e, startMinutes: minutes, isAbsent: false }
+              : { ...e, endMinutes: minutes }
+            : e,
+        ),
+      );
+      toast.success(action === "check-in" ? "Checked in" : "Checked out");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -307,6 +372,7 @@ export default function DailyLaborPage({
         <WorkLogSection
           jobId={jobId}
           date={date}
+          dailyLogId={log?.id ?? null}
           draft={narrative.draft}
           set={narrative.set}
           editable={editable}
@@ -433,6 +499,28 @@ export default function DailyLaborPage({
                           </Button>
                         ))}
                       </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-10 flex-1"
+                        disabled={!editable || clock.isPending}
+                        onClick={() => clock.mutate({ entryId: entry.id, action: "check-in" })}
+                      >
+                        <LogIn className="mr-1 h-4 w-4" /> Check in now
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-10 flex-1"
+                        disabled={!editable || clock.isPending}
+                        onClick={() => clock.mutate({ entryId: entry.id, action: "check-out" })}
+                      >
+                        <LogOut className="mr-1 h-4 w-4" /> Check out now
+                      </Button>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Button
@@ -570,6 +658,16 @@ export default function DailyLaborPage({
               Submitting locks crew hours for office review. The office can
               return it to you if something needs fixing.
             </p>
+            <div className="space-y-2 border-t pt-3">
+              <span className="text-sm font-medium">Sign off (optional)</span>
+              <SignaturePad onChange={setSignatureUri} />
+              <Input
+                placeholder="Print name"
+                value={signedByName}
+                onChange={(e) => setSignedByName(e.target.value)}
+                style={{ fontSize: 16 }}
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setSubmitOpen(false)}>

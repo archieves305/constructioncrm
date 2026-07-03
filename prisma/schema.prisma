@@ -2294,6 +2294,16 @@ model DailyLog {
   approvedByUserId  String?   @map("approved_by_user_id")
   returnNote        String?   @map("return_note") @db.Text
 
+  // Daily safety checklist (Phase 6)
+  safetyToolboxTalk  Boolean @default(false) @map("safety_toolbox_talk")
+  safetyPpeVerified  Boolean @default(false) @map("safety_ppe_verified")
+  safetyHousekeeping Boolean @default(false) @map("safety_housekeeping")
+
+  // Crew-lead sign-off: PNG via storage.ts, captured on submit
+  signatureStorageKey String?   @map("signature_storage_key")
+  signedAt            DateTime? @map("signed_at")
+  signedByName        String?   @map("signed_by_name")
+
   createdByUserId String   @map("created_by_user_id")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -2352,6 +2362,14 @@ model DailyLaborEntry {
   leftEarly     Boolean @default(false) @map("left_early")
   absenceReason String? @map("absence_reason")
   notes         String? @db.Text
+
+  // Check-in/out with GPS confirmation (Phase 6)
+  checkInAt   DateTime? @map("check_in_at")
+  checkOutAt  DateTime? @map("check_out_at")
+  checkInLat  Decimal?  @map("check_in_lat") @db.Decimal(10, 7)
+  checkInLng  Decimal?  @map("check_in_lng") @db.Decimal(10, 7)
+  checkOutLat Decimal?  @map("check_out_lat") @db.Decimal(10, 7)
+  checkOutLng Decimal?  @map("check_out_lng") @db.Decimal(10, 7)
 
   createdByUserId String   @map("created_by_user_id")
   createdAt       DateTime @default(now()) @map("created_at")

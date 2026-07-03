@@ -6,7 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, CloudSun, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, CloudSun, Flag, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { NarrativeDraft } from "@/hooks/use-log-narrative";
 
@@ -91,20 +105,66 @@ const SECTIONS: SectionDef[] = [
   },
 ];
 
+const ISSUE_TYPES: [string, string][] = [
+  ["OFFICE_FOLLOW_UP", "Office follow-up"],
+  ["CO_REVIEW", "Change-order review"],
+  ["SAFETY", "Safety issue"],
+  ["MATERIAL_REQUEST", "Material request"],
+  ["INSPECTION_REMINDER", "Inspection reminder"],
+];
+
+const SAFETY_CHECKLIST: { key: "safetyToolboxTalk" | "safetyPpeVerified" | "safetyHousekeeping"; label: string }[] = [
+  { key: "safetyToolboxTalk", label: "Toolbox talk held" },
+  { key: "safetyPpeVerified", label: "PPE verified" },
+  { key: "safetyHousekeeping", label: "Site housekeeping done" },
+];
+
 export function WorkLogSection({
   jobId,
   date,
+  dailyLogId,
   draft,
   set,
   editable,
 }: {
   jobId: string;
   date: string;
+  dailyLogId: string | null;
   draft: NarrativeDraft;
   set: (patch: Partial<NarrativeDraft>) => void;
   editable: boolean;
 }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [issueOpen, setIssueOpen] = useState(false);
+  const [issueType, setIssueType] = useState("OFFICE_FOLLOW_UP");
+  const [issueTitle, setIssueTitle] = useState("");
+  const [issueDesc, setIssueDesc] = useState("");
+
+  const flagIssue = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/jobs/${jobId}/field-issues`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: issueType,
+          title: issueTitle.trim(),
+          description: issueDesc.trim() || null,
+          priority: issueType === "SAFETY" ? "HIGH" : "MEDIUM",
+          dailyLogId,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Failed to flag issue");
+      return body;
+    },
+    onSuccess: () => {
+      setIssueOpen(false);
+      setIssueTitle("");
+      setIssueDesc("");
+      toast.success("Flagged — an office task was created");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   const weather = useMutation({
     mutationFn: async () => {
@@ -190,6 +250,37 @@ export function WorkLogSection({
         </CardContent>
       </Card>
 
+      {/* Flag an issue for the office */}
+      {editable && (
+        <Button
+          variant="outline"
+          className="h-12 w-full"
+          onClick={() => setIssueOpen(true)}
+        >
+          <Flag className="mr-2 h-4 w-4 text-red-500" />
+          Flag an issue for the office
+        </Button>
+      )}
+
+      {/* Daily safety checklist */}
+      <Card>
+        <CardContent className="space-y-2 py-3">
+          <div className="text-sm font-medium">Daily safety checklist</div>
+          {SAFETY_CHECKLIST.map((item) => (
+            <label key={item.key} className="flex min-h-[44px] cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                className="h-5 w-5"
+                checked={draft[item.key]}
+                disabled={!editable}
+                onChange={(e) => set({ [item.key]: e.target.checked } as Partial<NarrativeDraft>)}
+              />
+              <span className="text-sm">{item.label}</span>
+            </label>
+          ))}
+        </CardContent>
+      </Card>
+
       {SECTIONS.map((section) => {
         const value = draft[section.key];
         const text = typeof value === "string" ? value : "";
@@ -262,6 +353,60 @@ export function WorkLogSection({
           </Card>
         );
       })}
+
+      <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Flag an issue for the office</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <span className="mb-1 block text-sm font-medium">Type</span>
+              <Select value={issueType} onValueChange={(v) => v && setIssueType(v)}>
+                <SelectTrigger className="h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ISSUE_TYPES.map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <span className="mb-1 block text-sm font-medium">What&apos;s the issue?</span>
+              <Input
+                value={issueTitle}
+                onChange={(e) => setIssueTitle(e.target.value)}
+                placeholder="Short summary"
+                style={{ fontSize: 16 }}
+              />
+            </div>
+            <div>
+              <span className="mb-1 block text-sm font-medium">Details (optional)</span>
+              <Textarea
+                rows={3}
+                value={issueDesc}
+                onChange={(e) => setIssueDesc(e.target.value)}
+                style={{ fontSize: 16 }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIssueOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={!issueTitle.trim() || flagIssue.isPending}
+                onClick={() => flagIssue.mutate()}
+              >
+                {flagIssue.isPending ? "Flagging…" : "Flag for office"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

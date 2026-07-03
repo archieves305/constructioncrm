@@ -29,6 +29,9 @@ export type NarrativeDraft = {
   officeFollowUps: string | null;
   tomorrowPlan: string | null;
   notes: string | null;
+  safetyToolboxTalk: boolean;
+  safetyPpeVerified: boolean;
+  safetyHousekeeping: boolean;
 };
 
 export const EMPTY_NARRATIVE: NarrativeDraft = {
@@ -51,6 +54,9 @@ export const EMPTY_NARRATIVE: NarrativeDraft = {
   officeFollowUps: null,
   tomorrowPlan: null,
   notes: null,
+  safetyToolboxTalk: false,
+  safetyPpeVerified: false,
+  safetyHousekeeping: false,
 };
 
 const NARRATIVE_KEYS = Object.keys(EMPTY_NARRATIVE) as (keyof NarrativeDraft)[];
@@ -62,7 +68,11 @@ export function narrativeFromLog(log: Record<string, unknown> | null): Narrative
     const v = log[key];
     if (v !== undefined) {
       (out as Record<string, unknown>)[key] =
-        typeof v === "string" || typeof v === "number" ? v : v == null ? null : v;
+        typeof v === "string" || typeof v === "number" || typeof v === "boolean"
+          ? v
+          : v == null
+            ? null
+            : v;
     }
   }
   return out;
