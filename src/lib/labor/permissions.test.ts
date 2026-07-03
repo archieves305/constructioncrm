@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RoleName } from "@/generated/prisma/client";
 import {
   NO_GRANTS,
+  canCreatePersonnel,
   canEditPayRates,
   canManagePersonnel,
   canReadPersonnel,
@@ -34,6 +35,15 @@ describe("personnel access", () => {
       "ADMIN",
       "MANAGER",
       "OFFICE_STAFF",
+    ]);
+  });
+
+  it("crew leads can create basic records (walk-on workers); viewers cannot", () => {
+    expect(ALL_ROLES.filter(canCreatePersonnel)).toEqual([
+      "ADMIN",
+      "MANAGER",
+      "OFFICE_STAFF",
+      "CREW_LEAD",
     ]);
   });
 

@@ -4,6 +4,7 @@ import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/help
 import { validateBody } from "@/lib/validation/body";
 import { personnelCreateSchema } from "@/lib/validation/labor";
 import {
+  canCreatePersonnel,
   canEditPayRates,
   canManagePersonnel,
   canReadPersonnel,
@@ -57,11 +58,35 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (!canManagePersonnel(session.user.role)) return forbidden();
+  if (!canCreatePersonnel(session.user.role)) return forbidden();
 
   const v = await validateBody(request, personnelCreateSchema);
   if (!v.ok) return v.response;
-  const { ssn, hourlyRate, startDate, endDate, ...rest } = v.data;
+  const { ssn: ssnInput, hourlyRate: rateInput, startDate, endDate, ...rest } = v.data;
+  let ssn = ssnInput;
+  let hourlyRate = rateInput;
+
+  // Field creates are roster-level only: a crew lead adding a walk-on worker
+  // supplies identity/trade/crew; contact details beyond phone, rates, and
+  // SSNs stay with the office. Extra fields are dropped, not 403'd, so the
+  // client stays simple.
+  if (!canManagePersonnel(session.user.role)) {
+    const FIELD_CREATE_KEYS = new Set([
+      "firstName",
+      "lastName",
+      "phone",
+      "trade",
+      "crewId",
+      "employmentType",
+    ]);
+    for (const key of Object.keys(rest)) {
+      if (!FIELD_CREATE_KEYS.has(key)) {
+        delete (rest as Record<string, unknown>)[key];
+      }
+    }
+    ssn = null;
+    hourlyRate = null;
+  }
 
   const grants = await getFieldGrants(session.user.id);
 

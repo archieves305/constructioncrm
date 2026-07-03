@@ -23,6 +23,7 @@ import {
   LogOut,
   Send,
   UserCheck,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -288,6 +289,43 @@ export default function DailyLaborPage({
         ),
       );
       toast.success(action === "check-in" ? "Checked in" : "Checked out");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const [addWorkerOpen, setAddWorkerOpen] = useState(false);
+  const [newWorker, setNewWorker] = useState({ firstName: "", lastName: "", trade: "", phone: "" });
+  const addWorker = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/personnel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: newWorker.firstName.trim(),
+          lastName: newWorker.lastName.trim(),
+          trade: newWorker.trade.trim() || null,
+          phone: newWorker.phone.trim() || null,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Failed to add worker");
+      return body as Person;
+    },
+    onSuccess: async (person) => {
+      setAddWorkerOpen(false);
+      setNewWorker({ firstName: "", lastName: "", trade: "", phone: "" });
+      await qc.invalidateQueries({ queryKey: ["personnel", "field-roster"] });
+      // Straight onto today's sheet — that's why they were added.
+      togglePresence({
+        id: person.id,
+        firstName: person.firstName,
+        lastName: person.lastName,
+        trade: person.trade ?? null,
+        crew: null,
+      });
+      toast.success(
+        `${person.firstName} ${person.lastName} added — office can fill in rate and details later`,
+      );
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -572,6 +610,16 @@ export default function DailyLaborPage({
         })}
       </div>
 
+      {editable && (
+        <Button
+          variant="outline"
+          className="mt-2 h-12 w-full"
+          onClick={() => setAddWorkerOpen(true)}
+        >
+          <UserPlus className="mr-2 h-4 w-4" />
+          Add worker not on the list
+        </Button>
+      )}
         </>
       )}
 
@@ -606,6 +654,63 @@ export default function DailyLaborPage({
           )}
         </div>
       </div>
+
+      {/* Add worker dialog */}
+      <Dialog open={addWorkerOpen} onOpenChange={setAddWorkerOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add a worker</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-muted-foreground text-sm">
+              For someone who showed up and isn&apos;t in the system yet. The
+              office fills in pay rate and paperwork later.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                placeholder="First name"
+                value={newWorker.firstName}
+                onChange={(e) => setNewWorker({ ...newWorker, firstName: e.target.value })}
+                style={{ fontSize: 16 }}
+              />
+              <Input
+                placeholder="Last name"
+                value={newWorker.lastName}
+                onChange={(e) => setNewWorker({ ...newWorker, lastName: e.target.value })}
+                style={{ fontSize: 16 }}
+              />
+            </div>
+            <Input
+              placeholder="Trade (e.g. Drywall)"
+              value={newWorker.trade}
+              onChange={(e) => setNewWorker({ ...newWorker, trade: e.target.value })}
+              style={{ fontSize: 16 }}
+            />
+            <Input
+              placeholder="Phone (optional)"
+              type="tel"
+              value={newWorker.phone}
+              onChange={(e) => setNewWorker({ ...newWorker, phone: e.target.value })}
+              style={{ fontSize: 16 }}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAddWorkerOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={
+                  !newWorker.firstName.trim() ||
+                  !newWorker.lastName.trim() ||
+                  addWorker.isPending
+                }
+                onClick={() => addWorker.mutate()}
+              >
+                {addWorker.isPending ? "Adding…" : "Add & mark present"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Note dialog */}
       <Dialog open={noteFor !== null} onOpenChange={(o) => !o && setNoteFor(null)}>
