@@ -168,7 +168,18 @@ export function WorkLogSection({
 
   const weather = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/jobs/${jobId}/daily-logs/${date}/weather`);
+      // Prefer where the device actually is; the server falls back to the
+      // job's address if we can't get a fix (or the user declines).
+      const coords = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => resolve(null),
+          { timeout: 5000, maximumAge: 600_000 },
+        );
+      });
+      const qs = coords ? `?lat=${coords.lat.toFixed(5)}&lng=${coords.lng.toFixed(5)}` : "";
+      const res = await fetch(`/api/jobs/${jobId}/daily-logs/${date}/weather${qs}`);
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || "Weather unavailable");
       return body as Partial<NarrativeDraft>;

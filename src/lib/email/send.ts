@@ -1,4 +1,4 @@
-import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
+import { MailerSend, EmailParams, Sender, Recipient, Attachment } from "mailersend";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
@@ -9,6 +9,8 @@ type SendEmailArgs = {
   text?: string;
   replyTo?: string;
   headers?: Record<string, string>;
+  /** filename + base64 content pairs */
+  attachments?: { filename: string; contentBase64: string }[];
 };
 
 let client: MailerSend | null = null;
@@ -49,6 +51,13 @@ export async function sendEmail(args: SendEmailArgs): Promise<{ id: string } | n
 
   if (args.text) params.setText(args.text);
   if (args.replyTo) params.setReplyTo(new Recipient(args.replyTo));
+  if (args.attachments?.length) {
+    params.setAttachments(
+      args.attachments.map(
+        (a) => new Attachment(a.contentBase64, a.filename, "attachment"),
+      ),
+    );
+  }
 
   if (args.headers) {
     const remaining: { name: string; value: string }[] = [];

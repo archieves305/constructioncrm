@@ -2232,6 +2232,9 @@ model LaborSettings {
   otDailyThreshold  Decimal? @map("ot_daily_threshold") @db.Decimal(5, 2)
   otMultiplier      Decimal  @default(1.5) @map("ot_multiplier") @db.Decimal(4, 2)
   weekStartsOn      Int      @default(1) @map("week_starts_on")
+  // Where "email weekly hours" sends payroll reports. ADMIN-configured; the
+  // field app can only trigger a send to this fixed address.
+  bookkeeperEmail   String?  @map("bookkeeper_email")
   updatedByUserId   String?  @map("updated_by_user_id")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

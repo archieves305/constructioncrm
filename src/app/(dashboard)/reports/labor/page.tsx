@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,72 @@ function localDate(offsetDays = 0): string {
 
 const money = (n: number) =>
   `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+
+function BookkeeperSetting() {
+  const qc = useQueryClient();
+  const [email, setEmail] = useState("");
+  const { data: settings } = useQuery<{
+    otWeeklyThreshold: number;
+    otDailyThreshold: number | null;
+    otMultiplier: number;
+    weekStartsOn: number;
+    bookkeeperEmail: string | null;
+  }>({
+    queryKey: ["labor-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/labor-settings");
+      if (!res.ok) throw new Error("forbidden");
+      const d = await res.json();
+      setEmail(d.bookkeeperEmail ?? "");
+      return d;
+    },
+    retry: false,
+  });
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/admin/labor-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          otWeeklyThreshold: settings!.otWeeklyThreshold,
+          otDailyThreshold: settings!.otDailyThreshold,
+          otMultiplier: settings!.otMultiplier,
+          weekStartsOn: settings!.weekStartsOn,
+          bookkeeperEmail: email.trim() || null,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Save failed (admin only)");
+      return body;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["labor-settings"] });
+      toast.success("Bookkeeper email saved");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  if (!settings) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+      <span className="text-muted-foreground text-sm">Bookkeeper email:</span>
+      <Input
+        type="email"
+        placeholder="bookkeeper@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="w-64"
+      />
+      <Button size="sm" variant="outline" onClick={() => save.mutate()} disabled={save.isPending}>
+        Save
+      </Button>
+      <p className="text-muted-foreground w-full text-xs">
+        Field Mode&apos;s &quot;send weekly hours&quot; button emails this address (admins can change it).
+      </p>
+    </div>
+  );
+}
 
 export default function LaborReportsPage() {
   const [from, setFrom] = useState(localDate(-28));
@@ -259,6 +326,7 @@ export default function LaborReportsPage() {
                 and gross from the rates snapshotted on each day. Exports are
                 logged.
               </p>
+              <BookkeeperSetting />
             </CardContent>
           </Card>
         </>

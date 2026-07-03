@@ -13,12 +13,40 @@ type Context = { params: Promise<{ id: string; date: string }> };
 // persist them — the client merges into its draft, keeping manual override
 // trivial. Job coordinates are geocoded once from the lead address (zip
 // first, then city+state) and cached on the Job row.
-export async function GET(_request: NextRequest, context: Context) {
+export async function GET(request: NextRequest, context: Context) {
   const { id: jobId, date } = await context.params;
   const dateError = validateDateParam(date);
   if (dateError) return dateError;
   const ctx = await requireJobFieldAccess(jobId, "read");
   if ("response" in ctx) return ctx.response;
+
+  // Device coordinates win when the client sends them — the iPad standing
+  // on the jobsite beats a geocoded mailing address. Job coords remain the
+  // fallback (and office users without GPS).
+  const qLat = Number(request.nextUrl.searchParams.get("lat"));
+  const qLng = Number(request.nextUrl.searchParams.get("lng"));
+  if (
+    Number.isFinite(qLat) && Number.isFinite(qLng) &&
+    Math.abs(qLat) <= 90 && Math.abs(qLng) <= 180 &&
+    (qLat !== 0 || qLng !== 0)
+  ) {
+    try {
+      const weather = await fetchDailyWeather(qLat, qLng, date);
+      if (weather) {
+        return NextResponse.json({
+          weatherSummary: weather.summary,
+          weatherTempHighF: weather.tempHighF,
+          weatherTempLowF: weather.tempLowF,
+          weatherPrecipIn: weather.precipIn,
+          weatherWindMph: weather.windMph,
+          weatherSource: "open-meteo (device location)",
+        });
+      }
+    } catch (err) {
+      logger.exception(err, { where: "daily-logs.weather.device", jobId, date });
+      // fall through to job coordinates
+    }
+  }
 
   const job = await prisma.job.findUnique({
     where: { id: jobId },

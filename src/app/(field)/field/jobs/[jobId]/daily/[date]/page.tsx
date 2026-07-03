@@ -114,8 +114,6 @@ export default function DailyLaborPage({
   }, [log]);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [noteFor, setNoteFor] = useState<EntryDraft | null>(null);
-  const [noteText, setNoteText] = useState("");
 
   const togglePresence = (person: Person) => {
     if (!editable) return;
@@ -583,25 +581,23 @@ export default function DailyLaborPage({
                       >
                         Left early
                       </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-10"
-                        disabled={!editable}
-                        onClick={() => {
-                          setNoteFor(entry);
-                          setNoteText(entry.notes ?? "");
-                        }}
-                      >
-                        {entry.notes ? "Edit note" : "Add note"}
-                      </Button>
                     </div>
-                    {entry.notes && (
-                      <p className="text-muted-foreground text-sm italic">
-                        “{entry.notes}”
-                      </p>
-                    )}
+                    <div>
+                      <span className="text-muted-foreground text-xs font-medium">
+                        What did they work on today?
+                      </span>
+                      <Textarea
+                        rows={2}
+                        placeholder="e.g. Hung and taped drywall, rooms 210–214"
+                        value={entry.notes ?? ""}
+                        disabled={!editable}
+                        onChange={(e) =>
+                          updateEntry(entry.id, { notes: e.target.value || null })
+                        }
+                        className="mt-1 bg-white"
+                        style={{ fontSize: 16 }}
+                      />
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -708,37 +704,6 @@ export default function DailyLaborPage({
                 {addWorker.isPending ? "Adding…" : "Add & mark present"}
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Note dialog */}
-      <Dialog open={noteFor !== null} onOpenChange={(o) => !o && setNoteFor(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Worker note</DialogTitle>
-          </DialogHeader>
-          <Textarea
-            rows={4}
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            placeholder="e.g. Sent home at lunch — flu"
-            style={{ fontSize: 16 }}
-          />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setNoteFor(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (noteFor) {
-                  updateEntry(noteFor.id, { notes: noteText.trim() || null });
-                }
-                setNoteFor(null);
-              }}
-            >
-              Save note
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
