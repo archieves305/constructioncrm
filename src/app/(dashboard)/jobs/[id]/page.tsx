@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DailyLogsPanel } from "@/components/jobs/daily-logs-panel";
 import { FieldLaborSummary } from "@/components/jobs/field-labor-summary";
+import { FieldAssignmentsPanel } from "@/components/jobs/field-assignments-panel";
 import { JobPhotoGallery } from "@/components/photos/job-photo-gallery";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -699,6 +700,7 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="daily-logs">
+              <FieldAssignmentsPanel jobId={id} />
               <FieldLaborSummary jobId={id} />
               <DailyLogsPanel jobId={id} />
             </TabsContent>
