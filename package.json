@@ -37,6 +37,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
+    "idb-keyval": "^6.2.6",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.8.0",
     "mailersend": "^3.0.0",

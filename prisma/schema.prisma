@@ -40,6 +40,12 @@ enum PersonnelDocumentType {
   OTHER
 }
 
+enum DailyLogStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
 enum PropertyType {
   RESIDENTIAL
   COMMERCIAL
@@ -360,6 +366,13 @@ model User {
   personnelRecord          Personnel?           @relation("PersonnelUser")
   personnelCreated         Personnel[]          @relation("PersonnelCreatedBy")
   personnelDocsUploaded    PersonnelDocument[]  @relation("PersonnelDocUploadedBy")
+  dailyLogsManaged         DailyLog[]           @relation("DailyLogManager")
+  dailyLogsSubmitted       DailyLog[]           @relation("DailyLogSubmittedBy")
+  dailyLogsApproved        DailyLog[]           @relation("DailyLogApprovedBy")
+  dailyLogsCreated         DailyLog[]           @relation("DailyLogCreatedBy")
+  laborEntriesCreated      DailyLaborEntry[]    @relation("LaborEntryCreatedBy")
+  fieldAssignments         JobFieldAssignment[] @relation("JobFieldAssignmentUser")
+  fieldAssignmentsCreated  JobFieldAssignment[] @relation("JobFieldAssignmentCreatedBy")
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -933,6 +946,10 @@ model Job {
   priorTenantName       String?         @map("prior_tenant_name")
   turnoverStartedAt     DateTime?       @map("turnover_started_at")
   turnoverCompletedAt   DateTime?       @map("turnover_completed_at")
+  // Jobsite coordinates for weather autofill; geocoded once from the lead
+  // address, or set manually by ADMIN/MANAGER.
+  latitude              Decimal?        @db.Decimal(10, 7)
+  longitude             Decimal?        @db.Decimal(10, 7)
   createdAt             DateTime        @default(now()) @map("created_at")
   updatedAt             DateTime        @updatedAt @map("updated_at")
 
@@ -955,6 +972,10 @@ model Job {
   budgetLines        BudgetLine[]
   generatedDocuments GeneratedDocument[]
   changeOrders       ChangeOrder[]
+  dailyLogs          DailyLog[]
+  dailyLaborEntries  DailyLaborEntry[]
+  jobAreas           JobArea[]
+  fieldAssignments   JobFieldAssignment[]
 
   @@index([leadId])
   @@index([currentStageId])
@@ -1143,8 +1164,9 @@ model BudgetLine {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  job         Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  allocations BudgetAllocation[]
+  job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  allocations       BudgetAllocation[]
+  dailyLaborEntries DailyLaborEntry[]
 
   @@index([jobId])
   @@map("budget_lines")
@@ -1155,12 +1177,17 @@ model BudgetAllocation {
   budgetLineId    String   @map("budget_line_id")
   expenseId       String?  @map("expense_id")
   laborContractId String?  @map("labor_contract_id")
+  // Field-labor stream: system-maintained 1:1 with a DailyLaborEntry whenever
+  // the entry names a budget line (amount mirrors entry.totalCost). Never
+  // hand-edited — the labor save service owns these rows.
+  dailyLaborEntryId String? @unique @map("daily_labor_entry_id")
   amount          Decimal  @db.Decimal(12, 2)
   createdAt       DateTime @default(now()) @map("created_at")
 
-  budgetLine    BudgetLine     @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
-  expense       JobExpense?    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  laborContract LaborContract? @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
+  budgetLine      BudgetLine       @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
+  expense         JobExpense?      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  laborContract   LaborContract?   @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
+  dailyLaborEntry DailyLaborEntry? @relation(fields: [dailyLaborEntryId], references: [id], onDelete: Cascade)
 
   @@index([budgetLineId])
   @@index([expenseId])
@@ -2101,10 +2128,11 @@ model Personnel {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  crew      Crew?               @relation(fields: [crewId], references: [id])
-  user      User?               @relation("PersonnelUser", fields: [userId], references: [id])
-  createdBy User                @relation("PersonnelCreatedBy", fields: [createdByUserId], references: [id])
-  documents PersonnelDocument[]
+  crew         Crew?               @relation(fields: [crewId], references: [id])
+  user         User?               @relation("PersonnelUser", fields: [userId], references: [id])
+  createdBy    User                @relation("PersonnelCreatedBy", fields: [createdByUserId], references: [id])
+  documents    PersonnelDocument[]
+  laborEntries DailyLaborEntry[]
 
   @@index([lastName, firstName])
   @@index([crewId])
@@ -2129,4 +2157,188 @@ model PersonnelDocument {
 
   @@index([personnelId])
   @@map("personnel_documents")
+}
+
+model CostCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  phase     String?
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  laborEntries DailyLaborEntry[]
+
+  @@map("cost_codes")
+}
+
+// Structured work areas for hotel/multifamily jobs ("Room 214", "Lobby",
+// "Roof — Bldg A") with optional floor/unit granularity.
+model JobArea {
+  id        String   @id @default(cuid())
+  jobId     String   @map("job_id")
+  name      String
+  floor     String?
+  unit      String?
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  laborEntries DailyLaborEntry[]
+
+  @@unique([jobId, name])
+  @@index([jobId])
+  @@map("job_areas")
+}
+
+// Singleton OT policy (IntakeSettings pattern). Defaults follow FLSA:
+// weekly-only overtime at 1.5x past 40h; no daily threshold.
+model LaborSettings {
+  id                String   @id @default(cuid())
+  otWeeklyThreshold Decimal  @default(40) @map("ot_weekly_threshold") @db.Decimal(5, 2)
+  otDailyThreshold  Decimal? @map("ot_daily_threshold") @db.Decimal(5, 2)
+  otMultiplier      Decimal  @default(1.5) @map("ot_multiplier") @db.Decimal(4, 2)
+  weekStartsOn      Int      @default(1) @map("week_starts_on")
+  updatedByUserId   String?  @map("updated_by_user_id")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("labor_settings")
+}
+
+// Which CREW_LEAD (or other field user) runs which job. A lead can run
+// several jobs and a hotel job can have several leads.
+model JobFieldAssignment {
+  id              String   @id @default(cuid())
+  jobId           String   @map("job_id")
+  userId          String   @map("user_id")
+  createdByUserId String   @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  job       Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user      User @relation("JobFieldAssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("JobFieldAssignmentCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@unique([jobId, userId])
+  @@index([userId])
+  @@map("job_field_assignments")
+}
+
+// One per (job, date): the shared header for the labor sheet and the daily
+// jobsite narrative. The natural key doubles as the idempotent upsert key
+// for offline retries.
+model DailyLog {
+  id            String         @id @default(cuid())
+  jobId         String         @map("job_id")
+  logDate       DateTime       @map("log_date") @db.Date
+  status        DailyLogStatus @default(DRAFT)
+  managerUserId String?        @map("manager_user_id")
+
+  weatherSummary   String?   @map("weather_summary")
+  weatherTempHighF Int?      @map("weather_temp_high_f")
+  weatherTempLowF  Int?      @map("weather_temp_low_f")
+  weatherPrecipIn  Decimal?  @map("weather_precip_in") @db.Decimal(5, 2)
+  weatherWindMph   Int?      @map("weather_wind_mph")
+  weatherSource    String?   @map("weather_source")
+  weatherFetchedAt DateTime? @map("weather_fetched_at")
+
+  workPerformed        String? @map("work_performed") @db.Text
+  areasWorked          String? @map("areas_worked") @db.Text
+  materialsDelivered   String? @map("materials_delivered") @db.Text
+  equipmentUsed        String? @map("equipment_used") @db.Text
+  subcontractorsOnsite String? @map("subcontractors_onsite") @db.Text
+  inspectionsNotes     String? @map("inspections_notes") @db.Text
+  delays               String? @db.Text
+  safetyIssues         String? @map("safety_issues") @db.Text
+  changeOrderItems     String? @map("change_order_items") @db.Text
+  ownerInstructions    String? @map("owner_instructions") @db.Text
+  officeFollowUps      String? @map("office_follow_ups") @db.Text
+  tomorrowPlan         String? @map("tomorrow_plan") @db.Text
+  notes                String? @db.Text
+
+  submittedAt       DateTime? @map("submitted_at")
+  submittedByUserId String?   @map("submitted_by_user_id")
+  approvedAt        DateTime? @map("approved_at")
+  approvedByUserId  String?   @map("approved_by_user_id")
+  returnNote        String?   @map("return_note") @db.Text
+
+  createdByUserId String   @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  job         Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  manager     User? @relation("DailyLogManager", fields: [managerUserId], references: [id])
+  submittedBy User? @relation("DailyLogSubmittedBy", fields: [submittedByUserId], references: [id])
+  approvedBy  User? @relation("DailyLogApprovedBy", fields: [approvedByUserId], references: [id])
+  createdBy   User  @relation("DailyLogCreatedBy", fields: [createdByUserId], references: [id])
+
+  laborEntries DailyLaborEntry[]
+
+  @@unique([jobId, logDate])
+  @@index([jobId, logDate(sort: Desc)])
+  @@index([status])
+  @@map("daily_logs")
+}
+
+// One row per worker per day (split shifts allowed: same worker may have two
+// rows on one log for different areas/cost codes). Ids are client-generated
+// cuids so offline retries upsert instead of duplicating. Hours/costs are
+// stored snapshots, always recomputed server-side on save.
+model DailyLaborEntry {
+  id          String   @id @default(cuid())
+  dailyLogId  String   @map("daily_log_id")
+  jobId       String   @map("job_id")
+  workDate    DateTime @map("work_date") @db.Date
+  personnelId String   @map("personnel_id")
+
+  trade     String?
+  jobAreaId String? @map("job_area_id")
+  workArea  String? @map("work_area")
+
+  // Minutes from midnight, local jobsite time. endMinutes may exceed 1440
+  // for midnight-crossing shifts (1560 = 2:00 AM next day).
+  startMinutes Int? @map("start_minutes")
+  endMinutes   Int? @map("end_minutes")
+  breakMinutes Int  @default(0) @map("break_minutes")
+
+  totalHours   Decimal @default(0) @map("total_hours") @db.Decimal(5, 2)
+  regularHours Decimal @default(0) @map("regular_hours") @db.Decimal(5, 2)
+  otHours      Decimal @default(0) @map("ot_hours") @db.Decimal(5, 2)
+
+  regularRate Decimal @default(0) @map("regular_rate") @db.Decimal(10, 2)
+  otRate      Decimal @default(0) @map("ot_rate") @db.Decimal(10, 2)
+  totalCost   Decimal @default(0) @map("total_cost") @db.Decimal(12, 2)
+
+  costCodeId   String? @map("cost_code_id")
+  phase        String?
+  budgetLineId String? @map("budget_line_id")
+
+  isAbsent      Boolean @default(false) @map("is_absent")
+  isLate        Boolean @default(false) @map("is_late")
+  leftEarly     Boolean @default(false) @map("left_early")
+  absenceReason String? @map("absence_reason")
+  notes         String? @db.Text
+
+  createdByUserId String   @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  dailyLog   DailyLog    @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  personnel  Personnel   @relation(fields: [personnelId], references: [id], onDelete: Restrict)
+  jobArea    JobArea?    @relation(fields: [jobAreaId], references: [id], onDelete: SetNull)
+  costCode   CostCode?   @relation(fields: [costCodeId], references: [id], onDelete: SetNull)
+  budgetLine BudgetLine? @relation(fields: [budgetLineId], references: [id], onDelete: SetNull)
+  createdBy  User        @relation("LaborEntryCreatedBy", fields: [createdByUserId], references: [id])
+
+  budgetAllocations BudgetAllocation[]
+
+  @@index([jobId, workDate])
+  @@index([personnelId, workDate])
+  @@index([dailyLogId])
+  @@index([costCodeId])
+  @@index([budgetLineId])
+  @@map("daily_labor_entries")
 }

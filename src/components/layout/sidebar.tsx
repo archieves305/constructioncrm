@@ -53,6 +53,12 @@ const navItems: NavItem[] = [
     roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
   },
   {
+    href: "/field-logs",
+    label: "Daily Logs",
+    icon: ClipboardList,
+    roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
+  },
+  {
     href: "/field",
     label: "Field Mode",
     icon: HardHat,

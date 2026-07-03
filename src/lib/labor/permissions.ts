@@ -74,3 +74,93 @@ export function canViewPayroll(role: RoleName, grants: FieldGrants): boolean {
   if (role === "ADMIN" || role === "OFFICE_STAFF") return true;
   return role === "MANAGER" && grants.canViewPayrollReports;
 }
+
+// ── Job-scoped field access (daily logs, labor sheets, photos) ─────────────
+
+export type FieldAccess = "none" | "read" | "write";
+
+type JobScope = {
+  projectManagerId: string | null;
+  salesRepId: string | null;
+};
+
+/**
+ * Pure access decision for one job's field data. `hasAssignment` = a
+ * JobFieldAssignment row exists for (job, viewer).
+ */
+export function jobFieldAccess(
+  viewer: { id: string; role: RoleName },
+  job: JobScope,
+  hasAssignment: boolean,
+): FieldAccess {
+  switch (viewer.role) {
+    case "ADMIN":
+    case "MANAGER":
+    case "OFFICE_STAFF":
+      return "write";
+    case "CREW_LEAD":
+      return hasAssignment || job.projectManagerId === viewer.id ? "write" : "none";
+    case "SALES_REP":
+      return job.salesRepId === viewer.id ? "read" : "none";
+    case "READ_ONLY":
+      return "read";
+    default:
+      return "none";
+  }
+}
+
+/** Load the job's scope fields + assignment row and decide access. */
+export async function resolveJobFieldAccess(
+  viewer: { id: string; role: RoleName },
+  jobId: string,
+): Promise<{ job: { id: string; projectManagerId: string | null; salesRepId: string | null } | null; access: FieldAccess }> {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: { id: true, projectManagerId: true, salesRepId: true },
+  });
+  if (!job) return { job: null, access: "none" };
+
+  let hasAssignment = false;
+  if (viewer.role === "CREW_LEAD") {
+    hasAssignment = Boolean(
+      await prisma.jobFieldAssignment.findUnique({
+        where: { jobId_userId: { jobId, userId: viewer.id } },
+        select: { id: true },
+      }),
+    );
+  }
+  return { job, access: jobFieldAccess(viewer, job, hasAssignment) };
+}
+
+// ── Daily-log workflow transitions ──────────────────────────────────────────
+
+export type LogStatus = "DRAFT" | "SUBMITTED" | "APPROVED";
+
+/** Who may edit log content (header, narrative, labor sheet) at a status. */
+export function canEditLogAtStatus(
+  status: LogStatus,
+  role: RoleName,
+  access: FieldAccess,
+): boolean {
+  if (access !== "write") return false;
+  if (status === "DRAFT") return true;
+  if (status === "SUBMITTED") return role === "ADMIN" || role === "MANAGER";
+  return false; // APPROVED is frozen until an ADMIN reopens
+}
+
+export function canApproveLog(role: RoleName): boolean {
+  return role === "ADMIN" || role === "MANAGER";
+}
+
+export function canReturnLog(role: RoleName): boolean {
+  return role === "ADMIN" || role === "MANAGER";
+}
+
+export function canReopenLog(role: RoleName): boolean {
+  return role === "ADMIN";
+}
+
+export function canDeleteLog(status: LogStatus, role: RoleName, access: FieldAccess): boolean {
+  if (status === "DRAFT") return access === "write";
+  return role === "ADMIN";
+}
