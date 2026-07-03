@@ -12,6 +12,28 @@ import {
   type DailyLogPdfEntry,
 } from "@/lib/pdf/daily-log";
 import { format } from "date-fns";
+import { readFile } from "@/lib/files/storage";
+import { logger } from "@/lib/logger";
+import { toDbDate } from "@/lib/labor/dates";
+
+// PDF embedding limits: uploads are client-downscaled JPEGs (~½ MB), but
+// legacy/oversized files are skipped rather than ballooning render memory.
+const MAX_PDF_PHOTOS = 30;
+const MAX_EMBED_BYTES = 2 * 1024 * 1024;
+const EMBEDDABLE_MIME = new Set(["image/jpeg", "image/png"]);
+
+const CATEGORY_LABELS: Record<string, string> = {
+  PROGRESS: "Progress",
+  BEFORE: "Before",
+  AFTER: "After",
+  ISSUE: "Issue",
+  DAMAGE: "Damage",
+  SAFETY: "Safety",
+  MATERIAL_DELIVERY: "Material delivery",
+  INSPECTION: "Inspection",
+  CHANGE_ORDER: "Change order",
+  OTHER: "Other",
+};
 
 type Context = { params: Promise<{ id: string; date: string }> };
 
@@ -123,9 +145,56 @@ export async function GET(_request: NextRequest, context: Context) {
       const text = record[key];
       return text?.trim() ? [{ label, text: text.trim() }] : [];
     }),
+    photos: [],
+    photosOmitted: 0,
     showCost,
     generatedAt: format(new Date(), "MMM d, yyyy h:mm a"),
   };
+
+  // Photos for this job+date (log-linked or merely date-tagged).
+  const photoRows = await prisma.fieldPhoto.findMany({
+    where: { jobId, photoDate: toDbDate(date) },
+    orderBy: [{ category: "asc" }, { createdAt: "asc" }],
+    select: {
+      storageKey: true,
+      fileType: true,
+      fileSize: true,
+      caption: true,
+      category: true,
+      areaText: true,
+      jobArea: { select: { name: true } },
+    },
+  });
+  const photos: DailyLogPdfData["photos"] = [];
+  let omitted = 0;
+  for (const p of photoRows) {
+    if (photos.length >= MAX_PDF_PHOTOS) {
+      omitted++;
+      continue;
+    }
+    if (!EMBEDDABLE_MIME.has(p.fileType) || p.fileSize > MAX_EMBED_BYTES) {
+      omitted++;
+      continue;
+    }
+    try {
+      const bytes = await readFile(p.storageKey);
+      photos.push({
+        dataUri: `data:${p.fileType};base64,${bytes.toString("base64")}`,
+        caption: p.caption,
+        label: [
+          CATEGORY_LABELS[p.category] ?? p.category,
+          p.jobArea?.name ?? p.areaText,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      });
+    } catch (err) {
+      logger.exception(err, { where: "daily-logs.pdf.photo", jobId, date });
+      omitted++;
+    }
+  }
+  data.photos = photos;
+  data.photosOmitted = omitted;
 
   const pdf = await renderDailyLogPdf(data);
   const ab = new ArrayBuffer(pdf.byteLength);

@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Document,
+  Image,
   Page,
   Text,
   View,
@@ -67,6 +68,15 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     fontSize: 8,
   },
+  photoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 8,
+  },
+  photoCell: { width: "31%" },
+  photoImg: { width: "100%", height: 150, objectFit: "cover", borderRadius: 3 },
+  photoCaption: { fontSize: 8, color: "#374151", marginTop: 2 },
 });
 
 export type DailyLogPdfEntry = {
@@ -96,6 +106,8 @@ export type DailyLogPdfData = {
   entries: DailyLogPdfEntry[];
   totals: { workers: number; regularHours: number; otHours: number; cost?: number };
   sections: { label: string; text: string }[];
+  photos: { dataUri: string; caption: string | null; label: string }[];
+  photosOmitted: number;
   showCost: boolean;
   generatedAt: string;
 };
@@ -204,6 +216,27 @@ function DailyLogDoc({ data }: { data: DailyLogPdfData }) {
             <Text style={styles.body}>{s.text}</Text>
           </View>
         ))}
+
+        {data.photos.length > 0 ? (
+          <View break>
+            <Text style={styles.sectionTitle}>Photos ({data.photos.length})</Text>
+            <View style={styles.photoGrid}>
+              {data.photos.map((photo, i) => (
+                <View key={i} style={styles.photoCell} wrap={false}>
+                  <Image style={styles.photoImg} src={photo.dataUri} />
+                  <Text style={styles.photoCaption}>
+                    {[photo.label, photo.caption].filter(Boolean).join(" — ")}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            {data.photosOmitted > 0 ? (
+              <Text style={[styles.muted, { marginTop: 6 }]}>
+                +{data.photosOmitted} more in the job photo gallery
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
 
         <Text style={styles.footer} fixed>
           {COMPANY.name} — Daily Report · Generated {data.generatedAt}

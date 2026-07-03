@@ -46,6 +46,27 @@ enum DailyLogStatus {
   APPROVED
 }
 
+enum FieldPhotoCategory {
+  PROGRESS
+  BEFORE
+  AFTER
+  ISSUE
+  DAMAGE
+  SAFETY
+  MATERIAL_DELIVERY
+  INSPECTION
+  CHANGE_ORDER
+  OTHER
+}
+
+enum FieldIssueType {
+  OFFICE_FOLLOW_UP
+  CO_REVIEW
+  SAFETY
+  MATERIAL_REQUEST
+  INSPECTION_REMINDER
+}
+
 enum PropertyType {
   RESIDENTIAL
   COMMERCIAL
@@ -373,6 +394,10 @@ model User {
   laborEntriesCreated      DailyLaborEntry[]    @relation("LaborEntryCreatedBy")
   fieldAssignments         JobFieldAssignment[] @relation("JobFieldAssignmentUser")
   fieldAssignmentsCreated  JobFieldAssignment[] @relation("JobFieldAssignmentCreatedBy")
+  fieldPhotosTaken         FieldPhoto[]         @relation("FieldPhotoTakenBy")
+  fieldIssuesRaised        FieldIssue[]         @relation("FieldIssueRaisedBy")
+  fieldIssuesAssigned      FieldIssue[]         @relation("FieldIssueAssignedTo")
+  fieldIssuesResolved      FieldIssue[]         @relation("FieldIssueResolvedBy")
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -595,6 +620,8 @@ model Task {
   @@index([assignedUserId])
   @@index([dueAt])
   @@index([status])
+  fieldIssue FieldIssue?
+
   @@map("tasks")
 }
 
@@ -976,6 +1003,8 @@ model Job {
   dailyLaborEntries  DailyLaborEntry[]
   jobAreas           JobArea[]
   fieldAssignments   JobFieldAssignment[]
+  fieldPhotos        FieldPhoto[]
+  fieldIssues        FieldIssue[]
 
   @@index([leadId])
   @@index([currentStageId])
@@ -2188,6 +2217,7 @@ model JobArea {
 
   job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
   laborEntries DailyLaborEntry[]
+  photos       FieldPhoto[]
 
   @@unique([jobId, name])
   @@index([jobId])
@@ -2275,6 +2305,8 @@ model DailyLog {
   createdBy   User  @relation("DailyLogCreatedBy", fields: [createdByUserId], references: [id])
 
   laborEntries DailyLaborEntry[]
+  photos       FieldPhoto[]
+  issues       FieldIssue[]
 
   @@unique([jobId, logDate])
   @@index([jobId, logDate(sort: Desc)])
@@ -2334,6 +2366,7 @@ model DailyLaborEntry {
   createdBy  User        @relation("LaborEntryCreatedBy", fields: [createdByUserId], references: [id])
 
   budgetAllocations BudgetAllocation[]
+  photos            FieldPhoto[]       @relation("LaborEntryPhotos")
 
   @@index([jobId, workDate])
   @@index([personnelId, workDate])
@@ -2341,4 +2374,78 @@ model DailyLaborEntry {
   @@index([costCodeId])
   @@index([budgetLineId])
   @@map("daily_labor_entries")
+}
+
+// Field photos: job-scoped, optionally pinned to a daily log, labor entry,
+// issue, and/or area. Separate from File (lead-anchored) on purpose — the
+// gallery filters (job/date/category/area) get their own indexes. Bytes go
+// through src/lib/files/storage.ts. Ids may be client-generated for
+// offline-retry safety.
+model FieldPhoto {
+  id                String             @id @default(cuid())
+  jobId             String             @map("job_id")
+  dailyLogId        String?            @map("daily_log_id")
+  dailyLaborEntryId String?            @map("daily_labor_entry_id")
+  fieldIssueId      String?            @map("field_issue_id")
+  jobAreaId         String?            @map("job_area_id")
+  photoDate         DateTime           @map("photo_date") @db.Date
+  category          FieldPhotoCategory @default(PROGRESS)
+  caption           String?
+  areaText          String?            @map("area_text")
+  fileName          String             @map("file_name")
+  fileType          String             @map("file_type")
+  fileSize          Int                @map("file_size")
+  storageKey        String             @map("storage_key")
+  gpsLat            Decimal?           @map("gps_lat") @db.Decimal(10, 7)
+  gpsLng            Decimal?           @map("gps_lng") @db.Decimal(10, 7)
+  takenByUserId     String             @map("taken_by_user_id")
+  createdAt         DateTime           @default(now()) @map("created_at")
+
+  job        Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  dailyLog   DailyLog?        @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  laborEntry DailyLaborEntry? @relation("LaborEntryPhotos", fields: [dailyLaborEntryId], references: [id], onDelete: SetNull)
+  fieldIssue FieldIssue?      @relation(fields: [fieldIssueId], references: [id], onDelete: SetNull)
+  jobArea    JobArea?         @relation(fields: [jobAreaId], references: [id], onDelete: SetNull)
+  takenBy    User             @relation("FieldPhotoTakenBy", fields: [takenByUserId], references: [id])
+
+  @@index([jobId, photoDate(sort: Desc)])
+  @@index([jobId, category])
+  @@index([dailyLogId])
+  @@index([fieldIssueId])
+  @@map("field_photos")
+}
+
+// Field-flagged items needing office attention. Source of truth for field
+// issues; when assigned (or typed OFFICE_FOLLOW_UP) the service creates a
+// linked Task so it shows in the office task queue. Sync is one-way:
+// resolving the issue completes the Task, never the reverse.
+model FieldIssue {
+  id               String         @id @default(cuid())
+  jobId            String         @map("job_id")
+  dailyLogId       String?        @map("daily_log_id")
+  type             FieldIssueType @default(OFFICE_FOLLOW_UP)
+  title            String
+  description      String?        @db.Text
+  priority         Priority       @default(MEDIUM)
+  status           TaskStatus     @default(PENDING)
+  assignedUserId   String?        @map("assigned_user_id")
+  dueAt            DateTime?      @map("due_at")
+  taskId           String?        @unique @map("task_id")
+  raisedByUserId   String         @map("raised_by_user_id")
+  resolvedAt       DateTime?      @map("resolved_at")
+  resolvedByUserId String?        @map("resolved_by_user_id")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  job        Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  dailyLog   DailyLog?    @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  task       Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  assignedTo User?        @relation("FieldIssueAssignedTo", fields: [assignedUserId], references: [id])
+  raisedBy   User         @relation("FieldIssueRaisedBy", fields: [raisedByUserId], references: [id])
+  resolvedBy User?        @relation("FieldIssueResolvedBy", fields: [resolvedByUserId], references: [id])
+  photos     FieldPhoto[]
+
+  @@index([jobId, status])
+  @@index([assignedUserId, status])
+  @@map("field_issues")
 }

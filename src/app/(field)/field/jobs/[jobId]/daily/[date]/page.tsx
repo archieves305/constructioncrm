@@ -33,6 +33,7 @@ import {
 import { TouchTimeField } from "@/components/field/touch-time-field";
 import { AutosaveIndicator } from "@/components/field/autosave-indicator";
 import { WorkLogSection } from "@/components/field/work-log-section";
+import { PhotoSection } from "@/components/field/photo-section";
 import {
   narrativeFromLog,
   useLogNarrative,
@@ -75,7 +76,7 @@ export default function DailyLaborPage({
     date,
     sheet.isLoading ? null : narrativeFromLog(log as Record<string, unknown> | null),
   );
-  const [section, setSection] = useState<"crew" | "work">("crew");
+  const [section, setSection] = useState<"crew" | "work" | "photos">("crew");
 
   const { data: fieldToday } = useQuery<{
     jobs: { id: string; title: string; jobNumber: string }[];
@@ -273,11 +274,12 @@ export default function DailyLaborPage({
         </div>
       )}
 
-      <div className="mb-4 grid grid-cols-2 gap-1 rounded-lg bg-gray-200/70 p-1">
+      <div className="mb-4 grid grid-cols-3 gap-1 rounded-lg bg-gray-200/70 p-1">
         {(
           [
             ["crew", "Crew"],
             ["work", "Work Log"],
+            ["photos", "Photos"],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -294,7 +296,14 @@ export default function DailyLaborPage({
         ))}
       </div>
 
-      {section === "work" ? (
+      {section === "photos" ? (
+        <PhotoSection
+          jobId={jobId}
+          date={date}
+          dailyLogId={log?.id ?? null}
+          editable={logStatus !== "APPROVED"}
+        />
+      ) : section === "work" ? (
         <WorkLogSection
           jobId={jobId}
           date={date}

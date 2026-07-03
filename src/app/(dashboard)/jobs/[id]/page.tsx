@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DailyLogsPanel } from "@/components/jobs/daily-logs-panel";
+import { JobPhotoGallery } from "@/components/photos/job-photo-gallery";
 import { Separator } from "@/components/ui/separator";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -396,6 +397,7 @@ export default function JobDetailPage() {
               <TabsTrigger value="permits">Permits ({job.permits?.length || 0})</TabsTrigger>
               <TabsTrigger value="crews">Crews</TabsTrigger>
               <TabsTrigger value="daily-logs">Daily Logs</TabsTrigger>
+              <TabsTrigger value="photos">Photos</TabsTrigger>
               <TabsTrigger value="inspections">Inspections</TabsTrigger>
               <TabsTrigger value="tasks">Tasks ({job.tasks?.length || 0})</TabsTrigger>
               <TabsTrigger value="files">Files</TabsTrigger>
@@ -697,6 +699,10 @@ export default function JobDetailPage() {
 
             <TabsContent value="daily-logs">
               <DailyLogsPanel jobId={id} />
+            </TabsContent>
+
+            <TabsContent value="photos">
+              <JobPhotoGallery jobId={id} />
             </TabsContent>
 
             <TabsContent value="inspections" className="space-y-2">
