@@ -73,7 +73,21 @@ export async function sendEmail(args: SendEmailArgs): Promise<{ id: string } | n
     if (remaining.length) params.setHeaders(remaining);
   }
 
-  const response = await c.email.send(params);
+  // The SDK sometimes REJECTS with a plain response object (not an Error) —
+  // e.g. trial-account limits — which logs as "[object Object]" unless
+  // normalized here.
+  let response;
+  try {
+    response = await c.email.send(params);
+  } catch (err) {
+    const e = err as { statusCode?: number; body?: unknown };
+    if (e && typeof e === "object" && "statusCode" in e) {
+      throw new Error(
+        `MailerSend error (${e.statusCode}): ${typeof e.body === "string" ? e.body : JSON.stringify(e.body)}`,
+      );
+    }
+    throw err;
+  }
 
   if (response.statusCode >= 400) {
     const detail =
