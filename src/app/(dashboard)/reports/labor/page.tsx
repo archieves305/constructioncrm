@@ -71,6 +71,7 @@ function BookkeeperSetting() {
     otMultiplier: number;
     weekStartsOn: number;
     bookkeeperEmail: string | null;
+    payrollApprovedOnly: boolean;
   }>({
     queryKey: ["labor-settings"],
     queryFn: async () => {
@@ -84,7 +85,7 @@ function BookkeeperSetting() {
   });
 
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (overrides?: { payrollApprovedOnly?: boolean }) => {
       const res = await fetch("/api/admin/labor-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -94,6 +95,8 @@ function BookkeeperSetting() {
           otMultiplier: settings!.otMultiplier,
           weekStartsOn: settings!.weekStartsOn,
           bookkeeperEmail: email.trim() || null,
+          payrollApprovedOnly:
+            overrides?.payrollApprovedOnly ?? settings!.payrollApprovedOnly,
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -118,12 +121,22 @@ function BookkeeperSetting() {
         onChange={(e) => setEmail(e.target.value)}
         className="w-64"
       />
-      <Button size="sm" variant="outline" onClick={() => save.mutate()} disabled={save.isPending}>
+      <Button size="sm" variant="outline" onClick={() => save.mutate({})} disabled={save.isPending}>
         Save
       </Button>
       <p className="text-muted-foreground w-full text-xs">
-        Field Mode&apos;s &quot;send weekly hours&quot; button emails this address (admins can change it).
+        Field Mode&apos;s &quot;send weekly hours&quot; button and the Friday
+        payroll email both go to this address. Automatic send: Fridays at 5pm.
       </p>
+      <label className="flex w-full cursor-pointer items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={settings.payrollApprovedOnly}
+          disabled={save.isPending}
+          onChange={(e) => save.mutate({ payrollApprovedOnly: e.target.checked })}
+        />
+        Only count hours on office-approved logs in payroll exports/emails
+      </label>
     </div>
   );
 }

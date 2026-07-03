@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     where: {
       isAbsent: false,
       workDate: { gte: toDbDate(weekStart), lt: toDbDate(weekEnd) },
+      ...(settings.payrollApprovedOnly ? { dailyLog: { status: "APPROVED" as const } } : {}),
     },
     select: {
       personnelId: true,

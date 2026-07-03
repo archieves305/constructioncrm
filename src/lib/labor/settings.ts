@@ -5,6 +5,7 @@ import type { OtSettings } from "./hours";
 export type LaborSettingsValues = OtSettings & {
   weekStartsOn: number;
   bookkeeperEmail: string | null;
+  payrollApprovedOnly: boolean;
 };
 
 export const DEFAULT_LABOR_SETTINGS: LaborSettingsValues = {
@@ -13,6 +14,7 @@ export const DEFAULT_LABOR_SETTINGS: LaborSettingsValues = {
   otMultiplier: 1.5,
   weekStartsOn: 1, // Monday
   bookkeeperEmail: null,
+  payrollApprovedOnly: false,
 };
 
 type Client = Prisma.TransactionClient | typeof prisma;
@@ -27,5 +29,6 @@ export async function getLaborSettings(db: Client = prisma): Promise<LaborSettin
     otMultiplier: Number(row.otMultiplier),
     weekStartsOn: row.weekStartsOn,
     bookkeeperEmail: row.bookkeeperEmail,
+    payrollApprovedOnly: row.payrollApprovedOnly,
   };
 }

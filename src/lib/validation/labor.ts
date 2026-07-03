@@ -156,4 +156,5 @@ export const laborSettingsSchema = z.object({
   otMultiplier: z.number().min(1).max(3),
   weekStartsOn: z.number().int().min(0).max(6),
   bookkeeperEmail: z.string().trim().email().nullable().optional(),
+  payrollApprovedOnly: z.boolean().optional(),
 });

@@ -13,7 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { HardHat, Plus, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { HardHat, Mail, Plus, X } from "lucide-react";
 
 type Assignment = {
   id: string;
@@ -170,7 +171,96 @@ export function FieldAssignmentsPanel({ jobId }: { jobId: string }) {
             </Button>
           </div>
         )}
+
+        <ReportRecipients jobId={jobId} />
       </CardContent>
     </Card>
+  );
+}
+
+// Approved daily reports auto-email their cost-free PDF to these addresses.
+function ReportRecipients({ jobId }: { jobId: string }) {
+  const qc = useQueryClient();
+  const [newEmail, setNewEmail] = useState("");
+
+  const { data, isError } = useQuery<{ recipients: string[] }>({
+    queryKey: ["report-recipients", jobId],
+    queryFn: async () => {
+      const res = await fetch(`/api/jobs/${jobId}/report-recipients`);
+      if (!res.ok) throw new Error("forbidden");
+      return res.json();
+    },
+    retry: false,
+  });
+
+  const save = useMutation({
+    mutationFn: async (recipients: string[]) => {
+      const res = await fetch(`/api/jobs/${jobId}/report-recipients`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipients }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Save failed");
+      return body;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["report-recipients", jobId] });
+      setNewEmail("");
+      toast.success("Report recipients updated");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  if (isError || !data) return null; // role without access — hide quietly
+  const recipients = data.recipients;
+
+  return (
+    <div className="space-y-2 border-t pt-3">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Mail className="h-4 w-4" /> Auto-send approved reports
+      </div>
+      <p className="text-muted-foreground text-sm">
+        When a daily log is approved, its report PDF (no internal costs) is
+        emailed to these addresses automatically.
+      </p>
+      {recipients.length > 0 && (
+        <ul className="flex flex-wrap gap-2">
+          {recipients.map((r) => (
+            <li
+              key={r}
+              className="flex items-center gap-1 rounded-full border px-3 py-1 text-sm"
+            >
+              {r}
+              <button
+                type="button"
+                aria-label={`Remove ${r}`}
+                onClick={() => save.mutate(recipients.filter((x) => x !== r))}
+                className="text-muted-foreground hover:text-red-600"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-center gap-2">
+        <Input
+          type="email"
+          placeholder="owner@example.com"
+          value={newEmail}
+          onChange={(e) => setNewEmail(e.target.value)}
+          className="w-64"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!newEmail.trim() || save.isPending}
+          onClick={() => save.mutate([...recipients, newEmail.trim()])}
+        >
+          <Plus className="mr-1 h-4 w-4" /> Add
+        </Button>
+      </div>
+    </div>
   );
 }

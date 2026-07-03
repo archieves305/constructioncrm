@@ -977,6 +977,9 @@ model Job {
   // address, or set manually by ADMIN/MANAGER.
   latitude              Decimal?        @db.Decimal(10, 7)
   longitude             Decimal?        @db.Decimal(10, 7)
+  // Approved daily reports auto-email their cost-free PDF to these addresses
+  // (owner, GC, super…). Office-managed on the job's Daily Logs tab.
+  dailyReportRecipients String[]        @default([]) @map("daily_report_recipients")
   createdAt             DateTime        @default(now()) @map("created_at")
   updatedAt             DateTime        @updatedAt @map("updated_at")
 
@@ -2235,6 +2238,8 @@ model LaborSettings {
   // Where "email weekly hours" sends payroll reports. ADMIN-configured; the
   // field app can only trigger a send to this fixed address.
   bookkeeperEmail   String?  @map("bookkeeper_email")
+  // When true, payroll exports/emails only count hours on APPROVED logs.
+  payrollApprovedOnly Boolean @default(false) @map("payroll_approved_only")
   updatedByUserId   String?  @map("updated_by_user_id")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
