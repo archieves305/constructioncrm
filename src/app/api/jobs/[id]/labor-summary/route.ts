@@ -112,6 +112,61 @@ export async function GET(request: NextRequest, context: Context) {
     ...(withCost ? { cost: round2(b.cost) } : {}),
   });
 
+  // Budget-vs-actual + burn rate: money — cost-visible roles only.
+  let budgetVsActual: unknown = undefined;
+  let burn: unknown = undefined;
+  if (withCost) {
+    const lines = await prisma.budgetLine.findMany({
+      where: { jobId, allocations: { some: { dailyLaborEntryId: { not: null } } } },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        amount: true,
+        allocations: {
+          select: { amount: true, dailyLaborEntryId: true },
+        },
+      },
+      orderBy: { sortOrder: "asc" },
+    });
+    budgetVsActual = lines.map((line) => {
+      const fieldLabor = line.allocations
+        .filter((a) => a.dailyLaborEntryId)
+        .reduce((s, a) => s + Number(a.amount), 0);
+      const allAllocated = line.allocations.reduce((s, a) => s + Number(a.amount), 0);
+      return {
+        budgetLineId: line.id,
+        name: line.name,
+        category: line.category,
+        budget: Number(line.amount),
+        fieldLaborActual: round2(fieldLabor),
+        totalAllocated: round2(allAllocated),
+        remaining: round2(Number(line.amount) - allAllocated),
+      };
+    });
+
+    const daysWorked = totals.days.size;
+    const avgDailyCost = daysWorked > 0 ? round2(totals.cost / daysWorked) : 0;
+    const laborBudget = (budgetVsActual as { budget: number }[]).reduce(
+      (s, l) => s + l.budget,
+      0,
+    );
+    const weekEntries = [...byWeek.values()].sort((a, b) =>
+      a.key.localeCompare(b.key),
+    );
+    const lastWeek = weekEntries[weekEntries.length - 1];
+    burn = {
+      avgDailyCost,
+      avgDailyHours: daysWorked > 0 ? round2(totals.hours / daysWorked) : 0,
+      lastWeekCost: lastWeek ? round2(lastWeek.cost) : 0,
+      laborBudget: round2(laborBudget),
+      projectedDaysRemaining:
+        avgDailyCost > 0 && laborBudget > 0
+          ? Math.max(0, Math.floor((laborBudget - totals.cost) / avgDailyCost))
+          : null,
+    };
+  }
+
   return NextResponse.json({
     totals: shape(totals),
     byWorker: [...byWorker.values()].map(shape).sort((a, b) => b.hours - a.hours),
@@ -120,6 +175,8 @@ export async function GET(request: NextRequest, context: Context) {
     byWeek: [...byWeek.values()]
       .map(shape)
       .sort((a, b) => a.key.localeCompare(b.key)),
+    ...(budgetVsActual !== undefined ? { budgetVsActual } : {}),
+    ...(burn !== undefined ? { burn } : {}),
   });
 }
 

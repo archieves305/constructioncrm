@@ -69,6 +69,12 @@ const navItems: NavItem[] = [
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   {
+    href: "/reports/labor",
+    label: "Labor Reports",
+    icon: HardHat,
+    roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
+  },
+  {
     href: "/response-dashboard",
     label: "Response Times",
     icon: Zap,

@@ -103,6 +103,9 @@ export type JobProfitability = {
   jobType: string;
   revenue: number;
   cost: number;
+  contractLaborCost: number; // lump-sum labor contracts (Job.laborCost)
+  fieldLaborCost: number; // hourly field-labor actuals (DailyLaborEntry)
+  expensesCost: number;
   profit: number;
   margin: number; // fraction, e.g. 0.18
 };
@@ -118,21 +121,37 @@ export type FinancialSummary = {
  * Company financial summary: contracted/collected/outstanding totals plus
  * per-job profitability (revenue − labor − expenses). Owned-rehab jobs are
  * excluded from profitability since they're never billed to a client.
+ *
+ * Cost has three streams: contract labor (lump-sum LaborContracts rolled
+ * into Job.laborCost), field labor (hourly DailyLaborEntry actuals — drafts
+ * included, since cost is incurred when worked), and expenses. Field labor
+ * is deliberately separate from Job.laborCost so hourly in-house crews and
+ * lump-sum subcontracts never double count.
  */
 export async function getFinancialSummary(): Promise<FinancialSummary> {
-  const jobs = await prisma.job.findMany({
-    select: {
-      id: true,
-      jobNumber: true,
-      title: true,
-      jobType: true,
-      contractAmount: true,
-      balanceDue: true,
-      laborCost: true,
-      expenses: { select: { amount: true } },
-      payments: { where: { status: "RECEIVED" }, select: { amount: true } },
-    },
-  });
+  const [jobs, fieldLabor] = await Promise.all([
+    prisma.job.findMany({
+      select: {
+        id: true,
+        jobNumber: true,
+        title: true,
+        jobType: true,
+        contractAmount: true,
+        balanceDue: true,
+        laborCost: true,
+        expenses: { select: { amount: true } },
+        payments: { where: { status: "RECEIVED" }, select: { amount: true } },
+      },
+    }),
+    prisma.dailyLaborEntry.groupBy({
+      by: ["jobId"],
+      where: { isAbsent: false },
+      _sum: { totalCost: true },
+    }),
+  ]);
+  const fieldLaborByJob = new Map(
+    fieldLabor.map((f) => [f.jobId, Number(f._sum.totalCost ?? 0)]),
+  );
 
   let totalContracted = 0;
   let totalCollected = 0;
@@ -148,7 +167,9 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
 
     if (j.jobType === "OWNED_REHAB") continue;
     const expensesTotal = j.expenses.reduce((s, e) => s + Number(e.amount), 0);
-    const cost = Number(j.laborCost ?? 0) + expensesTotal;
+    const contractLaborCost = Number(j.laborCost ?? 0);
+    const fieldLaborCost = fieldLaborByJob.get(j.id) ?? 0;
+    const cost = contractLaborCost + fieldLaborCost + expensesTotal;
     const profit = contract - cost;
     profitability.push({
       jobId: j.id,
@@ -157,6 +178,9 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
       jobType: j.jobType,
       revenue: contract,
       cost,
+      contractLaborCost,
+      fieldLaborCost,
+      expensesCost: expensesTotal,
       profit,
       margin: contract > 0 ? profit / contract : 0,
     });
