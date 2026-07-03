@@ -66,12 +66,14 @@ export async function buildDailyLogPdfData(
   date: string,
   job: JobPdfInfo,
   viewerRole: RoleName,
-  options: { maxPhotos: number },
+  options: { maxPhotos: number; hideCosts?: boolean },
 ): Promise<DailyLogPdfData | null> {
   const log = await getDailyLog(jobId, date);
   if (!log) return null;
 
-  const showCost = canSeeLaborCosts(viewerRole);
+  // hideCosts forces the cost-free variant regardless of viewer role —
+  // used when the PDF leaves the company (emailed daily reports).
+  const showCost = !options.hideCosts && canSeeLaborCosts(viewerRole);
   const present = log.laborEntries.filter((e) => !e.isAbsent);
 
   const entries: DailyLogPdfEntry[] = log.laborEntries.map((e) => ({

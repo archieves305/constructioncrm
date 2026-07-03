@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ArrowLeft, CheckCircle2, FileDown, RotateCcw, Undo2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileDown, RotateCcw, Trash2, Undo2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { formatMinutes } from "@/components/field/touch-time-field";
 import type { ServerLog } from "@/hooks/use-labor-sheet";
 
@@ -56,6 +57,7 @@ export default function DailyLogReviewPage({
   params: Promise<{ id: string; date: string }>;
 }) {
   const { id: jobId, date } = use(params);
+  const router = useRouter();
   const qc = useQueryClient();
   const { data: session } = useSession();
   const role = (session?.user as { role?: string } | undefined)?.role;
@@ -78,6 +80,23 @@ export default function DailyLogReviewPage({
 
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnNote, setReturnNote] = useState("");
+
+  const deleteLog = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/jobs/${jobId}/daily-logs/${date}`, {
+        method: "DELETE",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Delete failed");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["daily-logs", jobId] });
+      qc.invalidateQueries({ queryKey: ["field-logs"] });
+      toast.success("Daily log deleted");
+      router.push(`/jobs/${jobId}`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   const transition = useMutation({
     mutationFn: async ({ action, body }: { action: string; body?: unknown }) => {
@@ -183,6 +202,23 @@ export default function DailyLogReviewPage({
             disabled={transition.isPending}
           >
             <RotateCcw className="mr-1 h-4 w-4" /> Reopen
+          </Button>
+        )}
+        {(log.status === "DRAFT" || role === "ADMIN") && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (
+                confirm(
+                  `Delete this daily log? Crew hours, notes, and the day's report will be removed.${log.status !== "DRAFT" ? " This log was already " + log.status.toLowerCase() + "." : ""}`,
+                )
+              ) {
+                deleteLog.mutate();
+              }
+            }}
+            disabled={deleteLog.isPending}
+          >
+            <Trash2 className="mr-1 h-4 w-4 text-red-500" /> Delete
           </Button>
         )}
       </div>

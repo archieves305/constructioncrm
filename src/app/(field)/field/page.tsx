@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ChevronRight, Mail, MapPin, TriangleAlert } from "lucide-react";
+import { ChevronRight, History, Mail, MapPin, TriangleAlert } from "lucide-react";
 
 type FieldJob = {
   id: string;
@@ -125,16 +125,24 @@ export default function FieldHomePage() {
                   </div>
                 )}
 
-                <Link href={`/field/jobs/${job.id}/daily/${today}`} className="block">
-                  <Button className="h-12 w-full justify-between text-base">
-                    {job.todayLog
-                      ? job.todayLog.status === "DRAFT"
-                        ? "Continue today's log"
-                        : "View today's log"
-                      : "Start today's log"}
-                    <ChevronRight className="h-5 w-5" />
-                  </Button>
-                </Link>
+                <div className="flex gap-2">
+                  <Link href={`/field/jobs/${job.id}/daily/${today}`} className="min-w-0 flex-1">
+                    <Button className="h-12 w-full justify-between text-base">
+                      {job.todayLog
+                        ? job.todayLog.status === "DRAFT"
+                          ? "Continue today's log"
+                          : "View today's log"
+                        : "Start today's log"}
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                  <Link href={`/field/jobs/${job.id}/logs`}>
+                    <Button variant="outline" className="h-12">
+                      <History className="mr-1 h-4 w-4" />
+                      Logs
+                    </Button>
+                  </Link>
+                </div>
               </CardContent>
             </Card>
           );

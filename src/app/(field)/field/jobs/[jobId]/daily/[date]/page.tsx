@@ -19,6 +19,8 @@ import {
   ArrowLeft,
   Check,
   ClipboardCopy,
+  FileDown,
+  History,
   LogIn,
   LogOut,
   Send,
@@ -352,6 +354,23 @@ export default function DailyLaborPage({
         <Badge className={cn("text-sm", STATUS_STYLES[logStatus])}>
           {logStatus === "DRAFT" ? "Draft" : logStatus === "SUBMITTED" ? "Submitted" : "Approved"}
         </Badge>
+        {log && (
+          <a
+            href={`/api/jobs/${jobId}/daily-logs/${date}/pdf`}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="View PDF"
+          >
+            <Button variant="ghost" size="sm">
+              <FileDown className="h-5 w-5" />
+            </Button>
+          </a>
+        )}
+        <Link href={`/field/jobs/${jobId}/logs`} aria-label="All logs">
+          <Button variant="ghost" size="sm">
+            <History className="h-5 w-5" />
+          </Button>
+        </Link>
       </div>
 
       {log?.returnNote && logStatus === "DRAFT" && (
