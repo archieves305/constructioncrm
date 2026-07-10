@@ -24,6 +24,20 @@ export class ApprovedEntriesLockedError extends Error {
   }
 }
 
+// Entries covered by a payroll payment are money already out the door: a
+// recompute that would change their hours/cost fails loudly so an admin
+// undoes the payment first (which also removes the posted job expenses).
+export class PaidEntriesLockedError extends Error {
+  lockedDates: string[];
+  constructor(lockedDates: string[]) {
+    super(
+      `These days were already paid out in payroll: ${lockedDates.join(", ")}`,
+    );
+    this.name = "PaidEntriesLockedError";
+    this.lockedDates = lockedDates;
+  }
+}
+
 export type WeekTouch = { personnelId: string; workDate: string };
 
 /**
@@ -70,6 +84,7 @@ export async function recomputeWorkerWeeks(
         otRate: true,
         totalCost: true,
         budgetLineId: true,
+        payrollPaymentId: true,
         dailyLog: { select: { status: true } },
       },
     });
@@ -91,6 +106,7 @@ export async function recomputeWorkerWeeks(
     );
 
     const locked: string[] = [];
+    const paidLocked: string[] = [];
     const updates: {
       id: string;
       regularHours: number;
@@ -113,6 +129,10 @@ export async function recomputeWorkerWeeks(
         Number(e.totalHours) !== hours.totalHours ||
         Number(e.totalCost) !== totalCost;
       if (!changed) continue;
+      if (e.payrollPaymentId) {
+        paidLocked.push(fromDbDate(e.workDate));
+        continue;
+      }
       if (e.dailyLog.status === "APPROVED") {
         locked.push(fromDbDate(e.workDate));
         continue;
@@ -120,6 +140,9 @@ export async function recomputeWorkerWeeks(
       updates.push({ id: e.id, ...hours, totalCost });
     }
 
+    if (paidLocked.length > 0) {
+      throw new PaidEntriesLockedError([...new Set(paidLocked)].sort());
+    }
     if (locked.length > 0) {
       throw new ApprovedEntriesLockedError([...new Set(locked)].sort());
     }

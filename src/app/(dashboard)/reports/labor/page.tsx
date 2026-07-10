@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
@@ -313,12 +314,16 @@ export default function LaborReportsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">
-                <HardHat className="h-4 w-4" /> Payroll export
+                <HardHat className="h-4 w-4" /> Payroll
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-wrap items-center gap-3">
+              <Link href="/reports/labor/payroll">
+                <Button size="sm">Open weekly payroll</Button>
+              </Link>
               <span className="text-muted-foreground text-sm">
-                Week containing
+                — mark workers paid and post the cost to job expenses. Or
+                download the CSV for the week containing
               </span>
               <Input
                 type="date"

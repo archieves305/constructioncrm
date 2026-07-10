@@ -63,7 +63,7 @@ export default function FieldLogsQueuePage() {
         description="Field daily reports across all jobs"
       />
 
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => (
           <Button
             key={f.value}
@@ -74,6 +74,12 @@ export default function FieldLogsQueuePage() {
             {f.label}
           </Button>
         ))}
+        <div className="flex-1" />
+        <Link href="/reports/labor/payroll">
+          <Button size="sm" variant="outline">
+            Weekly payroll
+          </Button>
+        </Link>
       </div>
 
       {isLoading ? (

@@ -145,7 +145,10 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
     }),
     prisma.dailyLaborEntry.groupBy({
       by: ["jobId"],
-      where: { isAbsent: false },
+      // Entries covered by a payroll payment are excluded — their cost now
+      // flows through the posted LABOR JobExpense rows instead (otherwise
+      // paid labor would double count).
+      where: { isAbsent: false, payrollPaymentId: null },
       _sum: { totalCost: true },
     }),
   ]);

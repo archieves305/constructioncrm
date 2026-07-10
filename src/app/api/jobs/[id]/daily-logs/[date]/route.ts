@@ -89,6 +89,17 @@ export async function DELETE(_request: NextRequest, context: Context) {
   if (!canDeleteLog(log.status, ctx.session.user.role, ctx.access)) {
     return forbidden();
   }
+  // Deleting entries that a payroll payment already covered would orphan the
+  // posted expenses; undo the payment first.
+  const paidEntries = await prisma.dailyLaborEntry.count({
+    where: { dailyLogId: log.id, payrollPaymentId: { not: null } },
+  });
+  if (paidEntries > 0) {
+    return NextResponse.json(
+      { error: "This day's hours were already paid out in payroll. Undo that payment first." },
+      { status: 409 },
+    );
+  }
 
   await prisma.dailyLog.delete({ where: { id: log.id } });
 

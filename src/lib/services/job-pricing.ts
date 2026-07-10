@@ -97,8 +97,11 @@ export async function recomputeCostPlusJob(jobId: string, tx = prisma) {
 
   const isOwnedRehab = job.jobType === ("OWNED_REHAB" as JobType);
 
+  // Payroll-posted labor expenses are excluded from the rollup: hourly field
+  // labor has never been part of the cost-plus contract base, and paying a
+  // week out must not silently change contract amounts.
   const expenses = await tx.jobExpense.findMany({
-    where: { jobId },
+    where: { jobId, payrollPaymentId: null },
     select: { amount: true },
   });
   const expensesTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);

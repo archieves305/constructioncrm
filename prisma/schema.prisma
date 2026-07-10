@@ -392,6 +392,7 @@ model User {
   dailyLogsApproved        DailyLog[]           @relation("DailyLogApprovedBy")
   dailyLogsCreated         DailyLog[]           @relation("DailyLogCreatedBy")
   laborEntriesCreated      DailyLaborEntry[]    @relation("LaborEntryCreatedBy")
+  payrollPaymentsMade      PayrollPayment[]     @relation("PayrollPaymentsMade")
   fieldAssignments         JobFieldAssignment[] @relation("JobFieldAssignmentUser")
   fieldAssignmentsCreated  JobFieldAssignment[] @relation("JobFieldAssignmentCreatedBy")
   fieldPhotosTaken         FieldPhoto[]         @relation("FieldPhotoTakenBy")
@@ -1410,15 +1411,21 @@ model JobExpense {
   // Idempotency key for upstream integrations (cc-allocator sends txn.id).
   // Nullable so manually-created expenses are unaffected.
   externalId      String?        @unique @map("external_id")
+  // Set when this expense was posted automatically by a payroll payment;
+  // such expenses are excluded from cost-plus contract rollups (the labor
+  // cost already flows through the field-labor stream until paid).
+  payrollPaymentId String?       @map("payroll_payment_id")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
 
   job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
   createdBy         User               @relation(fields: [createdByUserId], references: [id])
+  payrollPayment    PayrollPayment?    @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
   budgetAllocations BudgetAllocation[]
 
   @@index([jobId])
   @@index([type])
+  @@index([payrollPaymentId])
   @@map("job_expenses")
 }
 
@@ -2163,8 +2170,9 @@ model Personnel {
   crew         Crew?               @relation(fields: [crewId], references: [id])
   user         User?               @relation("PersonnelUser", fields: [userId], references: [id])
   createdBy    User                @relation("PersonnelCreatedBy", fields: [createdByUserId], references: [id])
-  documents    PersonnelDocument[]
-  laborEntries DailyLaborEntry[]
+  documents       PersonnelDocument[]
+  laborEntries    DailyLaborEntry[]
+  payrollPayments PayrollPayment[]
 
   @@index([lastName, firstName])
   @@index([crewId])
@@ -2383,13 +2391,19 @@ model DailyLaborEntry {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  dailyLog   DailyLog    @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
-  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  personnel  Personnel   @relation(fields: [personnelId], references: [id], onDelete: Restrict)
-  jobArea    JobArea?    @relation(fields: [jobAreaId], references: [id], onDelete: SetNull)
-  costCode   CostCode?   @relation(fields: [costCodeId], references: [id], onDelete: SetNull)
-  budgetLine BudgetLine? @relation(fields: [budgetLineId], references: [id], onDelete: SetNull)
-  createdBy  User        @relation("LaborEntryCreatedBy", fields: [createdByUserId], references: [id])
+  // Set when this entry's cost was covered by a payroll payment. Paid
+  // entries refuse hour/cost changes and drop out of the accrued
+  // field-labor cost stream (the posted JobExpense carries it instead).
+  payrollPaymentId String? @map("payroll_payment_id")
+
+  dailyLog       DailyLog        @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  job            Job             @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  personnel      Personnel       @relation(fields: [personnelId], references: [id], onDelete: Restrict)
+  jobArea        JobArea?        @relation(fields: [jobAreaId], references: [id], onDelete: SetNull)
+  costCode       CostCode?       @relation(fields: [costCodeId], references: [id], onDelete: SetNull)
+  budgetLine     BudgetLine?     @relation(fields: [budgetLineId], references: [id], onDelete: SetNull)
+  createdBy      User            @relation("LaborEntryCreatedBy", fields: [createdByUserId], references: [id])
+  payrollPayment PayrollPayment? @relation(fields: [payrollPaymentId], references: [id], onDelete: SetNull)
 
   budgetAllocations BudgetAllocation[]
   photos            FieldPhoto[]       @relation("LaborEntryPhotos")
@@ -2399,7 +2413,34 @@ model DailyLaborEntry {
   @@index([dailyLogId])
   @@index([costCodeId])
   @@index([budgetLineId])
+  @@index([payrollPaymentId])
   @@map("daily_labor_entries")
+}
+
+// One row = one worker paid for one payroll week. Creating it posts LABOR
+// JobExpenses (one per job worked, split by the entries' cost snapshots)
+// and stamps the covered entries; deleting it (admin undo) cascades the
+// expenses away and releases the entries.
+model PayrollPayment {
+  id           String         @id @default(cuid())
+  personnelId  String         @map("personnel_id")
+  weekStart    DateTime       @map("week_start") @db.Date
+  regularHours Decimal        @map("regular_hours") @db.Decimal(6, 2)
+  otHours      Decimal        @map("ot_hours") @db.Decimal(6, 2)
+  grossAmount  Decimal        @map("gross_amount") @db.Decimal(12, 2)
+  method       PaymentMethod?
+  reference    String?
+  paidAt       DateTime       @default(now()) @map("paid_at")
+  paidByUserId String         @map("paid_by_user_id")
+
+  personnel Personnel         @relation(fields: [personnelId], references: [id], onDelete: Restrict)
+  paidBy    User              @relation("PayrollPaymentsMade", fields: [paidByUserId], references: [id])
+  expenses  JobExpense[]
+  entries   DailyLaborEntry[]
+
+  @@unique([personnelId, weekStart])
+  @@index([weekStart])
+  @@map("payroll_payments")
 }
 
 // Field photos: job-scoped, optionally pinned to a daily log, labor entry,

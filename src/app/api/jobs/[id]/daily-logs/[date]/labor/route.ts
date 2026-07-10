@@ -17,7 +17,10 @@ import {
   ensureDailyLog,
   saveLaborSheet,
 } from "@/lib/labor/log-service";
-import { ApprovedEntriesLockedError } from "@/lib/labor/recompute";
+import {
+  ApprovedEntriesLockedError,
+  PaidEntriesLockedError,
+} from "@/lib/labor/recompute";
 import { logger } from "@/lib/logger";
 
 type Context = { params: Promise<{ id: string; date: string }> };
@@ -67,6 +70,16 @@ export async function PUT(request: NextRequest, context: Context) {
     if (err instanceof LogConflictError) {
       return NextResponse.json(
         { error: "Log was modified elsewhere", serverUpdatedAt: err.serverUpdatedAt },
+        { status: 409 },
+      );
+    }
+    if (err instanceof PaidEntriesLockedError) {
+      return NextResponse.json(
+        {
+          error:
+            "These hours were already paid out in payroll. An admin must undo that payment before they can change.",
+          lockedDates: err.lockedDates,
+        },
         { status: 409 },
       );
     }
