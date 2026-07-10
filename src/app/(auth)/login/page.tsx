@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { parseLockedError } from "@/lib/auth/lockout-error";
 
 export default function LoginPage() {
   return (
@@ -40,7 +41,15 @@ function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
-      setError("Invalid email or password");
+      const lockedUntil = parseLockedError(result.error);
+      if (lockedUntil) {
+        const minutes = Math.max(1, Math.ceil((lockedUntil - Date.now()) / 60_000));
+        setError(
+          `Account temporarily locked after too many failed attempts. Try again in about ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+        );
+      } else {
+        setError("Invalid email or password");
+      }
     } else {
       router.push(callbackUrl);
       router.refresh();

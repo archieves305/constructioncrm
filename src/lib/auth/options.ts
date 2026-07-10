@@ -8,6 +8,7 @@ import {
   isLockedOut,
   recordLoginFailure,
 } from "@/lib/auth/lockout";
+import { lockedError } from "@/lib/auth/lockout-error";
 import { logger } from "@/lib/logger";
 
 declare module "next-auth" {
@@ -50,9 +51,10 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
         const email = credentials.email.trim().toLowerCase();
 
-        if (isLockedOut(email).locked) {
+        const lock = isLockedOut(email);
+        if (lock.locked) {
           logger.warn("login attempt on locked account", { email });
-          return null;
+          throw lockedError(lock.until);
         }
 
         const user = await prisma.user.findUnique({
@@ -73,6 +75,7 @@ export const authOptions: NextAuthOptions = {
               userId: user.id,
               until: new Date(result.until).toISOString(),
             });
+            throw lockedError(result.until);
           }
           return null;
         }

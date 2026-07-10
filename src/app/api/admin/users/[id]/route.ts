@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireRole, badRequest } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { validatePassword } from "@/lib/auth/password-policy";
+import { clearLoginFailures } from "@/lib/auth/lockout";
 import { recordAudit } from "@/lib/audit/record";
 
 async function isLastAdmin(userId: string): Promise<boolean> {
@@ -106,9 +107,11 @@ export async function PATCH(
     }
   }
 
+  let emailBeforeUpdate: string | undefined;
   if (body.password !== undefined) {
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) return badRequest("User not found");
+    emailBeforeUpdate = existing.email;
 
     const policy = validatePassword(body.password, [
       body.email ?? existing.email,
@@ -145,6 +148,13 @@ export async function PATCH(
     data: updateData,
     include: { role: true },
   });
+
+  // A deliberate password reset means the legitimate user is back in control:
+  // drop any failed-login lockout so the new password works immediately.
+  if (body.password !== undefined) {
+    clearLoginFailures(user.email);
+    if (emailBeforeUpdate) clearLoginFailures(emailBeforeUpdate);
+  }
 
   if (before) {
     await recordAudit({

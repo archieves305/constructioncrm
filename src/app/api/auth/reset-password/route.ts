@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { validateBody } from "@/lib/validation/body";
 import { validatePassword } from "@/lib/auth/password-policy";
+import { clearLoginFailures } from "@/lib/auth/lockout";
 
 const schema = z.object({
   token: z.string().min(1),
@@ -66,6 +67,10 @@ export async function POST(request: NextRequest) {
       where: { userId: record.userId, id: { not: record.id }, usedAt: null },
     }),
   ]);
+
+  // Completing a reset proves control of the account's email: drop any
+  // failed-login lockout so the new password works immediately.
+  clearLoginFailures(record.user.email);
 
   return NextResponse.json({ ok: true });
 }
