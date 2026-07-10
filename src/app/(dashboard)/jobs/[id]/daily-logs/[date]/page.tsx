@@ -184,7 +184,17 @@ export default function DailyLogReviewPage({
               <Undo2 className="mr-1 h-4 w-4" /> Return to draft
             </Button>
             <Button
-              onClick={() => transition.mutate({ action: "approve" })}
+              onClick={() => {
+                // Force a conscious look at the crew count — a day submitted
+                // with fewer workers than expected is the main thing to catch.
+                if (
+                  confirm(
+                    `Approve this day — ${present.length} worker${present.length === 1 ? "" : "s"}, ${log.totals.totalHours}h total?`,
+                  )
+                ) {
+                  transition.mutate({ action: "approve" });
+                }
+              }}
               disabled={transition.isPending}
             >
               <CheckCircle2 className="mr-1 h-4 w-4" /> Approve
@@ -224,6 +234,13 @@ export default function DailyLogReviewPage({
       </div>
 
       <div className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        <span>
+          {present.length} worker{present.length === 1 ? "" : "s"} ·{" "}
+          {log.totals.totalHours}h
+        </span>
+        <span>
+          Last edited {format(new Date(log.updatedAt), "MMM d, h:mm a")}
+        </span>
         {weatherText && <span>Weather: {weatherText}</span>}
         {log.manager && (
           <span>

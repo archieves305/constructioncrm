@@ -2,6 +2,7 @@
 
 import { use, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,11 +73,18 @@ export default function DailyLaborPage({
 }) {
   const { jobId, date } = use(params);
   const qc = useQueryClient();
+  const { data: session } = useSession();
+  const role = session?.user?.role;
 
   const sheet = useLaborSheet(jobId, date);
   const log = sheet.log;
   const logStatus = log?.status ?? "DRAFT";
-  const editable = logStatus === "DRAFT";
+  // Mirrors canEditLogAtStatus: office roles may correct a submitted day
+  // without bouncing it back to the crew. APPROVED stays frozen for everyone
+  // until an admin reopens it.
+  const canFixSubmitted = role === "ADMIN" || role === "MANAGER";
+  const editable =
+    logStatus === "DRAFT" || (logStatus === "SUBMITTED" && canFixSubmitted);
 
   const narrative = useLogNarrative(
     jobId,
@@ -385,12 +393,24 @@ export default function DailyLaborPage({
           {log?.submittedAt
             ? ` ${format(new Date(log.submittedAt), "MMM d, h:mm a")}`
             : ""}{" "}
-          — awaiting office approval. Hours are locked.
+          {canFixSubmitted
+            ? "— awaiting approval. You can still make corrections."
+            : "— awaiting office approval. Hours are locked."}
         </div>
       )}
       {logStatus === "APPROVED" && (
         <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900">
           Approved — this day is locked.
+        </div>
+      )}
+      {(sheet.status === "locked" || narrative.status === "locked") && (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+          <span className="font-semibold">
+            This day was locked before your latest changes could sync.
+          </span>{" "}
+          {(sheet.lockedMessage ?? "It was submitted or approved in the meantime").replace(/\.?$/, ".")}{" "}
+          Your changes are saved on this device — ask the office to return the
+          day to draft, then reopen this page and they will sync automatically.
         </div>
       )}
 
@@ -657,7 +677,7 @@ export default function DailyLaborPage({
             </div>
             <AutosaveIndicator status={combineStatus(sheet.status, narrative.status)} />
           </div>
-          {editable && (
+          {logStatus === "DRAFT" && sheet.status !== "locked" && (
             <Button
               className="h-12 px-6"
               disabled={submit.isPending}
@@ -794,7 +814,7 @@ export default function DailyLaborPage({
   );
 }
 
-const STATUS_PRIORITY: SaveStatus[] = ["conflict", "error", "saving", "local", "saved", "idle"];
+const STATUS_PRIORITY: SaveStatus[] = ["locked", "conflict", "error", "saving", "local", "saved", "idle"];
 
 function combineStatus(a: SaveStatus, b: SaveStatus): SaveStatus {
   return STATUS_PRIORITY[Math.min(STATUS_PRIORITY.indexOf(a), STATUS_PRIORITY.indexOf(b))];

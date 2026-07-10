@@ -17,9 +17,17 @@ import {
 //   2. Debounced PUT to the server (2.5 s idle) — single in-flight request
 //      with a dirty-flag loop; changes made mid-flight trigger a re-save.
 //   3. Retry on window "online", visibility change, and a 30 s backoff timer.
+//   4. Immediate flush (IDB + keepalive PUT) when the page is hidden — iOS
+//      freezes the tab the moment the phone locks or the crew lead switches
+//      apps, which would otherwise strand edits made inside the debounce
+//      window until the page is next opened.
 //
 // Conflicts: PUTs carry baseUpdatedAt; a 409 surfaces as status "conflict"
 // and the caller chooses keepMine() (overwrite) or loadTheirs() (discard).
+// A 409 without serverUpdatedAt means the log itself refuses edits (already
+// submitted/approved, or an approved-week OT lock) — surfaced as "locked"
+// with the server's message; the draft stays dirty so the retry heartbeat
+// syncs it automatically once the office returns the day to draft.
 
 export type EntryDraft = {
   id: string;
@@ -73,6 +81,7 @@ export type SaveStatus =
   | "saved"
   | "local" // saved on device, server unreachable
   | "conflict"
+  | "locked" // log refuses edits (submitted/approved); draft kept on device
   | "error";
 
 const IDB_DEBOUNCE_MS = 500;
@@ -84,6 +93,7 @@ export function useLaborSheet(jobId: string, date: string) {
   const [entries, setEntries] = useState<EntryDraft[] | null>(null);
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [conflictAt, setConflictAt] = useState<string | null>(null);
+  const [lockedMessage, setLockedMessage] = useState<string | null>(null);
 
   const baseUpdatedAt = useRef<string | null>(null);
   const dirty = useRef(false);
@@ -157,17 +167,44 @@ export function useLaborSheet(jobId: string, date: string) {
     inFlight.current = true;
     setStatus("saving");
     try {
-      const res = await fetch(`/api/jobs/${jobId}/daily-logs/${date}/labor`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entries: current,
-          ...(baseUpdatedAt.current ? { baseUpdatedAt: baseUpdatedAt.current } : {}),
-        }),
-      });
-      if (res.status === 409) {
+      let res: Response;
+      for (let attempt = 0; ; attempt++) {
+        res = await fetch(`/api/jobs/${jobId}/daily-logs/${date}/labor`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          // keepalive lets the request survive the page being frozen or torn
+          // down mid-flight (phone locked, app switched).
+          keepalive: true,
+          body: JSON.stringify({
+            entries: current,
+            ...(baseUpdatedAt.current ? { baseUpdatedAt: baseUpdatedAt.current } : {}),
+          }),
+        });
+        if (res.status !== 409) break;
         const body = await res.json().catch(() => ({}));
-        setConflictAt(body.serverUpdatedAt ?? null);
+        if (!body.serverUpdatedAt) {
+          // Status lock (submitted/approved) or approved-week OT lock: keep
+          // the draft dirty; the retry heartbeat re-syncs once unlocked.
+          setLockedMessage(body.error ?? "This day can no longer be edited");
+          setStatus("locked");
+          return false;
+        }
+        // Token conflict — but submit/approve/return/reopen and narrative
+        // saves bump updatedAt without touching the crew. If the server's
+        // entries still match what we last synced, retake the token and
+        // resave; only a real crew difference needs the conflict dialog.
+        const base = qc.getQueryData<ServerLog | null>(["daily-log", jobId, date]);
+        const fresh: ServerLog | null =
+          attempt === 0 && base
+            ? await fetch(`/api/jobs/${jobId}/daily-logs/${date}`)
+                .then((r) => (r.ok ? r.json() : null))
+                .catch(() => null)
+            : null;
+        if (fresh && sameEntries(fresh.entries, base!.entries)) {
+          baseUpdatedAt.current = fresh.updatedAt;
+          continue;
+        }
+        setConflictAt(body.serverUpdatedAt);
         setStatus("conflict");
         return false;
       }
@@ -177,6 +214,7 @@ export function useLaborSheet(jobId: string, date: string) {
       }
       const saved: ServerLog = await res.json();
       baseUpdatedAt.current = saved.updatedAt;
+      setLockedMessage(null);
       // Only clear dirty if nothing changed while the request was in flight.
       if (entriesRef.current === current) {
         dirty.current = false;
@@ -224,24 +262,44 @@ export function useLaborSheet(jobId: string, date: string) {
   );
 
   // Retry paths: back online, tab becomes visible, slow heartbeat.
+  // Flush path: page hidden (phone locked / app switched) — persist the
+  // draft and fire the PUT now instead of waiting out the debounce; iOS
+  // may never run the pending timers.
   useEffect(() => {
     const retry = () => {
       if (dirty.current && !inFlight.current) void syncNow();
     };
-    const onVisible = () => {
+    const flushHidden = () => {
+      if (idbTimer.current) clearTimeout(idbTimer.current);
+      const current = entriesRef.current;
+      if (current) {
+        saveLaborDraft(jobId, date, {
+          entries: current,
+          baseUpdatedAt: baseUpdatedAt.current,
+          savedLocalAt: Date.now(),
+          dirty: dirty.current,
+        });
+      }
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+      retry();
+    };
+    const onVisibility = () => {
       if (document.visibilityState === "visible") retry();
+      else flushHidden();
     };
     window.addEventListener("online", retry);
-    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pagehide", flushHidden);
+    document.addEventListener("visibilitychange", onVisibility);
     retryTimer.current = setInterval(retry, RETRY_MS);
     return () => {
       window.removeEventListener("online", retry);
-      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pagehide", flushHidden);
+      document.removeEventListener("visibilitychange", onVisibility);
       if (retryTimer.current) clearInterval(retryTimer.current);
       if (idbTimer.current) clearTimeout(idbTimer.current);
       if (syncTimer.current) clearTimeout(syncTimer.current);
     };
-  }, [syncNow]);
+  }, [syncNow, jobId, date]);
 
   /** Await a final flush (used before submit). Returns true when clean. */
   const flush = useCallback(async (): Promise<boolean> => {
@@ -289,11 +347,27 @@ export function useLaborSheet(jobId: string, date: string) {
     update,
     status,
     conflictAt,
+    lockedMessage,
     flush,
     keepMine,
     loadTheirs,
     reloadFromServer,
   };
+}
+
+/** True when two entry lists carry the same draft-visible content. */
+function sameEntries(
+  a: (ServerEntry | EntryDraft)[],
+  b: (ServerEntry | EntryDraft)[],
+): boolean {
+  if (a.length !== b.length) return false;
+  const norm = (list: (ServerEntry | EntryDraft)[]) =>
+    JSON.stringify(
+      [...list]
+        .map((e) => stripServerFields(e as ServerEntry))
+        .sort((x, y) => x.id.localeCompare(y.id)),
+    );
+  return norm(a) === norm(b);
 }
 
 function stripServerFields(e: ServerEntry): EntryDraft {

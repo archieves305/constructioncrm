@@ -111,10 +111,14 @@ export function useLogNarrative(
       const res = await fetch(`/api/jobs/${jobId}/daily-logs/${date}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        // Survive the page being frozen mid-flight (phone locked).
+        keepalive: true,
         body: JSON.stringify(current),
       });
       if (!res.ok) {
-        setStatus(res.status === 409 ? "error" : "error");
+        // Narrative PUTs carry no concurrency token, so a 409 always means
+        // the log itself refuses edits (submitted/approved).
+        setStatus(res.status === 409 ? "locked" : "error");
         return false;
       }
       if (draftRef.current === current) {
@@ -152,10 +156,24 @@ export function useLogNarrative(
     const retry = () => {
       if (dirty.current && !inFlight.current) void syncNow();
     };
+    // Fire the pending save the moment the page is hidden — iOS freezes the
+    // tab on lock/app-switch and the debounce timer may never run.
+    const flushHidden = () => {
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+      retry();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") retry();
+      else flushHidden();
+    };
     window.addEventListener("online", retry);
+    window.addEventListener("pagehide", flushHidden);
+    document.addEventListener("visibilitychange", onVisibility);
     const interval = setInterval(retry, RETRY_MS);
     return () => {
       window.removeEventListener("online", retry);
+      window.removeEventListener("pagehide", flushHidden);
+      document.removeEventListener("visibilitychange", onVisibility);
       clearInterval(interval);
       if (syncTimer.current) clearTimeout(syncTimer.current);
     };
