@@ -17,7 +17,13 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ArrowLeft, FileDown, Mail, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarPlus, FileDown, Mail, Trash2 } from "lucide-react";
+
+function localDate(daysAgo = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 type LogSummary = {
   id: string;
@@ -60,6 +66,10 @@ export default function FieldLogsListPage({
   const [emailFor, setEmailFor] = useState<string | null>(null); // logDate
   const [emailTo, setEmailTo] = useState("");
   const [emailNote, setEmailNote] = useState("");
+
+  // Backfill: open (or create) the log for any past day, e.g. a forgotten one.
+  const today = localDate();
+  const [backfillDate, setBackfillDate] = useState(() => localDate(1));
 
   const sendEmail = useMutation({
     mutationFn: async () => {
@@ -115,6 +125,37 @@ export default function FieldLogsListPage({
           </p>
         </div>
       </div>
+
+      <Card>
+        <CardContent className="space-y-2 py-4">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <CalendarPlus className="h-4 w-4 text-blue-600" />
+            Add or update a previous day
+          </div>
+          <p className="text-muted-foreground text-xs">
+            Forgot a day? Pick the date to start its log or update it.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              type="date"
+              value={backfillDate}
+              max={today}
+              onChange={(e) => setBackfillDate(e.target.value)}
+              className="h-11 flex-1"
+              style={{ fontSize: 16 }}
+            />
+            <Button
+              className="h-11"
+              disabled={!backfillDate || backfillDate > today}
+              onClick={() =>
+                router.push(`/field/jobs/${jobId}/daily/${backfillDate}`)
+              }
+            >
+              Open
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <div className="text-muted-foreground py-12 text-center">Loading…</div>
