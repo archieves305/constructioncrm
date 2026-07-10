@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
-import { FileDown, HardHat } from "lucide-react";
+import { CalendarPlus, FileDown, HardHat } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,17 +42,24 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   APPROVED: { label: "Approved", className: "bg-green-100 text-green-800" },
 };
 
+function localDate(daysAgo = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function DailyLogsPanel({ jobId }: { jobId: string }) {
   const [packageOpen, setPackageOpen] = useState(false);
   const [pkgStart, setPkgStart] = useState("");
   const [pkgEnd, setPkgEnd] = useState("");
+  const [backfillOpen, setBackfillOpen] = useState(false);
+  const [backfillDate, setBackfillDate] = useState(() => localDate(1));
   const { data: logs = [], isLoading } = useQuery<LogSummary[]>({
     queryKey: ["daily-logs", jobId],
     queryFn: () => fetch(`/api/jobs/${jobId}/daily-logs`).then((r) => r.json()),
   });
 
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayStr = localDate();
   const hasCost = logs.some((l) => l.totalCost !== undefined);
 
   return (
@@ -73,6 +80,10 @@ export function DailyLogsPanel({ jobId }: { jobId: string }) {
             <FileDown className="mr-1 h-4 w-4" />
             Report package
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setBackfillOpen(true)}>
+            <CalendarPlus className="mr-1 h-4 w-4" />
+            Previous day
+          </Button>
           <Link href={`/field/jobs/${jobId}/daily/${todayStr}`}>
             <Button variant="outline" size="sm">
               <HardHat className="mr-1 h-4 w-4" />
@@ -81,6 +92,44 @@ export function DailyLogsPanel({ jobId }: { jobId: string }) {
           </Link>
         </div>
       </div>
+
+      <Dialog open={backfillOpen} onOpenChange={setBackfillOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add or update a previous day</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-muted-foreground text-sm">
+              Opens that day&apos;s log in Field Mode — start a log for a
+              forgotten day or update an existing one.
+            </p>
+            <Input
+              type="date"
+              value={backfillDate}
+              max={todayStr}
+              onChange={(e) => setBackfillDate(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBackfillOpen(false)}>
+                Cancel
+              </Button>
+              <Link
+                href={`/field/jobs/${jobId}/daily/${backfillDate}`}
+                aria-disabled={!backfillDate || backfillDate > todayStr}
+                className={
+                  !backfillDate || backfillDate > todayStr
+                    ? "pointer-events-none"
+                    : undefined
+                }
+              >
+                <Button disabled={!backfillDate || backfillDate > todayStr}>
+                  <HardHat className="mr-1 h-4 w-4" /> Open in Field Mode
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={packageOpen} onOpenChange={setPackageOpen}>
         <DialogContent>
