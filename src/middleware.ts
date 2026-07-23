@@ -13,6 +13,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/co") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/track") ||
+    // Recipients click this straight from an email, with no session — and
+    // Gmail's List-Unsubscribe-Post sends a POST here. The route verifies its
+    // own HMAC token and rate-limits itself.
+    pathname.startsWith("/api/email/unsubscribe") ||
     pathname.startsWith("/api/cron") ||
     pathname.startsWith("/api/integrations") ||
     pathname.startsWith("/forgot-password") ||
