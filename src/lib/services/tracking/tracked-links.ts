@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import type { TrackedActionType } from "@/generated/prisma/client";
 import { env } from "@/lib/env";
 
-const BASE_URL = env.NEXTAUTH_URL;
+const BASE_URL = env.APP_BASE_URL;
 
 export function generateToken(): string {
   return randomBytes(32).toString("hex");

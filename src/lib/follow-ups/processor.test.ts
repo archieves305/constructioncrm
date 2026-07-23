@@ -75,6 +75,7 @@ vi.mock("@/lib/env", () => ({
     TWILIO_FROM_NUMBER: "+15555555555",
     NEXTAUTH_SECRET: "test_placeholder_secret_test_placeholder_secret",
     NEXTAUTH_URL: "http://localhost:4000",
+    APP_BASE_URL: "http://localhost:4000",
   },
 }));
 

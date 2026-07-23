@@ -148,7 +148,7 @@ export async function sendChangeOrderEmail(
   if (!to || !co.token) return false;
 
   const brand = await getEmailBrand();
-  const url = `${env.NEXTAUTH_URL}/co/${co.token}`;
+  const url = `${env.APP_BASE_URL}/co/${co.token}`;
   const color = brand.primaryColor || "#b45309";
   const price = money(Number(co.customerPrice));
   const heading = co.title ? `Change Order: ${co.title}` : `Change Order CO-${co.number}`;

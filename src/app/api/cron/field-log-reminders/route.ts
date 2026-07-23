@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const rows = u.items
       .map((i) => {
         const label = format(new Date(`${i.date}T12:00:00`), "EEE, MMM d");
-        const link = `${env.NEXTAUTH_URL}/field/jobs/${i.jobId}/daily/${i.date}`;
+        const link = `${env.APP_BASE_URL}/field/jobs/${i.jobId}/daily/${i.date}`;
         return `<li style="margin-bottom:6px;">
           <a href="${link}">${label} — ${escapeHtml(i.job)}</a>
           (${i.crew} crew${i.returned ? " · <strong style='color:#b91c1c;'>returned by the office</strong>" : ""})

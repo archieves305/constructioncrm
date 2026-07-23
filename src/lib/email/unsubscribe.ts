@@ -33,5 +33,5 @@ export function verifyUnsubscribeToken(token: string): string | null {
 
 export function buildUnsubscribeUrl(leadId: string): string {
   const token = generateUnsubscribeToken(leadId);
-  return `${env.NEXTAUTH_URL.replace(/\/$/, "")}/api/email/unsubscribe?token=${token}`;
+  return `${env.APP_BASE_URL}/api/email/unsubscribe?token=${token}`;
 }

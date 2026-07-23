@@ -81,7 +81,7 @@ export async function POST(
     },
   });
 
-  const callbackUrl = `${env.NEXTAUTH_URL.replace(/\/$/, "")}/api/integrations/zapier/roofr-callback`;
+  const callbackUrl = `${env.APP_BASE_URL}/api/integrations/zapier/roofr-callback`;
   const payload = {
     orderId: order.id,
     leadId: lead.id,

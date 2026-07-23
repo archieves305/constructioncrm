@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const resetUrl = `${env.NEXTAUTH_URL}/reset-password?token=${rawToken}`;
+    const resetUrl = `${env.APP_BASE_URL}/reset-password?token=${rawToken}`;
 
     try {
       await sendEmail({

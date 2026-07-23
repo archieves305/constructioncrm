@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       const hours = round2(
         l.laborEntries.reduce((s, e) => s + Number(e.totalHours), 0),
       );
-      const link = `${env.NEXTAUTH_URL}/jobs/${l.job.id}/daily-logs/${fromDbDate(l.logDate)}`;
+      const link = `${env.APP_BASE_URL}/jobs/${l.job.id}/daily-logs/${fromDbDate(l.logDate)}`;
       const lead = l.manager ? ` · ${l.manager.firstName} ${l.manager.lastName}` : "";
       return `<li style="margin-bottom:4px;"><a href="${link}">${fmtDate(l.logDate)} — ${escapeHtml(`${l.job.jobNumber} ${l.job.title}`)}</a> (${crew} crew, ${hours}h${lead})</li>`;
     })
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
   const zeroHtml = zeroRateEntries
     .map(
       (e) =>
-        `<li style="margin-bottom:4px;"><a href="${env.NEXTAUTH_URL}/personnel/${e.personnel.id}">${escapeHtml(`${e.personnel.lastName}, ${e.personnel.firstName}`)}</a></li>`,
+        `<li style="margin-bottom:4px;"><a href="${env.APP_BASE_URL}/personnel/${e.personnel.id}">${escapeHtml(`${e.personnel.lastName}, ${e.personnel.firstName}`)}</a></li>`,
     )
     .join("");
 
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     ${section(`Drafts older than 48h (${staleDrafts.length})`, staleHtml ? `<ul>${staleHtml}</ul>` : "")}
     ${section(`Workers with hours at a $0 rate (${zeroRateEntries.length})`, zeroHtml ? `<ul>${zeroHtml}</ul>` : "")}
     <p style="color:#9ca3af;font-size:12px;margin-top:16px;">
-      Approve logs at ${env.NEXTAUTH_URL}/field-logs · Sent automatically each weekday morning.
+      Approve logs at ${env.APP_BASE_URL}/field-logs · Sent automatically each weekday morning.
     </p>
   </div>`;
 

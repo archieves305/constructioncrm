@@ -71,7 +71,10 @@ REMOTE_APP="/opt/knuco"
 REMOTE_BACKUP_DIR="/var/backups/knuco"
 REMOTE_LOG_DIR="/var/log/knuco"
 REMOTE_LOG_FILE="${REMOTE_LOG_DIR}/deploy.log"
-PUBLIC_URL="https://crm.knuconstruction.com"
+# Host the post-deploy laptop-side smoke test hits. Override for a domain
+# cutover without editing this script:
+#   KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh
+PUBLIC_URL="${KNUCO_PUBLIC_URL:-https://crm.knuconstruction.com}"
 LOCAL_PORT_URL="http://127.0.0.1:4000"
 LOCK_DIR="/tmp/knuco-deploy.lock.d"
 TARBALL_RETENTION=7  # Must be >= 2 to guarantee newly-created tarball survives the trim step.

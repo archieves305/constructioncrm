@@ -4,6 +4,7 @@ vi.mock("@/lib/env", () => ({
   env: {
     NEXTAUTH_SECRET: "test_placeholder_secret_test_placeholder_secret",
     NEXTAUTH_URL: "https://crm.example.com",
+    APP_BASE_URL: "https://crm.example.com",
   },
 }));
 
@@ -39,7 +40,7 @@ describe("unsubscribe tokens", () => {
     expect(verifyUnsubscribeToken("a.b.c")).toBeNull();
   });
 
-  it("builds an absolute URL using NEXTAUTH_URL", () => {
+  it("builds an absolute URL using APP_BASE_URL", () => {
     const url = buildUnsubscribeUrl("lead123");
     expect(url.startsWith("https://crm.example.com/api/email/unsubscribe?token=")).toBe(true);
   });

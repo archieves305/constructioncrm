@@ -8,6 +8,15 @@ const schema = z.object({
   NEXTAUTH_URL: z.string().url(),
   NEXTAUTH_SECRET: z.string().min(32),
 
+  // Public origin the app is reached at, used to build absolute URLs that
+  // leave the app: password-reset links, the /co change-order portal, /action
+  // tracked links, unsubscribe links, cron digest emails, and the Zapier
+  // roofr-callback URL. Kept separate from NEXTAUTH_URL — that one is
+  // NextAuth's own callback origin — so the public hostname can be changed
+  // (e.g. a domain cutover) without touching auth config. Optional: falls
+  // back to NEXTAUTH_URL, which is what every deploy did before the split.
+  APP_BASE_URL: z.string().url().optional(),
+
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_FROM_NUMBER: z.string().optional(),
@@ -69,7 +78,15 @@ if (!parsed.success) {
   throw new Error(`Invalid environment variables:\n${issues}`);
 }
 
-export const env = parsed.data;
+// APP_BASE_URL is always present downstream and never carries a trailing
+// slash, so callers can interpolate `${env.APP_BASE_URL}/path` directly.
+export const env = {
+  ...parsed.data,
+  APP_BASE_URL: (parsed.data.APP_BASE_URL ?? parsed.data.NEXTAUTH_URL).replace(
+    /\/$/,
+    "",
+  ),
+};
 
 type RequiredGroup = { name: string; keys: (keyof typeof env)[] };
 
