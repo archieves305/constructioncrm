@@ -42,3 +42,11 @@ next-env.d.ts
 
 /src/generated/prisma
 /uploads/
+
+# Local job data — client documents and the source spreadsheets for one-off
+# import scripts. Business records, not source: they bloat the repo and would
+# publish customer financials. The import *scripts* are committed as the audit
+# trail (see scripts/import-*.ts); their inputs stay local.
+/jobimports/
+/Clewiston Towne Place Suites - Knu Construction LLC - Applications 1-11/
+/Clewiston Towne Place Suites - Knu Construction LLC - Applications 1-11.zip
