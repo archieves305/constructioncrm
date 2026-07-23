@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { Plus, KeyRound, Shield } from "lucide-react";
 import { roleDisplayName } from "@/lib/auth/role-display";
 import type { RoleName } from "@/generated/prisma/client";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth/session-client";
 
 type SelectableRole = {
   id: string;

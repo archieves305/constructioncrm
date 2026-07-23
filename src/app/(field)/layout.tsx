@@ -1,6 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth/helpers";
+import { loginUrl } from "@/lib/sso";
 import { FieldShell } from "@/components/field/field-shell";
 
 // Field mode: a minimal, touch-first shell for iPads at the jobsite.
@@ -13,10 +13,10 @@ export default async function FieldLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session?.user) {
-    redirect("/login");
+    redirect(loginUrl("/field"));
   }
   if (!FIELD_ROLES.has(session.user.role)) {
     redirect("/");

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth/session-client";
 import { cn } from "@/lib/utils";
 import type { RoleName } from "@/generated/prisma/client";
 import { NotificationBell } from "./notification-bell";
@@ -182,7 +182,7 @@ export function Sidebar({ user }: SidebarProps) {
           variant="ghost"
           size="sm"
           className="w-full justify-start gap-2 text-gray-600"
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => signOut()}
         >
           <LogOut className="h-4 w-4" />
           Sign Out

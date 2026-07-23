@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { signOut } from "next-auth/react";
+import { signOut } from "@/lib/auth/session-client";
 import type { RoleName } from "@/generated/prisma/client";
 import { Button } from "@/components/ui/button";
 import { HardHat, LayoutDashboard, LogOut, WifiOff } from "lucide-react";
@@ -58,7 +58,7 @@ export function FieldShell({ user, children }: FieldShellProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => signOut()}
             aria-label="Sign out"
           >
             <LogOut className="h-5 w-5" />

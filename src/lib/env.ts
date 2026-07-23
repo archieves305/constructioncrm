@@ -17,6 +17,20 @@ const schema = z.object({
   // back to NEXTAUTH_URL, which is what every deploy did before the split.
   APP_BASE_URL: z.string().url().optional(),
 
+  // CareyOS SSO. The portal at app.careyos.com is the sole identity provider:
+  // it owns users, passwords and per-app access grants. We never hold its
+  // signing secret — we forward the user's opaque `careyos_session` cookie to
+  // /api/sso/authorize and honour the live answer. Defaults are the real
+  // production values so a deploy cannot boot half-configured.
+  CAREYOS_SSO_URL: z.string().url().default("https://app.careyos.com"),
+  CAREYOS_APP_ID: z.string().default("construction-crm"),
+  // Local solo dev only: the parent-domain cookie is unreachable across
+  // localhost ports, so "1" short-circuits introspection with a mock identity.
+  // Never set in production — the app refuses to start if it is (see below).
+  CAREYOS_SSO_DEV_BYPASS: z.string().optional(),
+  CAREYOS_DEV_EMAIL: z.string().email().optional(),
+  CAREYOS_DEV_ROLE: z.string().optional(),
+
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_FROM_NUMBER: z.string().optional(),
@@ -76,6 +90,19 @@ if (!parsed.success) {
     .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
     .join("\n");
   throw new Error(`Invalid environment variables:\n${issues}`);
+}
+
+// CAREYOS_SSO_DEV_BYPASS makes every request an authenticated admin. In
+// production that is a total auth bypass, so refuse to boot rather than serve
+// an open CRM — a crashed service is loud, an open one is silent.
+if (
+  parsed.data.NODE_ENV === "production" &&
+  parsed.data.CAREYOS_SSO_DEV_BYPASS === "1"
+) {
+  throw new Error(
+    "CAREYOS_SSO_DEV_BYPASS=1 is set with NODE_ENV=production. That disables " +
+      "authentication entirely. Unset it before starting the server.",
+  );
 }
 
 // APP_BASE_URL is always present downstream and never carries a trailing
