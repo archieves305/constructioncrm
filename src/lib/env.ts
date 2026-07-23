@@ -29,6 +29,13 @@ const schema = z.object({
   // routes 503 when unset.
   CC_ALLOCATOR_API_KEY: z.string().optional(),
 
+  // Bearer token the KNU phone-routing app presents when auto-creating leads
+  // from inbound calls. Optional at boot; the integration route 503s when unset.
+  // PHONE_ROUTING_SYSTEM_USER_ID optionally pins the User that phone-created
+  // leads are attributed to; falls back to the first active ADMIN.
+  PHONE_ROUTING_API_KEY: z.string().optional(),
+  PHONE_ROUTING_SYSTEM_USER_ID: z.string().optional(),
+
   // Zapier integration for Roofr report ordering. URL is the Zapier
   // "Catch Hook" we POST lead+order data to when the user clicks "Order
   // Roofr Report". Secret is the shared header value we require on the
