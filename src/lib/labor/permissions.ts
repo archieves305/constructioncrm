@@ -145,6 +145,22 @@ export async function resolveJobFieldAccess(
 
 export type LogStatus = "DRAFT" | "SUBMITTED" | "APPROVED";
 
+/**
+ * Correct an APPROVED log in place, without reopening it. Accounting is the
+ * one that matters day to day: the bookkeeper finds a bad shift after the
+ * day was approved and has to fix it, and dropping the log back to DRAFT
+ * would pull the whole day out of the payroll export (payrollApprovedOnly)
+ * until someone re-approved it. The log keeps its APPROVED status; the save
+ * is audited as `log_amend`.
+ *
+ * Deliberately NOT MANAGER — approving is theirs, un-approving after the
+ * fact is admin/accounting. Hours already covered by a payroll payment stay
+ * locked for everyone (see PaidEntriesLockedError).
+ */
+export function canAmendApprovedLog(role: RoleName): boolean {
+  return role === "ADMIN" || role === "OFFICE_STAFF";
+}
+
 /** Who may edit log content (header, narrative, labor sheet) at a status. */
 export function canEditLogAtStatus(
   status: LogStatus,
@@ -154,7 +170,7 @@ export function canEditLogAtStatus(
   if (access !== "write") return false;
   if (status === "DRAFT") return true;
   if (status === "SUBMITTED") return role === "ADMIN" || role === "MANAGER";
-  return false; // APPROVED is frozen until an ADMIN reopens
+  return canAmendApprovedLog(role); // APPROVED: frozen except for amenders
 }
 
 export function canApproveLog(role: RoleName): boolean {

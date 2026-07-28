@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { RoleName } from "@/generated/prisma/client";
 import {
   NO_GRANTS,
+  canAmendApprovedLog,
   canCreatePersonnel,
+  canEditLogAtStatus,
   canEditPayRates,
   canManagePersonnel,
   canReadPersonnel,
+  canReopenLog,
   canSeeLaborCosts,
   canViewPayroll,
   canViewSensitivePersonnel,
@@ -102,6 +105,45 @@ describe("rates and payroll", () => {
     expect(canViewPayroll("MANAGER", ALL_GRANTS)).toBe(true);
     expect(canViewPayroll("SALES_REP", ALL_GRANTS)).toBe(false);
     expect(canViewPayroll("CREW_LEAD", ALL_GRANTS)).toBe(false);
+  });
+});
+
+describe("daily-log edit windows", () => {
+  it("DRAFT is editable by anyone with write access", () => {
+    for (const role of ALL_ROLES) {
+      expect(canEditLogAtStatus("DRAFT", role, "write")).toBe(true);
+    }
+  });
+
+  it("SUBMITTED is correctable by ADMIN/MANAGER only", () => {
+    expect(ALL_ROLES.filter((r) => canEditLogAtStatus("SUBMITTED", r, "write"))).toEqual([
+      "ADMIN",
+      "MANAGER",
+    ]);
+  });
+
+  it("APPROVED stays frozen except for admin/accounting amendments", () => {
+    expect(ALL_ROLES.filter((r) => canEditLogAtStatus("APPROVED", r, "write"))).toEqual([
+      "ADMIN",
+      "OFFICE_STAFF",
+    ]);
+    // MANAGER approves but does not amend after the fact.
+    expect(canEditLogAtStatus("APPROVED", "MANAGER", "write")).toBe(false);
+    expect(canEditLogAtStatus("APPROVED", "CREW_LEAD", "write")).toBe(false);
+  });
+
+  it("read-only job access never edits, whatever the status or role", () => {
+    for (const status of ["DRAFT", "SUBMITTED", "APPROVED"] as const) {
+      for (const role of ALL_ROLES) {
+        expect(canEditLogAtStatus(status, role, "read")).toBe(false);
+        expect(canEditLogAtStatus(status, role, "none")).toBe(false);
+      }
+    }
+  });
+
+  it("amending is admin + accounting; reopening to DRAFT stays admin-only", () => {
+    expect(ALL_ROLES.filter(canAmendApprovedLog)).toEqual(["ADMIN", "OFFICE_STAFF"]);
+    expect(ALL_ROLES.filter(canReopenLog)).toEqual(["ADMIN"]);
   });
 });
 

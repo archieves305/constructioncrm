@@ -3,6 +3,7 @@ import { FieldPhotoCategory } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { badRequest } from "@/lib/auth/helpers";
 import { requireJobFieldAccess } from "@/lib/labor/route-helpers";
+import { canAmendApprovedLog } from "@/lib/labor/permissions";
 import { isIsoDate, toDbDate, fromDbDate } from "@/lib/labor/dates";
 import { MAX_UPLOAD_BYTES, saveFile } from "@/lib/files/storage";
 
@@ -119,9 +120,9 @@ export async function POST(request: NextRequest, context: Context) {
       select: { jobId: true, status: true },
     });
     if (!log || log.jobId !== jobId) return badRequest("Invalid dailyLogId");
-    // Photos may still be added to SUBMITTED logs (forgot-one case); only
-    // APPROVED is frozen.
-    if (log.status === "APPROVED") {
+    // Photos may still be added to SUBMITTED logs (forgot-one case); APPROVED
+    // is frozen for the crew but open to admin/accounting amendments.
+    if (log.status === "APPROVED" && !canAmendApprovedLog(ctx.session.user.role)) {
       return NextResponse.json(
         { error: "Log is approved — photos are locked" },
         { status: 409 },

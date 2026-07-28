@@ -40,6 +40,17 @@ export class PaidEntriesLockedError extends Error {
 
 export type WeekTouch = { personnelId: string; workDate: string };
 
+export type RecomputeOptions = {
+  /**
+   * Let the recompute rewrite entries sitting on APPROVED logs instead of
+   * throwing. Set only for callers the actor is allowed to amend approved
+   * days (canAmendApprovedLog) — the OT split spans every job in the week,
+   * so an amendment on one job legitimately re-splits approved days on
+   * another. The paid-entries lock is NOT affected by this.
+   */
+  allowApprovedEdits?: boolean;
+};
+
 /**
  * Re-run weekly OT allocation for every (worker, week) named by `touches`,
  * rewrite changed entries' hours/costs, and mirror BudgetAllocations
@@ -50,6 +61,7 @@ export async function recomputeWorkerWeeks(
   tx: Tx,
   touches: WeekTouch[],
   settings: LaborSettingsValues,
+  options: RecomputeOptions = {},
 ): Promise<void> {
   const weekKeys = new Map<string, { personnelId: string; weekStart: string }>();
   for (const t of touches) {
@@ -133,7 +145,7 @@ export async function recomputeWorkerWeeks(
         paidLocked.push(fromDbDate(e.workDate));
         continue;
       }
-      if (e.dailyLog.status === "APPROVED") {
+      if (e.dailyLog.status === "APPROVED" && !options.allowApprovedEdits) {
         locked.push(fromDbDate(e.workDate));
         continue;
       }

@@ -80,11 +80,14 @@ export default function DailyLaborPage({
   const log = sheet.log;
   const logStatus = log?.status ?? "DRAFT";
   // Mirrors canEditLogAtStatus: office roles may correct a submitted day
-  // without bouncing it back to the crew. APPROVED stays frozen for everyone
-  // until an admin reopens it.
+  // without bouncing it back to the crew, and admin/accounting may amend an
+  // approved one in place (the log keeps its APPROVED status).
   const canFixSubmitted = role === "ADMIN" || role === "MANAGER";
+  const canAmendApproved = role === "ADMIN" || role === "OFFICE_STAFF";
   const editable =
-    logStatus === "DRAFT" || (logStatus === "SUBMITTED" && canFixSubmitted);
+    logStatus === "DRAFT" ||
+    (logStatus === "SUBMITTED" && canFixSubmitted) ||
+    (logStatus === "APPROVED" && canAmendApproved);
 
   const narrative = useLogNarrative(
     jobId,
@@ -400,7 +403,9 @@ export default function DailyLaborPage({
       )}
       {logStatus === "APPROVED" && (
         <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900">
-          Approved — this day is locked.
+          {canAmendApproved
+            ? "Approved — corrections you make here are saved to the approved day and recorded in the audit log. Hours already paid out in payroll stay locked."
+            : "Approved — this day is locked."}
         </div>
       )}
       {(sheet.status === "locked" || narrative.status === "locked") && (
@@ -441,7 +446,7 @@ export default function DailyLaborPage({
           jobId={jobId}
           date={date}
           dailyLogId={log?.id ?? null}
-          editable={logStatus !== "APPROVED"}
+          editable={logStatus !== "APPROVED" || canAmendApproved}
         />
       ) : section === "work" ? (
         <WorkLogSection

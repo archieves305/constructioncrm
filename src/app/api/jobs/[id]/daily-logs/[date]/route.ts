@@ -7,7 +7,11 @@ import {
   requireJobFieldAccess,
   validateDateParam,
 } from "@/lib/labor/route-helpers";
-import { canDeleteLog, canEditLogAtStatus } from "@/lib/labor/permissions";
+import {
+  canAmendApprovedLog,
+  canDeleteLog,
+  canEditLogAtStatus,
+} from "@/lib/labor/permissions";
 import { serializeDailyLog } from "@/lib/labor/serialize";
 import { ensureDailyLog, getDailyLog } from "@/lib/labor/log-service";
 import { recordAudit } from "@/lib/audit/record";
@@ -69,6 +73,19 @@ export async function PUT(request: NextRequest, context: Context) {
     where: { id: log.id },
     data,
   });
+
+  // Approved days are already out the door (PDF'd, emailed, payroll-counted),
+  // so record who changed the report afterwards.
+  if (log.status === "APPROVED" && canAmendApprovedLog(ctx.session.user.role)) {
+    await recordAudit({
+      actorUserId: ctx.session.user.id,
+      entityType: "DailyLog",
+      entityId: log.id,
+      action: "log_amend",
+      after: { section: "narrative", fields: Object.keys(data) },
+    });
+  }
+
   const full = await getDailyLog(jobId, date);
   return NextResponse.json(
     serializeDailyLog({ ...full!, ...updated }, ctx.session.user.role),

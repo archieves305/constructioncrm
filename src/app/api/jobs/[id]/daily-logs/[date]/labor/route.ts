@@ -7,10 +7,12 @@ import {
   validateDateParam,
 } from "@/lib/labor/route-helpers";
 import {
+  canAmendApprovedLog,
   canEditLogAtStatus,
   canEditPayRates,
   getFieldGrants,
 } from "@/lib/labor/permissions";
+import { recordAudit } from "@/lib/audit/record";
 import { serializeDailyLog } from "@/lib/labor/serialize";
 import {
   LogConflictError,
@@ -56,6 +58,9 @@ export async function PUT(request: NextRequest, context: Context) {
     );
   }
 
+  const amendingApproved =
+    log.status === "APPROVED" && canAmendApprovedLog(ctx.session.user.role);
+
   try {
     const saved = await saveLaborSheet({
       jobId,
@@ -64,7 +69,29 @@ export async function PUT(request: NextRequest, context: Context) {
       entries: v.data.entries,
       baseUpdatedAt: v.data.baseUpdatedAt,
       canOverrideRates,
+      canAmendApproved: amendingApproved,
     });
+
+    // An approved day's hours are what payroll pays on, so changing them
+    // after the fact leaves a trail even though the status never moves.
+    if (amendingApproved) {
+      await recordAudit({
+        actorUserId: ctx.session.user.id,
+        entityType: "DailyLog",
+        entityId: log.id,
+        action: "log_amend",
+        before: {
+          totalHours: log.laborEntries.reduce((s, e) => s + Number(e.totalHours), 0),
+          entries: log.laborEntries.length,
+        },
+        after: {
+          section: "labor",
+          totalHours: saved.laborEntries.reduce((s, e) => s + Number(e.totalHours), 0),
+          entries: saved.laborEntries.length,
+        },
+      });
+    }
+
     return NextResponse.json(serializeDailyLog(saved, ctx.session.user.role));
   } catch (err) {
     if (err instanceof LogConflictError) {
@@ -87,7 +114,7 @@ export async function PUT(request: NextRequest, context: Context) {
       return NextResponse.json(
         {
           error:
-            "This change would re-split overtime on approved logs. Ask an admin to reopen them first.",
+            "This change would re-split overtime on approved logs. Ask an admin or accounting to make the change.",
           lockedDates: err.lockedDates,
         },
         { status: 409 },

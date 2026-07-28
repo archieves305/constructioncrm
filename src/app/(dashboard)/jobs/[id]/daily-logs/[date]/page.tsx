@@ -24,7 +24,15 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ArrowLeft, CheckCircle2, FileDown, RotateCcw, Trash2, Undo2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  FileDown,
+  Pencil,
+  RotateCcw,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatMinutes } from "@/components/field/touch-time-field";
 import type { ServerLog } from "@/hooks/use-labor-sheet";
@@ -149,6 +157,8 @@ export default function DailyLogReviewPage({
 
   const badge = STATUS_BADGE[log.status];
   const canModerate = role === "ADMIN" || role === "MANAGER";
+  // Mirrors canAmendApprovedLog — correct an approved day in place.
+  const canAmendApproved = role === "ADMIN" || role === "OFFICE_STAFF";
   const present = log.entries.filter((e) => !e.isAbsent);
   const hasCost = present.some((e) => e.totalCost !== undefined);
 
@@ -200,6 +210,15 @@ export default function DailyLogReviewPage({
               <CheckCircle2 className="mr-1 h-4 w-4" /> Approve
             </Button>
           </>
+        )}
+        {canAmendApproved && log.status === "APPROVED" && (
+          // This page is read-only; the editor lives in field mode, which
+          // admin/accounting can reach.
+          <Link href={`/field/jobs/${jobId}/daily/${date}`}>
+            <Button variant="outline">
+              <Pencil className="mr-1 h-4 w-4" /> Edit approved day
+            </Button>
+          </Link>
         )}
         {role === "ADMIN" && log.status === "APPROVED" && (
           <Button

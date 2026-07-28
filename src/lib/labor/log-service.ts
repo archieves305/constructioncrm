@@ -70,6 +70,8 @@ export type SaveSheetInput = {
   entries: LaborEntryInput[];
   baseUpdatedAt?: string;
   canOverrideRates: boolean;
+  /** Viewer holds canAmendApprovedLog — lifts the approved-entries OT lock. */
+  canAmendApproved?: boolean;
 };
 
 /**
@@ -176,7 +178,9 @@ export async function saveLaborSheet(input: SaveSheetInput) {
       ...entries.map((e) => ({ personnelId: e.personnelId, workDate: date })),
       ...toDelete.map((e) => ({ personnelId: e.personnelId, workDate: date })),
     ];
-    await recomputeWorkerWeeks(tx, touches, settings);
+    await recomputeWorkerWeeks(tx, touches, settings, {
+      allowApprovedEdits: input.canAmendApproved,
+    });
 
     // Any labor edit refreshes the log's updatedAt (autosave concurrency token).
     await tx.dailyLog.update({
