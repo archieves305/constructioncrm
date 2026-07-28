@@ -14,6 +14,8 @@ const optionalTrimmed = (max: number) =>
     .nullable()
     .transform((v) => (v ? v : null));
 
+export const payTypeSchema = z.enum(["CONTRACT", "HOURLY", "PIECEWORK"]);
+
 const personnelBase = {
   firstName: z.string().trim().min(1).max(80),
   lastName: z.string().trim().min(1).max(80),
@@ -37,6 +39,8 @@ const personnelBase = {
   trade: optionalTrimmed(80),
   title: optionalTrimmed(80),
   employmentType: z.enum(["W2", "CONTRACTOR_1099", "SUB_CREW", "TEMP"]).optional(),
+  payType: payTypeSchema.optional(),
+  workDescription: optionalTrimmed(500),
   status: z.enum(["ACTIVE", "ON_LEAVE", "INACTIVE", "TERMINATED"]).optional(),
   startDate: isoDate.optional().nullable(),
   endDate: isoDate.optional().nullable(),
@@ -56,6 +60,16 @@ export const personnelUpdateSchema = personnelCreateSchema.partial();
 
 export type PersonnelCreateInput = z.infer<typeof personnelCreateSchema>;
 export type PersonnelUpdateInput = z.infer<typeof personnelUpdateSchema>;
+
+// Per-job override. Both fields nullable on purpose: null clears the
+// override for that column and falls back to the person's profile default.
+export const jobPersonnelScopeSchema = z.object({
+  personnelId: z.string().min(1),
+  payType: payTypeSchema.nullable().optional(),
+  workDescription: optionalTrimmed(500),
+});
+
+export type JobPersonnelScopeInput = z.infer<typeof jobPersonnelScopeSchema>;
 
 export const personnelDocumentTypeSchema = z.enum([
   "W9",

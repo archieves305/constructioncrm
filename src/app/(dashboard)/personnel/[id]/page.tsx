@@ -27,6 +27,13 @@ const EMPLOYMENT_LABELS: Record<string, string> = {
   TEMP: "Temp",
 };
 
+// Pay BASIS, separate from the W-2/1099 tax classification above.
+const PAY_TYPE_LABELS: Record<string, string> = {
+  CONTRACT: "Contract",
+  HOURLY: "Hourly",
+  PIECEWORK: "Piecework",
+};
+
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: "Active",
   ON_LEAVE: "On leave",
@@ -59,6 +66,8 @@ type PersonnelDetail = {
   title: string | null;
   hourlyRate?: string | null;
   employmentType: string;
+  payType: string;
+  workDescription: string | null;
   status: string;
   startDate: string | null;
   endDate: string | null;
@@ -135,6 +144,8 @@ export default function PersonnelDetailPage({
       title: person.title ?? "",
       hourlyRate: person.hourlyRate != null ? String(person.hourlyRate) : "",
       employmentType: person.employmentType,
+      payType: person.payType,
+      workDescription: person.workDescription ?? "",
       status: person.status,
       startDate: person.startDate ? person.startDate.slice(0, 10) : "",
       entityName: person.entityName ?? "",
@@ -165,6 +176,8 @@ export default function PersonnelDetailPage({
         trade: form.trade || null,
         title: form.title || null,
         employmentType: form.employmentType,
+        payType: form.payType,
+        workDescription: form.workDescription || null,
         status: form.status,
         startDate: form.startDate || null,
         entityName: form.entityName || null,
@@ -434,6 +447,30 @@ export default function PersonnelDetailPage({
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label>Pay type</Label>
+                <Select value={form.payType ?? "HOURLY"} onValueChange={(v) => v && set("payType", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(PAY_TYPE_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Work description</Label>
+              <Input
+                placeholder="e.g. Hangs and finishes drywall"
+                value={form.workDescription ?? ""}
+                onChange={(e) => set("workDescription", e.target.value)}
+              />
+              <p className="text-muted-foreground mt-1 text-xs">
+                Default scope of work. A job can override this on its Crew tab.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Status</Label>
                 <Select value={form.status ?? "ACTIVE"} onValueChange={(v) => v && set("status", v)}>

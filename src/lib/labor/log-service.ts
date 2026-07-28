@@ -17,7 +17,16 @@ export class LogConflictError extends Error {
 
 const ENTRY_INCLUDE = {
   personnel: {
-    select: { id: true, firstName: true, lastName: true, trade: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      trade: true,
+      // Profile defaults for pay basis / scope of work; serializeDailyLog
+      // merges the job's overrides on top.
+      payType: true,
+      workDescription: true,
+    },
   },
 } satisfies Prisma.DailyLaborEntryInclude;
 
@@ -29,6 +38,13 @@ export const LOG_INCLUDE = {
   manager: { select: { id: true, firstName: true, lastName: true } },
   submittedBy: { select: { id: true, firstName: true, lastName: true } },
   approvedBy: { select: { id: true, firstName: true, lastName: true } },
+  job: {
+    select: {
+      personnelScopes: {
+        select: { personnelId: true, payType: true, workDescription: true },
+      },
+    },
+  },
 } satisfies Prisma.DailyLogInclude;
 
 /** Fetch the (job, date) log with entries, or null. */

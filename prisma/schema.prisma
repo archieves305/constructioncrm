@@ -26,6 +26,15 @@ enum EmploymentType {
   TEMP
 }
 
+// How a worker is PAID, as distinct from EmploymentType (their tax
+// classification). A 1099 contractor may be paid hourly or by the piece, and
+// a W-2 employee may be on a fixed contract for a job.
+enum PayType {
+  CONTRACT
+  HOURLY
+  PIECEWORK
+}
+
 enum PersonnelStatus {
   ACTIVE
   ON_LEAVE
@@ -387,6 +396,7 @@ model User {
   personnelRecord          Personnel?           @relation("PersonnelUser")
   personnelCreated         Personnel[]          @relation("PersonnelCreatedBy")
   personnelDocsUploaded    PersonnelDocument[]  @relation("PersonnelDocUploadedBy")
+  jobPersonnelScopes       JobPersonnelScope[]  @relation("JobPersonnelScopeCreatedBy")
   dailyLogsManaged         DailyLog[]           @relation("DailyLogManager")
   dailyLogsSubmitted       DailyLog[]           @relation("DailyLogSubmittedBy")
   dailyLogsApproved        DailyLog[]           @relation("DailyLogApprovedBy")
@@ -613,16 +623,15 @@ model Task {
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
-  lead       Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  job        Job?  @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  assignedTo User? @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
-  createdBy  User  @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
+  lead       Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  job        Job?        @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  assignedTo User?       @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
+  createdBy  User        @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
+  fieldIssue FieldIssue?
 
   @@index([assignedUserId])
   @@index([dueAt])
   @@index([status])
-  fieldIssue FieldIssue?
-
   @@map("tasks")
 }
 
@@ -1007,6 +1016,7 @@ model Job {
   dailyLaborEntries  DailyLaborEntry[]
   jobAreas           JobArea[]
   fieldAssignments   JobFieldAssignment[]
+  personnelScopes    JobPersonnelScope[]
   fieldPhotos        FieldPhoto[]
   fieldIssues        FieldIssue[]
 
@@ -1206,16 +1216,16 @@ model BudgetLine {
 }
 
 model BudgetAllocation {
-  id              String   @id @default(cuid())
-  budgetLineId    String   @map("budget_line_id")
-  expenseId       String?  @map("expense_id")
-  laborContractId String?  @map("labor_contract_id")
+  id                String   @id @default(cuid())
+  budgetLineId      String   @map("budget_line_id")
+  expenseId         String?  @map("expense_id")
+  laborContractId   String?  @map("labor_contract_id")
   // Field-labor stream: system-maintained 1:1 with a DailyLaborEntry whenever
   // the entry names a budget line (amount mirrors entry.totalCost). Never
   // hand-edited — the labor save service owns these rows.
-  dailyLaborEntryId String? @unique @map("daily_labor_entry_id")
-  amount          Decimal  @db.Decimal(12, 2)
-  createdAt       DateTime @default(now()) @map("created_at")
+  dailyLaborEntryId String?  @unique @map("daily_labor_entry_id")
+  amount            Decimal  @db.Decimal(12, 2)
+  createdAt         DateTime @default(now()) @map("created_at")
 
   budgetLine      BudgetLine       @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
   expense         JobExpense?      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
@@ -1397,26 +1407,26 @@ enum JobExpenseType {
 }
 
 model JobExpense {
-  id              String         @id @default(cuid())
-  jobId           String         @map("job_id")
-  type            JobExpenseType @default(OTHER)
-  vendor          String?
-  description     String?        @db.Text
-  amount          Decimal        @db.Decimal(12, 2)
-  incurredDate    DateTime       @default(now()) @map("incurred_date")
-  paidMethod      PaymentMethod? @map("paid_method")
-  paidFrom        String?        @map("paid_from")
-  billable        Boolean        @default(false)
-  createdByUserId String         @map("created_by_user_id")
+  id               String         @id @default(cuid())
+  jobId            String         @map("job_id")
+  type             JobExpenseType @default(OTHER)
+  vendor           String?
+  description      String?        @db.Text
+  amount           Decimal        @db.Decimal(12, 2)
+  incurredDate     DateTime       @default(now()) @map("incurred_date")
+  paidMethod       PaymentMethod? @map("paid_method")
+  paidFrom         String?        @map("paid_from")
+  billable         Boolean        @default(false)
+  createdByUserId  String         @map("created_by_user_id")
   // Idempotency key for upstream integrations (cc-allocator sends txn.id).
   // Nullable so manually-created expenses are unaffected.
-  externalId      String?        @unique @map("external_id")
+  externalId       String?        @unique @map("external_id")
   // Set when this expense was posted automatically by a payroll payment;
   // such expenses are excluded from cost-plus contract rollups (the labor
   // cost already flows through the field-labor stream until paid).
-  payrollPaymentId String?       @map("payroll_payment_id")
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
+  payrollPaymentId String?        @map("payroll_payment_id")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
 
   job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
   createdBy         User               @relation(fields: [createdByUserId], references: [id])
@@ -2142,19 +2152,23 @@ model Personnel {
   emergencyContactPhone    String? @map("emergency_contact_phone")
   emergencyContactRelation String? @map("emergency_contact_relation")
 
-  trade          String?
-  title          String?
-  hourlyRate     Decimal?        @map("hourly_rate") @db.Decimal(10, 2)
-  employmentType EmploymentType  @default(W2) @map("employment_type")
-  status         PersonnelStatus @default(ACTIVE)
-  startDate      DateTime?       @map("start_date") @db.Date
-  endDate        DateTime?       @map("end_date") @db.Date
-  entityName     String?         @map("entity_name")
-  crewId         String?         @map("crew_id")
-  userId         String?         @unique @map("user_id")
-  notes          String?         @db.Text
-  isActive       Boolean         @default(true) @map("is_active")
-  deletedAt      DateTime?       @map("deleted_at")
+  trade           String?
+  title           String?
+  hourlyRate      Decimal?        @map("hourly_rate") @db.Decimal(10, 2)
+  employmentType  EmploymentType  @default(W2) @map("employment_type")
+  // Pay basis + what this person actually does. Both are profile defaults;
+  // a JobPersonnelScope row overrides either one for a single job.
+  payType         PayType         @default(HOURLY) @map("pay_type")
+  workDescription String?         @map("work_description") @db.Text
+  status          PersonnelStatus @default(ACTIVE)
+  startDate       DateTime?       @map("start_date") @db.Date
+  endDate         DateTime?       @map("end_date") @db.Date
+  entityName      String?         @map("entity_name")
+  crewId          String?         @map("crew_id")
+  userId          String?         @unique @map("user_id")
+  notes           String?         @db.Text
+  isActive        Boolean         @default(true) @map("is_active")
+  deletedAt       DateTime?       @map("deleted_at")
 
   // Encrypted SSN (AES-256-GCM, src/lib/crypto/field-encryption.ts).
   // Ciphertext is self-describing "v{n}:{iv}:{tag}:{ct}"; keyVersion is
@@ -2167,12 +2181,13 @@ model Personnel {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  crew         Crew?               @relation(fields: [crewId], references: [id])
-  user         User?               @relation("PersonnelUser", fields: [userId], references: [id])
-  createdBy    User                @relation("PersonnelCreatedBy", fields: [createdByUserId], references: [id])
+  crew            Crew?               @relation(fields: [crewId], references: [id])
+  user            User?               @relation("PersonnelUser", fields: [userId], references: [id])
+  createdBy       User                @relation("PersonnelCreatedBy", fields: [createdByUserId], references: [id])
   documents       PersonnelDocument[]
   laborEntries    DailyLaborEntry[]
   payrollPayments PayrollPayment[]
+  jobScopes       JobPersonnelScope[]
 
   @@index([lastName, firstName])
   @@index([crewId])
@@ -2238,24 +2253,50 @@ model JobArea {
 // Singleton OT policy (IntakeSettings pattern). Defaults follow FLSA:
 // weekly-only overtime at 1.5x past 40h; no daily threshold.
 model LaborSettings {
-  id                String   @id @default(cuid())
-  otWeeklyThreshold Decimal  @default(40) @map("ot_weekly_threshold") @db.Decimal(5, 2)
-  otDailyThreshold  Decimal? @map("ot_daily_threshold") @db.Decimal(5, 2)
-  otMultiplier      Decimal  @default(1.5) @map("ot_multiplier") @db.Decimal(4, 2)
-  weekStartsOn      Int      @default(1) @map("week_starts_on")
+  id                  String   @id @default(cuid())
+  otWeeklyThreshold   Decimal  @default(40) @map("ot_weekly_threshold") @db.Decimal(5, 2)
+  otDailyThreshold    Decimal? @map("ot_daily_threshold") @db.Decimal(5, 2)
+  otMultiplier        Decimal  @default(1.5) @map("ot_multiplier") @db.Decimal(4, 2)
+  weekStartsOn        Int      @default(1) @map("week_starts_on")
   // Where "email weekly hours" sends payroll reports. ADMIN-configured; the
   // field app can only trigger a send to this fixed address.
-  bookkeeperEmail   String?  @map("bookkeeper_email")
+  bookkeeperEmail     String?  @map("bookkeeper_email")
   // When true, payroll exports/emails only count hours on APPROVED logs.
-  payrollApprovedOnly Boolean @default(false) @map("payroll_approved_only")
-  updatedByUserId   String?  @map("updated_by_user_id")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  payrollApprovedOnly Boolean  @default(false) @map("payroll_approved_only")
+  updatedByUserId     String?  @map("updated_by_user_id")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   @@map("labor_settings")
 }
 
 // Which CREW_LEAD (or other field user) runs which job. A lead can run
 // several jobs and a hotel job can have several leads.
+// Per-job override of a worker's pay basis and/or work description. A row
+// exists only where the job differs from the person's profile default, so a
+// missing row means "use the profile" — resolveWorkerScope() in
+// src/lib/labor/scope.ts is the single reader. Null columns fall through
+// individually: a job may override the description while keeping the
+// profile's pay type.
+model JobPersonnelScope {
+  id              String   @id @default(cuid())
+  jobId           String   @map("job_id")
+  personnelId     String   @map("personnel_id")
+  payType         PayType? @map("pay_type")
+  workDescription String?  @map("work_description") @db.Text
+
+  createdByUserId String   @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  personnel Personnel @relation(fields: [personnelId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("JobPersonnelScopeCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@unique([jobId, personnelId])
+  @@index([personnelId])
+  @@map("job_personnel_scopes")
+}
+
 model JobFieldAssignment {
   id              String   @id @default(cuid())
   jobId           String   @map("job_id")

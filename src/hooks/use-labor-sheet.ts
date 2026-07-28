@@ -54,6 +54,13 @@ export type ServerEntry = EntryDraft & {
   otHours: number;
   totalCost?: number;
   personnel?: { id: string; firstName: string; lastName: string; trade: string | null };
+  // Pay basis + scope of work as they apply on THIS job (profile default
+  // with the job's override already merged in, server-side).
+  scope?: {
+    payType: "CONTRACT" | "HOURLY" | "PIECEWORK";
+    workDescription: string | null;
+    isOverridden: boolean;
+  } | null;
 };
 
 export type ServerLog = {

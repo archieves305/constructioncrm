@@ -29,12 +29,14 @@ export async function GET(request: NextRequest) {
   const crewId = searchParams.get("crewId") || undefined;
   const trade = searchParams.get("trade")?.trim() || "";
   const employmentType = searchParams.get("employmentType") || undefined;
+  const payType = searchParams.get("payType") || undefined;
   const activeOnly = searchParams.get("activeOnly") === "true";
 
   const where: Record<string, unknown> = { deletedAt: null };
   if (activeOnly) where.isActive = true;
   if (crewId) where.crewId = crewId;
   if (employmentType) where.employmentType = employmentType;
+  if (payType) where.payType = payType;
   if (trade) where.trade = { contains: trade, mode: "insensitive" };
   if (q) {
     where.OR = [
@@ -78,6 +80,10 @@ export async function POST(request: NextRequest) {
       "trade",
       "crewId",
       "employmentType",
+      // A crew lead signing on a walk-on worker is exactly who knows the
+      // pay basis and the scope of work; neither field exposes an amount.
+      "payType",
+      "workDescription",
     ]);
     for (const key of Object.keys(rest)) {
       if (!FIELD_CREATE_KEYS.has(key)) {
@@ -143,6 +149,7 @@ export async function POST(request: NextRequest) {
     after: {
       name: `${created.firstName} ${created.lastName}`,
       employmentType: created.employmentType,
+      payType: created.payType,
       ssnSet: Boolean(created.ssnLast4),
     },
   });

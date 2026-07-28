@@ -518,6 +518,20 @@ export default function DailyLaborPage({
                         </>
                       )}
                     </div>
+                    {server?.scope && (
+                      <div className="text-muted-foreground truncate text-xs">
+                        {/* Piecework/contract hours are recorded for the job
+                            record, but they are not what the worker is paid. */}
+                        {server.scope.payType !== "HOURLY" && (
+                          <span className="mr-1 font-medium text-amber-700">
+                            {server.scope.payType === "PIECEWORK"
+                              ? "Piecework"
+                              : "Contract"}
+                          </span>
+                        )}
+                        {server.scope.workDescription}
+                      </div>
+                    )}
                   </button>
                   {entry && (entry.isLate || entry.leftEarly) && (
                     <div className="flex gap-1">

@@ -1,6 +1,7 @@
-import type { RoleName } from "@/generated/prisma/client";
+import type { PayType, RoleName } from "@/generated/prisma/client";
 import { canReadPersonnel, canSeeLaborCosts } from "./permissions";
 import { fromDbDate } from "./dates";
+import { resolveWorkerScope, type WorkerScope } from "./scope";
 
 // Single choke point that shapes personnel records per viewer before they
 // leave the API. Sensitive material is OMITTED server-side (never sent and
@@ -25,6 +26,8 @@ type PersonnelRecord = {
   title: string | null;
   hourlyRate: unknown;
   employmentType: string;
+  payType: string;
+  workDescription: string | null;
   status: string;
   startDate: Date | null;
   endDate: Date | null;
@@ -55,6 +58,10 @@ export function serializePersonnel(
       trade: record.trade,
       title: record.title,
       employmentType: record.employmentType,
+      // Pay BASIS and job scope, not pay AMOUNT — a crew lead needs to know
+      // who is on piecework and what they're there to do. Rates stay out.
+      payType: record.payType,
+      workDescription: record.workDescription,
       status: record.status,
       crewId: record.crewId,
       crew: record.crew ?? null,
@@ -111,18 +118,47 @@ type LaborEntryRecord = {
   leftEarly: boolean;
   absenceReason: string | null;
   notes: string | null;
-  personnel?: { id: string; firstName: string; lastName: string; trade: string | null } | null;
+  personnel?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    trade: string | null;
+    payType?: PayType;
+    workDescription?: string | null;
+  } | null;
 };
+
+/** Per-job pay/scope overrides, keyed by personnelId. */
+export type ScopeOverrides = Map<
+  string,
+  { payType: PayType | null; workDescription: string | null }
+>;
 
 /**
  * Shape a labor entry for the viewer. Rates and costs are OMITTED (not
  * nulled) for roles without cost visibility — the client renders whatever
  * shape it receives.
  */
-export function serializeLaborEntry(entry: LaborEntryRecord, viewerRole: RoleName) {
+export function serializeLaborEntry(
+  entry: LaborEntryRecord,
+  viewerRole: RoleName,
+  overrides?: ScopeOverrides,
+) {
   const { regularRate, otRate, totalCost, workDate, ...base } = entry;
+  // Pay basis + scope of work as they apply ON THIS JOB. Attached to the
+  // entry so the crew sheet never re-derives the profile/override fallback.
+  const scope: WorkerScope | null = entry.personnel?.payType
+    ? resolveWorkerScope(
+        {
+          payType: entry.personnel.payType,
+          workDescription: entry.personnel.workDescription ?? null,
+        },
+        overrides?.get(entry.personnelId) ?? null,
+      )
+    : null;
   return {
     ...base,
+    scope,
     workDate: fromDbDate(workDate),
     totalHours: Number(entry.totalHours),
     regularHours: Number(entry.regularHours),
@@ -149,8 +185,26 @@ type DailyLogRecord = {
 
 /** Shape a daily log (+ entries and roll-up totals) for the viewer. */
 export function serializeDailyLog(log: DailyLogRecord, viewerRole: RoleName) {
-  const { laborEntries, logDate, ...base } = log;
-  const entries = (laborEntries ?? []).map((e) => serializeLaborEntry(e, viewerRole));
+  // `job` carries the per-job scope overrides for the merge below; it is
+  // destructured out so the raw override rows never reach the client.
+  const { laborEntries, logDate, job, ...base } = log as DailyLogRecord & {
+    job?: {
+      personnelScopes?: {
+        personnelId: string;
+        payType: PayType | null;
+        workDescription: string | null;
+      }[];
+    } | null;
+  };
+  const overrides: ScopeOverrides = new Map(
+    (job?.personnelScopes ?? []).map((s) => [
+      s.personnelId,
+      { payType: s.payType, workDescription: s.workDescription },
+    ]),
+  );
+  const entries = (laborEntries ?? []).map((e) =>
+    serializeLaborEntry(e, viewerRole, overrides),
+  );
   const present = entries.filter((e) => !e.isAbsent);
   const totals: Record<string, number> = {
     workersOnsite: new Set(present.map((e) => e.personnelId)).size,

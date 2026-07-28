@@ -5,10 +5,20 @@ import { addDays } from "./dates";
 // the week (a mid-week rate change yields two rows so gross always equals
 // hours × the rate actually snapshotted on each entry).
 
+const PAY_TYPE_CSV_LABELS: Record<string, string> = {
+  CONTRACT: "Contract",
+  HOURLY: "Hourly",
+  PIECEWORK: "Piecework",
+};
+
 export type PayrollEntry = {
   personnelId: string;
   name: string;
   employmentType: string;
+  // Profile default. The export spans every job, so a per-job override
+  // cannot be represented on a single row — the column is a flag for the
+  // bookkeeper ("this one is not hours x rate"), not a pay instruction.
+  payType: string;
   entity: string | null;
   workDate: string; // YYYY-MM-DD
   regularHours: number;
@@ -21,6 +31,7 @@ export type PayrollEntry = {
 export type PayrollRow = {
   name: string;
   employmentType: string;
+  payType: string;
   entity: string;
   regularRate: number;
   dayHours: number[]; // 7 buckets from weekStart
@@ -46,6 +57,7 @@ export function buildPayrollRows(
       row = {
         name: e.name,
         employmentType: e.employmentType,
+        payType: e.payType,
         entity: e.entity ?? "",
         regularRate: e.regularRate,
         dayHours: [0, 0, 0, 0, 0, 0, 0],
@@ -71,6 +83,7 @@ export function payrollRowsToCsv(rows: PayrollRow[], weekStart: string): string 
   const records = rows.map((r) => ({
     worker: r.name,
     type: r.employmentType,
+    payType: PAY_TYPE_CSV_LABELS[r.payType] ?? r.payType,
     entity: r.entity,
     ...Object.fromEntries(
       days.map((d, i) => [d, r.dayHours[i] ? String(r.dayHours[i]) : ""]),
@@ -83,6 +96,7 @@ export function payrollRowsToCsv(rows: PayrollRow[], weekStart: string): string 
   return toCsv(records, [
     { key: "worker", header: "Worker" },
     { key: "type", header: "Type" },
+    { key: "payType", header: "Pay Type" },
     { key: "entity", header: "Company/Entity" },
     ...days.map((d) => ({ key: d, header: d })),
     { key: "regularHours", header: "Regular Hrs" },

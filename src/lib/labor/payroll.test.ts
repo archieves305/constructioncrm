@@ -12,6 +12,7 @@ function entry(overrides: Partial<PayrollEntry>): PayrollEntry {
     personnelId: "p1",
     name: "Doe, Jane",
     employmentType: "W2",
+    payType: "HOURLY",
     entity: null,
     workDate: WEEK,
     regularHours: 8,
@@ -95,6 +96,16 @@ describe("payrollRowsToCsv", () => {
     expect(header.endsWith("Regular Hrs,OT Hrs,Rate,Gross")).toBe(true);
     expect(row).toContain('"Smith, John ""JJ"""');
     expect(row).toContain('"ABC Drywall, LLC"');
+    expect(header).toContain("Pay Type");
+  });
+
+  it("labels non-hourly workers so gross is not read as their pay", () => {
+    const csv = payrollRowsToCsv(
+      buildPayrollRows([entry({ payType: "PIECEWORK" })], WEEK),
+      WEEK,
+    );
+    const [, row] = csv.trim().split("\r\n");
+    expect(row).toContain("Piecework");
     expect(row.endsWith("8,0,30.00,240.00")).toBe(true);
   });
 });

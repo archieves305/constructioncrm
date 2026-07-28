@@ -39,6 +39,13 @@ const EMPLOYMENT_LABELS: Record<string, string> = {
   TEMP: "Temp",
 };
 
+// Pay BASIS, separate from the W-2/1099 tax classification above.
+const PAY_TYPE_LABELS: Record<string, string> = {
+  CONTRACT: "Contract",
+  HOURLY: "Hourly",
+  PIECEWORK: "Piecework",
+};
+
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: "Active",
   ON_LEAVE: "On leave",
@@ -55,6 +62,8 @@ type PersonnelRow = {
   title: string | null;
   hourlyRate?: string | null;
   employmentType: string;
+  payType: string;
+  workDescription: string | null;
   status: string;
   entityName?: string | null;
   crew: { id: string; name: string } | null;
@@ -70,6 +79,8 @@ const emptyForm = {
   phone: "",
   trade: "",
   employmentType: "W2",
+  payType: "HOURLY",
+  workDescription: "",
   crewId: "",
 };
 
@@ -105,6 +116,8 @@ export default function PersonnelPage() {
           phone: form.phone || null,
           trade: form.trade || null,
           employmentType: form.employmentType,
+          payType: form.payType,
+          workDescription: form.workDescription || null,
           crewId: form.crewId || null,
         }),
       });
@@ -168,6 +181,7 @@ export default function PersonnelPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Trade</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Pay</TableHead>
                 <TableHead>Crew / Company</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -186,9 +200,19 @@ export default function PersonnelPage() {
                       <div className="text-muted-foreground text-xs">{p.title}</div>
                     )}
                   </TableCell>
-                  <TableCell>{p.trade || "—"}</TableCell>
+                  <TableCell>
+                    {p.trade || "—"}
+                    {p.workDescription && (
+                      <div className="text-muted-foreground max-w-[260px] truncate text-xs">
+                        {p.workDescription}
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {EMPLOYMENT_LABELS[p.employmentType] ?? p.employmentType}
+                  </TableCell>
+                  <TableCell>
+                    {PAY_TYPE_LABELS[p.payType] ?? p.payType}
                   </TableCell>
                   <TableCell>{p.crew?.name || p.entityName || "—"}</TableCell>
                   <TableCell>
@@ -263,6 +287,40 @@ export default function PersonnelPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label>Pay type</Label>
+                <Select
+                  value={form.payType}
+                  onValueChange={(v) => v && setForm({ ...form, payType: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(PAY_TYPE_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="p-work">Work description</Label>
+              <Input
+                id="p-work"
+                placeholder="e.g. Hangs and finishes drywall"
+                value={form.workDescription}
+                onChange={(e) =>
+                  setForm({ ...form, workDescription: e.target.value })
+                }
+              />
+              <p className="text-muted-foreground mt-1 text-xs">
+                What this person does by default. Can be overridden per job.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Crew (optional)</Label>
                 <Select
