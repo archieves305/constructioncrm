@@ -4,8 +4,30 @@ _Updated 2026-08-03._
 
 ## Open — needs a decision or action
 
-- 🔴 **MailerSend's TRIAL cap is blocking the entire `@calibertrust.com`
-  domain — 4 of 7 active users get NO CRM email at all.**
+- ⚠️ **SPF is not configured on `knuconstruction.com` in MailerSend.**
+  The domain reports `is_verified: true` and `dkim: true` but **`spf: false`**.
+  Mail sends and has been delivering (48/48 on the domain's own stats), but
+  without an SPF record strict receivers — Google Workspace and Microsoft 365
+  especially — are more likely to spam-folder or reject it. Worth adding the
+  SPF TXT record while the DNS is being touched anyway. Not urgent, but it is
+  the next most likely cause of "the email never arrived" reports now that the
+  recipient cap is gone.
+
+## Resolved 2026-08-03 (later) — MailerSend upgraded
+
+- ✅ **The trial recipient cap is gone.** Plan upgraded; `api-quota` now
+  reports 1000/day. The same reminder cron that failed at 14:13Z returned
+  `{"tasks":5,"people":4,"sent":4,"failures":[]}` at 14:58Z — both
+  `@calibertrust.com` addresses that had been refused now deliver, and the
+  journal shows zero 422s. **The task-reminders cron has been re-enabled**
+  (`30 11 * * 1-5`). `field-log-digest`, which had been silently failing for
+  all four of those people every weekday, should self-heal on its next run.
+  Worth confirming tomorrow morning.
+
+### Original finding, kept for the record
+
+- 🔴 **MailerSend's TRIAL cap was blocking the entire `@calibertrust.com`
+  domain — 4 of 7 active users got NO CRM email at all.**
 
   Journal evidence from 2026-08-03, `422 … trial account unique recipients
   limit #MS42225`:

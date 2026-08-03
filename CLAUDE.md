@@ -27,10 +27,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-1. 🔴 **Upgrade the MailerSend plan** — the trial cap is silently dropping
-   real recipients across every email the CRM sends (see §5). The task
-   reminder cron is commented out until this is done; uncomment it after.
-2. Browser QA of the task module now that it is live.
+1. Confirm `field-log-digest` self-healed on its next 7:00am run — it had
+   been failing for all four `@calibertrust.com` users under the old
+   MailerSend cap, which is now lifted.
+2. Add the SPF record for `knuconstruction.com` (see §5).
 3. Set `PHONE_ROUTING_API_KEY` to activate the phone-routing integration.
 4. Dead-code cleanup from the auth swap.
 5. Promote the old domain's 302 → 301 — **deliberately parked**, not
@@ -94,14 +94,13 @@ portal deploy.
 
 Full list: [known-issues.md](docs/project-memory/known-issues.md).
 
-- 🔴 **MailerSend's trial cap blocks the whole `@calibertrust.com` domain —
-  4 of 7 active users receive NO CRM email** (`422 … #MS42225`). Every 422 on
-  2026-08-03 was a calibertrust address; `field-log-digest` has silently
-  failed for all four of them every weekday and nobody noticed, because the
-  cron returns 200 with per-recipient failures collected rather than thrown.
-  Pre-existing; the task module surfaced it. Fix is commercial — upgrade the
-  plan. Task email itself is proven: `@rcareylaw.com` received a digest in a
-  real inbox.
+- **SPF is unset on `knuconstruction.com` in MailerSend** (`dkim: true`,
+  `spf: false`). Delivering fine today, but strict receivers may spam-folder
+  it. Next most likely cause of "never arrived" reports now that the
+  recipient cap is resolved.
+- **Per-recipient email failures do not fail their cron** — the handlers
+  collect failures and still return HTTP 200. That is why a whole domain went
+  unmailed for weeks unnoticed. Worth an alert on `failures.length > 0`.
 - `PHONE_ROUTING_API_KEY` unset → that endpoint 503s.
 - Old domain still 302, not 301 — deliberate, and **still deliberate after
   SSO was proven**. Promote when the old host goes quiet. It is an nginx
