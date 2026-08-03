@@ -27,10 +27,12 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-1. **Deploy the task module** and schedule its reminder cron (see §5).
-2. Set `PHONE_ROUTING_API_KEY` to activate the phone-routing integration.
-3. Dead-code cleanup from the auth swap.
-4. Promote the old domain's 302 → 301 — **deliberately parked**, not
+1. 🔴 **Upgrade the MailerSend plan** — the trial cap is silently dropping
+   real recipients across every email the CRM sends (see §5).
+2. Browser QA of the task module now that it is live.
+3. Set `PHONE_ROUTING_API_KEY` to activate the phone-routing integration.
+4. Dead-code cleanup from the auth swap.
+5. Promote the old domain's 302 → 301 — **deliberately parked**, not
    blocked (see §5).
 
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
@@ -91,9 +93,11 @@ portal deploy.
 
 Full list: [known-issues.md](docs/project-memory/known-issues.md).
 
-- **Task module is undeployed and `/api/cron/task-reminders` is unscheduled** —
-  nothing invokes it yet. Needs a crontab entry on the droplet plus confirmed
-  `MAILERSEND_API_KEY` / `EMAIL_FROM`, or task email no-ops with a warning.
+- 🔴 **MailerSend is on a TRIAL plan and refuses recipients past a cap**
+  (`422 … #MS42225`). Proven live 2026-08-03: 2 of 4 reminder emails were
+  rejected. Caps **all** CRM mail — estimates, change orders, payroll — not
+  just tasks. Pre-existing; the task module only surfaced it. Fix is to
+  upgrade the plan.
 - `PHONE_ROUTING_API_KEY` unset → that endpoint 503s.
 - Old domain still 302, not 301 — deliberate, and **still deliberate after
   SSO was proven**. Promote when the old host goes quiet. It is an nginx

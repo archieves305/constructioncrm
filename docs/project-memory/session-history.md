@@ -8,7 +8,19 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 Built out the Task module: branded email on assignment and completion, notes,
 a per-task activity trail, watchers, @mentions, a BLOCKED status and a morning
-reminder digest. **Not deployed.**
+reminder digest. **Deployed as `d12945e`** (BUILD_ID
+`bckl0-luXQ4XIe0WqzwFl` → `F5tEnwV3x13sc-0OYUI2a`), migration applied, smoke
+tests 307/307, clean journal. Reminder cron scheduled `30 11 * * 1-5`.
+
+### 🔴 Found on the first live cron run: MailerSend is a TRIAL account
+
+The first real invocation returned `{"tasks":5,"people":4,"sent":2,
+"failures":2}` — MailerSend answered `422 … trial account unique recipients
+limit #MS42225` for two people, who therefore got nothing. This is an account
+limit, not a defect: the code raised, logged and recorded `EMAIL_FAILED` as
+designed. **It caps every outbound email the CRM sends** — estimates, change
+orders, payroll, follow-ups — and predates this work; the task module merely
+exercised enough distinct recipients to expose it. Fix is commercial.
 
 ### Five pre-existing defects found and fixed
 

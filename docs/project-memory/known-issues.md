@@ -4,14 +4,21 @@ _Updated 2026-08-03._
 
 ## Open — needs a decision or action
 
-- **The task module is built but not deployed, and its cron is not
-  scheduled.** `/api/cron/task-reminders` exists and is auth-guarded, but
-  nothing invokes it — it needs a crontab entry on knuco-droplet alongside the
-  other cron POSTs (`x-cron-secret: $CRON_SECRET`), ideally early morning
-  local. Until then the reminder digest simply never runs; assignment and
-  completion mail is unaffected. Also confirm `MAILERSEND_API_KEY` and
-  `EMAIL_FROM` are set in `/etc/knuco/env`, or every task email no-ops with a
-  logged warning rather than an error.
+- 🔴 **MailerSend is on a TRIAL plan and is refusing recipients.** A live run
+  of the task-reminders cron on 2026-08-03 returned
+  `422 … trial account unique recipients limit #MS42225` for 2 of 4 people —
+  they simply did not get their email. **This caps every outbound email the
+  CRM sends**, not just task mail: estimates, change orders, payroll and
+  follow-ups are all on the same account, and this limit predates the task
+  module, which only made it visible. The code is behaving correctly (it
+  raises, logs, and records `EMAIL_FAILED` on the task timeline). **Fix is
+  commercial, not technical: upgrade the MailerSend plan.** Until then, assume
+  any given recipient may silently not receive CRM mail.
+- **Task reminder cron is scheduled but half its sends fail** for the reason
+  above. `30 11 * * 1-5` (7:30am ET weekdays) in the `knuco` user's crontab →
+  `/home/knuco/crm-cron/task-reminders.sh`, logging to
+  `task-reminders.log` next to it. Expect a daily pair of MailerSend 422s in
+  the journal until the plan is upgraded.
 - **`PHONE_ROUTING_API_KEY` is unset in `/etc/knuco/env`**, so
   `/api/integrations/phone-routing/lead` returns 503 (`503` = operator
   misconfiguration, `401` = bad caller — deliberate split). The route is
