@@ -14,11 +14,16 @@ _Updated 2026-08-03._
   raises, logs, and records `EMAIL_FAILED` on the task timeline). **Fix is
   commercial, not technical: upgrade the MailerSend plan.** Until then, assume
   any given recipient may silently not receive CRM mail.
-- **Task reminder cron is scheduled but half its sends fail** for the reason
-  above. `30 11 * * 1-5` (7:30am ET weekdays) in the `knuco` user's crontab →
-  `/home/knuco/crm-cron/task-reminders.sh`, logging to
-  `task-reminders.log` next to it. Expect a daily pair of MailerSend 422s in
-  the journal until the plan is upgraded.
+- **Task reminder cron is installed but DISABLED**, pending the MailerSend
+  upgrade above — it was dropping half its recipients. The line is commented
+  in the `knuco` user's crontab (search `task-reminders`); **re-enable by
+  removing the leading `#`**, no other change needed. Schedule was
+  `30 11 * * 1-5` (7:30am ET weekdays) →
+  `/home/knuco/crm-cron/task-reminders.sh`, which logs each run to
+  `task-reminders.log` beside it. The wrapper and the route are deployed and
+  verified working — one live run returned HTTP 200 and delivered to every
+  recipient the trial plan permitted. Assignment, completion and mention mail
+  are unaffected by this and remain live.
 - **`PHONE_ROUTING_API_KEY` is unset in `/etc/knuco/env`**, so
   `/api/integrations/phone-routing/lead` returns 503 (`503` = operator
   misconfiguration, `401` = bad caller — deliberate split). The route is

@@ -28,7 +28,8 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 ## 3. Active Workstreams
 
 1. 🔴 **Upgrade the MailerSend plan** — the trial cap is silently dropping
-   real recipients across every email the CRM sends (see §5).
+   real recipients across every email the CRM sends (see §5). The task
+   reminder cron is commented out until this is done; uncomment it after.
 2. Browser QA of the task module now that it is live.
 3. Set `PHONE_ROUTING_API_KEY` to activate the phone-routing integration.
 4. Dead-code cleanup from the auth swap.

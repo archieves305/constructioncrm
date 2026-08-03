@@ -10,7 +10,9 @@ Built out the Task module: branded email on assignment and completion, notes,
 a per-task activity trail, watchers, @mentions, a BLOCKED status and a morning
 reminder digest. **Deployed as `d12945e`** (BUILD_ID
 `bckl0-luXQ4XIe0WqzwFl` → `F5tEnwV3x13sc-0OYUI2a`), migration applied, smoke
-tests 307/307, clean journal. Reminder cron scheduled `30 11 * * 1-5`.
+tests 307/307, clean journal. Reminder cron installed at `30 11 * * 1-5` then
+**commented out the same day** — see the MailerSend finding below. Assignment,
+completion and mention mail stayed live.
 
 ### 🔴 Found on the first live cron run: MailerSend is a TRIAL account
 
