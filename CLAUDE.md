@@ -27,10 +27,15 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-1. Confirm `field-log-digest` self-healed on its next 7:00am run — it had
+1. 🔴 **Job-costing check-and-balance.** The write gate shipped; the
+   structural work has not. Next: a `PENDING` charge that does not move
+   `contractAmount`/`balanceDue` until approved, then reconciliation against
+   cc-allocator. **12 candidate duplicate charges ($9,166.20) need a human to
+   confirm** — see [known-issues.md](docs/project-memory/known-issues.md).
+2. Confirm `field-log-digest` self-healed on its next 7:00am run — it had
    been failing for all four `@calibertrust.com` users under the old
    MailerSend cap, which is now lifted.
-2. Add the SPF record for `knuconstruction.com` (see §5).
+3. Add the SPF record for `knuconstruction.com` (see §5).
 3. Set `PHONE_ROUTING_API_KEY` to activate the phone-routing integration.
 4. Dead-code cleanup from the auth swap.
 5. Promote the old domain's 302 → 301 — **deliberately parked**, not
@@ -177,6 +182,13 @@ Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
 - Integration convention: **503** when a server key is unset (operator
   error), **401** for a bad caller.
 - CREW_LEADs are confined to `/field`; the office shell is not for them.
+- **Job costs are gated by role + the `canEnterJobCosts` grant** —
+  ADMIN/MANAGER/OFFICE_STAFF implicitly, anyone else by explicit grant. Use
+  **explicit role lists, never `hasMinRole`**, for anything financial:
+  `ROLE_HIERARCHY` ranks SALES_REP above OFFICE_STAFF (Accounting).
+- **cc-allocator owns money that actually moved**; the CRM owns job costing
+  including costs that have not moved yet. Expenses with an `externalId` are
+  cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
 

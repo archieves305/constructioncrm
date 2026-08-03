@@ -31,6 +31,7 @@ const updateUserSchema = z
     canViewSensitivePersonnel: z.boolean().optional(),
     canEditPayRates: z.boolean().optional(),
     canViewPayrollReports: z.boolean().optional(),
+    canEnterJobCosts: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "No fields to update",
@@ -98,6 +99,7 @@ export async function PATCH(
     "canViewSensitivePersonnel",
     "canEditPayRates",
     "canViewPayrollReports",
+    "canEnterJobCosts",
   ] as const;
   const grantChanges: Record<string, boolean> = {};
   for (const key of GRANT_KEYS) {

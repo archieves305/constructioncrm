@@ -359,6 +359,14 @@ model User {
   canEditPayRates           Boolean @default(false) @map("can_edit_pay_rates")
   canViewPayrollReports     Boolean @default(false) @map("can_view_payroll_reports")
 
+  // Enter and amend job costs. Office roles have this implicitly; the grant
+  // is the escape hatch for a specific PM or crew lead who genuinely buys
+  // materials, so nobody has to be promoted to MANAGER just to file a
+  // receipt. A boolean rather than a new role deliberately: adding a role
+  // means editing the CareyOS portal's appRoles, which is what orphaned
+  // Frank's grant during the SSO cutover.
+  canEnterJobCosts          Boolean @default(false) @map("can_enter_job_costs")
+
   // Task mail is internal work assignment, not marketing, so it has no
   // unsubscribe link — but a user who mutes here stops receiving it. The
   // pressure valve exists so nobody resorts to a mail-client filter, which

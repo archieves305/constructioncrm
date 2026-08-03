@@ -3,6 +3,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import {
+  canDeleteExpense,
+  canEnterJobCosts,
+  getCostGrants,
+  ALLOCATOR_DELETE_MESSAGE,
+  COST_DENIED_MESSAGE,
+} from "@/lib/expenses/permissions";
+import {
   recomputeCostPlusJob,
   recomputeJobBalance,
   rollsExpensesIntoContract,
@@ -45,6 +52,11 @@ export async function PATCH(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+
+  const grants = await getCostGrants(session.user.id);
+  if (!canEnterJobCosts(session.user.role, grants)) {
+    return NextResponse.json({ error: COST_DENIED_MESSAGE }, { status: 403 });
+  }
 
   const { id } = await context.params;
   const body = await request.json().catch(() => null);
@@ -125,6 +137,18 @@ export async function DELETE(
   });
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const grants = await getCostGrants(session.user.id);
+  if (!canDeleteExpense(session.user.role, grants, existing)) {
+    // Distinguish "you lack the grant" from "this row is not ours to delete",
+    // because the second is a routing problem, not a permissions one.
+    return NextResponse.json(
+      {
+        error: existing.externalId ? ALLOCATOR_DELETE_MESSAGE : COST_DENIED_MESSAGE,
+      },
+      { status: 403 },
+    );
+  }
 
   const isCostPlus = rollsExpensesIntoContract(existing.job.jobType);
   const reverseAmount = !isCostPlus && existing.billable ? Number(existing.amount) : 0;

@@ -305,6 +305,19 @@ export function ExpensesPanel({
       fetch("/api/admin/payment-sources?activeOnly=true").then((r) => r.json()),
   });
 
+  // Effective capability, role + grant combined. The API enforces this
+  // regardless; hiding the controls just stops people discovering the rule
+  // by filling in a form and getting a 403.
+  const { data: grants } = useQuery<{
+    canEnterJobCosts: boolean;
+    canDeleteAllocatorCharges: boolean;
+  }>({
+    queryKey: ["me-field-grants"],
+    queryFn: () => fetch("/api/me/field-grants").then((r) => r.json()),
+  });
+  const mayEnterCosts = grants?.canEnterJobCosts ?? false;
+  const mayDeleteAllocatorCharges = grants?.canDeleteAllocatorCharges ?? false;
+
   const addSource = useMutation({
     mutationFn: async (name: string) => {
       const res = await fetch("/api/admin/payment-sources", {
@@ -670,28 +683,38 @@ export function ExpensesPanel({
         </div>
       )}
 
-      {/* Create form */}
-      <Card>
-        <CardContent className="space-y-3 pt-4">
-          <ExpenseFields
-            form={form}
-            setForm={setForm}
-            sources={sources}
-            onAddSource={(name) => addSource.mutate(name)}
-            showBillable={!rollsUp}
-          />
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              disabled={!canSave || create.isPending}
-              onClick={() => create.mutate()}
-            >
-              <Plus className="mr-1 h-4 w-4" />
-              {create.isPending ? "Saving…" : "Add Expense"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Create form — only for users who may put money on a job. */}
+      {mayEnterCosts ? (
+        <Card>
+          <CardContent className="space-y-3 pt-4">
+            <ExpenseFields
+              form={form}
+              setForm={setForm}
+              sources={sources}
+              onAddSource={(name) => addSource.mutate(name)}
+              showBillable={!rollsUp}
+            />
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                disabled={!canSave || create.isPending}
+                onClick={() => create.mutate()}
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                {create.isPending ? "Saving…" : "Add Expense"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="pt-4 text-sm text-muted-foreground">
+            You can see this job&rsquo;s costs but not change them. Ask an admin
+            for the <strong>Enter job costs</strong> grant if you need to add
+            charges.
+          </CardContent>
+        </Card>
+      )}
 
       {/* List header: filters + export */}
       {expenses.length > 0 && (
@@ -853,7 +876,7 @@ export function ExpensesPanel({
                         Bill
                       </label>
                     )}
-                    {!fromAllocator && (
+                    {!fromAllocator && mayEnterCosts && (
                       <button
                         type="button"
                         className="rounded p-2 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
@@ -863,15 +886,26 @@ export function ExpensesPanel({
                         <Pencil className="h-4 w-4" />
                       </button>
                     )}
-                    <button
-                      type="button"
-                      className="rounded p-2 text-muted-foreground hover:bg-red-50 hover:text-destructive"
-                      onClick={() => {
-                        if (confirm("Delete this expense?")) remove.mutate(e.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {/* Allocator rows carry cc-allocator's transaction id.
+                        Deleting one here does not undo anything upstream — it
+                        only makes the two systems disagree — so it stays an
+                        ADMIN escape hatch rather than a normal control. */}
+                    {(fromAllocator ? mayDeleteAllocatorCharges : mayEnterCosts) && (
+                      <button
+                        type="button"
+                        className="rounded p-2 text-muted-foreground hover:bg-red-50 hover:text-destructive"
+                        title={
+                          fromAllocator
+                            ? "Delete — this charge came from cc-allocator; prefer fixing it there"
+                            : "Delete expense"
+                        }
+                        onClick={() => {
+                          if (confirm("Delete this expense?")) remove.mutate(e.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

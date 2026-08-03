@@ -3,6 +3,11 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import {
+  canEnterJobCosts,
+  getCostGrants,
+  COST_DENIED_MESSAGE,
+} from "@/lib/expenses/permissions";
+import {
   recomputeCostPlusJob,
   recomputeJobBalance,
   rollsExpensesIntoContract,
@@ -63,6 +68,14 @@ export async function POST(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+
+  // A billable expense increments contractAmount and recomputes balanceDue —
+  // this endpoint changes what a customer owes, so it is not open to every
+  // logged-in user.
+  const grants = await getCostGrants(session.user.id);
+  if (!canEnterJobCosts(session.user.role, grants)) {
+    return NextResponse.json({ error: COST_DENIED_MESSAGE }, { status: 403 });
+  }
 
   const { id } = await context.params;
   const body = await request.json().catch(() => null);

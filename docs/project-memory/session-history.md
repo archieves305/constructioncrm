@@ -4,6 +4,51 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 ---
 
+## 2026-08-03 (later still) — Gate on who may put money on a job
+
+First step of the job-costing check-and-balance work. Analysis found the
+premise already true and ungoverned: **`POST /api/jobs/[id]/expenses` and
+`PATCH`/`DELETE /api/expenses/[id]` had no role check at all** — any
+authenticated user, including READ_ONLY and MARKETING, could create, amend or
+delete a job charge. Not cosmetic: a `billable` expense increments
+`job.contractAmount` and recomputes `balanceDue`, so anyone with a login
+could change what a customer owes.
+
+**A per-user grant, not a new role.** `User.canEnterJobCosts`, following the
+existing `canEditPayRates` pattern, because adding a role means editing the
+CareyOS portal's `appRoles` — exactly what orphaned Frank's grant during the
+cutover. Office roles (ADMIN/MANAGER/OFFICE_STAFF) have it implicitly; the
+grant is the escape hatch for a PM or crew lead who genuinely buys materials,
+so nobody gets promoted to MANAGER just to file a receipt.
+
+**Explicit role list, never `hasMinRole`** — `ROLE_HIERARCHY` ranks SALES_REP
+(60) above OFFICE_STAFF (50), and OFFICE_STAFF is Accounting, so a
+minimum-role check would hand sales more financial authority than the
+bookkeepers. Pinned by a test. `lib/labor/permissions.ts` carries the same
+warning for the same reason.
+
+**Allocator-sourced rows are ADMIN-only to delete.** `externalId` is
+cc-allocator's Transaction id and the CRM's idempotency key; deleting the row
+undoes nothing upstream, just desyncs the two systems, and a later retry
+re-creates it. The refusal message steers people to fix it in cc-allocator.
+
+Checked before shipping: all 82 manual expenses to date were entered by
+ADMINs, so this takes access away from nobody.
+
+Migration `20260803160000_job_cost_entry_grant`. 346/346 tests (8 new),
+typecheck and build clean, lint unchanged at 6/28.
+
+### Still open from the analysis
+
+The gate is only step 1. The structural fix — **a PENDING charge that does
+not touch `contractAmount`/`balanceDue` until approved** — and reconciliation
+against cc-allocator are not built. Evidence for why they matter:
+**12 candidate duplicate pairs, $9,166.20, 7 of them billable**, where a
+manual row and an allocator row share job + vendor + amount + date. Manual
+expenses carry `external_id = NULL` and nothing compares the two populations.
+
+---
+
 ## 2026-08-03 (later) — Email delivery failures are no longer silent
 
 Built after the MailerSend upgrade, because the cap was only half the

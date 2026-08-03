@@ -53,6 +53,7 @@ type UserRow = {
   canViewSensitivePersonnel: boolean;
   canEditPayRates: boolean;
   canViewPayrollReports: boolean;
+  canEnterJobCosts: boolean;
 };
 
 const GRANT_OPTIONS = [
@@ -70,6 +71,12 @@ const GRANT_OPTIONS = [
     key: "canViewPayrollReports" as const,
     label: "View payroll reports",
     description: "Cross-job per-person labor reports and payroll exports",
+  },
+  {
+    key: "canEnterJobCosts" as const,
+    label: "Enter job costs",
+    description:
+      "Add and amend charges on jobs. Admin, Manager and Accounting already can — grant this to a PM or crew lead who buys materials",
   },
 ];
 
