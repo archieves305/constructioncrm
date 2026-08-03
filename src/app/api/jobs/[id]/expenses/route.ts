@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import {
+  canApproveJobCosts,
   canEnterJobCosts,
   getCostGrants,
   COST_DENIED_MESSAGE,
@@ -95,6 +96,15 @@ export async function POST(
   // expense rolls into the contract via recompute.
   const billable = isRollup ? false : parsed.data.billable;
 
+  // A charge entered by someone who already holds approval authority is
+  // approved on entry — asking a bookkeeper to approve their own keystroke is
+  // theatre. Everyone else's lands PENDING and moves no money until reviewed.
+  const selfApproves = canApproveJobCosts(session.user.role);
+  const status = selfApproves ? "APPROVED" : "PENDING";
+
+  // Only an APPROVED charge may touch the ledger on creation.
+  const affectsLedger = status === "APPROVED";
+
   const [expense] = await prisma.$transaction([
     prisma.jobExpense.create({
       data: {
@@ -110,12 +120,15 @@ export async function POST(
         paidFrom: parsed.data.paidFrom?.trim() || null,
         billable,
         createdByUserId: session.user.id,
+        status,
+        approvedByUserId: selfApproves ? session.user.id : null,
+        approvedAt: selfApproves ? new Date() : null,
       },
       include: {
         createdBy: { select: { firstName: true, lastName: true } },
       },
     }),
-    ...(billable
+    ...(billable && affectsLedger
       ? [
           prisma.job.update({
             where: { id },
@@ -125,16 +138,19 @@ export async function POST(
       : []),
   ]);
 
-  // balanceDue is derived — recompute via the single writer.
-  if (isRollup) await recomputeCostPlusJob(id);
-  else if (billable) await recomputeJobBalance(id);
+  // balanceDue is derived — recompute via the single writer. A pending charge
+  // is excluded from the rollup sum, so recomputing is harmless but pointless.
+  if (isRollup && affectsLedger) await recomputeCostPlusJob(id);
+  else if (billable && affectsLedger) await recomputeJobBalance(id);
 
   await prisma.activityLog.create({
     data: {
       leadId: job.leadId,
       activityType: "NOTE",
-      title: `Expense added: ${parsed.data.type.replace(/_/g, " ")} — $${amount.toLocaleString()}`,
-      description: isRollup
+      title: `Expense ${status === "PENDING" ? "submitted" : "added"}: ${parsed.data.type.replace(/_/g, " ")} — $${amount.toLocaleString()}`,
+      description: !affectsLedger
+        ? `Awaiting approval — not counted against the job yet${parsed.data.vendor ? ` · ${parsed.data.vendor}` : ""}`
+        : isRollup
         ? `Rolled into job total${parsed.data.vendor ? ` · ${parsed.data.vendor}` : ""}`
         : billable
           ? `Billable; added to contract${parsed.data.vendor ? ` · ${parsed.data.vendor}` : ""}`

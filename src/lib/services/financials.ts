@@ -139,7 +139,10 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
         contractAmount: true,
         balanceDue: true,
         laborCost: true,
-        expenses: { select: { amount: true } },
+        // Mirrors `payments` below: only reviewed money counts toward cost
+        // and profit. An unapproved charge would understate margin on a job
+        // nobody has agreed actually owes it.
+        expenses: { where: { status: "APPROVED" }, select: { amount: true } },
         payments: { where: { status: "RECEIVED" }, select: { amount: true } },
       },
     }),

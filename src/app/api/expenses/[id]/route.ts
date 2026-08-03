@@ -80,8 +80,13 @@ export async function PATCH(
   const nextAmount =
     parsed.data.amount !== undefined ? parsed.data.amount : prevAmount;
 
-  const prevBillableAmount = prevBillable ? prevAmount : 0;
-  const nextBillableAmount = nextBillable ? nextAmount : 0;
+  // A charge only contributes to the ledger while APPROVED. Editing keeps the
+  // status it already had, so an unapproved row contributes zero on BOTH
+  // sides of the delta — which makes editing a pending charge automatically
+  // free of ledger effects, with no special case.
+  const counts = existing.status === "APPROVED";
+  const prevBillableAmount = counts && prevBillable ? prevAmount : 0;
+  const nextBillableAmount = counts && nextBillable ? nextAmount : 0;
   const delta = isCostPlus ? 0 : nextBillableAmount - prevBillableAmount;
 
   const data: Record<string, unknown> = {};
@@ -112,8 +117,10 @@ export async function PATCH(
       : []),
   ]);
 
-  // balanceDue is derived — recompute it via the single writer.
-  if (isCostPlus) await recomputeCostPlusJob(existing.jobId);
+  // balanceDue is derived — recompute it via the single writer. Rollup jobs
+  // recompute only when this row actually feeds the contract; an edit to a
+  // pending charge changes nothing the sum can see.
+  if (isCostPlus && counts) await recomputeCostPlusJob(existing.jobId);
   else if (delta !== 0) await recomputeJobBalance(existing.jobId);
 
   const record = await prisma.jobExpense.findUnique({
@@ -151,7 +158,12 @@ export async function DELETE(
   }
 
   const isCostPlus = rollsExpensesIntoContract(existing.job.jobType);
-  const reverseAmount = !isCostPlus && existing.billable ? Number(existing.amount) : 0;
+  // Reverse only what was actually applied. Deleting a pending or rejected
+  // charge must not decrement a contract it never incremented — that would
+  // silently reduce what the customer owes.
+  const wasCounted = existing.status === "APPROVED";
+  const reverseAmount =
+    wasCounted && !isCostPlus && existing.billable ? Number(existing.amount) : 0;
 
   await prisma.$transaction([
     prisma.jobExpense.delete({ where: { id } }),
@@ -165,8 +177,9 @@ export async function DELETE(
       : []),
   ]);
 
-  // balanceDue is derived — recompute it via the single writer.
-  if (isCostPlus) await recomputeCostPlusJob(existing.jobId);
+  // balanceDue is derived — recompute it via the single writer. Rollup jobs
+  // only need it when the deleted row was in the sum to begin with.
+  if (isCostPlus && wasCounted) await recomputeCostPlusJob(existing.jobId);
   else if (reverseAmount > 0) await recomputeJobBalance(existing.jobId);
 
   return NextResponse.json({ ok: true });

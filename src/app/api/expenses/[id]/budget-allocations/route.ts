@@ -31,10 +31,18 @@ export async function PUT(
 
   const expense = await prisma.jobExpense.findUnique({
     where: { id },
-    select: { id: true, jobId: true, amount: true },
+    select: { id: true, jobId: true, amount: true, status: true },
   });
   if (!expense)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Budget consumption is a financial fact. A charge nobody has approved
+  // should not eat into a budget line and make it look spent.
+  if (expense.status !== "APPROVED") {
+    return badRequest(
+      "This charge is still awaiting approval — approve it before allocating it to a budget line.",
+    );
+  }
 
   const allocs = parsed.data.allocations;
   const total = allocs.reduce((s, a) => s + a.amount, 0);

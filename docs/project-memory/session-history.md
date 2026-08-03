@@ -4,6 +4,55 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 ---
 
+## 2026-08-03 (later still, 2) — Pending state: unreviewed charges move no money
+
+The structural half of the job-costing control. `ExpenseStatus`
+(PENDING/APPROVED/REJECTED) on `JobExpense`, plus `approvedBy`/`approvedAt`/
+`reviewNote`.
+
+**The single invariant: only APPROVED contributes.** Enforced at every
+derived-financial surface, each of which was checked individually:
+
+| Surface | Change |
+|---|---|
+| `job-pricing.ts` cost-plus rollup | `status: "APPROVED"` in the expense sum |
+| `financials.ts` cost/profit | `where: { status: "APPROVED" }` |
+| create → `contractAmount` | increments only when approved on entry |
+| PATCH delta | contributes 0 on both sides while unapproved |
+| DELETE reversal | reverses only what was actually applied |
+| QBO export | approved only |
+| budget allocations | refuses an unapproved charge |
+| panel totals | pending tracked separately, never folded in |
+
+**`DEFAULT 'APPROVED'`** so the migration is financially inert: all 318
+existing rows, cc-allocator postings (already reviewed upstream) and
+payroll-generated expenses keep exactly their current behaviour. Only the
+CRM's manual-entry path decides otherwise.
+
+**Auto-approve for approvers** (user's call). A charge entered by
+ADMIN/MANAGER/OFFICE_STAFF is APPROVED on entry — asking a bookkeeper to
+approve their own keystroke is theatre, and they could approve it a second
+later anyway. Everyone else's lands PENDING. So today's 6 admins see no
+change; the queue exists for the grant-holders the gate was built for.
+
+**Approval is role-only and NOT conferred by `canEnterJobCosts`** — otherwise
+a grant-holder files and clears their own charge and the queue is decorative.
+
+The PATCH delta generalisation is the neat part: because an unapproved row
+contributes zero on *both* sides, editing a pending charge is automatically
+ledger-free with no special case, and approval is just the 0→amount
+transition. `POST /api/expenses/[id]/review` is deliberately one-way — no
+un-approve, since reversing an increment invoices may already reflect is
+worse than deleting (which reverses cleanly).
+
+Rejected rows are kept, not deleted: a charge filed against the wrong job is
+still a real cost someone has to re-file.
+
+361/361 tests (15 new), typecheck and build clean, lint unchanged at 6/28.
+Migration `20260803170000_expense_review_state`.
+
+---
+
 ## 2026-08-03 (later still) — Gate on who may put money on a job
 
 First step of the job-costing check-and-balance work. Analysis found the

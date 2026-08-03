@@ -397,6 +397,7 @@ model User {
   passwordResetTokens      PasswordResetToken[]
   notifications            NotificationEvent[]
   expensesCreated          JobExpense[]
+  expensesApproved         JobExpense[]         @relation("ExpenseApprovedBy")
   jobTaskTemplatesDefault  JobTaskTemplate[]
   auditEvents              AuditEvent[]
   roofEstimatesCreated     RoofEstimate[]       @relation("RoofEstimateCreatedBy")
@@ -1498,6 +1499,23 @@ enum JobExpenseType {
   OTHER
 }
 
+/// Review state of a job charge.
+///
+/// Only APPROVED rows touch money. A PENDING charge is visible on the job and
+/// in its own queue but contributes nothing to `contractAmount`,
+/// `balanceDue`, the cost-plus rollup, job profit or the QBO export — so an
+/// unreviewed charge can never change what a customer owes.
+///
+/// Defaults to APPROVED so that pre-existing rows (already in the ledger),
+/// cc-allocator postings (already reviewed upstream) and payroll-generated
+/// expenses (system-created) keep their current behaviour. Only the CRM's
+/// manual-entry path decides otherwise.
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model JobExpense {
   id               String         @id @default(cuid())
   jobId            String         @map("job_id")
@@ -1520,14 +1538,25 @@ model JobExpense {
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
+  status           ExpenseStatus @default(APPROVED)
+  approvedByUserId String?       @map("approved_by_user_id")
+  approvedAt       DateTime?     @map("approved_at")
+  /// Why it was rejected, or an optional note on approval. Rejected rows are
+  /// kept rather than deleted — a charge filed against the wrong job is still
+  /// a real cost someone needs to re-file.
+  reviewNote       String?       @map("review_note") @db.Text
+
   job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
   createdBy         User               @relation(fields: [createdByUserId], references: [id])
+  approvedBy        User?              @relation("ExpenseApprovedBy", fields: [approvedByUserId], references: [id])
   payrollPayment    PayrollPayment?    @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
   budgetAllocations BudgetAllocation[]
 
   @@index([jobId])
   @@index([type])
   @@index([payrollPaymentId])
+  // Drives the review queue: "everything still pending, oldest first".
+  @@index([status, incurredDate])
   @@map("job_expenses")
 }
 

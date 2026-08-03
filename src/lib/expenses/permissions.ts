@@ -49,6 +49,18 @@ export function canEnterJobCosts(role: RoleName, grants: CostGrants): boolean {
 }
 
 /**
+ * Approve or reject a pending charge.
+ *
+ * Deliberately NOT satisfied by `canEnterJobCosts`. That grant exists so a PM
+ * or crew lead can file a receipt; letting it also clear the receipt would
+ * collapse the two halves of the control back into one and make the queue
+ * decorative. Approval stays with the office/accounting roles.
+ */
+export function canApproveJobCosts(role: RoleName): boolean {
+  return COST_ROLES.includes(role);
+}
+
+/**
  * Delete a job expense.
  *
  * Expenses carrying an `externalId` belong to cc-allocator — that id is its

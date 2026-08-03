@@ -100,8 +100,12 @@ export async function recomputeCostPlusJob(jobId: string, tx = prisma) {
   // Payroll-posted labor expenses are excluded from the rollup: hourly field
   // labor has never been part of the cost-plus contract base, and paying a
   // week out must not silently change contract amounts.
+  // Only APPROVED charges feed the contract. A pending charge that counted
+  // here would raise a cost-plus contract — i.e. what the customer owes —
+  // before anyone had reviewed it, which is precisely what the review state
+  // exists to prevent.
   const expenses = await tx.jobExpense.findMany({
-    where: { jobId, payrollPaymentId: null },
+    where: { jobId, payrollPaymentId: null, status: "APPROVED" },
     select: { amount: true },
   });
   const expensesTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);

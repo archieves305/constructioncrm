@@ -57,6 +57,8 @@ type Expense = {
   paidFrom: string | null;
   billable: boolean;
   externalId: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  reviewNote: string | null;
   createdBy: { firstName: string; lastName: string };
 };
 
@@ -311,12 +313,47 @@ export function ExpensesPanel({
   const { data: grants } = useQuery<{
     canEnterJobCosts: boolean;
     canDeleteAllocatorCharges: boolean;
+    canApproveJobCosts: boolean;
   }>({
     queryKey: ["me-field-grants"],
     queryFn: () => fetch("/api/me/field-grants").then((r) => r.json()),
   });
   const mayEnterCosts = grants?.canEnterJobCosts ?? false;
   const mayDeleteAllocatorCharges = grants?.canDeleteAllocatorCharges ?? false;
+  const mayApprove = grants?.canApproveJobCosts ?? false;
+
+  const review = useMutation({
+    mutationFn: async ({
+      id,
+      decision,
+      note,
+    }: {
+      id: string;
+      decision: "APPROVE" | "REJECT";
+      note?: string;
+    }) => {
+      const res = await fetch(`/api/expenses/${id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, note }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Could not record that decision");
+      }
+      return res.json();
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["expenses", jobId] });
+      qc.invalidateQueries({ queryKey: ["job", jobId] });
+      toast.success(
+        vars.decision === "APPROVE"
+          ? "Charge approved and applied to the job"
+          : "Charge rejected — the job is unchanged",
+      );
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const addSource = useMutation({
     mutationFn: async (name: string) => {
@@ -432,17 +469,26 @@ export function ExpensesPanel({
     setEditing(e);
   };
 
-  const { totalNonBillable, totalBillable, totalAll } = useMemo(() => {
+  // Totals must agree with the server's ledger: only APPROVED charges count.
+  // `totalPending` is tracked separately so the number is visible without
+  // being folded into cost or profit.
+  const { totalNonBillable, totalBillable, totalAll, totalPending } = useMemo(() => {
     let totalNonBillable = 0;
     let totalBillable = 0;
     let totalAll = 0;
+    let totalPending = 0;
     for (const e of expenses) {
       const n = Number(e.amount);
+      if (e.status === "PENDING") {
+        totalPending += n;
+        continue;
+      }
+      if (e.status === "REJECTED") continue;
       totalAll += n;
       if (e.billable) totalBillable += n;
       else totalNonBillable += n;
     }
-    return { totalNonBillable, totalBillable, totalAll };
+    return { totalNonBillable, totalBillable, totalAll, totalPending };
   }, [expenses]);
 
   // Fixed-price profit also nets out crew labor contracts (entered in the
@@ -683,6 +729,25 @@ export function ExpensesPanel({
         </div>
       )}
 
+      {/* Pending charges are excluded from every figure above, so say so
+          where the figures are — otherwise the totals look wrong to whoever
+          filed the charge. */}
+      {totalPending > 0 && (
+        <Card className="border-amber-300 bg-amber-50/60">
+          <CardContent className="flex flex-wrap items-center justify-between gap-2 py-3">
+            <div className="text-sm text-amber-900">
+              <strong>${totalPending.toLocaleString()}</strong> awaiting
+              approval — not included in the job cost, profit or contract above.
+            </div>
+            <span className="text-xs text-amber-800">
+              {mayApprove
+                ? "Approve or reject them in the list below."
+                : "A bookkeeper needs to approve these."}
+            </span>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Create form — only for users who may put money on a job. */}
       {mayEnterCosts ? (
         <Card>
@@ -809,8 +874,19 @@ export function ExpensesPanel({
         <div className="space-y-2">
           {visibleExpenses.map((e) => {
             const fromAllocator = Boolean(e.externalId);
+            const pending = e.status === "PENDING";
+            const rejected = e.status === "REJECTED";
             return (
-              <Card key={e.id}>
+              <Card
+                key={e.id}
+                className={
+                  pending
+                    ? "border-amber-300 bg-amber-50/40"
+                    : rejected
+                      ? "border-dashed opacity-60"
+                      : undefined
+                }
+              >
                 <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -821,10 +897,28 @@ export function ExpensesPanel({
                       {e.vendor && (
                         <span className="text-sm font-medium">{e.vendor}</span>
                       )}
-                      <span className="text-sm font-semibold">
+                      <span
+                        className={
+                          rejected
+                            ? "text-sm font-semibold line-through text-muted-foreground"
+                            : "text-sm font-semibold"
+                        }
+                      >
                         ${Number(e.amount).toLocaleString()}
                       </span>
-                      {e.billable && (
+                      {/* The whole point of the state is that these do not
+                          count yet — say so on the row, not just in a total. */}
+                      {pending && (
+                        <Badge className="border-0 bg-amber-100 text-[10px] text-amber-900">
+                          Awaiting approval · not counted
+                        </Badge>
+                      )}
+                      {rejected && (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                          Rejected
+                        </Badge>
+                      )}
+                      {e.billable && !rejected && (
                         <Badge variant="default" className="text-[10px]">
                           Billable
                         </Badge>
@@ -835,6 +929,11 @@ export function ExpensesPanel({
                         </Badge>
                       )}
                     </div>
+                    {rejected && e.reviewNote && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Rejected: {e.reviewNote}
+                      </div>
+                    )}
                     {(e.paidMethod || e.paidFrom) && (
                       <div className="mt-1 flex flex-wrap items-center gap-1 text-xs">
                         {e.paidMethod && (
@@ -875,6 +974,39 @@ export function ExpensesPanel({
                         <DollarSign className="h-3 w-3" />
                         Bill
                       </label>
+                    )}
+                    {pending && mayApprove && (
+                      <>
+                        <Button
+                          size="sm"
+                          className="h-7"
+                          disabled={review.isPending}
+                          onClick={() =>
+                            review.mutate({ id: e.id, decision: "APPROVE" })
+                          }
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7"
+                          disabled={review.isPending}
+                          onClick={() => {
+                            const note = window.prompt(
+                              "Why is this charge being rejected?",
+                            );
+                            if (note === null) return;
+                            review.mutate({
+                              id: e.id,
+                              decision: "REJECT",
+                              note: note.trim() || undefined,
+                            });
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </>
                     )}
                     {!fromAllocator && mayEnterCosts && (
                       <button

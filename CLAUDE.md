@@ -27,11 +27,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-1. 🔴 **Job-costing check-and-balance.** The write gate shipped; the
-   structural work has not. Next: a `PENDING` charge that does not move
-   `contractAmount`/`balanceDue` until approved, then reconciliation against
-   cc-allocator. **12 candidate duplicate charges ($9,166.20) need a human to
-   confirm** — see [known-issues.md](docs/project-memory/known-issues.md).
+1. 🔴 **Job-costing check-and-balance.** Write gate and pending state both
+   shipped. Remaining: **reconciliation against cc-allocator**, and **12
+   candidate duplicate charges ($9,166.20) still need a human to confirm** —
+   see [known-issues.md](docs/project-memory/known-issues.md).
 2. Confirm `field-log-digest` self-healed on its next 7:00am run — it had
    been failing for all four `@calibertrust.com` users under the old
    MailerSend cap, which is now lifted.
@@ -186,6 +185,12 @@ Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
   ADMIN/MANAGER/OFFICE_STAFF implicitly, anyone else by explicit grant. Use
   **explicit role lists, never `hasMinRole`**, for anything financial:
   `ROLE_HIERARCHY` ranks SALES_REP above OFFICE_STAFF (Accounting).
+- **Only an APPROVED `JobExpense` moves money.** PENDING and REJECTED
+  contribute nothing to `contractAmount`, `balanceDue`, the cost-plus rollup,
+  job profit, the QBO export or budget allocations. Any new code that sums
+  expenses must filter `status: "APPROVED"` — that is the whole control.
+  Entry auto-approves for ADMIN/MANAGER/OFFICE_STAFF; everyone else queues.
+  Approving is role-only and is deliberately NOT conferred by the enter grant.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.

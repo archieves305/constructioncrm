@@ -27,8 +27,10 @@ export async function GET(
   });
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Approved only. Exporting a pending charge would push an unreviewed cost
+  // into the books, which is the opposite of what the review state is for.
   const expenses = await prisma.jobExpense.findMany({
-    where: { jobId: id },
+    where: { jobId: id, status: "APPROVED" },
     orderBy: { incurredDate: "asc" },
   });
 

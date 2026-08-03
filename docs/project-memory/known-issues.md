@@ -12,11 +12,6 @@ _Updated 2026-08-03._
   what the customer owes. Needs a human to confirm each pair (two genuine
   same-day same-amount charges are possible) before anything is backed out.
   Query to regenerate the list is in `session-history.md` under 2026-08-03.
-- **Manual charges still hit the ledger immediately.** The write is now gated
-  by role/grant, but an approved-by-nobody charge still moves
-  `contractAmount` and `balanceDue` the instant it is saved. The agreed fix
-  is a `PENDING` state that does NOT touch either until a bookkeeper approves
-  it in the CRM. Not built.
 - **No reconciliation against cc-allocator.** When it posts an expense,
   nothing looks for a near-matching manual row to flag as a possible
   duplicate. That is the control that would have caught all 12 above.

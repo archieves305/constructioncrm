@@ -8,6 +8,7 @@ import {
   getFieldGrants,
 } from "@/lib/labor/permissions";
 import {
+  canApproveJobCosts,
   canDeleteExpense,
   canEnterJobCosts,
   getCostGrants,
@@ -30,6 +31,8 @@ export async function GET() {
     canViewPayrollReports: canViewPayroll(session.user.role, grants),
     canSeeLaborCosts: canSeeLaborCosts(session.user.role),
     canEnterJobCosts: canEnterJobCosts(session.user.role, costGrants),
+    // Approval is role-only — the enter grant deliberately does not confer it.
+    canApproveJobCosts: canApproveJobCosts(session.user.role),
     // Allocator-sourced rows are cc-allocator's record; only ADMIN may remove
     // one from this side, and even then it desyncs the two systems.
     canDeleteAllocatorCharges: canDeleteExpense(session.user.role, costGrants, {
