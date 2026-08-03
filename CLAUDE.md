@@ -94,11 +94,14 @@ portal deploy.
 
 Full list: [known-issues.md](docs/project-memory/known-issues.md).
 
-- 🔴 **MailerSend is on a TRIAL plan and refuses recipients past a cap**
-  (`422 … #MS42225`). Proven live 2026-08-03: 2 of 4 reminder emails were
-  rejected. Caps **all** CRM mail — estimates, change orders, payroll — not
-  just tasks. Pre-existing; the task module only surfaced it. Fix is to
-  upgrade the plan.
+- 🔴 **MailerSend's trial cap blocks the whole `@calibertrust.com` domain —
+  4 of 7 active users receive NO CRM email** (`422 … #MS42225`). Every 422 on
+  2026-08-03 was a calibertrust address; `field-log-digest` has silently
+  failed for all four of them every weekday and nobody noticed, because the
+  cron returns 200 with per-recipient failures collected rather than thrown.
+  Pre-existing; the task module surfaced it. Fix is commercial — upgrade the
+  plan. Task email itself is proven: `@rcareylaw.com` received a digest in a
+  real inbox.
 - `PHONE_ROUTING_API_KEY` unset → that endpoint 503s.
 - Old domain still 302, not 301 — deliberate, and **still deliberate after
   SSO was proven**. Promote when the old host goes quiet. It is an nginx

@@ -4,16 +4,36 @@ _Updated 2026-08-03._
 
 ## Open — needs a decision or action
 
-- 🔴 **MailerSend is on a TRIAL plan and is refusing recipients.** A live run
-  of the task-reminders cron on 2026-08-03 returned
-  `422 … trial account unique recipients limit #MS42225` for 2 of 4 people —
-  they simply did not get their email. **This caps every outbound email the
-  CRM sends**, not just task mail: estimates, change orders, payroll and
-  follow-ups are all on the same account, and this limit predates the task
-  module, which only made it visible. The code is behaving correctly (it
-  raises, logs, and records `EMAIL_FAILED` on the task timeline). **Fix is
-  commercial, not technical: upgrade the MailerSend plan.** Until then, assume
-  any given recipient may silently not receive CRM mail.
+- 🔴 **MailerSend's TRIAL cap is blocking the entire `@calibertrust.com`
+  domain — 4 of 7 active users get NO CRM email at all.**
+
+  Journal evidence from 2026-08-03, `422 … trial account unique recipients
+  limit #MS42225`:
+
+  | Sender | Recipients | Outcome |
+  |---|---|---|
+  | `cron.field-log-digest` | 4 × `@calibertrust.com` | **all 4 failed** |
+  | `cron.task-reminders` | 4 people | 2 sent, 2 `@calibertrust.com` failed |
+
+  Every single 422 was a `@calibertrust.com` address; every success was not.
+  Active users by domain: **calibertrust.com 4, knuconstruction.com 2,
+  rcareylaw.com 1**. A trial plan locks delivery to the first N unique
+  recipients it ever saw, so the allowed set is now effectively frozen and
+  the main staff domain is outside it.
+
+  **This is pre-existing and predates the task module.** `field-log-digest`
+  has been failing for those same four people every weekday morning and
+  nobody noticed — the cron returns HTTP 200 because per-recipient failures
+  are collected, not thrown. The task work only surfaced it.
+
+  The code is behaving correctly: it raises, logs with the recipient, and
+  records `EMAIL_FAILED` on the task timeline. **The fix is commercial —
+  upgrade the MailerSend plan.** Until then, treat any `@calibertrust.com`
+  recipient as unreachable by email, for every feature.
+
+  Confirmed working: `@rcareylaw.com` received the reminder digest in a real
+  inbox on 2026-08-03, which is the only end-to-end proof of task email
+  rendering in a live client.
 - **Task reminder cron is installed but DISABLED**, pending the MailerSend
   upgrade above — it was dropping half its recipients. The line is commented
   in the `knuco` user's crontab (search `task-reminders`); **re-enable by
