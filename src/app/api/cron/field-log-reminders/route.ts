@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { fromDbDate, addDays, toDbDate } from "@/lib/labor/dates";
 import { sendEmail } from "@/lib/email/send";
+import { reportDelivery, type DeliveryFailure } from "@/lib/email/delivery-report";
 import { logger } from "@/lib/logger";
 import { format } from "date-fns";
 
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
   }
 
   let sent = 0;
-  const failures: string[] = [];
+  const failures: DeliveryFailure[] = [];
   for (const [, u] of byUser) {
     const rows = u.items
       .map((i) => {
@@ -89,12 +90,23 @@ export async function POST(request: NextRequest) {
         html,
       });
       if (result) sent++;
-      else failures.push(`${u.email}: email not configured`);
+      else failures.push({ recipient: u.email, reason: "email provider not configured" });
     } catch (err) {
-      failures.push(u.email);
+      failures.push({
+        recipient: u.email,
+        reason: err instanceof Error ? err.message : "unknown send error",
+      });
       logger.exception(err, { where: "cron.field-log-reminders", to: u.email });
     }
   }
+
+  await reportDelivery({
+    source: "cron.field-log-reminders",
+    attempted: byUser.size,
+    sent,
+    failures,
+    context: { drafts: drafts.length },
+  });
 
   logger.info("field-log-reminders cron done", {
     drafts: drafts.length,
@@ -102,7 +114,12 @@ export async function POST(request: NextRequest) {
     sent,
     failures: failures.length,
   });
-  return NextResponse.json({ drafts: drafts.length, leads: byUser.size, sent, failures });
+  return NextResponse.json({
+    drafts: drafts.length,
+    leads: byUser.size,
+    sent,
+    failures: failures.map((f) => f.recipient),
+  });
 }
 
 function escapeHtml(s: string): string {

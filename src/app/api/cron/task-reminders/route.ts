@@ -8,6 +8,7 @@ import { getEmailBrand } from "@/lib/email/brand";
 import { resolveRecipients } from "@/lib/tasks/recipients";
 import { taskUrlForRole } from "@/lib/tasks/links";
 import { renderTaskReminderEmail, type ReminderItem } from "@/lib/tasks/task-email";
+import { reportDelivery, type DeliveryFailure } from "@/lib/email/delivery-report";
 
 /**
  * Morning task nudge: one email per assignee covering everything overdue plus
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
   const byUser = new Map(recipients.map((r) => [r.userId, r]));
 
   let sent = 0;
-  const failures: string[] = [];
+  const failures: DeliveryFailure[] = [];
 
   for (const [userId, recipient] of byUser) {
     const mine = tasks.filter((t) => t.assignedUserId === userId);
@@ -109,12 +110,27 @@ export async function POST(request: NextRequest) {
         text: email.text,
       });
       if (result) sent++;
-      else failures.push(`${recipient.email}: send returned no id`);
+      else
+        failures.push({
+          recipient: recipient.email,
+          reason: "email provider not configured",
+        });
     } catch (err) {
-      failures.push(recipient.email);
+      failures.push({
+        recipient: recipient.email,
+        reason: err instanceof Error ? err.message : "unknown send error",
+      });
       logger.exception(err, { where: "cron.task-reminders", to: recipient.email });
     }
   }
+
+  await reportDelivery({
+    source: "cron.task-reminders",
+    attempted: byUser.size,
+    sent,
+    failures,
+    context: { tasks: tasks.length },
+  });
 
   logger.info("task-reminders cron done", {
     tasks: tasks.length,
@@ -124,5 +140,10 @@ export async function POST(request: NextRequest) {
     suppressed: skipped.filter((s) => s.reason !== "duplicate").length,
   });
 
-  return NextResponse.json({ tasks: tasks.length, people: byUser.size, sent, failures });
+  return NextResponse.json({
+    tasks: tasks.length,
+    people: byUser.size,
+    sent,
+    failures: failures.map((f) => f.recipient),
+  });
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { fromDbDate, addDays, toDbDate } from "@/lib/labor/dates";
 import { sendEmail } from "@/lib/email/send";
+import { reportDelivery, type DeliveryFailure } from "@/lib/email/delivery-report";
 import { logger } from "@/lib/logger";
 import { format } from "date-fns";
 
@@ -115,6 +116,10 @@ export async function POST(request: NextRequest) {
   </div>`;
 
   let sent = 0;
+  // Failures were previously caught, logged per-recipient and then dropped —
+  // the response reported only `sent`, so a run that reached nobody looked
+  // exactly like a run that reached everybody.
+  const failures: DeliveryFailure[] = [];
   for (const r of recipients) {
     try {
       const result = await sendEmail({
@@ -123,22 +128,38 @@ export async function POST(request: NextRequest) {
         html,
       });
       if (result) sent++;
+      else failures.push({ recipient: r.email, reason: "email provider not configured" });
     } catch (err) {
       logger.exception(err, { where: "cron.field-log-digest", to: r.email });
+      failures.push({
+        recipient: r.email,
+        reason: err instanceof Error ? err.message : "unknown send error",
+      });
     }
   }
+
+  await reportDelivery({
+    source: "cron.field-log-digest",
+    attempted: recipients.length,
+    sent,
+    failures,
+    context: { awaiting: awaiting.length },
+  });
 
   logger.info("field-log-digest cron done", {
     awaiting: awaiting.length,
     stale: staleDrafts.length,
     zeroRate: zeroRateEntries.length,
     sent,
+    failures: failures.length,
   });
   return NextResponse.json({
     awaiting: awaiting.length,
     stale: staleDrafts.length,
     zeroRate: zeroRateEntries.length,
+    attempted: recipients.length,
     sent,
+    failures: failures.map((f) => f.recipient),
   });
 }
 

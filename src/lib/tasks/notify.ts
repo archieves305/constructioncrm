@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { getEmailBrand } from "@/lib/email/brand";
 import { recordTaskEvent } from "./events";
+import { reportDelivery, type DeliveryFailure } from "@/lib/email/delivery-report";
 import { taskUrlForRole } from "./links";
 import { resolveRecipients, taskAudience, type Candidate, type TaskRecipient } from "./recipients";
 import {
@@ -63,6 +64,8 @@ async function actorName(actorUserId: string | null): Promise<string> {
  */
 async function dispatch(input: {
   taskId: string;
+  /** Which notification this is, for the delivery-failure record. */
+  kind: "assigned" | "completed" | "blocked" | "mention";
   recipients: TaskRecipient[];
   actorUserId: string | null;
   render: (recipient: TaskRecipient, url: string) => RenderedEmail;
@@ -78,7 +81,7 @@ async function dispatch(input: {
   }
 
   let sent = 0;
-  let failed = 0;
+  const failures: DeliveryFailure[] = [];
 
   for (const r of input.recipients) {
     const url = taskUrlForRole(input.taskId, r.role);
@@ -101,19 +104,31 @@ async function dispatch(input: {
         });
       }
     } catch (err) {
-      failed++;
+      const reason = err instanceof Error ? err.message : "Unknown send error";
+      failures.push({ recipient: r.email, reason });
       logger.exception(err, { where: "tasks.dispatch", taskId: input.taskId, to: r.email });
       await recordTaskEvent({
         taskId: input.taskId,
         actorUserId: input.actorUserId,
         type: "EMAIL_FAILED",
         toValue: r.email,
-        body: err instanceof Error ? err.message : "Unknown send error",
+        body: reason,
       });
     }
   }
 
-  return { sent, failed };
+  // The timeline row above is visible only to someone who opens that task.
+  // An unnotified assignee is precisely the person who will not open it, so
+  // this also escalates through the normal delivery-failure channels.
+  await reportDelivery({
+    source: `tasks.${input.kind}`,
+    attempted: input.recipients.length,
+    sent,
+    failures,
+    context: { taskId: input.taskId },
+  });
+
+  return { sent, failed: failures.length };
 }
 
 function logSkips(taskId: string, kind: string, skipped: { userId: string; reason: string }[]) {
@@ -145,6 +160,7 @@ export async function notifyTaskAssigned(input: {
 
   await dispatch({
     taskId: input.taskId,
+    kind: "assigned",
     recipients,
     actorUserId: input.actorUserId,
     render: (r, url) =>
@@ -201,6 +217,7 @@ export async function notifyTaskCompleted(input: {
 
   await dispatch({
     taskId: input.taskId,
+    kind: "completed",
     recipients,
     actorUserId: input.actorUserId,
     render: (r, url) =>
@@ -234,6 +251,7 @@ export async function notifyTaskBlocked(input: {
 
   await dispatch({
     taskId: input.taskId,
+    kind: "blocked",
     recipients,
     actorUserId: input.actorUserId,
     render: (r, url) =>
@@ -268,6 +286,7 @@ export async function notifyTaskMentions(input: {
 
   await dispatch({
     taskId: input.taskId,
+    kind: "mention",
     recipients,
     actorUserId: input.actorUserId,
     render: (r, url) =>

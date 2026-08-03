@@ -45,6 +45,11 @@ const schema = z.object({
   // runtime parser in src/lib/email/send.ts handles both shapes.
   EMAIL_FROM: z.string().min(3).optional(),
 
+  // Where delivery-failure alerts go. Falls back to the oldest active ADMIN,
+  // so this is a convenience rather than a requirement — but set it to a
+  // shared/ops address if one person's inbox should not be the only alarm.
+  OPS_ALERT_EMAIL: z.string().email().optional(),
+
   CRON_SECRET: z.string().optional(),
 
   // Bearer token cc-allocator's worker presents on integration calls.

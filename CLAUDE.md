@@ -98,9 +98,12 @@ Full list: [known-issues.md](docs/project-memory/known-issues.md).
   `spf: false`). Delivering fine today, but strict receivers may spam-folder
   it. Next most likely cause of "never arrived" reports now that the
   recipient cap is resolved.
-- **Per-recipient email failures do not fail their cron** — the handlers
-  collect failures and still return HTTP 200. That is why a whole domain went
-  unmailed for weeks unnoticed. Worth an alert on `failures.length > 0`.
+- Delivery failures now escalate through `lib/email/delivery-report.ts`
+  (ERROR log with marker `EMAIL_DELIVERY_FAILURE`, an `EmailDelivery` audit
+  row, and a best-effort ops email). Read history at
+  `GET /api/admin/email-health` — the channel that still answers when email
+  itself is what is broken. Optional `OPS_ALERT_EMAIL`, else oldest active
+  ADMIN.
 - `PHONE_ROUTING_API_KEY` unset → that endpoint 503s.
 - Old domain still 302, not 301 — deliberate, and **still deliberate after
   SSO was proven**. Promote when the old host goes quiet. It is an nginx
@@ -153,7 +156,8 @@ SSO: **`CAREYOS_SSO_URL`** (default `https://app.careyos.com`),
 `NODE_ENV=production`.**
 
 Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
-`MAILERSEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET`, `CC_ALLOCATOR_API_KEY`,
+`MAILERSEND_API_KEY`, `EMAIL_FROM`, `OPS_ALERT_EMAIL`, `CRON_SECRET`,
+`CC_ALLOCATOR_API_KEY`,
 `PHONE_ROUTING_API_KEY`, `PHONE_ROUTING_SYSTEM_USER_ID`, `ZAPIER_*`,
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
 `ZYLOW_API_KEY`, `ZYLOW_API_BASE`.

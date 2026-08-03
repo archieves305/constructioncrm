@@ -4,6 +4,42 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 ---
 
+## 2026-08-03 (later) — Email delivery failures are no longer silent
+
+Built after the MailerSend upgrade, because the cap was only half the
+problem. The other half: **every scheduled sender caught per-recipient
+errors and still returned HTTP 200**, so a job that reached nobody looked
+identical to one that reached everybody. `field-log-digest` was the worst —
+it did not track failures at all, only `sent`.
+
+`src/lib/email/delivery-report.ts` — `reportDelivery()`, called once per job
+run including on success, so "no news" stops being ambiguous. Three channels
+chosen because they fail independently:
+
+1. ERROR log carrying the stable marker `EMAIL_DELIVERY_FAILURE`.
+2. An `EmailDelivery` AuditEvent row — reuses the existing audit table, so
+   **no migration**, and it is the only channel that still works when email
+   is the broken thing.
+3. A best-effort ops alert email (`OPS_ALERT_EMAIL`, else oldest active
+   ADMIN), recursion-guarded so a failing alert cannot alert about itself.
+
+Also catches the **silent-skip** case that had no detection at all: sends
+attempted, none succeeded, nothing thrown — meaning the provider is
+unconfigured and every message was dropped. Previously indistinguishable
+from a clean run.
+
+Wired into `cron.task-reminders`, `cron.field-log-digest`,
+`cron.field-log-reminders` and all four task notifications. Cron responses
+now report `attempted` alongside `sent` and list failed recipients.
+
+`GET /api/admin/email-health` (MANAGER+) rolls the audit rows up **by
+recipient**, since "who is not receiving mail" is the question people
+actually arrive with.
+
+338/338 tests (9 new), typecheck and build clean, lint unchanged at 6/28.
+
+---
+
 ## 2026-08-03 — Task collaboration: notification email, notes, history
 
 Built out the Task module: branded email on assignment and completion, notes,
