@@ -1,21 +1,17 @@
 # Known Issues / Technical Debt — KNU Construction CRM
 
-_Updated 2026-07-23._
+_Updated 2026-08-03._
 
 ## Open — needs a decision or action
 
-- **SSO happy path is unverified.** As of the 2026-07-23 deploy, nobody has
-  confirmed a real login works end to end. Everything reachable without a
-  `careyos_session` cookie checks out, and a forged cookie is correctly
-  refused, but obtaining a genuine cookie needs a CareyOS password. **First
-  task next session: confirm login, especially Frank (CREW_LEAD → `/field`,
-  the user with no fallback).** Rollback is `git revert 0759ee8` + redeploy,
-  or the tarball `pre-deploy-20260723-094258.tar.gz`. No migrations ran.
-- **jgarcia's portal grant is ADMIN; his CRM role was MANAGER.** The portal
-  is now the live source of truth, so his next login syncs the CRM row **up
-  to ADMIN** — full control including settings, other users' data and
-  deletes. Silent privilege escalation unless intended. Change the grant in
-  the CareyOS admin before he signs in if not.
+- **The task module is built but not deployed, and its cron is not
+  scheduled.** `/api/cron/task-reminders` exists and is auth-guarded, but
+  nothing invokes it — it needs a crontab entry on knuco-droplet alongside the
+  other cron POSTs (`x-cron-secret: $CRON_SECRET`), ideally early morning
+  local. Until then the reminder digest simply never runs; assignment and
+  completion mail is unaffected. Also confirm `MAILERSEND_API_KEY` and
+  `EMAIL_FROM` are set in `/etc/knuco/env`, or every task email no-ops with a
+  logged warning rather than an error.
 - **`PHONE_ROUTING_API_KEY` is unset in `/etc/knuco/env`**, so
   `/api/integrations/phone-routing/lead` returns 503 (`503` = operator
   misconfiguration, `401` = bad caller — deliberate split). The route is
@@ -23,8 +19,14 @@ _Updated 2026-07-23._
   Optionally also `PHONE_ROUTING_SYSTEM_USER_ID` to pin attribution;
   otherwise it falls back to the first active ADMIN.
 - **Old domain still serves a 302, not a 301.** Deliberate, for the cutover
-  bake-in — browsers cache 301s hard and it is painful to walk back.
-  Promote once SSO is proven.
+  bake-in — browsers cache 301s hard and it is painful to walk back. SSO is
+  now proven (2026-08-03), but **the decision was to keep baking**: one
+  verified login is not a week of clean traffic and the 302 costs nothing.
+  Promote when the old host has gone quiet. The change is an nginx vhost
+  edit on knuco-droplet, **not** a code deploy — nothing in this repo
+  encodes the redirect. Whatever replaces it must preserve path + query and
+  keep the `/api/integrations/` **proxy** exemption (see POST-through-302
+  below).
 
 ## Dead code from the SSO cutover
 
@@ -66,6 +68,36 @@ radius. Safe to remove in a dedicated pass:
 - **3 Roofr orders sit in `REQUESTED`** (newest 2026-05-13) with the old
   callback URL baked in. Probably dead, but the `/api/integrations/` proxy
   exemption on the old domain keeps them working if they ever land.
+
+## Resolved 2026-08-03 — task module defects
+
+All five were live in production and all are now regression-tested in
+`src/lib/validators/task.test.ts` and `src/lib/tasks/access.test.ts`.
+
+- **Unassign and clear-due-date both 400'd.** `updateTaskSchema` inherited
+  `z.string().optional()`, which rejects the explicit `null` the board sends.
+- **Every save reset priority to MEDIUM.** `.partial()` does not strip
+  `.default()`, so the create default leaked into each PATCH and the route
+  spread it into the write — ticking an URGENT task complete downgraded it.
+  Nothing errored; the value just changed. Defaults now live on create only,
+  and the route copies fields across explicitly instead of spreading.
+- **`completedAt` survived a reopen**, leaving a stale timestamp on an open
+  task. Both it and `completedByUserId` are now cleared.
+- **PATCH /api/tasks/[id] had no role check** while GET scoped SALES_REPs to
+  their own rows. Read and write now share `lib/tasks/access.ts`.
+
+## Resolved 2026-08-03
+
+- **SSO happy path verified in production.** Frank (CREW_LEAD) signs in and
+  lands on `/field` — the flagged edge case, the user with no fallback — and
+  sign-out bounces to the CareyOS portal. The rollback window is closed;
+  `0759ee8` stands. Residual gap: an office-role login was not separately
+  exercised, but Frank's success covers the same cookie exchange, portal
+  call and grant→role mapping, so this is not tracked as a risk.
+- **jgarcia stays ADMIN — decided, not drifted.** His portal grant outranks
+  his pre-cutover CRM role (MANAGER) and his next login syncs the CRM row up
+  to ADMIN. Confirmed intended. No action; recorded so a future reader does
+  not "fix" it back to MANAGER.
 
 ## Resolved 2026-07-23
 

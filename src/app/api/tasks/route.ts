@@ -1,7 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { validateBody } from "@/lib/validation/body";
 import { createTaskSchema } from "@/lib/validators/task";
+import { taskVisibilityFilter } from "@/lib/tasks/access";
+import { recordTaskEvent } from "@/lib/tasks/events";
+import { notifyTaskAssigned } from "@/lib/tasks/notify";
 import { Prisma } from "@/generated/prisma/client";
 
 export async function GET(request: NextRequest) {
@@ -27,25 +31,26 @@ export async function GET(request: NextRequest) {
   if (status) {
     where.status = status as Prisma.EnumTaskStatusFilter["equals"];
   } else if (!includeCompleted && !overdue) {
-    where.status = { in: ["PENDING", "IN_PROGRESS"] };
+    // BLOCKED counts as open — a stalled task is exactly the one that should
+    // stay in front of people, not drop off the default list.
+    where.status = { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] };
   }
 
   if (overdue) {
     where.dueAt = { lt: new Date() };
-    where.status = { in: ["PENDING", "IN_PROGRESS"] };
+    where.status = { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] };
   }
 
-  if (session.user.role === "SALES_REP") {
-    where.assignedUserId = session.user.id;
-  }
+  const scope = taskVisibilityFilter(session.user);
 
   const tasks = await prisma.task.findMany({
-    where,
+    where: { AND: [where, scope] },
     include: {
       lead: { select: { id: true, fullName: true } },
       job: { select: { id: true, jobNumber: true, title: true } },
       assignedTo: { select: { id: true, firstName: true, lastName: true } },
       createdBy: { select: { firstName: true, lastName: true } },
+      _count: { select: { events: { where: { type: "NOTE" } } } },
     },
     orderBy: [{ dueAt: "asc" }, { priority: "desc" }],
   });
@@ -57,25 +62,39 @@ export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
-  const body = await request.json();
-  const parsed = createTaskSchema.safeParse(body);
-  if (!parsed.success) return badRequest(JSON.stringify(parsed.error.issues));
-
+  const parsed = await validateBody(request, createTaskSchema);
+  if (!parsed.ok) return parsed.response;
   const input = parsed.data;
 
   const task = await prisma.task.create({
     data: {
       ...input,
       dueAt: input.dueAt ? new Date(input.dueAt) : undefined,
+      assignedAt: input.assignedUserId ? new Date() : undefined,
       createdByUserId: session.user.id,
     },
     include: {
       lead: { select: { id: true, fullName: true } },
+      job: { select: { id: true, jobNumber: true, title: true } },
       assignedTo: { select: { id: true, firstName: true, lastName: true } },
     },
   });
 
-  // Log activity on lead
+  await recordTaskEvent({
+    taskId: task.id,
+    actorUserId: session.user.id,
+    type: "CREATED",
+  });
+
+  if (task.assignedUserId) {
+    await recordTaskEvent({
+      taskId: task.id,
+      actorUserId: session.user.id,
+      type: "ASSIGNED",
+      toValue: task.assignedUserId,
+    });
+  }
+
   if (task.leadId) {
     await prisma.activityLog.create({
       data: {
@@ -84,6 +103,14 @@ export async function POST(request: NextRequest) {
         title: `Task created: ${task.title}`,
         createdByUserId: session.user.id,
       },
+    });
+  }
+
+  // Mail goes out after the response. The task exists either way; holding the
+  // caller for a third-party API round-trip only makes the UI feel slow.
+  if (task.assignedUserId) {
+    after(async () => {
+      await notifyTaskAssigned({ taskId: task.id, actorUserId: session.user.id });
     });
   }
 

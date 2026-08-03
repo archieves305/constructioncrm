@@ -27,13 +27,40 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-1. **Confirm SSO login works** — the one thing never verified (see §5).
-2. Decide jgarcia's role (portal ADMIN vs former CRM MANAGER).
-3. Set `PHONE_ROUTING_API_KEY` to activate the phone-routing integration.
-4. Promote the old domain's 302 → 301 once SSO is proven.
-5. Dead-code cleanup from the auth swap.
+1. **Deploy the task module** and schedule its reminder cron (see §5).
+2. Set `PHONE_ROUTING_API_KEY` to activate the phone-routing integration.
+3. Dead-code cleanup from the auth swap.
+4. Promote the old domain's 302 → 301 — **deliberately parked**, not
+   blocked (see §5).
+
+The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-08-03 — Task collaboration (built, NOT deployed)
+
+Assignment/completion email on the existing branded shell, notes, a per-task
+activity trail, watchers, @mentions, BLOCKED status, morning reminder digest.
+New: `src/lib/tasks/*`, `src/components/tasks/*`, notes/watchers routes,
+`/api/cron/task-reminders`, `/field/tasks/[taskId]`, migration
+`20260803120000_task_collaboration`.
+
+**Five pre-existing defects fixed.** Unassign and clear-due-date both 400'd;
+`completedAt` survived a reopen; PATCH had no role check; and — worst —
+`.partial()` does not strip `.default()`, so **every save silently reset
+priority to MEDIUM**, downgrading URGENT tasks on completion. Details in
+[known-issues.md](docs/project-memory/known-issues.md).
+
+329/329 tests, typecheck and build clean, lint one warning better than
+baseline. No browser QA yet.
+
+### 2026-08-03 — SSO verified; two decisions closed
+
+No code changes. Frank (CREW_LEAD) signs in and lands on `/field` — the one
+load-bearing unknown from the cutover — and sign-out bounces to the portal.
+The rollback window is closed; `0759ee8` stands. jgarcia **stays ADMIN**
+(confirmed intended, not drift). The old domain **holds at 302** — one
+verified login is not a week of clean traffic.
 
 ### 2026-07-23 — Domain cutover + CareyOS SSO (deployed)
 
@@ -64,14 +91,14 @@ portal deploy.
 
 Full list: [known-issues.md](docs/project-memory/known-issues.md).
 
-- ⚠️ **SSO happy path unverified.** Nobody has confirmed a real login since
-  the deploy. Test Frank especially (CREW_LEAD → `/field`, no fallback).
-  Rollback: `git revert 0759ee8` + redeploy, or tarball
-  `pre-deploy-20260723-094258.tar.gz`. No migrations ran.
-- **jgarcia**: portal grant ADMIN, CRM role was MANAGER → his next login
-  silently promotes him.
+- **Task module is undeployed and `/api/cron/task-reminders` is unscheduled** —
+  nothing invokes it yet. Needs a crontab entry on the droplet plus confirmed
+  `MAILERSEND_API_KEY` / `EMAIL_FROM`, or task email no-ops with a warning.
 - `PHONE_ROUTING_API_KEY` unset → that endpoint 503s.
-- Old domain still 302, not 301 (deliberate bake-in).
+- Old domain still 302, not 301 — deliberate, and **still deliberate after
+  SSO was proven**. Promote when the old host goes quiet. It is an nginx
+  vhost edit on the droplet, not a code deploy; must preserve path + query
+  and the `/api/integrations/` proxy exemption.
 - Dead code: `lockout*`, `password-policy`, `admin/users` password path,
   `next-auth` in package.json.
 - **Lint baseline: 6 errors / 29 warnings**, all pre-existing.
@@ -82,8 +109,8 @@ Full list: [known-issues.md](docs/project-memory/known-issues.md).
 git log --oneline -8            # 0759ee8 is the SSO deploy
 npm run test && npm run typecheck
 ```
-Read `docs/project-memory/known-issues.md` first — the top item is a
-verification gap, not a code defect.
+Read `docs/project-memory/known-issues.md` first. The SSO verification gap
+that headed it is closed; what remains is config and cleanup.
 
 ## 7. Commands
 
@@ -142,11 +169,12 @@ Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
 
 ## 10. Next Prompt
 
-> Verify the CareyOS SSO cutover is working in production. Read
-> `docs/project-memory/known-issues.md` first. Confirm a real login
-> succeeds — especially Frank (CREW_LEAD, should land on `/field`) — and
-> that sign-out bounces to the portal. Then: decide jgarcia's role (his
-> portal grant is ADMIN but his CRM role was MANAGER, so his next login
-> promotes him), and if login is confirmed good, promote the
-> `crm.knuconstruction.com` redirect from 302 to 301. Deploy with
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh`.
+> The CareyOS SSO cutover is verified and settled — don't re-litigate it.
+> Do the dead-code cleanup from the auth swap: remove `src/lib/auth/lockout.ts`,
+> `lockout-error.ts`, `password-policy.ts` and their tests, drop the
+> `bcrypt.hash` password-setting path from `src/app/api/admin/users/route.ts`
+> and `[id]/route.ts` (user creation belongs in the CareyOS admin now), and
+> pull `next-auth` + `@auth/prisma-adapter` from `package.json`. Keep the
+> lint baseline at 6 errors / 29 warnings or better; `npm run test &&
+> npm run typecheck` must stay green. Deploy with
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

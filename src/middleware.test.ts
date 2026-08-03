@@ -32,6 +32,7 @@ describe("middleware public path allowlist", () => {
     "/api/auth/sign-out",
     "/api/track/TOKEN",
     "/api/cron/follow-ups",
+    "/api/cron/task-reminders",
     "/api/integrations/cc-allocator/jobs",
     "/api/email/unsubscribe?token=abc.def",
   ];

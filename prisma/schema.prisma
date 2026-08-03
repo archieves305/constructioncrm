@@ -91,6 +91,9 @@ enum Priority {
 enum TaskStatus {
   PENDING
   IN_PROGRESS
+  // Waiting on something external — materials, an inspection, a subcontractor.
+  // Distinct from IN_PROGRESS so a stalled job stops reading as active work.
+  BLOCKED
   COMPLETED
   CANCELLED
 }
@@ -356,6 +359,12 @@ model User {
   canEditPayRates           Boolean @default(false) @map("can_edit_pay_rates")
   canViewPayrollReports     Boolean @default(false) @map("can_view_payroll_reports")
 
+  // Task mail is internal work assignment, not marketing, so it has no
+  // unsubscribe link — but a user who mutes here stops receiving it. The
+  // pressure valve exists so nobody resorts to a mail-client filter, which
+  // would be invisible to us and would swallow genuinely urgent assignments.
+  taskEmailsEnabled Boolean @default(true) @map("task_emails_enabled")
+
   role Role @relation(fields: [roleId], references: [id])
 
   assignedLeads            Lead[]               @relation("AssignedUser")
@@ -365,6 +374,9 @@ model User {
   stageChanges             LeadStageHistory[]   @relation("ChangedByUser")
   tasksAssigned            Task[]               @relation("TaskAssignedUser")
   tasksCreated             Task[]               @relation("TaskCreatedByUser")
+  tasksCompleted           Task[]               @relation("TaskCompletedByUser")
+  taskEvents               TaskEvent[]          @relation("TaskEventActor")
+  taskWatching             TaskWatcher[]        @relation("TaskWatcherUser")
   activityLogs             ActivityLog[]
   communications           Communication[]
   filesUploaded            File[]
@@ -623,16 +635,88 @@ model Task {
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
-  lead       Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  job        Job?        @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  assignedTo User?       @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
-  createdBy  User        @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
-  fieldIssue FieldIssue?
+  // Who actually finished it — not always the assignee, so completedAt alone
+  // cannot answer "who closed this?". Both are cleared on reopen.
+  completedByUserId String?   @map("completed_by_user_id")
+  // When the CURRENT assignment started, so "sitting with Frank for 9 days"
+  // is answerable after a reassignment. Null while unassigned.
+  assignedAt        DateTime? @map("assigned_at")
+  // Required by the API whenever status becomes BLOCKED. A blocked task with
+  // no stated reason is indistinguishable from one nobody has touched.
+  blockedReason     String?   @map("blocked_reason") @db.Text
+
+  lead        Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  job         Job?          @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  assignedTo  User?         @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
+  createdBy   User          @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
+  completedBy User?         @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
+  fieldIssue  FieldIssue?
+  events      TaskEvent[]
+  watchers    TaskWatcher[]
 
   @@index([assignedUserId])
   @@index([dueAt])
   @@index([status])
   @@map("tasks")
+}
+
+/// One chronological feed per task, covering BOTH user-written notes and
+/// system-recorded changes. Kept as a single model rather than a notes table
+/// plus an audit table so the timeline is one ordered read with no merge step.
+///
+/// Only NOTE rows carry `body` and are editable; every other type is an
+/// immutable record of something that happened. EMAIL_SENT / EMAIL_FAILED
+/// rows exist so "was the assignee actually told?" has an answer in-product
+/// rather than only in the mail provider's dashboard.
+model TaskEvent {
+  id          String        @id @default(cuid())
+  taskId      String        @map("task_id")
+  actorUserId String?       @map("actor_user_id")
+  type        TaskEventType
+  body        String?       @db.Text
+  fromValue   String?       @map("from_value")
+  toValue     String?       @map("to_value")
+  editedAt    DateTime?     @map("edited_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor User? @relation("TaskEventActor", fields: [actorUserId], references: [id])
+
+  @@index([taskId, createdAt])
+  @@map("task_events")
+}
+
+enum TaskEventType {
+  NOTE
+  CREATED
+  ASSIGNED
+  UNASSIGNED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  DUE_CHANGED
+  BLOCKED
+  UNBLOCKED
+  WATCHER_ADDED
+  WATCHER_REMOVED
+  EMAIL_SENT
+  EMAIL_FAILED
+}
+
+/// Follow a task without owning it — a PM who wants the completion mail but
+/// should not appear as the assignee. Assignee and creator are added
+/// automatically, so this table is only ever the explicit extras.
+model TaskWatcher {
+  id        String   @id @default(cuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("TaskWatcherUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+  @@map("task_watchers")
 }
 
 // ─── Activity Log ───────────────────────────────────────────────────────────

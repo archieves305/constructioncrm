@@ -4,6 +4,107 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 ---
 
+## 2026-08-03 — Task collaboration: notification email, notes, history
+
+Built out the Task module: branded email on assignment and completion, notes,
+a per-task activity trail, watchers, @mentions, a BLOCKED status and a morning
+reminder digest. **Not deployed.**
+
+### Five pre-existing defects found and fixed
+
+The first four surfaced while reading the module; the fifth while writing its
+tests. All were live in production.
+
+1. **Unassigning a task was broken.** The board sends `assignedUserId: null`,
+   but `updateTaskSchema` used `z.string().optional()`, which rejects null →
+   400 → a generic "Update failed" toast.
+2. **Clearing a due date was broken**, same cause.
+3. **`priority` was silently reset to MEDIUM on every save.** `.partial()` does
+   not strip `.default()`, so the create schema's default landed in every PATCH
+   and the route spread it into the write. **Ticking an URGENT task complete
+   downgraded it to MEDIUM.** The most damaging of the five and the hardest to
+   notice — nothing errors, the value just quietly changes.
+4. **`completedAt` was never cleared on reopen** (`undefined` means "leave
+   alone" in Prisma), so reopened tasks kept a stale completion timestamp.
+5. **PATCH had no authorization.** GET scoped a SALES_REP to their own rows;
+   PATCH checked only that a session existed, so any authenticated user could
+   modify any task by id. Both sides now derive from `lib/tasks/access.ts`.
+
+### Schema
+
+`20260803120000_task_collaboration`, applied to dev via migrate diff + db
+execute + resolve (verified with an empty diff before `resolve`).
+
+- `TaskEvent` — one chronological feed carrying BOTH notes and system events.
+  Single table so the timeline is one ordered read with no merge step; only
+  `NOTE` rows are editable. `EMAIL_SENT` / `EMAIL_FAILED` rows make "was he
+  actually told?" answerable in-product.
+- `TaskWatcher`, `Task.completedByUserId` / `assignedAt` / `blockedReason`,
+  `TaskStatus.BLOCKED`, `User.taskEmailsEnabled`.
+- Backfill seeds a `CREATED` event per existing task — otherwise an older task
+  opens to an empty timeline, which reads as lost history.
+
+### Email
+
+`lib/tasks/task-email.ts` renders bodies only and delegates the shell to the
+existing `renderEmailLayout` + `getEmailBrand`, so task mail matches the
+estimates and change orders the same people already receive. Tables and inline
+CSS throughout. Assigned / completed / blocked / mention / reminder, each with
+a plain-text alternate.
+
+Dispatch is best-effort and runs in `after()` (Next 16, supported on a Node
+server): the task write commits first, and a MailerSend outage can never turn
+a successful assignment into a 500.
+
+Suppression rules, all tested: muted, inactive, blank address, and "don't mail
+someone about their own click". Completion is the deliberate exception — it
+goes to assignor and assignee both, as specified. Links route by the
+RECIPIENT's role, so crew leads get `/field/tasks/[id]` and office users get
+`/tasks?task=[id]`; a new field-mode task page was added for the former.
+
+### Mentions
+
+Longest-match-at-position, not per-user first-match. The first implementation
+had a real bug caught by its own test: Frank Ruiz's email local part is
+`frank`, so "@Frank Delgado" matched both men. A handle claimed by two people
+now resolves to nobody — with two Franks, "@Frank" mails neither, and the
+composer's autocomplete is what steers the author to a full name.
+
+### Verification
+
+329/329 vitest (was 328/36 files; 6 new suites, 58 new tests). Typecheck
+clean. Production build compiles; `/tasks` and `/field/tasks/[taskId]` are
+both dynamic. **Lint 6 errors / 28 warnings — one warning better than the
+6/29 baseline** (an unused `format` import went away). No manual QA in a
+browser yet.
+
+---
+
+## 2026-08-03 — SSO happy path verified in production
+
+Operator-confirmed. No code changes, no deploy.
+
+- **Frank (CREW_LEAD) signs in and lands on `/field`.** This was the one
+  genuinely load-bearing unknown from the cutover — the user with no
+  fallback if the grant→role mapping were wrong. It works.
+- **Sign-out bounces to the CareyOS portal**, not a dead local `/login`.
+- An office-role login (ADMIN/MANAGER/…) was not separately exercised.
+  Frank passing exercises the whole chain — cookie exchange, portal call,
+  grant→role mapping, CREW_LEAD confinement — so the residual gap is only
+  the office shell's own redirect, the better-trodden of the two paths.
+- **The rollback window is closed.** `0759ee8` stands. No migrations ever
+  ran, so nothing needs unwinding either way.
+
+Decisions taken this session:
+
+- **jgarcia stays ADMIN.** His portal grant (ADMIN) outranks his pre-cutover
+  CRM role (MANAGER), so his next login syncs the CRM row up. Confirmed
+  intended — a promotion, not an accident. No action needed.
+- **The old domain holds at 302.** One verified login is not a week of clean
+  traffic, and browsers cache 301s hard. Promote later, deliberately.
+
+---
+
 ## 2026-07-23 — Domain cutover to crm.careyos.com + CareyOS SSO (deployed)
 
 Moved the CRM onto the CareyOS fleet: new hostname, portal SSO, local
@@ -160,8 +261,12 @@ restart → health check). Healthy, HTTP 200, fleet unaffected.
   on `/jobs`** (proves the portal call happens and fails closed); removed
   credential routes 404.
 
-⚠️ **The authenticated happy path was never verified** — obtaining a real
-`careyos_session` requires a CareyOS password. A human must confirm login
-works. Rollback: `git revert 0759ee8 && git push`, redeploy; or the tarball
-`/var/backups/knuco/pre-deploy-20260723-094258.tar.gz`. No migrations ran,
-so the DB is unaffected either way.
+⚠️ **The authenticated happy path was not verified at deploy time** —
+obtaining a real `careyos_session` requires a CareyOS password, so a human
+had to confirm it. **Since closed: verified 2026-08-03** (Frank/CREW_LEAD →
+`/field`, sign-out → portal). The rollback path below is retained for the
+record only; it is no longer the standing recommendation.
+
+Rollback (historical): `git revert 0759ee8 && git push`, redeploy; or the
+tarball `/var/backups/knuco/pre-deploy-20260723-094258.tar.gz`. No
+migrations ran, so the DB was unaffected either way.

@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { format, isToday, isThisWeek, isPast } from "date-fns";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { isToday, isThisWeek, isPast } from "date-fns";
 import {
   DndContext,
   DragEndEvent,
@@ -34,10 +35,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, LayoutGrid, ListChecks, GripVertical } from "lucide-react";
+import { Plus, LayoutGrid, ListChecks, GripVertical, MessageSquare, Bell, BellOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TaskDetailSheet } from "@/components/tasks/task-detail-sheet";
 
-type TaskStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+type TaskStatus = "PENDING" | "IN_PROGRESS" | "BLOCKED" | "COMPLETED" | "CANCELLED";
 type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
 type Task = {
@@ -47,9 +49,11 @@ type Task = {
   status: TaskStatus;
   priority: Priority;
   dueAt: string | null;
+  blockedReason: string | null;
   lead: { id: string; fullName: string } | null;
   job: { id: string; jobNumber: string; title: string } | null;
   assignedTo: { id: string; firstName: string; lastName: string } | null;
+  _count?: { events: number };
 };
 
 type UserOption = { id: string; firstName: string; lastName: string; isActive: boolean };
@@ -68,13 +72,29 @@ function jobLabel(j: JobOption): string {
 }
 type StageOption = { id: string; name: string; stageOrder: number };
 
-const STATUSES: TaskStatus[] = ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
+const STATUSES: TaskStatus[] = [
+  "PENDING",
+  "IN_PROGRESS",
+  "BLOCKED",
+  "COMPLETED",
+  "CANCELLED",
+];
 const PRIORITIES: Priority[] = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+const STATUS_LABEL: Record<TaskStatus, string> = {
+  PENDING: "Not started",
+  IN_PROGRESS: "In progress",
+  BLOCKED: "Blocked",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
 const STATUS_COLORS: Record<TaskStatus, string> = {
   PENDING: "bg-gray-100 text-gray-800",
   IN_PROGRESS: "bg-blue-100 text-blue-800",
+  BLOCKED: "bg-amber-100 text-amber-900",
   COMPLETED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-amber-100 text-amber-800",
+  // Cancelled is now grey: it shared amber with BLOCKED, and "stalled, needs
+  // help" reading the same as "abandoned" is the wrong signal on a board.
+  CANCELLED: "bg-gray-100 text-gray-500",
 };
 const PRIORITY_COLOR: Record<Priority, string> = {
   LOW: "border-gray-300 text-gray-700",
@@ -89,12 +109,31 @@ type UpdatePatch = Partial<{
   priority: Priority;
   assignedUserId: string | null;
   dueAt: string | null;
+  blockedReason: string | null;
 }>;
 
 export default function TasksPage() {
   const qc = useQueryClient();
   const [view, setView] = useState<"list" | "board">("list");
   const [open, setOpen] = useState(false);
+  // The URL owns which task is open, so email deep links (/tasks?task=<id>),
+  // the back button and a copied link all behave the same way.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const openTaskId = searchParams.get("task");
+
+  function setOpenTaskId(id: string | null) {
+    const next = new URLSearchParams(searchParams.toString());
+    if (id) next.set("task", id);
+    else next.delete("task");
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  function closeDetail() {
+    setOpenTaskId(null);
+  }
   const [filterAssignee, setFilterAssignee] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
   const [filterJob, setFilterJob] = useState("");
@@ -127,6 +166,37 @@ export default function TasksPage() {
     queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
   });
   const activeUsers = users.filter((u) => u.isActive);
+
+  const { data: me } = useQuery<{ user: { id: string; role: string } }>({
+    queryKey: ["me"],
+    queryFn: () => fetch("/api/me").then((r) => r.json()),
+  });
+
+  const { data: prefs } = useQuery<{ taskEmailsEnabled: boolean }>({
+    queryKey: ["me-preferences"],
+    queryFn: () => fetch("/api/me/preferences").then((r) => r.json()),
+  });
+
+  const setPrefs = useMutation({
+    mutationFn: (taskEmailsEnabled: boolean) =>
+      fetch("/api/me/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskEmailsEnabled }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Could not save that preference");
+        return r.json();
+      }),
+    onSuccess: (d: { taskEmailsEnabled: boolean }) => {
+      qc.invalidateQueries({ queryKey: ["me-preferences"] });
+      toast.success(
+        d.taskEmailsEnabled
+          ? "Task emails on — you'll be told when work is assigned to you"
+          : "Task emails off — you'll only see assignments in the app",
+      );
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: jobsData } = useQuery<{ data: JobOption[] }>({
     queryKey: ["jobs-for-tasks"],
@@ -269,6 +339,29 @@ export default function TasksPage() {
         description={`${stageFilteredTasks.filter((t) => t.status !== "COMPLETED" && t.status !== "CANCELLED").length} open`}
         actions={
           <>
+            <button
+              type="button"
+              onClick={() => setPrefs.mutate(!(prefs?.taskEmailsEnabled ?? true))}
+              disabled={setPrefs.isPending || !prefs}
+              title={
+                prefs?.taskEmailsEnabled ?? true
+                  ? "Task emails are on — click to mute"
+                  : "Task emails are muted — click to turn back on"
+              }
+              className={cn(
+                "flex items-center gap-1 rounded border px-2 py-1 text-xs",
+                prefs?.taskEmailsEnabled ?? true
+                  ? "text-muted-foreground hover:bg-gray-50"
+                  : "border-amber-300 bg-amber-50 text-amber-800",
+              )}
+            >
+              {prefs?.taskEmailsEnabled ?? true ? (
+                <Bell className="h-3.5 w-3.5" />
+              ) : (
+                <BellOff className="h-3.5 w-3.5" />
+              )}
+              {prefs?.taskEmailsEnabled ?? true ? "Emails on" : "Muted"}
+            </button>
             <div className="flex rounded border p-0.5">
               <button
                 type="button"
@@ -613,6 +706,7 @@ export default function TasksPage() {
           tasks={stageFilteredTasks}
           users={activeUsers}
           onUpdate={(id, patch) => updateTask.mutate({ id, patch })}
+          onOpen={setOpenTaskId}
         />
       ) : (
         <ListView
@@ -623,8 +717,17 @@ export default function TasksPage() {
           showCompleted={includeCompleted}
           users={activeUsers}
           onUpdate={(id, patch) => updateTask.mutate({ id, patch })}
+          onOpen={setOpenTaskId}
         />
       )}
+
+      <TaskDetailSheet
+        taskId={openTaskId}
+        users={users}
+        currentUserId={me?.user?.id ?? ""}
+        isAdmin={me?.user?.role === "ADMIN"}
+        onClose={closeDetail}
+      />
     </div>
   );
 }
@@ -633,10 +736,12 @@ function BoardView({
   tasks,
   users,
   onUpdate,
+  onOpen,
 }: {
   tasks: Task[];
   users: UserOption[];
   onUpdate: (id: string, patch: UpdatePatch) => void;
+  onOpen: (id: string) => void;
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -657,7 +762,14 @@ function BoardView({
         {STATUSES.map((s) => {
           const col = tasks.filter((t) => t.status === s);
           return (
-            <BoardColumn key={s} status={s} tasks={col} users={users} onUpdate={onUpdate} />
+            <BoardColumn
+              key={s}
+              status={s}
+              tasks={col}
+              users={users}
+              onUpdate={onUpdate}
+              onOpen={onOpen}
+            />
           );
         })}
       </div>
@@ -670,11 +782,13 @@ function BoardColumn({
   tasks,
   users,
   onUpdate,
+  onOpen,
 }: {
   status: TaskStatus;
   tasks: Task[];
   users: UserOption[];
   onUpdate: (id: string, patch: UpdatePatch) => void;
+  onOpen: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
@@ -687,7 +801,7 @@ function BoardColumn({
     >
       <div className="flex items-center justify-between border-b bg-white px-3 py-2 rounded-t-lg">
         <Badge variant="outline" className={cn("border-0", STATUS_COLORS[status])}>
-          {status.replace("_", " ")}
+          {STATUS_LABEL[status]}
         </Badge>
         <span className="text-xs text-muted-foreground">{tasks.length}</span>
       </div>
@@ -696,7 +810,13 @@ function BoardColumn({
           <p className="py-4 text-center text-xs text-muted-foreground">Drop here</p>
         ) : (
           tasks.map((t) => (
-            <DraggableCard key={t.id} task={t} users={users} onUpdate={onUpdate} />
+            <DraggableCard
+              key={t.id}
+              task={t}
+              users={users}
+              onUpdate={onUpdate}
+              onOpen={onOpen}
+            />
           ))
         )}
       </div>
@@ -708,10 +828,12 @@ function DraggableCard({
   task,
   users,
   onUpdate,
+  onOpen,
 }: {
   task: Task;
   users: UserOption[];
   onUpdate: (id: string, patch: UpdatePatch) => void;
+  onOpen: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -739,7 +861,13 @@ function DraggableCard({
           <GripVertical className="h-4 w-4" />
         </button>
         <div className="flex-1">
-          <TaskCard task={task} users={users} onUpdate={onUpdate} mode="board" />
+          <TaskCard
+            task={task}
+            users={users}
+            onUpdate={onUpdate}
+            onOpen={onOpen}
+            mode="board"
+          />
         </div>
       </div>
     </div>
@@ -752,6 +880,7 @@ function ListView({
   showCompleted,
   users,
   onUpdate,
+  onOpen,
 }: {
   buckets: {
     overdue: Task[];
@@ -764,28 +893,17 @@ function ListView({
   showCompleted: boolean;
   users: UserOption[];
   onUpdate: (id: string, patch: UpdatePatch) => void;
+  onOpen: (id: string) => void;
 }) {
+  const shared = { users, onUpdate, onOpen };
   return (
     <div className="space-y-4">
-      <Section
-        title="Overdue"
-        tone="destructive"
-        tasks={buckets.overdue}
-        users={users}
-        onUpdate={onUpdate}
-      />
-      <Section title="Today" tone="primary" tasks={buckets.today} users={users} onUpdate={onUpdate} />
-      <Section title="This Week" tasks={buckets.week} users={users} onUpdate={onUpdate} />
-      <Section title="Later" tasks={buckets.later} users={users} onUpdate={onUpdate} />
-      <Section title="No due date" tasks={buckets.noDate} users={users} onUpdate={onUpdate} />
-      {showCompleted && (
-        <Section
-          title="Completed / Cancelled"
-          tasks={completed}
-          users={users}
-          onUpdate={onUpdate}
-        />
-      )}
+      <Section title="Overdue" tone="destructive" tasks={buckets.overdue} {...shared} />
+      <Section title="Today" tone="primary" tasks={buckets.today} {...shared} />
+      <Section title="This Week" tasks={buckets.week} {...shared} />
+      <Section title="Later" tasks={buckets.later} {...shared} />
+      <Section title="No due date" tasks={buckets.noDate} {...shared} />
+      {showCompleted && <Section title="Completed / Cancelled" tasks={completed} {...shared} />}
     </div>
   );
 }
@@ -796,12 +914,14 @@ function Section({
   tasks,
   users,
   onUpdate,
+  onOpen,
 }: {
   title: string;
   tone?: "destructive" | "primary";
   tasks: Task[];
   users: UserOption[];
   onUpdate: (id: string, patch: UpdatePatch) => void;
+  onOpen: (id: string) => void;
 }) {
   if (tasks.length === 0) return null;
   return (
@@ -819,7 +939,14 @@ function Section({
       </CardHeader>
       <CardContent className="space-y-2 pt-0">
         {tasks.map((t) => (
-          <TaskCard key={t.id} task={t} users={users} onUpdate={onUpdate} mode="list" />
+          <TaskCard
+            key={t.id}
+            task={t}
+            users={users}
+            onUpdate={onUpdate}
+            onOpen={onOpen}
+            mode="list"
+          />
         ))}
       </CardContent>
     </Card>
@@ -830,11 +957,13 @@ function TaskCard({
   task,
   users,
   onUpdate,
+  onOpen,
   mode,
 }: {
   task: Task;
   users: UserOption[];
   onUpdate: (id: string, patch: UpdatePatch) => void;
+  onOpen: (id: string) => void;
   mode: "list" | "board";
 }) {
   const overdue =
@@ -859,15 +988,33 @@ function TaskCard({
         }
       />
       <div className="min-w-0 flex-1">
-        <div
-          className={cn(
-            "text-sm",
-            (task.status === "COMPLETED" || task.status === "CANCELLED") &&
-              "line-through text-muted-foreground",
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onOpen(task.id)}
+            className={cn(
+              "truncate text-left text-sm hover:underline",
+              (task.status === "COMPLETED" || task.status === "CANCELLED") &&
+                "line-through text-muted-foreground",
+            )}
+          >
+            {task.title}
+          </button>
+          {(task._count?.events ?? 0) > 0 && (
+            <span
+              className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground"
+              title={`${task._count!.events} note${task._count!.events === 1 ? "" : "s"}`}
+            >
+              <MessageSquare className="h-3 w-3" />
+              {task._count!.events}
+            </span>
           )}
-        >
-          {task.title}
         </div>
+        {task.status === "BLOCKED" && task.blockedReason && (
+          <div className="mt-0.5 truncate text-[11px] text-amber-700">
+            Blocked — {task.blockedReason}
+          </div>
+        )}
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
           {/* Priority — inline edit */}
           <Select
@@ -963,17 +1110,26 @@ function TaskCard({
       {mode === "list" && (
         <Select
           value={task.status}
-          onValueChange={(v: string | null) =>
-            v && onUpdate(task.id, { status: v as TaskStatus })
-          }
+          onValueChange={(v: string | null) => {
+            if (!v) return;
+            // BLOCKED needs a reason the server insists on, and there is
+            // nowhere to type one here — send them to the drawer that asks.
+            if (v === "BLOCKED" && !task.blockedReason) {
+              onOpen(task.id);
+              return;
+            }
+            onUpdate(task.id, { status: v as TaskStatus });
+          }}
         >
           <SelectTrigger className="h-7 w-[130px] text-xs">
-            <SelectValue>{(v: string) => v?.replace("_", " ") || task.status}</SelectValue>
+            <SelectValue>
+              {(v: string) => STATUS_LABEL[v as TaskStatus] ?? task.status}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {STATUSES.map((s) => (
               <SelectItem key={s} value={s}>
-                {s.replace("_", " ")}
+                {STATUS_LABEL[s]}
               </SelectItem>
             ))}
           </SelectContent>
