@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { FilesPanel } from "@/components/files/files-panel";
+import { fetchJson, HttpError, retryServerErrors } from "@/lib/fetch-json";
 import { InvoicesPanel } from "@/components/jobs/invoices-panel";
 import { ExpensesPanel } from "@/components/jobs/expenses-panel";
 import { LaborContractsPanel } from "@/components/jobs/labor-contracts-panel";
@@ -40,19 +41,26 @@ export default function JobDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
 
-  const { data: job, isLoading } = useQuery({
+  const {
+    data: job,
+    isLoading,
+    error: jobError,
+    refetch: refetchJob,
+    isRefetching: isRefetchingJob,
+  } = useQuery({
     queryKey: ["job", id],
-    queryFn: () => fetch(`/api/jobs/${id}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/jobs/${id}`),
+    retry: retryServerErrors,
   });
 
   const { data: stages } = useQuery({
     queryKey: ["jobStages"],
-    queryFn: () => fetch("/api/jobs/stages").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/jobs/stages"),
   });
 
   const { data: crews = [] } = useQuery<{ id: string; name: string; trades: string[] }[]>({
     queryKey: ["crews", "active"],
-    queryFn: () => fetch("/api/crews?activeOnly=true").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/crews?activeOnly=true"),
   });
 
   const [assignCrewId, setAssignCrewId] = useState("");
@@ -60,37 +68,39 @@ export default function JobDetailPage() {
 
   const assignCrew = useMutation({
     mutationFn: (data: { crewId: string; installDate: string }) =>
-      fetch(`/api/jobs/${id}/crews`, {
+      fetchJson(`/api/jobs/${id}/crews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           crewId: data.crewId,
           installDate: data.installDate || null,
         }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["job", id] });
       setAssignCrewId("");
       setAssignInstallDate("");
       toast.success("Crew assigned");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const { data: budgetLines = [] } = useQuery<{ amount: string }[]>({
     queryKey: ["budget", id],
-    queryFn: () => fetch(`/api/jobs/${id}/budget`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/jobs/${id}/budget`),
     enabled: job?.jobType === "OWNED_REHAB",
   });
   const totalBudget = budgetLines.reduce((s, l) => s + Number(l.amount), 0);
 
   const changeStage = useMutation({
     mutationFn: (stageId: string) =>
-      fetch(`/api/jobs/${id}/stage`, {
+      fetchJson(`/api/jobs/${id}/stage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stageId }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["job", id] }); toast.success("Stage updated"); },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const [payAmount, setPayAmount] = useState("");
@@ -103,7 +113,7 @@ export default function JobDetailPage() {
     { id: string; invoiceNumber: string; amount: string; status: string }[]
   >({
     queryKey: ["invoices", id],
-    queryFn: () => fetch(`/api/jobs/${id}/invoices`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/jobs/${id}/invoices`),
   });
   const openInvoices = jobInvoices.filter(
     (inv) => inv.status !== "PAID" && inv.status !== "VOID",
@@ -122,11 +132,11 @@ export default function JobDetailPage() {
       reference: string;
       invoiceId?: string | null;
     }) =>
-      fetch(`/api/jobs/${id}/payments`, {
+      fetchJson(`/api/jobs/${id}/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       refreshFinancials();
       setPayAmount("");
@@ -134,14 +144,12 @@ export default function JobDetailPage() {
       setPayInvoiceId("__none");
       toast.success("Payment recorded");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const deletePayment = useMutation({
     mutationFn: (paymentId: string) =>
-      fetch(`/api/payments/${paymentId}`, { method: "DELETE" }).then((r) => {
-        if (!r.ok) throw new Error("Delete failed");
-        return r.json();
-      }),
+      fetchJson(`/api/payments/${paymentId}`, { method: "DELETE" }),
     onSuccess: () => {
       refreshFinancials();
       toast.success("Payment deleted");
@@ -167,12 +175,12 @@ export default function JobDetailPage() {
 
   const { data: jobUsers = [] } = useQuery<{ id: string; firstName: string; lastName: string }[]>({
     queryKey: ["users"],
-    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/users"),
   });
 
   const addPermit = useMutation({
     mutationFn: (data: typeof emptyPermitForm) =>
-      fetch(`/api/jobs/${id}/permits`, {
+      fetchJson(`/api/jobs/${id}/permits`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -182,16 +190,53 @@ export default function JobDetailPage() {
           expectedApprovalDate: data.expectedApprovalDate || null,
           expirationDate: data.expirationDate || null,
         }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["job", id] });
       setPermitForm(emptyPermitForm);
       toast.success("Permit added");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   if (isLoading) return <div className="flex items-center justify-center py-20"><p className="text-muted-foreground">Loading...</p></div>;
-  if (!job || job.error) return <div className="py-20 text-center"><p>Job not found</p><Button variant="outline" onClick={() => router.push("/jobs")}>Back</Button></div>;
+
+  // A job that isn't there and a job we couldn't reach are different problems
+  // with different remedies. Reporting both as "not found" once sent people
+  // looking for a deleted record while the database was simply unreachable.
+  if (jobError || !job) {
+    const missing = jobError instanceof HttpError && jobError.isNotFound;
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+        <div>
+          <p className="font-medium">
+            {missing ? "Job not found" : "Couldn't load this job"}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {missing
+              ? "It may have been deleted, or the link may be wrong."
+              : jobError instanceof Error
+                ? jobError.message
+                : "Something went wrong loading this job."}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {!missing && (
+            <Button
+              variant="outline"
+              onClick={() => refetchJob()}
+              disabled={isRefetchingJob}
+            >
+              {isRefetchingJob ? "Retrying..." : "Try again"}
+            </Button>
+          )}
+          <Button variant={missing ? "outline" : "ghost"} onClick={() => router.push("/jobs")}>
+            Back to Jobs
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const depositPct = Number(job.depositRequired) > 0
     ? Math.round((Number(job.depositReceived) / Number(job.depositRequired)) * 100) : 0;
