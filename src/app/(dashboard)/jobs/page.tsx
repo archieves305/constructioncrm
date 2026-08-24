@@ -16,6 +16,7 @@ import {
 import { Search, Download, ListChecks, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toCsv, downloadCsv } from "@/lib/csv";
+import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 
 const stageColors: Record<string, string> = {
   "Won": "bg-green-100 text-green-800",
@@ -82,77 +83,80 @@ export default function JobsPage() {
   params.set("page", String(page));
   params.set("withTaskCounts", "true");
 
-  const { data, isLoading } = useQuery<{
+  const {
+    data,
+    isLoading,
+    error: jobsError,
+    refetch: refetchJobs,
+    isRefetching: isRefetchingJobs,
+  } = useQuery<{
     data: JobRow[];
     total: number;
     page: number;
     totalPages: number;
   }>({
     queryKey: ["jobs", search, stageId, salesRepFilter, page],
-    queryFn: () => fetch(`/api/jobs?${params.toString()}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/jobs?${params.toString()}`),
+    retry: retryServerErrors,
   });
 
   const { data: stages } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["jobStages"],
-    queryFn: () => fetch("/api/jobs/stages").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/jobs/stages"),
+    retry: retryServerErrors,
   });
 
   const { data: users } = useQuery<Assignee[]>({
     queryKey: ["assignable-users"],
-    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/users"),
+    retry: retryServerErrors,
   });
 
   const assignableUsers = useMemo(
-    () => (users ?? []).filter((u) => u.isActive && ASSIGNABLE_ROLES.has(u.role.name)),
+    () =>
+      Array.isArray(users)
+        ? users.filter((u) => u.isActive && ASSIGNABLE_ROLES.has(u.role.name))
+        : [],
     [users],
   );
 
   const changeStage = useMutation({
     mutationFn: ({ jobId, stageId }: { jobId: string; stageId: string }) =>
-      fetch(`/api/jobs/${jobId}/stage`, {
+      fetchJson(`/api/jobs/${jobId}/stage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stageId }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed to update stage");
-        return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       toast.success("Stage updated");
     },
-    onError: () => toast.error("Failed to update stage"),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const assignJob = useMutation({
     mutationFn: ({ jobId, salesRepId }: { jobId: string; salesRepId: string }) =>
-      fetch(`/api/jobs/${jobId}/assign`, {
+      fetchJson(`/api/jobs/${jobId}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ salesRepId }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed to assign");
-        return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       toast.success("Sales rep updated");
     },
-    onError: () => toast.error("Failed to assign"),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const bulkAssign = useMutation({
     mutationFn: () =>
-      fetch(`/api/jobs/bulk-assign`, {
+      fetchJson<{ updated: number; requested: number }>(`/api/jobs/bulk-assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobIds: [...selected],
           salesRepId: bulkAssignTo,
         }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Bulk assign failed");
-        return r.json() as Promise<{ updated: number; requested: number }>;
       }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
@@ -165,16 +169,13 @@ export default function JobsPage() {
 
   const bulkStageMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/jobs/bulk-stage`, {
+      fetchJson<{ updated: number; requested: number }>(`/api/jobs/bulk-stage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobIds: [...selected],
           stageId: bulkStage,
         }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Bulk stage change failed");
-        return r.json() as Promise<{ updated: number; requested: number }>;
       }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
@@ -210,7 +211,9 @@ export default function JobsPage() {
     <div>
       <PageHeader
         title="Jobs"
-        description={`${data?.total || 0} active jobs`}
+        description={
+          jobsError ? "Jobs unavailable" : `${data?.total ?? 0} active jobs`
+        }
         actions={
           <Button
             variant="outline"
@@ -219,8 +222,15 @@ export default function JobsPage() {
               exportParams.set("pageSize", "5000");
               exportParams.delete("page");
               exportParams.delete("withTaskCounts");
-              const res = await fetch(`/api/jobs?${exportParams.toString()}`);
-              const body = await res.json();
+              let body: { data?: JobRow[] };
+              try {
+                body = await fetchJson(`/api/jobs?${exportParams.toString()}`);
+              } catch (e) {
+                // Writing an empty CSV when the request failed reads as
+                // "there is nothing to export".
+                toast.error(e instanceof Error ? e.message : "Couldn't export jobs");
+                return;
+              }
               const rows = (body.data || []).map((j: JobRow) => ({
                 jobNumber: j.jobNumber,
                 title: j.title,
@@ -415,6 +425,28 @@ export default function JobsPage() {
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">Loading...</TableCell></TableRow>
+            ) : jobsError ? (
+              // "No jobs found" for a failed request made the connection
+              // exhaustion outage look like every job had been deleted.
+              <TableRow>
+                <TableCell colSpan={11} className="py-8 text-center">
+                  <p className="font-medium">Couldn&apos;t load jobs</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {jobsError instanceof Error
+                      ? jobsError.message
+                      : "Something went wrong loading jobs."}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => refetchJobs()}
+                    disabled={isRefetchingJobs}
+                  >
+                    {isRefetchingJobs ? "Retrying..." : "Try again"}
+                  </Button>
+                </TableCell>
+              </TableRow>
             ) : !data?.data?.length ? (
               <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">No jobs found</TableCell></TableRow>
             ) : (
