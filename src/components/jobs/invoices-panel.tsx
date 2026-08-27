@@ -677,7 +677,7 @@ export function InvoicesPanel({
 
       {/* New / edit application */}
       <Dialog open={appOpen} onOpenChange={setAppOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="w-full max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>
               {editingApp
