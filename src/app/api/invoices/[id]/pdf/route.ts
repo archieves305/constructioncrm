@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
-import { renderInvoicePdf } from "@/lib/pdf/invoice";
+import { renderInvoicePdf, type ApplicationPdfData } from "@/lib/pdf/invoice";
+import { getBillingSummary } from "@/lib/services/progress-billing";
 
 export async function GET(
   _request: NextRequest,
@@ -44,7 +45,24 @@ export async function GET(
     .filter(Boolean)
     .join(", ");
 
+  // A payment application carries its G702 figures, derived by replaying the
+  // job's earlier applications.
+  let application: ApplicationPdfData | null = null;
+  if (invoice.applicationNumber != null) {
+    const summary = await getBillingSummary(invoice.jobId);
+    const app = summary?.applications.find((a) => a.id === invoice.id);
+    if (app) {
+      application = {
+        applicationNumber: app.applicationNumber,
+        periodFrom: invoice.periodFrom,
+        periodTo: invoice.periodTo,
+        ...app.computed,
+      };
+    }
+  }
+
   const pdf = await renderInvoicePdf({
+    application,
     invoiceNumber: invoice.invoiceNumber,
     issueDate: invoice.issueDate,
     dueDate: invoice.dueDate,

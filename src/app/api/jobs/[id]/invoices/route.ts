@@ -48,9 +48,15 @@ export async function POST(
 
   const job = await prisma.job.findUnique({
     where: { id },
-    select: { leadId: true, balanceDue: true, jobNumber: true },
+    select: { leadId: true, balanceDue: true, jobNumber: true, billingMethod: true },
   });
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  // A balance-due invoice on a progress job would sit outside the application
+  // sequence and never be counted as a "previous certificate".
+  if (job.billingMethod === "PROGRESS")
+    return badRequest(
+      "This job is progress-billed — issue a payment application instead",
+    );
 
   const amount = parsed.data.amount ?? Number(job.balanceDue);
   const invoiceNumber = await nextInvoiceNumber(job.jobNumber, id);

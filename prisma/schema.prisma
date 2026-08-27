@@ -1063,6 +1063,10 @@ model Job {
   financingStatus       FinancingStatus @default(NOT_NEEDED) @map("financing_status")
   financingApprovedDate DateTime?       @map("financing_approved_date")
   balanceDue            Decimal         @default(0) @map("balance_due") @db.Decimal(12, 2)
+  // Progress billing (see BillingMethod). retainagePercent is the job-level
+  // rate; each application snapshots the rate it was issued under.
+  billingMethod         BillingMethod   @default(LUMP_SUM) @map("billing_method")
+  retainagePercent      Decimal         @default(0) @map("retainage_percent") @db.Decimal(5, 2)
   finalPaymentReceived  Boolean         @default(false) @map("final_payment_received")
   finalPaymentDate      DateTime?       @map("final_payment_date")
   projectManagerId      String?         @map("project_manager_id")
@@ -1105,6 +1109,7 @@ model Job {
   budgetLines        BudgetLine[]
   generatedDocuments GeneratedDocument[]
   changeOrders       ChangeOrder[]
+  sovLines           SovLine[]
   dailyLogs          DailyLog[]
   dailyLaborEntries  DailyLaborEntry[]
   jobAreas           JobArea[]
@@ -1471,6 +1476,15 @@ enum InvoiceStatus {
   VOID
 }
 
+// How a job is billed. LUMP_SUM invoices the balance (deposit, final, change
+// orders). PROGRESS bills the work completed each period as a numbered payment
+// application against a schedule of values, AIA G702/G703 style, with
+// retainage withheld until release.
+enum BillingMethod {
+  LUMP_SUM
+  PROGRESS
+}
+
 enum ChangeOrderStatus {
   DRAFT
   SENT
@@ -1570,16 +1584,65 @@ model Invoice {
   status        InvoiceStatus @default(DRAFT)
   paidAt        DateTime?     @map("paid_at")
   notes         String?       @db.Text
+  // Payment application (PROGRESS jobs only). `amount` is the current payment
+  // due — derived from the lines: completed-to-date × (1 − retainage) − prior
+  // applications. Null on lump-sum invoices.
+  applicationNumber Int?      @map("application_number")
+  periodFrom        DateTime? @map("period_from") @db.Date
+  periodTo          DateTime? @map("period_to") @db.Date
+  retainagePercent  Decimal?  @map("retainage_percent") @db.Decimal(5, 2)
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
   job         Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
   changeOrder ChangeOrder?
   payments    Payment[]
+  lines       InvoiceLine[]
 
+  @@unique([jobId, applicationNumber])
   @@index([jobId])
   @@index([status])
   @@map("invoices")
+}
+
+// Schedule of values (AIA G703) — the revenue-side breakdown of the contract
+// that progress applications bill against. Deliberately separate from
+// BudgetLine, which is the cost side. Σ scheduledValue should equal
+// Job.contractAmount; the UI warns when it drifts (e.g. after a change order).
+model SovLine {
+  id             String   @id @default(cuid())
+  jobId          String   @map("job_id")
+  itemNo         Int      @map("item_no")
+  description    String
+  scheduledValue Decimal  @map("scheduled_value") @db.Decimal(12, 2)
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  job          Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  invoiceLines InvoiceLine[]
+
+  @@unique([jobId, itemNo])
+  @@index([jobId])
+  @@map("sov_lines")
+}
+
+// Work billed against one SOV line on one application. Everything cumulative
+// (previous, to-date, %, balance to finish) is derived from earlier
+// applications, so a line stores only this period's work.
+model InvoiceLine {
+  id            String   @id @default(cuid())
+  invoiceId     String   @map("invoice_id")
+  sovLineId     String   @map("sov_line_id")
+  workCompleted Decimal  @map("work_completed") @db.Decimal(12, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  sovLine SovLine @relation(fields: [sovLineId], references: [id], onDelete: Restrict)
+
+  @@unique([invoiceId, sovLineId])
+  @@index([sovLineId])
+  @@map("invoice_lines")
 }
 
 model Payment {

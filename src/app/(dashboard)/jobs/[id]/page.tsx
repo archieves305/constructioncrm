@@ -568,7 +568,11 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="invoices">
-              <InvoicesPanel jobId={id} />
+              <InvoicesPanel
+                jobId={id}
+                billingMethod={job.billingMethod ?? "LUMP_SUM"}
+                retainagePercent={Number(job.retainagePercent ?? 0)}
+              />
             </TabsContent>
 
             <TabsContent value="expenses">

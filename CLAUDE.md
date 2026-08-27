@@ -27,6 +27,8 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+0. 🔴 **Progress billing — deploy + JOB-00009 backfill**, then Stage 2
+   (change orders on PROGRESS jobs add an SOV line instead of an invoice).
 1. 🔴 **Job-costing check-and-balance.** Write gate and pending state both
    shipped. Remaining: **reconciliation against cc-allocator**, and **12
    candidate duplicate charges ($9,166.20) still need a human to confirm** —
@@ -43,6 +45,18 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-08-27 — Progress billing / payment applications (built, NOT deployed)
+
+Bill work completed in a period instead of the whole balance — AIA
+G702/G703 style, driven by JOB-00009. `Job.billingMethod` + retainage,
+`SovLine`, applications as `Invoice` + `InvoiceLine`, G702 PDF, Invoices-tab
+UI, migration `20260827120000_progress_billing`. Retainage defaults 10%
+commercial / 0% residential; one SOV line per contract. 387/387 tests, build
+clean. **Still to do:** deploy, then run
+`scripts/backfill-clewiston-applications.ts` on the droplet (converts apps
+1–12; apps 13–14 go in through the UI). Details:
+[features/progress-billing.md](docs/project-memory/features/progress-billing.md).
 
 ### 2026-08-03 — Task collaboration (built, NOT deployed)
 
@@ -191,6 +205,10 @@ Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
   expenses must filter `status: "APPROVED"` — that is the whole control.
   Entry auto-approves for ADMIN/MANAGER/OFFICE_STAFF; everyone else queues.
   Approving is role-only and is deliberately NOT conferred by the enter grant.
+- **PROGRESS jobs bill by payment application**, never by "balance due":
+  amount = completed-to-date × (1 − retainage) − previous certificates. Only
+  the latest application may be edited or voided. Same explicit role list
+  as expense approval.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
