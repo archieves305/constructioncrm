@@ -1,6 +1,6 @@
 # Feature — Progress billing (AIA G702/G703 payment applications)
 
-_Built 2026-08-27. Stage 1 of 3. Not yet deployed; JOB-00009 backfill not yet run._
+_Built and deployed 2026-08-27 (`891b891`, `78e3d6c`). Stage 1 of 3. JOB-00009 backfill ran the same day; every amount reproduced._
 
 ## Why
 

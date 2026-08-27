@@ -27,7 +27,9 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-0. 🔴 **Progress billing — deploy + JOB-00009 backfill**, then Stage 2
+0. 🔴 **Progress billing** — deployed + JOB-00009 backfilled 2026-08-27.
+   Open: App #12 is VOID but has a received payment (Richard to confirm);
+   two void balance-due test invoices (-13/-14) skew numbering. Next: Stage 2
    (change orders on PROGRESS jobs add an SOV line instead of an invoice).
 1. 🔴 **Job-costing check-and-balance.** Write gate and pending state both
    shipped. Remaining: **reconciliation against cc-allocator**, and **12
@@ -46,16 +48,15 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-08-27 — Progress billing / payment applications (built, NOT deployed)
+### 2026-08-27 — Progress billing / payment applications (deployed + backfilled)
 
 Bill work completed in a period instead of the whole balance — AIA
 G702/G703 style, driven by JOB-00009. `Job.billingMethod` + retainage,
 `SovLine`, applications as `Invoice` + `InvoiceLine`, G702 PDF, Invoices-tab
 UI, migration `20260827120000_progress_billing`. Retainage defaults 10%
 commercial / 0% residential; one SOV line per contract. 387/387 tests, build
-clean. **Still to do:** deploy, then run
-`scripts/backfill-clewiston-applications.ts` on the droplet (converts apps
-1–12; apps 13–14 go in through the UI). Details:
+clean. Deployed `891b891`/`78e3d6c`; backfill ran on prod, all 12 amounts
+reproduced. Apps 13–14 go in through the UI. Details:
 [features/progress-billing.md](docs/project-memory/features/progress-billing.md).
 
 ### 2026-08-03 — Task collaboration (built, NOT deployed)
