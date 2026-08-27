@@ -27,9 +27,8 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-0. 🔴 **Progress billing** — deployed + JOB-00009 backfilled 2026-08-27.
-   Open: App #12 is VOID but has a received payment (Richard to confirm);
-   two void balance-due test invoices (-13/-14) skew numbering. Next: Stage 2
+0. 🔴 **Progress billing** — deployed + JOB-00009 backfilled 2026-08-27;
+   apps 1–12 PAID, apps 13–14 to be entered in the UI. Next: Stage 2
    (change orders on PROGRESS jobs add an SOV line instead of an invoice).
 1. 🔴 **Job-costing check-and-balance.** Write gate and pending state both
    shipped. Remaining: **reconciliation against cc-allocator**, and **12
