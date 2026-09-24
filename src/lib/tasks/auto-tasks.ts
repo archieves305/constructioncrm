@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import type { InvoiceStatus, Priority } from "@/generated/prisma/client";
 import { createTask } from "./create";
+import { onTaskTransition } from "./transitions";
 import { recordTaskEvent } from "./events";
 import { dueInBusinessDays, dueTomorrow } from "./due-dates";
 import { OPEN_TASK_STATUSES } from "./status";
@@ -226,7 +227,7 @@ export async function closeAutoTask(
   try {
     const open = await prisma.task.findMany({
       where: { sourceKey, status: { in: [...OPEN_TASK_STATUSES] } },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     if (open.length === 0) return { closed: 0 };
     const now = new Date();
@@ -247,6 +248,7 @@ export async function closeAutoTask(
         toValue: opts.outcome,
         body: opts.because,
       });
+      await onTaskTransition({ taskId: t.id, from: t.status, to: opts.outcome, actorUserId: opts.actorUserId });
     }
     return { closed: open.length };
   } catch (err) {

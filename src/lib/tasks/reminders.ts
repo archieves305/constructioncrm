@@ -7,7 +7,7 @@ import { reportDelivery, type DeliveryFailure } from "@/lib/email/delivery-repor
 import { recordTaskEvent } from "./events";
 import { taskUrlForRole } from "./links";
 import { resolveRecipients, type Candidate } from "./recipients";
-import { OPEN_TASK_STATUSES } from "./status";
+import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { renderTaskReminderEmail, type CustomReminderItem, type ReminderItem } from "./task-email";
 
 /**
@@ -95,7 +95,7 @@ export async function runMorningDigest(now: Date = new Date()): Promise<DigestRu
   const [dueTasks, reminderTasks] = await Promise.all([
     prisma.task.findMany({
       where: {
-        status: { in: [...OPEN_TASK_STATUSES] },
+        ...ACTIVE_OPEN_WHERE,
         assignedUserId: { not: null },
         dueAt: { not: null, lte: todayEnd },
       },
@@ -104,7 +104,7 @@ export async function runMorningDigest(now: Date = new Date()): Promise<DigestRu
     }),
     prisma.task.findMany({
       where: {
-        status: { in: [...OPEN_TASK_STATUSES] },
+        ...ACTIVE_OPEN_WHERE,
         remindAt: { not: null, lte: todayEnd },
         remindedAt: null,
       },

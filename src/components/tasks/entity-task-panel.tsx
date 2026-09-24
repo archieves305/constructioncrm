@@ -6,6 +6,7 @@ import { format, isPast, isToday } from "date-fns";
 import { CheckSquare, MessageSquare, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { useSession } from "@/lib/auth/session-client";
 import { cn } from "@/lib/utils";
@@ -43,13 +44,18 @@ export function EntityTaskPanel({
 }) {
   const { data: session } = useSession();
   const [showCompleted, setShowCompleted] = useState(false);
+  const [source, setSource] = useState<"all" | "manual" | "workflow">("all");
   const [adding, setAdding] = useState(false);
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
 
   const link = primaryLink(context);
   const filters = useMemo(
-    () => (link ? { [link.key]: link.id, includeCompleted: showCompleted } : { includeCompleted: showCompleted }),
-    [link, showCompleted],
+    () => ({
+      ...(link ? { [link.key]: link.id } : {}),
+      includeCompleted: showCompleted,
+      ...(source !== "all" ? { source } : {}),
+    }),
+    [link, showCompleted, source],
   );
   const { data: tasks = [], isLoading } = useTasks(filters, { enabled: Boolean(link) });
   const { data: users = [] } = useAssignableUsers();
@@ -71,6 +77,20 @@ export function EntityTaskPanel({
         <CheckSquare className="size-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">{title}</h3>
         <TaskCountBadge open={open.length} overdue={overdue} compact />
+        {context.jobId && !compact && (
+          <SegmentedControl
+            ariaLabel="Task source"
+            size="sm"
+            className="ml-2"
+            value={source}
+            onValueChange={setSource}
+            options={[
+              { value: "all", label: "All" },
+              { value: "manual", label: "Manual" },
+              { value: "workflow", label: "Workflow" },
+            ]}
+          />
+        )}
         <div className="flex-1" />
         {done.length > 0 && (
           <button

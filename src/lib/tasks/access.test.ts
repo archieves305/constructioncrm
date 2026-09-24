@@ -55,3 +55,19 @@ describe("task access", () => {
     expect(canDeleteTask({ id: "jo", role: "READ_ONLY" }, task)).toBe(false);
   });
 });
+
+describe("task access — job scope", () => {
+  const rep = { id: "u-rep", role: "SALES_REP" as const };
+  const other = { assignedUserId: "u-someone", createdByUserId: "u-else", jobId: "j1" };
+
+  it("a rep sees another person's task on a job they are on, and only there", () => {
+    expect(canViewTask(rep, other)).toBe(false);
+    expect(canViewTask(rep, other, { jobIds: ["j1"] })).toBe(true);
+    expect(canViewTask(rep, other, { jobIds: ["j2"] })).toBe(false);
+    expect(canViewTask(rep, { ...other, jobId: null }, { jobIds: ["j1"] })).toBe(false);
+  });
+
+  it("scope widens viewing, never editing", () => {
+    expect(canEditTask(rep, other)).toBe(false);
+  });
+});

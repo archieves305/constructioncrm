@@ -28,7 +28,18 @@ export type TaskListItem = {
   dailyLog?: { id: string; jobId: string; logDate: string } | null;
   assignedTo: Person | null;
   createdBy?: Person | null;
-  _count?: { events: number };
+  _count?: { events: number; files?: number; dependents?: number };
+  // ── Workflow metadata (null/absent on an ordinary task) ──
+  workflowInstanceId?: string | null;
+  workflowTaskKey?: string | null;
+  workflowPhaseKey?: string | null;
+  workflowModuleKey?: string | null;
+  workflowRole?: string | null;
+  blocking?: boolean;
+  activatedAt?: string | null;
+  dueLocked?: boolean;
+  skipReason?: string | null;
+  inspectionResult?: string | null;
 };
 
 /**
@@ -76,6 +87,11 @@ export type UpdatePatch = Partial<{
   dueAt: string | null;
   blockedReason: string | null;
   remindAt: string | null;
+  // Workflow steps
+  skipReason: string | null;
+  dueLocked: boolean;
+  checklist: { key: string; done: boolean }[];
+  evidenceOverrideReason: string;
 }>;
 
 export type CreateTaskPayload = {

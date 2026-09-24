@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { AssigneePicker } from "./assignee-picker";
 import { TaskEntityChip } from "./task-entity-chip";
 import { PRIORITY_OUTLINE_CLASS, STATUS_LABEL, TASK_PRIORITIES, TASK_STATUSES } from "./task-colors";
+import { deriveTaskState, WORKFLOW_STATE_LABEL, WORKFLOW_STATE_PILL } from "@/components/workflows/status";
 import type { Priority, TaskListItem, TaskStatus, UpdatePatch, UserOption } from "./types";
 
 /**
@@ -32,6 +33,9 @@ export function TaskCard({
   const overdue =
     Boolean(task.dueAt) && isPast(new Date(task.dueAt!)) && !isToday(new Date(task.dueAt!)) && !closed;
   const dueValue = task.dueAt ? task.dueAt.slice(0, 10) : "";
+  const wfState = task.workflowTaskKey
+    ? deriveTaskState({ status: task.status, activatedAt: task.activatedAt ?? null, skipReason: task.skipReason, inspectionResult: task.inspectionResult as "FAIL" | null })
+    : null;
 
   return (
     <div className="flex items-start gap-3 rounded-lg border bg-white p-3">
@@ -55,6 +59,11 @@ export function TaskCard({
           >
             {task.title}
           </button>
+          {wfState && (
+            <span className={cn("shrink-0 rounded-full px-1.5 text-[10px] font-medium", WORKFLOW_STATE_PILL[wfState])} title="Workflow step">
+              {WORKFLOW_STATE_LABEL[wfState]}
+            </span>
+          )}
           {(task._count?.events ?? 0) > 0 && (
             <span
               className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground"

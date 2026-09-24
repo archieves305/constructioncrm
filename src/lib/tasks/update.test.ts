@@ -24,6 +24,7 @@ vi.mock("./events", async (orig) => ({
 }));
 vi.mock("next/server", () => ({ after: (fn: () => Promise<void>) => void fn() }));
 vi.mock("@/lib/logger", () => ({ logger: { exception: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
+vi.mock("./transitions", () => ({ onTaskTransition: vi.fn() }));
 
 const { updateTask, TaskUpdateError } = await import("./update");
 
@@ -202,5 +203,112 @@ describe("updateTask", () => {
     expect(data.remindAt).toBeNull();
     expect(data.remindSetBy).toEqual({ disconnect: true });
     expect(recordTaskEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "REMINDER_SET", toValue: null }));
+  });
+});
+
+describe("updateTask — workflow steps", () => {
+  const step = {
+    ...existing,
+    jobId: "j1",
+    workflowInstanceId: "w1",
+    workflowTaskKey: "roofing:mobilize",
+    workflowAnchor: "PREDECESSOR" as const,
+    dueOffsetBusinessDays: 2,
+    blocking: false,
+    activatedAt: new Date("2026-10-01T12:00:00Z"),
+    dueLocked: false,
+    skipReason: null as string | null,
+    requiredEvidence: null as "ATTACHMENT" | null,
+    requiredEvidenceParam: null,
+    checklist: null as unknown,
+    inspectionResult: null,
+  };
+  const eventTypes = () => recordTaskEvent.mock.calls.map((c) => (c[0] as { type: string }).type);
+
+  it("refuses to skip a step without a reason", async () => {
+    db.task.findUnique.mockResolvedValue(step);
+    await expect(updateTask({ id: "t1", input: { status: "CANCELLED" }, actorUserId: "u-jo", actorRole: "OFFICE_STAFF" })).rejects.toMatchObject({
+      status: 400,
+      message: "Say why this step is being skipped",
+    });
+    expect(db.task.update).not.toHaveBeenCalled();
+  });
+
+  it("records the skip reason and a SKIPPED row", async () => {
+    db.task.findUnique.mockResolvedValue(step);
+    await updateTask({ id: "t1", input: { status: "CANCELLED", skipReason: "Owner supplied the dumpster" }, actorUserId: "u-jo", actorRole: "OFFICE_STAFF", notify: "none" });
+    expect(db.task.update.mock.calls[0][0].data.skipReason).toBe("Owner supplied the dumpster");
+    expect(eventTypes()).toContain("SKIPPED");
+  });
+
+  it("only an admin or manager may skip a blocking gate", async () => {
+    db.task.findUnique.mockResolvedValue({ ...step, blocking: true });
+    await expect(
+      updateTask({ id: "t1", input: { status: "CANCELLED", skipReason: "n/a" }, actorUserId: "u-jo", actorRole: "OFFICE_STAFF" }),
+    ).rejects.toMatchObject({ status: 403 });
+    await updateTask({ id: "t1", input: { status: "CANCELLED", skipReason: "n/a" }, actorUserId: "u-jo", actorRole: "MANAGER", notify: "none" });
+    expect(db.task.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("will not complete a step with an open checklist item, and merges ticks first", async () => {
+    const checklist = [{ key: "a", label: "A", done: false }, { key: "b", label: "B", done: false }];
+    db.task.findUnique.mockResolvedValue({ ...step, checklist });
+    await expect(updateTask({ id: "t1", input: { status: "COMPLETED", checklist: [{ key: "a", done: true }] }, actorUserId: "u-jo", actorRole: "ADMIN" })).rejects.toMatchObject({
+      status: 400,
+      hint: "checklist",
+    });
+    // Ticking the last box in the same save is enough.
+    await updateTask({ id: "t1", input: { status: "COMPLETED", checklist: [{ key: "a", done: true }, { key: "b", done: true }] }, actorUserId: "u-jo", actorRole: "ADMIN", notify: "none" });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data.status).toBe("COMPLETED");
+    expect((data.checklist as { done: boolean }[]).every((c) => c.done)).toBe(true);
+    expect(eventTypes()).toContain("CHECKLIST_UPDATED");
+  });
+
+  it("an admin may override missing evidence with a reason; others get the plain-English 400", async () => {
+    db.task.findUnique.mockResolvedValue({ ...step, requiredEvidence: "ATTACHMENT" });
+    (db as unknown as { file: { count: ReturnType<typeof vi.fn> } }).file = { count: vi.fn().mockResolvedValue(0) };
+    await expect(updateTask({ id: "t1", input: { status: "COMPLETED" }, actorUserId: "u-jo", actorRole: "OFFICE_STAFF" })).rejects.toMatchObject({
+      status: 400,
+      message: "Attach the document to this step before completing it",
+    });
+    await updateTask({ id: "t1", input: { status: "COMPLETED", evidenceOverrideReason: "Paper copy in the job folder" }, actorUserId: "u-jo", actorRole: "ADMIN", notify: "none" });
+    expect(db.task.update).toHaveBeenCalledTimes(1);
+    expect(recordTaskEvent.mock.calls.some((c) => (c[0] as { type: string; body?: string }).type === "NOTE" && (c[0] as { body?: string }).body?.includes("overridden"))).toBe(true);
+  });
+
+  it("a hand-edited due date locks the step; unlocking hands it back to the engine", async () => {
+    db.task.findUnique.mockResolvedValue(step);
+    await updateTask({ id: "t1", input: { dueAt: "2026-11-02" }, actorUserId: "u-jo", notify: "none" });
+    expect(db.task.update.mock.calls[0][0].data.dueLocked).toBe(true);
+
+    db.task.update.mockClear();
+    db.task.findUnique.mockResolvedValue({ ...step, dueLocked: true, dueAt: new Date("2026-11-02T12:00:00Z") });
+    (db as unknown as { jobWorkflowInstance: { findUnique: ReturnType<typeof vi.fn> } }).jobWorkflowInstance = {
+      findUnique: vi.fn().mockResolvedValue({ appliedAt: step.activatedAt, job: { createdAt: step.activatedAt, targetStartDate: null } }),
+    };
+    await updateTask({ id: "t1", input: { dueLocked: false }, actorUserId: "u-jo", notify: "none" });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data.dueLocked).toBe(false);
+    expect(data.dueAt).toBeInstanceOf(Date); // recomputed from activation + 2 business days
+  });
+
+  it("starting a Not-active step activates it out of order", async () => {
+    db.task.findUnique.mockResolvedValue({ ...step, activatedAt: null, dueAt: null });
+    (db as unknown as { jobWorkflowInstance: { findUnique: ReturnType<typeof vi.fn> } }).jobWorkflowInstance = {
+      findUnique: vi.fn().mockResolvedValue({ appliedAt: new Date(), job: { createdAt: new Date(), targetStartDate: null } }),
+    };
+    await updateTask({ id: "t1", input: { status: "IN_PROGRESS" }, actorUserId: "u-jo", notify: "none" });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data.activatedAt).toBeInstanceOf(Date);
+    expect(data.dueAt).toBeInstanceOf(Date);
+    expect(recordTaskEvent.mock.calls.some((c) => (c[0] as { type: string; toValue?: string }).type === "ACTIVATED" && (c[0] as { toValue?: string }).toValue === "out_of_order")).toBe(true);
+  });
+
+  it("ordinary tasks are untouched by the workflow rules", async () => {
+    db.task.findUnique.mockResolvedValue({ ...existing, workflowTaskKey: null, workflowInstanceId: null });
+    await updateTask({ id: "t1", input: { status: "CANCELLED" }, actorUserId: "u-jo", actorRole: "SALES_REP", notify: "none" });
+    expect(db.task.update).toHaveBeenCalledTimes(1);
+    expect(db.task.update.mock.calls[0][0].data.dueLocked).toBeUndefined();
   });
 });

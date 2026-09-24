@@ -4,6 +4,7 @@ import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/help
 import { validateBody } from "@/lib/validation/body";
 import { createTaskSchema } from "@/lib/validators/task";
 import { buildTaskListWhere, readTaskListParams } from "@/lib/tasks/query";
+import { visibilityScopeFor } from "@/lib/workflows/visibility";
 import { TASK_LIST_INCLUDE } from "@/lib/tasks/include";
 import { createTask, TaskLinkError } from "@/lib/tasks/create";
 import { parseDueAt } from "@/lib/tasks/dates";
@@ -12,7 +13,8 @@ export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
-  const where = buildTaskListWhere(readTaskListParams(request.nextUrl.searchParams), session.user);
+  const scope = await visibilityScopeFor(session.user);
+  const where = buildTaskListWhere(readTaskListParams(request.nextUrl.searchParams), session.user, new Date(), scope);
 
   const tasks = await prisma.task.findMany({
     where,

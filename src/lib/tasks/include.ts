@@ -23,6 +23,19 @@ export const TASK_LIST_INCLUDE = {
 export const TASK_DETAIL_INCLUDE = {
   ...TASK_LIST_INCLUDE,
   completedBy: { select: { id: true, firstName: true, lastName: true } },
+  // Workflow: what this step waits on, and files attached as evidence.
+  dependencies: {
+    select: {
+      kind: true,
+      source: true,
+      dependsOnTaskId: true,
+      dependsOn: { select: { id: true, title: true, status: true, workflowTaskKey: true, activatedAt: true } },
+    },
+  },
+  files: {
+    orderBy: { createdAt: "desc" },
+    select: { id: true, fileName: true, fileType: true, fileSize: true, category: true, createdAt: true, uploadedBy: { select: { id: true, firstName: true, lastName: true } } },
+  },
   fieldIssue: { select: { id: true, status: true } },
   watchers: {
     select: {

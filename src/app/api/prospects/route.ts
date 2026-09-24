@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createProspectSchema } from "@/lib/validators/prospect";
 import { Prisma } from "@/generated/prisma/client";
-import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
+import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 
 // Shape returned for prospect lists/cards: core fields + knock count + latest
 // knock outcome, so the canvassing UI can render status at a glance.
@@ -63,12 +63,12 @@ export async function GET(request: NextRequest) {
   const [open, overdue] = await Promise.all([
     prisma.task.groupBy({
       by: ["prospectId"],
-      where: { prospectId: { in: ids }, status: { in: [...OPEN_TASK_STATUSES] } },
+      where: { prospectId: { in: ids }, ...ACTIVE_OPEN_WHERE },
       _count: { _all: true },
     }),
     prisma.task.groupBy({
       by: ["prospectId"],
-      where: { prospectId: { in: ids }, status: { in: [...OPEN_TASK_STATUSES] }, dueAt: { lt: now } },
+      where: { prospectId: { in: ids }, ...ACTIVE_OPEN_WHERE, dueAt: { lt: now } },
       _count: { _all: true },
     }),
   ]);

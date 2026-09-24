@@ -4,6 +4,24 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 ---
 
+
+## 2026-09-24 — Trade Workflow Templates, Stage 1
+
+Schema (`workflow_*`, `job_workflow_*`, `task_dependencies`, workflow
+columns on `tasks`, `files.task_id`, `jobs.jurisdiction`), migration
+`20261001120000_workflow_templates` with the `activated_at` backfill. DSL
+(`defineTemplate`), pure `compose`/`dependencies`/`schedule`, `apply`
+(idempotent `materializePlan`), `activation` inline from `updateTask`,
+`evidence`, `roles`, `determinePermit`, `reconcileScope`. Four seeded v1
+templates (34/74/85/81 steps). Routes under `/api/jobs/[id]/workflow`,
+`/api/workflow-templates`, `/api/admin/workflow-role-defaults`. UI:
+Workflow tab, Apply dialog, sheet block, filters, admin pages, post-Won
+toast. Own-only visibility widened by job relationship. Two bugs found in
+QA and fixed before deploy: a permit-conditioned mid-chain inspection was
+dropped instead of bypassed when not required (orphaned the chain);
+deciding the permit 500'd because the gate step's own checklist blocked
+the engine's completion. 563 tests, lint 6/29.
+
 ## 2026-09-24 (later still) — Visual redesign (Stage 3 of 3)
 
 See [features/design-system.md](features/design-system.md) for the shape

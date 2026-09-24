@@ -94,6 +94,28 @@ function describe(e: TimelineEvent, users: UserLookup): string | null {
       return `Reminder emailed to ${e.toValue ?? "someone"}`;
     case "AUTO_CLOSED":
       return `${e.toValue === "COMPLETED" ? "Completed" : "Cancelled"} automatically${e.body ? ` — ${e.body}` : ""}`;
+    case "ACTIVATED":
+      return e.toValue === "initial"
+        ? "Ready from the start — nothing to wait for"
+        : e.toValue === "out_of_order"
+          ? `${who} started this before its predecessors were done`
+          : e.toValue === "reconcile"
+            ? "Became ready after the workflow was re-planned"
+            : "Became ready — its predecessors are done";
+    case "SKIPPED":
+      return `${who} skipped this step${e.body ? ` — ${e.body}` : ""}${e.toValue ? " (blocking gate overridden)" : ""}`;
+    case "DEPENDENCY_ADDED":
+      return `${who} made this wait on another step`;
+    case "DEPENDENCY_REMOVED":
+      return `${who} removed a dependency`;
+    case "CHECKLIST_UPDATED":
+      return `${who} updated the checklist${e.toValue ? ` (${e.toValue} done)` : ""}`;
+    case "EVIDENCE_ATTACHED":
+      return `${who} attached ${e.body ? `“${e.body}”` : "a file"}`;
+    case "INSPECTION_RESULT":
+      return `${who} recorded the inspection as ${e.toValue?.toLowerCase() ?? "—"}${e.body ? ` — ${e.body}` : ""}`;
+    case "RECONCILED":
+      return `Workflow re-planned${e.body ? ` — ${e.body}` : ""}`;
     default:
       return null;
   }
@@ -110,6 +132,11 @@ const DOT_TONE: Record<string, string> = {
   AUTO_CLOSED: "bg-emerald-500",
   REMINDER_SET: "bg-gray-300",
   REMINDER_SENT: "bg-gray-300",
+  ACTIVATED: "bg-tone-info",
+  SKIPPED: "bg-gray-400",
+  EVIDENCE_ATTACHED: "bg-gray-400",
+  INSPECTION_RESULT: "bg-tone-warning",
+  RECONCILED: "bg-tone-info",
 };
 
 export function TaskTimeline({

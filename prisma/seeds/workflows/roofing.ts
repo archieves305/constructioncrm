@@ -1,0 +1,357 @@
+import { defineTemplate } from "../../../src/lib/workflows/templates/define";
+import { LEGAL_NO_PERMIT_WARNING, PHASE_BANDS as B } from "../../../src/lib/workflows/templates/types";
+import { ACC, EST, NO_PERMIT_TASKS, OA, PC, PM, PUR, QC, REQ, SR, SUP, any, task, when } from "./_shorthand";
+
+export const ROOFING = defineTemplate({
+  key: "roofing",
+  name: "Roofing",
+  kind: "TRADE",
+  trade: "Roofing",
+  serviceCategoryNames: ["Roofing"],
+  description: "Re-roof and roof-replacement work: scope review, permitting, procurement, installation and closeout.",
+  scopeToggles: [
+    { key: "tear_off", label: "Tear-off", default: true },
+    { key: "deck_repairs", label: "Deck repairs", default: true },
+    { key: "insulation", label: "Insulation", default: false },
+    { key: "tpo", label: "TPO", default: false },
+    { key: "pvc", label: "PVC", default: false },
+    { key: "mod_bit", label: "Modified bitumen", default: false },
+    { key: "metal", label: "Metal roofing", default: false },
+    { key: "coating", label: "Roof coating", default: false },
+    { key: "crane", label: "Crane required", default: false },
+    { key: "mfr_warranty", label: "Manufacturer warranty", default: true },
+    { key: "occupied", label: "Occupied building", default: true },
+  ],
+  phases: [
+    {
+      key: "scope_review",
+      name: "Roofing Scope Review",
+      band: B.SCOPE_REVIEW,
+      startsAfter: ["core:review_contract"],
+      tasks: [
+        task("verify_roof_measurements", "Verify roof measurements", EST, 1, {
+          requiredEvidence: "ATTACHMENT",
+          checklist: ["Squares", "Pitch", "Eave / rake linear feet", "Penetration count"],
+        }),
+        task("confirm_roof_system", "Confirm roof system and assembly", EST, 1, {
+          dependsOn: ["^"],
+          blocking: true,
+          requiredEvidence: "ATTACHMENT",
+          checklist: ["System matches contract", "Underlayment", "Fastening pattern", "NOA / Florida Product Approval identified"],
+        }),
+        task("confirm_tear_off_scope", "Confirm tear-off scope", EST, 1, {
+          dependsOn: ["^"],
+          condition: any("tear_off"),
+          checklist: ["Number of layers", "Disposal plan", "Tear-off vs recover"],
+        }),
+        task("confirm_decking_assumptions", "Confirm decking assumptions and unit pricing", EST, 1, {
+          dependsOn: ["^"],
+          condition: any("tear_off", "deck_repairs"),
+          requiredEvidence: "ATTACHMENT",
+          checklist: ["Deck type", "Unit price per sheet / LF in contract", "Allowance"],
+        }),
+        task("confirm_insulation_spec", "Confirm insulation type, thickness and R-value", EST, 1, {
+          dependsOn: ["^"],
+          condition: any("insulation", "tpo", "pvc", "mod_bit"),
+        }),
+        task("confirm_flashing_penetrations", "Confirm flashing and penetration details", EST, 1, { dependsOn: ["^"] }),
+        task("confirm_drainage_tapered", "Confirm drainage and tapered insulation requirements", EST, 1, {
+          dependsOn: ["^"],
+          condition: any("tpo", "pvc", "mod_bit", "coating"),
+        }),
+        task("confirm_mfr_warranty_requirements", "Confirm manufacturer warranty requirements", PM, 1, {
+          dependsOn: ["^"],
+          condition: any("mfr_warranty"),
+          checklist: ["Warranty type and term", "Certified installer", "Registration steps", "Required manufacturer inspections"],
+        }),
+        task("confirm_staging_dumpster_crane", "Confirm staging, dumpster and crane requirements", SUP, 1, {
+          dependsOn: ["^"],
+          checklist: [
+            "Dumpster location",
+            "Staging area",
+            when("crane", "Crane pad and street permit"),
+            when("occupied", "Occupant notice"),
+          ],
+        }),
+        task("document_existing_roof_conditions", "Document existing roof conditions", SUP, 1, {
+          dependsOn: ["verify_roof_measurements"],
+          requiredEvidence: "PHOTO",
+        }),
+      ],
+    },
+    {
+      key: "permit_required",
+      name: "Roofing Permit",
+      band: B.PERMITTING,
+      permit: "REQUIRED",
+      startsAfter: ["core:determine_permit_requirement"],
+      tasks: [
+        task("prepare_permit_application", "Prepare roofing permit application", PC, 1, { requiredEvidence: "ATTACHMENT" }),
+        task("confirm_owner_authorization", "Confirm owner authorization", PC, 1, { dependsOn: ["^"], requiredEvidence: "ATTACHMENT" }),
+        task("prepare_notice_of_commencement", "Prepare or record Notice of Commencement", PC, 2, {
+          dependsOn: ["^"],
+          requiredEvidence: "ATTACHMENT",
+          checklist: ["NOC required (contract ≥ $2,500 or per jurisdiction)", "Recorded copy obtained", "Posted on site"],
+        }),
+        task("gather_product_approvals", "Gather Miami-Dade NOAs or applicable Florida Product Approvals", PC, 2, {
+          dependsOn: ["confirm_roof_system"],
+          requiredEvidence: "ATTACHMENT",
+        }),
+        task("gather_plans_fastening_docs", "Gather roof plans, fastening calculations and assembly documentation", PC, 2, {
+          dependsOn: ["confirm_roof_system"],
+          requiredEvidence: "ATTACHMENT",
+        }),
+        task("submit_permit_package", "Submit permit package", PC, 1, {
+          dependsOn: [
+            "prepare_permit_application",
+            "confirm_owner_authorization",
+            "prepare_notice_of_commencement",
+            "gather_product_approvals",
+            "gather_plans_fastening_docs",
+          ],
+          priority: "HIGH",
+          requiredEvidence: "ATTACHMENT",
+        }),
+        task("track_permit_review", "Track permit review", PC, 5, { dependsOn: ["^"] }),
+        task("respond_to_permit_comments", "Respond to permit comments", PC, 3, { dependsOn: ["^"], requiredEvidence: "ATTACHMENT" }),
+        task("confirm_permit_issued", "Confirm permit issued", PC, 5, {
+          dependsOn: ["^"],
+          blocking: true,
+          priority: "HIGH",
+          requiredEvidence: "PERMIT_NUMBER",
+          description: "Record the permit number on the job's Permits tab; this step cannot be completed without it.",
+        }),
+        task("upload_permit_documents", "Upload permit and approved documents", PC, 1, { dependsOn: ["^"], requiredEvidence: "ATTACHMENT" }),
+        task("post_permit_at_site", "Post permit at job site", SUP, 1, { dependsOn: ["confirm_permit_issued"], requiredEvidence: "PHOTO" }),
+        task("confirm_inspection_sequence", "Confirm required inspection sequence", PC, 1, {
+          dependsOn: ["confirm_permit_issued"],
+          checklist: ["Deck / sheathing", "Dry-in", "In-progress", "Final"],
+        }),
+      ],
+    },
+    {
+      key: "no_permit",
+      name: "No Permit Required",
+      band: B.PERMITTING,
+      permit: "NOT_REQUIRED",
+      note: LEGAL_NO_PERMIT_WARNING,
+      startsAfter: ["core:determine_permit_requirement"],
+      tasks: NO_PERMIT_TASKS("Verify and document that no roofing permit is required"),
+    },
+    {
+      key: "procurement",
+      name: "Roofing Procurement",
+      band: B.PROCUREMENT,
+      startsAfter: ["confirm_roof_system"],
+      tasks: [
+        task("obtain_final_supplier_quote", "Obtain final supplier quotation", PUR, 2, { requiredEvidence: "ATTACHMENT" }),
+        task("confirm_manufacturer_product", "Confirm roofing material manufacturer and product", PUR, 1, {
+          dependsOn: ["^", "confirm_roof_system"],
+        }),
+        task("confirm_color_owner_selections", "Confirm color and owner selections", SR, 2, { dependsOn: ["^"], requiredEvidence: "ATTACHMENT" }),
+        task("issue_purchase_order", "Issue purchase order", PUR, 1, {
+          dependsOn: ["^", "confirm_roof_system", "core:verify_deposit"],
+          priority: "HIGH",
+          requiredEvidence: "ATTACHMENT",
+        }),
+        task("confirm_availability_lead_time", "Confirm material availability and lead time", PUR, 1, { dependsOn: ["^"] }),
+        task("confirm_insulation_accessory_quantities", "Confirm insulation and accessory quantities", PUR, 1, {
+          dependsOn: ["issue_purchase_order"],
+          condition: any("insulation", "tpo", "pvc", "mod_bit"),
+        }),
+        task("schedule_material_delivery", "Schedule material delivery", PUR, 2, { dependsOn: ["confirm_availability_lead_time"] }),
+        task("confirm_storage_staging_plan", "Confirm storage and staging plan", SUP, 1, { dependsOn: ["^"] }),
+        task("confirm_supplier_nto", "Confirm supplier Notice to Owner, when applicable", ACC, 3, {
+          dependsOn: ["issue_purchase_order"],
+          requiredEvidence: "ATTACHMENT",
+        }),
+        task("obtain_stored_material_docs", "Obtain stored-material documentation if progress billing applies", ACC, 3, {
+          dependsOn: ["schedule_material_delivery"],
+          requiredEvidence: "ATTACHMENT",
+          description: "Skip this step if the job bills as a lump sum.",
+        }),
+      ],
+    },
+    {
+      key: "production_readiness",
+      name: "Roofing Production Readiness",
+      band: B.PRODUCTION_READINESS,
+      startsAfter: ["issue_purchase_order"],
+      tasks: [
+        task("assign_superintendent", "Assign superintendent or field lead", PM, 1, {
+          blocking: true,
+          description: "Fill the Superintendent slot on the Workflow tab's team card.",
+        }),
+        task("assign_crew_subcontractor", "Assign crew or subcontractor", PM, 1, { dependsOn: ["^"] }),
+        task("conduct_roofing_precon_meeting", "Conduct roofing preconstruction meeting", SUP, 2, { dependsOn: ["^"], requiredEvidence: "ATTACHMENT" }),
+        task("confirm_site_safety_plan", "Confirm site-specific safety plan", SUP, 1, {
+          dependsOn: ["^"],
+          priority: "URGENT",
+          requiredEvidence: "ATTACHMENT",
+        }),
+        task("confirm_fall_protection_plan", "Confirm fall-protection plan", SUP, 0, {
+          dependsOn: ["^"],
+          priority: "URGENT",
+          blocking: true,
+          requiredEvidence: "ATTACHMENT",
+          checklist: ["Anchors", "Personal fall-arrest systems", "Warning lines", "Ladder tie-off"],
+        }),
+        task("confirm_weather_window", "Confirm weather window", SUP, 1, { dependsOn: ["conduct_roofing_precon_meeting"] }),
+        task("confirm_dumpster_delivery", "Confirm dumpster delivery", SUP, 1, { dependsOn: ["confirm_weather_window"], condition: any("tear_off") }),
+        task("confirm_crane_schedule", "Confirm crane or rooftop-loading schedule", SUP, 1, {
+          dependsOn: ["confirm_weather_window"],
+          condition: any("crane"),
+        }),
+        task("notify_customer_start_date", "Notify customer of start date", PM, 1, { dependsOn: ["confirm_weather_window"] }),
+        task("confirm_inspections_scheduled", "Confirm required inspections are scheduled or understood", PC, 1, {
+          dependsOn: ["notify_customer_start_date"],
+          condition: REQ,
+        }),
+      ],
+    },
+    {
+      key: "installation",
+      name: "Roofing Installation",
+      band: B.INSTALLATION,
+      tasks: [
+        task("mobilize", "Mobilize", SUP, 0, {
+          dependsOn: [
+            "confirm_permit_issued",
+            "obtain_pm_approval_no_permit",
+            "confirm_fall_protection_plan",
+            "notify_customer_start_date",
+            "core:confirm_production_start",
+          ],
+          blocking: true,
+          priority: "HIGH",
+        }),
+        task("photograph_existing_conditions", "Photograph existing conditions", SUP, 0, { dependsOn: ["^"], requiredEvidence: "PHOTO" }),
+        task("protect_building_property", "Protect building and surrounding property", SUP, 0, {
+          dependsOn: ["^"],
+          requiredEvidence: "PHOTO",
+          checklist: ["Tarps / plywood", "Landscaping", "AC units", when("occupied", "Occupant access paths kept clear")],
+        }),
+        task("complete_tear_off", "Complete tear-off", SUP, 1, { dependsOn: ["^"], requiredEvidence: "PHOTO", condition: any("tear_off") }),
+        task("inspect_roof_deck", "Inspect roof deck", SUP, 0, {
+          dependsOn: ["^"],
+          requiredEvidence: "PHOTO",
+          condition: any("tear_off", "deck_repairs"),
+        }),
+        task("document_deck_repairs", "Document deck repairs", SUP, 0, {
+          dependsOn: ["^"],
+          requiredEvidence: "PHOTO",
+          condition: any("deck_repairs"),
+          checklist: ["Sheets / LF replaced", "Unit price applied", "Change order if over allowance"],
+        }),
+        task("obtain_deck_inspection", "Obtain deck inspection if required", PC, 1, {
+          dependsOn: ["^"],
+          blocking: true,
+          priority: "HIGH",
+          requiredEvidence: "INSPECTION_RESULT",
+          condition: { ...REQ, ...any("tear_off", "deck_repairs") },
+        }),
+        task("complete_dry_in", "Complete dry-in", SUP, 1, {
+          dependsOn: ["^"],
+          requiredEvidence: "PHOTO",
+          condition: any("tear_off", "tpo", "pvc", "mod_bit", "metal"),
+        }),
+        task("obtain_dry_in_inspection", "Obtain dry-in or in-progress inspection if required", PC, 1, {
+          dependsOn: ["^"],
+          blocking: true,
+          priority: "HIGH",
+          requiredEvidence: "INSPECTION_RESULT",
+          condition: REQ,
+        }),
+        task("install_insulation_roofing_assembly", "Install insulation and roofing assembly", SUP, 3, { dependsOn: ["^"], requiredEvidence: "PHOTO" }),
+        task("complete_flashing_edge_metal", "Complete flashing, penetrations and edge metal", SUP, 1, { dependsOn: ["^"], requiredEvidence: "PHOTO" }),
+        task("verify_drainage", "Verify drainage", SUP, 0, { dependsOn: ["^"], requiredEvidence: "PHOTO" }),
+        task("complete_daily_reports_photos", "Complete daily reports and photographs", SUP, 0, {
+          dependsOn: ["mobilize"],
+          requiredEvidence: "PHOTO",
+          description: "Ongoing through installation.",
+        }),
+        task("perform_internal_roofing_qc", "Perform internal roofing quality inspection", QC, 1, {
+          dependsOn: ["verify_drainage"],
+          requiredEvidence: "PHOTO",
+          overridesCoreKey: "internal_quality_inspection",
+        }),
+        task("complete_mfr_inspection", "Complete manufacturer inspection if applicable", PM, 3, {
+          dependsOn: ["^"],
+          requiredEvidence: "ATTACHMENT",
+          condition: any("mfr_warranty"),
+        }),
+        task("complete_corrective_work", "Complete corrective work", SUP, 2, { dependsOn: ["^"], requiredEvidence: "PHOTO" }),
+      ],
+    },
+    {
+      key: "closeout",
+      name: "Roofing Closeout",
+      band: B.TRADE_CLOSEOUT,
+      startsAfter: ["complete_corrective_work"],
+      tasks: [
+        task("complete_roofing_punch_list", "Complete roofing punch list", SUP, 2, {
+          dependsOn: ["core:create_punch_list"],
+          requiredEvidence: "PHOTO",
+          overridesCoreKey: "complete_punch_list",
+        }),
+        task("request_final_inspection", "Request final inspection if required", PC, 1, {
+          dependsOn: ["^"],
+          priority: "HIGH",
+          condition: REQ,
+          overridesCoreKey: "obtain_final_inspection",
+        }),
+        task("record_final_inspection_result", "Record final inspection result", PC, 3, {
+          dependsOn: ["^"],
+          blocking: true,
+          priority: "HIGH",
+          requiredEvidence: "INSPECTION_RESULT",
+          condition: REQ,
+        }),
+        task("correct_failed_inspection_items", "Correct failed inspection items if applicable", SUP, 2, {
+          dependsOn: ["^"],
+          requiredEvidence: "PHOTO",
+          condition: REQ,
+          description: "Skip when the inspection passed first time.",
+        }),
+        task("obtain_final_approval", "Obtain final approval", PM, 1, { dependsOn: ["^"], blocking: true, priority: "HIGH" }),
+        task("obtain_manufacturer_warranty", "Obtain manufacturer warranty", PM, 5, {
+          dependsOn: ["^"],
+          requiredEvidence: "ATTACHMENT",
+          condition: any("mfr_warranty"),
+        }),
+        task("upload_warranty_maintenance_docs", "Upload warranty and maintenance documents", OA, 1, {
+          dependsOn: ["^"],
+          requiredEvidence: "ATTACHMENT",
+          overridesCoreKey: "deliver_warranty_documents",
+        }),
+        task("collect_sub_supplier_releases", "Collect subcontractor and supplier releases", ACC, 3, {
+          dependsOn: ["obtain_final_approval"],
+          requiredEvidence: "ATTACHMENT",
+          overridesCoreKey: "collect_lien_releases",
+        }),
+        task("remove_equipment_debris", "Remove equipment, debris and temporary protection", SUP, 1, {
+          dependsOn: ["obtain_final_approval"],
+          requiredEvidence: "PHOTO",
+        }),
+        task("submit_final_invoice", "Submit final invoice", ACC, 1, {
+          dependsOn: ["obtain_final_approval", "remove_equipment_debris"],
+          priority: "HIGH",
+          requiredEvidence: "ATTACHMENT",
+          overridesCoreKey: "submit_final_invoice",
+        }),
+        task("confirm_final_payment", "Confirm final payment", ACC, 5, {
+          dependsOn: ["^"],
+          blocking: true,
+          priority: "HIGH",
+          requiredEvidence: "PAYMENT_STATUS",
+          requiredEvidenceParam: "FINAL",
+          overridesCoreKey: "confirm_final_payment",
+        }),
+        task("close_roofing_workflow", "Close roofing workflow", PM, 1, {
+          dependsOn: ["^", "collect_sub_supplier_releases", "upload_warranty_maintenance_docs"],
+          overridesCoreKey: "close_job",
+        }),
+      ],
+    },
+  ],
+});

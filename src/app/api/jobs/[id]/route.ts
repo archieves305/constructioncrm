@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { rescheduleTargetStart } from "@/lib/workflows/reschedule";
+import { reassignUnresolved } from "@/lib/workflows/roles";
 import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/helpers";
 import {
   recomputeCostPlusJob,
@@ -86,6 +88,7 @@ export async function PATCH(
     "jobType", "laborCost", "marginType", "marginValue",
     "isRentalTurnover",
     "priorTenantName", "turnoverStartedAt", "turnoverCompletedAt",
+    "jurisdiction",
   ];
 
   const updateData: Record<string, unknown> = {};
@@ -144,6 +147,14 @@ export async function PATCH(
   }
 
   await prisma.job.update({ where: { id }, data: updateData });
+
+  // The workflow follows the job: a moved target start shifts the steps
+  // anchored on it; a new PM picks up the unassigned PM steps.
+  if (updateData.targetStartDate !== undefined) await rescheduleTargetStart(id, session.user.id);
+  if (updateData.projectManagerId !== undefined) {
+    const wf = await prisma.jobWorkflowInstance.findUnique({ where: { jobId: id }, select: { id: true } });
+    if (wf) await reassignUnresolved(wf.id, session.user.id);
+  }
 
   // A progress job bills against its schedule of values; start it with one
   // line for the whole contract.

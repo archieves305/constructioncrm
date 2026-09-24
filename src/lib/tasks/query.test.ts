@@ -64,3 +64,48 @@ describe("buildTaskListWhere", () => {
     expect(scope).toEqual({});
   });
 });
+
+describe("buildTaskListWhere — workflow filters", () => {
+  const rep = { id: "u-rep", role: "SALES_REP" as const };
+  const office = { id: "u-office", role: "OFFICE_STAFF" as const };
+  type U = { id: string; role: RoleName };
+  const w = (qs: string, user: U = office, scope?: { jobIds: string[] }) =>
+    buildTaskListWhere(readTaskListParams(new URLSearchParams(qs)), user, new Date("2026-10-01T12:00:00Z"), scope);
+  const first = (qs: string, user: U = office, scope?: { jobIds: string[] }) => (w(qs, user, scope).AND as Record<string, unknown>[])[0]!;
+
+  it("hides Not-active steps by default and shows them with includeInactive", () => {
+    expect(first("")).toMatchObject({ activatedAt: { not: null } });
+    expect(first("includeInactive=1")).not.toHaveProperty("activatedAt");
+    expect(first("status=PENDING")).toMatchObject({ status: "PENDING", activatedAt: { not: null } });
+    expect(first("status=PENDING&includeInactive=1")).toEqual({ status: "PENDING" });
+  });
+
+  it("ready / waiting / blocked are exclusive shortcuts", () => {
+    expect(first("ready=1")).toEqual({ status: "PENDING", activatedAt: { not: null } });
+    expect(first("waiting=1")).toEqual({ status: "PENDING", activatedAt: null });
+    expect(first("blocked=1")).toEqual({ status: "BLOCKED" });
+  });
+
+  it("source, instance, phase and module narrow the list", () => {
+    expect(first("source=manual")).toMatchObject({ workflowTaskKey: null });
+    expect(first("source=workflow")).toMatchObject({ workflowTaskKey: { not: null } });
+    expect(first("source=bogus")).not.toHaveProperty("workflowTaskKey");
+    expect(first("workflowInstanceId=w1&phaseKey=core:setup&moduleKey=core")).toMatchObject({
+      workflowInstanceId: "w1",
+      workflowPhaseKey: "core:setup",
+      workflowModuleKey: "core",
+    });
+  });
+
+  it("an own-only role's scope widens to the jobs they are on", () => {
+    const vis = (w("", rep, { jobIds: ["j1", "j2"] }).AND as Record<string, unknown>[])[1]!;
+    expect(vis).toEqual({
+      OR: [{ assignedUserId: "u-rep" }, { createdByUserId: "u-rep" }, { jobId: { in: ["j1", "j2"] } }],
+    });
+    // An empty scope adds nothing, and office roles never get one.
+    expect((w("", rep, { jobIds: [] }).AND as Record<string, unknown>[])[1]).toEqual({
+      OR: [{ assignedUserId: "u-rep" }, { createdByUserId: "u-rep" }],
+    });
+    expect((w("", office, { jobIds: ["j1"] }).AND as Record<string, unknown>[])[1]).toEqual({});
+  });
+});

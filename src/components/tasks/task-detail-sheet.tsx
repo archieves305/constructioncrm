@@ -31,17 +31,22 @@ import type { Person, TaskListItem, TaskStatus, UserOption } from "./types";
 import { fetchJson } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
 import { X, Plus, BellRing, AlarmClock, Pencil, Trash2 } from "lucide-react";
+import { TaskWorkflowBlock } from "@/components/workflows/task-workflow-block";
+import type { WorkflowTaskItem } from "@/components/workflows/types";
 
-type TaskDetail = TaskListItem & {
-  completedAt: string | null;
-  completedBy: Person | null;
-  assignedUserId: string | null;
-  createdByUserId: string;
-  remindAt: string | null;
-  sourceKey: string | null;
-  watchers: { id: string; user: Person }[];
-  events: TimelineEvent[];
-};
+type TaskDetail = TaskListItem &
+  Omit<WorkflowTaskItem, keyof TaskListItem | "dependencies"> & {
+    completedAt: string | null;
+    completedBy: Person | null;
+    assignedUserId: string | null;
+    createdByUserId: string;
+    remindAt: string | null;
+    sourceKey: string | null;
+    watchers: { id: string; user: Person }[];
+    events: TimelineEvent[];
+    dependencies?: WorkflowTaskItem["dependencies"];
+    files?: { id: string; fileName: string; fileType: string; fileSize: number; createdAt: string; uploadedBy: { firstName: string; lastName: string } }[];
+  };
 
 export type { UserOption };
 
@@ -237,6 +242,11 @@ export function TaskDetailSheet({
       setAskingBlockReason(true);
       return;
     }
+    // A workflow step is skipped with a reason, never plainly cancelled.
+    if (next === "CANCELLED" && task?.workflowTaskKey) {
+      toast.info("Workflow steps are skipped, not cancelled — use “Skip this step” below");
+      return;
+    }
     patch.mutate({ status: next });
   }
 
@@ -354,6 +364,17 @@ export function TaskDetailSheet({
                 <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                   <strong>Blocked:</strong> {task.blockedReason}
                 </p>
+              )}
+
+              {task.workflowInstanceId && (
+                <TaskWorkflowBlock
+                  task={{ ...task, dependencies: task.dependencies ?? [] } as WorkflowTaskItem}
+                  files={task.files ?? []}
+                  canEdit={mayEdit}
+                  canOverrideGate={session?.user.role === "ADMIN" || session?.user.role === "MANAGER"}
+                  canCoordinate={mayEdit || session?.user.role === "OFFICE_STAFF"}
+                  onPatch={(body) => patch.mutate(body)}
+                />
               )}
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">

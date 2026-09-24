@@ -30,27 +30,45 @@ export type TaskOwnership = {
 };
 
 /**
+ * Jobs an own-only user is on (as PM, team slot or field assignment). Tasks
+ * on those jobs are visible to them even when assigned to someone else, so
+ * a PM sees the whole workflow they run. Resolved per request by
+ * `visibilityScopeFor`; pure code only ever receives the id list.
+ */
+export type VisibilityScope = { jobIds: string[] };
+
+export function seesAllTasks(role: RoleName): boolean {
+  return FULL_ACCESS.has(role) || role === "READ_ONLY";
+}
+
+/**
  * Extra `where` clause narrowing a task query to what this role may see.
  * Returns an empty object for roles that see everything.
  */
-export function taskVisibilityFilter(user: {
-  id: string;
-  role: RoleName;
-}): Prisma.TaskWhereInput {
-  if (FULL_ACCESS.has(user.role)) return {};
-  if (user.role === "READ_ONLY") return {};
-  // Own-only roles see their own queue: assigned to them, or raised by them.
+export function taskVisibilityFilter(
+  user: { id: string; role: RoleName },
+  scope?: VisibilityScope,
+): Prisma.TaskWhereInput {
+  if (seesAllTasks(user.role)) return {};
+  // Own-only roles see their own queue — assigned to them, or raised by them —
+  // plus everything on the jobs they are on.
   return {
-    OR: [{ assignedUserId: user.id }, { createdByUserId: user.id }],
+    OR: [
+      { assignedUserId: user.id },
+      { createdByUserId: user.id },
+      ...(scope && scope.jobIds.length > 0 ? [{ jobId: { in: scope.jobIds } }] : []),
+    ],
   };
 }
 
 export function canViewTask(
   user: { id: string; role: RoleName },
-  task: TaskOwnership,
+  task: TaskOwnership & { jobId?: string | null },
+  scope?: VisibilityScope,
 ): boolean {
-  if (FULL_ACCESS.has(user.role) || user.role === "READ_ONLY") return true;
-  return task.assignedUserId === user.id || task.createdByUserId === user.id;
+  if (seesAllTasks(user.role)) return true;
+  if (task.assignedUserId === user.id || task.createdByUserId === user.id) return true;
+  return Boolean(scope && task.jobId && scope.jobIds.includes(task.jobId));
 }
 
 export function canEditTask(
@@ -69,9 +87,10 @@ export function canEditTask(
  */
 export function canCommentOnTask(
   user: { id: string; role: RoleName },
-  task: TaskOwnership,
+  task: TaskOwnership & { jobId?: string | null },
+  scope?: VisibilityScope,
 ): boolean {
-  return canViewTask(user, task);
+  return canViewTask(user, task, scope);
 }
 
 /**

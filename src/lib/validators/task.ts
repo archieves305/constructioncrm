@@ -38,6 +38,15 @@ export const updateTaskSchema = createTaskSchema.partial().extend({
   // URGENT task complete quietly downgraded it. Defaults belong on create only.
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
   remindAt: z.string().nullable().optional(),
+  // ── Workflow steps ──
+  /** Required when cancelling a workflow step: CANCELLED + skipReason = Skipped. */
+  skipReason: z.string().trim().max(2000).nullable().optional(),
+  /** false re-attaches the due date to the engine and recomputes it. */
+  dueLocked: z.boolean().optional(),
+  /** Tick/untick checklist items by key; unmentioned items are left alone. */
+  checklist: z.array(z.object({ key: z.string().min(1), done: z.boolean() })).max(100).optional(),
+  /** ADMIN/MANAGER only: complete despite missing evidence, with a stated reason. */
+  evidenceOverrideReason: z.string().trim().min(1).max(2000).optional(),
 });
 
 export const nudgeSchema = z.object({

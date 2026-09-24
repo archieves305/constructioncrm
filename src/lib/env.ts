@@ -63,6 +63,9 @@ const schema = z.object({
   TASK_ESCALATION_DAYS: z.string().regex(/^\d+(,\d+)*$/).default("2,5"),
   TASK_ESCALATIONS_ENABLED: z.string().default("0"),
   TASK_AUTO_RULES_DISABLED: z.string().default("invoice.sent"),
+  // "1" mails an assignee the moment a workflow step becomes Ready. Off for
+  // the first week: the morning digest already lists ready steps with dates.
+  WORKFLOW_READY_EMAILS_ENABLED: z.string().default("0"),
 
   // Bearer token cc-allocator's worker presents on integration calls.
   // Optional at server-start so the app boots without it; the integration

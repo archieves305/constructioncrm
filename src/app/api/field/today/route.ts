@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { fromDbDate, isIsoDate, toDbDate, addDays } from "@/lib/labor/dates";
 import { taskVisibilityFilter } from "@/lib/tasks/access";
-import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
+import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 
 // Jobs the signed-in user works with in field mode, with today's and
 // yesterday's log status for the home-screen tiles. Office roles see all
@@ -67,14 +67,14 @@ export async function GET(request: NextRequest) {
     ? await Promise.all([
         prisma.task.groupBy({
           by: ["jobId"],
-          where: { AND: [{ jobId: { in: jobIds }, status: { in: [...OPEN_TASK_STATUSES] } }, scope] },
+          where: { AND: [{ jobId: { in: jobIds }, ...ACTIVE_OPEN_WHERE }, scope] },
           _count: { _all: true },
         }),
         prisma.task.groupBy({
           by: ["jobId"],
           where: {
             AND: [
-              { jobId: { in: jobIds }, status: { in: [...OPEN_TASK_STATUSES] }, dueAt: { lt: new Date() } },
+              { jobId: { in: jobIds }, ...ACTIVE_OPEN_WHERE, dueAt: { lt: new Date() } },
               scope,
             ],
           },

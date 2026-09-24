@@ -4,12 +4,13 @@ import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { taskWatcherSchema } from "@/lib/validators/task";
 import { canCommentOnTask } from "@/lib/tasks/access";
+import { visibilityScopeFor } from "@/lib/workflows/visibility";
 import { recordTaskEvent } from "@/lib/tasks/events";
 
 async function loadTask(id: string) {
   return prisma.task.findUnique({
     where: { id },
-    select: { assignedUserId: true, createdByUserId: true },
+    select: { assignedUserId: true, createdByUserId: true, jobId: true },
   });
 }
 
@@ -26,7 +27,7 @@ export async function POST(
 
   const task = await loadTask(id);
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
-  if (!canCommentOnTask(session.user, task)) return forbidden();
+  if (!canCommentOnTask(session.user, task, await visibilityScopeFor(session.user))) return forbidden();
 
   const target = await prisma.user.findUnique({
     where: { id: parsed.data.userId },
@@ -69,7 +70,7 @@ export async function DELETE(
 
   const task = await loadTask(id);
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
-  if (!canCommentOnTask(session.user, task)) return forbidden();
+  if (!canCommentOnTask(session.user, task, await visibilityScopeFor(session.user))) return forbidden();
 
   await prisma.taskWatcher
     .delete({ where: { taskId_userId: { taskId: id, userId } } })

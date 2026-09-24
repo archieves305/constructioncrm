@@ -187,3 +187,16 @@ All five were live in production and all are now regression-tested in
   reconciled by an in-place email rename preserving `User.id`.
 - **CareyOS registry** described a non-existent app (`/var/www/construction-crm`,
   port 3116, pm2).
+
+## Workflows (Stage 1 limits, 2026-09-24)
+
+- Changing an already-decided permit status returns 409 — the full
+  reconcile with preview is Stage 2. Same for removing a trade; "Add a
+  trade…" re-applies and only adds.
+- `WORKFLOW_READY_EMAILS_ENABLED` is off; Ready steps reach people through
+  the morning digest only until it is turned on.
+- The Apply dialog's team pickers list `/api/users/assignable`; the
+  dev-bypass user is not in it (not a prod concern).
+- Manual dependencies between tasks (`POST /api/tasks/[id]/dependencies`)
+  are not exposed yet; a manual task added to a phase can only depend on
+  steps at creation time via the API body.

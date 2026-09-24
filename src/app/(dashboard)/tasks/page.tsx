@@ -75,6 +75,12 @@ export default function TasksPage() {
     searchParams.get("overdue") === "1" || searchParams.get("overdue") === "true",
   );
   const [includeCompleted, setIncludeCompleted] = useState(false);
+  const [filterSource, setFilterSource] = useState<"" | "manual" | "workflow">(
+    searchParams.get("source") === "manual" || searchParams.get("source") === "workflow" ? (searchParams.get("source") as "manual" | "workflow") : "",
+  );
+  const [readyOnly, setReadyOnly] = useState(searchParams.get("ready") === "1" || searchParams.get("ready") === "true");
+  const [blockedOnly, setBlockedOnly] = useState(searchParams.get("blocked") === "1" || searchParams.get("blocked") === "true");
+  const [showInactive, setShowInactive] = useState(searchParams.get("includeInactive") === "1" || searchParams.get("includeInactive") === "true");
   const [quickAdd, setQuickAdd] = useState({ title: "", dueAt: "", assignedUserId: null as string | null });
 
   // A "me" filter from the URL resolves to the real id once the session is
@@ -88,6 +94,10 @@ export default function TasksPage() {
     jobId: filterJob || undefined,
     overdue: overdueOnly || undefined,
     includeCompleted: includeCompleted || undefined,
+    source: filterSource || undefined,
+    ready: readyOnly || undefined,
+    blocked: blockedOnly || undefined,
+    includeInactive: showInactive || undefined,
   });
 
   const { data: users = [] } = useAssignableUsers();
@@ -191,7 +201,9 @@ export default function TasksPage() {
     (t) => t.status !== "COMPLETED" && t.status !== "CANCELLED",
   ).length;
   const emailsOn = prefs?.taskEmailsEnabled ?? true;
-  const activeFilters = [filterAssignee, filterPriority, filterJob, filterStage].filter(Boolean).length + (overdueOnly ? 1 : 0);
+  const activeFilters =
+    [filterAssignee, filterPriority, filterJob, filterStage, filterSource].filter(Boolean).length +
+    (overdueOnly ? 1 : 0) + (readyOnly ? 1 : 0) + (blockedOnly ? 1 : 0) + (showInactive ? 1 : 0);
 
   function showMine(overdue: boolean) {
     if (session?.user.id) setFilterAssignee(session.user.id);
@@ -346,9 +358,34 @@ export default function TasksPage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-[150px]">
+            <Label className="text-xs">Source</Label>
+            <Select value={filterSource || ALL} onValueChange={(v: string | null) => setFilterSource(!v || v === ALL ? "" : (v as "manual" | "workflow"))}>
+              <SelectTrigger className="mt-1">
+                <SelectValue>{(v: string) => (!v || v === ALL ? "All sources" : v === "manual" ? "Manual" : "Workflow steps")}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All sources</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
+                <SelectItem value="workflow">Workflow steps</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <label className="flex items-center gap-2 pb-2 text-sm text-muted-foreground">
             <Checkbox checked={overdueOnly} onCheckedChange={(c) => setOverdueOnly(Boolean(c))} />
             Overdue only
+          </label>
+          <label className="flex items-center gap-2 pb-2 text-sm text-muted-foreground">
+            <Checkbox checked={readyOnly} onCheckedChange={(c) => { setReadyOnly(Boolean(c)); if (c) setBlockedOnly(false); }} />
+            Ready only
+          </label>
+          <label className="flex items-center gap-2 pb-2 text-sm text-muted-foreground">
+            <Checkbox checked={blockedOnly} onCheckedChange={(c) => { setBlockedOnly(Boolean(c)); if (c) setReadyOnly(false); }} />
+            Blocked only
+          </label>
+          <label className="flex items-center gap-2 pb-2 text-sm text-muted-foreground">
+            <Checkbox checked={showInactive} onCheckedChange={(c) => setShowInactive(Boolean(c))} />
+            Show not-active steps
           </label>
           <label className="flex items-center gap-2 pb-2 text-sm text-muted-foreground">
             <Checkbox checked={includeCompleted} onCheckedChange={(c) => setIncludeCompleted(Boolean(c))} />

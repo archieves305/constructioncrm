@@ -60,6 +60,22 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-09-24 — Trade Workflow Templates, Stage 1 (deployed)
+
+Reusable, versioned phase-and-step templates that generate **ordinary
+tasks**. Core Construction + Roofing / Interior Renovation / Doors &
+Windows, composed per job with a Permit / No-Permit branch (exact legal
+warning), scope toggles, role-based assignment (team slots → job PM/sales
+→ admin defaults), business-day due dates from predecessors, blocking
+gates, checklists and required evidence. Migration
+`20261001120000_workflow_templates` (+ `activated_at` backfill so no count
+moved). Pure `compose()`; `apply` is idempotent (second apply creates 0,
+unique index as backstop); activation runs inline from `updateTask`.
+Workflow tab first on the job, Apply dialog with preview, task-sheet block,
+`/tasks` filters, admin Workflow Templates (read-only) + Workflow Roles.
+563/563 tests, lint at baseline. Details:
+[features/workflows.md](docs/project-memory/features/workflows.md).
+
 ### 2026-09-24 — Task edit + delete (follow-up)
 
 Richard: "I should be able to edit and delete tasks as well." Inline
@@ -225,6 +241,9 @@ npm run build
 # exit 19 *after* shipping.
 KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes
 KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --dry-run
+
+# Workflow templates (idempotent; run on prod after any spec change)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-workflows.ts"'
 ```
 
 Prod one-offs: run as user `knuco` on knuco-droplet with `/etc/knuco/env`
@@ -252,7 +271,9 @@ Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
 off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
 `invoice.sent`; empty string enables everything),
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
-`ZYLOW_API_KEY`, `ZYLOW_API_BASE`.
+`ZYLOW_API_KEY`, `ZYLOW_API_BASE`, `WORKFLOW_READY_EMAILS_ENABLED` ("1" mails
+an assignee when a workflow step becomes Ready; default off, the digest
+covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 9. Important Product / Business Rules
 
@@ -283,22 +304,30 @@ off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
   amount = completed-to-date × (1 − retainage) − previous certificates. Only
   the latest application may be edited or voided. Same explicit role list
   as expense approval.
+- **Workflow steps are ordinary tasks** written only through
+  `createTask`/`updateTask`; a job has no workflow until someone applies
+  one, and Core is never removable. Permit branches are exclusive; "No
+  Permit Required" records the legal warning and needs PM approval before
+  mobilization. **Blocking gates are ADMIN/MANAGER-only to skip or
+  override** (audited). A template version is immutable once a job
+  references it — bump the version. Own-only roles see tasks on jobs where
+  they are PM, field-assigned or hold a team slot. Every open count uses
+  `ACTIVE_OPEN_WHERE` (open **and** activated).
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
 
-> All three task stages are deployed (`ebf1988`, `4b6021d`, `e867c5e`).
-> Richard should click through prod: /production (all stages, drag a job),
-> /pipeline, /tasks (board, `n`, nudge from the sheet, remind-me date),
-> a job page (stepper, grouped tabs, invoice-row task button),
-> /settings/notifications, and Frank's /field/tasks. Operator steps still
-> open: add the SPF record for `knuconstruction.com`, then set
-> `TASK_ESCALATIONS_ENABLED=1` in `/etc/knuco/env` and restart `knuco`;
-> after a clean week set `TASK_AUTO_RULES_DISABLED=` (empty) to enable the
-> invoice.sent rule. Known follow-ups: lead detail, jobs and leads lists
-> still fetch `/api/admin/users` for their assignment dropdowns (empty for
-> non-admins — switch them to `/api/users/assignable`); the FollowUpRule
-> engine still coexists with auto-tasks; `RoofEstimate` has no status and
-> cannot be linked to a task.
+> Trade Workflow Templates Stage 1 is deployed and seeded on prod. Build
+> **Stage 2** per the plan in
+> `docs/project-memory/features/workflows.md` ("Not yet"): full
+> `reconcile.ts` (permit REQUIRED↔NOT_REQUIRED with a reason, add/remove
+> trade, version upgrade — each with a preview that lists To add / To skip
+> / Kept, never deleting completed or manual tasks), `inspections.ts`
+> (PASS / FAIL / CONDITIONAL, correction tasks, re-request), template
+> versioning (`createDraft`, `validateVersion`, `publishVersion`) and the
+> Workflow Template Library editor at `/admin/workflow-templates/[id]`
+> with no raw JSON. Keep every task write through `createTask`/`updateTask`,
+> explicit role lists, tests + typecheck + build green, lint ≤ 6/29, deploy
+> with `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

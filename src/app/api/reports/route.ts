@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
+import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 
 export async function GET(request: NextRequest) {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       prisma.task.count({
         where: {
           dueAt: { lt: new Date() },
-          status: { in: [...OPEN_TASK_STATUSES] },
+          ...ACTIVE_OPEN_WHERE,
         },
       }),
     ]);

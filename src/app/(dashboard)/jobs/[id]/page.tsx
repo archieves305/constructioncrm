@@ -50,6 +50,9 @@ import { PricingPanel } from "@/components/jobs/pricing-panel";
 import { RentalTurnoverPanel } from "@/components/jobs/rental-turnover-panel";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 import { useTasks } from "@/components/tasks/use-tasks";
+import { JobWorkflowPanel } from "@/components/workflows/job-workflow-panel";
+import { useJobWorkflow } from "@/components/workflows/use-workflow";
+import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -59,7 +62,7 @@ export default function JobDetailPage() {
   const pathname = usePathname();
   // Fourteen tabs in one strip never fit; they are grouped, and the URL owns
   // which group + sub-panel is open so links from email keep landing.
-  const tab = searchParams.get("tab") ?? "money";
+  const tab = searchParams.get("tab") ?? "workflow";
   const sub = searchParams.get("sub") ?? "";
   function setTab(nextTab: string, nextSub?: string) {
     const next = new URLSearchParams(searchParams.toString());
@@ -88,6 +91,7 @@ export default function JobDetailPage() {
 
   // Scoped through /api/tasks so the count matches what this viewer may see.
   const { data: jobTasks = [] } = useTasks({ jobId: id });
+  const { data: workflow } = useJobWorkflow(id);
 
   const { data: crews = [] } = useQuery<{ id: string; name: string; trades: string[] }[]>({
     queryKey: ["crews", "active"],
@@ -446,6 +450,20 @@ export default function JobDetailPage() {
                 <Hammer className="h-4 w-4 text-muted-foreground" />
                 <span>PM: {job.projectManager ? `${job.projectManager.firstName} ${job.projectManager.lastName}` : "—"}</span>
               </div>
+              {(workflow?.team ?? []).filter((t) => t.role !== "PROJECT_MANAGER" && t.role !== "SALES_REP").map((t) => (
+                <div key={t.role} className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span>
+                    {WORKFLOW_ROLE_LABEL[t.role]}: {t.user.firstName} {t.user.lastName}
+                  </span>
+                </div>
+              ))}
+              {job.jurisdiction && (
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <span>Jurisdiction: {job.jurisdiction}</span>
+                </div>
+              )}
               {job.scheduledDate && (
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -505,6 +523,21 @@ export default function JobDetailPage() {
             <div className="mb-4 space-y-3">
               <div className="flex flex-wrap items-center gap-1 border-b">
                 {[
+                  {
+                    value: "workflow",
+                    label: (
+                      <>
+                        Workflow
+                        {workflow?.progress
+                          ? workflow.progress.overdue > 0
+                            ? count(workflow.progress.overdue, "danger")
+                            : workflow.progress.ready > 0
+                              ? count(workflow.progress.ready)
+                              : null
+                          : null}
+                      </>
+                    ),
+                  },
                   { value: "money", label: "Money" },
                   { value: "field", label: "Field" },
                   { value: "permits", label: <>Permits{count(job.permits?.length || 0)}</> },
@@ -532,10 +565,14 @@ export default function JobDetailPage() {
               )}
             </div>
             <TabsList className="hidden">
-              {[...MONEY, ...FIELD, { value: "permits" }, { value: "tasks" }, { value: "files" }, { value: "history" }].map((t) => (
+              {[...MONEY, ...FIELD, { value: "workflow" }, { value: "permits" }, { value: "tasks" }, { value: "files" }, { value: "history" }].map((t) => (
                 <TabsTrigger key={t.value} value={t.value}>{t.value}</TabsTrigger>
               ))}
             </TabsList>
+
+            <TabsContent value="workflow">
+              <JobWorkflowPanel jobId={id} />
+            </TabsContent>
 
             <TabsContent value="payments" className="space-y-4">
               <Card>

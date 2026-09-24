@@ -4,6 +4,7 @@ import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { taskNoteSchema } from "@/lib/validators/task";
 import { canCommentOnTask } from "@/lib/tasks/access";
+import { visibilityScopeFor } from "@/lib/workflows/visibility";
 import { parseMentions } from "@/lib/tasks/mentions";
 import { notifyTaskMentions } from "@/lib/tasks/notify";
 
@@ -25,10 +26,10 @@ export async function GET(
   const { id } = await params;
   const task = await prisma.task.findUnique({
     where: { id },
-    select: { assignedUserId: true, createdByUserId: true },
+    select: { assignedUserId: true, createdByUserId: true, jobId: true },
   });
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
-  if (!canCommentOnTask(session.user, task)) return forbidden();
+  if (!canCommentOnTask(session.user, task, await visibilityScopeFor(session.user))) return forbidden();
 
   const notes = await prisma.taskEvent.findMany({
     where: { taskId: id, type: "NOTE" },
@@ -51,10 +52,10 @@ export async function POST(
 
   const task = await prisma.task.findUnique({
     where: { id },
-    select: { assignedUserId: true, createdByUserId: true },
+    select: { assignedUserId: true, createdByUserId: true, jobId: true },
   });
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
-  if (!canCommentOnTask(session.user, task)) return forbidden();
+  if (!canCommentOnTask(session.user, task, await visibilityScopeFor(session.user))) return forbidden();
 
   const note = await prisma.taskEvent.create({
     data: {

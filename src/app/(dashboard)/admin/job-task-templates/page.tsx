@@ -166,7 +166,7 @@ export default function JobTaskTemplatesPage() {
   return (
     <div>
       <PageHeader
-        title="Job Task Templates"
+        title="Stage task templates"
         description="Tasks auto-created when a job enters a stage"
         actions={
           <Button onClick={startCreate}>

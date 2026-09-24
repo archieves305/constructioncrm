@@ -38,6 +38,15 @@ export type TaskListFilters = {
   invoiceId?: string;
   prospectId?: string;
   dailyLogId?: string;
+  // Workflow filters (see lib/tasks/query.ts)
+  source?: "manual" | "workflow";
+  workflowInstanceId?: string;
+  phaseKey?: string;
+  moduleKey?: string;
+  ready?: boolean;
+  waiting?: boolean;
+  blocked?: boolean;
+  includeInactive?: boolean;
 };
 
 function toQuery(filters: TaskListFilters): string {

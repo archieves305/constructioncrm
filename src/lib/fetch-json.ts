@@ -13,11 +13,14 @@
  */
 export class HttpError extends Error {
   readonly status: number;
+  /** The parsed JSON body when the server sent one (e.g. `{ error, hint }`). */
+  readonly body: unknown;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, body?: unknown) {
     super(message);
     this.name = "HttpError";
     this.status = status;
+    this.body = body;
   }
 
   /** A record that isn't there stays absent no matter how often we ask. */
@@ -27,14 +30,15 @@ export class HttpError extends Error {
 }
 
 /** The server's own `{ error }` message when it sent one, else a generic line. */
-async function messageFor(response: Response): Promise<string> {
+async function messageFor(response: Response): Promise<{ message: string; body: unknown }> {
   try {
     const body = await response.json();
-    if (body && typeof body.error === "string" && body.error) return body.error;
+    if (body && typeof body.error === "string" && body.error) return { message: body.error, body };
+    return { message: `Request failed (${response.status})`, body };
   } catch {
     // Non-JSON body (an HTML error page, or nothing at all).
   }
-  return `Request failed (${response.status})`;
+  return { message: `Request failed (${response.status})`, body: undefined };
 }
 
 /**
@@ -50,7 +54,8 @@ export async function fetchJson<T = any>(
 ): Promise<T> {
   const response = await fetch(input, init);
   if (!response.ok) {
-    throw new HttpError(response.status, await messageFor(response));
+    const { message, body } = await messageFor(response);
+    throw new HttpError(response.status, message, body);
   }
   return response.json() as Promise<T>;
 }

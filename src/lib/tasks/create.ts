@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/db/prisma";
-import type { Prisma, Priority } from "@/generated/prisma/client";
+import type {
+  Prisma,
+  Priority,
+  WorkflowAnchor,
+  WorkflowEvidenceType,
+  WorkflowRole,
+} from "@/generated/prisma/client";
 import { TASK_LIST_INCLUDE, type TaskListRow } from "./include";
 import { notifyTaskAssigned } from "./notify";
 import { runAfterResponse } from "./defer";
@@ -26,7 +32,28 @@ export type TaskSource =
   | "stage_template"
   | "follow_up_rule"
   | "field_issue"
-  | "auto";
+  | "auto"
+  | "workflow";
+
+/**
+ * Workflow placement. `taskKey` null = a manual task added inside a phase:
+ * it belongs to the workflow's instance and phase for display, but has no
+ * template identity and is never touched by reconciliation.
+ */
+export type CreateTaskWorkflow = {
+  instanceId: string;
+  taskKey: string | null;
+  phaseKey: string;
+  moduleKey: string;
+  role?: WorkflowRole | null;
+  sortOrder?: number | null;
+  anchor?: WorkflowAnchor | null;
+  dueOffsetBusinessDays?: number | null;
+  blocking?: boolean;
+  requiredEvidence?: WorkflowEvidenceType | null;
+  requiredEvidenceParam?: string | null;
+  checklist?: { key: string; label: string }[] | null;
+};
 
 export type CreateTaskInput = {
   title: string;
@@ -49,6 +76,13 @@ export type CreateTaskInput = {
   remindAt?: Date | null;
   /** Who asked for the reminder; defaults to the creator. */
   remindSetByUserId?: string | null;
+  /**
+   * When the task became someone's work. Defaults to now — every ordinary
+   * task is active from birth. The workflow engine passes `null` for a step
+   * whose predecessors are still open.
+   */
+  activatedAt?: Date | null;
+  workflow?: CreateTaskWorkflow | null;
 };
 
 export type CreateTaskOptions = {
@@ -129,6 +163,7 @@ export async function createTask(
 
   const parents = await resolveParentLinks(db, input);
   const assignedUserId = input.assignedUserId ?? null;
+  const wf = input.workflow ?? null;
 
   const task = await db.task.create({
     data: {
@@ -148,6 +183,25 @@ export async function createTask(
       sourceKey: input.sourceKey ?? null,
       remindAt: input.remindAt ?? null,
       remindSetByUserId: input.remindAt ? (input.remindSetByUserId ?? input.createdByUserId) : null,
+      activatedAt: input.activatedAt === undefined ? now : input.activatedAt,
+      ...(wf
+        ? {
+            workflowInstanceId: wf.instanceId,
+            workflowTaskKey: wf.taskKey,
+            workflowPhaseKey: wf.phaseKey,
+            workflowModuleKey: wf.moduleKey,
+            workflowRole: wf.role ?? null,
+            workflowSortOrder: wf.sortOrder ?? null,
+            workflowAnchor: wf.anchor ?? null,
+            dueOffsetBusinessDays: wf.dueOffsetBusinessDays ?? null,
+            blocking: wf.blocking ?? false,
+            requiredEvidence: wf.requiredEvidence ?? null,
+            requiredEvidenceParam: wf.requiredEvidenceParam ?? null,
+            checklist: wf.checklist?.length
+              ? wf.checklist.map((c) => ({ key: c.key, label: c.label, done: false }))
+              : undefined,
+          }
+        : {}),
     },
     include: TASK_LIST_INCLUDE,
   });
@@ -155,6 +209,11 @@ export async function createTask(
   const events: Prisma.TaskEventCreateManyInput[] = [
     { taskId: task.id, actorUserId, type: "CREATED", toValue: input.source ?? "manual" },
   ];
+  // A workflow step born Ready says so; a manual task is always active, and
+  // an ACTIVATED row on every one of those would be noise.
+  if (wf && task.activatedAt) {
+    events.push({ taskId: task.id, actorUserId, type: "ACTIVATED", toValue: "initial" });
+  }
   if (input.remindAt) {
     events.push({ taskId: task.id, actorUserId, type: "REMINDER_SET", toValue: input.remindAt.toISOString() });
   }

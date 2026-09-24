@@ -46,6 +46,11 @@ export type AddTaskDialogProps = {
   /** Parent entity keys to refresh after creating, e.g. [["job", id]]. */
   invalidateKeys?: QueryKey[];
   onCreated?: (task: TaskListItem) => void;
+  /**
+   * Post somewhere other than POST /api/tasks (the Workflow tab adds a task
+   * into a phase through its own route). Receives the same payload.
+   */
+  submitOverride?: (payload: CreateTaskPayload) => Promise<void>;
 };
 
 type FormState = {
@@ -87,6 +92,7 @@ export function AddTaskDialog({
   defaults,
   invalidateKeys,
   onCreated,
+  submitOverride,
 }: AddTaskDialogProps) {
   const { data: session } = useSession();
   const { data: users = [] } = useAssignableUsers();
@@ -113,7 +119,8 @@ export function AddTaskDialog({
     [users, form.assignedUserId, session?.user.id],
   );
 
-  const canSubmit = form.title.trim().length > 0 && !create.isPending;
+  const [overriding, setOverriding] = useState(false);
+  const canSubmit = form.title.trim().length > 0 && !create.isPending && !overriding;
 
   function submit() {
     if (!canSubmit) return;
@@ -132,6 +139,15 @@ export function AddTaskDialog({
       }
     } else if (form.jobId) {
       payload.jobId = form.jobId;
+    }
+
+    if (submitOverride) {
+      setOverriding(true);
+      submitOverride(payload)
+        .then(() => onOpenChange(false))
+        .catch(() => undefined)
+        .finally(() => setOverriding(false));
+      return;
     }
 
     create.mutate(payload, {

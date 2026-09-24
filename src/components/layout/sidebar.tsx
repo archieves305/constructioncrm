@@ -26,6 +26,8 @@ import {
   MessageSquare,
   MapPin,
   Gauge,
+  Route,
+  UsersRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
@@ -101,8 +103,20 @@ const navItems: NavItem[] = [
     roles: ["ADMIN", "MANAGER"],
   },
   {
+    href: "/admin/workflow-templates",
+    label: "Workflow Templates",
+    icon: Route,
+    roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
+  },
+  {
+    href: "/admin/workflow-role-defaults",
+    label: "Workflow Roles",
+    icon: UsersRound,
+    roles: ["ADMIN", "MANAGER"],
+  },
+  {
     href: "/admin/job-task-templates",
-    label: "Job Task Templates",
+    label: "Stage Task Templates",
     icon: CheckSquare,
     roles: ["ADMIN", "MANAGER"],
   },

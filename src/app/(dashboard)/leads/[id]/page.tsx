@@ -76,9 +76,19 @@ export default function LeadDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stageId }),
       }).then((r) => r.json()),
-    onSuccess: () => {
+    onSuccess: (updated: { job?: { id: string; jobNumber: string } | null }) => {
       queryClient.invalidateQueries({ queryKey: ["lead", id] });
-      toast.success("Stage updated");
+      if (updated?.job) {
+        // Won → a job exists. The workflow is the next thing to set up on it.
+        const job = updated.job;
+        toast.success(`Job ${job.jobNumber} created`, {
+          description: "Apply a workflow to generate its tasks.",
+          action: { label: "Set up its workflow", onClick: () => router.push(`/jobs/${job.id}?tab=workflow&apply=1`) },
+          duration: 10_000,
+        });
+      } else {
+        toast.success("Stage updated");
+      }
     },
   });
 
