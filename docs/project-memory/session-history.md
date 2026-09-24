@@ -30,9 +30,23 @@ Built straight after Stage 1 deployed. See
 - New event rows on the timeline: NUDGED (violet), ESCALATED (red),
   REMINDER_SET/SENT (grey), AUTO_CLOSED (green).
 
-Tests: 20 new (cron auth, recipient channels, nudge policy, due dates,
+Tests: 49 new (cron auth, recipient channels, nudge policy, due dates,
 escalation planner + audience, digest planner, auto-tasks, email renderers,
-create/update reminder + escalation reset).
+create/update reminder + escalation reset). 476/476, typecheck/build clean,
+lint 6/28.
+
+API QA on dev with `TASK_ESCALATIONS_ENABLED=1`: nudge 200 → 429 with the
+friendly cooldown message; reminder set; cron run 1 escalated two overdue
+tasks and delivered the digest, run 2 escalated nothing (ledger); timeline
+showed NUDGED / REMINDER_SET / ESCALATED; sheet rendered the nudge button
+(greyed in cooldown) and the reminder field. Found while doing it: the
+interactive dispatch dropped a provider response with no message id on the
+floor — now recorded as EMAIL_FAILED like the cron path.
+
+**Deployed** `4b6021d` at 13:10 ET: migration applied, BUILD_ID
+`TIVSTNlHVR4hHEDg5rmdU` → `YehfWHd9zfW9-YxNcwwzN`, smoke 307/307, clean
+journal. Backups `pre-deploy-20260924-130637.tar.gz` /
+`postgres-2026-09-24-170644.dump`. Escalations off in prod by default.
 
 ---
 

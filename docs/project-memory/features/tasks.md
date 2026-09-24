@@ -84,7 +84,7 @@ page owns its own bottom bar — and task chips on job cards).
 access/events/mentions/recipients/task-email/validator suites.
 `follow-ups/processor.test.ts` mocks `@/lib/tasks/create`.
 
-## Stage 2 — email follow-up (built 2026-09-24)
+## Stage 2 — email follow-up (deployed 2026-09-24, `4b6021d`)
 
 Migration `20260924130000_task_followups`: `Task.sourceKey` (automation
 key, indexed, NOT unique), `escalationLevel` / `lastEscalatedAt`,

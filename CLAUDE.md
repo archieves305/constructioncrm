@@ -31,7 +31,9 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    QA'd before the next. **Stage 1 (tasks everywhere) deployed 2026-09-24**
    (`ebf1988`, BUILD_ID `TIVSTNlHVR4hHEDg5rmdU`, migration
    `20260924120000_task_entity_links` applied). **Stage 2 (email
-   follow-up) built 2026-09-24**, awaiting deploy. Then Stage 3 (kanban kit, stage colours, job detail header/stepper/tab
+   follow-up) deployed 2026-09-24** (`4b6021d`, BUILD_ID
+   `YehfWHd9zfW9-YxNcwwzN`; escalations stay off until SPF exists). Then
+   Stage 3 (kanban kit, stage colours, job detail header/stepper/tab
    groups, list polish). Plan: `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`;
    notes: [features/tasks.md](docs/project-memory/features/tasks.md).
 1. 🔴 **Progress billing** — deployed + JOB-00009 backfilled 2026-08-27;
@@ -54,7 +56,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-24 — Task email follow-up (Stage 2 of 3; built)
+### 2026-09-24 — Task email follow-up (Stage 2 of 3; deployed `4b6021d`)
 
 Nudge (`POST /api/tasks/[id]/nudge`, 24h cooldown, sheet button), per-task
 "remind me on" delivered by the morning digest, overdue escalation to the
@@ -260,15 +262,13 @@ off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
 
 ## 10. Next Prompt
 
-> Tasks Stage 2 (email follow-up) is built, tested and QA'd on dev; deploy it
-> with `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`
-> (migration `20260924130000_task_followups`). Escalations stay off in prod
-> until the SPF record for `knuconstruction.com` exists; then set
-> `TASK_ESCALATIONS_ENABLED=1` in `/etc/knuco/env` and restart `knuco`.
-> After a week, set `TASK_AUTO_RULES_DISABLED=` (empty) to enable
-> invoice.sent. Then build Stage 3 from
-> `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`: tokens + brand button
-> + shadcn adds + `stage-colors.ts` first (no page impact), then the kanban
-> kit and `/production` + `/pipeline`, then the tasks board on the kit and
-> the tasks header/dialog polish, then `EntityHeader` + `StageStepper` +
-> grouped tabs on job detail, then the jobs and leads lists.
+> Tasks Stages 1 and 2 are deployed (`ebf1988`, `4b6021d`). Two operator
+> steps remain for Stage 2: add the SPF record for `knuconstruction.com`,
+> then set `TASK_ESCALATIONS_ENABLED=1` in `/etc/knuco/env` and restart
+> `knuco`; after a week of clean auto-tasks, set `TASK_AUTO_RULES_DISABLED=`
+> (empty) to enable invoice.sent. Then build Stage 3 (visual redesign) from
+> `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`: tokens + brand
+> button + shadcn adds + `stage-colors.ts` first (no page impact), then the
+> kanban kit and `/production` + `/pipeline`, then the tasks board on the kit
+> and the tasks header/dialog polish, then `EntityHeader` + `StageStepper` +
+> grouped tabs on job detail, then the jobs and leads lists. Same gates.
