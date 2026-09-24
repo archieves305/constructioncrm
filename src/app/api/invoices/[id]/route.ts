@@ -10,6 +10,7 @@ import {
 } from "@/lib/services/progress-billing";
 
 const updateSchema = z.object({
+  retainagePercent: z.number().min(0).max(100).optional(),
   status: z.enum(["DRAFT", "SENT", "PAID", "VOID"]).optional(),
   amount: z.number().min(0).optional(),
   dueDate: z.string().nullable().optional(),
@@ -51,16 +52,16 @@ export async function PATCH(
       return badRequest(
         "A later application builds on this one; void the later ones first",
       );
-    const { periodFrom, periodTo, lines } = parsed.data;
-    if (periodFrom !== undefined || periodTo !== undefined || lines !== undefined) {
-      const result = await updateApplication(id, { periodFrom, periodTo, lines });
+    const { periodFrom, periodTo, lines, retainagePercent } = parsed.data;
+    if (periodFrom !== undefined || periodTo !== undefined || lines !== undefined || retainagePercent !== undefined) {
+      const result = await updateApplication(id, { periodFrom, periodTo, lines, retainagePercent });
       if (!result.ok)
         return NextResponse.json(
           { error: result.message, reason: result.reason },
           { status: result.reason === "not_found" ? 404 : 400 },
         );
     }
-  } else if (parsed.data.lines !== undefined || parsed.data.periodTo !== undefined) {
+  } else if (parsed.data.lines !== undefined || parsed.data.periodTo !== undefined || parsed.data.retainagePercent !== undefined) {
     return badRequest("Only a payment application has a period and lines");
   }
 

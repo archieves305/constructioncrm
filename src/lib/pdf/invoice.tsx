@@ -124,6 +124,7 @@ export type ApplicationPdfData = {
   completedToDate: number;
   retainagePercent: number;
   retainage: number;
+  retainageReleased?: number;
   earnedLessRetainage: number;
   previousCertificates: number;
   currentDue: number;
@@ -195,6 +196,9 @@ function ApplicationBody({ app }: { app: ApplicationPdfData }) {
     ["1. Contract sum to date", money(app.contractSum)],
     ["2. Total completed & stored to date", money(app.completedToDate)],
     [`3. Retainage (${app.retainagePercent}% of completed work)`, money(app.retainage)],
+    ...((app.retainageReleased ?? 0) > 0
+      ? [["    Retainage released on this application", money(app.retainageReleased ?? 0)] as [string, string]]
+      : []),
     ["4. Total earned less retainage", money(app.earnedLessRetainage)],
     ["5. Less previous certificates for payment", money(app.previousCertificates)],
     ["6. Current payment due", money(app.currentDue)],

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { getBillingSummary, round2 } from "@/lib/services/progress-billing";
 
 const MS_PER_DAY = 86400000;
 
@@ -199,4 +200,77 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
     totalOutstandingAR,
     jobs: profitability,
   };
+}
+
+// ─── Progress-billed jobs ────────────────────────────────────────────────────
+
+export type ProgressPosition = {
+  jobId: string;
+  jobNumber: string;
+  title: string;
+  customer: string;
+  contractSum: number;
+  completedToDate: number;
+  /** Σ certificates, net of retainage. */
+  billedToDate: number;
+  collected: number;
+  /** Certificates issued and not yet paid. */
+  openReceivable: number;
+  retainagePercent: number;
+  retainageHeld: number;
+  /** Contract sum − completed to date: work not yet done or billed. */
+  balanceToFinish: number;
+  /** Job.balanceDue as stored — equals openReceivable + retainageHeld + balanceToFinish. */
+  balanceDue: number;
+  applications: number;
+  hasDraft: boolean;
+};
+
+export type ProgressPositions = {
+  rows: ProgressPosition[];
+  totals: { openReceivable: number; retainageHeld: number; balanceToFinish: number; balanceDue: number };
+};
+
+/**
+ * What `Job.balanceDue` on a PROGRESS job is really made of. The stored
+ * number is contract − payments received, which on an AIA-billed job sums
+ * three things nobody should add together: certificates awaiting payment
+ * (A/R), retainage earned but withheld, and work not yet done. Collections
+ * reads them apart here rather than changing `recomputeJobBalance`.
+ */
+export async function getProgressPositions(): Promise<ProgressPositions> {
+  const jobs = await prisma.job.findMany({
+    where: { billingMethod: "PROGRESS" },
+    select: { id: true, jobNumber: true, title: true, balanceDue: true, lead: { select: { fullName: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  const rows: ProgressPosition[] = [];
+  const totals = { openReceivable: 0, retainageHeld: 0, balanceToFinish: 0, balanceDue: 0 };
+  for (const j of jobs) {
+    const s = await getBillingSummary(j.id);
+    if (!s) continue;
+    const row: ProgressPosition = {
+      jobId: j.id,
+      jobNumber: j.jobNumber,
+      title: j.title,
+      customer: j.lead.fullName,
+      contractSum: s.contractSum,
+      completedToDate: s.totals.completedToDate,
+      billedToDate: s.totals.billedToDate,
+      collected: s.totals.collected,
+      openReceivable: s.totals.openReceivable,
+      retainagePercent: s.effectiveRetainagePercent,
+      retainageHeld: s.totals.retainageHeld,
+      balanceToFinish: s.totals.balanceToFinish,
+      balanceDue: Number(j.balanceDue),
+      applications: s.applications.filter((a) => a.status !== "VOID").length,
+      hasDraft: s.hasDraft,
+    };
+    rows.push(row);
+    totals.openReceivable = round2(totals.openReceivable + row.openReceivable);
+    totals.retainageHeld = round2(totals.retainageHeld + row.retainageHeld);
+    totals.balanceToFinish = round2(totals.balanceToFinish + row.balanceToFinish);
+    totals.balanceDue = round2(totals.balanceDue + row.balanceDue);
+  }
+  return { rows, totals };
 }

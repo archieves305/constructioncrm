@@ -120,6 +120,72 @@ describe("computeApplication", () => {
     expect(app.balanceToFinish).toBe(7_500);
   });
 
+  it("releases retainage on JOB-00009 by lowering the rate — full, half, and mixed with new work", () => {
+    let previous = 0;
+    let certified = 0;
+    for (const [, gross, net] of APPS) {
+      previous += gross;
+      certified += net;
+    }
+    // Full release at final: no work, 0% — current due is exactly the retainage held.
+    const full = computeApplication({
+      contractSum: CONTRACT,
+      retainagePercent: 0,
+      previousRetainagePercent: 10,
+      sovLines: SOV,
+      previousByLine: { sov1: previous },
+      previousCertificates: certified,
+      thisPeriod: [],
+    });
+    expect(full.previousRetainage).toBe(60_742.9);
+    expect(full.retainage).toBe(0);
+    expect(full.retainageReleased).toBe(60_742.9);
+    expect(full.currentDue).toBe(60_742.9);
+    expect(full.completedThisPeriod).toBe(0);
+    expect(full.balanceToFinish).toBe(225_071);
+
+    // Half at substantial completion: 10% → 5%.
+    const half = computeApplication({
+      contractSum: CONTRACT,
+      retainagePercent: 5,
+      previousRetainagePercent: 10,
+      sovLines: SOV,
+      previousByLine: { sov1: previous },
+      previousCertificates: certified,
+      thisPeriod: [],
+    });
+    expect(half.retainageReleased).toBe(30_371.45);
+    expect(half.currentDue).toBe(30_371.45);
+
+    // Reduced rate AND new work on the same application: the due is the
+    // work net of the new rate plus the retainage handed back on old work.
+    const mixed = computeApplication({
+      contractSum: CONTRACT,
+      retainagePercent: 5,
+      previousRetainagePercent: 10,
+      sovLines: SOV,
+      previousByLine: { sov1: previous },
+      previousCertificates: certified,
+      thisPeriod: [{ sovLineId: "sov1", workCompleted: 40_000 }],
+    });
+    expect(mixed.retainage).toBe(32_371.45); // 647,429 × 5%
+    expect(mixed.retainageReleased).toBe(28_371.45); // 60,742.90 − 32,371.45
+    expect(mixed.currentDue).toBe(68_371.45); // 40,000 × 95% + 30,371.45
+
+    // Same rate, new work: nothing is released even though retainage grows.
+    const steady = computeApplication({
+      contractSum: CONTRACT,
+      retainagePercent: 10,
+      previousRetainagePercent: 10,
+      sovLines: SOV,
+      previousByLine: { sov1: previous },
+      previousCertificates: certified,
+      thisPeriod: [{ sovLineId: "sov1", workCompleted: 40_000 }],
+    });
+    expect(steady.retainageReleased).toBe(0);
+    expect(steady.currentDue).toBe(36_000);
+  });
+
   it("rounds to cents rather than accumulating float noise", () => {
     const app = computeApplication({
       contractSum: 1_000,
@@ -216,6 +282,7 @@ describe("getBillingSummary", () => {
     expect(s?.totals).toEqual({
       completedToDate: 77_800,
       retainageHeld: 7_780,
+      retainageReleased: 0,
       billedToDate: 70_020,
       collected: 31_500,
       openReceivable: 38_520,
@@ -227,6 +294,24 @@ describe("getBillingSummary", () => {
     // The draft's own numbers still read correctly against the issued ones.
     expect(s?.applications[2].computed.previousCertificates).toBe(70_020);
     expect(s?.applications[2].computed.currentDue).toBe(900);
+  });
+
+  it("tracks the effective rate and the retainage released across a release application", async () => {
+    invoiceFindMany.mockResolvedValue([
+      app({ applicationNumber: 1, status: "PAID", amount: 90_000, lines: [{ sovLineId: "sov1", workCompleted: 100_000 }], payments: [{ amount: 90_000 }] }),
+      // Half release at substantial completion, no new work.
+      app({ applicationNumber: 2, status: "SENT", amount: 5_000, retainagePercent: 5, lines: [] }),
+      // Draft at the new rate: never counts as previous.
+      app({ applicationNumber: 3, status: "DRAFT", amount: 0, retainagePercent: 0, lines: [] }),
+    ]);
+    const s = await getBillingSummary("job1");
+    expect(s?.retainagePercent).toBe(10);
+    expect(s?.effectiveRetainagePercent).toBe(5);
+    expect(s?.retainageReleasedOn).toBe(2);
+    expect(s?.applications[1].computed).toMatchObject({ previousRetainage: 10_000, retainage: 5_000, retainageReleased: 5_000, currentDue: 5_000 });
+    expect(s?.totals).toMatchObject({ retainageHeld: 5_000, retainageReleased: 5_000, billedToDate: 95_000, openReceivable: 5_000 });
+    // The draft's own preview reads against the 5% effective rate.
+    expect(s?.applications[2].computed).toMatchObject({ previousRetainage: 5_000, retainageReleased: 5_000, currentDue: 5_000 });
   });
 
   it("skips a voided application in the cumulative maths", async () => {
@@ -280,6 +365,33 @@ describe("createApplication", () => {
       .toMatchObject({ ok: false, reason: "nothing_billed" });
   });
 
+  it("creates a full retainage release for JOB-00009 with no lines, snapshotting 0%", async () => {
+    invoiceFindMany.mockResolvedValue(
+      APPS.map(([n, gross, net]) =>
+        app({ applicationNumber: n, status: "PAID", amount: net, lines: [{ sovLineId: "sov1", workCompleted: gross }] }),
+      ),
+    );
+    const r = await createApplication("job1", { periodTo: "2026-05-31", lines: [], retainagePercent: 0, status: "SENT" }, "u1");
+    expect(r).toMatchObject({ ok: true, amount: 60_742.9 });
+    const data = invoiceCreate.mock.calls[0][0].data;
+    expect(data.retainagePercent).toBe(0);
+    expect(data.lines.create).toEqual([]);
+    expect(activityCreate.mock.calls[0][0].data.description).toMatch(/releases \$60,742.9 retainage/);
+  });
+
+  it("refuses an application that neither bills work nor releases retainage, and a bad rate", async () => {
+    invoiceFindMany.mockResolvedValue([
+      app({ applicationNumber: 1, amount: 9_000, lines: [{ sovLineId: "sov1", workCompleted: 10_000 }] }),
+    ]);
+    expect(await createApplication("job1", { periodTo: "2026-06-30", lines: [], retainagePercent: 10 }, "u1"))
+      .toMatchObject({ ok: false, reason: "nothing_billed" });
+    expect(await createApplication("job1", { periodTo: "2026-06-30", lines: [], retainagePercent: 120 }, "u1"))
+      .toMatchObject({ ok: false, reason: "bad_retainage" });
+    // Raising the rate above what was withheld would claw money back: negative due.
+    expect(await createApplication("job1", { periodTo: "2026-06-30", lines: [], retainagePercent: 20 }, "u1"))
+      .toMatchObject({ ok: false, reason: "negative_due" });
+  });
+
   it("creates app #13 for JOB-00009 with the derived amount and snapshotted rate", async () => {
     invoiceFindMany.mockResolvedValue(
       APPS.map(([n, gross, net]) =>
@@ -331,6 +443,19 @@ describe("updateApplication", () => {
 
     invoiceFindUnique.mockResolvedValue({ id: "plain", jobId: "job1", invoiceNumber: "INV-00009-9", status: "DRAFT", applicationNumber: null, amount: 900 });
     expect(await updateApplication("plain", { lines: [] })).toMatchObject({ ok: false, reason: "not_application" });
+  });
+
+  it("lowering only the rate on a draft recomputes it from its own lines", async () => {
+    invoiceFindUnique.mockResolvedValue({ id: "inv2", jobId: "job1", invoiceNumber: "INV-00009-2", status: "DRAFT", applicationNumber: 2, amount: 1 });
+    invoiceFindMany.mockResolvedValue([
+      app({ applicationNumber: 1, status: "PAID", amount: 90_000, lines: [{ sovLineId: "sov1", workCompleted: 100_000 }] }),
+      app({ applicationNumber: 2, status: "DRAFT", amount: 9_000, lines: [{ sovLineId: "sov1", workCompleted: 10_000 }] }),
+    ]);
+    const r = await updateApplication("inv2", { retainagePercent: 0 });
+    // 110,000 × 100% − 90,000 certified = 20,000: the 10,000 of work plus the 10,000 held.
+    expect(r).toMatchObject({ ok: true, amount: 20_000 });
+    expect(invoiceUpdate.mock.calls[0][0].data).toMatchObject({ amount: 20_000, retainagePercent: 0 });
+    expect(lineCreateMany.mock.calls[0][0].data).toEqual([{ invoiceId: "inv2", sovLineId: "sov1", workCompleted: 10_000 }]);
   });
 
   it("replaces the lines and recomputes the amount", async () => {

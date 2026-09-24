@@ -20,6 +20,14 @@ import { runAfterResponse } from "@/lib/tasks/defer";
  *   current payment due     = earned less retainage − previous certificates
  *   balance to finish       = contract sum − completed to date
  *
+ * Retainage release (Stage 3) is an application at a LOWER rate — 0% for a
+ * full release, e.g. 5% for half at substantial completion — with or without
+ * new work. Nothing else changes: the lower rate lifts "earned less
+ * retainage", previous certificates stay, and the difference is the money
+ * handed back. The rate the last issued application withheld at is the
+ * job's *effective* rate and the default for the next one; `Job.retainagePercent`
+ * stays the contract's nominal rate.
+ *
  * `Invoice.amount` stores the current payment due so A/R aging, payments and
  * `Job.balanceDue` keep working unchanged. Only the latest application may be
  * edited or voided — anything earlier is already baked into the ones after it.
@@ -78,7 +86,12 @@ export type ApplicationSummary = {
 
 export type BillingSummary = {
   billingMethod: "LUMP_SUM" | "PROGRESS";
+  /** The contract's nominal rate (Job.retainagePercent). */
   retainagePercent: number;
+  /** The rate the latest issued application withheld at — what the next one defaults to. */
+  effectiveRetainagePercent: number;
+  /** The application (number) that last lowered the rate, if any. */
+  retainageReleasedOn: number | null;
   contractSum: number;
   sovLines: (SovLineInput & { sortOrder: number; changeOrderNumber: number | null })[];
   sovTotal: number;
@@ -88,6 +101,8 @@ export type BillingSummary = {
   totals: {
     completedToDate: number;
     retainageHeld: number;
+    /** Σ retainage handed back on issued applications. */
+    retainageReleased: number;
     billedToDate: number; // earned less retainage, i.e. Σ certificates
     collected: number;
     openReceivable: number;
@@ -154,6 +169,10 @@ export async function getBillingSummary(
   let hasDraft = false;
   let maxNumber = 0;
   let lastPeriodTo: Date | null = null;
+  const nominalRate = Number(job.retainagePercent);
+  let effectiveRate = nominalRate;
+  let releasedOn: number | null = null;
+  let retainageReleased = 0;
 
   const applications: ApplicationSummary[] = [];
   for (const inv of invoices) {
@@ -163,9 +182,11 @@ export async function getBillingSummary(
       sovLineId: l.sovLineId,
       workCompleted: Number(l.workCompleted),
     }));
+    const rate = Number(inv.retainagePercent ?? job.retainagePercent);
     const computed = computeApplication({
       contractSum,
-      retainagePercent: Number(inv.retainagePercent ?? job.retainagePercent),
+      retainagePercent: rate,
+      previousRetainagePercent: effectiveRate,
       sovLines,
       previousByLine,
       previousCertificates,
@@ -201,6 +222,9 @@ export async function getBillingSummary(
     previousCertificates = round2(previousCertificates + Number(inv.amount));
     collected = round2(collected + paid);
     issued = computed;
+    if (rate < effectiveRate) releasedOn = n;
+    retainageReleased = round2(retainageReleased + computed.retainageReleased);
+    effectiveRate = rate;
     if (inv.periodTo) lastPeriodTo = inv.periodTo;
   }
 
@@ -210,7 +234,9 @@ export async function getBillingSummary(
 
   return {
     billingMethod: job.billingMethod,
-    retainagePercent: Number(job.retainagePercent),
+    retainagePercent: nominalRate,
+    effectiveRetainagePercent: effectiveRate,
+    retainageReleasedOn: releasedOn,
     contractSum,
     sovLines,
     sovTotal,
@@ -219,6 +245,7 @@ export async function getBillingSummary(
     totals: {
       completedToDate: issued?.completedToDate ?? 0,
       retainageHeld: issued?.retainage ?? 0,
+      retainageReleased,
       billedToDate,
       collected,
       openReceivable: round2(billedToDate - collected),
@@ -235,7 +262,10 @@ export async function getBillingSummary(
 export type ApplicationInput = {
   periodFrom?: string | null;
   periodTo: string;
+  /** May be empty on a pure retainage release. */
   lines: AppLineInput[];
+  /** Rate to withhold at; lower than the effective rate = release. Defaults to the effective rate. */
+  retainagePercent?: number | null;
   dueDate?: string | null;
   notes?: string | null;
   status?: "DRAFT" | "SENT";
@@ -251,7 +281,8 @@ export type BillingFailure =
   | "unknown_line"
   | "exceeds_scheduled_value"
   | "nothing_billed"
-  | "negative_due";
+  | "negative_due"
+  | "bad_retainage";
 
 export type ApplicationResult =
   | { ok: true; invoiceId: string; invoiceNumber: string; amount: number }
@@ -276,7 +307,11 @@ function parseDate(s: string | null | undefined): Date | null {
 function validateLines(
   summary: BillingSummary,
   lines: AppLineInput[],
+  retainagePercent?: number | null,
 ): { ok: true; computed: ComputedApplication } | Failure {
+  const rate = retainagePercent ?? summary.effectiveRetainagePercent;
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100)
+    return fail("bad_retainage", "Retainage must be between 0% and 100%");
   const byId = new Map(summary.sovLines.map((s) => [s.id, s]));
   for (const l of lines) {
     if (!byId.has(l.sovLineId))
@@ -292,14 +327,13 @@ function validateLines(
   }
   const computed = computeApplication({
     contractSum: summary.contractSum,
-    retainagePercent: summary.retainagePercent,
+    retainagePercent: rate,
+    previousRetainagePercent: summary.effectiveRetainagePercent,
     sovLines: summary.sovLines,
     previousByLine,
     previousCertificates: summary.totals.billedToDate,
     thisPeriod: lines,
   });
-  if (computed.completedThisPeriod <= 0)
-    return fail("nothing_billed", "Enter work completed this period on at least one line");
   const over = computed.lines.find((l) => l.toDate > l.scheduledValue + 0.005);
   if (over)
     return fail(
@@ -308,6 +342,11 @@ function validateLines(
     );
   if (computed.currentDue < 0)
     return fail("negative_due", "Current payment due would be negative — check the retainage rate");
+  if (computed.completedThisPeriod <= 0 && computed.retainageReleased <= 0)
+    return fail(
+      "nothing_billed",
+      "Enter work completed this period on at least one line, or lower the retainage rate to release retainage",
+    );
   return { ok: true, computed };
 }
 
@@ -329,7 +368,7 @@ export async function createApplication(
   if (summary.hasDraft)
     return fail("draft_exists", "Finish or void the draft application before starting another");
 
-  const checked = validateLines(summary, input.lines);
+  const checked = validateLines(summary, input.lines, input.retainagePercent);
   if (!checked.ok) return checked;
   const { computed } = checked;
 
@@ -355,7 +394,7 @@ export async function createApplication(
         applicationNumber: summary.nextApplicationNumber,
         periodFrom,
         periodTo,
-        retainagePercent: summary.retainagePercent,
+        retainagePercent: computed.retainagePercent,
         lines: {
           create: computed.lines
             .filter((l) => l.thisPeriod > 0)
@@ -369,7 +408,9 @@ export async function createApplication(
         leadId: job.leadId,
         activityType: "NOTE",
         title: `Payment application #${summary.nextApplicationNumber} (${created.invoiceNumber}) created`,
-        description: `$${computed.currentDue.toLocaleString()} due — $${computed.completedThisPeriod.toLocaleString()} work this period, ${summary.retainagePercent}% retainage`,
+        description:
+          `$${computed.currentDue.toLocaleString()} due — $${computed.completedThisPeriod.toLocaleString()} work this period, ${computed.retainagePercent}% retainage` +
+          (computed.retainageReleased > 0 ? ` — releases $${computed.retainageReleased.toLocaleString()} retainage` : ""),
         createdByUserId: actorUserId,
       },
     });
@@ -395,6 +436,7 @@ export type ApplicationUpdate = {
   periodFrom?: string | null;
   periodTo?: string;
   lines?: AppLineInput[];
+  retainagePercent?: number | null;
 };
 
 /**
@@ -432,12 +474,16 @@ export async function updateApplication(
 
   let amount = Number(invoice.amount);
   let lineRows: { sovLineId: string; workCompleted: number }[] | null = null;
-  if (input.lines) {
-    const checked = validateLines(summary, input.lines);
+  if (input.lines || input.retainagePercent !== undefined) {
+    // Recompute from the draft's own lines when only the rate changes.
+    const own = summary.applications.find((a) => a.id === invoiceId);
+    const lines = input.lines ?? own?.computed.lines.filter((l) => l.thisPeriod > 0).map((l) => ({ sovLineId: l.sovLineId, workCompleted: l.thisPeriod })) ?? [];
+    const rate = input.retainagePercent !== undefined ? input.retainagePercent : own?.computed.retainagePercent;
+    const checked = validateLines(summary, lines, rate);
     if (!checked.ok) return checked;
     amount = checked.computed.currentDue;
     data.amount = amount;
-    data.retainagePercent = summary.retainagePercent;
+    data.retainagePercent = checked.computed.retainagePercent;
     lineRows = checked.computed.lines
       .filter((l) => l.thisPeriod > 0)
       .map((l) => ({ sovLineId: l.sovLineId, workCompleted: l.thisPeriod }));

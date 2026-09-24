@@ -44,6 +44,26 @@ type FinancialsResponse = {
     totalOutstanding: number;
     totalOverdue: number;
   };
+  progress?: {
+    rows: {
+      jobId: string;
+      jobNumber: string;
+      title: string;
+      customer: string;
+      contractSum: number;
+      completedToDate: number;
+      billedToDate: number;
+      collected: number;
+      openReceivable: number;
+      retainagePercent: number;
+      retainageHeld: number;
+      balanceToFinish: number;
+      balanceDue: number;
+      applications: number;
+      hasDraft: boolean;
+    }[];
+    totals: { openReceivable: number; retainageHeld: number; balanceToFinish: number; balanceDue: number };
+  };
   summary: {
     totalContracted: number;
     totalCollected: number;
@@ -88,6 +108,7 @@ export default function CollectionsPage() {
 
   const jobs: CollectionJob[] = jobsData?.data || [];
   const aging = financials?.aging;
+  const progress = financials?.progress;
   const profitability = financials?.summary.jobs ?? [];
   const overdueRows = (aging?.rows ?? []).filter((r) => r.ageDays > 0);
 
@@ -113,7 +134,16 @@ export default function CollectionsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-6">
         <KpiCard title="Total Contracted" value={`$${totalContracted.toLocaleString()}`} icon={DollarSign} />
         <KpiCard title="Total Collected" value={`$${totalCollected.toLocaleString()}`} icon={CheckCircle} />
-        <KpiCard title="Outstanding" value={`$${totalOutstanding.toLocaleString()}`} icon={Clock} />
+        <KpiCard
+          title="Outstanding"
+          value={`$${totalOutstanding.toLocaleString()}`}
+          icon={Clock}
+          description={
+            progress && progress.rows.length > 0
+              ? `incl. ${money(progress.totals.retainageHeld)} retainage held and ${money(progress.totals.balanceToFinish)} unbilled work on progress-billed jobs`
+              : undefined
+          }
+        />
         <KpiCard title="Overdue A/R" value={money(aging?.totalOverdue ?? 0)} icon={AlertTriangle} />
         <KpiCard title="Deposits Missing" value={depositsMissing.length} icon={AlertTriangle} />
       </div>
@@ -186,6 +216,69 @@ export default function CollectionsPage() {
             )}
           </CardContent>
         </Card>
+
+        {progress && progress.rows.length > 0 && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base">Progress-billed jobs</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                What each job&apos;s balance is made of: certificates awaiting payment, retainage earned but withheld, and work not yet billed.
+                Only the first is collectable today.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Job</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="text-right">Contract</TableHead>
+                    <TableHead className="text-right">Completed</TableHead>
+                    <TableHead className="text-right">Open A/R</TableHead>
+                    <TableHead className="text-right">Retainage held</TableHead>
+                    <TableHead className="text-right">Balance to finish</TableHead>
+                    <TableHead className="text-right">Balance due</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {progress.rows.map((r) => (
+                    <TableRow key={r.jobId} className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => router.push(`/jobs/${r.jobId}?tab=money&sub=invoices`)}>
+                      <TableCell className="font-mono text-xs">
+                        {r.jobNumber}
+                        <div className="text-[10px] text-muted-foreground">
+                          {r.applications} app{r.applications === 1 ? "" : "s"}{r.hasDraft ? " · draft open" : ""}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{r.customer}</TableCell>
+                      <TableCell className="text-right">{money(r.contractSum)}</TableCell>
+                      <TableCell className="text-right">
+                        {money(r.completedToDate)}
+                        <div className="text-[10px] text-muted-foreground">
+                          {r.contractSum > 0 ? Math.round((r.completedToDate / r.contractSum) * 100) : 0}%
+                        </div>
+                      </TableCell>
+                      <TableCell className={`text-right font-medium ${r.openReceivable > 0 ? "text-red-600" : ""}`}>{money(r.openReceivable)}</TableCell>
+                      <TableCell className="text-right">
+                        {money(r.retainageHeld)}
+                        <div className="text-[10px] text-muted-foreground">{r.retainagePercent}%</div>
+                      </TableCell>
+                      <TableCell className="text-right">{money(r.balanceToFinish)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{money(r.balanceDue)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="font-medium">
+                    <TableCell colSpan={4}>Total</TableCell>
+                    <TableCell className="text-right">{money(progress.totals.openReceivable)}</TableCell>
+                    <TableCell className="text-right">{money(progress.totals.retainageHeld)}</TableCell>
+                    <TableCell className="text-right">{money(progress.totals.balanceToFinish)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{money(progress.totals.balanceDue)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="text-base">A/R Aging (unpaid invoices)</CardTitle></CardHeader>

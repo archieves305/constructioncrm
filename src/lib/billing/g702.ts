@@ -38,6 +38,10 @@ export type ComputedApplication = {
   completedToDate: number;
   retainagePercent: number;
   retainage: number;
+  /** Retainage held after the previous application (its rate on the previous work). */
+  previousRetainage: number;
+  /** Net retainage handed back on this application (0 unless the rate was lowered). */
+  retainageReleased: number;
   earnedLessRetainage: number;
   previousCertificates: number;
   currentDue: number;
@@ -48,10 +52,18 @@ export type ComputedApplication = {
  * Pure G702 arithmetic for one application. `previousByLine` and
  * `previousCertificates` describe every earlier non-void application already
  * rolled up; `thisPeriod` is the work being billed now.
+ *
+ * Retainage release is the same arithmetic at a lower rate: an application
+ * at 0% (or 5%) with no new work has current due = the retainage handed
+ * back, because "earned less retainage" rises while "previous certificates"
+ * stays put. `previousRetainagePercent` is the rate the last issued
+ * application withheld at, so the release amount can be reported.
  */
 export function computeApplication(input: {
   contractSum: number;
   retainagePercent: number;
+  /** Rate on the previous application; defaults to this one's. */
+  previousRetainagePercent?: number;
   sovLines: SovLineInput[];
   previousByLine: Record<string, number>;
   previousCertificates: number;
@@ -83,6 +95,9 @@ export function computeApplication(input: {
   const completedThisPeriod = round2(lines.reduce((s, l) => s + l.thisPeriod, 0));
   const completedToDate = round2(completedPrevious + completedThisPeriod);
   const retainage = round2(completedToDate * (input.retainagePercent / 100));
+  const previousRate = input.previousRetainagePercent ?? input.retainagePercent;
+  const previousRetainage = round2(completedPrevious * (previousRate / 100));
+  const retainageReleased = Math.max(0, round2(previousRetainage - retainage));
   const earnedLessRetainage = round2(completedToDate - retainage);
   const previousCertificates = round2(input.previousCertificates);
   const currentDue = round2(earnedLessRetainage - previousCertificates);
@@ -95,6 +110,8 @@ export function computeApplication(input: {
     completedToDate,
     retainagePercent: input.retainagePercent,
     retainage,
+    previousRetainage,
+    retainageReleased,
     earnedLessRetainage,
     previousCertificates,
     currentDue,

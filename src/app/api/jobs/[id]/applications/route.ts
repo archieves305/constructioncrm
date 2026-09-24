@@ -14,13 +14,19 @@ const lineSchema = z.object({
 const createSchema = z.object({
   periodFrom: z.string().nullable().optional(),
   periodTo: z.string().min(10),
-  lines: z.array(lineSchema).min(1),
+  // Empty on a pure retainage release.
+  lines: z.array(lineSchema),
+  retainagePercent: z.number().min(0).max(100).nullable().optional(),
   dueDate: z.string().nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
   status: z.enum(["DRAFT", "SENT"]).optional(),
 });
 
-/** Issue a payment application (progress invoice) for work completed this period. */
+/**
+ * Issue a payment application (progress invoice) for work completed this
+ * period. A lower `retainagePercent` than the last issued application's
+ * releases retainage (0 = full release); lines may then be empty.
+ */
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },

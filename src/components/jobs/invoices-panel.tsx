@@ -83,6 +83,8 @@ type ApplicationSummary = {
 type BillingSummary = {
   billingMethod: "LUMP_SUM" | "PROGRESS";
   retainagePercent: number;
+  effectiveRetainagePercent: number;
+  retainageReleasedOn: number | null;
   contractSum: number;
   sovLines: SovLine[];
   sovTotal: number;
@@ -91,6 +93,7 @@ type BillingSummary = {
   totals: {
     completedToDate: number;
     retainageHeld: number;
+    retainageReleased: number;
     billedToDate: number;
     collected: number;
     openReceivable: number;
@@ -277,6 +280,9 @@ export function InvoicesPanel({
   const [work, setWork] = useState<Record<string, string>>({});
   const [appNotes, setAppNotes] = useState("");
   const [sendNow, setSendNow] = useState(false);
+  // Rate this application withholds at. Lower than the effective rate = a
+  // retainage release (0 = release everything held).
+  const [appRetainage, setAppRetainage] = useState("");
 
   function openNewApp() {
     if (!billing) return;
@@ -287,6 +293,7 @@ export function InvoicesPanel({
     setWork({});
     setAppNotes("");
     setSendNow(false);
+    setAppRetainage(String(billing.effectiveRetainagePercent));
     setAppOpen(true);
   }
 
@@ -301,6 +308,7 @@ export function InvoicesPanel({
     setWork(w);
     setAppNotes("");
     setSendNow(false);
+    setAppRetainage(String(app?.computed.retainagePercent ?? billing.effectiveRetainagePercent));
     setAppOpen(true);
   }
 
@@ -313,9 +321,11 @@ export function InvoicesPanel({
       for (const l of a.computed.lines)
         previousByLine[l.sovLineId] = (previousByLine[l.sovLineId] ?? 0) + l.thisPeriod;
     }
+    const rate = Number(appRetainage);
     return computeApplication({
       contractSum: billing.contractSum,
-      retainagePercent: billing.retainagePercent,
+      retainagePercent: Number.isFinite(rate) ? rate : billing.effectiveRetainagePercent,
+      previousRetainagePercent: billing.effectiveRetainagePercent,
       sovLines: billing.sovLines,
       previousByLine,
       previousCertificates: billing.totals.billedToDate,
@@ -324,7 +334,7 @@ export function InvoicesPanel({
         workCompleted: Number(work[s.id] || 0) || 0,
       })),
     });
-  }, [billing, work]);
+  }, [billing, work, appRetainage]);
 
   const saveApp = useMutation({
     mutationFn: () => {
@@ -339,6 +349,7 @@ export function InvoicesPanel({
             periodFrom: periodFrom || null,
             periodTo,
             lines,
+            retainagePercent: Number(appRetainage),
             ...(sendNow ? { status: "SENT" } : {}),
           }),
         });
@@ -350,6 +361,7 @@ export function InvoicesPanel({
           periodFrom: periodFrom || null,
           periodTo,
           lines,
+          retainagePercent: Number(appRetainage),
           notes: appNotes || null,
           status: sendNow ? "SENT" : "DRAFT",
         }),
@@ -364,7 +376,10 @@ export function InvoicesPanel({
   });
 
   const overBilled = preview?.lines.some((l) => l.toDate > l.scheduledValue + 0.005) ?? false;
-  const nothingBilled = (preview?.completedThisPeriod ?? 0) <= 0;
+  const nothingBilled = (preview?.completedThisPeriod ?? 0) <= 0 && (preview?.retainageReleased ?? 0) <= 0;
+  const rateValue = Number(appRetainage);
+  const badRate = !Number.isFinite(rateValue) || rateValue < 0 || rateValue > 100;
+  const isRelease = (preview?.retainageReleased ?? 0) > 0;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -465,7 +480,15 @@ export function InvoicesPanel({
               value={money0(billing.totals.completedToDate)}
               sub={pct(billing.contractSum > 0 ? billing.totals.completedToDate / billing.contractSum : 0)}
             />
-            <Stat label={`Retainage held (${billing.retainagePercent}%)`} value={money0(billing.totals.retainageHeld)} />
+            <Stat
+              label={`Retainage held (${billing.effectiveRetainagePercent}%)`}
+              value={money0(billing.totals.retainageHeld)}
+              sub={
+                billing.retainageReleasedOn !== null
+                  ? `${money0(billing.totals.retainageReleased)} released on app #${billing.retainageReleasedOn}`
+                  : undefined
+              }
+            />
             <Stat label="Billed to date" value={money0(billing.totals.billedToDate)} sub="net of retainage" />
             <Stat
               label="Open receivable"
@@ -665,7 +688,12 @@ export function InvoicesPanel({
                       <div className="mt-1 text-xs text-muted-foreground">
                         Work this period {money0(app.computed.completedThisPeriod)} · to date{" "}
                         {money0(app.computed.completedToDate)} ({pct(app.computed.contractSum > 0 ? app.computed.completedToDate / app.computed.contractSum : 0)})
-                        {" · "}retainage {money0(app.computed.retainage)}
+                        {" · "}retainage {money0(app.computed.retainage)} ({app.computed.retainagePercent}%)
+                        {app.computed.retainageReleased > 0 && (
+                          <span className="ml-1 rounded bg-green-50 px-1.5 py-0.5 font-medium text-green-700">
+                            releases {money0(app.computed.retainageReleased)} retainage
+                          </span>
+                        )}
                       </div>
                     )}
                     {inv.payments.length > 0 && (
@@ -800,9 +828,56 @@ export function InvoicesPanel({
                 </TableBody>
               </Table>
 
+              <div className="rounded border p-3">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <Label>Retainage % on this application</Label>
+                    <Input
+                      inputMode="decimal"
+                      className={`h-8 w-24 ${badRate ? "border-red-500" : ""}`}
+                      value={appRetainage}
+                      onChange={(e) => setAppRetainage(e.target.value)}
+                    />
+                  </div>
+                  {billing.effectiveRetainagePercent > 0 && preview.previousRetainage > 0 && (
+                    <div className="flex gap-2 pb-0.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        onClick={() => setAppRetainage(String(billing.effectiveRetainagePercent / 2))}
+                      >
+                        Release half ({billing.effectiveRetainagePercent / 2}%)
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => setAppRetainage("0")}>
+                        Release all (0%)
+                      </Button>
+                      {rateValue !== billing.effectiveRetainagePercent && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 text-xs"
+                          onClick={() => setAppRetainage(String(billing.effectiveRetainagePercent))}
+                        >
+                          Keep {billing.effectiveRetainagePercent}%
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isRelease
+                    ? `Lowering the rate from ${billing.effectiveRetainagePercent}% releases ${money(preview.retainageReleased)} of retainage on this application. Later applications withhold at the new rate.`
+                    : `The last issued application withheld ${billing.effectiveRetainagePercent}%. Lower it here to release retainage (0% releases everything held).`}
+                </p>
+              </div>
+
               <div className="rounded border bg-gray-50 p-3 text-sm">
                 <Row label="Total completed to date" value={money(preview.completedToDate)} />
                 <Row label={`Less retainage (${preview.retainagePercent}%)`} value={`−${money(preview.retainage)}`} />
+                {isRelease && <Row label="Retainage released on this application" value={money(preview.retainageReleased)} />}
                 <Row label="Total earned less retainage" value={money(preview.earnedLessRetainage)} />
                 <Row label="Less previous certificates" value={`−${money(preview.previousCertificates)}`} />
                 <Row label="Current payment due" value={money(preview.currentDue)} bold />
@@ -827,10 +902,16 @@ export function InvoicesPanel({
               Cancel
             </Button>
             <Button
-              disabled={saveApp.isPending || !periodTo || overBilled || nothingBilled || (preview?.currentDue ?? 0) < 0}
+              disabled={saveApp.isPending || !periodTo || overBilled || nothingBilled || badRate || (preview?.currentDue ?? 0) < 0}
               onClick={() => saveApp.mutate()}
             >
-              {saveApp.isPending ? "Saving…" : editingApp ? "Save changes" : sendNow ? "Create & send" : "Create draft"}
+              {saveApp.isPending
+                ? "Saving…"
+                : editingApp
+                  ? "Save changes"
+                  : isRelease && (preview?.completedThisPeriod ?? 0) <= 0
+                    ? sendNow ? "Release retainage & send" : "Create release draft"
+                    : sendNow ? "Create & send" : "Create draft"}
             </Button>
           </DialogFooter>
         </DialogContent>
