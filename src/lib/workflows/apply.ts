@@ -178,6 +178,32 @@ export async function previewWorkflow(input: ApplyInput): Promise<WorkflowPrevie
 
 export type MaterializeResult = { created: string[]; existing: number; edgesAdded: number; edgesRemoved: number; activated: string[] };
 
+export type EdgeRow = { id: string; taskId: string; dependsOnTaskId: string; kind: "BLOCKING" | "DATE_ONLY" };
+
+/**
+ * Pure: which workflow-sourced edges to add and remove so the graph among
+ * `idByKey` matches the plan. Edges to tasks outside the plan (removed
+ * modules, corrections, manual tasks) are left alone.
+ */
+export function diffEdges(
+  plan: ComposedPlan,
+  idByKey: Map<string, string>,
+  current: EdgeRow[],
+): { toAdd: { taskId: string; dependsOnTaskId: string; kind: "BLOCKING" | "DATE_ONLY" }[]; stale: EdgeRow[] } {
+  const wanted = new Map<string, { taskId: string; dependsOnTaskId: string; kind: "BLOCKING" | "DATE_ONLY" }>();
+  for (const e of plan.edges) {
+    const taskId = idByKey.get(e.task);
+    const dependsOnTaskId = idByKey.get(e.dependsOn);
+    if (!taskId || !dependsOnTaskId) continue;
+    wanted.set(`${taskId}|${dependsOnTaskId}`, { taskId, dependsOnTaskId, kind: e.kind });
+  }
+  const stepIds = new Set(idByKey.values());
+  const currentKeys = new Set(current.map((d) => `${d.taskId}|${d.dependsOnTaskId}`));
+  const toAdd = Array.from(wanted.entries()).filter(([k]) => !currentKeys.has(k)).map(([, v]) => v);
+  const stale = current.filter((d) => !wanted.has(`${d.taskId}|${d.dependsOnTaskId}`) && stepIds.has(d.dependsOnTaskId) && stepIds.has(d.taskId));
+  return { toAdd, stale };
+}
+
 /**
  * Bring an instance's tasks and edges in line with a composed plan by ADDING
  * only: missing steps are created, missing edges are added, and
@@ -242,22 +268,16 @@ export async function materializePlan(
     if (t.initiallyActive && assignedUserId) activated.push(row.id);
   }
 
-  // Edges: the plan's full set, on task ids.
-  const wanted = new Map<string, { taskId: string; dependsOnTaskId: string; kind: "BLOCKING" | "DATE_ONLY" }>();
-  for (const e of args.plan.edges) {
-    const taskId = idByKey.get(e.task);
-    const dependsOnTaskId = idByKey.get(e.dependsOn);
-    if (!taskId || !dependsOnTaskId) continue;
-    wanted.set(`${taskId}|${dependsOnTaskId}`, { taskId, dependsOnTaskId, kind: e.kind });
-  }
-  const stepIds = Array.from(idByKey.values());
+  // Only the plan's own keys take part in the edge diff; tasks that left the
+  // plan (removed module, corrections) keep whatever edges they have.
+  const planKeys = new Set(args.plan.tasks.map((t) => t.key));
+  const planIdByKey = new Map(Array.from(idByKey.entries()).filter(([k]) => planKeys.has(k)));
+  const stepIds = Array.from(planIdByKey.values());
   const current = await tx.taskDependency.findMany({
     where: { taskId: { in: stepIds }, source: "workflow" },
     select: { id: true, taskId: true, dependsOnTaskId: true, kind: true },
   });
-  const currentKeys = new Set(current.map((d) => `${d.taskId}|${d.dependsOnTaskId}`));
-  const toAdd = Array.from(wanted.entries()).filter(([k]) => !currentKeys.has(k)).map(([, v]) => v);
-  const stale = current.filter((d) => !wanted.has(`${d.taskId}|${d.dependsOnTaskId}`) && stepIds.includes(d.dependsOnTaskId));
+  const { toAdd, stale } = diffEdges(args.plan, planIdByKey, current);
   if (toAdd.length > 0) {
     await tx.taskDependency.createMany({
       data: toAdd.map((d) => ({ ...d, source: "workflow", createdByUserId: args.actorUserId })),

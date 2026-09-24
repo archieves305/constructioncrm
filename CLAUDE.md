@@ -60,6 +60,23 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-09-24 — Trade Workflow Templates, Stage 2 (deployed)
+
+One reconcile engine for every re-plan (`ReconcileChange`: permit decide
+or reverse with a required reason when dropping it, add/remove trade with
+per-task retain, scope, version upgrade with drift report): build the plan
+→ diff (`toCreate / toReinstate / toSkip / preserved`) → apply by adding,
+reinstating engine skips and skipping through `updateTask`. Never deletes;
+completed, manual, correction and user-skipped tasks are untouched.
+`previewReconcile` powers the two-step dialogs. Inspections: PASS /
+CONDITIONAL / FAIL with correction tasks; a failed step reopens as Ready
+when its corrections close. Versioning: drafts, collected validation with
+"Go to step", publish supersedes, jobs pin and the tab offers upgrades.
+Template Library editor (`/admin/workflow-templates/[id]`) with sortable
+phases and steps, a full step sheet and a client-side cycle check — no
+raw JSON. Manual dependencies route. QA found one defect (reopen waited on
+ordinary predecessors) — fixed. 579/579 tests, lint 6/29.
+
 ### 2026-09-24 — Trade Workflow Templates, Stage 1 (deployed)
 
 Reusable, versioned phase-and-step templates that generate **ordinary

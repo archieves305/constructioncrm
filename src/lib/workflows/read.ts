@@ -7,6 +7,7 @@ import { resolveToggles } from "./compose";
 import { fullKey, splitFullKey, type ScopeToggleState } from "./keys";
 import { unassignedRoles, loadRoleContext } from "./roles";
 import { canApplyWorkflow, canCoordinateWorkflow, canOverrideBlockingGate, canSetPermitStatus, type JobScope } from "./access";
+import { availableUpgrades } from "./versioning";
 
 /**
  * Everything the Workflow tab needs in one read: the instance, its modules
@@ -188,6 +189,9 @@ export async function readJobWorkflow(
     );
 
   const roleCtx = await loadRoleContext(prisma, { jobId: job.id, instanceId: workflow.id });
+  const upgrades = await availableUpgrades(
+    workflow.modules.filter((m) => !m.removedAt).map((m) => ({ templateKey: m.template.key, versionId: m.templateVersion.id, version: m.templateVersion.version })),
+  );
 
   return {
     job: jobFields,
@@ -222,6 +226,7 @@ export async function readJobWorkflow(
     tasks,
     progress: overall,
     unassignedRoles: unassignedRoles(openUnassignedRoles, roleCtx),
+    upgrades,
   };
 }
 

@@ -44,6 +44,7 @@ export type WorkflowTaskItem = TaskListItem & {
   requiredEvidenceParam: string | null;
   checklist: ChecklistItem[] | null;
   inspectionResult: "SCHEDULED" | "PASS" | "FAIL" | "CONDITIONAL" | "CANCELLED" | null;
+  inspectionRecordedAt: string | null;
   dependencies: WorkflowDependency[];
   _count?: { events: number; files?: number; dependents?: number };
 };
@@ -99,7 +100,143 @@ export type JobWorkflowData = {
   tasks?: WorkflowTaskItem[];
   progress?: PhaseProgress;
   unassignedRoles?: WorkflowRole[];
+  upgrades?: { templateKey: string; from: number; to: number; versionId: string }[];
 };
+
+// ── Stage 2 ──
+
+export type ReconcileChange =
+  | { kind: "permit"; status: "REQUIRED" | "NOT_REQUIRED"; reason?: string | null; notes?: string | null; documentFileId?: string | null; jurisdiction?: string | null }
+  | { kind: "add-module"; templateKeys: string[]; scopeToggles?: Record<string, Record<string, boolean>> }
+  | { kind: "remove-module"; templateKey: string; reason: string; retainTaskIds?: string[] }
+  | { kind: "scope"; scopeToggles: Record<string, Record<string, boolean>> }
+  | { kind: "upgrade-module"; templateKey: string; versionId?: string };
+
+export type ReconcileItem = { id: string | null; key: string; title: string; moduleKey: string; phaseKey: string | null; status: TaskStatus | null; blocking: boolean };
+
+export type ReconcilePlanData = {
+  change: ReconcileChange;
+  label: string;
+  permitStatus: WorkflowPermitStatus;
+  modules: { moduleKey: string; name: string; version: number }[];
+  toCreate: ReconcileItem[];
+  toReinstate: ReconcileItem[];
+  toSkip: ReconcileItem[];
+  preserved: (ReconcileItem & { why: "completed" | "manual" | "retained" | "correction" | "user-skipped" })[];
+  edgesToAdd: number;
+  edgesToRemove: number;
+  drift: { key: string; field: "title" | "description"; from: string | null; to: string | null }[];
+  warnings: string[];
+};
+
+export type ReconcileResultData = { plan: ReconcilePlanData; created: number; reinstated: number; skipped: number; activated: number };
+
+export type InspectionBody = { result: "PASS" | "FAIL" | "CONDITIONAL"; notes?: string | null; inspectedAt?: string; jobPermitInspectionId?: string | null };
+
+export type VersionStatus = "DRAFT" | "PUBLISHED" | "SUPERSEDED" | "ARCHIVED";
+
+export type AdminVersionSummary = {
+  id: string;
+  version: number;
+  status: VersionStatus;
+  publishedAt: string | null;
+  supersededAt?: string | null;
+  changeNotes: string | null;
+  createdAt?: string;
+  _count: { phases: number; tasks: number; modules: number };
+};
+
+export type AdminTemplate = {
+  id: string;
+  key: string;
+  name: string;
+  kind: WorkflowTemplateKind;
+  trade: string | null;
+  description: string | null;
+  isActive: boolean;
+  serviceCategories: { id: string; name: string }[];
+  versions: AdminVersionSummary[];
+};
+
+export type EditorPhase = {
+  id: string;
+  key: string;
+  name: string;
+  band: number;
+  sortOrder: number;
+  description: string | null;
+  note: string | null;
+  conditionPermit: WorkflowPermitCondition | null;
+};
+
+export type EditorChecklistItem = { key?: string; label: string; condition?: { anyOf?: string[]; allOf?: string[] } | null };
+
+export type EditorTask = {
+  id: string;
+  phaseId: string;
+  key: string;
+  title: string;
+  description: string | null;
+  role: WorkflowRole;
+  priority: Priority;
+  anchor: WorkflowAnchor;
+  dueOffsetBusinessDays: number;
+  durationBusinessDays: number | null;
+  autoActivate: boolean;
+  blocking: boolean;
+  requiredEvidence: WorkflowEvidenceType | null;
+  requiredEvidenceParam: string | null;
+  checklist: EditorChecklistItem[];
+  conditionPermit: WorkflowPermitCondition | null;
+  conditionAnyOf: string[];
+  conditionAllOf: string[];
+  overridesCoreKey: string | null;
+  sortOrder: number;
+};
+
+export type EditorDependency = { id: string; taskKey: string; dependsOnRef: string; kind: TaskDependencyKind };
+
+export type EditorVersion = {
+  id: string;
+  version: number;
+  status: VersionStatus;
+  changeNotes: string | null;
+  publishedAt: string | null;
+  template: { id: string; key: string; name: string; kind: WorkflowTemplateKind; trade: string | null; description: string | null };
+  scopeToggles: ScopeToggleDef[];
+  phases: EditorPhase[];
+  tasks: EditorTask[];
+  dependencies: EditorDependency[];
+  referencedByJobs: number;
+  coreSteps: { key: string; title: string }[];
+};
+
+export type ValidationIssue = { level: "error" | "warning"; message: string; phaseKey?: string; taskKey?: string };
+export type ValidationResultData = { ok: boolean; issues: ValidationIssue[] };
+
+export type TaskTemplateInput = {
+  phaseId: string;
+  key?: string;
+  title: string;
+  description?: string | null;
+  role: WorkflowRole;
+  priority?: Priority;
+  anchor?: WorkflowAnchor;
+  dueOffsetBusinessDays?: number;
+  durationBusinessDays?: number | null;
+  autoActivate?: boolean;
+  blocking?: boolean;
+  requiredEvidence?: WorkflowEvidenceType | null;
+  requiredEvidenceParam?: string | null;
+  checklist?: EditorChecklistItem[];
+  conditionPermit?: WorkflowPermitCondition | null;
+  conditionAnyOf?: string[];
+  conditionAllOf?: string[];
+  overridesCoreKey?: string | null;
+  dependsOn?: { ref: string; kind?: TaskDependencyKind }[];
+};
+
+export type PhaseInput = { key?: string; name: string; band: number; description?: string | null; note?: string | null; conditionPermit?: WorkflowPermitCondition | null };
 
 export type WorkflowTemplateOption = {
   id: string;

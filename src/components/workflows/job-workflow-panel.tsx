@@ -21,6 +21,14 @@ import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
 import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 import { ApplyWorkflowDialog } from "./apply-workflow-dialog";
+import { ReconcileDialog, type ReconcileMode } from "./reconcile-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ArrowUpCircle, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { CompleteTaskDialog } from "./complete-task-dialog";
 import { PhaseSection } from "./phase-section";
 import { SkipTaskDialog } from "./skip-task-dialog";
@@ -58,6 +66,7 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
   const [skipTarget, setSkipTarget] = useState<WorkflowTaskItem | null>(null);
   const [completeTarget, setCompleteTarget] = useState<WorkflowTaskItem | null>(null);
   const [addPhaseKey, setAddPhaseKey] = useState<string | null>(null);
+  const [reconcile, setReconcile] = useState<ReconcileMode | null>(null);
 
   // `?apply=1` (from the post-Won toast) opens the dialog once, then clears itself.
   const wantsApply = searchParams.get("apply") === "1";
@@ -188,14 +197,41 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-1.5">
-              {(data.modules ?? []).filter((m) => !m.removedAt).map((m) => (
-                <Badge key={m.templateKey} variant="outline" className={cn("text-xs", m.kind === "CORE" && "border-dashed")}>
-                  {m.name} <span className="ml-1 text-muted-foreground">v{m.version}</span>
+              {(data.modules ?? []).filter((m) => !m.removedAt).map((m) => {
+                const upgrade = (data.upgrades ?? []).find((u) => u.templateKey === m.templateKey);
+                const pill = (
+                  <Badge variant="outline" className={cn("text-xs", m.kind === "CORE" && "border-dashed", canApply && m.kind !== "CORE" && "cursor-pointer hover:bg-gray-50")}>
+                    {m.name} <span className="ml-1 text-muted-foreground">v{m.version}</span>
+                    {upgrade && <ArrowUpCircle className="ml-1 size-3 text-tone-info-fg" aria-label={`v${upgrade.to} available`} />}
+                    {canApply && m.kind !== "CORE" && <ChevronDown className="ml-0.5 size-3 text-muted-foreground" />}
+                  </Badge>
+                );
+                if (!canApply || m.kind === "CORE") return <span key={m.templateKey}>{pill}</span>;
+                return (
+                  <DropdownMenu key={m.templateKey}>
+                    <DropdownMenuTrigger render={<button type="button" aria-label={`${m.name} options`} />}>{pill}</DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {upgrade && (
+                        <DropdownMenuItem onClick={() => setReconcile({ kind: "upgrade", templateKey: m.templateKey, name: m.name, from: upgrade.from, to: upgrade.to, versionId: upgrade.versionId })}>
+                          <ArrowUpCircle className="size-4" /> Upgrade to v{upgrade.to}…
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => setReconcile({ kind: "remove-trade", templateKey: m.templateKey, name: m.name })}>Remove {m.name}…</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              })}
+              {inst.permitStatus !== "UNDETERMINED" && data.permissions.canSetPermit ? (
+                <button type="button" onClick={() => setReconcile({ kind: "permit" })} title="Change permit status">
+                  <Badge className={cn("cursor-pointer border-0 text-xs", permitTone.pill)}>
+                    <Landmark className="mr-1 size-3" /> {PERMIT_STATUS_LABEL[inst.permitStatus]} <ChevronDown className="ml-0.5 size-3" />
+                  </Badge>
+                </button>
+              ) : (
+                <Badge className={cn("border-0 text-xs", permitTone.pill)}>
+                  <Landmark className="mr-1 size-3" /> {PERMIT_STATUS_LABEL[inst.permitStatus]}
                 </Badge>
-              ))}
-              <Badge className={cn("border-0 text-xs", permitTone.pill)}>
-                <Landmark className="mr-1 size-3" /> {PERMIT_STATUS_LABEL[inst.permitStatus]}
-              </Badge>
+              )}
               {inst.status === "COMPLETED" && <Badge className="border-0 bg-tone-success-soft text-xs text-tone-success-fg">Workflow complete</Badge>}
             </div>
             <div className="flex items-center gap-3">
@@ -243,13 +279,25 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
               )}
             </div>
             {canApply && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setApplyOpen(true)}>
-                Add a trade…
-              </Button>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setReconcile({ kind: "add-trade" })}>
+                  Add a trade…
+                </Button>
+                {(data.toggles ?? []).length > 0 && (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setReconcile({ kind: "scope" })}>
+                    <SlidersHorizontal className="size-3.5" /> Scope
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>
 
+        {(data.upgrades ?? []).length > 0 && canApply && (
+          <Callout tone="info" className="mt-3" icon={ArrowUpCircle} title="A newer template version is available">
+            {(data.upgrades ?? []).map((u) => `${(data.modules ?? []).find((m) => m.templateKey === u.templateKey)?.name ?? u.templateKey} v${u.from} → v${u.to}`).join(" · ")}. Use the trade&apos;s menu to upgrade; this job keeps its version until you do.
+          </Callout>
+        )}
         {inst.permitStatus === "UNDETERMINED" && (
           <Callout
             tone="warning"
@@ -332,6 +380,7 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
 
       {/* Dialogs */}
       <ApplyWorkflowDialog jobId={jobId} data={data} open={applyOpen} onOpenChange={setApplyOpen} />
+      {reconcile && <ReconcileDialog jobId={jobId} data={data} mode={reconcile} open onOpenChange={(o) => !o && setReconcile(null)} />}
       <ApplyWorkflowDialog jobId={jobId} data={data} open={permitOpen} onOpenChange={setPermitOpen} mode="permit-only" />
       <WorkflowTeamDialog
         data={data}

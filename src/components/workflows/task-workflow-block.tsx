@@ -14,8 +14,10 @@ import { taskKeys } from "@/components/tasks/use-tasks";
 import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
 import { cn } from "@/lib/utils";
 import { EvidenceLine } from "./evidence-line";
-import { deriveTaskState, WORKFLOW_STATE_DOT, WORKFLOW_STATE_LABEL, WORKFLOW_STATE_PILL } from "./status";
+import { deriveTaskState, WORKFLOW_STATE_LABEL, WORKFLOW_STATE_PILL } from "./status";
 import { SkipTaskDialog } from "./skip-task-dialog";
+import { InspectionResultForm } from "./inspection-result-form";
+import { DependencyEditor } from "./dependency-editor";
 import type { WorkflowTaskItem } from "./types";
 
 type FileRow = { id: string; fileName: string; fileType: string; fileSize: number; createdAt: string; uploadedBy: { firstName: string; lastName: string } };
@@ -31,6 +33,7 @@ export function TaskWorkflowBlock({
   canEdit,
   canOverrideGate,
   canCoordinate,
+  canRecordInspection = canEdit,
   onPatch,
 }: {
   task: WorkflowTaskItem & { files?: FileRow[] };
@@ -38,6 +41,7 @@ export function TaskWorkflowBlock({
   canEdit: boolean;
   canOverrideGate: boolean;
   canCoordinate: boolean;
+  canRecordInspection?: boolean;
   onPatch: (body: Record<string, unknown>) => void;
 }) {
   const qc = useQueryClient();
@@ -72,8 +76,7 @@ export function TaskWorkflowBlock({
   const jobId = task.job?.id;
   const moduleName = task.workflowModuleKey ? humanize(task.workflowModuleKey) : "Workflow";
   const phaseName = task.workflowPhaseKey ? humanize(task.workflowPhaseKey.split(":")[1] ?? "") : null;
-  const blockingDeps = task.dependencies.filter((d) => d.kind === "BLOCKING");
-  const waitingOn = blockingDeps.filter((d) => d.dependsOn.status !== "COMPLETED" && d.dependsOn.status !== "CANCELLED");
+  const waitingOn = task.dependencies.filter((d) => d.kind === "BLOCKING").filter((d) => d.dependsOn.status !== "COMPLETED" && d.dependsOn.status !== "CANCELLED");
   const checklist = task.checklist ?? [];
 
   return (
@@ -105,23 +108,9 @@ export function TaskWorkflowBlock({
         </Callout>
       )}
 
-      {blockingDeps.length > 0 && (
-        <div>
-          <Label className="text-xs">Waits on</Label>
-          <ul className="mt-1 space-y-0.5 text-sm">
-            {blockingDeps.map((d) => {
-              const s = deriveTaskState({ status: d.dependsOn.status, activatedAt: d.dependsOn.activatedAt });
-              return (
-                <li key={d.dependsOnTaskId} className="flex items-center gap-2">
-                  <span className={cn("size-2 rounded-full", WORKFLOW_STATE_DOT[s])} aria-hidden />
-                  <span className={s === "COMPLETED" || s === "SKIPPED" ? "text-muted-foreground line-through" : ""}>{d.dependsOn.title}</span>
-                  <span className="text-[11px] text-muted-foreground">{WORKFLOW_STATE_LABEL[s]}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
+      <DependencyEditor task={task} canEdit={canCoordinate} />
+
+      {task.requiredEvidence === "INSPECTION_RESULT" && <InspectionResultForm task={task} canRecord={canRecordInspection} />}
 
       {checklist.length > 0 && (
         <div>

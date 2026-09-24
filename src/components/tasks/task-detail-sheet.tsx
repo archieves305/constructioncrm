@@ -373,6 +373,7 @@ export function TaskDetailSheet({
                   canEdit={mayEdit}
                   canOverrideGate={session?.user.role === "ADMIN" || session?.user.role === "MANAGER"}
                   canCoordinate={mayEdit || session?.user.role === "OFFICE_STAFF"}
+                  canRecordInspection={mayEdit || session?.user.role === "OFFICE_STAFF" || session?.user.role === "CREW_LEAD"}
                   onPatch={(body) => patch.mutate(body)}
                 />
               )}

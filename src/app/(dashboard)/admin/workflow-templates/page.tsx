@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Route } from "lucide-react";
+import Link from "next/link";
+import { Pencil, Plus, Route } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useSession } from "@/lib/auth/session-client";
+import { NewTemplateDialog } from "@/components/workflows/new-template-dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +24,11 @@ import { cn } from "@/lib/utils";
  * source of truth.
  */
 export default function WorkflowTemplatesPage() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user.role === "ADMIN";
   const { data: templates = [], isLoading, error } = useWorkflowTemplates();
   const [selected, setSelected] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const activeKey = selected ?? templates[0]?.key ?? null;
   const { data: outline, isLoading: loadingOutline } = useQuery<TemplateOutline>({
     queryKey: ["workflow-template-outline", activeKey],
@@ -32,7 +39,18 @@ export default function WorkflowTemplatesPage() {
 
   return (
     <div>
-      <PageHeader title="Workflow Templates" description="Reusable phase-and-step plans for each trade. Applying one to a job generates its tasks." />
+      <PageHeader
+        title="Workflow Templates"
+        description="Reusable phase-and-step plans for each trade. Applying one to a job generates its tasks."
+        actions={
+          isAdmin ? (
+            <Button variant="brand" onClick={() => setCreating(true)}>
+              <Plus className="size-4" /> New template
+            </Button>
+          ) : undefined
+        }
+      />
+      <NewTemplateDialog open={creating} onOpenChange={setCreating} />
       {error ? (
         <Callout tone="danger" title="Couldn't load the templates">{error instanceof Error ? error.message : "Something went wrong."}</Callout>
       ) : isLoading ? (
@@ -69,7 +87,7 @@ export default function WorkflowTemplatesPage() {
                 {t.serviceCategoryNames.length > 0 && <p className="mt-0.5 text-[11px] text-muted-foreground">Suggested for: {t.serviceCategoryNames.join(", ")}</p>}
               </button>
             ))}
-            <p className="px-1 pt-2 text-[11px] text-muted-foreground">Templates are versioned; jobs keep the version they were applied with. Editing and publishing new versions is coming next.</p>
+            <p className="px-1 pt-2 text-[11px] text-muted-foreground">Templates are versioned; jobs keep the version they were applied with until they are upgraded from their Workflow tab.</p>
           </nav>
           <div>
             {loadingOutline || !outline ? (
@@ -79,6 +97,9 @@ export default function WorkflowTemplatesPage() {
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <h2 className="text-lg font-semibold">{outline.template.name}</h2>
                   <Badge variant="outline" className="text-xs">v{outline.version.version} · {outline.version.status.toLowerCase()}</Badge>
+                  <Link href={`/admin/workflow-templates/${templates.find((t) => t.key === activeKey)?.id ?? ""}`} className="ml-auto inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-gray-50">
+                    <Pencil className="size-3.5" /> {isAdmin ? "Open in editor" : "Versions"}
+                  </Link>
                   {outline.template.description && <p className="basis-full text-sm text-muted-foreground">{outline.template.description}</p>}
                 </div>
                 <WorkflowOutline outline={outline} />

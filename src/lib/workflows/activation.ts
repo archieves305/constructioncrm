@@ -6,6 +6,9 @@ import { activationDueAt, type ScheduleContext } from "./schedule";
 import { notifyTasksReady } from "./notify";
 import { ACTIVE_OPEN_WHERE } from "./state";
 
+/** Correction tasks carry this in their key (see inspections.ts; duplicated to avoid an import cycle). */
+const CORRECTION_MARK = ":correction:";
+
 /**
  * Activation: a step becomes Ready when every BLOCKING predecessor is done
  * or skipped. Runs inline from `updateTask` via `onTaskTransition`, so the
@@ -37,6 +40,7 @@ const ACTIVATABLE_SELECT = {
   workflowAnchor: true,
   dueOffsetBusinessDays: true,
   assignedUserId: true,
+  inspectionResult: true,
 } as const;
 
 type Activatable = Prisma.TaskGetPayload<{ select: typeof ACTIVATABLE_SELECT }>;
@@ -95,9 +99,39 @@ export async function onTaskClosed(input: { taskId: string; actorUserId: string 
   if (!ctx) return { activated: [] };
 
   const toActivate: Activatable[] = [];
+  const reopened: string[] = [];
   for (const dep of task.dependents) {
     const d = dep.task;
     if (d.status === "COMPLETED" || d.status === "CANCELLED") continue;
+    // A failed inspection waits on its correction task. When that closes,
+    // the inspection goes back to Ready with a fresh date — same row, so the
+    // FAIL stays on its timeline and the re-request reads as one history.
+    if (d.status === "BLOCKED" && d.inspectionResult === "FAIL" && dep.kind === "BLOCKING") {
+      // The inspection was already active when it failed, so only its
+      // correction tasks gate the re-request — not its ordinary predecessors.
+      const preds = await prisma.taskDependency.findMany({
+        where: { taskId: d.id, dependsOn: { workflowTaskKey: { contains: CORRECTION_MARK } } },
+        select: { kind: true, dependsOn: { select: { status: true } } },
+      });
+      if (!isReady(preds.map((p) => ({ kind: p.kind, status: p.dependsOn.status })))) continue;
+      const dueAt = d.dueLocked ? d.dueAt : activationDueAt({ anchor: "PREDECESSOR", dueOffsetBusinessDays: d.dueOffsetBusinessDays ?? 2 }, now, ctx);
+      await prisma.task.update({
+        where: { id: d.id },
+        data: { status: "PENDING", blockedReason: null, inspectionResult: null, dueAt, escalationLevel: 0, lastEscalatedAt: null },
+      });
+      await recordTaskEvents({
+        taskId: d.id,
+        actorUserId: input.actorUserId,
+        events: [
+          { type: "UNBLOCKED", fromValue: "Failed inspection — corrections done", toValue: "PENDING" },
+          ...(dueAt && dueAt.getTime() !== (d.dueAt?.getTime() ?? -1)
+            ? [{ type: "DUE_CHANGED" as const, fromValue: d.dueAt?.toISOString() ?? null, toValue: dueAt.toISOString() }]
+            : []),
+        ],
+      });
+      reopened.push(d.id);
+      continue;
+    }
     if (d.activatedAt) {
       // Already someone's work; a DATE_ONLY predecessor closing just refreshes its date.
       if (dep.kind === "DATE_ONLY" && !d.dueLocked && (d.workflowAnchor ?? "PREDECESSOR") === "PREDECESSOR") {
@@ -122,11 +156,11 @@ export async function onTaskClosed(input: { taskId: string; actorUserId: string 
 
   const activated = await activateTasks(prisma, toActivate, { reason: "dependencies", actorUserId: input.actorUserId, ctx, now });
   notifyTasksReady(
-    toActivate.filter((t) => activated.includes(t.id) && t.assignedUserId).map((t) => t.id),
+    [...toActivate.filter((t) => activated.includes(t.id) && t.assignedUserId).map((t) => t.id), ...reopened],
     input.actorUserId,
   );
   await maybeCompleteInstance(task.workflowInstanceId);
-  return { activated };
+  return { activated: [...activated, ...reopened] };
 }
 
 /**

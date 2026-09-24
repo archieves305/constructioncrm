@@ -5,6 +5,27 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 ---
 
 
+
+## 2026-09-24 — Trade Workflow Templates, Stage 2
+
+`reconcile.ts` rewritten as the generic engine (`build` → `diff` →
+apply; `ENGINE_SKIP_PREFIX` tells engine skips from a person's, only those
+are reinstated); `apply.ts` gained the pure `diffEdges`; `inspections.ts`;
+`versioning.ts` + `validate.ts`; failed-inspection reopen in
+`activation.ts` gated on correction tasks only (QA caught that gating on
+all predecessors left an out-of-order inspection blocked forever).
+Routes: `…/workflow/reconcile{,/preview}`, `/api/tasks/[id]/inspection`,
+`/api/tasks/[id]/dependencies`, admin template + version CRUD. UI:
+`ReconcileDialog` (permit / add / remove / scope / upgrade) +
+`ReconcilePreviewPanel`, `InspectionResultForm`, `DependencyEditor`,
+`ui/sortable-list`, `TemplateEditor` + `TaskEditorSheet` +
+`PhaseEditorDialog` + `ScopeTogglesEditor`, New template. Client bundles
+import `lib/workflows/role-labels` and `slug`, never the Prisma-backed
+modules. API QA on dev: permit flip both ways (8 added / 37 skipped, then
+37 reinstated / 8 skipped), Core refusal, cycle message with titles,
+draft → validate (cycle caught) → publish v2 → job upgrade adds the one
+new step. 579 tests, lint 6/29.
+
 ## 2026-09-24 — Trade Workflow Templates, Stage 1
 
 Schema (`workflow_*`, `job_workflow_*`, `task_dependencies`, workflow

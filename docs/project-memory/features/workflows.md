@@ -1,8 +1,9 @@
 # Trade Workflow Templates
 
-_Stage 1 shipped 2026-09-24. Stages 2 (reconciliation, inspections,
-versioning, template editor) and 3 (jobs-list filters, dashboard, reporting)
-are planned — see the "Not yet" section._
+_Stage 1 (model, engine, seeds, Apply, Workflow tab) and Stage 2
+(reconciliation, inspections, versioning, template editor) shipped
+2026-09-24. Stage 3 (jobs-list filters, dashboard, reporting) is planned —
+see the "Not yet" section._
 
 ## Why
 
@@ -97,11 +98,41 @@ legal note.
   task), PERMIT_NUMBER (a `JobPermit` with a number), PERMIT_DETERMINATION,
   INSPECTION_RESULT (PASS/CONDITIONAL), PAYMENT_STATUS (DEPOSIT/FINAL from
   the job), NOTE. 400s say what to do and carry a `hint`.
-- `reconcile.ts` (Stage 1 subset): `determinePermit` (UNDETERMINED →
-  decided: creates the branch, re-points edges, completes the gate with
-  `internal: { bypassEvidence, tickChecklist }`, sweeps), `reconcileScope`
-  (toggles: add, skip out-of-scope open steps with `SCOPE_SKIP_REASON`,
-  reinstate).
+- `reconcile.ts`: one engine for every re-plan — `ReconcileChange` is
+  `permit` (decide or reverse; a reason is required when dropping the
+  requirement), `add-module`, `remove-module` (Core refused; per-task
+  `retainTaskIds`), `scope`, `upgrade-module` (re-pins the version and
+  reports title/description drift without rewriting existing tasks).
+  `build` composes the plan the job should have, `diff` turns it into
+  `toCreate / toReinstate / toSkip / preserved` plus an edge diff, and
+  `reconcile` applies it: `materializePlan` adds steps and syncs
+  workflow-sourced edges, skips go through `updateTask` with
+  `${ENGINE_SKIP_PREFIX}<label>` (so a later re-plan can tell an engine
+  skip from a person's — only engine skips are ever reinstated), then
+  `sweepActivation`. `previewReconcile` is the same diff without writing.
+  Completed, manual, correction and user-skipped tasks are never touched;
+  nothing is deleted. Deciding a permit still completes the gate step with
+  `internal: { bypassEvidence, tickChecklist }`.
+- `inspections.ts`: `recordInspectionResult` on a step whose evidence is
+  INSPECTION_RESULT. PASS completes; CONDITIONAL completes and raises a
+  correction task; FAIL blocks the step ("Failed inspection — notes"),
+  raises a correction task (`<key>:correction:<n>`, superintendent slot or
+  the inspector, PHOTO evidence, +2 business days) that the inspection now
+  waits on. When the correction closes, `activation.onTaskClosed` reopens
+  the inspection as Ready with a fresh date — gated on its correction
+  tasks only, not its ordinary predecessors, because it was already active
+  when it failed. History stays on one row. Mirrors to
+  `JobPermitInspection` when an id is passed.
+- `versioning.ts` + `validate.ts`: `createDraft` (copies the published
+  tree; 409 if a draft exists), draft-only guard on every phase/step/
+  dependency mutation, `validateTree` collects every problem with a
+  location (duplicate keys, unresolved refs, cycle path, unknown toggle or
+  Core override, empty phase, missing legal note, Core without the
+  determination step), `publishVersion` (validates, supersedes the previous
+  published version; jobs keep their pinned version and the Workflow tab
+  reports `upgrades`), `archiveVersion`, `createTemplate`,
+  `duplicateTemplate`, `updateTemplateMeta`, reorder helpers. Renaming a
+  step key rewrites every reference to it.
 - `updateTask` gates: COMPLETED needs checklist + evidence (ADMIN/MANAGER
   may pass `evidenceOverrideReason`, logged as a NOTE); CANCELLED on a step
   needs `skipReason` and a **blocking** gate only by ADMIN/MANAGER;
@@ -131,6 +162,11 @@ changed + unreferenced → rebuilt; changed + referenced by a job → **throws**
 | `GET /api/tasks` + `source, workflowInstanceId, phaseKey, moduleKey, ready, waiting, blocked, includeInactive` | existing |
 | `GET/PUT /api/admin/workflow-role-defaults` | ADMIN/MANAGER view, ADMIN write |
 | `POST /api/files` with `taskId` | `canEditTask` |
+| `POST …/workflow/reconcile`, `…/reconcile/preview` (`ReconcileChange`) | permit: + job PM; others: ADMIN, MANAGER |
+| `POST /api/tasks/[id]/inspection` | ADMIN, MANAGER, OFFICE_STAFF, job PM, the assignee, a CREW_LEAD on the job |
+| `POST/DELETE /api/tasks/[id]/dependencies` (cycle → 400 with the path) | ADMIN, MANAGER, OFFICE_STAFF, job PM |
+| `GET/POST /api/admin/workflow-templates`, `GET/PATCH …/[id]`, `POST …/[id]/duplicate`, `POST …/[id]/versions` | view office roles, write ADMIN |
+| `GET/PATCH /api/admin/workflow-versions/[vid]`, `POST …/validate`, `/publish`, `/archive`, `/phases`, `/phases/[pid]`, `/phases/reorder`, `/tasks`, `/tasks/[tid]`, `/tasks/reorder` | same |
 
 ## Permissions (`access.ts`, explicit lists)
 
@@ -142,9 +178,11 @@ MARKETING) now also see tasks on jobs where they are PM, hold a team slot
 or are field-assigned (`visibilityScopeFor`).
 
 Audit actions: `workflow_apply`, `permit_status_change`,
-`workflow_team_changed`, `workflow_scope_change`; every step transition is
-on the task timeline (`ACTIVATED`, `SKIPPED`, `CHECKLIST_UPDATED`,
-`EVIDENCE_ATTACHED`, …).
+`workflow_team_changed`, `workflow_scope_change`, `workflow_module_remove`,
+`template_version_reconcile`, `inspection_result`, `dependency_override`,
+`template_publish`; every step transition is on the task timeline
+(`ACTIVATED`, `SKIPPED`, `CHECKLIST_UPDATED`, `EVIDENCE_ATTACHED`,
+`INSPECTION_RESULT`, `DEPENDENCY_ADDED/REMOVED`, `RECONCILED`).
 
 ## UI
 
@@ -161,9 +199,33 @@ Templates (read-only library + outline) and Workflow Roles. Marking a lead
 Won toasts "Set up its workflow". `WORKFLOW_READY_EMAILS_ENABLED=1` mails
 assignees when a step becomes Ready (default off; the digest covers it).
 
-## Not yet (Stage 2 / 3)
+## Stage 2 UI
 
-Changing a decided permit status, adding/removing a trade after apply
-(the dialog's "Add a trade…" re-applies and only adds), version upgrades,
-inspection results + correction tasks, the template editor, jobs-list
-workflow filters, dashboard widget, workflow reporting.
+On the Workflow tab the permit pill (once decided) opens **Change permit
+status**; each trade pill has a menu with **Upgrade to vN…** (when a newer
+version is published; also a banner) and **Remove …**; "Add a trade…" and
+"Scope" open the same `ReconcileDialog`. Every mode is two steps: the
+change, then `ReconcilePreviewPanel` (To add / To reinstate / To skip /
+Kept, drift, warnings; remove-trade lets you keep individual open steps)
+before "Confirm — re-plan workflow". The task sheet's workflow block gains
+`InspectionResultForm` (Pass / Conditional / Fail, date, notes; a failed
+step shows the correction it waits on) and `DependencyEditor` (remove an
+edge, or wait on another step of the same workflow, cycle-checked).
+
+The library (`/admin/workflow-templates`) links to the editor
+(`/admin/workflow-templates/[id]?v=`): version bar (draft / published /
+superseded / archived, jobs pinned), Details, Duplicate, Create draft,
+Validate (issues with "Go to step"), Preview (outline), Publish (with
+change notes), Archive. Left column: scope toggles, phases as a
+`SortableList` (drag, keyboard, Move up/down); right: the selected phase's
+steps, each opening `TaskEditorSheet` — title, key, instructions, role,
+priority, anchor + offset, blocking, auto-activate, waits-on picker with a
+client-side cycle check, evidence, checklist lines with an optional toggle
+condition, permit / any-of / all-of conditions, "replaces a Core step". No
+raw JSON anywhere. Only ADMIN edits; a published version is read-only.
+
+## Not yet (Stage 3)
+
+Jobs-list workflow filters and columns, the dashboard workflow-health
+widget, workflow reporting (durations by trade and phase, overdue by role,
+blocked by permits/inspections, skipped steps, delay causes).

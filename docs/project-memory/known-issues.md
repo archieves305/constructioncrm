@@ -188,15 +188,18 @@ All five were live in production and all are now regression-tested in
 - **CareyOS registry** described a non-existent app (`/var/www/construction-crm`,
   port 3116, pm2).
 
-## Workflows (Stage 1 limits, 2026-09-24)
+## Workflows (after Stage 2, 2026-09-24)
 
-- Changing an already-decided permit status returns 409 — the full
-  reconcile with preview is Stage 2. Same for removing a trade; "Add a
-  trade…" re-applies and only adds.
 - `WORKFLOW_READY_EMAILS_ENABLED` is off; Ready steps reach people through
   the morning digest only until it is turned on.
 - The Apply dialog's team pickers list `/api/users/assignable`; the
   dev-bypass user is not in it (not a prod concern).
-- Manual dependencies between tasks (`POST /api/tasks/[id]/dependencies`)
-  are not exposed yet; a manual task added to a phase can only depend on
-  steps at creation time via the API body.
+- Dev QA left JOB-00001 with a Roofing v2 (published, one extra step
+  "Install ridge vent") on the **dev** database only; prod has v1 of all
+  four. The seeder never touches a v2, so `seed-workflows` stays a no-op
+  there.
+- Reconciling does not re-point *manual* edges; an edge someone added by
+  hand to a step that later gets skipped is left in place (a skipped
+  predecessor counts as satisfied, so nothing is held up).
+- Stage 3 is still open: jobs-list workflow filters, dashboard widget,
+  reporting.

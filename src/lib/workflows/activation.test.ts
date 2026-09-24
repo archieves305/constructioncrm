@@ -136,3 +136,24 @@ describe("sweepActivation", () => {
     expect(out.sort()).toEqual(["free", "ready"]);
   });
 });
+
+describe("onTaskClosed — failed inspection", () => {
+  it("reopens a failed inspection as Ready once its correction task closes", async () => {
+    db.task.findUnique.mockResolvedValue({
+      id: "corr",
+      status: "COMPLETED",
+      workflowInstanceId: "w1",
+      dependents: [{ kind: "BLOCKING", task: waiting("insp", { status: "BLOCKED", activatedAt: fri, inspectionResult: "FAIL", dueAt: new Date(2026, 8, 1) }) }],
+    });
+    db.taskDependency.findMany.mockResolvedValue([{ kind: "BLOCKING", dependsOn: { status: "COMPLETED" } }]);
+    const r = await onTaskClosed({ taskId: "corr", actorUserId: "u-me", now: fri });
+    expect(r.activated).toEqual(["insp"]);
+    // Only correction tasks gate the re-request, never the inspection's ordinary predecessors.
+    expect(db.taskDependency.findMany.mock.calls[0][0].where.dependsOn.workflowTaskKey).toEqual({ contains: ":correction:" });
+    const upd = db.task.update.mock.calls[0][0];
+    expect(upd.data).toMatchObject({ status: "PENDING", blockedReason: null, inspectionResult: null });
+    expect(upd.data.dueAt.getDate()).toBe(6);
+    const types = db.taskEvent.createMany.mock.calls[0][0].data.map((e: { type: string }) => e.type);
+    expect(types).toEqual(["UNBLOCKED", "DUE_CHANGED"]);
+  });
+});

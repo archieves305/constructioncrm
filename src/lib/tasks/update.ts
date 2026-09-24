@@ -57,7 +57,7 @@ export type UpdateTaskArgs = {
    * itself just satisfied (deciding the permit status IS the evidence for
    * "Determine permit requirement"). Never reachable from the API.
    */
-  internal?: { bypassEvidence: true; tickChecklist?: boolean };
+  internal?: { bypassEvidence?: boolean; tickChecklist?: boolean; bypassGate?: boolean };
 };
 
 export type UpdateTaskResult = {
@@ -208,7 +208,7 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
   if (statusChanged && input.status === "CANCELLED" && isWorkflowStep) {
     const reason = (input.skipReason ?? existing.skipReason)?.trim();
     if (!reason) throw new TaskUpdateError(400, "Say why this step is being skipped", "skip_reason");
-    if (existing.blocking && args.actorRole !== undefined && !canOverrideBlockingGate(args.actorRole)) {
+    if (existing.blocking && !args.internal?.bypassGate && args.actorRole !== undefined && !canOverrideBlockingGate(args.actorRole)) {
       throw new TaskUpdateError(403, "Only an admin or manager can skip a blocking step");
     }
     data.skipReason = reason;

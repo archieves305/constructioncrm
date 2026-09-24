@@ -53,6 +53,18 @@ export function canOverrideBlockingGate(role: RoleName | null): boolean {
   return role !== null && ADMIN_MANAGER.has(role);
 }
 
+/** Record an inspection result on a step: office roles, the PM, the assignee, or a crew lead on the job. */
+export function canRecordInspection(user: WorkflowActor, job: JobScope, task: { assignedUserId: string | null }): boolean {
+  if (OFFICE.has(user.role) || isPm(user, job)) return true;
+  if (task.assignedUserId === user.id) return true;
+  return user.role === "CREW_LEAD" && (job.fieldUserIds ?? []).includes(user.id);
+}
+
+/** Add or remove a manual dependency between two steps on the same job. */
+export function canEditDependencies(user: WorkflowActor, job: JobScope): boolean {
+  return canCoordinateWorkflow(user, job);
+}
+
 /** Read/write the company-wide role defaults. */
 export function canEditRoleDefaults(role: RoleName): boolean {
   return role === "ADMIN";
