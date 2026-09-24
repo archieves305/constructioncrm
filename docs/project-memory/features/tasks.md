@@ -1,7 +1,7 @@
 # Feature — Tasks (the work queue)
 
 _Collaboration layer deployed 2026-08-03 (`d12945e`). "Tasks everywhere"
-(Stage 1 of 3) built 2026-09-24. Stage 2 = email follow-up (escalation,
+(Stage 1 of 3) deployed 2026-09-24 (`d7262d0`, `ebf1988`). Stage 2 = email follow-up (escalation,
 nudge, auto-tasks, reminders); Stage 3 = visual redesign (boards, job flow)._
 
 ## Why

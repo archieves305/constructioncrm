@@ -54,9 +54,27 @@ and `?assignedUserId=me` seed its filters.
 
 ### Verification
 
-425/425 vitest (42 new across create/update/summary/query), typecheck clean,
-lint 6 errors / 28 warnings (baseline 6/29), production build clean.
+427/427 vitest (44 new across create/update/summary/query/dates), typecheck
+clean, lint 6 errors / 28 warnings (baseline 6/29), production build clean.
 Migration applied to dev via migrate diff → db execute → empty diff → resolve.
+
+Browser QA on dev as ADMIN (SSO bypass + dummy cookie; recipe in memory):
+New Task dialog end-to-end with ⌘↵ and the "John notified" toast; the
+detail sheet's timeline (created / assigned / emailed); the job Tasks tab
+with the context chip and live tab count; the lead Tasks tab showing the
+job task through its derived lead; dashboard widget + clickable Overdue
+tile; `/field/tasks` + bottom nav badge. Via API: field issue → task with
+CREATED/ASSIGNED/EMAIL_SENT, resolve → COMPLETED + STATUS_CHANGED +
+completion mail, and the task's `fieldIssue` reads COMPLETED; SALES_REP
+sees no tasks on a job that has none of theirs and only their own overall.
+One defect found: a date-only due date parsed to UTC midnight, so "due
+tomorrow" bucketed under Today in Eastern time — `parseDueAt` pins it to
+noon UTC (`ebf1988`).
+
+**Deployed** `ebf1988` at 12:45 ET: migration applied, BUILD_ID
+`QpoQxED_Z-y_MMsOudQsc` → `TIVSTNlHVR4hHEDg5rmdU`, smoke 307/307, clean
+journal. Backups `pre-deploy-20260924-124523.tar.gz` /
+`postgres-2026-09-24-164531.dump`.
 
 ---
 

@@ -28,8 +28,9 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 ## 3. Active Workstreams
 
 0. 🔴 **Tasks as the spine of the CRM** — three stages, each deployed and
-   QA'd before the next. **Stage 1 (tasks everywhere) built 2026-09-24**,
-   awaiting browser QA + deploy. Next: Stage 2 (overdue escalation, nudge,
+   QA'd before the next. **Stage 1 (tasks everywhere) deployed 2026-09-24**
+   (`ebf1988`, BUILD_ID `TIVSTNlHVR4hHEDg5rmdU`, migration
+   `20260924120000_task_entity_links` applied). Next: Stage 2 (overdue escalation, nudge,
    auto follow-up tasks, per-task reminders, notifications settings page),
    then Stage 3 (kanban kit, stage colours, job detail header/stepper/tab
    groups, list polish). Plan: `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`;
@@ -54,7 +55,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-24 — Tasks everywhere (Stage 1 of 3; built, NOT yet deployed)
+### 2026-09-24 — Tasks everywhere (Stage 1 of 3; deployed `d7262d0`/`ebf1988`)
 
 One creation path (`lib/tasks/create.ts`) and one update path
 (`lib/tasks/update.ts`) — the deposit task, stage templates, follow-up rules
@@ -66,8 +67,12 @@ integrated into lead + job detail, invoice and estimate rows, the office
 daily-log page, prospects, dashboard widget, sidebar badge, and field mode
 (`/field/tasks` + bottom nav). Fixed BLOCKED being dropped from three
 "open" counts and assignee pickers 403ing for non-admins (`/api/users/assignable`).
-425/425 tests, typecheck/build clean, lint 6/28. Details:
-[features/tasks.md](docs/project-memory/features/tasks.md).
+Browser-QA'd on dev (create from /tasks, job tab, lead tab; sheet timeline;
+dashboard widget; field index + bottom nav; field-issue round trip via API;
+SALES_REP scoping via API) — one fix out of it: date-only due dates are now
+pinned to noon UTC so "due tomorrow" stops bucketing under Today. 427/427
+tests, typecheck/build clean, lint 6/28. Deployed 12:45 ET, smoke clean.
+Details: [features/tasks.md](docs/project-memory/features/tasks.md).
 
 ### 2026-08-27 — Progress billing / payment applications (deployed + backfilled)
 
@@ -240,19 +245,15 @@ Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
 
 ## 10. Next Prompt
 
-> Tasks Stage 1 ("tasks everywhere") is built and green but not yet
-> deployed. First: browser-QA it on dev as ADMIN, a SALES_REP and Frank
-> (CREW_LEAD) — create a task from the lead tab, job tab, an invoice row, an
-> estimate row, the office daily-log page and a prospect card; confirm the
-> chip, the sidebar badge, the dashboard widget, `/field/tasks` and the
-> bottom nav; flag a field issue and confirm the task has CREATED/ASSIGNED
-> events and the assignee is mailed; resolve it and confirm the task
-> completes with mail. Then deploy with
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` (migration
-> `20260924120000_task_entity_links` applies on the droplet via
-> migrate diff + db execute + resolve). Then start Stage 2 from the plan at
-> `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md` — ship the shared
-> `requireCronSecret()` refactor first, then recipients channels + settings
-> page, templates, nudge, reminders, escalations (off by default in prod
-> until the SPF record is set), auto-tasks (`invoice.sent` disabled the
-> first week).
+> Tasks Stage 1 ("tasks everywhere") is deployed (`ebf1988`). Richard should
+> click through prod once (job Tasks tab, an invoice row's task button, the
+> dashboard widget, Frank's `/field/tasks`). Then build Stage 2 from the plan
+> at `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`: the shared
+> `requireCronSecret()` refactor first, then recipients channels + the
+> `/settings/notifications` page, the nudge/escalation/reminder templates,
+> the nudge route + sheet button, per-task reminders in the morning digest,
+> overdue escalations (ship prod with `TASK_ESCALATIONS_ENABLED=false` until
+> the SPF record is set), then auto-tasks on estimate/invoice/daily-log/
+> change-order events (`TASK_AUTO_RULES_DISABLED=invoice.sent` the first
+> week). Same gates: tests, typecheck, build, lint ≤ 6/28, deploy with
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
