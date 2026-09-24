@@ -6,6 +6,7 @@ import { createTaskSchema } from "@/lib/validators/task";
 import { buildTaskListWhere, readTaskListParams } from "@/lib/tasks/query";
 import { TASK_LIST_INCLUDE } from "@/lib/tasks/include";
 import { createTask, TaskLinkError } from "@/lib/tasks/create";
+import { parseDueAt } from "@/lib/tasks/dates";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
         title: input.title,
         description: input.description,
         priority: input.priority,
-        dueAt: input.dueAt ? new Date(input.dueAt) : null,
+        dueAt: input.dueAt ? parseDueAt(input.dueAt) : null,
         assignedUserId: input.assignedUserId,
         createdByUserId: session.user.id,
         leadId: input.leadId,

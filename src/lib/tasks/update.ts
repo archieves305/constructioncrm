@@ -6,6 +6,7 @@ import { diffTask, recordTaskEvents, type TaskSnapshot } from "./events";
 import { TASK_DETAIL_INCLUDE, type TaskDetailRow } from "./include";
 import { notifyTaskAssigned, notifyTaskBlocked, notifyTaskCompleted } from "./notify";
 import { runAfterResponse } from "./defer";
+import { parseDueAt } from "./dates";
 
 /**
  * The one way a task changes.
@@ -76,7 +77,7 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
 
   // `undefined` means "not mentioned"; `null` means "clear it".
   if (input.dueAt !== undefined) {
-    data.dueAt = input.dueAt === null ? null : new Date(input.dueAt);
+    data.dueAt = input.dueAt === null ? null : parseDueAt(input.dueAt);
   }
 
   const assigneeChanged =
