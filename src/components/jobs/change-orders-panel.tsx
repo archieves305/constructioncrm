@@ -51,6 +51,8 @@ type ChangeOrder = {
   rejectionReason: string | null;
   laborContractId: string | null;
   invoice: { id: string; invoiceNumber: string; status: string } | null;
+  /** Set instead of `invoice` on a progress-billed job: the SOV line approval added. */
+  sovLine: { id: string; itemNo: number } | null;
   laborContract: {
     id: string;
     label: string | null;
@@ -89,10 +91,13 @@ const NO_CREW = "__none";
 export function ChangeOrdersPanel({
   jobId,
   jobType,
+  billingMethod = "LUMP_SUM",
 }: {
   jobId: string;
   jobType: string;
+  billingMethod?: "LUMP_SUM" | "PROGRESS";
 }) {
+  const isProgress = billingMethod === "PROGRESS";
   const qc = useQueryClient();
   const { data: session } = useSession();
   const canDecide =
@@ -232,7 +237,9 @@ export function ChangeOrdersPanel({
     onSuccess: (_data, decision) => {
       toast.success(
         decision === "APPROVE"
-          ? "Change order approved — customer billed"
+          ? isProgress
+            ? "Change order approved — added to the schedule of values"
+            : "Change order approved — customer billed"
           : "Change order rejected",
       );
       setDecideFor(null);
@@ -320,10 +327,10 @@ export function ChangeOrdersPanel({
                         {co.description}
                       </p>
                     ) : null}
-                    {co.status === "APPROVED" && co.invoice && (
+                    {co.status === "APPROVED" && (co.invoice || co.sovLine) && (
                       <div className="mt-1 flex items-center gap-1 text-sm text-green-700">
                         <FileText className="h-3.5 w-3.5" />
-                        Invoice {co.invoice.invoiceNumber}
+                        {co.invoice ? `Invoice ${co.invoice.invoiceNumber}` : `SOV item #${co.sovLine?.itemNo} — bill on the next application`}
                         {co.decisionName ? ` · approved by ${co.decisionName}` : ""}
                         {co.decidedAt
                           ? ` on ${format(new Date(co.decidedAt), "MMM d, yyyy")}`
@@ -501,6 +508,12 @@ export function ChangeOrdersPanel({
                   Invoice {viewing.invoice.invoiceNumber} · {viewing.invoice.status}
                 </div>
               )}
+              {viewing.sovLine && (
+                <div className="flex items-center gap-1 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+                  <FileText className="h-4 w-4" />
+                  Schedule of values item #{viewing.sovLine.itemNo} · billed through payment applications
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-2">
                 {viewing.invoice && (
@@ -533,8 +546,10 @@ export function ChangeOrdersPanel({
                 onClick={() => {
                   if (
                     confirm(
-                      `Delete CO-${viewing.number}? This removes its invoice` +
-                        `${viewing.invoice ? ` (${viewing.invoice.invoiceNumber})` : ""}` +
+                      `Delete CO-${viewing.number}? This removes its ` +
+                        (viewing.sovLine
+                          ? `schedule-of-values line (item #${viewing.sovLine.itemNo})`
+                          : `invoice${viewing.invoice ? ` (${viewing.invoice.invoiceNumber})` : ""}`) +
                         ` and backs the change out of the contract. This cannot be undone.`,
                     )
                   )
@@ -567,6 +582,8 @@ export function ChangeOrdersPanel({
               Use this when the customer approved or rejected the change order in
               person, by phone, or in a meeting. Approving here bills the customer
               just like the emailed link.
+              {isProgress &&
+                " On this progress-billed job, approval adds the change order to the schedule of values; it is billed on the next payment application as the work is completed."}
             </p>
             <div>
               <Label>Approved/rejected by</Label>
@@ -598,7 +615,7 @@ export function ChangeOrdersPanel({
               onClick={() => recordDecision.mutate("APPROVE")}
               disabled={recordDecision.isPending}
             >
-              Approve &amp; bill
+              {isProgress ? "Approve & add to SOV" : "Approve & bill"}
             </Button>
           </DialogFooter>
         </DialogContent>

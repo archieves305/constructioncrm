@@ -26,6 +26,7 @@ export async function GET(
     orderBy: { number: "desc" },
     include: {
       invoice: { select: { id: true, invoiceNumber: true, status: true } },
+      sovLine: { select: { id: true, itemNo: true } },
       laborContract: {
         select: { id: true, label: true, crew: { select: { name: true } } },
       },

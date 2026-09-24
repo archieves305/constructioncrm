@@ -1507,6 +1507,8 @@ model ChangeOrder {
   invoice          Invoice?          @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   laborChangeOrder LaborChangeOrder? @relation(fields: [laborChangeOrderId], references: [id], onDelete: SetNull)
   createdBy        User              @relation(fields: [createdByUserId], references: [id])
+  // The SOV line approval added on a PROGRESS job (instead of `invoice`).
+  sovLine          SovLine?
 
   @@index([jobId])
   @@index([status])
@@ -1727,10 +1729,16 @@ model SovLine {
   description    String
   scheduledValue Decimal  @map("scheduled_value") @db.Decimal(12, 2)
   sortOrder      Int      @default(0) @map("sort_order")
+  // Set when an approved change order added this line (PROGRESS jobs bill a
+  // change order through the schedule of values, not as its own invoice).
+  // The line's value follows the change order; deleting the change order
+  // removes the line unless work has been billed on it.
+  changeOrderId  String?  @unique @map("change_order_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   job          Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  changeOrder  ChangeOrder?  @relation(fields: [changeOrderId], references: [id], onDelete: SetNull)
   invoiceLines InvoiceLine[]
 
   @@unique([jobId, itemNo])

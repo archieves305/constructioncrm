@@ -7,6 +7,7 @@ import { getEmailBrand } from "@/lib/email/brand";
 import { sendEmail } from "@/lib/email/send";
 import { renderChangeOrderBillPdf } from "@/lib/pdf/change-order-bill";
 import { nextInvoiceNumber } from "@/lib/services/invoices";
+import { canRemoveChangeOrderSovLine, changeOrderSovLine } from "@/lib/billing/sov";
 import { closeAutoTask, ensureAutoTask, sourceKeyFor } from "@/lib/tasks/auto-tasks";
 import { runAfterResponse } from "@/lib/tasks/defer";
 import { logger } from "@/lib/logger";
@@ -32,6 +33,7 @@ const CO_INCLUDE = {
       title: true,
       serviceType: true,
       jobType: true,
+      billingMethod: true,
       leadId: true,
       lead: {
         select: {
@@ -199,7 +201,14 @@ export async function sendChangeOrderEmail(
 }
 
 export type DecisionResult =
-  | { ok: true; status: "APPROVED" | "REJECTED"; invoiceNumber?: string }
+  | {
+      ok: true;
+      status: "APPROVED" | "REJECTED";
+      /** How an approval was billed: a lump-sum invoice, or an SOV line on a PROGRESS job. */
+      billing?: "INVOICE" | "SOV";
+      invoiceNumber?: string;
+      sovItemNo?: number;
+    }
   | { ok: false; reason: "not_found" | "expired" | "already_decided" };
 
 type DecisionSource = "customer" | "internal";
@@ -252,7 +261,8 @@ export async function decideChangeOrderById(
 
 export type DeleteResult =
   | { ok: true }
-  | { ok: false; reason: "not_found" | "has_payments"; invoiceNumber?: string };
+  | { ok: false; reason: "not_found" | "has_payments"; invoiceNumber?: string }
+  | { ok: false; reason: "has_billing"; sovItemNo: number; billed: number };
 
 /**
  * Delete a change order and unwind anything its approval created. Draft (and
@@ -262,6 +272,9 @@ export type DeleteResult =
  *
  *  - the issued invoice is deleted (blocked if payments are already recorded
  *    against it — those must be removed first so we never orphan money),
+ *  - on a PROGRESS job the SOV line it added is deleted instead (blocked once
+ *    an application has billed work on that line — void the application
+ *    first),
  *  - the linked labor change order is deleted (its generated addendum docs
  *    cascade away),
  *  - fixed-price contracts, which were incremented directly on approval, are
@@ -285,6 +298,13 @@ export async function deleteChangeOrder(id: string): Promise<DeleteResult> {
         select: {
           invoiceNumber: true,
           _count: { select: { payments: true } },
+        },
+      },
+      sovLine: {
+        select: {
+          id: true,
+          itemNo: true,
+          invoiceLines: { where: { invoice: { status: { not: "VOID" } } }, select: { workCompleted: true } },
         },
       },
     },
@@ -324,6 +344,12 @@ export async function deleteChangeOrder(id: string): Promise<DeleteResult> {
       invoiceNumber: co.invoice.invoiceNumber,
     };
   }
+  if (co.sovLine) {
+    const billed = co.sovLine.invoiceLines.reduce((s, l) => s + Number(l.workCompleted), 0);
+    if (!canRemoveChangeOrderSovLine(billed)) {
+      return { ok: false, reason: "has_billing", sovItemNo: co.sovLine.itemNo, billed };
+    }
+  }
 
   const isFixedPrice = co.job.jobType === "FIXED_PRICE";
   const customerPrice = Number(co.customerPrice);
@@ -334,6 +360,12 @@ export async function deleteChangeOrder(id: string): Promise<DeleteResult> {
     // labor change order clear before we remove those rows.
     await tx.changeOrder.delete({ where: { id: co.id } });
     if (co.invoiceId) await tx.invoice.delete({ where: { id: co.invoiceId } });
+    if (co.sovLine) {
+      // Only VOID applications can still reference the line here (anything
+      // live blocked above); drop those rows so the line can go.
+      await tx.invoiceLine.deleteMany({ where: { sovLineId: co.sovLine.id, invoice: { status: "VOID" } } });
+      await tx.sovLine.delete({ where: { id: co.sovLine.id } });
+    }
     if (co.laborChangeOrderId)
       await tx.laborChangeOrder.delete({ where: { id: co.laborChangeOrderId } });
 
@@ -351,7 +383,7 @@ export async function deleteChangeOrder(id: string): Promise<DeleteResult> {
         title: `Change order CO-${co.number} deleted`,
         description: `Approved change order reversed${
           invoiceNumber ? ` — invoice ${invoiceNumber} removed` : ""
-        }.`,
+        }${co.sovLine ? ` — SOV item #${co.sovLine.itemNo} removed` : ""}.`,
         createdByUserId: co.createdByUserId,
       },
     });
@@ -417,6 +449,10 @@ async function applyDecision(
   const customerPrice = Number(co.customerPrice);
   const crewCost = co.crewCost != null ? Number(co.crewCost) : null;
   const isFixedPrice = co.job.jobType === "FIXED_PRICE";
+  // PROGRESS jobs never get a stand-alone change-order invoice: the change
+  // order joins the schedule of values and is billed on the next payment
+  // applications as the work is completed.
+  const isProgress = co.job.billingMethod === "PROGRESS";
 
   const result = await prisma.$transaction(async (tx) => {
     // 1. Crew-side cost delta (keeps internal labor rollup correct).
@@ -449,23 +485,44 @@ async function applyDecision(
       });
     }
 
-    // 3. Issue a customer invoice for the change-order amount.
-    const invoiceNumber = await nextInvoiceNumber(
-      co.job.jobNumber,
-      co.job.id,
-      tx as typeof prisma,
-    );
-    const invoice = await tx.invoice.create({
-      data: {
-        jobId: co.job.id,
-        invoiceNumber,
-        amount: customerPrice,
-        status: "SENT",
-        // Net-30 so the change-order invoice ages into A/R if unpaid.
-        dueDate: new Date(Date.now() + 30 * 86400000),
-        notes: `Change order CO-${co.number}${co.title ? ` — ${co.title}` : ""}`,
-      },
-    });
+    // 3. Bill the customer — as an SOV line on a PROGRESS job, otherwise as
+    //    an invoice for the change-order amount.
+    let invoiceNumber: string | undefined;
+    let invoiceId: string | undefined;
+    let sovItemNo: number | undefined;
+    let billedAs: string;
+    if (isProgress) {
+      const existing = await tx.sovLine.findMany({
+        where: { jobId: co.job.id },
+        select: { itemNo: true, sortOrder: true },
+      });
+      const line = changeOrderSovLine({ number: co.number, title: co.title, customerPrice }, existing);
+      const created = await tx.sovLine.create({
+        data: { jobId: co.job.id, ...line, changeOrderId: co.id },
+        select: { itemNo: true },
+      });
+      sovItemNo = created.itemNo;
+      billedAs = `Added to the schedule of values as item #${sovItemNo} — bill it on the next payment application.`;
+    } else {
+      invoiceNumber = await nextInvoiceNumber(
+        co.job.jobNumber,
+        co.job.id,
+        tx as typeof prisma,
+      );
+      const invoice = await tx.invoice.create({
+        data: {
+          jobId: co.job.id,
+          invoiceNumber,
+          amount: customerPrice,
+          status: "SENT",
+          // Net-30 so the change-order invoice ages into A/R if unpaid.
+          dueDate: new Date(Date.now() + 30 * 86400000),
+          notes: `Change order CO-${co.number}${co.title ? ` — ${co.title}` : ""}`,
+        },
+      });
+      invoiceId = invoice.id;
+      billedAs = `Invoice ${invoiceNumber} created.`;
+    }
 
     // 4. Mark the change order approved and link the artifacts.
     await tx.changeOrder.update({
@@ -475,7 +532,7 @@ async function applyDecision(
         decidedAt: new Date(),
         decisionName: name,
         decisionIp: ip,
-        invoiceId: invoice.id,
+        invoiceId: invoiceId ?? null,
         laborChangeOrderId,
       },
     });
@@ -485,12 +542,12 @@ async function applyDecision(
         leadId: co.job.leadId,
         activityType: "NOTE",
         title: `Change order CO-${co.number} approved ${by}`,
-        description: `${name} approved ${money(customerPrice)}. Invoice ${invoiceNumber} created.`,
+        description: `${name} approved ${money(customerPrice)}. ${billedAs}`,
         createdByUserId: co.createdByUserId,
       },
     });
 
-    return { invoiceNumber, invoiceId: invoice.id };
+    return { invoiceNumber, invoiceId, sovItemNo };
   });
 
   // Recompute labor rollup, then the derived balance, outside the txn
@@ -498,8 +555,10 @@ async function applyDecision(
   await recomputeJobLabor(co.job.id);
   await recomputeJobBalance(co.job.id);
 
-  // The CO follow-up is done; the invoice it issued needs collecting. The
-  // customer flow has no session, so the CO's author stands in as actor.
+  // The CO follow-up is done; a lump-sum invoice it issued needs collecting
+  // (an SOV line is collected through the applications, which raise their
+  // own follow-ups). The customer flow has no session, so the CO's author
+  // stands in as actor.
   runAfterResponse(
     async () => {
       await closeAutoTask(sourceKeyFor({ kind: "change-order.sent", changeOrderId: co.id }), {
@@ -507,10 +566,18 @@ async function applyDecision(
         outcome: "COMPLETED",
         because: `approved ${by}`,
       });
-      await ensureAutoTask({ kind: "invoice.sent", invoiceId: result.invoiceId }, co.createdByUserId);
+      if (result.invoiceId) {
+        await ensureAutoTask({ kind: "invoice.sent", invoiceId: result.invoiceId }, co.createdByUserId);
+      }
     },
     { where: "change-orders.approve", changeOrderId: co.id },
   );
 
-  return { ok: true, status: "APPROVED", invoiceNumber: result.invoiceNumber };
+  return {
+    ok: true,
+    status: "APPROVED",
+    billing: isProgress ? "SOV" : "INVOICE",
+    invoiceNumber: result.invoiceNumber,
+    sovItemNo: result.sovItemNo,
+  };
 }

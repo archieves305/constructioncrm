@@ -718,7 +718,7 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="change-orders">
-              <ChangeOrdersPanel jobId={id} jobType={job.jobType} />
+              <ChangeOrdersPanel jobId={id} jobType={job.jobType} billingMethod={job.billingMethod} />
             </TabsContent>
 
             <TabsContent value="permits" className="space-y-4">

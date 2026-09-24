@@ -69,6 +69,8 @@ type SovLine = {
   description: string;
   scheduledValue: number;
   sortOrder: number;
+  /** Set when an approved change order added the line; its value follows the change order. */
+  changeOrderNumber: number | null;
 };
 
 type ApplicationSummary = {
@@ -248,7 +250,12 @@ export function InvoicesPanel({
       fetchJson(`/api/sov/${line.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: editDesc, scheduledValue: Number(editValue) }),
+        // A change-order line's value follows the change order; only the description is editable.
+        body: JSON.stringify(
+          line.changeOrderNumber !== null
+            ? { description: editDesc }
+            : { description: editDesc, scheduledValue: Number(editValue) },
+        ),
       }),
     onSuccess: () => {
       refresh();
@@ -506,11 +513,18 @@ export function InvoicesPanel({
                         {editing ? (
                           <Input className="h-8" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
                         ) : (
-                          line.description
+                          <span className="inline-flex items-center gap-1.5">
+                            {line.description}
+                            {line.changeOrderNumber !== null && (
+                              <Badge variant="outline" className="text-[10px]" title="Added by an approved change order; its value follows the change order">
+                                CO-{line.changeOrderNumber}
+                              </Badge>
+                            )}
+                          </span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {editing ? (
+                        {editing && line.changeOrderNumber === null ? (
                           <Input
                             className="h-8 text-right"
                             inputMode="decimal"
@@ -550,7 +564,7 @@ export function InvoicesPanel({
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
-                              {done === 0 && (
+                              {done === 0 && line.changeOrderNumber === null && (
                                 <button
                                   type="button"
                                   className="rounded p-1 text-red-600 hover:bg-red-50"

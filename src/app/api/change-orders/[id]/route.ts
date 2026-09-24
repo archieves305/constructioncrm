@@ -96,6 +96,13 @@ export async function DELETE(
         },
         { status: 409 },
       );
+    if (result.reason === "has_billing")
+      return NextResponse.json(
+        {
+          error: `$${result.billed.toLocaleString()} has already been billed on SOV item #${result.sovItemNo} for this change order. Void that payment application before deleting the change order.`,
+        },
+        { status: 409 },
+      );
   }
 
   return NextResponse.json({ ok: true });

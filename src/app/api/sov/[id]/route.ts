@@ -23,6 +23,18 @@ export async function PATCH(
   if (!parsed.success)
     return badRequest(parsed.error.issues[0]?.message || "invalid payload");
 
+  const existing = await prisma.sovLine.findUnique({
+    where: { id },
+    select: { changeOrderId: true, changeOrder: { select: { number: true } } },
+  });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (parsed.data.scheduledValue !== undefined && existing.changeOrderId) {
+    // The value IS the change order's price; change the change order instead.
+    return badRequest(
+      `This line is change order CO-${existing.changeOrder?.number}; its scheduled value follows the change order`,
+    );
+  }
+
   if (parsed.data.scheduledValue !== undefined) {
     // A line can't be scheduled below what has already been billed on it.
     const billed = await prisma.invoiceLine.aggregate({
@@ -52,6 +64,15 @@ export async function DELETE(
   if (!canManageProgressBilling(session.user.role)) return forbidden();
 
   const { id } = await context.params;
+  const linked = await prisma.sovLine.findUnique({
+    where: { id },
+    select: { changeOrder: { select: { number: true } } },
+  });
+  if (linked?.changeOrder)
+    return NextResponse.json(
+      { error: `This line was added by change order CO-${linked.changeOrder.number}. Delete the change order to remove it.` },
+      { status: 409 },
+    );
   const used = await prisma.invoiceLine.count({ where: { sovLineId: id } });
   if (used > 0)
     return NextResponse.json(

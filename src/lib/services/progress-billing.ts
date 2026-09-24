@@ -80,7 +80,7 @@ export type BillingSummary = {
   billingMethod: "LUMP_SUM" | "PROGRESS";
   retainagePercent: number;
   contractSum: number;
-  sovLines: (SovLineInput & { sortOrder: number })[];
+  sovLines: (SovLineInput & { sortOrder: number; changeOrderNumber: number | null })[];
   sovTotal: number;
   sovMatchesContract: boolean;
   applications: ApplicationSummary[];
@@ -124,6 +124,7 @@ export async function getBillingSummary(
     tx.sovLine.findMany({
       where: { jobId },
       orderBy: [{ sortOrder: "asc" }, { itemNo: "asc" }],
+      include: { changeOrder: { select: { number: true } } },
     }),
     tx.invoice.findMany({
       where: { jobId, applicationNumber: { not: null } },
@@ -141,6 +142,7 @@ export async function getBillingSummary(
     description: s.description,
     scheduledValue: Number(s.scheduledValue),
     sortOrder: s.sortOrder,
+    changeOrderNumber: s.changeOrder?.number ?? null,
   }));
   const contractSum = Number(job.contractAmount);
   const sovTotal = round2(sovLines.reduce((s, l) => s + l.scheduledValue, 0));
