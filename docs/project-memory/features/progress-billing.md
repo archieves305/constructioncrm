@@ -1,6 +1,6 @@
 # Feature — Progress billing (AIA G702/G703 payment applications)
 
-_Stage 1 built and deployed 2026-08-27 (`891b891`, `78e3d6c`); JOB-00009 backfill ran the same day; every amount reproduced. **Stage 2 (change orders on PROGRESS jobs) deployed 2026-09-24 (`6b3868b`, migration `20260925120000_change_order_sov_lines`).**_
+_Stage 1 built and deployed 2026-08-27 (`891b891`, `78e3d6c`); JOB-00009 backfill ran the same day; every amount reproduced. **Stage 2 (change orders on PROGRESS jobs) deployed 2026-09-24 (`6b3868b`, migration `20260925120000_change_order_sov_lines`). Stage 3 (retainage release + Collections split) deployed 2026-09-24 (`4833ea3`, no migration). The feature is complete.**_
 
 ## Why
 
@@ -106,7 +106,60 @@ are still impossible (`customerPrice` must be positive at create).
 Tests: `lib/billing/sov.test.ts`, `lib/services/change-orders.test.ts`
 (approve on each method, delete unwind, `has_billing` refusal).
 
-## Later stages
+## Stage 3 — retainage release + Collections (deployed `4833ea3`)
 
-- **Stage 3 — retainage release** as a final application; balance-to-finish
-  on Collections.
+**A release is an application at a lower rate.** No new table, no flag:
+`computeApplication` takes `previousRetainagePercent` (the rate the last
+issued application withheld at) and reports `previousRetainage` and
+`retainageReleased = max(0, previousRetainage − retainage)`. An
+application at 0% with no work has current due = the retainage held,
+because "earned less retainage" rises while "previous certificates"
+stays; 5% releases half; a lower rate plus new work bills the work net
+of the new rate and hands back the difference on the old work. After
+JOB-00009's twelve applications a full release is exactly **$60,742.90**
+and a half release $30,371.45 (`progress-billing.test.ts`).
+
+**Effective vs nominal rate.** `getBillingSummary` returns
+`retainagePercent` (the contract's nominal rate, `Job.retainagePercent`,
+unchanged by releases), `effectiveRetainagePercent` (what the latest
+issued application withheld at — the default for the next one),
+`retainageReleasedOn` (the application that last lowered it) and
+`totals.retainageReleased`. Drafts and VOIDs never move the effective
+rate, so voiding a release reverts it naturally. Per-application
+`retainagePercent` snapshots were already stored (Stage 1), which is why
+this needed no migration.
+
+**Writes.** `ApplicationInput.retainagePercent` (defaults to the
+effective rate) and `lines` may be empty. Guards, in order:
+`exceeds_scheduled_value` → `negative_due` (raising the rate claws money
+back) → `nothing_billed` (no work and nothing released) → and
+`bad_retainage` for a rate outside 0–100. `updateApplication` accepts
+`retainagePercent` alone and recomputes the draft from its own lines.
+`POST …/applications` and `PATCH /api/invoices/[id]` pass the rate
+through. The G702 PDF adds a "Retainage released on this application"
+line under item 3 when > 0.
+
+**Collections.** `getProgressPositions` (`lib/services/financials.ts`),
+served as `progress` from `GET /api/reports/financials`, splits each
+PROGRESS job's stored `balanceDue` into **open A/R + retainage held +
+balance to finish** — they sum to `balanceDue` exactly, proven on dev
+(15,000 + 0 + 190,885.80 = 205,885.80). Read model only;
+`recomputeJobBalance` is untouched, per the pressure-test rule. The page
+gets a "Progress-billed jobs" card (per job, with totals; rows open the
+Invoices tab) and the Outstanding KPI says how much of it is retainage
+and unbilled work.
+
+**Invoices tab.** The application dialog has a "Retainage % on this
+application" field with **Release half / Release all / Keep n%** (shown
+while retainage is held), a live "Retainage released" row in the G702
+preview, the button reads "Create release draft" / "Release retainage &
+send" when nothing else is billed, rows show a "releases $X retainage"
+chip, and the totals strip shows the effective rate and what has been
+released. The Retainage % setting in the header stays the nominal rate.
+
+## Later
+
+Nothing scheduled. If the GC ever reduces retainage by a dollar amount
+rather than a rate, express it as a rate on the dialog (amount ÷
+completed to date); a dedicated amount field would be a small addition
+to `validateLines`.

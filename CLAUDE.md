@@ -40,11 +40,11 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `TASK_ESCALATIONS_ENABLED=1`, then `TASK_AUTO_RULES_DISABLED=`) and
    Richard's own click-through. Notes:
    [features/tasks.md](docs/project-memory/features/tasks.md).
-1. 🔴 **Progress billing** — Stage 1 deployed + JOB-00009 backfilled
-   2026-08-27; apps 1–12 PAID, apps 13–14 to be entered in the UI. **Stage 2
-   deployed 2026-09-24 (`6b3868b`)**: change orders on PROGRESS jobs add an
-   SOV line instead of an invoice. Next: Stage 3 (retainage release as a
-   final application; balance-to-finish on Collections).
+1. ✅ **Progress billing — complete.** Stage 1 deployed + JOB-00009
+   backfilled 2026-08-27; Stage 2 (change orders → SOV line) `6b3868b` and
+   Stage 3 (retainage release + Collections split) `4833ea3`, both
+   2026-09-24. Apps 13–14 on JOB-00009 still to be entered in the UI by
+   Richard; retainage release is a normal application at a lower rate.
 2. 🔴 **Job-costing check-and-balance.** Write gate and pending state both
    shipped. Remaining: **reconciliation against cc-allocator**, and **12
    candidate duplicate charges ($9,166.20) still need a human to confirm** —
@@ -61,6 +61,25 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-24 — Progress billing, Stage 3 (deployed)
+
+Retainage release = an application at a lower rate, no schema change:
+`computeApplication` gains `previousRetainagePercent` → `previousRetainage`,
+`retainageReleased`; JOB-00009 full release after app 12 is exactly
+$60,742.90. `getBillingSummary` adds `effectiveRetainagePercent` (latest
+issued app's rate; drafts/VOIDs never move it), `retainageReleasedOn`,
+`totals.retainageReleased`; `Job.retainagePercent` stays nominal. Inputs
+accept `retainagePercent` + empty lines; guards ordered over-scheduled →
+negative due → nothing billed/released; `bad_retainage`. G702 PDF prints
+the release line. Collections: `getProgressPositions` splits `balanceDue`
+into open A/R + retainage held + balance to finish (sums exactly; read
+model only) → "Progress-billed jobs" card + Outstanding KPI sub-line.
+Dialog: rate field with Release half / all / Keep, live release row,
+"Create release draft". Dev QA: 9,000 → 500 → (draft 1,000 → 500) →
+4,750 → 750 all reconcile; QA rows purged from dev. 618/618 tests, lint
+6/29. **Deployed `4833ea3`** (no migration; build `5-_3pStOG66-kWTGKKfmr`).
+Details: [features/progress-billing.md](docs/project-memory/features/progress-billing.md).
 
 ### 2026-09-24 — Progress billing, Stage 2 (deployed)
 
@@ -375,20 +394,19 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Progress billing Stages 1–2 are deployed (`6b3868b`). Build **Stage 3 —
-> retainage release** per `docs/project-memory/features/progress-billing.md`
-> ("Later stages"): a final payment application that releases the retainage
-> held (full or partial, e.g. 50% at substantial completion), modelled as
-> an application whose current payment due = retainage released, with
-> `getBillingSummary` totals (retainage held, balance to finish, open
-> receivable) staying exact and JOB-00009's twelve applications still
-> reproducing to the cent; G702 shows the release on the form's retainage
-> lines; then **balance-to-finish and retainage held on Collections** for
-> PROGRESS jobs (`balanceDue` must stop conflating open A/R + retainage +
-> unbilled work — split it in the read model, not in `recomputeJobBalance`,
-> unless pressure-testing against JOB-00009 says otherwise). Same rules:
-> explicit role list (`PROGRESS_BILLING_ROLES`), pure tested arithmetic in
-> `lib/billing/g702.ts`, only the latest application editable/voidable,
-> migration via `migrate diff` + `db execute` + `resolve`, tests + typecheck
-> + build green, lint ≤ 6/29, deploy with
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
+> Progress billing is complete (`4833ea3`) and the workflow feature is
+> complete (`f332e26`). Two small, fully specified hygiene items from §5 are
+> next, in one session: (1) **finish the auth-swap dead-code cleanup** —
+> remove `lockout*`, `password-policy`, the `admin/users` password path and
+> `next-auth` from package.json, keeping `src/middleware.test.ts` and the
+> public-path list intact; (2) **move the three remaining assignment
+> dropdowns** (lead detail, jobs list, leads list) off `/api/admin/users`
+> (ADMIN/MANAGER only, so empty for everyone else) onto
+> `/api/users/assignable`, the way the task pickers already did — check
+> what roles each picker should offer before switching. Then re-run the
+> `field-log-digest` check (§3 item 3) and report. Same rules: tests +
+> typecheck + build green, lint ≤ 6/29, deploy with
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`. The larger
+> open engineering item after that is the **job-costing reconciliation
+> against cc-allocator** (§3 item 2) — pressure-test a design against the
+> 12 candidate duplicates before building.

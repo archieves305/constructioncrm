@@ -6,6 +6,36 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 
 
+## 2026-09-24 — Progress billing, Stage 3
+
+`lib/billing/g702.ts`: `previousRetainagePercent` input, `previousRetainage`
++ `retainageReleased` outputs. `lib/services/progress-billing.ts`:
+effective-rate tracking in the summary loop (`effectiveRetainagePercent`,
+`retainageReleasedOn`, `totals.retainageReleased`), `retainagePercent` on
+create/update inputs, `validateLines(summary, lines, rate)` with guards
+reordered (over-scheduled → negative due → nothing billed) and
+`bad_retainage`; `updateApplication` recomputes from the draft's own lines
+when only the rate changes. Routes: applications POST (`lines` may be
+empty, `retainagePercent`), invoices PATCH (`retainagePercent`). PDF: release
+row. `lib/services/financials.ts`: `getProgressPositions` (+ `progress` in
+`/api/reports/financials`). UI: `InvoicesPanel` (rate field, quick
+buttons, preview row, button labels, row chip, totals sub-line),
+Collections card + KPI sub-line. Tests: release maths on JOB-00009 (full /
+half / mixed / steady), summary effective rate across a release, create
+with empty lines at 0%, guard ordering, rate-only draft edit.
+
+Dev QA on JOB-00005 (switched to PROGRESS @10%): app 10,000 → 9,000;
+rate 20 no lines → `negative_due`; rate 10 no lines → `nothing_billed`;
+half release → 500 (draft edited to 0% = 1,000, back to 5% = 500, sent);
+5,000 @5% → 4,750; full release → 750. Effective 0%, released 1,250,
+billed 15,000 = Σ certificates; Collections row 15,000 + 0 + 190,885.80 =
+205,885.80 = `balanceDue`. PDF prints the release line. Screenshots via
+headless Chromium (dialog with Release half 2.5% / Release all / Keep 5%,
+Collections card). Cleanup: voided latest-first, job back to LUMP_SUM, QA
+VOID invoices (incl. the Stage 2 leftover) and SOV line purged from the
+dev DB by SQL. 618 tests, lint 6/29, build clean. Deployed `4833ea3` (no
+migration; build `5-_3pStOG66-kWTGKKfmr`).
+
 ## 2026-09-24 — Progress billing, Stage 2
 
 Schema: `SovLine.changeOrderId String? @unique` ↔ `ChangeOrder.sovLine`
