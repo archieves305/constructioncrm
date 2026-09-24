@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiCard } from "@/components/dashboard/kpi-card";
+import { MyTasksWidget } from "@/components/tasks/my-tasks-widget";
+import { fetchJson } from "@/lib/fetch-json";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Users,
@@ -35,7 +37,7 @@ const COLORS = [
 export default function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
-    queryFn: () => fetch("/api/reports?type=dashboard").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/reports?type=dashboard"),
   });
 
   if (isLoading) {
@@ -89,10 +91,12 @@ export default function DashboardPage() {
           title="Overdue Tasks"
           value={data?.overdueTasks || 0}
           icon={Clock}
+          href="/tasks?overdue=1"
         />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <MyTasksWidget className="lg:col-span-2" />
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Leads by Stage</CardTitle>

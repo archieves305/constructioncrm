@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { validateBody } from "@/lib/validation/body";
 import { requireJobFieldAccess } from "@/lib/labor/route-helpers";
 import { recordAudit } from "@/lib/audit/record";
+import { createTask } from "@/lib/tasks/create";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -59,8 +60,9 @@ export async function GET(request: NextRequest, context: Context) {
 }
 
 // Creating an issue also creates a linked office Task (so it lands in the
-// existing task queue) whenever it's assigned or is an office follow-up.
-// Sync is one-way: resolving the issue completes the Task, never the reverse.
+// existing task queue). Resolving the issue completes the Task, and completing
+// the Task resolves the issue — both through `updateTask`, which guards
+// against ping-pong.
 export async function POST(request: NextRequest, context: Context) {
   const { id: jobId } = await context.params;
   const ctx = await requireJobFieldAccess(jobId, "write");
@@ -85,17 +87,23 @@ export async function POST(request: NextRequest, context: Context) {
       },
     });
 
-    const task = await tx.task.create({
-      data: {
+    // Through the shared creator so the task gets its CREATED/ASSIGNED
+    // timeline rows and the assignee is actually told. Mail is deferred past
+    // the response, i.e. after this transaction commits.
+    const task = await createTask(
+      {
         jobId,
+        dailyLogId: d.dailyLogId || null,
         title: `[${TYPE_LABELS[d.type]}] ${d.title}`,
         description: d.description || null,
         priority: d.priority,
         assignedUserId: d.assignedUserId || null,
         createdByUserId: ctx.session.user.id,
         dueAt: d.dueAt ? new Date(d.dueAt) : null,
+        source: "field_issue",
       },
-    });
+      { db: tx, actorUserId: ctx.session.user.id },
+    );
     return tx.fieldIssue.update({
       where: { id: created.id },
       data: { taskId: task.id },

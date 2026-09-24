@@ -27,7 +27,9 @@ import {
 } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, DoorOpen, FileText, MapPin, Search, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, DoorOpen, FileText, ListChecks, MapPin, Search, Trash2, UserPlus } from "lucide-react";
+import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
+import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { CanvasserSummaryModal } from "@/components/canvassing/canvasser-summary-modal";
 
 type Outcome =
@@ -76,6 +78,7 @@ type Prospect = {
   assignedTo: { id: string; firstName: string; lastName: string } | null;
   _count: { knocks: number };
   knocks: { outcome: string; knockedAt: string }[];
+  taskCounts?: { pending: number; overdue: number };
 };
 
 const statusVariant = (s: string) =>
@@ -93,6 +96,7 @@ export default function ProspectsPage() {
   const [knockProspect, setKnockProspect] = useState<Prospect | null>(null);
   const [promoteProspect, setPromoteProspect] = useState<Prospect | null>(null);
   const [summaryProspect, setSummaryProspect] = useState<Prospect | null>(null);
+  const [taskProspect, setTaskProspect] = useState<Prospect | null>(null);
 
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ["prospects"] });
@@ -103,6 +107,7 @@ export default function ProspectsPage() {
       const params = new URLSearchParams();
       if (statusFilter) params.set("status", statusFilter);
       if (search.trim()) params.set("search", search.trim());
+      params.set("withTaskCounts", "true");
       const res = await fetch(`/api/prospects?${params}`);
       if (!res.ok) throw new Error("Failed to load prospects");
       return res.json();
@@ -215,6 +220,9 @@ export default function ProspectsPage() {
                     <Badge variant={statusVariant(p.status)}>
                       {labelize(p.status)}
                     </Badge>
+                    {p.taskCounts && (
+                      <TaskCountBadge open={p.taskCounts.pending} overdue={p.taskCounts.overdue} compact />
+                    )}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {[p.city, p.state, p.zipCode].filter(Boolean).join(", ")}
@@ -259,6 +267,15 @@ export default function ProspectsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  title="Add a task for this prospect"
+                  onClick={() => setTaskProspect(p)}
+                >
+                  <ListChecks className="mr-2 h-4 w-4" /> Task
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setKnockProspect(p)}
                 >
                   <DoorOpen className="mr-2 h-4 w-4" /> Log knock
@@ -287,6 +304,23 @@ export default function ProspectsPage() {
           logKnock.mutate({ prospectId: knockProspect.id, outcome, notes })
         }
         isPending={logKnock.isPending}
+      />
+
+      <AddTaskDialog
+        open={Boolean(taskProspect)}
+        onOpenChange={(o) => !o && setTaskProspect(null)}
+        context={
+          taskProspect
+            ? {
+                prospectId: taskProspect.id,
+                leadId: taskProspect.leadId ?? undefined,
+                label: `${taskProspect.propertyAddress1}, ${taskProspect.city}`,
+                href: "/canvassing/prospects",
+              }
+            : undefined
+        }
+        defaults={taskProspect ? { assignedUserId: taskProspect.assignedTo?.id } : undefined}
+        invalidateKeys={[["prospects"]]}
       />
 
       <PromoteDialog

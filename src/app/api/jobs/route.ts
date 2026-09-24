@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 
 export async function GET(request: NextRequest) {
@@ -54,14 +55,14 @@ export async function GET(request: NextRequest) {
     const [pendingTasks, overdueTasks] = await Promise.all([
       prisma.task.groupBy({
         by: ["jobId"],
-        where: { jobId: { in: jobIds }, status: { in: ["PENDING", "IN_PROGRESS"] } },
+        where: { jobId: { in: jobIds }, status: { in: [...OPEN_TASK_STATUSES] } },
         _count: { _all: true },
       }),
       prisma.task.groupBy({
         by: ["jobId"],
         where: {
           jobId: { in: jobIds },
-          status: { in: ["PENDING", "IN_PROGRESS"] },
+          status: { in: [...OPEN_TASK_STATUSES] },
           dueAt: { lt: now },
         },
         _count: { _all: true },

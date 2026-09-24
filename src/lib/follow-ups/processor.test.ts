@@ -1,16 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { sendMessageMock, sendEmailMock, isEmailConfiguredMock } = vi.hoisted(() => ({
+const { sendMessageMock, sendEmailMock, isEmailConfiguredMock, createTaskMock } = vi.hoisted(() => ({
   sendMessageMock: vi.fn(),
   sendEmailMock: vi.fn(),
   isEmailConfiguredMock: vi.fn(),
+  createTaskMock: vi.fn(),
+}));
+
+vi.mock("@/lib/tasks/create", () => ({
+  createTask: (...args: unknown[]) => createTaskMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   prisma: {
     followUpExecution: { findMany: vi.fn(), update: vi.fn() },
     notificationEvent: { create: vi.fn() },
-    task: { create: vi.fn() },
     communication: { create: vi.fn() },
     lead: { update: vi.fn() },
     $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
@@ -159,7 +163,7 @@ describe("processPendingFollowUps", () => {
     vi.mocked(prisma.followUpExecution.findMany).mockReset();
     vi.mocked(prisma.followUpExecution.update).mockReset().mockResolvedValue({} as never);
     vi.mocked(prisma.notificationEvent.create).mockReset().mockResolvedValue({} as never);
-    vi.mocked(prisma.task.create).mockReset().mockResolvedValue({} as never);
+    createTaskMock.mockReset().mockResolvedValue({} as never);
   });
 
   it("returns zeros when there is nothing to process", async () => {
@@ -260,15 +264,18 @@ describe("processPendingFollowUps", () => {
     const result = await processPendingFollowUps();
 
     expect(result.sent).toBe(1);
-    expect(vi.mocked(prisma.task.create)).toHaveBeenCalledWith(
+    // Through the shared creator, so the task gets its timeline rows and the
+    // assignee is mailed — with the system (null) as actor, not the lead's
+    // creator, so a self-created lead still notifies.
+    expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          leadId: "lead1",
-          title: "Call Ada",
-          priority: "HIGH",
-          dueAt: expect.any(Date),
-        }),
+        leadId: "lead1",
+        title: "Call Ada",
+        priority: "HIGH",
+        dueAt: expect.any(Date),
+        source: "follow_up_rule",
       }),
+      expect.objectContaining({ actorUserId: null }),
     );
   });
 

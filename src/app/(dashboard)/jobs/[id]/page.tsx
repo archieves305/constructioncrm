@@ -35,6 +35,8 @@ import { ChangeOrdersPanel } from "@/components/jobs/change-orders-panel";
 import { BudgetPanel } from "@/components/jobs/budget-panel";
 import { PricingPanel } from "@/components/jobs/pricing-panel";
 import { RentalTurnoverPanel } from "@/components/jobs/rental-turnover-panel";
+import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
+import { useTasks } from "@/components/tasks/use-tasks";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -57,6 +59,9 @@ export default function JobDetailPage() {
     queryKey: ["jobStages"],
     queryFn: () => fetchJson("/api/jobs/stages"),
   });
+
+  // Scoped through /api/tasks so the count matches what this viewer may see.
+  const { data: jobTasks = [] } = useTasks({ jobId: id });
 
   const { data: crews = [] } = useQuery<{ id: string; name: string; trades: string[] }[]>({
     queryKey: ["crews", "active"],
@@ -447,7 +452,7 @@ export default function JobDetailPage() {
               <TabsTrigger value="daily-logs">Daily Logs</TabsTrigger>
               <TabsTrigger value="photos">Photos</TabsTrigger>
               <TabsTrigger value="inspections">Inspections</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks ({job.tasks?.length || 0})</TabsTrigger>
+              <TabsTrigger value="tasks">Tasks ({jobTasks.length})</TabsTrigger>
               <TabsTrigger value="files">Files</TabsTrigger>
               {job.jobType === "OWNED_REHAB" && (
                 <TabsTrigger value="budget">Budget</TabsTrigger>
@@ -776,21 +781,17 @@ export default function JobDetailPage() {
               {!job.inspections?.length && <p className="py-6 text-center text-sm text-muted-foreground">No inspections</p>}
             </TabsContent>
 
-            <TabsContent value="tasks" className="space-y-2">
-              {job.tasks?.map((t: { id: string; title: string; status: string; priority: string; dueAt: string | null }) => (
-                <Card key={t.id}>
-                  <CardContent className="flex items-center justify-between py-3 px-4">
-                    <div>
-                      <span className={`text-sm ${t.status === "COMPLETED" ? "line-through text-muted-foreground" : ""}`}>{t.title}</span>
-                      <Badge variant={t.priority === "URGENT" ? "destructive" : "outline"} className="text-[10px] ml-2">{t.priority}</Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {t.dueAt ? format(new Date(t.dueAt), "MMM d") : t.status}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {!job.tasks?.length && <p className="py-6 text-center text-sm text-muted-foreground">No tasks</p>}
+            <TabsContent value="tasks">
+              <EntityTaskPanel
+                context={{
+                  jobId: id,
+                  label: `${job.jobNumber} · ${job.title}`,
+                  href: `/jobs/${id}`,
+                }}
+                invalidateKeys={[["job", id]]}
+                defaultAssigneeId={job.projectManagerId ?? job.salesRepId ?? null}
+                emptyText="No tasks on this job yet."
+              />
             </TabsContent>
 
             <TabsContent value="files">

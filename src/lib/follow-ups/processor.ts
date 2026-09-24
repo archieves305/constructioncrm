@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { createTask } from "@/lib/tasks/create";
 import { renderTemplate } from "@/lib/templates/render";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { getEmailBrand } from "@/lib/email/brand";
@@ -232,8 +233,11 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
         const due = taskTemplate.dueInDays
           ? new Date(Date.now() + taskTemplate.dueInDays * 86400000)
           : null;
-        await prisma.task.create({
-          data: {
+        // The system is the actor, not the lead's creator: that way the
+        // assignee is mailed even when they happen to be the person who
+        // originally entered the lead.
+        await createTask(
+          {
             leadId: exec.leadId,
             title: renderTemplate(taskTemplate.title, context),
             description: taskTemplate.description
@@ -243,8 +247,10 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
             dueAt: due,
             assignedUserId: exec.lead.assignedUserId,
             createdByUserId: exec.lead.createdByUserId,
+            source: "follow_up_rule",
           },
-        });
+          { actorUserId: null },
+        );
       }
 
       await prisma.followUpExecution.update({

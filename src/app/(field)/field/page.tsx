@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ChevronRight, History, Mail, MapPin, TriangleAlert } from "lucide-react";
+import { TaskCountBadge } from "@/components/tasks/task-count-badge";
+import { fetchJson } from "@/lib/fetch-json";
 
 type FieldJob = {
   id: string;
@@ -26,6 +28,7 @@ type FieldJob = {
   lead: { propertyAddress1: string | null; city: string | null };
   todayLog: { status: string; returned: boolean; crewCount: number } | null;
   yesterdayUnsubmitted: boolean;
+  taskCounts?: { open: number; overdue: number };
 };
 
 function localToday(): string {
@@ -69,7 +72,7 @@ export default function FieldHomePage() {
   });
   const { data, isLoading } = useQuery<{ date: string; jobs: FieldJob[] }>({
     queryKey: ["field-today", today],
-    queryFn: () => fetch(`/api/field/today?date=${today}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/field/today?date=${today}`),
   });
 
   const jobs = data?.jobs ?? [];
@@ -98,6 +101,11 @@ export default function FieldHomePage() {
                     <div className="truncate text-base font-semibold">{job.title}</div>
                     <div className="text-muted-foreground flex items-center gap-2 text-sm">
                       <span>{job.jobNumber}</span>
+                      {job.taskCounts && (job.taskCounts.open > 0 || job.taskCounts.overdue > 0) && (
+                        <Link href={`/field/tasks?job=${job.id}`} onClick={(e) => e.stopPropagation()}>
+                          <TaskCountBadge open={job.taskCounts.open} overdue={job.taskCounts.overdue} />
+                        </Link>
+                      )}
                       {(job.lead.propertyAddress1 || job.lead.city) && (
                         <span className="flex min-w-0 items-center gap-1 truncate">
                           <MapPin className="h-3.5 w-3.5 shrink-0" />

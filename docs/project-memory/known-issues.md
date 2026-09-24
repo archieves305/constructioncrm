@@ -1,6 +1,6 @@
 # Known Issues / Technical Debt — KNU Construction CRM
 
-_Updated 2026-08-03._
+_Updated 2026-09-24._
 
 ## Open — needs a decision or action
 
@@ -24,6 +24,21 @@ _Updated 2026-08-03._
   SPF TXT record while the DNS is being touched anyway. Not urgent, but it is
   the next most likely cause of "the email never arrived" reports now that the
   recipient cap is gone.
+
+## Resolved 2026-09-24 — tasks everywhere (Stage 1)
+
+- **Five task creators bypassed the timeline and assignment email** (deposit
+  task, stage templates, follow-up rules, field issues; field-issue resolve
+  bypassed completion mail). All go through `lib/tasks/create.ts` /
+  `update.ts` now. See `features/tasks.md`.
+- **BLOCKED omitted from three "open" counts** (dashboard `overdueTasks`,
+  jobs-list and leads-list `withTaskCounts`). `OPEN_TASK_STATUSES` everywhere.
+- **Assignee pickers 403'd for non-admin roles** — every user dropdown hit
+  `/api/admin/users` (ADMIN/MANAGER only). Task pickers now use
+  `/api/users/assignable`. The lead detail, jobs and leads pages still fetch
+  `/api/admin/users` for their own assignment dropdowns — same latent bug,
+  not fixed here.
+- **Tasks board rendered 5 columns in a 4-column grid**, wrapping CANCELLED.
 
 ## Resolved 2026-08-03 (later) — MailerSend upgraded
 
@@ -68,16 +83,10 @@ _Updated 2026-08-03._
   Confirmed working: `@rcareylaw.com` received the reminder digest in a real
   inbox on 2026-08-03, which is the only end-to-end proof of task email
   rendering in a live client.
-- **Task reminder cron is installed but DISABLED**, pending the MailerSend
-  upgrade above — it was dropping half its recipients. The line is commented
-  in the `knuco` user's crontab (search `task-reminders`); **re-enable by
-  removing the leading `#`**, no other change needed. Schedule was
-  `30 11 * * 1-5` (7:30am ET weekdays) →
-  `/home/knuco/crm-cron/task-reminders.sh`, which logs each run to
-  `task-reminders.log` beside it. The wrapper and the route are deployed and
-  verified working — one live run returned HTTP 200 and delivered to every
-  recipient the trial plan permitted. Assignment, completion and mention mail
-  are unaffected by this and remain live.
+- ~~Task reminder cron is installed but DISABLED~~ — **stale; superseded by
+  the "MailerSend upgraded" note above, which re-enabled it** (`30 11 * * 1-5`
+  → `/home/knuco/crm-cron/task-reminders.sh`). Verify with `crontab -l |
+  grep task-reminders` on the droplet before relying on either statement.
 - **`PHONE_ROUTING_API_KEY` is unset in `/etc/knuco/env`**, so
   `/api/integrations/phone-routing/lead` returns 503 (`503` = operator
   misconfiguration, `401` = bad caller — deliberate split). The route is

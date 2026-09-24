@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -19,64 +18,22 @@ import {
 } from "@/components/ui/select";
 import { NoteComposer } from "./note-composer";
 import { TaskTimeline, type TimelineEvent, type UserLookup } from "./task-timeline";
+import { TaskEntityChip } from "./task-entity-chip";
+import { PRIORITY_BADGE_CLASS, STATUS_BADGE_CLASS, STATUS_LABEL, TASK_STATUSES } from "./task-colors";
+import { taskKeys } from "./use-tasks";
+import type { Person, TaskListItem, TaskStatus, UserOption } from "./types";
+import { fetchJson } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
 import { X, Plus } from "lucide-react";
 
-type TaskStatus = "PENDING" | "IN_PROGRESS" | "BLOCKED" | "COMPLETED" | "CANCELLED";
-type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-
-type Person = { id: string; firstName: string; lastName: string };
-
-type TaskDetail = {
-  id: string;
-  title: string;
-  description: string | null;
-  status: TaskStatus;
-  priority: Priority;
-  dueAt: string | null;
-  blockedReason: string | null;
+type TaskDetail = TaskListItem & {
   completedAt: string | null;
-  lead: { id: string; fullName: string } | null;
-  job: { id: string; jobNumber: string; title: string } | null;
-  assignedTo: Person | null;
-  createdBy: Person | null;
   completedBy: Person | null;
   watchers: { id: string; user: Person }[];
   events: TimelineEvent[];
 };
 
-export type UserOption = { id: string; firstName: string; lastName: string; isActive: boolean };
-
-const STATUSES: TaskStatus[] = [
-  "PENDING",
-  "IN_PROGRESS",
-  "BLOCKED",
-  "COMPLETED",
-  "CANCELLED",
-];
-
-const STATUS_LABEL: Record<TaskStatus, string> = {
-  PENDING: "Not started",
-  IN_PROGRESS: "In progress",
-  BLOCKED: "Blocked",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-};
-
-const STATUS_COLORS: Record<TaskStatus, string> = {
-  PENDING: "bg-gray-100 text-gray-800",
-  IN_PROGRESS: "bg-blue-100 text-blue-800",
-  BLOCKED: "bg-amber-100 text-amber-900",
-  COMPLETED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-gray-100 text-gray-500",
-};
-
-const PRIORITY_COLORS: Record<Priority, string> = {
-  LOW: "bg-gray-100 text-gray-700",
-  MEDIUM: "bg-blue-50 text-blue-700",
-  HIGH: "bg-amber-100 text-amber-800",
-  URGENT: "bg-red-100 text-red-700",
-};
+export type { UserOption };
 
 export function TaskDetailSheet({
   taskId,
@@ -97,11 +54,8 @@ export function TaskDetailSheet({
   const [addingWatcher, setAddingWatcher] = useState(false);
 
   const { data: task, isLoading } = useQuery<TaskDetail>({
-    queryKey: ["task", taskId],
-    queryFn: () => fetch(`/api/tasks/${taskId}`).then((r) => {
-      if (!r.ok) throw new Error("Could not load this task");
-      return r.json();
-    }),
+    queryKey: taskKeys.detail(taskId ?? ""),
+    queryFn: () => fetchJson(`/api/tasks/${taskId}`),
     enabled: Boolean(taskId),
   });
 
@@ -111,8 +65,9 @@ export function TaskDetailSheet({
   );
 
   function refresh() {
-    qc.invalidateQueries({ queryKey: ["task", taskId] });
-    qc.invalidateQueries({ queryKey: ["tasks-v2"] });
+    if (taskId) qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) });
+    qc.invalidateQueries({ queryKey: taskKeys.all });
+    qc.invalidateQueries({ queryKey: taskKeys.summary });
   }
 
   const patch = useMutation({
@@ -230,28 +185,13 @@ export function TaskDetailSheet({
             <SheetHeader className="border-b px-6 py-4">
               <SheetTitle className="pr-8 text-base leading-snug">{task.title}</SheetTitle>
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <Badge className={cn("border-0", STATUS_COLORS[task.status])}>
+                <Badge className={cn("border-0", STATUS_BADGE_CLASS[task.status])}>
                   {STATUS_LABEL[task.status]}
                 </Badge>
-                <Badge className={cn("border-0", PRIORITY_COLORS[task.priority])}>
+                <Badge className={cn("border-0", PRIORITY_BADGE_CLASS[task.priority])}>
                   {task.priority}
                 </Badge>
-                {task.job && (
-                  <Link
-                    href={`/jobs/${task.job.id}`}
-                    className="text-xs font-mono text-blue-600 hover:underline"
-                  >
-                    {task.job.jobNumber}
-                  </Link>
-                )}
-                {task.lead && !task.job && (
-                  <Link
-                    href={`/leads/${task.lead.id}`}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    {task.lead.fullName}
-                  </Link>
-                )}
+                <TaskEntityChip task={task} />
               </div>
             </SheetHeader>
 
@@ -292,7 +232,7 @@ export function TaskDetailSheet({
                     <SelectValue>{(v: string) => STATUS_LABEL[v as TaskStatus] ?? v}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUSES.map((s) => (
+                    {TASK_STATUSES.map((s) => (
                       <SelectItem key={s} value={s}>
                         {STATUS_LABEL[s]}
                       </SelectItem>
@@ -418,7 +358,7 @@ export function TaskDetailSheet({
   );
 }
 
-function fullName(p: Person | null): string | null {
+function fullName(p: Person | null | undefined): string | null {
   if (!p) return null;
   return `${p.firstName} ${p.lastName}`.trim() || null;
 }

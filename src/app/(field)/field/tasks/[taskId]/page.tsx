@@ -11,6 +11,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchJson } from "@/lib/fetch-json";
+import { PRIORITY_BADGE_CLASS, STATUS_BADGE_CLASS, STATUS_LABEL } from "@/components/tasks/task-colors";
+import { taskKeys } from "@/components/tasks/use-tasks";
 
 /**
  * Field-mode task view.
@@ -48,21 +51,6 @@ type FieldTask = {
   }[];
 };
 
-const STATUS_BADGE: Record<TaskStatus, { label: string; className: string }> = {
-  PENDING: { label: "Not started", className: "bg-gray-100 text-gray-700" },
-  IN_PROGRESS: { label: "In progress", className: "bg-blue-100 text-blue-800" },
-  BLOCKED: { label: "Blocked", className: "bg-amber-100 text-amber-900" },
-  COMPLETED: { label: "Completed", className: "bg-green-100 text-green-800" },
-  CANCELLED: { label: "Cancelled", className: "bg-gray-100 text-gray-500" },
-};
-
-const PRIORITY_CLASS: Record<string, string> = {
-  LOW: "bg-gray-100 text-gray-700",
-  MEDIUM: "bg-blue-50 text-blue-700",
-  HIGH: "bg-amber-100 text-amber-800",
-  URGENT: "bg-red-100 text-red-700",
-};
-
 export default function FieldTaskPage({
   params,
 }: {
@@ -76,15 +64,13 @@ export default function FieldTaskPage({
 
   const { data: task, isLoading, isError } = useQuery<FieldTask>({
     queryKey: ["field-task", taskId],
-    queryFn: () =>
-      fetch(`/api/tasks/${taskId}`).then((r) => {
-        if (!r.ok) throw new Error("Could not load this task");
-        return r.json();
-      }),
+    queryFn: () => fetchJson(`/api/tasks/${taskId}`),
   });
 
   function refresh() {
     qc.invalidateQueries({ queryKey: ["field-task", taskId] });
+    qc.invalidateQueries({ queryKey: taskKeys.all });
+    qc.invalidateQueries({ queryKey: taskKeys.summary });
   }
 
   const patch = useMutation({
@@ -134,8 +120,8 @@ export default function FieldTaskPage({
     return (
       <div className="p-6 text-center">
         <p className="text-muted-foreground">This task is not available to you.</p>
-        <Link href="/field" className="mt-3 inline-block text-blue-600 underline">
-          Back to Field Mode
+        <Link href="/field/tasks" className="mt-3 inline-block text-blue-600 underline">
+          Back to my tasks
         </Link>
       </div>
     );
@@ -147,10 +133,10 @@ export default function FieldTaskPage({
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
       <Link
-        href="/field"
+        href="/field/tasks"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Field Mode
+        <ArrowLeft className="h-4 w-4" /> My Tasks
       </Link>
 
       <Card>
@@ -160,10 +146,10 @@ export default function FieldTaskPage({
           </h1>
 
           <div className="flex flex-wrap gap-1.5">
-            <Badge className={cn("border-0", STATUS_BADGE[task.status].className)}>
-              {STATUS_BADGE[task.status].label}
+            <Badge className={cn("border-0", STATUS_BADGE_CLASS[task.status])}>
+              {STATUS_LABEL[task.status]}
             </Badge>
-            <Badge className={cn("border-0", PRIORITY_CLASS[task.priority])}>
+            <Badge className={cn("border-0", PRIORITY_BADGE_CLASS[task.priority])}>
               {task.priority}
             </Badge>
             {task.dueAt && (

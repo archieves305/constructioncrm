@@ -27,14 +27,21 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-0. 🔴 **Progress billing** — deployed + JOB-00009 backfilled 2026-08-27;
+0. 🔴 **Tasks as the spine of the CRM** — three stages, each deployed and
+   QA'd before the next. **Stage 1 (tasks everywhere) built 2026-09-24**,
+   awaiting browser QA + deploy. Next: Stage 2 (overdue escalation, nudge,
+   auto follow-up tasks, per-task reminders, notifications settings page),
+   then Stage 3 (kanban kit, stage colours, job detail header/stepper/tab
+   groups, list polish). Plan: `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`;
+   notes: [features/tasks.md](docs/project-memory/features/tasks.md).
+1. 🔴 **Progress billing** — deployed + JOB-00009 backfilled 2026-08-27;
    apps 1–12 PAID, apps 13–14 to be entered in the UI. Next: Stage 2
    (change orders on PROGRESS jobs add an SOV line instead of an invoice).
-1. 🔴 **Job-costing check-and-balance.** Write gate and pending state both
+2. 🔴 **Job-costing check-and-balance.** Write gate and pending state both
    shipped. Remaining: **reconciliation against cc-allocator**, and **12
    candidate duplicate charges ($9,166.20) still need a human to confirm** —
    see [known-issues.md](docs/project-memory/known-issues.md).
-2. Confirm `field-log-digest` self-healed on its next 7:00am run — it had
+3. Confirm `field-log-digest` self-healed on its next 7:00am run — it had
    been failing for all four `@calibertrust.com` users under the old
    MailerSend cap, which is now lifted.
 3. Add the SPF record for `knuconstruction.com` (see §5).
@@ -47,6 +54,21 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-09-24 — Tasks everywhere (Stage 1 of 3; built, NOT yet deployed)
+
+One creation path (`lib/tasks/create.ts`) and one update path
+(`lib/tasks/update.ts`) — the deposit task, stage templates, follow-up rules
+and field issues had all been creating tasks silently, and field-issue
+resolve skipped the completion mail. New `Task` links to estimate, invoice,
+prospect and daily log (migration `20260924120000_task_entity_links`).
+Shared `AddTaskDialog` / `EntityTaskPanel` / hooks in `components/tasks/*`,
+integrated into lead + job detail, invoice and estimate rows, the office
+daily-log page, prospects, dashboard widget, sidebar badge, and field mode
+(`/field/tasks` + bottom nav). Fixed BLOCKED being dropped from three
+"open" counts and assignee pickers 403ing for non-admins (`/api/users/assignable`).
+425/425 tests, typecheck/build clean, lint 6/28. Details:
+[features/tasks.md](docs/project-memory/features/tasks.md).
+
 ### 2026-08-27 — Progress billing / payment applications (deployed + backfilled)
 
 Bill work completed in a period instead of the whole balance — AIA
@@ -58,7 +80,7 @@ clean. Deployed `891b891`/`78e3d6c`; backfill ran on prod, all 12 amounts
 reproduced. Apps 13–14 go in through the UI. Details:
 [features/progress-billing.md](docs/project-memory/features/progress-billing.md).
 
-### 2026-08-03 — Task collaboration (built, NOT deployed)
+### 2026-08-03 — Task collaboration (deployed as `d12945e`)
 
 Assignment/completion email on the existing branded shell, notes, a per-task
 activity trail, watchers, @mentions, BLOCKED status, morning reminder digest.
@@ -73,7 +95,7 @@ priority to MEDIUM**, downgrading URGENT tasks on completion. Details in
 [known-issues.md](docs/project-memory/known-issues.md).
 
 329/329 tests, typecheck and build clean, lint one warning better than
-baseline. No browser QA yet.
+baseline.
 
 ### 2026-08-03 — SSO verified; two decisions closed
 
@@ -129,7 +151,10 @@ Full list: [known-issues.md](docs/project-memory/known-issues.md).
   and the `/api/integrations/` proxy exemption.
 - Dead code: `lockout*`, `password-policy`, `admin/users` password path,
   `next-auth` in package.json.
-- **Lint baseline: 6 errors / 29 warnings**, all pre-existing.
+- **Lint baseline: 6 errors / 28 warnings**, all pre-existing.
+- Lead detail, jobs list and leads list still fetch `/api/admin/users`
+  (ADMIN/MANAGER only) for their assignment dropdowns — empty for other
+  roles. Task pickers moved to `/api/users/assignable`; these did not.
 
 ## 6. Resume Instructions
 
@@ -215,12 +240,19 @@ Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
 
 ## 10. Next Prompt
 
-> The CareyOS SSO cutover is verified and settled — don't re-litigate it.
-> Do the dead-code cleanup from the auth swap: remove `src/lib/auth/lockout.ts`,
-> `lockout-error.ts`, `password-policy.ts` and their tests, drop the
-> `bcrypt.hash` password-setting path from `src/app/api/admin/users/route.ts`
-> and `[id]/route.ts` (user creation belongs in the CareyOS admin now), and
-> pull `next-auth` + `@auth/prisma-adapter` from `package.json`. Keep the
-> lint baseline at 6 errors / 29 warnings or better; `npm run test &&
-> npm run typecheck` must stay green. Deploy with
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
+> Tasks Stage 1 ("tasks everywhere") is built and green but not yet
+> deployed. First: browser-QA it on dev as ADMIN, a SALES_REP and Frank
+> (CREW_LEAD) — create a task from the lead tab, job tab, an invoice row, an
+> estimate row, the office daily-log page and a prospect card; confirm the
+> chip, the sidebar badge, the dashboard widget, `/field/tasks` and the
+> bottom nav; flag a field issue and confirm the task has CREATED/ASSIGNED
+> events and the assignee is mailed; resolve it and confirm the task
+> completes with mail. Then deploy with
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` (migration
+> `20260924120000_task_entity_links` applies on the droplet via
+> migrate diff + db execute + resolve). Then start Stage 2 from the plan at
+> `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md` — ship the shared
+> `requireCronSecret()` refactor first, then recipients channels + settings
+> page, templates, nudge, reminders, escalations (off by default in prod
+> until the SPF record is set), auto-tasks (`invoice.sent` disabled the
+> first week).

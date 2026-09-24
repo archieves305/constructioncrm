@@ -36,6 +36,7 @@ import {
 import { useRouter } from "next/navigation";
 import { formatMinutes } from "@/components/field/touch-time-field";
 import type { ServerLog } from "@/hooks/use-labor-sheet";
+import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-gray-100 text-gray-700" },
@@ -386,6 +387,20 @@ export default function DailyLogReviewPage({
           </CardContent>
         </Card>
       )}
+
+      {/* Issues the crew flagged land here as tasks (via field issues), and
+          the office can raise its own follow-ups against this day's log. */}
+      <EntityTaskPanel
+        context={{
+          dailyLogId: log.id,
+          jobId,
+          label: `Daily log · ${format(new Date(`${date}T12:00:00`), "MMM d, yyyy")}`,
+          href: `/jobs/${jobId}/daily-logs/${date}`,
+        }}
+        title="Office follow-ups"
+        invalidateKeys={[["daily-log", jobId, date]]}
+        emptyText="No follow-ups on this log."
+      />
 
       <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
         <DialogContent>

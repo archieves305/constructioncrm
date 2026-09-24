@@ -28,12 +28,14 @@ import {
   Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTaskSummary } from "@/components/tasks/use-tasks";
 
 type NavItem = {
   href: string;
   label: string;
   icon: React.ElementType;
   roles?: RoleName[];
+  badge?: "tasks";
 };
 
 const navItems: NavItem[] = [
@@ -66,7 +68,7 @@ const navItems: NavItem[] = [
   },
   { href: "/collections", label: "Collections", icon: DollarSign },
   { href: "/referrals", label: "Referrals", icon: DollarSign, roles: ["ADMIN", "MANAGER"] },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare, badge: "tasks" },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   {
     href: "/reports/labor",
@@ -126,6 +128,27 @@ interface SidebarProps {
   };
 }
 
+/**
+ * My overdue count in red, else my open count in grey, nothing at zero.
+ * A component of its own so the hook lives outside the nav `map`.
+ */
+function TaskNavBadge() {
+  const { data } = useTaskSummary();
+  if (!data || data.open === 0) return null;
+  const overdue = data.overdue > 0;
+  return (
+    <span
+      title={`${data.overdue} overdue · ${data.dueToday} due today · ${data.open} open`}
+      className={cn(
+        "ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-none",
+        overdue ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600",
+      )}
+    >
+      {overdue ? data.overdue : data.open}
+    </span>
+  );
+}
+
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
 
@@ -160,6 +183,7 @@ export function Sidebar({ user }: SidebarProps) {
             >
               <Icon className="h-4 w-4" />
               {item.label}
+              {item.badge === "tasks" && <TaskNavBadge />}
             </Link>
           );
         })}

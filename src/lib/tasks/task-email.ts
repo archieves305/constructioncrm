@@ -29,6 +29,10 @@ export type TaskEmailTask = {
   blockedReason: string | null;
   job: { jobNumber: string; title: string } | null;
   lead: { fullName: string } | null;
+  invoice?: { invoiceNumber: string } | null;
+  estimate?: { estimateNumber: string; name: string } | null;
+  prospect?: { propertyAddress1: string; city: string } | null;
+  dailyLog?: { logDate: Date } | null;
   assignedTo: TaskEmailPerson | null;
   createdBy: TaskEmailPerson | null;
   completedBy: TaskEmailPerson | null;
@@ -162,11 +166,20 @@ function taskBlock(task: TaskEmailTask, now: Date): { html: string; text: string
       : "",
   ].join("");
 
-  const context = task.job
-    ? `${task.job.jobNumber} — ${task.job.title}`
-    : task.lead
-      ? task.lead.fullName
-      : "—";
+  // Most specific anchor first, then the job or lead it hangs off.
+  const [contextLabel, context] = task.invoice
+    ? ["Invoice", `${task.invoice.invoiceNumber}${task.job ? ` — ${task.job.jobNumber}` : ""}`]
+    : task.estimate
+      ? ["Estimate", `${task.estimate.estimateNumber} — ${task.estimate.name}`]
+      : task.dailyLog
+        ? ["Daily log", `${format(task.dailyLog.logDate, "MMM d")}${task.job ? ` — ${task.job.jobNumber}` : ""}`]
+        : task.prospect
+          ? ["Prospect", `${task.prospect.propertyAddress1}, ${task.prospect.city}`]
+          : task.job
+            ? ["Job", `${task.job.jobNumber} — ${task.job.title}`]
+            : task.lead
+              ? ["Lead", task.lead.fullName]
+              : ["Lead", "—"];
 
   const rows = [
     { label: "Assigned to", value: personName(task.assignedTo) },
@@ -176,7 +189,7 @@ function taskBlock(task: TaskEmailTask, now: Date): { html: string; text: string
       value: formatDue(task.dueAt) + (overdue ? " (overdue)" : ""),
       accent: overdue ? "#b91c1c" : undefined,
     },
-    { label: task.job ? "Job" : "Lead", value: context },
+    { label: contextLabel, value: context },
   ];
 
   let html = `<div style="margin:0 0 4px">${pills}</div>${metaTable(rows)}`;
@@ -186,7 +199,7 @@ function taskBlock(task: TaskEmailTask, now: Date): { html: string; text: string
     `Assigned to: ${personName(task.assignedTo)}`,
     `Raised by: ${personName(task.createdBy)}`,
     `Due: ${formatDue(task.dueAt)}${overdue ? " (OVERDUE)" : ""}`,
-    `${task.job ? "Job" : "Lead"}: ${context}`,
+    `${contextLabel}: ${context}`,
   ];
 
   if (task.description?.trim()) {

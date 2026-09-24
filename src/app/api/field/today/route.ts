@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { fromDbDate, isIsoDate, toDbDate, addDays } from "@/lib/labor/dates";
+import { taskVisibilityFilter } from "@/lib/tasks/access";
+import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 
 // Jobs the signed-in user works with in field mode, with today's and
 // yesterday's log status for the home-screen tiles. Office roles see all
@@ -57,6 +59,37 @@ export async function GET(request: NextRequest) {
     take: 50,
   });
 
+  // Task chips per job, scoped to what THIS viewer may see: a crew lead's
+  // count is their own tasks on the job, not the office's.
+  const jobIds = jobs.map((j) => j.id);
+  const scope = taskVisibilityFilter(session.user);
+  const [openTasks, overdueTasks] = jobIds.length
+    ? await Promise.all([
+        prisma.task.groupBy({
+          by: ["jobId"],
+          where: { AND: [{ jobId: { in: jobIds }, status: { in: [...OPEN_TASK_STATUSES] } }, scope] },
+          _count: { _all: true },
+        }),
+        prisma.task.groupBy({
+          by: ["jobId"],
+          where: {
+            AND: [
+              { jobId: { in: jobIds }, status: { in: [...OPEN_TASK_STATUSES] }, dueAt: { lt: new Date() } },
+              scope,
+            ],
+          },
+          _count: { _all: true },
+        }),
+      ])
+    : [[], []];
+  const taskCounts: Record<string, { open: number; overdue: number }> = {};
+  for (const g of openTasks) if (g.jobId) taskCounts[g.jobId] = { open: g._count._all, overdue: 0 };
+  for (const g of overdueTasks) {
+    if (!g.jobId) continue;
+    taskCounts[g.jobId] ??= { open: 0, overdue: 0 };
+    taskCounts[g.jobId].overdue = g._count._all;
+  }
+
   return NextResponse.json({
     date: today,
     jobs: jobs.map((job) => {
@@ -73,6 +106,7 @@ export async function GET(request: NextRequest) {
             }
           : null,
         yesterdayUnsubmitted: yesterdayLog?.status === "DRAFT",
+        taskCounts: taskCounts[job.id] ?? { open: 0, overdue: 0 },
       };
     }),
   });

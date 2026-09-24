@@ -34,7 +34,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { FileText, Plus, Pencil, Trash2, AlertTriangle, ListChecks } from "lucide-react";
+import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
+import { TaskCountBadge } from "@/components/tasks/task-count-badge";
+import { useTasks } from "@/components/tasks/use-tasks";
+import { isPast, isToday } from "date-fns";
 import { computeApplication, type ComputedApplication } from "@/lib/billing/g702";
 
 type InvoicePayment = {
@@ -185,6 +189,27 @@ export function InvoicesPanel({
   function paidTotal(inv: Invoice) {
     return inv.payments.reduce((s, p) => s + Number(p.amount), 0);
   }
+
+  // One list query for the whole job, grouped per invoice — never a query
+  // per row.
+  const { data: jobTasks = [] } = useTasks({ jobId });
+  const tasksByInvoice = useMemo(() => {
+    const m = new Map<string, { open: number; overdue: number }>();
+    for (const t of jobTasks) {
+      if (!t.invoice) continue;
+      const e = m.get(t.invoice.id) ?? { open: 0, overdue: 0 };
+      e.open++;
+      if (t.dueAt && isPast(new Date(t.dueAt)) && !isToday(new Date(t.dueAt))) e.overdue++;
+      m.set(t.invoice.id, e);
+    }
+    return m;
+  }, [jobTasks]);
+  const [taskFor, setTaskFor] = useState<Invoice | null>(null);
+  const taskDefaults = useMemo(() => {
+    if (!taskFor) return undefined;
+    const pastDue = taskFor.status === "SENT" && taskFor.dueDate && new Date(taskFor.dueDate) < new Date();
+    return { title: pastDue ? `Follow up on ${taskFor.invoiceNumber} — past due` : "" };
+  }, [taskFor]);
 
   function changeStatus(inv: Invoice, status: string) {
     // Payments drive status — warn if marking PAID without covering payments.
@@ -667,6 +692,19 @@ export function InvoicesPanel({
                     >
                       PDF
                     </a>
+                    {(() => {
+                      const c = tasksByInvoice.get(inv.id);
+                      return c ? <TaskCountBadge open={c.open} overdue={c.overdue} compact /> : null;
+                    })()}
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      title="Add a task for this invoice"
+                      aria-label="Add a task for this invoice"
+                      onClick={() => setTaskFor(inv)}
+                    >
+                      <ListChecks className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -674,6 +712,18 @@ export function InvoicesPanel({
           })}
         </div>
       )}
+
+      <AddTaskDialog
+        open={Boolean(taskFor)}
+        onOpenChange={(o) => !o && setTaskFor(null)}
+        context={
+          taskFor
+            ? { invoiceId: taskFor.id, jobId, label: `Invoice ${taskFor.invoiceNumber}`, href: `/jobs/${jobId}` }
+            : undefined
+        }
+        defaults={taskDefaults}
+        invalidateKeys={[["job", jobId]]}
+      />
 
       {/* New / edit application */}
       <Dialog open={appOpen} onOpenChange={setAppOpen}>

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { createTask } from "@/lib/tasks/create";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { env } from "@/lib/env";
 import { logOutboundCommunication } from "@/lib/communications/log";
@@ -67,8 +68,8 @@ export async function createJobFromLead(leadId: string, userId: string) {
   });
 
   // Create deposit task
-  await prisma.task.create({
-    data: {
+  await createTask(
+    {
       jobId: job.id,
       leadId,
       title: `Collect deposit for ${job.jobNumber}`,
@@ -77,8 +78,10 @@ export async function createJobFromLead(leadId: string, userId: string) {
       createdByUserId: userId,
       dueAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
       priority: "HIGH",
+      source: "job_deposit",
     },
-  });
+    { actorUserId: userId },
+  );
 
   // Activity log on lead
   await prisma.activityLog.create({
@@ -188,8 +191,11 @@ async function spawnTasksFromTemplates(
         ? new Date(now + t.relativeDueInDays * 86400000)
         : null;
 
-    await prisma.task.create({
-      data: {
+    // Stage templates can spawn several tasks at once; skip the per-task
+    // lead-activity row so the feed does not fill with five near-identical
+    // lines on every stage change.
+    await createTask(
+      {
         jobId,
         leadId: job.leadId,
         title: t.title,
@@ -198,8 +204,10 @@ async function spawnTasksFromTemplates(
         assignedUserId: assignee,
         createdByUserId: userId,
         dueAt,
+        source: "stage_template",
       },
-    });
+      { actorUserId: userId, logLeadActivity: false },
+    );
   }
 }
 

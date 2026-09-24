@@ -633,6 +633,13 @@ model Task {
   id              String     @id @default(cuid())
   leadId          String?    @map("lead_id")
   jobId           String?    @map("job_id")
+  // Finer-grained anchors. A task on an invoice or daily log also carries the
+  // parent jobId; one on an estimate or promoted prospect also carries the
+  // leadId — so entity panels, emails and visibility keep working unchanged.
+  estimateId      String?    @map("estimate_id")
+  invoiceId       String?    @map("invoice_id")
+  prospectId      String?    @map("prospect_id")
+  dailyLogId      String?    @map("daily_log_id")
   title           String
   description     String?    @db.Text
   assignedUserId  String?    @map("assigned_user_id")
@@ -656,6 +663,10 @@ model Task {
 
   lead        Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
   job         Job?          @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  estimate    Estimate?     @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+  invoice     Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  prospect    Prospect?     @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  dailyLog    DailyLog?     @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
   assignedTo  User?         @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
   createdBy   User          @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
   completedBy User?         @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
@@ -666,6 +677,12 @@ model Task {
   @@index([assignedUserId])
   @@index([dueAt])
   @@index([status])
+  @@index([leadId])
+  @@index([jobId])
+  @@index([estimateId])
+  @@index([invoiceId])
+  @@index([prospectId])
+  @@index([dailyLogId])
   @@map("tasks")
 }
 
@@ -1598,6 +1615,7 @@ model Invoice {
   changeOrder ChangeOrder?
   payments    Payment[]
   lines       InvoiceLine[]
+  tasks       Task[]
 
   @@unique([jobId, applicationNumber])
   @@index([jobId])
@@ -2098,6 +2116,7 @@ model Prospect {
 
   knocks PropertyDoorKnock[]
   stops  DoorKnockRouteStop[]
+  tasks  Task[]
 
   @@index([status])
   @@index([assignedToUserId])
@@ -2277,6 +2296,7 @@ model Estimate {
   template  EstimateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   createdBy User              @relation("EstimateCreatedBy", fields: [createdByUserId], references: [id])
   sections  EstimateSection[]
+  tasks     Task[]
 
   @@index([leadId])
   @@index([templateCategory])
@@ -2558,6 +2578,7 @@ model DailyLog {
   laborEntries DailyLaborEntry[]
   photos       FieldPhoto[]
   issues       FieldIssue[]
+  tasks        Task[]
 
   @@unique([jobId, logDate])
   @@index([jobId, logDate(sort: Desc)])

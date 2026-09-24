@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { signOut } from "@/lib/auth/session-client";
 import type { RoleName } from "@/generated/prisma/client";
 import { Button } from "@/components/ui/button";
-import { HardHat, LayoutDashboard, LogOut, WifiOff } from "lucide-react";
+import { CheckSquare, HardHat, LayoutDashboard, LogOut, WifiOff } from "lucide-react";
+import { FieldBottomNav } from "./field-bottom-nav";
 
 interface FieldShellProps {
   user: {
@@ -44,6 +45,12 @@ export function FieldShell({ user, children }: FieldShellProps) {
             <span className="text-base font-bold">Field Mode</span>
           </Link>
           <div className="flex-1" />
+          <Link href="/field/tasks" className="hidden sm:block">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <CheckSquare className="h-4 w-4" />
+              Tasks
+            </Button>
+          </Link>
           {isOfficeUser && (
             <Link href="/">
               <Button variant="ghost" size="sm" className="gap-2">
@@ -76,6 +83,7 @@ export function FieldShell({ user, children }: FieldShellProps) {
       <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))]">
         {children}
       </main>
+      <FieldBottomNav />
     </div>
   );
 }

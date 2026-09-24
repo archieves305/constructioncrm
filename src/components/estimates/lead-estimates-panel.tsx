@@ -20,7 +20,12 @@ import {
   Pencil,
   Download,
   Building2,
+  ListChecks,
 } from "lucide-react";
+import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
+import { TaskCountBadge } from "@/components/tasks/task-count-badge";
+import { useTasks } from "@/components/tasks/use-tasks";
+import { isPast, isToday } from "date-fns";
 import {
   EstimatesPanel,
   type EstimatesPanelHandle,
@@ -65,6 +70,21 @@ export function LeadEstimatesPanel({
   const roofingRef = useRef<EstimatesPanelHandle>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
+  const [taskFor, setTaskFor] = useState<GenericEstimateRecord | null>(null);
+
+  // One list query for the lead, grouped per estimate.
+  const { data: leadTasks = [] } = useTasks({ leadId });
+  const tasksByEstimate = (() => {
+    const m = new Map<string, { open: number; overdue: number }>();
+    for (const t of leadTasks) {
+      if (!t.estimate) continue;
+      const e = m.get(t.estimate.id) ?? { open: 0, overdue: 0 };
+      e.open++;
+      if (t.dueAt && isPast(new Date(t.dueAt)) && !isToday(new Date(t.dueAt))) e.overdue++;
+      m.set(t.estimate.id, e);
+    }
+    return m;
+  })();
 
   const { data: estimates = [], isLoading } = useQuery<GenericEstimateRecord[]>({
     queryKey: ["lead-template-estimates", leadId],
@@ -212,6 +232,10 @@ export function LeadEstimatesPanel({
                           {CATEGORY_LABELS[est.templateCategory] ??
                             est.templateCategory}
                         </Badge>
+                        {(() => {
+                          const c = tasksByEstimate.get(est.id);
+                          return c ? <TaskCountBadge open={c.open} overdue={c.overdue} compact /> : null;
+                        })()}
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {est.name} ·{" "}
@@ -258,6 +282,10 @@ export function LeadEstimatesPanel({
                       <Pencil className="mr-1 h-3.5 w-3.5" />
                       Edit
                     </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setTaskFor(est)}>
+                      <ListChecks className="mr-1 h-3.5 w-3.5" />
+                      Add task
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -287,6 +315,23 @@ export function LeadEstimatesPanel({
           No template estimates yet.
         </p>
       )}
+
+      <AddTaskDialog
+        open={Boolean(taskFor)}
+        onOpenChange={(o) => !o && setTaskFor(null)}
+        context={
+          taskFor
+            ? {
+                estimateId: taskFor.id,
+                leadId,
+                label: `${taskFor.estimateNumber} · ${taskFor.name}`,
+                href: `/leads/${leadId}`,
+              }
+            : undefined
+        }
+        defaults={taskFor ? { title: `Follow up on estimate ${taskFor.estimateNumber}` } : undefined}
+        invalidateKeys={[["lead", leadId]]}
+      />
 
       <GenericEstimateDialog
         leadId={leadId}

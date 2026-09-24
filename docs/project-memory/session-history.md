@@ -4,6 +4,62 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 ---
 
+## 2026-09-24 — Tasks everywhere (Stage 1 of 3)
+
+Plan agreed with Richard: tasks are the spine of the CRM. Three stages, each
+deployed and QA'd before the next — (1) tasks everywhere, (2) email
+follow-up (overdue escalation, nudge, auto follow-up tasks, per-task
+reminders), (3) visual redesign (kanban kit, stage colours, job detail
+header/stepper/tab groups, list polish). Full plan in the session plan file;
+feature notes in [features/tasks.md](features/tasks.md).
+
+### Found while reading
+
+- **Five creators bypassed the timeline and assignment email**: deposit task
+  on job creation, stage templates, follow-up rules, field issues, plus the
+  API was the only one writing CREATED. Field-issue *resolution* flipped the
+  task to COMPLETED with a bare update — no event, no completion mail.
+- **BLOCKED was dropped from three "open" counts** (dashboard KPI, jobs-list
+  chip, leads-list chip) while the tasks page and cron counted it. A blocked
+  overdue task vanished from every summary.
+- **Every assignee picker 403'd for non-admins**: they all fetched
+  `/api/admin/users`, which is ADMIN/MANAGER only. For OFFICE_STAFF and
+  SALES_REP the dropdowns were silently empty (or, with raw `fetch`, the
+  page would throw on `.filter`).
+- The CLAUDE.md §4 header said the 2026-08-03 task work was "NOT deployed";
+  it shipped as `d12945e` the same day. Corrected.
+- Two docs disagreed on whether the task-reminders cron is enabled; the
+  later "MailerSend upgraded" note (re-enabled, `30 11 * * 1-5`) wins.
+
+### Built
+
+Server: `src/lib/tasks/{status,include,defer,create,update,query,summary}.ts`;
+`createTask` used by all five creators; `updateTask` shared by PATCH and
+field-issue resolve (and completing a task now resolves its field issue,
+guarded); `GET /api/tasks/summary`; `GET /api/users/assignable`;
+`/api/prospects?withTaskCounts`; `/api/field/today` per-job counts ANDed
+with the viewer's scope; count sites on `OPEN_TASK_STATUSES`. Schema:
+`Task.estimateId/invoiceId/prospectId/dailyLogId` + indexes on lead/job,
+migration `20260924120000_task_entity_links` with a `daily_log_id` backfill
+from field issues.
+
+Client: `src/components/tasks/*` (hooks, colours, AddTaskDialog,
+EntityTaskPanel, TaskCard, chips, badge, MyTasksWidget),
+`shared/user-avatar.tsx`. Integrated into lead detail, job detail, invoice
+rows, estimate rows, office daily-log page, prospect cards, dashboard
+(widget + clickable Overdue KPI), sidebar badge, field mode (`/field/tasks`
+index, bottom nav, job-card chips). `tasks/page.tsx` refactored onto the
+shared pieces; the 5-columns-in-a-4-col-grid board bug fixed; `?overdue=1`
+and `?assignedUserId=me` seed its filters.
+
+### Verification
+
+425/425 vitest (42 new across create/update/summary/query), typecheck clean,
+lint 6 errors / 28 warnings (baseline 6/29), production build clean.
+Migration applied to dev via migrate diff → db execute → empty diff → resolve.
+
+---
+
 ## 2026-08-03 (later still, 2) — Pending state: unreviewed charges move no money
 
 The structural half of the job-costing control. `ExpenseStatus`

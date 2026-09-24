@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createProspectSchema } from "@/lib/validators/prospect";
 import { Prisma } from "@/generated/prisma/client";
+import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 
 // Shape returned for prospect lists/cards: core fields + knock count + latest
 // knock outcome, so the canvassing UI can render status at a glance.
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
   const assignedTo = searchParams.get("assigned_to");
   const search = searchParams.get("search");
   const limit = searchParams.get("limit");
+  const withTaskCounts = searchParams.get("withTaskCounts") === "true";
 
   const where: Prisma.ProspectWhereInput = {};
 
@@ -52,7 +54,35 @@ export async function GET(request: NextRequest) {
     take: limit ? parseInt(limit) : undefined,
   });
 
-  return NextResponse.json(prospects);
+  if (!withTaskCounts || prospects.length === 0) return NextResponse.json(prospects);
+
+  // Same shape the jobs and leads lists return, so one badge component serves
+  // all three.
+  const ids = prospects.map((p) => p.id);
+  const now = new Date();
+  const [open, overdue] = await Promise.all([
+    prisma.task.groupBy({
+      by: ["prospectId"],
+      where: { prospectId: { in: ids }, status: { in: [...OPEN_TASK_STATUSES] } },
+      _count: { _all: true },
+    }),
+    prisma.task.groupBy({
+      by: ["prospectId"],
+      where: { prospectId: { in: ids }, status: { in: [...OPEN_TASK_STATUSES] }, dueAt: { lt: now } },
+      _count: { _all: true },
+    }),
+  ]);
+  const counts: Record<string, { pending: number; overdue: number }> = {};
+  for (const g of open) if (g.prospectId) counts[g.prospectId] = { pending: g._count._all, overdue: 0 };
+  for (const g of overdue) {
+    if (!g.prospectId) continue;
+    counts[g.prospectId] ??= { pending: 0, overdue: 0 };
+    counts[g.prospectId].overdue = g._count._all;
+  }
+
+  return NextResponse.json(
+    prospects.map((p) => ({ ...p, taskCounts: counts[p.id] ?? { pending: 0, overdue: 0 } })),
+  );
 }
 
 export async function POST(request: NextRequest) {

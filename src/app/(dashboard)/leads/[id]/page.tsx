@@ -25,6 +25,8 @@ import { toast } from "sonner";
 import { FilesPanel } from "@/components/files/files-panel";
 import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
 import { RoofrPanel } from "@/components/roofr/roofr-panel";
+import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
+import { useTasks } from "@/components/tasks/use-tasks";
 import {
   ArrowLeft,
   Phone,
@@ -46,8 +48,6 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [noteContent, setNoteContent] = useState("");
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDue, setNewTaskDue] = useState("");
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ["lead", id],
@@ -63,6 +63,9 @@ export default function LeadDetailPage() {
     queryKey: ["users"],
     queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
   });
+
+  // Scoped through /api/tasks so the count matches what this viewer may see.
+  const { data: leadTasks = [] } = useTasks({ leadId: id });
 
   const changeStage = useMutation({
     mutationFn: (stageId: string) =>
@@ -101,33 +104,6 @@ export default function LeadDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["lead", id] });
       setNoteContent("");
       toast.success("Note added");
-    },
-  });
-
-  const createTask = useMutation({
-    mutationFn: (data: { title: string; dueAt?: string; leadId: string }) =>
-      fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      }).then((r) => r.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lead", id] });
-      setNewTaskTitle("");
-      setNewTaskDue("");
-      toast.success("Task created");
-    },
-  });
-
-  const completeTask = useMutation({
-    mutationFn: (taskId: string) =>
-      fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "COMPLETED" }),
-      }).then((r) => r.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lead", id] });
     },
   });
 
@@ -363,7 +339,7 @@ export default function LeadDetailPage() {
           <Tabs defaultValue="activity">
             <TabsList>
               <TabsTrigger value="activity">Activity</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks ({lead.tasks?.length || 0})</TabsTrigger>
+              <TabsTrigger value="tasks">Tasks ({leadTasks.length})</TabsTrigger>
               <TabsTrigger value="comms">Communications</TabsTrigger>
               <TabsTrigger value="permits">Permits</TabsTrigger>
               <TabsTrigger value="estimates">Estimates</TabsTrigger>
@@ -439,107 +415,13 @@ export default function LeadDetailPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="tasks" className="space-y-4">
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="New task..."
-                      value={newTaskTitle}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTaskTitle(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Input
-                      type="date"
-                      value={newTaskDue}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTaskDue(e.target.value)}
-                      className="w-[160px]"
-                    />
-                    <Button
-                      size="sm"
-                      disabled={!newTaskTitle.trim() || createTask.isPending}
-                      onClick={() =>
-                        createTask.mutate({
-                          title: newTaskTitle,
-                          leadId: id,
-                          dueAt: newTaskDue || undefined,
-                        })
-                      }
-                    >
-                      Add
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="space-y-2">
-                {lead.tasks?.map(
-                  (task: {
-                    id: string;
-                    title: string;
-                    status: string;
-                    priority: string;
-                    dueAt: string | null;
-                    assignedTo: { firstName: string; lastName: string } | null;
-                  }) => {
-                    const taskOverdue =
-                      task.dueAt &&
-                      new Date(task.dueAt) < new Date() &&
-                      task.status !== "COMPLETED";
-
-                    return (
-                      <Card key={task.id}>
-                        <CardContent className="flex items-center justify-between py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              checked={task.status === "COMPLETED"}
-                              onChange={() => {
-                                if (task.status !== "COMPLETED") {
-                                  completeTask.mutate(task.id);
-                                }
-                              }}
-                              className="h-4 w-4 rounded border-gray-300"
-                            />
-                            <div>
-                              <p
-                                className={`text-sm ${task.status === "COMPLETED" ? "line-through text-muted-foreground" : ""}`}
-                              >
-                                {task.title}
-                              </p>
-                              <div className="flex gap-2 mt-0.5">
-                                <Badge
-                                  variant={task.priority === "URGENT" ? "destructive" : "outline"}
-                                  className="text-[10px] px-1 py-0"
-                                >
-                                  {task.priority}
-                                </Badge>
-                                {task.dueAt && (
-                                  <span
-                                    className={`text-xs ${taskOverdue ? "text-red-600 font-medium" : "text-muted-foreground"}`}
-                                  >
-                                    Due {format(new Date(task.dueAt), "MMM d")}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          {task.assignedTo && (
-                            <span className="text-xs text-muted-foreground">
-                              {task.assignedTo.firstName} {task.assignedTo.lastName}
-                            </span>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  }
-                )}
-                {!lead.tasks?.length && (
-                  <p className="py-8 text-center text-sm text-muted-foreground">
-                    No tasks yet
-                  </p>
-                )}
-              </div>
+            <TabsContent value="tasks">
+              <EntityTaskPanel
+                context={{ leadId: id, label: lead.fullName, href: `/leads/${id}` }}
+                invalidateKeys={[["lead", id]]}
+                defaultAssigneeId={lead.assignedUserId ?? null}
+                emptyText="No tasks on this lead yet."
+              />
             </TabsContent>
 
             <TabsContent value="comms" className="space-y-4">

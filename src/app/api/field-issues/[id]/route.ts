@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db/prisma";
 import { validateBody } from "@/lib/validation/body";
 import { requireJobFieldAccess } from "@/lib/labor/route-helpers";
 import { recordAudit } from "@/lib/audit/record";
+import { updateTask } from "@/lib/tasks/update";
+import { logger } from "@/lib/logger";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -59,24 +61,31 @@ export async function PATCH(request: NextRequest, context: Context) {
     data.resolvedByUserId = ctx.session.user.id;
   }
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const out = await tx.fieldIssue.update({
-      where: { id },
-      data,
-      include: {
-        assignedTo: { select: { id: true, firstName: true, lastName: true } },
-        task: { select: { id: true, status: true } },
-      },
-    });
-    // One-way sync: resolving the issue completes its office task.
-    if (resolving && out.taskId) {
-      await tx.task.update({
-        where: { id: out.taskId },
-        data: { status: "COMPLETED", completedAt: new Date() },
-      });
-    }
-    return out;
+  const updated = await prisma.fieldIssue.update({
+    where: { id },
+    data,
+    include: {
+      assignedTo: { select: { id: true, firstName: true, lastName: true } },
+      task: { select: { id: true, status: true } },
+    },
   });
+
+  // Resolving the issue completes its office task through the normal path so
+  // the task gets a STATUS_CHANGED row and the completion mail — a bare
+  // status flip used to leave the office none the wiser. Access was checked
+  // by requireJobFieldAccess above, so no task-level authorize. Best-effort:
+  // the issue is resolved either way.
+  if (resolving && updated.taskId && updated.task?.status !== "COMPLETED") {
+    try {
+      await updateTask({
+        id: updated.taskId,
+        input: { status: "COMPLETED" },
+        actorUserId: ctx.session.user.id,
+      });
+    } catch (err) {
+      logger.exception(err, { where: "field-issues.resolve", issueId: id, taskId: updated.taskId });
+    }
+  }
 
   if (resolving) {
     await recordAudit({
