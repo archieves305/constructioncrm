@@ -60,6 +60,13 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-09-24 — Task edit + delete (follow-up)
+
+Richard: "I should be able to edit and delete tasks as well." Inline
+title/description editing in the sheet, and a delete with confirmation
+behind `DELETE /api/tasks/[id]` + `canDeleteTask` (office roles or the
+raiser), audited. Browser-QA'd on dev; 482/482 tests.
+
 ### 2026-09-24 — Visual redesign (Stage 3 of 3; deployed `e867c5e`)
 
 Steel-blue brand + tone + five-phase stage tokens in `globals.css`;

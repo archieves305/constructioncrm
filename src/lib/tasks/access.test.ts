@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canEditTask, canViewTask, taskVisibilityFilter } from "./access";
+import { canEditTask, canViewTask, taskVisibilityFilter, canDeleteTask } from "./access";
 
 const task = { assignedUserId: "u-frank", createdByUserId: "u-jo" };
 
@@ -45,5 +45,13 @@ describe("task access", () => {
     expect(taskVisibilityFilter({ id: "u1", role: "SALES_REP" })).toEqual({
       OR: [{ assignedUserId: "u1" }, { createdByUserId: "u1" }],
     });
+  });
+
+  it("delete: office roles always, the raiser yes, the assignee alone no, READ_ONLY never", () => {
+    const task = { assignedUserId: "frank", createdByUserId: "jo" };
+    expect(canDeleteTask({ id: "x", role: "OFFICE_STAFF" }, task)).toBe(true);
+    expect(canDeleteTask({ id: "jo", role: "SALES_REP" }, task)).toBe(true);
+    expect(canDeleteTask({ id: "frank", role: "CREW_LEAD" }, task)).toBe(false);
+    expect(canDeleteTask({ id: "jo", role: "READ_ONLY" }, task)).toBe(false);
   });
 });

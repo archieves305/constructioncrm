@@ -67,6 +67,15 @@ sidebar badge (overdue in red, else open count), field mode (`/field/tasks`
 index, `FieldBottomNav` on `/field` and `/field/tasks*` only — the daily-log
 page owns its own bottom bar — and task chips on job cards).
 
+**Edit and delete (2026-09-24, after Stage 3).** The sheet's pencil opens
+inline title + description editing (⌘↵ saves, Esc cancels) through the
+normal PATCH; "+ Add a description" appears when there is none. The trash
+icon asks first, then `DELETE /api/tasks/[id]` — `canDeleteTask` = office
+roles or the raiser (an assignee cannot delete work put on them; READ_ONLY
+never). Events and watchers cascade, a linked field issue keeps its row
+with `taskId` nulled, and an `AuditEvent` (`Task` / `delete`) holds the
+before-image.
+
 ## Rules
 
 - Only `createTask` creates a task; only `updateTask` changes one. A new

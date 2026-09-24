@@ -21,7 +21,8 @@ import { TaskTimeline, type TimelineEvent, type UserLookup } from "./task-timeli
 import { TaskEntityChip } from "./task-entity-chip";
 import { AutoSourceChip } from "./auto-source-chip";
 import { useSession } from "@/lib/auth/session-client";
-import { canNudgeTask } from "@/lib/tasks/access";
+import { canDeleteTask, canEditTask, canNudgeTask } from "@/lib/tasks/access";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { nudgeCooldownRemainingMs } from "@/lib/tasks/nudge-policy";
 import { Textarea } from "@/components/ui/textarea";
 import { PRIORITY_BADGE_CLASS, STATUS_BADGE_CLASS, STATUS_LABEL, TASK_STATUSES } from "./task-colors";
@@ -29,7 +30,7 @@ import { taskKeys } from "./use-tasks";
 import type { Person, TaskListItem, TaskStatus, UserOption } from "./types";
 import { fetchJson } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
-import { X, Plus, BellRing, AlarmClock } from "lucide-react";
+import { X, Plus, BellRing, AlarmClock, Pencil, Trash2 } from "lucide-react";
 
 type TaskDetail = TaskListItem & {
   completedAt: string | null;
@@ -64,6 +65,10 @@ export function TaskDetailSheet({
   const [addingWatcher, setAddingWatcher] = useState(false);
   const [nudging, setNudging] = useState(false);
   const [nudgeMessage, setNudgeMessage] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const { data: task, isLoading } = useQuery<TaskDetail>({
     queryKey: taskKeys.detail(taskId ?? ""),
@@ -185,6 +190,34 @@ export function TaskDetailSheet({
     onError: (e: Error) => toast.error(e.message || "Could not send that nudge"),
   });
 
+  const remove = useMutation({
+    mutationFn: () => fetchJson<{ ok: true }>(`/api/tasks/${taskId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: taskKeys.all });
+      qc.invalidateQueries({ queryKey: taskKeys.summary });
+      toast.success("Task deleted");
+      setConfirmingDelete(false);
+      onClose();
+    },
+    onError: (e: Error) => toast.error(e.message || "Could not delete that task"),
+  });
+
+  function startEditing() {
+    if (!task) return;
+    setDraftTitle(task.title);
+    setDraftDescription(task.description ?? "");
+    setEditing(true);
+  }
+
+  function saveEdits() {
+    const title = draftTitle.trim();
+    if (!title) return;
+    patch.mutate(
+      { title, description: draftDescription.trim() || null },
+      { onSuccess: () => setEditing(false) },
+    );
+  }
+
   const removeWatcher = useMutation({
     mutationFn: async (userId: string) => {
       const r = await fetch(`/api/tasks/${taskId}/watchers?userId=${userId}`, {
@@ -215,6 +248,9 @@ export function TaskDetailSheet({
     Boolean(task && session?.user && isOpen && task.assignedUserId && task.assignedUserId !== session.user.id) &&
     canNudgeTask(session!.user, { assignedUserId: task!.assignedUserId, createdByUserId: task!.createdByUserId });
   const cooldownMs = task ? nudgeCooldownRemainingMs(task.events) : 0;
+  const ownership = task ? { assignedUserId: task.assignedUserId, createdByUserId: task.createdByUserId } : null;
+  const mayEdit = Boolean(task && session?.user && ownership && canEditTask(session.user, ownership));
+  const mayDelete = Boolean(task && session?.user && ownership && canDeleteTask(session.user, ownership));
   const remindValue = task?.remindAt ? task.remindAt.slice(0, 10) : "";
 
   return (
@@ -225,7 +261,67 @@ export function TaskDetailSheet({
         ) : (
           <>
             <SheetHeader className="border-b px-6 py-4">
-              <SheetTitle className="pr-8 text-base leading-snug">{task.title}</SheetTitle>
+              {editing ? (
+                <div className="space-y-2 pr-8">
+                  <SheetTitle className="sr-only">Edit task</SheetTitle>
+                  <Input
+                    autoFocus
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    className="h-9 text-base font-medium"
+                    aria-label="Task title"
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") saveEdits();
+                      if (e.key === "Escape") setEditing(false);
+                    }}
+                  />
+                  <Textarea
+                    rows={3}
+                    value={draftDescription}
+                    onChange={(e) => setDraftDescription(e.target.value)}
+                    placeholder="Details, links, what done looks like… (optional)"
+                    className="text-sm"
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") saveEdits();
+                    }}
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" disabled={!draftTitle.trim() || patch.isPending} onClick={saveEdits}>
+                      {patch.isPending ? "Saving…" : "Save"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 pr-8">
+                  <SheetTitle className="min-w-0 flex-1 text-base leading-snug">{task.title}</SheetTitle>
+                  {mayEdit && (
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      title="Edit title and description"
+                      aria-label="Edit title and description"
+                      onClick={startEditing}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                  )}
+                  {mayDelete && (
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      title="Delete task"
+                      aria-label="Delete task"
+                      className="text-muted-foreground hover:text-tone-danger-fg"
+                      onClick={() => setConfirmingDelete(true)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 <Badge className={cn("border-0", STATUS_BADGE_CLASS[task.status])}>
                   {STATUS_LABEL[task.status]}
@@ -239,10 +335,19 @@ export function TaskDetailSheet({
             </SheetHeader>
 
             <div className="space-y-5 px-6 py-5">
-              {task.description && (
+              {!editing && task.description && (
                 <p className="whitespace-pre-wrap rounded-md border-l-2 border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                   {task.description}
                 </p>
+              )}
+              {!editing && !task.description && mayEdit && (
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  + Add a description
+                </button>
               )}
 
               {task.status === "BLOCKED" && task.blockedReason && (
@@ -466,6 +571,25 @@ export function TaskDetailSheet({
           </>
         )}
       </SheetContent>
+
+      <Dialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this task?</DialogTitle>
+            <DialogDescription>
+              “{task?.title}” and its notes and history will be removed. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setConfirmingDelete(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" disabled={remove.isPending} onClick={() => remove.mutate()}>
+              {remove.isPending ? "Deleting…" : "Delete task"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }

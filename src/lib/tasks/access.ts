@@ -87,3 +87,17 @@ export function canNudgeTask(
   if (user.role === "READ_ONLY") return false;
   return task.createdByUserId === user.id;
 }
+
+/**
+ * Deleting is narrower than editing: the office roles, or whoever raised the
+ * task. An assignee may finish or hand back work that was put on them, but
+ * not make it disappear.
+ */
+export function canDeleteTask(
+  user: { id: string; role: RoleName },
+  task: TaskOwnership,
+): boolean {
+  if (FULL_ACCESS.has(user.role)) return true;
+  if (user.role === "READ_ONLY") return false;
+  return task.createdByUserId === user.id;
+}
