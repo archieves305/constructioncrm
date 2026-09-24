@@ -3,7 +3,7 @@
 _Stage 1 (model, engine, seeds, Apply, Workflow tab) and Stage 2
 (reconciliation, inspections, versioning, template editor) shipped
 2026-09-24. Stage 3 (jobs-list filters, dashboard, reporting) is planned —
-see the "Not yet" section._
+see "Not yet"._
 
 ## Why
 
@@ -224,8 +224,61 @@ client-side cycle check, evidence, checklist lines with an optional toggle
 condition, permit / any-of / all-of conditions, "replaces a Core step". No
 raw JSON anywhere. Only ADMIN edits; a published version is read-only.
 
-## Not yet (Stage 3)
+## Stage 3 — lists, board, dashboard, reporting (deployed `f332e26`)
 
-Jobs-list workflow filters and columns, the dashboard workflow-health
-widget, workflow reporting (durations by trade and phase, overdue by role,
-blocked by permits/inspections, skipped steps, delay causes).
+**Jobs API.** `GET /api/jobs` builds its `where` through the pure, tested
+`buildJobListWhere` (`src/lib/jobs/query.ts`): the classic `stageId /
+salesRepId / search` plus `workflowTrade` (template key, module not
+removed), `permitStatus` (`UNDETERMINED | REQUIRED | NOT_REQUIRED | NONE`
+— NONE = no workflow), `phaseKey` (full key; jobs with active open work in
+that phase), `workflowBlocked` (a BLOCKED step), `workflowOverdue` and
+`workflowUnassigned` (active open steps). SALES_REP scoping is applied
+inside the same function. `withWorkflow=true` — implied by any workflow
+filter — attaches `job.workflow` (or `null`) from
+`lib/workflows/summary.ts`: `trades`, `permitStatus`, `currentPhase`
+(lowest band with active work, else lowest waiting band), `total / done /
+skipped / open / ready / blocked / failedInspections / overdue /
+unassigned / percentComplete`. Three queries per page whatever the size
+(instances + modules, open step rows, a status groupBy for closed
+tallies). `/api/workflow-templates` now returns each published version's
+`phases` so the Phase filter has options.
+
+**UI.** Jobs list: a Workflow filter row (trade, permit, phase, Blocked /
+Overdue / Unassigned toggles, seeded from the URL so
+`/jobs?workflowBlocked=1` works as a deep link), a Phase column (phase ·
+% · issue chips, linking to the Workflow tab), the workflow permit pill
+next to the JobPermit badge, and seven CSV columns. Production-board
+card: phase, %, issue chips. Dashboard: `WorkflowHealthWidget`
+(`components/dashboard/`) from `GET /api/reports?type=workflow-health` —
+six tiles that each link to the filtered jobs list, plus the five jobs
+with the highest `blocked×3 + overdue×2 + unassigned`. Shared pieces in
+`components/workflows/job-workflow-summary.tsx`.
+
+**Reporting.** `GET /api/reports?type=workflow` (`dateFrom/dateTo` filter
+workflows by `appliedAt`) delegates to `lib/workflows/reports.ts`, pure
+functions over a flat task projection:
+`durationsByTrade` / `durationsByPhase` (per-step active time
+`completedAt − activatedAt` in calendar days, avg / median / p90; phases
+also get whole-phase cycle time once every step has closed),
+`overdueByRole`, `stalledSteps` (BLOCKED + overdue active steps,
+classified by `classifyDelayCause` in priority order: FAILED_INSPECTION →
+PERMIT_UNDETERMINED (open determine step while UNDETERMINED) → PERMIT
+(permit evidence, Permitting band or "permit" in the key) → INSPECTION →
+PAYMENT → PROCUREMENT → UNASSIGNED → OTHER), `leadTimes` (job created →
+applied; applied → `core:confirm_production_start`, also by trade; permit
+decided → first PERMIT_NUMBER / `confirm_permit_issued` step) and
+`mostSkipped` (people's skips ranked ahead of `ENGINE_SKIP_PREFIX` ones).
+The reports page gets a Workflow section (single-hue horizontal bars, a
+table under every chart, stat tiles for lead times, the stalled list) and
+the export gains nine CSV sections.
+
+**Permissions** (`access.ts`, explicit): `canViewWorkflowReports` = ADMIN,
+MANAGER, OFFICE_STAFF, READ_ONLY (403 otherwise; the section hides
+itself). `workflowHealthScope`: the same roles see the company, everyone
+else sees the jobs they sell or manage.
+
+## Not yet
+
+Nothing scheduled. Candidates if asked: business-day durations in the
+report, a per-user "my steps" view of the health widget, phase gantt on
+the job.

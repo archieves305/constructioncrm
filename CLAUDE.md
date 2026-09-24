@@ -60,6 +60,24 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-09-24 — Trade Workflow Templates, Stage 3 (deployed)
+
+Jobs API filters through a pure `buildJobListWhere` (`lib/jobs/query.ts`:
+`workflowTrade`, `permitStatus` incl. `NONE`, `phaseKey`,
+`workflowBlocked/Overdue/Unassigned`) and `withWorkflow=true` per-job
+summaries (`lib/workflows/summary.ts`, three queries a page). Jobs list:
+Workflow filter row (URL-seeded), Phase column, permit pill, 7 CSV
+columns; board card: phase + chips; dashboard `WorkflowHealthWidget`
+(`?type=workflow-health`, own-jobs scope for non-office roles). Reporting:
+`?type=workflow` → `lib/workflows/reports.ts` (durations by trade/phase +
+phase cycle time, overdue by role, stalled steps via `classifyDelayCause`,
+lead times, most-skipped people-vs-engine); Workflow section on /reports
+with CSV. Explicit role list `canViewWorkflowReports` (ADMIN, MANAGER,
+OFFICE_STAFF, READ_ONLY). Headless-Chromium QA on dev (Chrome tool refuses
+to set the dev cookie). 604/604 tests, lint 6/29. **Deployed `f332e26`**
+(no migration; build `W3SSiv0mXjZ3bx9g0kTOU`). Details:
+[features/workflows.md](docs/project-memory/features/workflows.md).
+
 ### 2026-09-24 — Trade Workflow Templates, Stage 2 (deployed)
 
 One reconcile engine for every re-plan (`ReconcileChange`: permit decide
@@ -339,19 +357,15 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Trade Workflow Templates Stages 1 and 2 are deployed. Build **Stage 3**
-> per `docs/project-memory/features/workflows.md` ("Not yet"): `/api/jobs`
-> params `workflowTrade`, `permitStatus`, `phaseKey`, `workflowBlocked`,
-> `workflowOverdue`, `workflowUnassigned` via a pure, tested
-> `buildJobListWhere` in `src/lib/jobs/query.ts`, plus `withWorkflow=true`
-> returning trades / permit status / current phase / blocked / overdue /
-> unassigned per job; jobs-list filters, Phase cell, permit pill and CSV
-> columns; production-board card phase + blocked chip; a dashboard
-> `workflow-health-widget` from `GET /api/reports?type=workflow-health`;
-> `GET /api/reports?type=workflow` delegating to
-> `src/lib/workflows/reports.ts` (durations by trade and phase, overdue by
-> role, blocked by permits/inspections, lead times, most-skipped steps,
-> `classifyDelayCause`) with a Workflow section on the reports page (load
-> the `dataviz` skill before charting) and CSV export. Same rules: explicit
-> role lists, tests + typecheck + build green, lint ≤ 6/29, deploy with
+> Trade Workflow Templates Stages 1–3 are all deployed (`f332e26`). The
+> workflow feature is complete; what remains there is Richard's own
+> click-through on prod and any tuning that produces. Next candidate from
+> §3: **Progress billing Stage 2** — on a PROGRESS job an approved change
+> order adds an SOV line (with its own scheduled value) instead of raising
+> a separate invoice, so the next payment application bills it through
+> completed-to-date; keep the G702 maths (`completed × (1 − retainage) −
+> previous certificates`), only the latest application editable/voidable,
+> the same explicit role list as expense approval, a tested pure function
+> for the SOV mutation, and JOB-00009 as the pressure test. Same rules:
+> tests + typecheck + build green, lint ≤ 6/29, deploy with
 > `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

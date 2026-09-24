@@ -6,6 +6,35 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 
 
+## 2026-09-24 — Trade Workflow Templates, Stage 3
+
+New: `src/lib/jobs/query.ts` (+test) — `parseJobListParams`,
+`buildJobListWhere`, `hasWorkflowFilter`; `src/lib/workflows/summary.ts`
+(+test) — `summarizeInstance` pure, `loadJobWorkflowSummaries` three
+queries per page; `src/lib/workflows/reports.ts` (+test) —
+`durationStats`, `durationsByTrade/Phase`, `overdueByRole`,
+`classifyDelayCause`, `stalledSteps`, `leadTimes`, `mostSkipped`,
+`buildWorkflowReport`, `buildWorkflowHealth`, loaders;
+`components/workflows/job-workflow-summary.tsx` (pill, chips, phase
+cell); `components/dashboard/workflow-health-widget.tsx`;
+`components/reports/workflow-report-section.tsx` (dataviz-skill rules:
+one hue per measure, hairline solid grid, rounded bar ends, tooltip on
+every mark, table under every chart; the two-series stalled chart uses
+the validated slot-1/slot-2 pair with a legend). Changed: `/api/jobs`,
+`/api/reports` (`workflow`, `workflow-health`), `/api/workflow-templates`
+(`phases`), jobs page, production page + `JobBoardCard`, dashboard page,
+reports page (also moved its two fetches onto `fetchJson`),
+`workflows/access.ts` (`canViewWorkflowReports`, `workflowHealthScope`).
+
+QA on dev: API probes for every filter and both report types; screenshots
+of jobs, filtered jobs, board, dashboard and the Workflow section via
+headless Chromium (`playwright-core` + the cached
+`chromium_headless_shell-1228`, cookie via `addCookies`) because the
+Chrome tool blocks `document.cookie`; as `john.rep` the report 403s and
+the widget scopes to his one job. Lint stayed 6/29 (one new `_score`
+warning fixed). 604 tests, build clean. Deployed `f332e26` (no
+migration, build `W3SSiv0mXjZ3bx9g0kTOU`).
+
 ## 2026-09-24 — Trade Workflow Templates, Stage 2
 
 `reconcile.ts` rewritten as the generic engine (`build` → `diff` →
