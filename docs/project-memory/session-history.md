@@ -24,7 +24,7 @@ import `lib/workflows/role-labels` and `slug`, never the Prisma-backed
 modules. API QA on dev: permit flip both ways (8 added / 37 skipped, then
 37 reinstated / 8 skipped), Core refusal, cycle message with titles,
 draft → validate (cycle caught) → publish v2 → job upgrade adds the one
-new step. 579 tests, lint 6/29.
+new step. 579 tests, lint 6/29. Deployed `5528cba` (no migration).
 
 ## 2026-09-24 — Trade Workflow Templates, Stage 1
 

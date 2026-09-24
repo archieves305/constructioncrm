@@ -75,7 +75,8 @@ when its corrections close. Versioning: drafts, collected validation with
 Template Library editor (`/admin/workflow-templates/[id]`) with sortable
 phases and steps, a full step sheet and a client-side cycle check — no
 raw JSON. Manual dependencies route. QA found one defect (reopen waited on
-ordinary predecessors) — fixed. 579/579 tests, lint 6/29.
+ordinary predecessors) — fixed. 579/579 tests, lint 6/29. **Deployed
+`5528cba`** (no migration; build `0SgZtTjvxkoK30iIR74tF`).
 
 ### 2026-09-24 — Trade Workflow Templates, Stage 1 (deployed)
 
@@ -338,15 +339,19 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Trade Workflow Templates Stage 1 is deployed and seeded on prod. Build
-> **Stage 2** per the plan in
-> `docs/project-memory/features/workflows.md` ("Not yet"): full
-> `reconcile.ts` (permit REQUIRED↔NOT_REQUIRED with a reason, add/remove
-> trade, version upgrade — each with a preview that lists To add / To skip
-> / Kept, never deleting completed or manual tasks), `inspections.ts`
-> (PASS / FAIL / CONDITIONAL, correction tasks, re-request), template
-> versioning (`createDraft`, `validateVersion`, `publishVersion`) and the
-> Workflow Template Library editor at `/admin/workflow-templates/[id]`
-> with no raw JSON. Keep every task write through `createTask`/`updateTask`,
-> explicit role lists, tests + typecheck + build green, lint ≤ 6/29, deploy
-> with `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
+> Trade Workflow Templates Stages 1 and 2 are deployed. Build **Stage 3**
+> per `docs/project-memory/features/workflows.md` ("Not yet"): `/api/jobs`
+> params `workflowTrade`, `permitStatus`, `phaseKey`, `workflowBlocked`,
+> `workflowOverdue`, `workflowUnassigned` via a pure, tested
+> `buildJobListWhere` in `src/lib/jobs/query.ts`, plus `withWorkflow=true`
+> returning trades / permit status / current phase / blocked / overdue /
+> unassigned per job; jobs-list filters, Phase cell, permit pill and CSV
+> columns; production-board card phase + blocked chip; a dashboard
+> `workflow-health-widget` from `GET /api/reports?type=workflow-health`;
+> `GET /api/reports?type=workflow` delegating to
+> `src/lib/workflows/reports.ts` (durations by trade and phase, overdue by
+> role, blocked by permits/inspections, lead times, most-skipped steps,
+> `classifyDelayCause`) with a Workflow section on the reports page (load
+> the `dataviz` skill before charting) and CSV export. Same rules: explicit
+> role lists, tests + typecheck + build green, lint ≤ 6/29, deploy with
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
