@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
         source: true,
         assignedUser: { select: { id: true, firstName: true, lastName: true } },
         services: { include: { serviceCategory: true } },
+        stageHistory: { orderBy: { changedAt: "desc" }, take: 1, select: { changedAt: true } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,

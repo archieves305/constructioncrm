@@ -1,8 +1,21 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState } from "react";
+import { EntityHeader } from "@/components/shared/entity-header";
+import { StageStepper } from "@/components/shared/stage-stepper";
+import { Progress } from "@/components/ui/progress";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { KpiCard } from "@/components/dashboard/kpi-card";
+import { toneClasses } from "@/lib/ui/tones";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -23,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  ArrowLeft, DollarSign, MapPin, User, Calendar, Hammer, Shield, ClipboardCheck,
+  DollarSign, MapPin, User, Calendar, Hammer, Shield, ClipboardCheck, MoreHorizontal, CornerDownRight, Copy, ExternalLink, Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { FilesPanel } from "@/components/files/files-panel";
@@ -42,6 +55,19 @@ export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  // Fourteen tabs in one strip never fit; they are grouped, and the URL owns
+  // which group + sub-panel is open so links from email keep landing.
+  const tab = searchParams.get("tab") ?? "money";
+  const sub = searchParams.get("sub") ?? "";
+  function setTab(nextTab: string, nextSub?: string) {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("tab", nextTab);
+    if (nextSub) next.set("sub", nextSub);
+    else next.delete("sub");
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }
 
   const {
     data: job,
@@ -251,44 +277,68 @@ export default function JobDetailPage() {
 
   return (
     <div>
-      <Button variant="ghost" size="sm" onClick={() => router.push("/jobs")} className="mb-4">
-        <ArrowLeft className="mr-1 h-4 w-4" /> Back to Jobs
-      </Button>
-
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{job.jobNumber}</h1>
-            <Badge variant="outline" className="text-sm">{job.currentStage.name}</Badge>
-          </div>
-          <p className="text-muted-foreground text-sm mt-1">{job.title}</p>
-          <Link href={`/leads/${job.lead.id}`} className="text-xs text-blue-600 hover:underline">
-            View lead: {job.lead.fullName}
-          </Link>
-        </div>
-        <div className="flex gap-2 items-center">
-          {job.nextAction && (
-            <span className="text-sm text-amber-700 bg-amber-50 px-3 py-1 rounded-md font-medium">
-              Next: {job.nextAction}
-            </span>
-          )}
-          <Select value={job.currentStage.id} onValueChange={(v: string | null) => v && changeStage.mutate(v)}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue>
-                {(v: string) =>
-                  stages?.find((s: { id: string; name: string }) => s.id === v)?.name ??
-                  job.currentStage.name
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {stages?.map((s: { id: string; name: string }) => (
-                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <EntityHeader
+        breadcrumb={[{ label: "Jobs", href: "/jobs" }, { label: job.jobNumber }]}
+        title={job.jobNumber}
+        subtitle={
+          <>
+            {job.title}
+            {" · "}
+            <Link href={`/leads/${job.lead.id}`} className="text-brand-fg hover:underline">
+              {job.lead.fullName}
+            </Link>
+          </>
+        }
+        badges={
+          <Badge variant="outline" className="text-xs">
+            {job.jobType === "COST_PLUS" ? "Cost-plus" : job.jobType === "OWNED_REHAB" ? "Owned rehab" : "Fixed price"}
+          </Badge>
+        }
+        actions={
+          <>
+            {job.nextAction && (
+              <span className="inline-flex max-w-md items-center gap-1.5 rounded-md bg-tone-warning-soft px-3 py-1.5 text-sm font-medium text-tone-warning-fg">
+                <CornerDownRight className="size-3.5 shrink-0" />
+                <span className="truncate">{job.nextAction}</span>
+              </span>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More actions" />}>
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => router.push(`/leads/${job.lead.id}`)}>
+                  <ExternalLink className="size-4" /> Open lead
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTab("money", "payments")}>
+                  <Wallet className="size-4" /> Record payment
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(job.jobNumber);
+                    toast.success("Job number copied");
+                  }}
+                >
+                  <Copy className="size-4" /> Copy job number
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setTab("history")}>Stage history</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      >
+        {stages && (
+          <StageStepper
+            stages={stages}
+            currentStageId={job.currentStage.id}
+            entityLabel={job.jobNumber}
+            disabled={changeStage.isPending}
+            onChange={(stageId) => changeStage.mutate(stageId)}
+            confirmNote={() => "Moving a job runs its stage templates: new tasks may be raised and the next action updated."}
+          />
+        )}
+      </EntityHeader>
 
       {/* Financial summary cards */}
       {job.jobType === "OWNED_REHAB" ? (
@@ -341,46 +391,30 @@ export default function JobDetailPage() {
         </div>
       ) : (
       <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <DollarSign className="h-4 w-4" />
-              {job.jobType === "COST_PLUS" ? "Contract (cost-plus)" : "Contract"}
-            </div>
-            <div className="text-2xl font-bold">${Number(job.contractAmount).toLocaleString()}</div>
-            {job.jobType === "COST_PLUS" && (
-              <div className="text-[11px] text-muted-foreground mt-1">
-                Labor ${Number(job.laborCost ?? 0).toLocaleString()} + expenses + margin
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><DollarSign className="h-4 w-4" /> Deposit</div>
-            <div className="text-2xl font-bold">${Number(job.depositReceived).toLocaleString()}</div>
-            <div className="flex items-center gap-2 mt-1">
-              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full ${depositPct >= 100 ? "bg-green-500" : "bg-amber-500"}`} style={{ width: `${Math.min(depositPct, 100)}%` }} />
-              </div>
-              <span className="text-xs text-muted-foreground">{depositPct}%</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><DollarSign className="h-4 w-4" /> Total Paid</div>
-            <div className="text-2xl font-bold text-green-600">${totalPaid.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><DollarSign className="h-4 w-4" /> Balance Due</div>
-            <div className={`text-2xl font-bold ${Number(job.balanceDue) > 0 ? "text-red-600" : "text-green-600"}`}>
-              ${Number(job.balanceDue).toLocaleString()}
-            </div>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title={job.jobType === "COST_PLUS" ? "Contract (cost-plus)" : "Contract"}
+          value={`$${Number(job.contractAmount).toLocaleString()}`}
+          icon={DollarSign}
+          description={job.jobType === "COST_PLUS" ? `Labor $${Number(job.laborCost ?? 0).toLocaleString()} + expenses + margin` : undefined}
+        />
+        <KpiCard title="Deposit" value={`$${Number(job.depositReceived).toLocaleString()}`} icon={DollarSign}>
+          <div className="mt-2 flex items-center gap-2">
+            <Progress
+              value={depositPct}
+              className="h-1.5 flex-1"
+              indicatorClassName={depositPct >= 100 ? toneClasses("success").dot : toneClasses("warning").dot}
+              label={`Deposit ${depositPct}%`}
+            />
+            <span className="text-xs tabular-nums text-muted-foreground">{depositPct}%</span>
+          </div>
+        </KpiCard>
+        <KpiCard title="Total Paid" value={`$${totalPaid.toLocaleString()}`} icon={DollarSign} tone="success" />
+        <KpiCard
+          title="Balance Due"
+          value={`$${Number(job.balanceDue).toLocaleString()}`}
+          icon={DollarSign}
+          tone={Number(job.balanceDue) > 0 ? "danger" : "success"}
+        />
       </div>
       )}
 
@@ -440,24 +474,67 @@ export default function JobDetailPage() {
 
         {/* Right column: tabs */}
         <div className="lg:col-span-2">
-          <Tabs defaultValue="payments">
-            <TabsList>
-              <TabsTrigger value="payments">Payments ({job.payments?.length || 0})</TabsTrigger>
-              <TabsTrigger value="invoices">Invoices</TabsTrigger>
-              <TabsTrigger value="expenses">Expenses</TabsTrigger>
-              <TabsTrigger value="labor">Labor</TabsTrigger>
-              <TabsTrigger value="change-orders">Change Orders</TabsTrigger>
-              <TabsTrigger value="permits">Permits ({job.permits?.length || 0})</TabsTrigger>
-              <TabsTrigger value="crews">Crews</TabsTrigger>
-              <TabsTrigger value="daily-logs">Daily Logs</TabsTrigger>
-              <TabsTrigger value="photos">Photos</TabsTrigger>
-              <TabsTrigger value="inspections">Inspections</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks ({jobTasks.length})</TabsTrigger>
-              <TabsTrigger value="files">Files</TabsTrigger>
-              {job.jobType === "OWNED_REHAB" && (
-                <TabsTrigger value="budget">Budget</TabsTrigger>
+          {(() => {
+            const MONEY = [
+              { value: "payments", label: `Payments (${job.payments?.length || 0})` },
+              { value: "invoices", label: "Invoices" },
+              { value: "expenses", label: "Expenses" },
+              { value: "change-orders", label: "Change orders" },
+              ...(job.jobType === "OWNED_REHAB" ? [{ value: "budget", label: "Budget" }] : []),
+            ];
+            const FIELD = [
+              { value: "labor", label: "Labor" },
+              { value: "crews", label: "Crews" },
+              { value: "daily-logs", label: "Daily logs" },
+              { value: "photos", label: "Photos" },
+              { value: "inspections", label: "Inspections" },
+            ];
+            const overdueTasks = jobTasks.filter(
+              (t) => t.dueAt && new Date(t.dueAt) < new Date() && t.status !== "COMPLETED" && t.status !== "CANCELLED",
+            ).length;
+            const group = tab;
+            const panel =
+              group === "money" ? (MONEY.some((m) => m.value === sub) ? sub : "payments")
+              : group === "field" ? (FIELD.some((f) => f.value === sub) ? sub : "labor")
+              : group;
+            const count = (n: number, tone?: "danger") => (
+              <span className={`ml-1 rounded-full px-1.5 text-[11px] tabular-nums ${tone === "danger" ? "bg-tone-danger-soft text-tone-danger-fg" : "bg-gray-100 text-gray-600"}`}>{n}</span>
+            );
+            return (
+          <Tabs value={panel} onValueChange={(v) => { if (v) setTab(group, group === "money" || group === "field" ? String(v) : undefined); }}>
+            <div className="mb-4 space-y-3">
+              <div className="flex flex-wrap items-center gap-1 border-b">
+                {[
+                  { value: "money", label: "Money" },
+                  { value: "field", label: "Field" },
+                  { value: "permits", label: <>Permits{count(job.permits?.length || 0)}</> },
+                  { value: "tasks", label: <>Tasks{overdueTasks > 0 ? count(overdueTasks, "danger") : count(jobTasks.length)}</> },
+                  { value: "files", label: "Files" },
+                  { value: "history", label: "History" },
+                ].map((g) => (
+                  <button
+                    key={g.value}
+                    type="button"
+                    onClick={() => setTab(g.value, g.value === "money" ? (MONEY.some((m) => m.value === sub) ? sub : "payments") : g.value === "field" ? (FIELD.some((f) => f.value === sub) ? sub : "labor") : undefined)}
+                    className={`-mb-px inline-flex h-9 items-center border-b-2 px-3 text-sm font-medium transition-colors ${
+                      group === g.value ? "border-brand text-gray-900" : "border-transparent text-gray-500 hover:text-gray-900"
+                    }`}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+              {group === "money" && (
+                <SegmentedControl ariaLabel="Money" value={panel} onValueChange={(v) => setTab("money", v)} options={MONEY} />
               )}
-              <TabsTrigger value="history">History</TabsTrigger>
+              {group === "field" && (
+                <SegmentedControl ariaLabel="Field" value={panel} onValueChange={(v) => setTab("field", v)} options={FIELD} />
+              )}
+            </div>
+            <TabsList className="hidden">
+              {[...MONEY, ...FIELD, { value: "permits" }, { value: "tasks" }, { value: "files" }, { value: "history" }].map((t) => (
+                <TabsTrigger key={t.value} value={t.value}>{t.value}</TabsTrigger>
+              ))}
             </TabsList>
 
             <TabsContent value="payments" className="space-y-4">
@@ -821,6 +898,8 @@ export default function JobDetailPage() {
               ))}
             </TabsContent>
           </Tabs>
+            );
+          })()}
         </div>
       </div>
     </div>

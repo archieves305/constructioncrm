@@ -11,9 +11,19 @@ interface KpiCardProps {
   trend?: { value: number; positive: boolean };
   /** Makes the whole tile a link — a number people want to act on should go somewhere. */
   href?: string;
+  /** Colour the value. */
+  tone?: "success" | "danger" | "warning";
+  /** Rendered under the value — a progress bar, a sub-line. */
+  children?: React.ReactNode;
 }
 
-export function KpiCard({ title, value, description, icon: Icon, trend, href }: KpiCardProps) {
+const VALUE_TONE = {
+  success: "text-tone-success-fg",
+  danger: "text-tone-danger-fg",
+  warning: "text-tone-warning-fg",
+} as const;
+
+export function KpiCard({ title, value, description, icon: Icon, trend, href, tone, children }: KpiCardProps) {
   const card = (
     <Card className={cn(href && "h-full transition-shadow hover:shadow-md hover:ring-1 hover:ring-gray-300")}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -23,7 +33,8 @@ export function KpiCard({ title, value, description, icon: Icon, trend, href }: 
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className={cn("text-2xl font-bold tabular-nums", tone && VALUE_TONE[tone])}>{value}</div>
+        {children}
         {description && (
           <p className="text-xs text-muted-foreground">{description}</p>
         )}

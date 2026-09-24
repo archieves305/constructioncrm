@@ -4,6 +4,26 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 ---
 
+## 2026-09-24 (later still) — Visual redesign (Stage 3 of 3)
+
+See [features/design-system.md](features/design-system.md) for the shape
+and the gotchas. Order of work: tokens + primitives (no page impact) →
+kanban kit + `/production` + `/pipeline` → tasks board on the kit + tasks
+header polish + brand sidebar → `EntityHeader` + `StageStepper` + grouped
+job tabs, lead detail header → jobs and leads lists.
+
+Found while doing it: the shadcn CLI (base-nova) added a bogus `cn` npm
+dependency and imported `cn` from it — reverted; `next build` running
+alongside `next dev` served a token-less stale CSS bundle until dev was
+restarted; overriding `onKeyDown` on a dnd-kit draggable silently disables
+keyboard drag (chained now); the old `/production` allow-list hid three
+stages. Browser QA on dev: boards render with phase colours and aggregates,
+keyboard drag moves a lead and back (mouse drag could not be exercised by
+the automation tool), job detail deep-links to `?tab=money&sub=invoices`,
+lists and lead detail render. Lint 6/29, 481+ tests, typecheck/build clean.
+
+---
+
 ## 2026-09-24 (later) — Task email follow-up (Stage 2 of 3)
 
 Built straight after Stage 1 deployed. See

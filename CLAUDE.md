@@ -32,8 +32,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (`ebf1988`, BUILD_ID `TIVSTNlHVR4hHEDg5rmdU`, migration
    `20260924120000_task_entity_links` applied). **Stage 2 (email
    follow-up) deployed 2026-09-24** (`4b6021d`, BUILD_ID
-   `YehfWHd9zfW9-YxNcwwzN`; escalations stay off until SPF exists). Then
-   Stage 3 (kanban kit, stage colours, job detail header/stepper/tab
+   `YehfWHd9zfW9-YxNcwwzN`; escalations stay off until SPF exists).
+   **Stage 3 (visual redesign) built 2026-09-24**, awaiting deploy —
+   [features/design-system.md](docs/project-memory/features/design-system.md).
+   Was: Stage 3 (kanban kit, stage colours, job detail header/stepper/tab
    groups, list polish). Plan: `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`;
    notes: [features/tasks.md](docs/project-memory/features/tasks.md).
 1. 🔴 **Progress billing** — deployed + JOB-00009 backfilled 2026-08-27;
@@ -55,6 +57,22 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-24 — Visual redesign (Stage 3 of 3; built)
+
+Steel-blue brand + tone + five-phase stage tokens in `globals.css`;
+`lib/ui/stage-colors.ts` derives a stage's colour from its order (tested);
+`components/kanban/*` replaces the three hand-rolled boards (`/production`
+now shows every DB stage, `/pipeline`, the tasks board) with mouse, touch
+and keyboard drag and per-board collapsed columns; `EntityHeader` +
+`StageStepper` (confirm dialog) on job and lead detail; job tabs grouped
+into Money · Field · Permits · Tasks · Files · History with `?tab&sub` in
+the URL; jobs and leads lists on `StagePillSelect`, `Progress`,
+`PermitBadge`, avatars, sticky headers, skeleton and empty states; tasks
+page header with summary pills, segmented view toggle, filter drawer, brand
+"New task" with an `n` shortcut. New primitives: progress, skeleton,
+segmented-control, dropdown-menu (shadcn), empty-state. Details:
+[features/design-system.md](docs/project-memory/features/design-system.md).
 
 ### 2026-09-24 — Task email follow-up (Stage 2 of 3; deployed `4b6021d`)
 
@@ -170,7 +188,7 @@ Full list: [known-issues.md](docs/project-memory/known-issues.md).
   and the `/api/integrations/` proxy exemption.
 - Dead code: `lockout*`, `password-policy`, `admin/users` password path,
   `next-auth` in package.json.
-- **Lint baseline: 6 errors / 28 warnings**, all pre-existing.
+- **Lint baseline: 6 errors / 29 warnings**, all pre-existing.
 - Lead detail, jobs list and leads list still fetch `/api/admin/users`
   (ADMIN/MANAGER only) for their assignment dropdowns — empty for other
   roles. Task pickers moved to `/api/users/assignable`; these did not.

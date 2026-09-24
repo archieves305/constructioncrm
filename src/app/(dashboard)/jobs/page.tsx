@@ -17,18 +17,15 @@ import { Search, Download, ListChecks, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
-
-const stageColors: Record<string, string> = {
-  "Won": "bg-green-100 text-green-800",
-  "Deposit Needed": "bg-amber-100 text-amber-800",
-  "Financing Cleared": "bg-blue-100 text-blue-800",
-  "Permit Submitted": "bg-purple-100 text-purple-800",
-  "Permit Approved": "bg-teal-100 text-teal-800",
-  "Scheduled": "bg-indigo-100 text-indigo-800",
-  "In Progress": "bg-cyan-100 text-cyan-800",
-  "Final Payment Due": "bg-orange-100 text-orange-800",
-  "Closed": "bg-gray-100 text-gray-800",
-};
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
+import { StagePillSelect } from "@/components/shared/stage-pill-select";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { TaskCountBadge } from "@/components/tasks/task-count-badge";
+import { PermitBadge } from "@/components/jobs/permit-badge";
+import { Briefcase } from "lucide-react";
 
 const ASSIGNABLE_ROLES = new Set(["ADMIN", "MANAGER", "SALES_REP"]);
 const UNASSIGN_VALUE = "__unassigned";
@@ -100,7 +97,7 @@ export default function JobsPage() {
     retry: retryServerErrors,
   });
 
-  const { data: stages } = useQuery<{ id: string; name: string }[]>({
+  const { data: stages } = useQuery<{ id: string; name: string; stageOrder: number; isClosed?: boolean; isWon?: boolean; isLost?: boolean }[]>({
     queryKey: ["jobStages"],
     queryFn: () => fetchJson("/api/jobs/stages"),
     retry: retryServerErrors,
@@ -398,17 +395,12 @@ export default function JobsPage() {
         </div>
       )}
 
-      <div className="rounded-md border bg-white">
-        <Table>
-          <TableHeader>
+      <div className="rounded-lg border bg-white">
+        <Table containerClassName="max-h-[calc(100dvh-16rem)]">
+          <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-white">
             <TableRow>
               <TableHead className="w-8">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  aria-label="Select all on page"
-                />
+                <Checkbox checked={allSelected} onCheckedChange={() => toggleAll()} aria-label="Select all on page" />
               </TableHead>
               <TableHead>Job #</TableHead>
               <TableHead>Customer</TableHead>
@@ -424,7 +416,13 @@ export default function JobsPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">Loading...</TableCell></TableRow>
+              Array.from({ length: 6 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={11} className="py-2">
+                    <Skeleton className="h-8 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))
             ) : jobsError ? (
               // "No jobs found" for a failed request made the connection
               // exhaustion outage look like every job had been deleted.
@@ -448,7 +446,11 @@ export default function JobsPage() {
                 </TableCell>
               </TableRow>
             ) : !data?.data?.length ? (
-              <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">No jobs found</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={11}>
+                  <EmptyState icon={Briefcase} title="No jobs match" description="Try clearing a filter, or win a lead to start a job." />
+                </TableCell>
+              </TableRow>
             ) : (
               data.data.map((job) => {
                 const depositPct = Number(job.depositRequired) > 0
@@ -462,70 +464,35 @@ export default function JobsPage() {
                 return (
                   <TableRow
                     key={job.id}
-                    className={`cursor-pointer hover:bg-gray-50 ${
-                      selected.has(job.id) ? "bg-blue-50/50" : ""
+                    className={`h-12 cursor-pointer hover:bg-gray-50 ${
+                      selected.has(job.id) ? "bg-brand-soft/60" : ""
                     }`}
                     onClick={() => router.push(`/jobs/${job.id}`)}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selected.has(job.id)}
-                        onChange={() => toggleRow(job.id)}
+                        onCheckedChange={() => toggleRow(job.id)}
                         aria-label={`Select ${job.jobNumber}`}
                       />
                     </TableCell>
                     <TableCell className="font-mono text-sm font-medium">{job.jobNumber}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <div>
-                          <div className="font-medium text-sm">{job.lead.fullName}</div>
-                          <div className="text-xs text-muted-foreground">{job.lead.propertyAddress1}, {job.lead.city}</div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">{job.lead.fullName}</div>
+                          <div className="truncate text-xs text-muted-foreground">{job.lead.propertyAddress1}, {job.lead.city}</div>
                         </div>
-                        {taskCount > 0 && (
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] px-1 py-0 ${
-                              overdueTasks > 0
-                                ? "border-red-500 text-red-700"
-                                : "border-blue-300 text-blue-700"
-                            }`}
-                            title={
-                              overdueTasks > 0
-                                ? `${overdueTasks} overdue, ${taskCount} total open`
-                                : `${taskCount} open task${taskCount === 1 ? "" : "s"}`
-                            }
-                          >
-                            {overdueTasks > 0 ? `⚠ ${overdueTasks}/${taskCount}` : `${taskCount}`} task{taskCount === 1 ? "" : "s"}
-                          </Badge>
-                        )}
+                        <TaskCountBadge open={taskCount} overdue={overdueTasks} compact />
                       </div>
                     </TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{job.serviceType}</Badge></TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select
+                      <StagePillSelect
                         value={job.currentStageId}
-                        onValueChange={(v: string | null) => {
-                          if (v && v !== job.currentStageId) {
-                            changeStage.mutate({ jobId: job.id, stageId: v });
-                          }
-                        }}
-                      >
-                        <SelectTrigger
-                          className={`h-7 w-[170px] text-xs border-0 ${stageColors[job.currentStage.name] || "bg-gray-100"}`}
-                        >
-                          <SelectValue>
-                            {(v: string) =>
-                              stages?.find((s) => s.id === v)?.name ?? job.currentStage.name
-                            }
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {stages?.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        stages={stages ?? []}
+                        onChange={(stageId) => changeStage.mutate({ jobId: job.id, stageId })}
+                      />
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       <div>${Number(job.contractAmount).toLocaleString()}</div>
@@ -537,28 +504,27 @@ export default function JobsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-12 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${depositPct >= 100 ? "bg-green-500" : "bg-amber-500"}`} style={{ width: `${Math.min(depositPct, 100)}%` }} />
-                        </div>
-                        <span className="text-xs text-muted-foreground">{depositPct}%</span>
+                      <div className="flex items-center gap-2">
+                        <Progress
+                          value={depositPct}
+                          className="h-1.5 w-16"
+                          indicatorClassName={depositPct >= 100 ? "bg-tone-success" : "bg-tone-warning"}
+                          label={`Deposit ${depositPct}%`}
+                        />
+                        <span className="text-xs tabular-nums text-muted-foreground">{depositPct}%</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {hasPermit ? (
-                        <Badge variant="outline" className="text-[10px]">{permitStatus}</Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                      <PermitBadge status={hasPermit ? permitStatus : null} />
                     </TableCell>
-                    <TableCell className="text-right">
-                      <span className={Number(job.balanceDue) > 0 ? "font-medium" : "text-green-600"}>
+                    <TableCell className="text-right tabular-nums">
+                      <span className={Number(job.balanceDue) > 0 ? "font-medium" : "text-tone-success-fg"}>
                         ${Number(job.balanceDue).toLocaleString()}
                       </span>
                     </TableCell>
                     <TableCell>
                       {job.nextAction ? (
-                        <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded">{job.nextAction}</span>
+                        <span className="inline-block max-w-[220px] truncate rounded-md bg-tone-warning-soft px-2 py-0.5 text-xs text-tone-warning-fg" title={job.nextAction}>{job.nextAction}</span>
                       ) : "—"}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
@@ -571,16 +537,16 @@ export default function JobsPage() {
                           }
                         }}
                       >
-                        <SelectTrigger className="h-7 w-[150px] text-xs">
+                        <SelectTrigger className="h-7 w-[160px] text-xs">
                           <SelectValue>
                             {(v: string) => {
-                              if (!v || v === UNASSIGN_VALUE) return "Unassigned";
-                              const u = assignableUsers.find((x) => x.id === v);
-                              return u
-                                ? `${u.firstName} ${u.lastName[0]}.`
-                                : job.salesRep
-                                  ? `${job.salesRep.firstName} ${job.salesRep.lastName[0]}.`
-                                  : "Unassigned";
+                              const u = (!v || v === UNASSIGN_VALUE) ? null : (assignableUsers.find((x) => x.id === v) ?? job.salesRep);
+                              return (
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <UserAvatar user={u ?? null} size="xs" />
+                                  {u ? `${u.firstName} ${u.lastName[0]}.` : "Unassigned"}
+                                </span>
+                              );
                             }}
                           </SelectValue>
                         </SelectTrigger>

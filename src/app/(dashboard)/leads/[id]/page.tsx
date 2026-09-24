@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { PageHeader } from "@/components/shared/page-header";
+import { EntityHeader } from "@/components/shared/entity-header";
 import { StageBadge } from "@/components/shared/stage-badge";
+import { StageStepper } from "@/components/shared/stage-stepper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -144,60 +146,39 @@ export default function LeadDetailPage() {
 
   return (
     <div>
-      <div className="mb-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/leads")}>
-          <ArrowLeft className="mr-1 h-4 w-4" />
-          Back to Leads
-        </Button>
-      </div>
-
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{lead.fullName}</h1>
-            <StageBadge stage={lead.currentStage.name} />
-            {lead.urgent && (
-              <Badge variant="destructive">URGENT</Badge>
-            )}
-            {lead.isDuplicateFlag && (
-              <Badge variant="destructive" className="text-xs">DUPLICATE</Badge>
-            )}
-          </div>
-          <p className="text-muted-foreground text-sm mt-1">
+      <EntityHeader
+        breadcrumb={[{ label: "Leads", href: "/leads" }, { label: lead.fullName }]}
+        title={lead.fullName}
+        subtitle={
+          <>
             Created {format(new Date(lead.createdAt), "MMM d, yyyy 'at' h:mm a")}
             {lead.createdBy && ` by ${lead.createdBy.firstName} ${lead.createdBy.lastName}`}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => router.push(`/leads/${id}/edit`)}
-          >
+          </>
+        }
+        badges={
+          <>
+            {lead.urgent && <Badge variant="destructive">URGENT</Badge>}
+            {lead.isDuplicateFlag && <Badge variant="destructive" className="text-xs">DUPLICATE</Badge>}
+          </>
+        }
+        actions={
+          <Button variant="outline" onClick={() => router.push(`/leads/${id}/edit`)}>
             <Pencil className="mr-2 h-4 w-4" />
             Edit
           </Button>
-          <Select
-            value={lead.currentStage.id}
-            onValueChange={(v: string | null) => v && changeStage.mutate(v)}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue>
-                {(v: string) =>
-                  stages?.find((s: { id: string; name: string }) => s.id === v)?.name ??
-                  lead.currentStage.name
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {stages?.map((s: { id: string; name: string }) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+        }
+      >
+        {stages && (
+          <StageStepper
+            stages={stages}
+            currentStageId={lead.currentStage.id}
+            entityLabel={lead.fullName}
+            disabled={changeStage.isPending}
+            onChange={(stageId) => changeStage.mutate(stageId)}
+            confirmNote={(_from, to) => (to.isWon ? "Marking a lead Won creates its job and the deposit task." : null)}
+          />
+        )}
+      </EntityHeader>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column: contact and property info */}
@@ -538,11 +519,11 @@ export default function LeadDetailPage() {
                       <div className="flex items-center gap-2 text-sm">
                         {h.fromStage ? (
                           <>
-                            <StageBadge stage={h.fromStage.name} />
+                            <StageBadge stage={h.fromStage.name} stages={stages} />
                             <span className="text-muted-foreground">&rarr;</span>
                           </>
                         ) : null}
-                        <StageBadge stage={h.toStage.name} />
+                        <StageBadge stage={h.toStage.name} stages={stages} />
                         {h.reason && (
                           <span className="text-muted-foreground ml-2">— {h.reason}</span>
                         )}

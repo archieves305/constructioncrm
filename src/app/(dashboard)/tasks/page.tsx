@@ -1,28 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { isToday, isThisWeek, isPast } from "date-fns";
-import {
-  DndContext,
-  DragEndEvent,
-  PointerSensor,
-  useDraggable,
-  useDroppable,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, LayoutGrid, ListChecks, GripVertical, Bell, BellOff } from "lucide-react";
+import { Plus, LayoutGrid, ListChecks, Bell, BellOff, SlidersHorizontal } from "lucide-react";
+import { KanbanBoard } from "@/components/kanban/kanban-board";
+import type { KanbanColumnDef } from "@/components/kanban/types";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn } from "@/lib/utils";
 import { fetchJson } from "@/lib/fetch-json";
 import { useSession } from "@/lib/auth/session-client";
@@ -30,13 +23,8 @@ import { TaskDetailSheet } from "@/components/tasks/task-detail-sheet";
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
 import { TaskCard } from "@/components/tasks/task-card";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
-import {
-  STATUS_BADGE_CLASS,
-  STATUS_LABEL,
-  TASK_PRIORITIES,
-  TASK_STATUSES,
-} from "@/components/tasks/task-colors";
-import { useAssignableUsers, useCreateTask, useTasks, useUpdateTask } from "@/components/tasks/use-tasks";
+import { STATUS_LABEL, STATUS_TONE, TASK_PRIORITIES, TASK_STATUSES } from "@/components/tasks/task-colors";
+import { useAssignableUsers, useCreateTask, useTaskSummary, useTasks, useUpdateTask } from "@/components/tasks/use-tasks";
 import type { TaskListItem, TaskStatus, UpdatePatch, UserOption } from "@/components/tasks/types";
 
 type JobOption = {
@@ -61,6 +49,8 @@ export default function TasksPage() {
   const { data: session } = useSession();
   const [view, setView] = useState<"list" | "board">("list");
   const [open, setOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const { data: summary } = useTaskSummary();
   // The URL owns which task is open, so email deep links (/tasks?task=<id>),
   // the back button and a copied link all behave the same way. It also seeds
   // the filters, so the dashboard's "Overdue" tile can land here pre-filtered.
@@ -145,6 +135,20 @@ export default function TasksPage() {
   const updateTask = useUpdateTask();
   const create = useCreateTask();
 
+  // `n` opens the dialog when no field has focus — the kbd hint on the button
+  // promises it.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "n" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.closest("[role=dialog]"))) return;
+      e.preventDefault();
+      setOpen(true);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   function submitQuickAdd() {
     if (!quickAdd.title.trim()) return;
     create.mutate(
@@ -187,53 +191,88 @@ export default function TasksPage() {
     (t) => t.status !== "COMPLETED" && t.status !== "CANCELLED",
   ).length;
   const emailsOn = prefs?.taskEmailsEnabled ?? true;
+  const activeFilters = [filterAssignee, filterPriority, filterJob, filterStage].filter(Boolean).length + (overdueOnly ? 1 : 0);
+
+  function showMine(overdue: boolean) {
+    if (session?.user.id) setFilterAssignee(session.user.id);
+    setOverdueOnly(overdue);
+    setShowFilters(true);
+  }
 
   return (
     <div>
       <PageHeader
         title="Tasks"
-        description={`${openCount} open${overdueOnly ? " · overdue only" : ""}`}
+        description={
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span>{openCount} open{overdueOnly ? " · overdue only" : ""}</span>
+            {summary && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => showMine(false)}
+                  className="rounded-full bg-tone-info-soft px-2 py-0.5 text-[11px] font-medium text-tone-info-fg hover:brightness-95"
+                >
+                  Mine {summary.open}
+                </button>
+                {summary.overdue > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => showMine(true)}
+                    className="rounded-full bg-tone-danger-soft px-2 py-0.5 text-[11px] font-medium text-tone-danger-fg hover:brightness-95"
+                  >
+                    Overdue {summary.overdue}
+                  </button>
+                )}
+                {summary.dueToday > 0 && (
+                  <span className="rounded-full bg-tone-warning-soft px-2 py-0.5 text-[11px] font-medium text-tone-warning-fg">
+                    Due today {summary.dueToday}
+                  </span>
+                )}
+              </>
+            )}
+          </span>
+        }
         actions={
           <>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setPrefs.mutate(!emailsOn)}
               disabled={setPrefs.isPending || !prefs}
               title={emailsOn ? "Task emails are on — click to mute" : "Task emails are muted — click to turn back on"}
-              className={cn(
-                "flex items-center gap-1 rounded border px-2 py-1 text-xs",
-                emailsOn ? "text-muted-foreground hover:bg-gray-50" : "border-amber-300 bg-amber-50 text-amber-800",
-              )}
+              aria-label={emailsOn ? "Mute task emails" : "Unmute task emails"}
+              className={cn(!emailsOn && "bg-tone-warning-soft text-tone-warning-fg")}
             >
-              {emailsOn ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
-              {emailsOn ? "Emails on" : "Muted"}
-            </button>
-            <div className="flex rounded border p-0.5">
-              <button
-                type="button"
-                onClick={() => setView("list")}
-                className={cn("flex items-center gap-1 rounded px-2 py-1 text-xs", view === "list" && "bg-gray-100")}
-              >
-                <ListChecks className="h-3.5 w-3.5" /> List
-              </button>
-              <button
-                type="button"
-                onClick={() => setView("board")}
-                className={cn("flex items-center gap-1 rounded px-2 py-1 text-xs", view === "board" && "bg-gray-100")}
-              >
-                <LayoutGrid className="h-3.5 w-3.5" /> Board
-              </button>
-            </div>
-            <Button onClick={() => setOpen(true)}>
+              {emailsOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+            </Button>
+            <SegmentedControl
+              ariaLabel="View"
+              value={view}
+              onValueChange={setView}
+              options={[
+                { value: "list", label: "List", icon: ListChecks },
+                { value: "board", label: "Board", icon: LayoutGrid },
+              ]}
+            />
+            <Button variant="outline" onClick={() => setShowFilters((f) => !f)} aria-expanded={showFilters}>
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters
+              {activeFilters > 0 && (
+                <span className="rounded-full bg-brand px-1.5 text-[10px] font-semibold text-white">{activeFilters}</span>
+              )}
+            </Button>
+            <Button variant="brand" onClick={() => setOpen(true)}>
               <Plus className="h-4 w-4" />
-              New Task
+              New task
+              <kbd className="ml-1 hidden rounded border border-white/30 bg-white/10 px-1 font-mono text-[10px] sm:inline">N</kbd>
             </Button>
           </>
         }
       />
 
       {/* Filters */}
-      <Card className="mb-4">
+      <Card className={cn("mb-4", !showFilters && activeFilters === 0 && "hidden")}>
         <CardContent className="flex flex-wrap items-end gap-3 pt-4">
           <div className="min-w-[180px]">
             <Label className="text-xs">Assignee</Label>
@@ -394,88 +433,37 @@ type ViewProps = {
 };
 
 function BoardView({ tasks, users, onUpdate, onOpen }: ViewProps & { tasks: TaskListItem[] }) {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
-  function handleDragEnd(e: DragEndEvent) {
-    const taskId = e.active?.id;
-    const colId = e.over?.id;
-    if (!taskId || !colId) return;
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-    const newStatus = colId as TaskStatus;
-    if (task.status === newStatus) return;
-    // BLOCKED needs a reason; the drawer asks for it.
-    if (newStatus === "BLOCKED" && !task.blockedReason) {
-      onOpen(task.id);
-      return;
-    }
-    onUpdate(String(taskId), { status: newStatus });
-  }
-
-  return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      {/* Five statuses, so five columns at full width — the old 4-col grid
-          wrapped CANCELLED onto its own row. */}
-      <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-        {TASK_STATUSES.map((s) => (
-          <BoardColumn
-            key={s}
-            status={s}
-            tasks={tasks.filter((t) => t.status === s)}
-            users={users}
-            onUpdate={onUpdate}
-            onOpen={onOpen}
-          />
-        ))}
-      </div>
-    </DndContext>
+  const columns = useMemo<KanbanColumnDef[]>(
+    () =>
+      TASK_STATUSES.map((status) => ({
+        id: status,
+        title: STATUS_LABEL[status],
+        tone: STATUS_TONE[status],
+        defaultCollapsed: status === "CANCELLED",
+      })),
+    [],
   );
-}
-
-function BoardColumn({ status, tasks, users, onUpdate, onOpen }: ViewProps & { status: TaskStatus; tasks: TaskListItem[] }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
-    <div
-      ref={setNodeRef}
-      className={cn("rounded-lg border bg-gray-50 transition-colors", isOver && "bg-blue-50/50 ring-2 ring-blue-400")}
-    >
-      <div className="flex items-center justify-between rounded-t-lg border-b bg-white px-3 py-2">
-        <Badge variant="outline" className={cn("border-0", STATUS_BADGE_CLASS[status])}>
-          {STATUS_LABEL[status]}
-        </Badge>
-        <span className="text-xs text-muted-foreground">{tasks.length}</span>
-      </div>
-      <div className="min-h-[200px] space-y-2 p-2">
-        {tasks.length === 0 ? (
-          <p className="py-4 text-center text-xs text-muted-foreground">Drop here</p>
-        ) : (
-          tasks.map((t) => <DraggableCard key={t.id} task={t} users={users} onUpdate={onUpdate} onOpen={onOpen} />)
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DraggableCard({ task, users, onUpdate, onOpen }: ViewProps & { task: TaskListItem }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
-  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
-  return (
-    <div ref={setNodeRef} style={style} className={cn("relative", isDragging && "opacity-60 shadow-lg")}>
-      <div className="flex items-start">
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="Drag"
-          className="mr-1 mt-3 cursor-grab text-muted-foreground hover:text-foreground active:cursor-grabbing"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
-        <div className="flex-1">
-          <TaskCard task={task} users={users} onUpdate={onUpdate} onOpen={onOpen} mode="board" />
-        </div>
-      </div>
-    </div>
+    <KanbanBoard<TaskListItem>
+      boardId="tasks"
+      columns={columns}
+      items={tasks}
+      getColumnId={(t) => t.status}
+      dragHandle
+      columnWidth={300}
+      heightClassName="h-[calc(100dvh-20rem)]"
+      renderCard={(t) => <TaskCard task={t} users={users} onUpdate={onUpdate} onOpen={onOpen} mode="board" />}
+      canMove={(t, to) => {
+        // BLOCKED needs a reason; the drawer asks for it.
+        if (to === "BLOCKED" && !t.blockedReason) {
+          onOpen(t.id);
+          return false;
+        }
+        return true;
+      }}
+      onMove={(id, to) => onUpdate(id, { status: to as TaskStatus })}
+      emptyLabel="Drop here"
+    />
   );
 }
 

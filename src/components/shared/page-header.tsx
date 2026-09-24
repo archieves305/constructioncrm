@@ -1,6 +1,6 @@
 interface PageHeaderProps {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   actions?: React.ReactNode;
 }
 
@@ -10,7 +10,7 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
       <div className="min-w-0">
         <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
         {description && (
-          <p className="text-muted-foreground text-sm">{description}</p>
+          <div className="text-muted-foreground text-sm">{description}</div>
         )}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

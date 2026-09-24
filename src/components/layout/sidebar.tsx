@@ -159,7 +159,7 @@ export function Sidebar({ user }: SidebarProps) {
   return (
     <aside className="flex h-screen w-64 flex-col border-r bg-white">
       <div className="flex items-center gap-2 border-b px-6 py-4">
-        <HardHat className="h-6 w-6 text-blue-600" />
+        <HardHat className="h-6 w-6 text-brand" />
         <span className="text-lg font-bold">Knu Construction</span>
       </div>
 
@@ -175,9 +175,9 @@ export function Sidebar({ user }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-blue-50 text-blue-700"
+                  ? "bg-brand-soft font-semibold text-brand-fg before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-brand"
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               )}
             >
@@ -209,7 +209,7 @@ export function Sidebar({ user }: SidebarProps) {
             aria-label="Notification settings"
             className={cn(
               "rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900",
-              pathname.startsWith("/settings") && "bg-blue-50 text-blue-700",
+              pathname.startsWith("/settings") && "bg-brand-soft text-brand-fg",
             )}
           >
             <Settings className="h-4 w-4" />

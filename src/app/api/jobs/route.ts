@@ -40,6 +40,8 @@ export async function GET(request: NextRequest) {
         projectManager: { select: { id: true, firstName: true, lastName: true } },
         payments: { select: { paymentType: true, amount: true, status: true } },
         permits: { select: { id: true, status: true } },
+        // Latest stage change only, so boards can say "6d in stage".
+        stageHistory: { orderBy: { changedAt: "desc" }, take: 1, select: { changedAt: true } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,

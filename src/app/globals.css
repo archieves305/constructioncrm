@@ -39,6 +39,52 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* brand */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-fg: var(--brand-fg);
+  /* semantic tones: solid / soft (tinted bg) / fg (text on soft) */
+  --color-tone-neutral: var(--tone-neutral);
+  --color-tone-neutral-soft: var(--tone-neutral-soft);
+  --color-tone-neutral-fg: var(--tone-neutral-fg);
+  --color-tone-info: var(--tone-info);
+  --color-tone-info-soft: var(--tone-info-soft);
+  --color-tone-info-fg: var(--tone-info-fg);
+  --color-tone-warning: var(--tone-warning);
+  --color-tone-warning-soft: var(--tone-warning-soft);
+  --color-tone-warning-fg: var(--tone-warning-fg);
+  --color-tone-danger: var(--tone-danger);
+  --color-tone-danger-soft: var(--tone-danger-soft);
+  --color-tone-danger-fg: var(--tone-danger-fg);
+  --color-tone-success: var(--tone-success);
+  --color-tone-success-soft: var(--tone-success-soft);
+  --color-tone-success-fg: var(--tone-success-fg);
+  /* stage progression: five phases cool → warm, plus done / lost / hold */
+  --color-stage-0: var(--stage-0);
+  --color-stage-0-soft: var(--stage-0-soft);
+  --color-stage-0-fg: var(--stage-0-fg);
+  --color-stage-1: var(--stage-1);
+  --color-stage-1-soft: var(--stage-1-soft);
+  --color-stage-1-fg: var(--stage-1-fg);
+  --color-stage-2: var(--stage-2);
+  --color-stage-2-soft: var(--stage-2-soft);
+  --color-stage-2-fg: var(--stage-2-fg);
+  --color-stage-3: var(--stage-3);
+  --color-stage-3-soft: var(--stage-3-soft);
+  --color-stage-3-fg: var(--stage-3-fg);
+  --color-stage-4: var(--stage-4);
+  --color-stage-4-soft: var(--stage-4-soft);
+  --color-stage-4-fg: var(--stage-4-fg);
+  --color-stage-done: var(--stage-done);
+  --color-stage-done-soft: var(--stage-done-soft);
+  --color-stage-done-fg: var(--stage-done-fg);
+  --color-stage-lost: var(--stage-lost);
+  --color-stage-lost-soft: var(--stage-lost-soft);
+  --color-stage-lost-fg: var(--stage-lost-fg);
+  --color-stage-hold: var(--stage-hold);
+  --color-stage-hold-soft: var(--stage-hold-soft);
+  --color-stage-hold-fg: var(--stage-hold-fg);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -66,7 +112,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(0.46 0.11 250 / 60%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -81,6 +127,57 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Brand: steel blue. The app already leaned blue (logo, active nav,
+     links); amber is reserved for "next action / HIGH / BLOCKED" and cannot
+     double as brand. --primary stays neutral on purpose so every default
+     button does not recolour. */
+  --brand: oklch(0.46 0.11 250);
+  --brand-foreground: oklch(0.985 0 0);
+  --brand-soft: oklch(0.95 0.025 250);
+  --brand-fg: oklch(0.36 0.1 250);
+
+  --tone-neutral: oklch(0.6 0 0);
+  --tone-neutral-soft: oklch(0.96 0 0);
+  --tone-neutral-fg: oklch(0.4 0 0);
+  --tone-info: oklch(0.58 0.15 250);
+  --tone-info-soft: oklch(0.95 0.03 250);
+  --tone-info-fg: oklch(0.38 0.12 250);
+  --tone-warning: oklch(0.72 0.16 70);
+  --tone-warning-soft: oklch(0.96 0.05 80);
+  --tone-warning-fg: oklch(0.45 0.12 60);
+  --tone-danger: oklch(0.577 0.245 27.325);
+  --tone-danger-soft: oklch(0.96 0.03 25);
+  --tone-danger-fg: oklch(0.45 0.18 27);
+  --tone-success: oklch(0.62 0.15 150);
+  --tone-success-soft: oklch(0.96 0.04 150);
+  --tone-success-fg: oklch(0.4 0.11 150);
+
+  /* Never passes through green or red — those mean done and overdue. */
+  --stage-0: oklch(0.55 0.13 285);
+  --stage-0-soft: oklch(0.95 0.03 285);
+  --stage-0-fg: oklch(0.36 0.11 285);
+  --stage-1: oklch(0.56 0.13 250);
+  --stage-1-soft: oklch(0.95 0.03 250);
+  --stage-1-fg: oklch(0.36 0.11 250);
+  --stage-2: oklch(0.6 0.11 190);
+  --stage-2-soft: oklch(0.95 0.03 190);
+  --stage-2-fg: oklch(0.36 0.09 190);
+  --stage-3: oklch(0.72 0.14 85);
+  --stage-3-soft: oklch(0.96 0.05 85);
+  --stage-3-fg: oklch(0.42 0.1 75);
+  --stage-4: oklch(0.68 0.16 50);
+  --stage-4-soft: oklch(0.96 0.04 50);
+  --stage-4-fg: oklch(0.42 0.12 45);
+  --stage-done: var(--tone-success);
+  --stage-done-soft: var(--tone-success-soft);
+  --stage-done-fg: var(--tone-success-fg);
+  --stage-lost: var(--tone-danger);
+  --stage-lost-soft: var(--tone-danger-soft);
+  --stage-lost-fg: var(--tone-danger-fg);
+  --stage-hold: var(--tone-neutral);
+  --stage-hold-soft: var(--tone-neutral-soft);
+  --stage-hold-fg: var(--tone-neutral-fg);
 }
 
 .dark {
@@ -115,6 +212,51 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Dark tokens are defined for completeness; nothing toggles .dark yet. */
+  --brand: oklch(0.7 0.11 250);
+  --brand-foreground: oklch(0.145 0 0);
+  --brand-soft: oklch(0.28 0.05 250);
+  --brand-fg: oklch(0.85 0.06 250);
+  --tone-neutral: oklch(0.6 0 0);
+  --tone-neutral-soft: oklch(0.28 0 0);
+  --tone-neutral-fg: oklch(0.85 0 0);
+  --tone-info: oklch(0.65 0.15 250);
+  --tone-info-soft: oklch(0.28 0.05 250);
+  --tone-info-fg: oklch(0.85 0.08 250);
+  --tone-warning: oklch(0.75 0.16 70);
+  --tone-warning-soft: oklch(0.3 0.06 75);
+  --tone-warning-fg: oklch(0.88 0.1 80);
+  --tone-danger: oklch(0.704 0.191 22.216);
+  --tone-danger-soft: oklch(0.3 0.08 25);
+  --tone-danger-fg: oklch(0.85 0.1 25);
+  --tone-success: oklch(0.7 0.15 150);
+  --tone-success-soft: oklch(0.28 0.06 150);
+  --tone-success-fg: oklch(0.85 0.1 150);
+  --stage-0: oklch(0.65 0.13 285);
+  --stage-0-soft: oklch(0.28 0.06 285);
+  --stage-0-fg: oklch(0.85 0.08 285);
+  --stage-1: oklch(0.66 0.13 250);
+  --stage-1-soft: oklch(0.28 0.06 250);
+  --stage-1-fg: oklch(0.85 0.08 250);
+  --stage-2: oklch(0.68 0.11 190);
+  --stage-2-soft: oklch(0.28 0.05 190);
+  --stage-2-fg: oklch(0.85 0.07 190);
+  --stage-3: oklch(0.78 0.14 85);
+  --stage-3-soft: oklch(0.3 0.06 85);
+  --stage-3-fg: oklch(0.88 0.1 85);
+  --stage-4: oklch(0.74 0.16 50);
+  --stage-4-soft: oklch(0.3 0.06 50);
+  --stage-4-fg: oklch(0.88 0.1 50);
+  --stage-done: var(--tone-success);
+  --stage-done-soft: var(--tone-success-soft);
+  --stage-done-fg: var(--tone-success-fg);
+  --stage-lost: var(--tone-danger);
+  --stage-lost-soft: var(--tone-danger-soft);
+  --stage-lost-fg: var(--tone-danger-fg);
+  --stage-hold: var(--tone-neutral);
+  --stage-hold-soft: var(--tone-neutral-soft);
+  --stage-hold-fg: var(--tone-neutral-fg);
 }
 
 @layer base {

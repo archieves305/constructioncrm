@@ -24,7 +24,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, AlertTriangle, Download, ListChecks, X } from "lucide-react";
+import { Plus, Search, AlertTriangle, Download, ListChecks, X, Users } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
+import { StagePillSelect } from "@/components/shared/stage-pill-select";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { format } from "date-fns";
 
@@ -87,7 +93,7 @@ export default function LeadsPage() {
     queryFn: () => fetch(`/api/leads?${params.toString()}`).then((r) => r.json()),
   });
 
-  const { data: stages } = useQuery<{ id: string; name: string }[]>({
+  const { data: stages } = useQuery<{ id: string; name: string; stageOrder: number; isClosed?: boolean; isWon?: boolean; isLost?: boolean }[]>({
     queryKey: ["stages"],
     queryFn: () => fetch("/api/admin/stages").then((r) => r.json()),
   });
@@ -404,16 +410,11 @@ export default function LeadsPage() {
       )}
 
       <div className="rounded-md border bg-white">
-        <Table>
-          <TableHeader>
+        <Table containerClassName="max-h-[calc(100dvh-16rem)]">
+          <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-white">
             <TableRow>
               <TableHead className="w-8">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  aria-label="Select all on page"
-                />
+                <Checkbox checked={allSelected} onCheckedChange={() => toggleAll()} aria-label="Select all on page" />
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Phone</TableHead>
@@ -428,15 +429,17 @@ export default function LeadsPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
-                  Loading...
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 6 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={10} className="py-2">
+                    <Skeleton className="h-8 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))
             ) : !data?.data?.length ? (
               <TableRow>
-                <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
-                  No leads found
+                <TableCell colSpan={10}>
+                  <EmptyState icon={Users} title="No leads match" description="Try clearing a filter, or add a new lead." />
                 </TableCell>
               </TableRow>
             ) : (
@@ -449,16 +452,15 @@ export default function LeadsPage() {
                 return (
                   <TableRow
                     key={lead.id}
-                    className={`cursor-pointer hover:bg-gray-50 ${
-                      selected.has(lead.id) ? "bg-blue-50/50" : ""
+                    className={`h-12 cursor-pointer hover:bg-gray-50 ${
+                      selected.has(lead.id) ? "bg-brand-soft/60" : ""
                     }`}
                     onClick={() => router.push(`/leads/${lead.id}`)}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selected.has(lead.id)}
-                        onChange={() => toggleRow(lead.id)}
+                        onCheckedChange={() => toggleRow(lead.id)}
                         aria-label={`Select ${lead.fullName}`}
                       />
                     </TableCell>
@@ -471,25 +473,9 @@ export default function LeadsPage() {
                           </Badge>
                         )}
                         {isOverdue && (
-                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                          <AlertTriangle className="h-3.5 w-3.5 text-tone-danger" aria-label="Follow-up overdue" />
                         )}
-                        {taskCount > 0 && (
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] px-1 py-0 ${
-                              overdueTasks > 0
-                                ? "border-red-500 text-red-700"
-                                : "border-blue-300 text-blue-700"
-                            }`}
-                            title={
-                              overdueTasks > 0
-                                ? `${overdueTasks} overdue, ${taskCount} total open`
-                                : `${taskCount} open task${taskCount === 1 ? "" : "s"}`
-                            }
-                          >
-                            {overdueTasks > 0 ? `⚠ ${overdueTasks}/${taskCount}` : `${taskCount}`} task{taskCount === 1 ? "" : "s"}
-                          </Badge>
-                        )}
+                        <TaskCountBadge open={taskCount} overdue={overdueTasks} compact />
                       </div>
                     </TableCell>
                     <TableCell>{lead.primaryPhone}</TableCell>
@@ -497,29 +483,12 @@ export default function LeadsPage() {
                       {lead.propertyAddress1}, {lead.city}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select
+                      <StagePillSelect
                         value={lead.currentStageId}
-                        onValueChange={(v: string | null) => {
-                          if (v && v !== lead.currentStageId) {
-                            changeStage.mutate({ leadId: lead.id, stageId: v });
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="h-7 w-[160px] text-xs">
-                          <SelectValue>
-                            {(v: string) =>
-                              stages?.find((s) => s.id === v)?.name ?? lead.currentStage.name
-                            }
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {stages?.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        stages={stages ?? []}
+                        className="w-[170px]"
+                        onChange={(stageId) => changeStage.mutate({ leadId: lead.id, stageId })}
+                      />
                     </TableCell>
                     <TableCell>{lead.source?.name || "—"}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
@@ -532,16 +501,16 @@ export default function LeadsPage() {
                           }
                         }}
                       >
-                        <SelectTrigger className="h-7 w-[160px] text-xs">
+                        <SelectTrigger className="h-7 w-[170px] text-xs">
                           <SelectValue>
                             {(v: string) => {
-                              if (!v || v === UNASSIGN_VALUE) return "Unassigned";
-                              const u = assignableUsers.find((x) => x.id === v);
-                              return u
-                                ? `${u.firstName} ${u.lastName}`
-                                : lead.assignedUser
-                                  ? `${lead.assignedUser.firstName} ${lead.assignedUser.lastName}`
-                                  : "Unassigned";
+                              const u = (!v || v === UNASSIGN_VALUE) ? null : (assignableUsers.find((x) => x.id === v) ?? lead.assignedUser);
+                              return (
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <UserAvatar user={u ?? null} size="xs" />
+                                  {u ? `${u.firstName} ${u.lastName}` : "Unassigned"}
+                                </span>
+                              );
                             }}
                           </SelectValue>
                         </SelectTrigger>
