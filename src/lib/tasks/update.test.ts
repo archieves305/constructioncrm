@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { db, notify, recordTaskEvents } = vi.hoisted(() => ({
+const { db, notify, recordTaskEvents, recordTaskEvent } = vi.hoisted(() => ({
   db: {
     task: { findUnique: vi.fn(), update: vi.fn() },
     activityLog: { create: vi.fn() },
@@ -12,6 +12,7 @@ const { db, notify, recordTaskEvents } = vi.hoisted(() => ({
     notifyTaskCompleted: vi.fn(),
   },
   recordTaskEvents: vi.fn(),
+  recordTaskEvent: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({ prisma: db }));
@@ -19,6 +20,7 @@ vi.mock("./notify", () => notify);
 vi.mock("./events", async (orig) => ({
   ...(await orig<typeof import("./events")>()),
   recordTaskEvents: (...a: unknown[]) => recordTaskEvents(...a),
+  recordTaskEvent: (...a: unknown[]) => recordTaskEvent(...a),
 }));
 vi.mock("next/server", () => ({ after: (fn: () => Promise<void>) => void fn() }));
 vi.mock("@/lib/logger", () => ({ logger: { exception: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
@@ -35,6 +37,7 @@ const existing = {
   blockedReason: null,
   leadId: "l1",
   title: "Order shingles",
+  remindAt: null as Date | null,
   fieldIssue: null as null | { id: string; status: string },
 };
 
@@ -42,6 +45,7 @@ beforeEach(() => {
   for (const model of Object.values(db)) for (const fn of Object.values(model)) fn.mockReset();
   for (const fn of Object.values(notify)) fn.mockReset().mockResolvedValue(undefined);
   recordTaskEvents.mockReset().mockResolvedValue(undefined);
+  recordTaskEvent.mockReset().mockResolvedValue(undefined);
   db.task.findUnique.mockResolvedValue(existing);
   db.task.update.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
     ...existing,
@@ -165,5 +169,38 @@ describe("updateTask", () => {
   it("notify: none sends nothing", async () => {
     await updateTask({ id: "t1", input: { status: "COMPLETED" }, actorUserId: "u-jo", notify: "none" });
     expect(notify.notifyTaskCompleted).not.toHaveBeenCalled();
+  });
+
+  it("a new due date resets the escalation ledger", async () => {
+    await updateTask({ id: "t1", input: { dueAt: "2026-10-01" }, actorUserId: "u-jo" });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data.escalationLevel).toBe(0);
+    expect(data.lastEscalatedAt).toBeNull();
+  });
+
+  it("the same due date leaves the escalation ledger alone", async () => {
+    db.task.findUnique.mockResolvedValue({ ...existing, dueAt: new Date("2026-10-01T12:00:00.000Z") });
+    await updateTask({ id: "t1", input: { dueAt: "2026-10-01" }, actorUserId: "u-jo" });
+    expect(db.task.update.mock.calls[0][0].data.escalationLevel).toBeUndefined();
+  });
+
+  it("setting a reminder re-arms delivery, records who asked, and logs it", async () => {
+    await updateTask({ id: "t1", input: { remindAt: "2026-10-03" }, actorUserId: "u-jo" });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data.remindAt.toISOString()).toBe("2026-10-03T12:00:00.000Z");
+    expect(data.remindedAt).toBeNull();
+    expect(data.remindSetBy).toEqual({ connect: { id: "u-jo" } });
+    expect(recordTaskEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "REMINDER_SET", toValue: "2026-10-03T12:00:00.000Z" }),
+    );
+  });
+
+  it("clearing a reminder disarms it", async () => {
+    db.task.findUnique.mockResolvedValue({ ...existing, remindAt: new Date("2026-10-03T12:00:00.000Z") });
+    await updateTask({ id: "t1", input: { remindAt: null }, actorUserId: "u-jo" });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data.remindAt).toBeNull();
+    expect(data.remindSetBy).toEqual({ disconnect: true });
+    expect(recordTaskEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "REMINDER_SET", toValue: null }));
   });
 });

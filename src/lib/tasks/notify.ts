@@ -11,6 +11,7 @@ import {
   renderTaskBlockedEmail,
   renderTaskCompletedEmail,
   renderTaskMentionEmail,
+  renderTaskNudgeEmail,
   type RenderedEmail,
   type TaskEmailNote,
   type TaskEmailTask,
@@ -69,7 +70,7 @@ async function actorName(actorUserId: string | null): Promise<string> {
 async function dispatch(input: {
   taskId: string;
   /** Which notification this is, for the delivery-failure record. */
-  kind: "assigned" | "completed" | "blocked" | "mention";
+  kind: "assigned" | "completed" | "blocked" | "mention" | "nudged";
   recipients: TaskRecipient[];
   actorUserId: string | null;
   render: (recipient: TaskRecipient, url: string) => RenderedEmail;
@@ -105,6 +106,20 @@ async function dispatch(input: {
           type: "EMAIL_SENT",
           toValue: r.email,
           body: email.subject,
+        });
+      } else {
+        // The provider accepted the call but handed back no message id (or
+        // is unconfigured past the check above). That is a non-delivery, and
+        // leaving it unrecorded is how "did he ever get told?" goes
+        // unanswerable — the cron path already treats it as a failure.
+        const reason = "email provider returned no message id";
+        failures.push({ recipient: r.email, reason });
+        await recordTaskEvent({
+          taskId: input.taskId,
+          actorUserId: input.actorUserId,
+          type: "EMAIL_FAILED",
+          toValue: r.email,
+          body: reason,
         });
       }
     } catch (err) {
@@ -301,6 +316,42 @@ export async function notifyTaskMentions(input: {
         url,
         brand,
         note: input.note,
+      }),
+  });
+}
+
+/** "Where does this stand?" — assignee only, on the nudge channel. */
+export async function notifyTaskNudged(input: {
+  taskId: string;
+  actorUserId: string;
+  message?: string | null;
+}): Promise<void> {
+  const task = await loadTask(input.taskId);
+  if (!task?.assignedUserId) return;
+
+  const { recipients, skipped } = await resolveRecipients({
+    candidates: [{ userId: task.assignedUserId, reason: "assignee" }],
+    suppressUserId: input.actorUserId,
+    channel: "nudge",
+  });
+  logSkips(input.taskId, "nudged", skipped);
+
+  const name = await actorName(input.actorUserId);
+  const brand = await getEmailBrand();
+
+  await dispatch({
+    taskId: input.taskId,
+    kind: "nudged",
+    recipients,
+    actorUserId: input.actorUserId,
+    render: (r, url) =>
+      renderTaskNudgeEmail({
+        task,
+        recipientFirstName: r.firstName,
+        actorName: name,
+        url,
+        brand,
+        message: input.message,
       }),
   });
 }

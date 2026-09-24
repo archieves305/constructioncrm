@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireCronSecret } from "@/lib/cron/auth";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
 import { emitInspectionEvent } from "@/lib/follow-ups/permit-events";
 
 const HOUR = 60 * 60 * 1000;
@@ -14,18 +14,8 @@ const HOUR = 60 * 60 * 1000;
  * window only fire once.
  */
 export async function POST(request: NextRequest) {
-  const secret = env.CRON_SECRET;
-  const provided = request.headers.get("x-cron-secret");
-
-  if (!secret) {
-    return NextResponse.json(
-      { error: "CRON_SECRET not configured on server" },
-      { status: 503 },
-    );
-  }
-  if (provided !== secret) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = requireCronSecret(request);
+  if (denied) return denied;
 
   const now = Date.now();
   const windowStart = new Date(now + 23 * HOUR);

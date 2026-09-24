@@ -18,6 +18,8 @@ export type TaskListItem = {
   blockedReason: string | null;
   assignedUserId?: string | null;
   createdByUserId?: string;
+  remindAt?: string | null;
+  sourceKey?: string | null;
   lead: { id: string; fullName: string } | null;
   job: { id: string; jobNumber: string; title: string } | null;
   estimate?: { id: string; estimateNumber: string; name: string; leadId: string } | null;
@@ -73,6 +75,7 @@ export type UpdatePatch = Partial<{
   assignedUserId: string | null;
   dueAt: string | null;
   blockedReason: string | null;
+  remindAt: string | null;
 }>;
 
 export type CreateTaskPayload = {
@@ -82,6 +85,7 @@ export type CreateTaskPayload = {
   dueAt?: string;
   assignedUserId?: string;
   watcherUserIds?: string[];
+  remindAt?: string;
 } & Partial<Record<EntityLinkKey, string>>;
 
 export function fullName(p: Person | null | undefined): string {

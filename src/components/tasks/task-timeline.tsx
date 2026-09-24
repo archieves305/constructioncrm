@@ -84,6 +84,16 @@ function describe(e: TimelineEvent, users: UserLookup): string | null {
       return `Emailed ${e.toValue ?? "someone"}`;
     case "EMAIL_FAILED":
       return `Email to ${e.toValue ?? "someone"} failed${e.body ? ` — ${e.body}` : ""}`;
+    case "NUDGED":
+      return `${who} nudged ${nameOf(e.toValue, users)}${e.body ? ` — “${e.body}”` : ""}`;
+    case "ESCALATED":
+      return `Escalated to level ${e.toValue ?? "?"} — ${e.toValue === "1" ? "the person who raised it" : "the raiser and managers"} emailed${e.body ? ` (${e.body})` : ""}`;
+    case "REMINDER_SET":
+      return e.toValue ? `${who} set a reminder for ${prettyDate(e.toValue)}` : `${who} cleared the reminder`;
+    case "REMINDER_SENT":
+      return `Reminder emailed to ${e.toValue ?? "someone"}`;
+    case "AUTO_CLOSED":
+      return `${e.toValue === "COMPLETED" ? "Completed" : "Cancelled"} automatically${e.body ? ` — ${e.body}` : ""}`;
     default:
       return null;
   }
@@ -95,6 +105,11 @@ const DOT_TONE: Record<string, string> = {
   EMAIL_FAILED: "bg-red-500",
   EMAIL_SENT: "bg-gray-300",
   CREATED: "bg-gray-400",
+  NUDGED: "bg-violet-500",
+  ESCALATED: "bg-red-500",
+  AUTO_CLOSED: "bg-emerald-500",
+  REMINDER_SET: "bg-gray-300",
+  REMINDER_SENT: "bg-gray-300",
 };
 
 export function TaskTimeline({

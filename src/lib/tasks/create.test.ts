@@ -125,4 +125,15 @@ describe("createTask", () => {
     expect(tx.taskEvent.createMany).toHaveBeenCalled();
     expect(db.task.create).not.toHaveBeenCalled();
   });
+
+  it("stores the automation key and a reminder, attributing the reminder to the creator", async () => {
+    const remindAt = new Date("2026-10-03T12:00:00.000Z");
+    await createTask({ ...base, sourceKey: "invoice:SENT:inv1", remindAt });
+    const data = db.task.create.mock.calls[0][0].data;
+    expect(data.sourceKey).toBe("invoice:SENT:inv1");
+    expect(data.remindAt).toBe(remindAt);
+    expect(data.remindSetByUserId).toBe("u-creator");
+    const types = db.taskEvent.createMany.mock.calls[0][0].data.map((e: { type: string }) => e.type);
+    expect(types).toEqual(["CREATED", "REMINDER_SET"]);
+  });
 });

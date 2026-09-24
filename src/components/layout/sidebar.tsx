@@ -194,13 +194,26 @@ export function Sidebar({ user }: SidebarProps) {
       </div>
 
       <div className="border-t px-3 py-4">
-        <div className="mb-2 px-3 text-sm">
-          <div className="font-medium">
-            {user.firstName} {user.lastName}
+        <div className="mb-2 flex items-start justify-between px-3 text-sm">
+          <div>
+            <div className="font-medium">
+              {user.firstName} {user.lastName}
+            </div>
+            <div className="text-muted-foreground text-xs capitalize">
+              {user.role.replace("_", " ").toLowerCase()}
+            </div>
           </div>
-          <div className="text-muted-foreground text-xs capitalize">
-            {user.role.replace("_", " ").toLowerCase()}
-          </div>
+          <Link
+            href="/settings/notifications"
+            title="Notification settings"
+            aria-label="Notification settings"
+            className={cn(
+              "rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900",
+              pathname.startsWith("/settings") && "bg-blue-50 text-blue-700",
+            )}
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
         </div>
         <Button
           variant="ghost"

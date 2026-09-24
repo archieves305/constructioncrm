@@ -15,7 +15,17 @@ import { validateBody } from "@/lib/validation/body";
  */
 const preferencesSchema = z.object({
   taskEmailsEnabled: z.boolean().optional(),
+  escalationEmailsEnabled: z.boolean().optional(),
+  reminderDigestEnabled: z.boolean().optional(),
+  nudgeEmailsEnabled: z.boolean().optional(),
 });
+
+const PREF_SELECT = {
+  taskEmailsEnabled: true,
+  escalationEmailsEnabled: true,
+  reminderDigestEnabled: true,
+  nudgeEmailsEnabled: true,
+} as const;
 
 export async function GET() {
   const session = await getSession();
@@ -23,11 +33,16 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { taskEmailsEnabled: true },
+    select: PREF_SELECT,
   });
 
   return NextResponse.json(
-    { taskEmailsEnabled: user?.taskEmailsEnabled ?? true },
+    {
+      taskEmailsEnabled: user?.taskEmailsEnabled ?? true,
+      escalationEmailsEnabled: user?.escalationEmailsEnabled ?? true,
+      reminderDigestEnabled: user?.reminderDigestEnabled ?? true,
+      nudgeEmailsEnabled: user?.nudgeEmailsEnabled ?? true,
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -39,10 +54,18 @@ export async function PATCH(request: NextRequest) {
   const parsed = await validateBody(request, preferencesSchema);
   if (!parsed.ok) return parsed.response;
 
+  // Field by field, never a spread: an absent key means "leave alone".
+  const d = parsed.data;
+  const data: Record<string, boolean> = {};
+  if (d.taskEmailsEnabled !== undefined) data.taskEmailsEnabled = d.taskEmailsEnabled;
+  if (d.escalationEmailsEnabled !== undefined) data.escalationEmailsEnabled = d.escalationEmailsEnabled;
+  if (d.reminderDigestEnabled !== undefined) data.reminderDigestEnabled = d.reminderDigestEnabled;
+  if (d.nudgeEmailsEnabled !== undefined) data.nudgeEmailsEnabled = d.nudgeEmailsEnabled;
+
   const updated = await prisma.user.update({
     where: { id: session.user.id },
-    data: { taskEmailsEnabled: parsed.data.taskEmailsEnabled },
-    select: { taskEmailsEnabled: true },
+    data,
+    select: PREF_SELECT,
   });
 
   return NextResponse.json(updated);

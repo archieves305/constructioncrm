@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { onInvoiceTransition } from "@/lib/tasks/auto-tasks";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/helpers";
@@ -37,7 +38,7 @@ export async function PATCH(
 
   const existing = await prisma.invoice.findUnique({
     where: { id },
-    select: { applicationNumber: true },
+    select: { applicationNumber: true, status: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -74,5 +75,15 @@ export async function PATCH(
     .update({ where: { id }, data })
     .catch(() => null);
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // A manual status change raises or retires the collect-payment task.
+  if (parsed.data.status !== undefined && parsed.data.status !== existing.status) {
+    const from = existing.status;
+    const to = parsed.data.status;
+    const actorUserId = session.user.id;
+    after(async () => {
+      await onInvoiceTransition(id, { from, to }, actorUserId);
+    });
+  }
   return NextResponse.json(record);
 }

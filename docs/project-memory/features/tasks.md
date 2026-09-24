@@ -84,10 +84,55 @@ page owns its own bottom bar — and task chips on job cards).
 access/events/mentions/recipients/task-email/validator suites.
 `follow-ups/processor.test.ts` mocks `@/lib/tasks/create`.
 
+## Stage 2 — email follow-up (built 2026-09-24)
+
+Migration `20260924130000_task_followups`: `Task.sourceKey` (automation
+key, indexed, NOT unique), `escalationLevel` / `lastEscalatedAt`,
+`remindAt` / `remindedAt` / `remindSetByUserId`; `User.escalationEmailsEnabled`
+/ `reminderDigestEnabled` / `nudgeEmailsEnabled`; `TaskEventType` +NUDGED,
+ESCALATED, REMINDER_SET, REMINDER_SENT, AUTO_CLOSED.
+
+- **Channels.** `resolveRecipients({ channel })` — `task` is the master
+  switch, `escalation` / `reminder` / `nudge` sit under it; skip reason
+  `channel-muted`. Toggles at `/settings/notifications` (sidebar footer gear)
+  via `/api/me/preferences`.
+- **Nudge.** `POST /api/tasks/[id]/nudge` `{ message? }` — office roles or
+  the raiser (`canNudgeTask`); 400 without an assignee or when you are the
+  assignee, 409 closed, 429 inside the 24h cooldown (ledger = latest
+  `NUDGED` row; `lib/tasks/nudge-policy.ts` is shared with the sheet button).
+  Response says `willEmail` so the UI can toast "recorded, but muted".
+- **Reminders.** `remindAt` on create and PATCH (date-only, pinned to noon
+  UTC); setting re-arms (`remindedAt = null`), records `REMINDER_SET`.
+  Delivered by `runMorningDigest` (`lib/tasks/reminders.ts`) as a
+  "Reminders" section of the digest to the assignee (or creator when
+  unassigned) plus the setter when different; only the primary copy retires
+  it. `planDigest` is pure and tested.
+- **Escalation.** `lib/tasks/escalations.ts`: `TASK_ESCALATION_DAYS`
+  (default `2,5`) → level 1 mails the raiser (skipped when raiser ==
+  assignee), level 2 adds ADMIN/MANAGER. One grouped mail per person. Ledger
+  advances only for tasks somebody was actually told about; a jump 0→2 is one
+  mail; a new due date resets to 0 (`updateTask`). **Off unless
+  `TASK_ESCALATIONS_ENABLED=1`** — set it after the SPF record exists.
+- **Auto-tasks.** `lib/tasks/auto-tasks.ts` — `ensureAutoTask(source,
+  actor)` (idempotent on an OPEN `sourceKey`; disabled kinds via
+  `TASK_AUTO_RULES_DISABLED`, default `invoice.sent`) and `closeAutoTask(key,
+  { outcome, because })` → `AUTO_CLOSED`. Hooks, all post-commit:
+  estimate PUT (`onEstimateTransition`: SENT raises + advances
+  `Lead.nextFollowUpAt`, ACCEPTED completes, DECLINED cancels); invoice PATCH
+  + `syncInvoiceStatus` (now returns the transition) via
+  `onInvoiceTransition` (SENT raises, PAID completes, VOID cancels) from
+  `recordPayment`, `payments/[id]`, progress-billing `createApplication`
+  when SENT, and change-order approval (which also completes the CO task);
+  CO send raises, reject/delete cancel; daily-log return raises HIGH to the
+  submitter (captured before the update nulls it), resubmit completes.
+- **Cron.** `POST /api/cron/task-reminders` = digest pass then escalation
+  pass, each fenced; `requireCronSecret()` in `lib/cron/auth.ts` now gates
+  all eight cron routes. No droplet change. Response keeps the top-level
+  `tasks/people/sent/failures` keys.
+
 ## Not yet
 
-Stage 2 (escalation, nudge, auto follow-up tasks on estimate/invoice/daily
-log/change-order events, per-task reminders, a notifications settings page)
-and Stage 3 (kanban kit, stage colours, job detail header/stepper/tab groups,
-list polish) are planned in the session plan of 2026-09-24. `RoofEstimate`
-has no status and is not linkable yet.
+Stage 3 (kanban kit, stage colours, job detail header/stepper/tab groups,
+list polish) is next. `RoofEstimate` has no status and is not linkable.
+The FollowUpRule engine still exists alongside auto-tasks; nothing was
+migrated off it.

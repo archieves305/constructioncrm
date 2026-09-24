@@ -5,6 +5,8 @@ import {
   renderTaskCompletedEmail,
   renderTaskReminderEmail,
   type TaskEmailTask,
+  renderTaskNudgeEmail,
+  renderTaskEscalationEmail,
 } from "./task-email";
 
 const brand: EmailBrand = {
@@ -204,5 +206,105 @@ describe("renderTaskReminderEmail", () => {
     expect(rendered.html).toContain("https://x/1");
     expect(rendered.html).toContain("https://x/2");
     expect(rendered.subject).toContain("2 overdue");
+  });
+});
+
+describe("renderTaskNudgeEmail", () => {
+  it("names the actor in the subject and quotes an escaped message", () => {
+    const out = renderTaskNudgeEmail({
+      task,
+      recipientFirstName: "Frank",
+      actorName: "Jo Garcia",
+      url: "https://crm.example.com/tasks?task=t1",
+      brand,
+      message: "Customer is asking <today>",
+    });
+    expect(out.subject).toBe(`Jo Garcia is checking in on: ${task.title}`);
+    expect(out.html).toContain("Customer is asking &lt;today&gt;");
+    expect(out.html).not.toContain("<today>");
+    expect(out.text).toContain("> Customer is asking <today>");
+    expect(out.text).toContain("https://crm.example.com/tasks?task=t1");
+  });
+  it("has no quote block without a message", () => {
+    const out = renderTaskNudgeEmail({ task, recipientFirstName: "Frank", actorName: "Jo", url: "https://x/y", brand });
+    expect(out.html).not.toContain("#f5f3ff");
+  });
+});
+
+describe("renderTaskEscalationEmail", () => {
+  const item = {
+    title: "Order shingles",
+    assigneeName: "Frank Ruiz",
+    daysOverdue: 3,
+    dueAt: new Date("2026-09-21T12:00:00Z"),
+    priority: "HIGH" as const,
+    level: 1,
+    context: "JOB-00012 — Roof",
+    url: "https://x/tasks?task=t1",
+    lastNote: { authorName: "Frank Ruiz", body: "Waiting on supplier", createdAt: new Date("2026-09-22T12:00:00Z") },
+  };
+  it("singular subject names the task and assignee", () => {
+    const out = renderTaskEscalationEmail({
+      recipientFirstName: "Jo",
+      recipientReason: "assignor",
+      items: [item],
+      managerThresholdDays: 5,
+      brand,
+    });
+    expect(out.subject).toBe("Overdue 3 days: Order shingles (Frank Ruiz)");
+    expect(out.html).toContain("3d overdue");
+    expect(out.html).toContain("Waiting on supplier");
+    expect(out.html).toContain("You raised these");
+  });
+  it("plural subject counts, and managers get the manager wording", () => {
+    const out = renderTaskEscalationEmail({
+      recipientFirstName: "Sarah",
+      recipientReason: "manager",
+      items: [item, { ...item, title: "Call inspector", lastNote: null }],
+      managerThresholdDays: 5,
+      brand,
+    });
+    expect(out.subject).toBe("2 overdue tasks need attention");
+    expect(out.html).toContain("overdue for 5+ days");
+    expect(out.html).toContain("No notes yet");
+    expect(out.text).toContain("Call inspector");
+  });
+});
+
+describe("renderTaskReminderEmail — custom reminders", () => {
+  const base = { priority: "MEDIUM" as const, dueAt: null, context: "JOB-00012 — Roof", url: "https://x", overdue: false };
+  it("reminders-only mail has its own subject and wording for setter vs assignee", () => {
+    const out = renderTaskReminderEmail({
+      recipientFirstName: "Frank",
+      overdue: [],
+      dueToday: [],
+      reminders: [
+        { ...base, title: "Check permit status", setByName: "Jo Garcia" },
+        { ...base, title: "Call the HOA", setByName: null },
+      ],
+      brand,
+    });
+    expect(out.subject).toBe("2 reminders for today");
+    expect(out.html).toContain("Jo Garcia asked you to be reminded");
+    expect(out.html).toContain("You asked to be reminded");
+    expect(out.text).toContain("REMINDERS (2)");
+  });
+  it("a single reminder is subject-lined by title, and mixes into a digest as a suffix", () => {
+    const one = renderTaskReminderEmail({
+      recipientFirstName: "Frank",
+      overdue: [],
+      dueToday: [],
+      reminders: [{ ...base, title: "Call the HOA", setByName: null }],
+      brand,
+    });
+    expect(one.subject).toBe("Reminder: Call the HOA");
+    const mixed = renderTaskReminderEmail({
+      recipientFirstName: "Frank",
+      overdue: [{ ...base, title: "Late thing", overdue: true }],
+      dueToday: [],
+      reminders: [{ ...base, title: "Call the HOA", setByName: null }],
+      brand,
+    });
+    expect(mixed.subject).toBe("1 overdue task and 1 reminder");
   });
 });

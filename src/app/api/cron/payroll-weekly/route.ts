@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { env } from "@/lib/env";
+import { requireCronSecret } from "@/lib/cron/auth";
 import { sendWeeklyPayrollEmail } from "@/lib/labor/payroll-email";
 import { logger } from "@/lib/logger";
 
@@ -10,16 +10,8 @@ import { logger } from "@/lib/logger";
 //
 // Auth mirrors the other cron routes: `x-cron-secret` must match CRON_SECRET.
 export async function POST(request: NextRequest) {
-  const secret = env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json(
-      { error: "CRON_SECRET not configured on server" },
-      { status: 503 },
-    );
-  }
-  if (request.headers.get("x-cron-secret") !== secret) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = requireCronSecret(request);
+  if (denied) return denied;
 
   const today = new Date().toISOString().slice(0, 10);
   try {

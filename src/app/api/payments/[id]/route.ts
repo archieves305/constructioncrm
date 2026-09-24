@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { onInvoiceTransition } from "@/lib/tasks/auto-tasks";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
@@ -72,7 +73,10 @@ export async function PATCH(
   const touched = new Set<string>();
   if (existing.invoiceId) touched.add(existing.invoiceId);
   if (d.invoiceId !== undefined && d.invoiceId) touched.add(d.invoiceId);
-  for (const invId of touched) await syncInvoiceStatus(invId);
+  for (const invId of touched) {
+    const transition = await syncInvoiceStatus(invId);
+    await onInvoiceTransition(invId, transition, session.user.id);
+  }
 
   const record = await prisma.payment.findUnique({ where: { id } });
   return NextResponse.json(record);
@@ -95,7 +99,10 @@ export async function DELETE(
   await prisma.payment.delete({ where: { id } });
 
   await recomputeJobBalance(existing.jobId);
-  if (existing.invoiceId) await syncInvoiceStatus(existing.invoiceId);
+  if (existing.invoiceId) {
+    const transition = await syncInvoiceStatus(existing.invoiceId);
+    await onInvoiceTransition(existing.invoiceId, transition, session.user.id);
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -43,9 +43,12 @@ export type CreateTaskInput = {
   dailyLogId?: string | null;
   watcherUserIds?: string[];
   source?: TaskSource;
-  // Reserved for Stage 2 automation and reminders; accepted now so the
-  // signature does not churn.
+  /** Automation idempotency key, e.g. "invoice:SENT:<id>". */
   sourceKey?: string | null;
+  /** "Remind me on…" — delivered with that morning's digest. */
+  remindAt?: Date | null;
+  /** Who asked for the reminder; defaults to the creator. */
+  remindSetByUserId?: string | null;
 };
 
 export type CreateTaskOptions = {
@@ -142,6 +145,9 @@ export async function createTask(
       invoiceId: input.invoiceId ?? null,
       prospectId: input.prospectId ?? null,
       dailyLogId: input.dailyLogId ?? null,
+      sourceKey: input.sourceKey ?? null,
+      remindAt: input.remindAt ?? null,
+      remindSetByUserId: input.remindAt ? (input.remindSetByUserId ?? input.createdByUserId) : null,
     },
     include: TASK_LIST_INCLUDE,
   });
@@ -149,6 +155,9 @@ export async function createTask(
   const events: Prisma.TaskEventCreateManyInput[] = [
     { taskId: task.id, actorUserId, type: "CREATED", toValue: input.source ?? "manual" },
   ];
+  if (input.remindAt) {
+    events.push({ taskId: task.id, actorUserId, type: "REMINDER_SET", toValue: input.remindAt.toISOString() });
+  }
   if (assignedUserId) {
     events.push({ taskId: task.id, actorUserId, type: "ASSIGNED", toValue: assignedUserId });
   }

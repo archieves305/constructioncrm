@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         prospectId: input.prospectId,
         dailyLogId: input.dailyLogId,
         watcherUserIds: input.watcherUserIds,
+        remindAt: input.remindAt ? parseDueAt(input.remindAt) : null,
         source: "manual",
       },
       { actorUserId: session.user.id },

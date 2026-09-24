@@ -7,6 +7,8 @@ import { getEmailBrand } from "@/lib/email/brand";
 import { sendEmail } from "@/lib/email/send";
 import { renderChangeOrderBillPdf } from "@/lib/pdf/change-order-bill";
 import { nextInvoiceNumber } from "@/lib/services/invoices";
+import { closeAutoTask, ensureAutoTask, sourceKeyFor } from "@/lib/tasks/auto-tasks";
+import { runAfterResponse } from "@/lib/tasks/defer";
 import { logger } from "@/lib/logger";
 
 // Customer approval links are long-lived (30 days) since the homeowner may take
@@ -289,9 +291,29 @@ export async function deleteChangeOrder(id: string): Promise<DeleteResult> {
   });
   if (!co) return { ok: false, reason: "not_found" };
 
+  const retire = () =>
+    runAfterResponse(
+      async () => {
+        await closeAutoTask(sourceKeyFor({ kind: "change-order.sent", changeOrderId: co.id }), {
+          actorUserId: null,
+          outcome: "CANCELLED",
+          because: "change order deleted",
+        });
+        if (co.invoiceId) {
+          await closeAutoTask(sourceKeyFor({ kind: "invoice.sent", invoiceId: co.invoiceId }), {
+            actorUserId: null,
+            outcome: "CANCELLED",
+            because: "change order deleted",
+          });
+        }
+      },
+      { where: "change-orders.delete", changeOrderId: co.id },
+    );
+
   if (co.status !== "APPROVED") {
     // No financial artifacts to unwind for draft / sent / rejected / void.
     await prisma.changeOrder.delete({ where: { id } });
+    retire();
     return { ok: true };
   }
 
@@ -340,6 +362,7 @@ export async function deleteChangeOrder(id: string): Promise<DeleteResult> {
   await recomputeJobLabor(co.jobId);
   await recomputeJobBalance(co.jobId);
 
+  retire();
   return { ok: true };
 }
 
@@ -379,6 +402,15 @@ async function applyDecision(
         },
       });
     });
+    runAfterResponse(
+      () =>
+        closeAutoTask(sourceKeyFor({ kind: "change-order.sent", changeOrderId: co.id }), {
+          actorUserId: source === "internal" ? co.createdByUserId : null,
+          outcome: "CANCELLED",
+          because: `rejected ${by}`,
+        }).then(() => undefined),
+      { where: "change-orders.reject", changeOrderId: co.id },
+    );
     return { ok: true, status: "REJECTED" };
   }
 
@@ -458,13 +490,27 @@ async function applyDecision(
       },
     });
 
-    return { invoiceNumber };
+    return { invoiceNumber, invoiceId: invoice.id };
   });
 
   // Recompute labor rollup, then the derived balance, outside the txn
   // (mirrors the existing change-order flow).
   await recomputeJobLabor(co.job.id);
   await recomputeJobBalance(co.job.id);
+
+  // The CO follow-up is done; the invoice it issued needs collecting. The
+  // customer flow has no session, so the CO's author stands in as actor.
+  runAfterResponse(
+    async () => {
+      await closeAutoTask(sourceKeyFor({ kind: "change-order.sent", changeOrderId: co.id }), {
+        actorUserId: source === "internal" ? co.createdByUserId : null,
+        outcome: "COMPLETED",
+        because: `approved ${by}`,
+      });
+      await ensureAutoTask({ kind: "invoice.sent", invoiceId: result.invoiceId }, co.createdByUserId);
+    },
+    { where: "change-orders.approve", changeOrderId: co.id },
+  );
 
   return { ok: true, status: "APPROVED", invoiceNumber: result.invoiceNumber };
 }

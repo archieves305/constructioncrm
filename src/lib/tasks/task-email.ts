@@ -406,6 +406,124 @@ ${button(input.url, "Reply on the task", brand.primaryColor)}`;
   };
 }
 
+// ─── Nudge ──────────────────────────────────────────────────────────────────
+
+/** "Where does this stand?" from the person waiting on it. */
+export function renderTaskNudgeEmail(input: BaseInput & { message?: string | null }): RenderedEmail {
+  const now = input.now ?? new Date();
+  const { task, brand } = input;
+  const block = taskBlock(task, now);
+  const msg = input.message?.trim();
+
+  const bodyHtml = `
+${eyebrow("Checking in", "#6d28d9")}
+${heading(task.title)}
+<p style="margin:0 0 4px;font-size:15px;color:#374151">
+  Hi ${escapeHtml(input.recipientFirstName)} — ${escapeHtml(input.actorName)} wanted to know where this stands.
+</p>
+${msg ? panel(escapeMultiline(msg), "#6d28d9", "#f5f3ff") : ""}
+${block.html}
+${button(input.url, "Open the task and reply with a note", brand.primaryColor)}`;
+
+  const bodyText = [
+    "CHECKING IN",
+    "",
+    task.title,
+    "",
+    `${input.actorName} wanted to know where this stands.`,
+    ...(msg ? ["", ...msg.split("\n").map((l) => `> ${l}`)] : []),
+    "",
+    ...block.text,
+    "",
+    `Open the task and reply with a note: ${input.url}`,
+  ].join("\n");
+
+  const rendered = renderEmailLayout({ bodyHtml, bodyText, brand });
+  return {
+    subject: `${input.actorName} is checking in on: ${task.title}`,
+    html: rendered.html,
+    text: rendered.text,
+  };
+}
+
+// ─── Escalation ─────────────────────────────────────────────────────────────
+
+export type EscalationItem = {
+  title: string;
+  assigneeName: string;
+  daysOverdue: number;
+  dueAt: Date | null;
+  priority: Priority;
+  level: number;
+  context: string;
+  url: string;
+  lastNote: TaskEmailNote | null;
+};
+
+/**
+ * One mail per recipient listing everything of theirs that crossed a
+ * threshold this run — never one per task, so a bad week is one message to
+ * triage rather than a wall of red subjects.
+ */
+export function renderTaskEscalationEmail(input: {
+  recipientFirstName: string;
+  recipientReason: "assignor" | "manager";
+  items: EscalationItem[];
+  managerThresholdDays: number;
+  brand: EmailBrand;
+}): RenderedEmail {
+  const { brand, items } = input;
+  const intro =
+    input.recipientReason === "manager"
+      ? `You are getting this as a manager: these have been overdue for ${input.managerThresholdDays}+ days.`
+      : "You raised these, and they are now overdue.";
+
+  const rows = items
+    .map((i) => {
+      const note = i.lastNote
+        ? `<div style="font-size:12px;color:#6b7280;margin-top:4px"><em>${escapeHtml(i.lastNote.authorName)}, ${escapeHtml(format(i.lastNote.createdAt, "MMM d"))}:</em> ${escapeHtml(i.lastNote.body.slice(0, 160))}${i.lastNote.body.length > 160 ? "…" : ""}</div>`
+        : `<div style="font-size:12px;color:#9ca3af;margin-top:4px">No notes yet</div>`;
+      return `<tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top">
+          <a href="${escapeHtml(i.url)}" style="font-size:14px;font-weight:600;color:#111827;text-decoration:none">${escapeHtml(i.title)}</a>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">${escapeHtml(i.context)} · ${escapeHtml(i.assigneeName)}</div>
+          ${note}
+        </td>
+        <td style="padding:10px 0 10px 12px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap;vertical-align:top">
+          ${pill(`${i.daysOverdue}d overdue`, { fg: "#b91c1c", bg: "#fef2f2", border: "#fca5a5" })}<br/>
+          ${pill(i.priority, PRIORITY_SWATCH[i.priority])}
+        </td>
+      </tr>`;
+    })
+    .join("");
+
+  const bodyHtml = `
+${eyebrow("Escalation", "#b91c1c")}
+${heading(items.length === 1 ? "An overdue task needs attention" : `${items.length} overdue tasks need attention`)}
+<p style="margin:0 0 4px;font-size:15px;color:#374151">Hi ${escapeHtml(input.recipientFirstName)} — ${escapeHtml(intro)}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;margin-top:12px">${rows}</table>`;
+
+  const textLines = [`Hi ${input.recipientFirstName} — ${intro}`, ""];
+  for (const i of items) {
+    textLines.push(
+      `  - ${i.title} [${i.priority}] — ${i.daysOverdue}d overdue — ${i.assigneeName} — ${i.context}`,
+      i.lastNote ? `    Last note (${i.lastNote.authorName}): ${i.lastNote.body.slice(0, 160)}` : "    No notes yet",
+      `    ${i.url}`,
+    );
+  }
+
+  const rendered = renderEmailLayout({ bodyHtml, bodyText: textLines.join("\n"), brand });
+  const first = items[0];
+  return {
+    subject:
+      items.length === 1 && first
+        ? `Overdue ${first.daysOverdue} days: ${first.title} (${first.assigneeName})`
+        : `${items.length} overdue tasks need attention`,
+    html: rendered.html,
+    text: rendered.text,
+  };
+}
+
 // ─── Reminder digest ────────────────────────────────────────────────────────
 
 export type ReminderItem = {
@@ -417,6 +535,9 @@ export type ReminderItem = {
   overdue: boolean;
 };
 
+/** A "remind me on…" that fell due today. `setByName` is null when the recipient set it. */
+export type CustomReminderItem = ReminderItem & { setByName: string | null };
+
 /**
  * One mail per person per run, not one per task. Someone with nine overdue
  * items needs a list they can triage, not nine separate interruptions.
@@ -425,9 +546,11 @@ export function renderTaskReminderEmail(input: {
   recipientFirstName: string;
   dueToday: ReminderItem[];
   overdue: ReminderItem[];
+  reminders?: CustomReminderItem[];
   brand: EmailBrand;
 }): RenderedEmail {
   const { brand } = input;
+  const reminders = input.reminders ?? [];
   const total = input.dueToday.length + input.overdue.length;
 
   function section(label: string, items: ReminderItem[], accent: string): string {
@@ -437,7 +560,7 @@ export function renderTaskReminderEmail(input: {
         (i) => `<tr>
         <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top">
           <a href="${escapeHtml(i.url)}" style="font-size:14px;font-weight:600;color:#111827;text-decoration:none">${escapeHtml(i.title)}</a>
-          <div style="font-size:12px;color:#6b7280;margin-top:2px">${escapeHtml(i.context)}</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">${escapeHtml(i.context)}${"setByName" in i ? ` · ${escapeHtml((i as CustomReminderItem).setByName ? `${(i as CustomReminderItem).setByName} asked you to be reminded` : "You asked to be reminded")}` : ""}</div>
         </td>
         <td style="padding:10px 0 10px 12px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap;vertical-align:top">
           ${pill(i.priority, PRIORITY_SWATCH[i.priority])}<br/>
@@ -452,12 +575,22 @@ export function renderTaskReminderEmail(input: {
     </div>`;
   }
 
+  const headline =
+    total === 0
+      ? reminders.length === 1
+        ? "A reminder you asked for"
+        : `${reminders.length} reminders for today`
+      : input.overdue.length > 0
+        ? `${input.overdue.length} overdue, ${input.dueToday.length} due today`
+        : `${input.dueToday.length} task${input.dueToday.length === 1 ? "" : "s"} due today`;
+
   const bodyHtml = `
 ${eyebrow("Your tasks", brand.primaryColor)}
-${heading(input.overdue.length > 0 ? `${input.overdue.length} overdue, ${input.dueToday.length} due today` : `${input.dueToday.length} task${input.dueToday.length === 1 ? "" : "s"} due today`)}
+${heading(headline)}
 <p style="margin:0 0 4px;font-size:15px;color:#374151">Morning ${escapeHtml(input.recipientFirstName)} — here is what is on you today.</p>
 ${section("Overdue", input.overdue, "#b91c1c")}
-${section("Due today", input.dueToday, "#1d4ed8")}`;
+${section("Due today", input.dueToday, "#1d4ed8")}
+${section("Reminders", reminders, "#6d28d9")}`;
 
   const textLines = [
     `Morning ${input.recipientFirstName} — here is what is on you today.`,
@@ -466,12 +599,17 @@ ${section("Due today", input.dueToday, "#1d4ed8")}`;
   for (const [label, items] of [
     ["OVERDUE", input.overdue],
     ["DUE TODAY", input.dueToday],
+    ["REMINDERS", reminders],
   ] as const) {
     if (items.length === 0) continue;
     textLines.push(`${label} (${items.length}):`);
     for (const i of items) {
+      const who =
+        "setByName" in i
+          ? ` — ${(i as CustomReminderItem).setByName ? `${(i as CustomReminderItem).setByName} asked you to be reminded` : "you asked to be reminded"}`
+          : "";
       textLines.push(
-        `  - ${i.title} [${i.priority}]${i.dueAt ? ` due ${format(i.dueAt, "MMM d")}` : ""} — ${i.context}`,
+        `  - ${i.title} [${i.priority}]${i.dueAt ? ` due ${format(i.dueAt, "MMM d")}` : ""} — ${i.context}${who}`,
         `    ${i.url}`,
       );
     }
@@ -479,11 +617,18 @@ ${section("Due today", input.dueToday, "#1d4ed8")}`;
   }
 
   const rendered = renderEmailLayout({ bodyHtml, bodyText: textLines.join("\n"), brand });
+  const reminderSuffix = reminders.length
+    ? ` and ${reminders.length} reminder${reminders.length === 1 ? "" : "s"}`
+    : "";
   return {
     subject:
-      input.overdue.length > 0
-        ? `${input.overdue.length} overdue task${input.overdue.length === 1 ? "" : "s"}${input.dueToday.length ? ` and ${input.dueToday.length} due today` : ""}`
-        : `${total} task${total === 1 ? "" : "s"} due today`,
+      total === 0
+        ? reminders.length === 1 && reminders[0]
+          ? `Reminder: ${reminders[0].title}`
+          : `${reminders.length} reminders for today`
+        : input.overdue.length > 0
+          ? `${input.overdue.length} overdue task${input.overdue.length === 1 ? "" : "s"}${input.dueToday.length ? ` and ${input.dueToday.length} due today` : ""}${reminderSuffix}`
+          : `${total} task${total === 1 ? "" : "s"} due today${reminderSuffix}`,
     html: rendered.html,
     text: rendered.text,
   };

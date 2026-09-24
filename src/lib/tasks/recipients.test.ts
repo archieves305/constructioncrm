@@ -17,6 +17,9 @@ type Row = {
   lastName: string;
   isActive: boolean;
   taskEmailsEnabled: boolean;
+  escalationEmailsEnabled: boolean;
+  reminderDigestEnabled: boolean;
+  nudgeEmailsEnabled: boolean;
   role: { name: string };
 };
 
@@ -26,6 +29,9 @@ const user = (over: Partial<Row> & { id: string }): Row => ({
   lastName: "User",
   isActive: true,
   taskEmailsEnabled: true,
+  escalationEmailsEnabled: true,
+  reminderDigestEnabled: true,
+  nudgeEmailsEnabled: true,
   role: { name: "OFFICE_STAFF" },
   ...over,
 });
@@ -116,5 +122,40 @@ describe("resolveRecipients", () => {
     const { recipients } = await resolveRecipients({ candidates: [] });
     expect(recipients).toEqual([]);
     expect(findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveRecipients channels", () => {
+  it("a muted sub-channel skips only that kind of mail", async () => {
+    findMany.mockResolvedValue([user({ id: "u1", nudgeEmailsEnabled: false })]);
+    const nudge = await resolveRecipients({
+      candidates: [{ userId: "u1", reason: "assignee" }],
+      channel: "nudge",
+    });
+    expect(nudge.recipients).toEqual([]);
+    expect(nudge.skipped).toContainEqual({ userId: "u1", reason: "channel-muted" });
+
+    findMany.mockResolvedValue([user({ id: "u1", nudgeEmailsEnabled: false })]);
+    const task = await resolveRecipients({ candidates: [{ userId: "u1", reason: "assignee" }] });
+    expect(task.recipients.map((r) => r.userId)).toEqual(["u1"]);
+  });
+
+  it("the master switch wins over an enabled sub-channel", async () => {
+    findMany.mockResolvedValue([user({ id: "u1", taskEmailsEnabled: false })]);
+    const { recipients, skipped } = await resolveRecipients({
+      candidates: [{ userId: "u1", reason: "manager" }],
+      channel: "escalation",
+    });
+    expect(recipients).toEqual([]);
+    expect(skipped).toContainEqual({ userId: "u1", reason: "muted" });
+  });
+
+  it("carries the manager reason through for the escalation wording", async () => {
+    findMany.mockResolvedValue([user({ id: "m1", role: { name: "MANAGER" } })]);
+    const { recipients } = await resolveRecipients({
+      candidates: [{ userId: "m1", reason: "manager" }],
+      channel: "escalation",
+    });
+    expect(recipients[0]?.reason).toBe("manager");
   });
 });

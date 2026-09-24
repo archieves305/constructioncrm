@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { closeAutoTask, sourceKeyFor } from "@/lib/tasks/auto-tasks";
 import { prisma } from "@/lib/db/prisma";
 import {
   requireJobFieldAccess,
@@ -34,6 +35,15 @@ export async function POST(_request: NextRequest, context: Context) {
       returnNote: null,
     },
   });
+
+  // Resubmitting retires any "fix returned log" task.
+  {
+    const actorUserId = ctx.session.user.id;
+    const key = sourceKeyFor({ kind: "daily-log.returned", dailyLogId: log.id, crewLeadUserId: null });
+    after(async () => {
+      await closeAutoTask(key, { actorUserId, outcome: "COMPLETED", because: "log resubmitted" });
+    });
+  }
 
   await recordAudit({
     actorUserId: ctx.session.user.id,

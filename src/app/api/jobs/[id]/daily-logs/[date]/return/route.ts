@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { ensureAutoTask } from "@/lib/tasks/auto-tasks";
 import { prisma } from "@/lib/db/prisma";
 import { forbidden } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
@@ -35,6 +36,10 @@ export async function POST(request: NextRequest, context: Context) {
     );
   }
 
+  // Captured before the update nulls it: the crew lead who submitted is who
+  // gets the fix-it task.
+  const crewLeadUserId = log.submittedByUserId;
+
   await prisma.dailyLog.update({
     where: { id: log.id },
     data: {
@@ -44,6 +49,14 @@ export async function POST(request: NextRequest, context: Context) {
       submittedByUserId: null,
     },
   });
+
+  {
+    const actorUserId = ctx.session.user.id;
+    const dailyLogId = log.id;
+    after(async () => {
+      await ensureAutoTask({ kind: "daily-log.returned", dailyLogId, crewLeadUserId }, actorUserId);
+    });
+  }
 
   await recordAudit({
     actorUserId: ctx.session.user.id,

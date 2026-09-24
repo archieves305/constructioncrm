@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import type { UpdateTaskInput } from "@/lib/validators/task";
 import type { TaskOwnership } from "./access";
-import { diffTask, recordTaskEvents, type TaskSnapshot } from "./events";
+import { diffTask, recordTaskEvent, recordTaskEvents, type TaskSnapshot } from "./events";
 import { TASK_DETAIL_INCLUDE, type TaskDetailRow } from "./include";
 import { notifyTaskAssigned, notifyTaskBlocked, notifyTaskCompleted } from "./notify";
 import { runAfterResponse } from "./defer";
@@ -59,6 +59,7 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
       blockedReason: true,
       leadId: true,
       title: true,
+      remindAt: true,
       fieldIssue: { select: { id: true, status: true } },
     },
   });
@@ -77,7 +78,27 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
 
   // `undefined` means "not mentioned"; `null` means "clear it".
   if (input.dueAt !== undefined) {
-    data.dueAt = input.dueAt === null ? null : parseDueAt(input.dueAt);
+    const next = input.dueAt === null ? null : parseDueAt(input.dueAt);
+    data.dueAt = next;
+    // A new due date is a new clock: overdue escalations start over.
+    if ((existing.dueAt?.getTime() ?? null) !== (next?.getTime() ?? null)) {
+      data.escalationLevel = 0;
+      data.lastEscalatedAt = null;
+    }
+  }
+
+  // "Remind me on…" — setting or moving it re-arms delivery; clearing it
+  // disarms. Recorded on the timeline so "why did I get that?" has an answer.
+  let reminderChanged = false;
+  let nextRemindAt: Date | null = null;
+  if (input.remindAt !== undefined) {
+    nextRemindAt = input.remindAt === null ? null : parseDueAt(input.remindAt);
+    reminderChanged = (existing.remindAt?.getTime() ?? null) !== (nextRemindAt?.getTime() ?? null);
+    if (reminderChanged) {
+      data.remindAt = nextRemindAt;
+      data.remindedAt = null;
+      data.remindSetBy = nextRemindAt ? { connect: { id: actorUserId } } : { disconnect: true };
+    }
   }
 
   const assigneeChanged =
@@ -139,6 +160,14 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
     blockedReason: task.blockedReason,
   };
   await recordTaskEvents({ taskId: id, actorUserId, events: diffTask(before, afterSnapshot) });
+  if (reminderChanged) {
+    await recordTaskEvent({
+      taskId: id,
+      actorUserId,
+      type: "REMINDER_SET",
+      toValue: nextRemindAt ? nextRemindAt.toISOString() : null,
+    });
+  }
 
   if (statusChanged && task.status === "COMPLETED" && task.leadId) {
     await prisma.activityLog.create({

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { createTask } from "@/lib/tasks/create";
+import { onInvoiceTransition } from "@/lib/tasks/auto-tasks";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { env } from "@/lib/env";
 import { logOutboundCommunication } from "@/lib/communications/log";
@@ -338,7 +339,10 @@ export async function recordPayment(
 
   // Single balance writer + invoice status reconciliation.
   await recomputeJobBalance(jobId);
-  if (invoiceId) await syncInvoiceStatus(invoiceId);
+  if (invoiceId) {
+    const transition = await syncInvoiceStatus(invoiceId);
+    await onInvoiceTransition(invoiceId, transition, userId);
+  }
 
   await prisma.activityLog.create({
     data: {

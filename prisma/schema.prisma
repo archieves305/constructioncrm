@@ -372,6 +372,11 @@ model User {
   // pressure valve exists so nobody resorts to a mail-client filter, which
   // would be invisible to us and would swallow genuinely urgent assignments.
   taskEmailsEnabled Boolean @default(true) @map("task_emails_enabled")
+  // Sub-channels under the master switch above. All three are moot when it
+  // is off; each can be muted alone when it is on.
+  escalationEmailsEnabled Boolean @default(true) @map("escalation_emails_enabled")
+  reminderDigestEnabled   Boolean @default(true) @map("reminder_digest_enabled")
+  nudgeEmailsEnabled      Boolean @default(true) @map("nudge_emails_enabled")
 
   role Role @relation(fields: [roleId], references: [id])
 
@@ -383,6 +388,7 @@ model User {
   tasksAssigned            Task[]               @relation("TaskAssignedUser")
   tasksCreated             Task[]               @relation("TaskCreatedByUser")
   tasksCompleted           Task[]               @relation("TaskCompletedByUser")
+  tasksRemindSet           Task[]               @relation("TaskRemindSetBy")
   taskEvents               TaskEvent[]          @relation("TaskEventActor")
   taskWatching             TaskWatcher[]        @relation("TaskWatcherUser")
   activityLogs             ActivityLog[]
@@ -661,6 +667,21 @@ model Task {
   // no stated reason is indistinguishable from one nobody has touched.
   blockedReason     String?   @map("blocked_reason") @db.Text
 
+  // Provenance + idempotency key for automation: "estimate:SENT:<id>",
+  // "invoice:SENT:<id>", "daily-log:RETURNED:<id>", "change-order:SENT:<id>".
+  // Deliberately NOT unique — a re-sent estimate may spawn a fresh task after
+  // the previous one closed; ensureAutoTask() checks for an OPEN row first.
+  sourceKey         String?   @map("source_key")
+  // Overdue-escalation ledger. Level = index of the highest threshold crossed
+  // and mailed (0 = none). Reset to 0 whenever dueAt changes.
+  escalationLevel   Int       @default(0) @map("escalation_level")
+  lastEscalatedAt   DateTime? @map("last_escalated_at")
+  // "Remind me on…". remindedAt is set by the morning cron on delivery so a
+  // reminder fires exactly once; re-setting remindAt clears it.
+  remindAt          DateTime? @map("remind_at")
+  remindedAt        DateTime? @map("reminded_at")
+  remindSetByUserId String?   @map("remind_set_by_user_id")
+
   lead        Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
   job         Job?          @relation(fields: [jobId], references: [id], onDelete: SetNull)
   estimate    Estimate?     @relation(fields: [estimateId], references: [id], onDelete: SetNull)
@@ -670,6 +691,7 @@ model Task {
   assignedTo  User?         @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
   createdBy   User          @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
   completedBy User?         @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
+  remindSetBy User?         @relation("TaskRemindSetBy", fields: [remindSetByUserId], references: [id])
   fieldIssue  FieldIssue?
   events      TaskEvent[]
   watchers    TaskWatcher[]
@@ -683,6 +705,8 @@ model Task {
   @@index([invoiceId])
   @@index([prospectId])
   @@index([dailyLogId])
+  @@index([sourceKey])
+  @@index([remindAt])
   @@map("tasks")
 }
 
@@ -726,6 +750,11 @@ enum TaskEventType {
   WATCHER_REMOVED
   EMAIL_SENT
   EMAIL_FAILED
+  NUDGED // toValue = assignee id, body = optional message
+  ESCALATED // fromValue = old level, toValue = new level, body = recipients
+  REMINDER_SET // toValue = ISO remindAt, or null when cleared
+  REMINDER_SENT // toValue = recipient email
+  AUTO_CLOSED // toValue = COMPLETED | CANCELLED, body = why
 }
 
 /// Follow a task without owning it — a PM who wants the completion mail but

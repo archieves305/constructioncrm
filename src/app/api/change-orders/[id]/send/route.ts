@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { ensureAutoTask } from "@/lib/tasks/auto-tasks";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import {
@@ -60,6 +61,13 @@ export async function POST(
       { error: "Failed to send email. The change order is marked sent — retry or share the link." },
       { status: 502 },
     );
+  }
+
+  {
+    const actorUserId = session.user.id;
+    after(async () => {
+      await ensureAutoTask({ kind: "change-order.sent", changeOrderId: id }, actorUserId);
+    });
   }
 
   await prisma.activityLog.create({

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import type { InvoiceStatus, RoleName } from "@/generated/prisma/client";
 import { nextInvoiceNumber } from "@/lib/services/invoices";
+import { ensureAutoTask } from "@/lib/tasks/auto-tasks";
+import { runAfterResponse } from "@/lib/tasks/defer";
 
 /**
  * Progress billing — AIA G702/G703-style payment applications.
@@ -371,6 +373,13 @@ export async function createApplication(
     });
     return created;
   });
+
+  if (input.status === "SENT") {
+    runAfterResponse(
+      () => ensureAutoTask({ kind: "invoice.sent", invoiceId: invoice.id }, actorUserId).then(() => undefined),
+      { where: "progress-billing.createApplication", invoiceId: invoice.id },
+    );
+  }
 
   return {
     ok: true,

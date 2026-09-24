@@ -10,7 +10,20 @@ import type { RoleName } from "@/generated/prisma/client";
  * timeline records the sends.
  */
 
-export type RecipientReason = "assignee" | "assignor" | "watcher" | "mentioned";
+export type RecipientReason =
+  | "assignee"
+  | "assignor"
+  | "watcher"
+  | "mentioned"
+  | "manager" // escalation: ADMIN/MANAGER pulled in at the second threshold
+  | "reminder-setter"; // custom reminder: whoever asked for it, if not the assignee
+
+/**
+ * Which per-user switch a mail is subject to. "task" is the master switch
+ * (assignment, completion, blocked, mention); the other three sit under it
+ * and can each be muted on their own.
+ */
+export type NotifyChannel = "task" | "escalation" | "reminder" | "nudge";
 
 export type TaskRecipient = {
   userId: string;
@@ -26,7 +39,8 @@ export type SkipReason =
   | "inactive" // deactivated CRM row
   | "no-email"
   | "is-actor" // they just did the thing; telling them is noise
-  | "duplicate";
+  | "duplicate"
+  | "channel-muted"; // master switch on, but this particular kind muted
 
 export type SkippedRecipient = {
   userId: string;
@@ -41,9 +55,17 @@ export type SkippedRecipient = {
 const REASON_RANK: Record<RecipientReason, number> = {
   assignee: 4,
   assignor: 3,
+  manager: 3,
   mentioned: 2,
+  "reminder-setter": 2,
   watcher: 1,
 };
+
+const CHANNEL_FIELD = {
+  escalation: "escalationEmailsEnabled",
+  reminder: "reminderDigestEnabled",
+  nudge: "nudgeEmailsEnabled",
+} as const;
 
 export type Candidate = { userId: string | null | undefined; reason: RecipientReason };
 
@@ -57,8 +79,10 @@ export type Candidate = { userId: string | null | undefined; reason: RecipientRe
 export async function resolveRecipients(input: {
   candidates: Candidate[];
   suppressUserId?: string | null;
+  channel?: NotifyChannel;
 }): Promise<{ recipients: TaskRecipient[]; skipped: SkippedRecipient[] }> {
   const skipped: SkippedRecipient[] = [];
+  const channel = input.channel ?? "task";
 
   // Collapse to the strongest reason per user before touching the DB.
   const best = new Map<string, RecipientReason>();
@@ -88,6 +112,9 @@ export async function resolveRecipients(input: {
       lastName: true,
       isActive: true,
       taskEmailsEnabled: true,
+      escalationEmailsEnabled: true,
+      reminderDigestEnabled: true,
+      nudgeEmailsEnabled: true,
       role: { select: { name: true } },
     },
   });
@@ -104,6 +131,10 @@ export async function resolveRecipients(input: {
     }
     if (!u.taskEmailsEnabled) {
       skipped.push({ userId: u.id, reason: "muted" });
+      continue;
+    }
+    if (channel !== "task" && !u[CHANNEL_FIELD[channel]]) {
+      skipped.push({ userId: u.id, reason: "channel-muted" });
       continue;
     }
     recipients.push({
@@ -140,4 +171,17 @@ export async function taskAudience(taskId: string): Promise<Candidate[]> {
     { userId: task.createdByUserId, reason: "assignor" as const },
     ...task.watchers.map((w) => ({ userId: w.userId, reason: "watcher" as const })),
   ];
+}
+
+/**
+ * Everyone who manages the team, for the second escalation threshold. Active
+ * only; muting is applied later by `resolveRecipients` like any other
+ * candidate.
+ */
+export async function managerCandidates(): Promise<Candidate[]> {
+  const users = await prisma.user.findMany({
+    where: { isActive: true, role: { name: { in: ["ADMIN", "MANAGER"] } } },
+    select: { id: true },
+  });
+  return users.map((u) => ({ userId: u.id, reason: "manager" as const }));
 }

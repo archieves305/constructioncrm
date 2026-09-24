@@ -73,3 +73,17 @@ export function canCommentOnTask(
 ): boolean {
   return canViewTask(user, task);
 }
+
+/**
+ * Who may send a nudge: the office roles, or whoever raised the task. Not
+ * `canEditTask` — an own-only assignee can edit their own task but nudging
+ * themselves is meaningless, and READ_ONLY never nudges.
+ */
+export function canNudgeTask(
+  user: { id: string; role: RoleName },
+  task: TaskOwnership,
+): boolean {
+  if (FULL_ACCESS.has(user.role)) return true;
+  if (user.role === "READ_ONLY") return false;
+  return task.createdByUserId === user.id;
+}

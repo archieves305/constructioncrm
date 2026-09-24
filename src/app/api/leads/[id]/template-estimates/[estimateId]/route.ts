@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { onEstimateTransition } from "@/lib/tasks/auto-tasks";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
@@ -39,7 +40,7 @@ export async function PUT(
 
   const existing = await prisma.estimate.findFirst({
     where: { id: estimateId, leadId: id },
-    select: { id: true },
+    select: { id: true, status: true },
   });
   if (!existing) {
     return NextResponse.json({ error: "Estimate not found" }, { status: 404 });
@@ -77,6 +78,16 @@ export async function PUT(
       },
     });
   });
+
+  // SENT raises a follow-up; ACCEPTED / DECLINED retire it. Post-commit.
+  if (updated.status !== existing.status) {
+    const from = existing.status;
+    const to = updated.status;
+    const actorUserId = session.user.id;
+    after(async () => {
+      await onEstimateTransition(estimateId, from, to, actorUserId);
+    });
+  }
 
   return NextResponse.json(updated);
 }

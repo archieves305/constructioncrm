@@ -30,9 +30,8 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 0. 🔴 **Tasks as the spine of the CRM** — three stages, each deployed and
    QA'd before the next. **Stage 1 (tasks everywhere) deployed 2026-09-24**
    (`ebf1988`, BUILD_ID `TIVSTNlHVR4hHEDg5rmdU`, migration
-   `20260924120000_task_entity_links` applied). Next: Stage 2 (overdue escalation, nudge,
-   auto follow-up tasks, per-task reminders, notifications settings page),
-   then Stage 3 (kanban kit, stage colours, job detail header/stepper/tab
+   `20260924120000_task_entity_links` applied). **Stage 2 (email
+   follow-up) built 2026-09-24**, awaiting deploy. Then Stage 3 (kanban kit, stage colours, job detail header/stepper/tab
    groups, list polish). Plan: `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`;
    notes: [features/tasks.md](docs/project-memory/features/tasks.md).
 1. 🔴 **Progress billing** — deployed + JOB-00009 backfilled 2026-08-27;
@@ -54,6 +53,19 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-24 — Task email follow-up (Stage 2 of 3; built)
+
+Nudge (`POST /api/tasks/[id]/nudge`, 24h cooldown, sheet button), per-task
+"remind me on" delivered by the morning digest, overdue escalation to the
+raiser then managers (`lib/tasks/escalations.ts`, **off until
+`TASK_ESCALATIONS_ENABLED=1`**), and auto follow-up tasks on estimate sent /
+invoice sent / daily log returned / change order sent, auto-closed when the
+event resolves (`lib/tasks/auto-tasks.ts`, `invoice.sent` disabled by
+default). Per-user channel toggles at `/settings/notifications`.
+`requireCronSecret()` now gates all eight cron routes. Migration
+`20260924130000_task_followups`. Details:
+[features/tasks.md](docs/project-memory/features/tasks.md).
 
 ### 2026-09-24 — Tasks everywhere (Stage 1 of 3; deployed `d7262d0`/`ebf1988`)
 
@@ -207,6 +219,9 @@ Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
 `MAILERSEND_API_KEY`, `EMAIL_FROM`, `OPS_ALERT_EMAIL`, `CRON_SECRET`,
 `CC_ALLOCATOR_API_KEY`,
 `PHONE_ROUTING_API_KEY`, `PHONE_ROUTING_SYSTEM_USER_ID`, `ZAPIER_*`,
+`TASK_ESCALATION_DAYS` (default `2,5`), `TASK_ESCALATIONS_ENABLED` (default
+off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
+`invoice.sent`; empty string enables everything),
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
 `ZYLOW_API_KEY`, `ZYLOW_API_BASE`.
 
@@ -245,15 +260,15 @@ Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
 
 ## 10. Next Prompt
 
-> Tasks Stage 1 ("tasks everywhere") is deployed (`ebf1988`). Richard should
-> click through prod once (job Tasks tab, an invoice row's task button, the
-> dashboard widget, Frank's `/field/tasks`). Then build Stage 2 from the plan
-> at `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`: the shared
-> `requireCronSecret()` refactor first, then recipients channels + the
-> `/settings/notifications` page, the nudge/escalation/reminder templates,
-> the nudge route + sheet button, per-task reminders in the morning digest,
-> overdue escalations (ship prod with `TASK_ESCALATIONS_ENABLED=false` until
-> the SPF record is set), then auto-tasks on estimate/invoice/daily-log/
-> change-order events (`TASK_AUTO_RULES_DISABLED=invoice.sent` the first
-> week). Same gates: tests, typecheck, build, lint ≤ 6/28, deploy with
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
+> Tasks Stage 2 (email follow-up) is built, tested and QA'd on dev; deploy it
+> with `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`
+> (migration `20260924130000_task_followups`). Escalations stay off in prod
+> until the SPF record for `knuconstruction.com` exists; then set
+> `TASK_ESCALATIONS_ENABLED=1` in `/etc/knuco/env` and restart `knuco`.
+> After a week, set `TASK_AUTO_RULES_DISABLED=` (empty) to enable
+> invoice.sent. Then build Stage 3 from
+> `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`: tokens + brand button
+> + shadcn adds + `stage-colors.ts` first (no page impact), then the kanban
+> kit and `/production` + `/pipeline`, then the tasks board on the kit and
+> the tasks header/dialog polish, then `EntityHeader` + `StageStepper` +
+> grouped tabs on job detail, then the jobs and leads lists.

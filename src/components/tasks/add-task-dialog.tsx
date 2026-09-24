@@ -54,6 +54,7 @@ type FormState = {
   priority: Priority;
   assignedUserId: string | null;
   dueAt: string;
+  remindAt: string;
   jobId: string | null;
   watcherIds: string[];
 };
@@ -65,6 +66,7 @@ function initialForm(d: AddTaskDialogProps["defaults"]): FormState {
     priority: d?.priority ?? "MEDIUM",
     assignedUserId: d?.assignedUserId ?? null,
     dueAt: d?.dueAt ?? "",
+    remindAt: "",
     jobId: null,
     watcherIds: [],
   };
@@ -122,6 +124,7 @@ export function AddTaskDialog({
     if (form.description.trim()) payload.description = form.description.trim();
     if (form.assignedUserId) payload.assignedUserId = form.assignedUserId;
     if (form.dueAt) payload.dueAt = form.dueAt;
+    if (form.remindAt) payload.remindAt = form.remindAt;
     if (form.watcherIds.length) payload.watcherUserIds = form.watcherIds;
     if (context) {
       for (const k of ["leadId", "jobId", "estimateId", "invoiceId", "prospectId", "dailyLogId"] as const) {
@@ -189,6 +192,17 @@ export function AddTaskDialog({
             <div>
               <Label className="mb-1.5 block text-xs text-muted-foreground">Due</Label>
               <DueDatePresets value={form.dueAt} onChange={(d) => setForm({ ...form, dueAt: d })} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Remind me on</Label>
+              <Input
+                type="date"
+                className="h-7 w-[150px] text-xs"
+                value={form.remindAt}
+                onChange={(e) => setForm({ ...form, remindAt: e.target.value })}
+                aria-label="Reminder date"
+              />
+              <span className="text-[11px] text-muted-foreground">optional · arrives with that morning&apos;s digest</span>
             </div>
           </section>
 

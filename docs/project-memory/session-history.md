@@ -4,6 +4,38 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 ---
 
+## 2026-09-24 (later) — Task email follow-up (Stage 2 of 3)
+
+Built straight after Stage 1 deployed. See
+[features/tasks.md](features/tasks.md) § Stage 2 for the shape.
+
+- `lib/cron/auth.ts` `requireCronSecret()` replaces the block copy-pasted
+  into eight cron routes (mechanical, regex-verified one replacement each).
+- `resolveRecipients` grew a `channel`; three new `User` toggles and a
+  `/settings/notifications` page (gear in the sidebar footer).
+- Nudge: route + policy + sheet button with the same cooldown rule on both
+  sides; the route records the NUDGED row synchronously so a double-click
+  cannot pass the check twice, and answers `willEmail`.
+- Reminders: digest logic moved out of the route into
+  `lib/tasks/reminders.ts` with a pure `planDigest`; custom reminders ride
+  the same morning mail.
+- Escalations: pure planner, ledger on the task, off by default in env.
+- Auto-tasks: typed rules, idempotent on an OPEN `sourceKey`; hooks at the
+  estimate PUT (status is set through the editor save, not a status PATCH),
+  invoice PATCH, `syncInvoiceStatus` (now returns its transition so callers
+  react post-commit), progress-billing SENT applications, change-order
+  send/approve/reject/delete, daily-log return/submit. `Lead.nextFollowUpAt`
+  is advanced by an estimate follow-up — the first thing in the CRM that
+  ever writes it from a task.
+- New event rows on the timeline: NUDGED (violet), ESCALATED (red),
+  REMINDER_SET/SENT (grey), AUTO_CLOSED (green).
+
+Tests: 20 new (cron auth, recipient channels, nudge policy, due dates,
+escalation planner + audience, digest planner, auto-tasks, email renderers,
+create/update reminder + escalation reset).
+
+---
+
 ## 2026-09-24 — Tasks everywhere (Stage 1 of 3)
 
 Plan agreed with Richard: tasks are the spine of the CRM. Three stages, each

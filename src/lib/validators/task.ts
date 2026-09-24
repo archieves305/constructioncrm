@@ -13,6 +13,8 @@ export const createTaskSchema = z.object({
   dueAt: z.string().optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).default("MEDIUM"),
   watcherUserIds: z.array(z.string().min(1)).max(20).optional(),
+  /** yyyy-MM-dd. Delivered with the morning digest of that day. */
+  remindAt: z.string().optional(),
 });
 
 /**
@@ -35,6 +37,11 @@ export const updateTaskSchema = createTaskSchema.partial().extend({
   // `priority: "MEDIUM"` and the route spread that into the write. Ticking an
   // URGENT task complete quietly downgraded it. Defaults belong on create only.
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
+  remindAt: z.string().nullable().optional(),
+});
+
+export const nudgeSchema = z.object({
+  message: z.string().trim().max(1000).optional(),
 });
 
 export const taskNoteSchema = z.object({
