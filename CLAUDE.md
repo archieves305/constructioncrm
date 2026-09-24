@@ -73,7 +73,9 @@ moved). Pure `compose()`; `apply` is idempotent (second apply creates 0,
 unique index as backstop); activation runs inline from `updateTask`.
 Workflow tab first on the job, Apply dialog with preview, task-sheet block,
 `/tasks` filters, admin Workflow Templates (read-only) + Workflow Roles.
-563/563 tests, lint at baseline. Details:
+563/563 tests, lint at baseline. **Deployed `2790b88`** (migration applied,
+build `uvoRaHDsO4HPJEnijWxig`); prod seeded with the four v1 templates
+(second run: unchanged). Details:
 [features/workflows.md](docs/project-memory/features/workflows.md).
 
 ### 2026-09-24 — Task edit + delete (follow-up)

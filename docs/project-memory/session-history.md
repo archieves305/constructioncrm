@@ -20,7 +20,8 @@ toast. Own-only visibility widened by job relationship. Two bugs found in
 QA and fixed before deploy: a permit-conditioned mid-chain inspection was
 dropped instead of bypassed when not required (orphaned the chain);
 deciding the permit 500'd because the gate step's own checklist blocked
-the engine's completion. 563 tests, lint 6/29.
+the engine's completion. 563 tests, lint 6/29. Deployed `2790b88`; prod
+seeded (`npx tsx prisma/seed-workflows.ts`, idempotent second run).
 
 ## 2026-09-24 (later still) — Visual redesign (Stage 3 of 3)
 
