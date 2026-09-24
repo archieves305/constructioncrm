@@ -33,11 +33,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `20260924120000_task_entity_links` applied). **Stage 2 (email
    follow-up) deployed 2026-09-24** (`4b6021d`, BUILD_ID
    `YehfWHd9zfW9-YxNcwwzN`; escalations stay off until SPF exists).
-   **Stage 3 (visual redesign) built 2026-09-24**, awaiting deploy —
+   **Stage 3 (visual redesign) deployed 2026-09-24** (`e867c5e`, BUILD_ID
+   `JAfdl5DEJdIShaUiCFbG2`) —
    [features/design-system.md](docs/project-memory/features/design-system.md).
-   Was: Stage 3 (kanban kit, stage colours, job detail header/stepper/tab
-   groups, list polish). Plan: `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`;
-   notes: [features/tasks.md](docs/project-memory/features/tasks.md).
+   All three stages are live; what remains is operator config (SPF →
+   `TASK_ESCALATIONS_ENABLED=1`, then `TASK_AUTO_RULES_DISABLED=`) and
+   Richard's own click-through. Notes:
+   [features/tasks.md](docs/project-memory/features/tasks.md).
 1. 🔴 **Progress billing** — deployed + JOB-00009 backfilled 2026-08-27;
    apps 1–12 PAID, apps 13–14 to be entered in the UI. Next: Stage 2
    (change orders on PROGRESS jobs add an SOV line instead of an invoice).
@@ -58,7 +60,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-24 — Visual redesign (Stage 3 of 3; built)
+### 2026-09-24 — Visual redesign (Stage 3 of 3; deployed `e867c5e`)
 
 Steel-blue brand + tone + five-phase stage tokens in `globals.css`;
 `lib/ui/stage-colors.ts` derives a stage's colour from its order (tested);
@@ -280,13 +282,16 @@ off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
 
 ## 10. Next Prompt
 
-> Tasks Stages 1 and 2 are deployed (`ebf1988`, `4b6021d`). Two operator
-> steps remain for Stage 2: add the SPF record for `knuconstruction.com`,
-> then set `TASK_ESCALATIONS_ENABLED=1` in `/etc/knuco/env` and restart
-> `knuco`; after a week of clean auto-tasks, set `TASK_AUTO_RULES_DISABLED=`
-> (empty) to enable invoice.sent. Then build Stage 3 (visual redesign) from
-> `~/.claude/plans/i-need-to-expand-zippy-wilkinson.md`: tokens + brand
-> button + shadcn adds + `stage-colors.ts` first (no page impact), then the
-> kanban kit and `/production` + `/pipeline`, then the tasks board on the kit
-> and the tasks header/dialog polish, then `EntityHeader` + `StageStepper` +
-> grouped tabs on job detail, then the jobs and leads lists. Same gates.
+> All three task stages are deployed (`ebf1988`, `4b6021d`, `e867c5e`).
+> Richard should click through prod: /production (all stages, drag a job),
+> /pipeline, /tasks (board, `n`, nudge from the sheet, remind-me date),
+> a job page (stepper, grouped tabs, invoice-row task button),
+> /settings/notifications, and Frank's /field/tasks. Operator steps still
+> open: add the SPF record for `knuconstruction.com`, then set
+> `TASK_ESCALATIONS_ENABLED=1` in `/etc/knuco/env` and restart `knuco`;
+> after a clean week set `TASK_AUTO_RULES_DISABLED=` (empty) to enable the
+> invoice.sent rule. Known follow-ups: lead detail, jobs and leads lists
+> still fetch `/api/admin/users` for their assignment dropdowns (empty for
+> non-admins — switch them to `/api/users/assignable`); the FollowUpRule
+> engine still coexists with auto-tasks; `RoofEstimate` has no status and
+> cannot be linked to a task.

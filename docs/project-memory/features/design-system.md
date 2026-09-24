@@ -1,6 +1,6 @@
 # Feature — Design tokens, stage colours and the kanban kit
 
-_Built 2026-09-24 as Stage 3 of the tasks work. Light mode only: `.dark`
+_Built and deployed 2026-09-24 (`e867c5e`) as Stage 3 of the tasks work. Light mode only: `.dark`
 tokens exist but nothing toggles them._
 
 ## Tokens (`src/app/globals.css`)

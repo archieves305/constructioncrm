@@ -20,7 +20,13 @@ keyboard drag (chained now); the old `/production` allow-list hid three
 stages. Browser QA on dev: boards render with phase colours and aggregates,
 keyboard drag moves a lead and back (mouse drag could not be exercised by
 the automation tool), job detail deep-links to `?tab=money&sub=invoices`,
-lists and lead detail render. Lint 6/29, 481+ tests, typecheck/build clean.
+lists and lead detail render. Lint 6/29, 481/481 tests, typecheck/build
+clean.
+
+**Deployed** `e867c5e` at 13:33 ET, no migrations: BUILD_ID
+`YehfWHd9zfW9-YxNcwwzN` → `JAfdl5DEJdIShaUiCFbG2`, smoke 307/307, clean
+journal. Backups `pre-deploy-20260924-132922.tar.gz` /
+`postgres-2026-09-24-172929.dump`.
 
 ---
 
