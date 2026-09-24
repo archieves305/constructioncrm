@@ -40,9 +40,11 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `TASK_ESCALATIONS_ENABLED=1`, then `TASK_AUTO_RULES_DISABLED=`) and
    Richard's own click-through. Notes:
    [features/tasks.md](docs/project-memory/features/tasks.md).
-1. 🔴 **Progress billing** — deployed + JOB-00009 backfilled 2026-08-27;
-   apps 1–12 PAID, apps 13–14 to be entered in the UI. Next: Stage 2
-   (change orders on PROGRESS jobs add an SOV line instead of an invoice).
+1. 🔴 **Progress billing** — Stage 1 deployed + JOB-00009 backfilled
+   2026-08-27; apps 1–12 PAID, apps 13–14 to be entered in the UI. **Stage 2
+   deployed 2026-09-24 (`6b3868b`)**: change orders on PROGRESS jobs add an
+   SOV line instead of an invoice. Next: Stage 3 (retainage release as a
+   final application; balance-to-finish on Collections).
 2. 🔴 **Job-costing check-and-balance.** Write gate and pending state both
    shipped. Remaining: **reconciliation against cc-allocator**, and **12
    candidate duplicate charges ($9,166.20) still need a human to confirm** —
@@ -59,6 +61,22 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-24 — Progress billing, Stage 2 (deployed)
+
+Change orders on PROGRESS jobs: approval adds a `SovLine` linked by
+`changeOrderId` (migration `20260925120000_change_order_sov_lines`) via the
+pure `changeOrderSovLine` (`lib/billing/sov.ts`) instead of issuing an
+invoice; billed through the next applications. Fixed-price contract still
+increments so Σ SOV = contract. Linked line: value read-only (400),
+undeletable via `/api/sov` (409); deleting the CO removes the line, refuses
+`has_billing` once a live application billed on it, and drops VOID
+applications' line rows first (dev QA caught the FK 500). No
+`invoice.sent` task for SOV approvals. UI: "SOV item #n" in the CO panel,
+"Approve & add to SOV", `CO-n` badge on the Invoices tab. Prod had no COs
+on its one PROGRESS job → no backfill. 613/613 tests, lint 6/29.
+**Deployed `6b3868b`** (migration applied; build `ZL4mI9LnfV2k2DeUusDC4`).
+Details: [features/progress-billing.md](docs/project-memory/features/progress-billing.md).
 
 ### 2026-09-24 — Trade Workflow Templates, Stage 3 (deployed)
 
@@ -357,15 +375,20 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Trade Workflow Templates Stages 1–3 are all deployed (`f332e26`). The
-> workflow feature is complete; what remains there is Richard's own
-> click-through on prod and any tuning that produces. Next candidate from
-> §3: **Progress billing Stage 2** — on a PROGRESS job an approved change
-> order adds an SOV line (with its own scheduled value) instead of raising
-> a separate invoice, so the next payment application bills it through
-> completed-to-date; keep the G702 maths (`completed × (1 − retainage) −
-> previous certificates`), only the latest application editable/voidable,
-> the same explicit role list as expense approval, a tested pure function
-> for the SOV mutation, and JOB-00009 as the pressure test. Same rules:
-> tests + typecheck + build green, lint ≤ 6/29, deploy with
+> Progress billing Stages 1–2 are deployed (`6b3868b`). Build **Stage 3 —
+> retainage release** per `docs/project-memory/features/progress-billing.md`
+> ("Later stages"): a final payment application that releases the retainage
+> held (full or partial, e.g. 50% at substantial completion), modelled as
+> an application whose current payment due = retainage released, with
+> `getBillingSummary` totals (retainage held, balance to finish, open
+> receivable) staying exact and JOB-00009's twelve applications still
+> reproducing to the cent; G702 shows the release on the form's retainage
+> lines; then **balance-to-finish and retainage held on Collections** for
+> PROGRESS jobs (`balanceDue` must stop conflating open A/R + retainage +
+> unbilled work — split it in the read model, not in `recomputeJobBalance`,
+> unless pressure-testing against JOB-00009 says otherwise). Same rules:
+> explicit role list (`PROGRESS_BILLING_ROLES`), pure tested arithmetic in
+> `lib/billing/g702.ts`, only the latest application editable/voidable,
+> migration via `migrate diff` + `db execute` + `resolve`, tests + typecheck
+> + build green, lint ≤ 6/29, deploy with
 > `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

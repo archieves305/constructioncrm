@@ -1,6 +1,6 @@
 # Feature — Progress billing (AIA G702/G703 payment applications)
 
-_Built and deployed 2026-08-27 (`891b891`, `78e3d6c`). Stage 1 of 3. JOB-00009 backfill ran the same day; every amount reproduced._
+_Stage 1 built and deployed 2026-08-27 (`891b891`, `78e3d6c`); JOB-00009 backfill ran the same day; every amount reproduced. **Stage 2 (change orders on PROGRESS jobs) deployed 2026-09-24 (`6b3868b`, migration `20260925120000_change_order_sov_lines`).**_
 
 ## Why
 
@@ -61,10 +61,52 @@ every one reproduces exactly — proven in `progress-billing.test.ts`). It
 rolls back if any amount fails to reproduce. **Apps 13–14 are to be entered
 through the UI**, not imported.
 
+## Stage 2 — change orders on PROGRESS jobs (deployed `6b3868b`)
+
+On a progress-billed job an approved change order is **not** invoiced on
+its own. `applyDecision` (`lib/services/change-orders.ts`) branches on
+`job.billingMethod`: PROGRESS → one new `SovLine` (`changeOrderId` set,
+migration `20260925120000_change_order_sov_lines`) built by the pure,
+tested `changeOrderSovLine` in `lib/billing/sov.ts` — next item number and
+sort position, description `CO-n: title`, scheduled value = customer price
+— and the work is billed on the following payment applications as it is
+completed, which is how G702/G703 treats change orders (net change by
+change orders sits in the contract sum; G703 carries the added items).
+LUMP_SUM keeps issuing the invoice it always did. Fixed-price contracts
+still `increment` on approval, so Σ SOV keeps matching the contract sum;
+cost-plus / owned-rehab contracts still come from the labour rollup, so
+the SOV drift warning can appear there — expected. No `invoice.sent`
+follow-up task is raised for an SOV approval; the change-order follow-up
+still closes. `DecisionResult` carries `billing: "INVOICE" | "SOV"` and
+`sovItemNo`.
+
+**The line's value follows the change order.** `PATCH /api/sov/[id]`
+refuses `scheduledValue` on a linked line (400; description stays
+editable) and `DELETE` refuses outright (409 — delete the change order).
+`deleteChangeOrder` removes the line instead of an invoice and refuses
+with `has_billing` (409, names the item and the amount) once a live
+application has billed work on it; void that application first. VOID
+applications' `InvoiceLine` rows on the line are dropped in the same
+transaction — the FK is `Restrict`, and QA on dev caught the 500 that
+skipping this produced.
+
+**Read model / UI.** `getBillingSummary().sovLines[].changeOrderNumber`;
+the Invoices tab badges the line `CO-n`, keeps its value read-only and
+hides Remove. The change-orders list route includes `sovLine {id,
+itemNo}`; rows and the detail dialog say "SOV item #n — bill on the next
+application" where they used to say the invoice number; the decision
+dialog explains the path and its button reads "Approve & add to SOV";
+the delete confirm names the line. `ChangeOrdersPanel` takes
+`billingMethod`.
+
+Prod state when this shipped: JOB-00009 is the only PROGRESS job and had
+no change orders, so nothing needed backfilling. Deductive change orders
+are still impossible (`customerPrice` must be positive at create).
+
+Tests: `lib/billing/sov.test.ts`, `lib/services/change-orders.test.ts`
+(approve on each method, delete unwind, `has_billing` refusal).
+
 ## Later stages
 
-- **Stage 2 — change orders on PROGRESS jobs.** Approval today issues a
-  full-price invoice immediately (`change-orders.ts` ~L420). On a progress
-  job it should add an SOV line instead and be billed as work completes.
 - **Stage 3 — retainage release** as a final application; balance-to-finish
   on Collections.

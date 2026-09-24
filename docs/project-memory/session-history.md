@@ -6,6 +6,39 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 
 
+## 2026-09-24 — Progress billing, Stage 2
+
+Schema: `SovLine.changeOrderId String? @unique` ↔ `ChangeOrder.sovLine`
+(`onDelete: SetNull`); migration generated with `migrate diff
+--from-config-datasource`, applied with `db execute` + `migrate resolve`.
+New: `lib/billing/sov.ts` (+test) — `changeOrderSovLine`,
+`changeOrderSovDescription`, `canRemoveChangeOrderSovLine`;
+`lib/services/change-orders.test.ts` — approve on PROGRESS (SOV line, no
+invoice, contract increment, no `invoice.sent` task) vs LUMP_SUM (invoice
+as before), delete unwind (VOID lines dropped, line deleted, contract
+decremented), `has_billing` refusal. Changed: `change-orders.ts`
+(`applyDecision` branch, `deleteChangeOrder`, `DecisionResult.billing`,
+`DeleteResult has_billing`), `progress-billing.ts`
+(`sovLines[].changeOrderNumber`), `/api/sov/[id]` (linked-line guards),
+`/api/jobs/[id]/change-orders` (include `sovLine`),
+`/api/change-orders/[id]` (409 for `has_billing`), `ChangeOrdersPanel`
+(`billingMethod` prop, SOV wording), `InvoicesPanel` (`CO-n` badge,
+read-only value, no Remove), job detail passes `billingMethod`.
+
+QA on dev via API: switched JOB-00005 to PROGRESS → CO $2,500 → internal
+approve → SOV item #2 `CO-1: …`, contract 205,885.80 → 208,385.80, Σ SOV
+matches → PATCH value 400 / description 200 / DELETE line 409 →
+application billing $1,000 on the line (201) → DELETE CO 409 `has_billing`
+→ void application → **DELETE CO 500** (FK `invoice_lines_sov_line_id_fkey`
+— VOID lines still referenced the line) → fixed by deleting VOID
+applications' rows in the transaction → DELETE CO 200, contract and SOV
+restored; job put back to LUMP_SUM. One VOID QA invoice
+(`INV-00005-01`) remains on the dev job — there is no invoice delete
+route. Prod check first: JOB-00009 has no change orders, so no backfill.
+613 tests, lint 6/29, build clean. Deployed `6b3868b`; migration applied
+on prod (`change_order_id` present; `_prisma_migrations` done); build
+`ZL4mI9LnfV2k2DeUusDC4`.
+
 ## 2026-09-24 — Trade Workflow Templates, Stage 3
 
 New: `src/lib/jobs/query.ts` (+test) — `parseJobListParams`,
