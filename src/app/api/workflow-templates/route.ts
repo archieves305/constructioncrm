@@ -28,7 +28,15 @@ export async function GET(request: NextRequest) {
         where: { status: "PUBLISHED" },
         orderBy: { version: "desc" },
         take: 1,
-        select: { id: true, version: true, scopeToggles: true, publishedAt: true, _count: { select: { phases: true, tasks: true } } },
+        select: {
+          id: true,
+          version: true,
+          scopeToggles: true,
+          publishedAt: true,
+          _count: { select: { phases: true, tasks: true } },
+          // For the jobs-list Phase filter: full keys the tasks carry.
+          phases: { orderBy: { sortOrder: "asc" }, select: { key: true, name: true, band: true } },
+        },
       },
     },
   });
@@ -52,6 +60,7 @@ export async function GET(request: NextRequest) {
           phaseCount: v._count.phases,
           taskCount: v._count.tasks,
           scopeToggles: readScopeToggles(v.scopeToggles),
+          phases: v.phases.map((p) => ({ key: `${t.key}:${p.key}`, shortKey: p.key, name: p.name, band: p.band })),
           serviceCategoryNames: categories,
           suggested: t.kind === "TRADE" && categories.some((c) => serviceNames.has(c.toLowerCase())),
         };

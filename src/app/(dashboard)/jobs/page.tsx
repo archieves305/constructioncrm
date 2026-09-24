@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,9 @@ import { StagePillSelect } from "@/components/shared/stage-pill-select";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { PermitBadge } from "@/components/jobs/permit-badge";
-import { Briefcase } from "lucide-react";
+import { PermitStatusPill, WorkflowPhaseCell, tradesLabel, type JobWorkflowSummaryData } from "@/components/workflows/job-workflow-summary";
+import { useWorkflowTemplates } from "@/components/workflows/use-workflow";
+import { Briefcase, Workflow } from "lucide-react";
 
 const ASSIGNABLE_ROLES = new Set(["ADMIN", "MANAGER", "SALES_REP"]);
 const UNASSIGN_VALUE = "__unassigned";
@@ -52,7 +54,22 @@ type JobRow = {
   permits: { status: string }[];
   createdAt: string;
   taskCounts?: { pending: number; overdue: number };
+  workflow?: JobWorkflowSummaryData | null;
 };
+
+const PERMIT_FILTER_OPTIONS = [
+  { value: "UNDETERMINED", label: "Permit undetermined" },
+  { value: "REQUIRED", label: "Permit required" },
+  { value: "NOT_REQUIRED", label: "No permit required" },
+  { value: "NONE", label: "No workflow yet" },
+] as const;
+
+const WORKFLOW_TOGGLES = [
+  { key: "workflowBlocked", label: "Blocked" },
+  { key: "workflowOverdue", label: "Overdue" },
+  { key: "workflowUnassigned", label: "Unassigned" },
+] as const;
+type WorkflowToggle = (typeof WORKFLOW_TOGGLES)[number]["key"];
 
 type Assignee = {
   id: string;
@@ -65,9 +82,20 @@ type Assignee = {
 export default function JobsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  // Workflow filters read the URL once so the dashboard widget can deep-link
+  // ("3 blocked" → /jobs?workflowBlocked=1); the rest is local state.
+  const initial = useSearchParams();
   const [search, setSearch] = useState("");
   const [stageId, setStageId] = useState("");
   const [salesRepFilter, setSalesRepFilter] = useState("");
+  const [workflowTrade, setWorkflowTrade] = useState(initial.get("workflowTrade") ?? "");
+  const [permitFilter, setPermitFilter] = useState(initial.get("permitStatus") ?? "");
+  const [phaseKey, setPhaseKey] = useState(initial.get("phaseKey") ?? "");
+  const [toggles, setToggles] = useState<Record<WorkflowToggle, boolean>>({
+    workflowBlocked: initial.get("workflowBlocked") === "1",
+    workflowOverdue: initial.get("workflowOverdue") === "1",
+    workflowUnassigned: initial.get("workflowUnassigned") === "1",
+  });
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAssignTo, setBulkAssignTo] = useState("");
@@ -77,8 +105,15 @@ export default function JobsPage() {
   if (search) params.set("search", search);
   if (stageId) params.set("stageId", stageId);
   if (salesRepFilter) params.set("salesRepId", salesRepFilter);
+  if (workflowTrade) params.set("workflowTrade", workflowTrade);
+  if (permitFilter) params.set("permitStatus", permitFilter);
+  if (phaseKey) params.set("phaseKey", phaseKey);
+  for (const t of WORKFLOW_TOGGLES) if (toggles[t.key]) params.set(t.key, "1");
   params.set("page", String(page));
   params.set("withTaskCounts", "true");
+  params.set("withWorkflow", "true");
+  const workflowFilterCount =
+    Number(Boolean(workflowTrade)) + Number(Boolean(permitFilter)) + Number(Boolean(phaseKey)) + WORKFLOW_TOGGLES.filter((t) => toggles[t.key]).length;
 
   const {
     data,
@@ -92,7 +127,7 @@ export default function JobsPage() {
     page: number;
     totalPages: number;
   }>({
-    queryKey: ["jobs", search, stageId, salesRepFilter, page],
+    queryKey: ["jobs", search, stageId, salesRepFilter, workflowTrade, permitFilter, phaseKey, toggles, page],
     queryFn: () => fetchJson(`/api/jobs?${params.toString()}`),
     retry: retryServerErrors,
   });
@@ -108,6 +143,25 @@ export default function JobsPage() {
     queryFn: () => fetchJson("/api/admin/users"),
     retry: retryServerErrors,
   });
+
+  const { data: templates = [] } = useWorkflowTemplates();
+  const tradeOptions = useMemo(() => templates.filter((t) => t.kind === "TRADE"), [templates]);
+  const phaseOptions = useMemo(
+    () =>
+      [...templates]
+        .sort((a, b) => (a.kind === "CORE" ? -1 : b.kind === "CORE" ? 1 : a.name.localeCompare(b.name)))
+        .flatMap((t) => t.phases.map((p) => ({ key: p.key, label: `${t.name} · ${p.name}` }))),
+    [templates],
+  );
+  const phaseLabel = (key: string) => phaseOptions.find((p) => p.key === key)?.label;
+
+  function clearWorkflowFilters() {
+    setWorkflowTrade("");
+    setPermitFilter("");
+    setPhaseKey("");
+    setToggles({ workflowBlocked: false, workflowOverdue: false, workflowUnassigned: false });
+    setPage(1);
+  }
 
   const assignableUsers = useMemo(
     () =>
@@ -219,6 +273,7 @@ export default function JobsPage() {
               exportParams.set("pageSize", "5000");
               exportParams.delete("page");
               exportParams.delete("withTaskCounts");
+              exportParams.set("withWorkflow", "true");
               let body: { data?: JobRow[] };
               try {
                 body = await fetchJson(`/api/jobs?${exportParams.toString()}`);
@@ -242,6 +297,13 @@ export default function JobsPage() {
                   : "",
                 scheduledDate: j.scheduledDate ?? "",
                 createdAt: j.createdAt,
+                trades: tradesLabel(j.workflow),
+                permitStatus: j.workflow?.permitStatus ?? "",
+                phase: j.workflow ? (j.workflow.currentPhase?.name ?? (j.workflow.open === 0 ? "Complete" : "Waiting")) : "",
+                percentComplete: j.workflow ? j.workflow.percentComplete : "",
+                blockedSteps: j.workflow?.blocked ?? "",
+                overdueSteps: j.workflow?.overdue ?? "",
+                unassignedSteps: j.workflow?.unassigned ?? "",
               }));
               const csv = toCsv(rows, [
                 { key: "jobNumber", header: "Job #" },
@@ -255,6 +317,13 @@ export default function JobsPage() {
                 { key: "salesRep", header: "Sales Rep" },
                 { key: "scheduledDate", header: "Scheduled" },
                 { key: "createdAt", header: "Created" },
+                { key: "trades", header: "Trades" },
+                { key: "permitStatus", header: "Permit status" },
+                { key: "phase", header: "Phase" },
+                { key: "percentComplete", header: "Workflow %" },
+                { key: "blockedSteps", header: "Blocked steps" },
+                { key: "overdueSteps", header: "Overdue steps" },
+                { key: "unassignedSteps", header: "Unassigned steps" },
               ]);
               downloadCsv(`jobs-${new Date().toISOString().slice(0, 10)}.csv`, csv);
             }}
@@ -326,6 +395,90 @@ export default function JobsPage() {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Workflow filters">
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+          <Workflow className="size-3.5" /> Workflow
+        </span>
+        <Select
+          value={workflowTrade}
+          onValueChange={(v: string | null) => {
+            setWorkflowTrade(!v || v === "all" ? "" : v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-8 w-[170px] text-xs">
+            <SelectValue placeholder="Any trade">
+              {(v: string) => (!v ? "Any trade" : tradeOptions.find((t) => t.key === v)?.name ?? "Any trade")}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any trade</SelectItem>
+            {tradeOptions.map((t) => (
+              <SelectItem key={t.key} value={t.key}>{t.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={permitFilter}
+          onValueChange={(v: string | null) => {
+            setPermitFilter(!v || v === "all" ? "" : v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-8 w-[190px] text-xs">
+            <SelectValue placeholder="Any permit status">
+              {(v: string) => (!v ? "Any permit status" : PERMIT_FILTER_OPTIONS.find((o) => o.value === v)?.label ?? "Any permit status")}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any permit status</SelectItem>
+            {PERMIT_FILTER_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={phaseKey}
+          onValueChange={(v: string | null) => {
+            setPhaseKey(!v || v === "all" ? "" : v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-8 w-[230px] text-xs">
+            <SelectValue placeholder="Any phase">
+              {(v: string) => (!v ? "Any phase" : phaseLabel(v) ?? v)}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any phase</SelectItem>
+            {phaseOptions.map((p) => (
+              <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {WORKFLOW_TOGGLES.map((t) => (
+          <Button
+            key={t.key}
+            type="button"
+            size="sm"
+            variant={toggles[t.key] ? "secondary" : "outline"}
+            aria-pressed={toggles[t.key]}
+            className="h-8 text-xs"
+            onClick={() => {
+              setToggles((prev) => ({ ...prev, [t.key]: !prev[t.key] }));
+              setPage(1);
+            }}
+          >
+            {t.label}
+          </Button>
+        ))}
+        {workflowFilterCount > 0 && (
+          <Button type="button" size="sm" variant="ghost" className="h-8 text-xs" onClick={clearWorkflowFilters}>
+            <X className="mr-1 size-3" /> Clear ({workflowFilterCount})
+          </Button>
+        )}
       </div>
 
       {selected.size > 0 && (
@@ -406,6 +559,7 @@ export default function JobsPage() {
               <TableHead>Customer</TableHead>
               <TableHead>Service</TableHead>
               <TableHead>Stage</TableHead>
+              <TableHead>Phase</TableHead>
               <TableHead className="text-right">Contract</TableHead>
               <TableHead>Deposit</TableHead>
               <TableHead>Permit</TableHead>
@@ -418,7 +572,7 @@ export default function JobsPage() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={11} className="py-2">
+                  <TableCell colSpan={12} className="py-2">
                     <Skeleton className="h-8 w-full" />
                   </TableCell>
                 </TableRow>
@@ -427,7 +581,7 @@ export default function JobsPage() {
               // "No jobs found" for a failed request made the connection
               // exhaustion outage look like every job had been deleted.
               <TableRow>
-                <TableCell colSpan={11} className="py-8 text-center">
+                <TableCell colSpan={12} className="py-8 text-center">
                   <p className="font-medium">Couldn&apos;t load jobs</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {jobsError instanceof Error
@@ -447,7 +601,7 @@ export default function JobsPage() {
               </TableRow>
             ) : !data?.data?.length ? (
               <TableRow>
-                <TableCell colSpan={11}>
+                <TableCell colSpan={12}>
                   <EmptyState icon={Briefcase} title="No jobs match" description="Try clearing a filter, or win a lead to start a job." />
                 </TableCell>
               </TableRow>
@@ -494,6 +648,9 @@ export default function JobsPage() {
                         onChange={(stageId) => changeStage.mutate({ jobId: job.id, stageId })}
                       />
                     </TableCell>
+                    <TableCell className="max-w-[200px]">
+                      <WorkflowPhaseCell jobId={job.id} summary={job.workflow} />
+                    </TableCell>
                     <TableCell className="text-right font-medium">
                       <div>${Number(job.contractAmount).toLocaleString()}</div>
                       {job.jobType === "COST_PLUS" && (
@@ -515,7 +672,10 @@ export default function JobsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <PermitBadge status={hasPermit ? permitStatus : null} />
+                      <div className="flex flex-col items-start gap-0.5">
+                        {job.workflow && <PermitStatusPill status={job.workflow.permitStatus} compact />}
+                        {(hasPermit || !job.workflow) && <PermitBadge status={hasPermit ? permitStatus : null} />}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       <span className={Number(job.balanceDue) > 0 ? "font-medium" : "text-tone-success-fg"}>

@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { PermitBadge } from "./permit-badge";
+import { PermitStatusPill, WorkflowIssueChips, type JobWorkflowSummaryData } from "@/components/workflows/job-workflow-summary";
 
 export type BoardJob = {
   id: string;
@@ -27,6 +28,7 @@ export type BoardJob = {
   taskCounts?: { pending: number; overdue: number };
   stageHistory?: { changedAt: string }[];
   updatedAt?: string;
+  workflow?: JobWorkflowSummaryData | null;
 };
 
 const money0 = (n: unknown) => `$${Math.round(Number(n)).toLocaleString("en-US")}`;
@@ -61,8 +63,17 @@ export function JobBoardCard({ job }: { job: BoardJob }) {
         <Badge variant="outline" className="text-[11px]">
           {job.serviceType}
         </Badge>
-        {permit && <PermitBadge status={permit} />}
+        {job.workflow ? <PermitStatusPill status={job.workflow.permitStatus} compact /> : permit && <PermitBadge status={permit} />}
       </div>
+      {job.workflow && (
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="truncate text-muted-foreground" title={job.workflow.trades.map((t) => t.name).join(", ") || "Core only"}>
+            {job.workflow.currentPhase?.name ?? (job.workflow.open === 0 ? "Workflow complete" : "Waiting")}
+            <span className="ml-1 tabular-nums">{job.workflow.percentComplete}%</span>
+          </span>
+          <WorkflowIssueChips summary={job.workflow} />
+        </div>
+      )}
       {job.nextAction && (
         <div className="flex items-start gap-1.5 rounded-md bg-tone-warning-soft px-2 py-1 text-xs leading-snug text-tone-warning-fg">
           <CornerDownRight className="mt-0.5 size-3 shrink-0" />

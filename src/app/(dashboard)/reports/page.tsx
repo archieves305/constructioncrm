@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Download } from "lucide-react";
 import { toCsv, downloadCsv } from "@/lib/csv";
+import { fetchJson, HttpError, retryServerErrors } from "@/lib/fetch-json";
+import { WorkflowReportSection, workflowCsvSections } from "@/components/reports/workflow-report-section";
+import type { WorkflowReport } from "@/lib/workflows/reports";
 import {
   BarChart,
   Bar,
@@ -33,8 +36,8 @@ export default function ReportsPage() {
 
   const { data: conversions } = useQuery({
     queryKey: ["report-conversions", dateFrom, dateTo],
-    queryFn: () =>
-      fetch(`/api/reports?${params.toString()}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/reports?${params.toString()}`),
+    retry: retryServerErrors,
   });
 
   const dashParams = new URLSearchParams();
@@ -44,9 +47,21 @@ export default function ReportsPage() {
 
   const { data: dashboard } = useQuery({
     queryKey: ["report-dashboard", dateFrom, dateTo],
-    queryFn: () =>
-      fetch(`/api/reports?${dashParams.toString()}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/reports?${dashParams.toString()}`),
+    retry: retryServerErrors,
   });
+
+  const wfParams = new URLSearchParams();
+  wfParams.set("type", "workflow");
+  if (dateFrom) wfParams.set("dateFrom", dateFrom);
+  if (dateTo) wfParams.set("dateTo", dateTo);
+  // 403 for own-only roles: the section simply does not render for them.
+  const { data: workflow, error: workflowError } = useQuery<WorkflowReport>({
+    queryKey: ["report-workflow", dateFrom, dateTo],
+    queryFn: () => fetchJson(`/api/reports?${wfParams.toString()}`),
+    retry: retryServerErrors,
+  });
+  const workflowForbidden = workflowError instanceof HttpError && workflowError.status === 403;
 
   const funnel = conversions?.funnelMetrics;
 
@@ -88,6 +103,7 @@ export default function ReportsPage() {
               if (dashboard?.byRep) {
                 sections.push({ name: "By Rep", rows: dashboard.byRep });
               }
+              if (workflow) sections.push(...workflowCsvSections(workflow));
 
               const parts: string[] = [];
               for (const s of sections) {
@@ -234,6 +250,14 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {workflow ? (
+        <div className="mt-10">
+          <WorkflowReportSection report={workflow} />
+        </div>
+      ) : workflowError && !workflowForbidden ? (
+        <p className="mt-10 text-sm text-muted-foreground">Couldn&apos;t load the workflow report.</p>
+      ) : null}
     </div>
   );
 }

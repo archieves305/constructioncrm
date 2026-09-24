@@ -32,7 +32,7 @@ export default function ProductionBoardPage() {
 
   const { data: jobsData, isLoading } = useQuery<JobsPayload>({
     queryKey: QUERY_KEY,
-    queryFn: () => fetchJson("/api/jobs?pageSize=500&withTaskCounts=true"),
+    queryFn: () => fetchJson("/api/jobs?pageSize=500&withTaskCounts=true&withWorkflow=true"),
     retry: retryServerErrors,
   });
   const jobs = useMemo(() => jobsData?.data ?? [], [jobsData]);

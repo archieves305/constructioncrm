@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { MyTasksWidget } from "@/components/tasks/my-tasks-widget";
+import { WorkflowHealthWidget } from "@/components/dashboard/workflow-health-widget";
 import { fetchJson } from "@/lib/fetch-json";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -97,6 +98,7 @@ export default function DashboardPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <MyTasksWidget className="lg:col-span-2" />
+        <WorkflowHealthWidget className="lg:col-span-2" />
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Leads by Stage</CardTitle>

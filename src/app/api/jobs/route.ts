@@ -2,33 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { buildJobListWhere, hasWorkflowFilter, parseJobListParams } from "@/lib/jobs/query";
+import { loadJobWorkflowSummaries } from "@/lib/workflows/summary";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
   const { searchParams } = request.nextUrl;
-  const stageId = searchParams.get("stageId") || undefined;
-  const salesRepId = searchParams.get("salesRepId") || undefined;
-  const search = searchParams.get("search") || undefined;
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "50");
   const withTaskCounts = searchParams.get("withTaskCounts") === "true";
+  const params = parseJobListParams(searchParams);
+  // Any workflow filter implies the summary: the list has to show why a job matched.
+  const withWorkflow = searchParams.get("withWorkflow") === "true" || hasWorkflowFilter(params);
+  const now = new Date();
 
-  const where: Record<string, unknown> = {};
-  if (stageId) where.currentStageId = stageId;
-  if (salesRepId) where.salesRepId = salesRepId;
-  if (search) {
-    where.OR = [
-      { jobNumber: { contains: search, mode: "insensitive" } },
-      { title: { contains: search, mode: "insensitive" } },
-      { lead: { fullName: { contains: search, mode: "insensitive" } } },
-    ];
-  }
-
-  if (session.user.role === "SALES_REP") {
-    where.salesRepId = session.user.id;
-  }
+  const where = buildJobListWhere(params, { user: { id: session.user.id, role: session.user.role }, now });
 
   const [data, total] = await Promise.all([
     prisma.job.findMany({
@@ -50,10 +40,10 @@ export async function GET(request: NextRequest) {
     prisma.job.count({ where }),
   ]);
 
+  const jobIds = data.map((j) => j.id);
+
   let taskCountsByJob: Record<string, { pending: number; overdue: number }> = {};
-  if (withTaskCounts && data.length > 0) {
-    const jobIds = data.map((j) => j.id);
-    const now = new Date();
+  if (withTaskCounts && jobIds.length > 0) {
     const [pendingTasks, overdueTasks] = await Promise.all([
       prisma.task.groupBy({
         by: ["jobId"],
@@ -83,12 +73,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const enriched = withTaskCounts
-    ? data.map((j) => ({
-        ...j,
-        taskCounts: taskCountsByJob[j.id] ?? { pending: 0, overdue: 0 },
-      }))
-    : data;
+  const workflowByJob = withWorkflow ? await loadJobWorkflowSummaries(jobIds, now) : null;
+
+  const enriched = data.map((j) => ({
+    ...j,
+    ...(withTaskCounts && { taskCounts: taskCountsByJob[j.id] ?? { pending: 0, overdue: 0 } }),
+    ...(workflowByJob && { workflow: workflowByJob.get(j.id) ?? null }),
+  }));
 
   return NextResponse.json({ data: enriched, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
 }

@@ -250,6 +250,8 @@ export type WorkflowTemplateOption = {
   phaseCount: number;
   taskCount: number;
   scopeToggles: ScopeToggleDef[];
+  /** Full keys ("roofing:permitting") as the tasks carry them — the jobs-list Phase filter. */
+  phases: { key: string; shortKey: string; name: string; band: number }[];
   serviceCategoryNames: string[];
   suggested: boolean;
 };

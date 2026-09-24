@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
-import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
+import { canViewWorkflowReports, workflowHealthScope } from "@/lib/workflows/access";
+import { loadWorkflowHealth, loadWorkflowReport } from "@/lib/workflows/reports";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -136,6 +138,24 @@ export async function GET(request: NextRequest) {
         leadToWon: total > 0 ? ((won / total) * 100).toFixed(1) : "0",
       },
     });
+  }
+
+  // Workflow reporting — explicit role list, never hasMinRole.
+  if (type === "workflow") {
+    if (!canViewWorkflowReports(session.user.role)) return forbidden();
+    const report = await loadWorkflowReport({
+      from: dateFrom ? new Date(dateFrom) : null,
+      to: dateTo ? new Date(dateTo) : null,
+    });
+    return NextResponse.json(report);
+  }
+
+  if (type === "workflow-health") {
+    const scope = workflowHealthScope({ id: session.user.id, role: session.user.role });
+    const health = await loadWorkflowHealth(
+      scope === "all" ? {} : { OR: [{ salesRepId: session.user.id }, { projectManagerId: session.user.id }] },
+    );
+    return NextResponse.json(health);
   }
 
   return NextResponse.json({ error: "Unknown report type" }, { status: 400 });

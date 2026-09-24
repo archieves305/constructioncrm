@@ -65,6 +65,20 @@ export function canEditDependencies(user: WorkflowActor, job: JobScope): boolean
   return canCoordinateWorkflow(user, job);
 }
 
+/** The workflow report and CSV: office roles plus read-only. Never the own-only roles. */
+export function canViewWorkflowReports(role: RoleName): boolean {
+  return OFFICE.has(role) || role === "READ_ONLY";
+}
+
+/**
+ * Which jobs the dashboard workflow-health widget may count for this user:
+ * office and read-only roles see the company; everyone else sees the jobs
+ * they sell or manage.
+ */
+export function workflowHealthScope(user: WorkflowActor): "all" | "own" {
+  return canViewWorkflowReports(user.role) ? "all" : "own";
+}
+
 /** Read/write the company-wide role defaults. */
 export function canEditRoleDefaults(role: RoleName): boolean {
   return role === "ADMIN";

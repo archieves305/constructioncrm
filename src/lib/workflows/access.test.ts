@@ -44,3 +44,18 @@ describe("workflow permissions", () => {
     expect(isOnJobTeam({ id: "nobody", role: "CREW_LEAD" }, job)).toBe(false);
   });
 });
+
+describe("workflow reports access", () => {
+  it("office roles and read-only see the report; own-only roles do not", async () => {
+    const { canViewWorkflowReports, workflowHealthScope } = await import("./access");
+    expect(canViewWorkflowReports("ADMIN")).toBe(true);
+    expect(canViewWorkflowReports("MANAGER")).toBe(true);
+    expect(canViewWorkflowReports("OFFICE_STAFF")).toBe(true);
+    expect(canViewWorkflowReports("READ_ONLY")).toBe(true);
+    expect(canViewWorkflowReports("SALES_REP")).toBe(false);
+    expect(canViewWorkflowReports("CREW_LEAD")).toBe(false);
+    expect(canViewWorkflowReports("MARKETING")).toBe(false);
+    expect(workflowHealthScope({ id: "u", role: "OFFICE_STAFF" })).toBe("all");
+    expect(workflowHealthScope({ id: "u", role: "SALES_REP" })).toBe("own");
+  });
+});
