@@ -71,6 +71,10 @@ const schema = z.object({
   // Optional at server-start so the app boots without it; the integration
   // routes 503 when unset.
   CC_ALLOCATOR_API_KEY: z.string().optional(),
+  // cc-allocator's postings export, read by the Cost Reconciliation page.
+  // Same droplet, so the internal port is the intended value.
+  CC_ALLOCATOR_BASE_URL: z.string().url().optional(),
+  CC_ALLOCATOR_RECON_KEY: z.string().optional(),
 
   // Bearer token the KNU phone-routing app presents when auto-creating leads
   // from inbound calls. Optional at boot; the integration route 503s when unset.

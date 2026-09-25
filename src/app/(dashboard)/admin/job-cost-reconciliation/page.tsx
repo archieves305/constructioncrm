@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
+import { NEVER_POSTED_LABEL, type NeverPostedReason } from "@/lib/expenses/reconcile-allocator";
 
 type Side = { id: string; vendor: string | null; description: string | null; type: string; billable: boolean; incurredDate: string; createdAt: string; enteredBy: string };
 type Pair = {
@@ -43,7 +44,39 @@ type Decision = {
   decidedAt: string;
   decidedBy: string | null;
 };
-type Payload = { pairs: Pair[]; summary: { pairs: number; exact: number; amount: number }; decisions: Decision[] };
+type AllocatorRow = {
+  source: "card" | "bank";
+  id: string;
+  externalId: string;
+  status: string;
+  amount: number;
+  date: string;
+  payee: string | null;
+  crmJobId: string | null;
+  crmJobName: string | null;
+  jobNumber: string | null;
+  lastCrmError: string | null;
+  reason?: NeverPostedReason;
+  crmExpenseIdHere?: string;
+};
+type Allocator =
+  | { configured: false }
+  | { configured: true; ok: false; error: string }
+  | {
+      configured: true;
+      ok: true;
+      generatedAt: string;
+      counts: { card: number; bank: number; withExpenseId: number };
+      missingInCrm: AllocatorRow[];
+      neverPosted: AllocatorRow[];
+      heldPending: AllocatorRow[];
+      totals: {
+        missing: { count: number; amount: number };
+        neverPosted: { count: number; amount: number; credits: { count: number; amount: number } };
+        held: { count: number; amount: number };
+      };
+    };
+type Payload = { allocator: Allocator; pairs: Pair[]; summary: { pairs: number; exact: number; amount: number }; decisions: Decision[] };
 
 const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const day = (iso: string) => format(new Date(`${iso.slice(0, 10)}T12:00:00`), "MMM d, yyyy");
@@ -190,6 +223,8 @@ export default function JobCostReconciliationPage() {
             </CardContent>
           </Card>
 
+          <AllocatorSection a={data.allocator} />
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Recent decisions</CardTitle>
@@ -238,6 +273,112 @@ export default function JobCostReconciliationPage() {
           </Card>
         </div>
       )}
+    </div>
+  );
+}
+
+/** What only cc-allocator's side can show. */
+function AllocatorSection({ a }: { a: Allocator }) {
+  if (!a.configured) {
+    return (
+      <Callout tone="info" title="cc-allocator's side is not connected">
+        Set <span className="font-mono text-xs">CC_ALLOCATOR_BASE_URL</span> and <span className="font-mono text-xs">CC_ALLOCATOR_RECON_KEY</span> on the CRM (and <span className="font-mono text-xs">CRM_RECON_API_KEY</span> on cc-allocator) to also see postings it recorded that the CRM no longer holds, and rows linked to a job that never posted.
+      </Callout>
+    );
+  }
+  if (!a.ok) {
+    return <Callout tone="warning" title="Couldn't read cc-allocator's postings">{a.error}</Callout>;
+  }
+  const empty = a.missingInCrm.length === 0 && a.neverPosted.length === 0 && a.heldPending.length === 0;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">From cc-allocator&apos;s side</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          {a.counts.card} card and {a.counts.bank} bank rows linked to a CRM job, {a.counts.withExpenseId} with a CRM expense id · read {format(new Date(a.generatedAt), "MMM d, HH:mm")}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {empty && <p className="py-2 text-sm text-muted-foreground">Everything cc-allocator has sent is here, and nothing linked to a job is waiting.</p>}
+
+        {a.missingInCrm.length > 0 && (
+          <div>
+            <div className="mb-1 flex items-center gap-2 text-sm font-medium">
+              Posted by cc-allocator, missing here
+              <Badge variant="destructive" className="text-[10px]">{a.totals.missing.count} · {money(a.totals.missing.amount)}</Badge>
+            </div>
+            <p className="mb-2 text-xs text-muted-foreground">cc-allocator holds a CRM expense id for these, so it will never retry. They were deleted in the CRM after posting; re-enter by hand if that was a mistake.</p>
+            <AllocatorTable rows={a.missingInCrm} />
+          </div>
+        )}
+
+        {a.neverPosted.length > 0 && (
+          <div>
+            <div className="mb-1 flex items-center gap-2 text-sm font-medium">
+              Linked to a job, never posted
+              <Badge variant="outline" className="text-[10px]">
+                {a.totals.neverPosted.count} · {money(a.totals.neverPosted.amount)}
+                {a.totals.neverPosted.credits.count > 0 ? ` (incl. ${a.totals.neverPosted.credits.count} credits, ${money(a.totals.neverPosted.credits.amount)})` : ""}
+              </Badge>
+            </div>
+            <p className="mb-2 text-xs text-muted-foreground">Fix these in cc-allocator: approve, turn the CRM leg on, or read the error.</p>
+            <AllocatorTable rows={a.neverPosted} showReason />
+          </div>
+        )}
+
+        {a.heldPending.length > 0 && (
+          <div>
+            <div className="mb-1 flex items-center gap-2 text-sm font-medium">
+              Held for review here
+              <Badge variant="outline" className="text-[10px]">{a.totals.held.count} · {money(a.totals.held.amount)}</Badge>
+            </div>
+            <p className="mb-2 text-xs text-muted-foreground">Arrived as Pending because a typed-in charge matched. Approve or remove the twin from the job&apos;s Expenses tab.</p>
+            <AllocatorTable rows={a.heldPending} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AllocatorTable({ rows, showReason = false }: { rows: AllocatorRow[]; showReason?: boolean }) {
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Job</TableHead>
+            <TableHead>Payee</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+            <TableHead>Source</TableHead>
+            <TableHead>{showReason ? "Why" : "cc-allocator status"}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={r.externalId}>
+              <TableCell>
+                {r.crmJobId ? (
+                  <Link href={`/jobs/${r.crmJobId}?tab=money&sub=expenses`} className="font-mono text-xs hover:underline">
+                    {r.jobNumber ?? r.crmJobName ?? r.crmJobId}
+                  </Link>
+                ) : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+              </TableCell>
+              <TableCell className="max-w-[220px] truncate text-sm" title={r.payee ?? ""}>{r.payee ?? "—"}</TableCell>
+              <TableCell className="text-xs">{day(r.date)}</TableCell>
+              <TableCell className={`text-right tabular-nums ${r.amount < 0 ? "text-green-700" : ""}`}>{money(r.amount)}</TableCell>
+              <TableCell className="text-xs">{r.source === "bank" ? "bank feed" : "card feed"}</TableCell>
+              <TableCell className="text-xs">
+                {showReason && r.reason ? NEVER_POSTED_LABEL[r.reason] : r.status.toLowerCase().replace(/_/g, " ")}
+                {r.lastCrmError && <div className="max-w-[260px] truncate text-muted-foreground" title={r.lastCrmError}>{r.lastCrmError}</div>}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }

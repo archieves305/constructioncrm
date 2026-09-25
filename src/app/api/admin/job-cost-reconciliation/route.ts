@@ -3,19 +3,24 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { canApproveJobCosts } from "@/lib/expenses/permissions";
 import { pairCandidates, pairKey } from "@/lib/expenses/reconcile";
+import { classifyAllocatorPostings } from "@/lib/expenses/reconcile-allocator";
+import { fetchAllocatorPostings } from "@/lib/integrations/cc-allocator/postings";
 
 /**
  * Manual charges that look like a cc-allocator posting on the same job —
- * the pairs a person still has to rule on — plus the recent rulings.
- * Read-only; decisions go through ./resolve. Same explicit role list as
- * approving a charge: ADMIN, MANAGER, OFFICE_STAFF.
+ * the pairs a person still has to rule on — plus the recent rulings, and
+ * (when cc-allocator's export is configured) the two classes only its side
+ * can show: postings it recorded that the CRM no longer holds, and rows
+ * linked to a job that never posted. Read-only; decisions go through
+ * ./resolve. Same explicit role list as approving a charge: ADMIN,
+ * MANAGER, OFFICE_STAFF.
  */
 export async function GET() {
   const session = await getSession();
   if (!session?.user) return unauthorized();
   if (!canApproveJobCosts(session.user.role)) return forbidden();
 
-  const [rows, decisions] = await Promise.all([
+  const [rows, decisions, externalRows, allocator] = await Promise.all([
     prisma.jobExpense.findMany({
       where: { status: "APPROVED" },
       select: {
@@ -40,7 +45,33 @@ export async function GET() {
       orderBy: { decidedAt: "desc" },
       include: { decidedBy: { select: { firstName: true, lastName: true } } },
     }),
+    prisma.jobExpense.findMany({ where: { externalId: { not: null } }, select: { id: true, externalId: true, status: true } }),
+    fetchAllocatorPostings(),
   ]);
+
+  // cc-allocator's side, with CRM job numbers attached where the id resolves.
+  let allocatorOut: Record<string, unknown> = { configured: false };
+  if (allocator.configured && !allocator.ok) allocatorOut = { configured: true, ok: false, error: allocator.error };
+  if (allocator.configured && allocator.ok) {
+    const classes = classifyAllocatorPostings(
+      allocator.data.postings,
+      externalRows.map((r) => ({ id: r.id, externalId: r.externalId as string, status: r.status })),
+    );
+    const jobIds = Array.from(new Set([...classes.missingInCrm, ...classes.neverPosted, ...classes.heldPending].map((p) => p.crmJobId).filter((x): x is string => Boolean(x))));
+    const jobs = await prisma.job.findMany({ where: { id: { in: jobIds } }, select: { id: true, jobNumber: true } });
+    const jobNo = new Map(jobs.map((j) => [j.id, j.jobNumber]));
+    const withJob = <T extends { crmJobId: string | null }>(p: T) => ({ ...p, jobNumber: p.crmJobId ? (jobNo.get(p.crmJobId) ?? null) : null });
+    allocatorOut = {
+      configured: true,
+      ok: true,
+      generatedAt: allocator.data.generatedAt,
+      counts: allocator.data.counts,
+      missingInCrm: classes.missingInCrm.map(withJob),
+      neverPosted: classes.neverPosted.map(withJob),
+      heldPending: classes.heldPending.map(withJob),
+      totals: classes.totals,
+    };
+  }
 
   const decided = new Set(decisions.map((d) => pairKey(d.manualExpenseId, d.externalExpenseId)));
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -76,6 +107,7 @@ export async function GET() {
   });
 
   return NextResponse.json({
+    allocator: allocatorOut,
     pairs,
     summary: {
       pairs: pairs.length,

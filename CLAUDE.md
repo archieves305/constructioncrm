@@ -398,7 +398,9 @@ SSO: **`CAREYOS_SSO_URL`** (default `https://app.careyos.com`),
 
 Optional (feature 503s when unset): `TWILIO_*`, `OUTLOOK_*`,
 `MAILERSEND_API_KEY`, `EMAIL_FROM`, `OPS_ALERT_EMAIL`, `CRON_SECRET`,
-`CC_ALLOCATOR_API_KEY`,
+`CC_ALLOCATOR_API_KEY`, `CC_ALLOCATOR_BASE_URL` + `CC_ALLOCATOR_RECON_KEY`
+(read cc-allocator's postings export for the Cost Reconciliation page;
+unset = the page says so),
 `PHONE_ROUTING_API_KEY`, `PHONE_ROUTING_SYSTEM_USER_ID`, `ZAPIER_*`,
 `TASK_ESCALATION_DAYS` (default `2,5`), `TASK_ESCALATIONS_ENABLED` (default
 off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
