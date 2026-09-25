@@ -3,7 +3,8 @@ import { onEstimateTransition } from "@/lib/tasks/auto-tasks";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
-import { genericEstimateInputSchema } from "@/lib/estimates/generic-schema";
+import { z } from "zod";
+import { ESTIMATE_STATUSES, genericEstimateInputSchema } from "@/lib/estimates/generic-schema";
 import { buildSectionsCreate } from "@/lib/estimates/persist";
 
 export async function GET(
@@ -61,7 +62,7 @@ export async function PUT(
         templateId: input.templateId ?? null,
         templateCategory: input.templateCategory,
         name: input.name,
-        status: input.status,
+        status: input.status ?? existing.status,
         marginPercent: input.marginPercent,
         discountEnabled: input.discountEnabled,
         discountPercent: input.discountPercent,
@@ -83,6 +84,51 @@ export async function PUT(
   if (updated.status !== existing.status) {
     const from = existing.status;
     const to = updated.status;
+    const actorUserId = session.user.id;
+    after(async () => {
+      await onEstimateTransition(estimateId, from, to, actorUserId);
+    });
+  }
+
+  return NextResponse.json(updated);
+}
+
+const statusOnlySchema = z.object({ status: z.enum(ESTIMATE_STATUSES) });
+
+/**
+ * PATCH — change only the status (Mark sent / accepted / declined) without
+ * round-tripping the whole estimate. Same follow-up hooks as PUT.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; estimateId: string }> },
+) {
+  const session = await getSession();
+  if (!session?.user) return unauthorized();
+  const { id, estimateId } = await params;
+
+  const existing = await prisma.estimate.findFirst({
+    where: { id: estimateId, leadId: id },
+    select: { id: true, status: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Estimate not found" }, { status: 404 });
+  }
+
+  const result = await validateBody(request, statusOnlySchema);
+  if (!result.ok) return result.response;
+  const to = result.data.status;
+
+  const updated = await prisma.estimate.update({
+    where: { id: estimateId },
+    data: { status: to },
+    include: {
+      createdBy: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
+
+  if (to !== existing.status) {
+    const from = existing.status;
     const actorUserId = session.user.id;
     after(async () => {
       await onEstimateTransition(estimateId, from, to, actorUserId);

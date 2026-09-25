@@ -1,4 +1,5 @@
 import type { EstimateUnitType } from "@/generated/prisma/enums";
+import type { EstimateStatusValue } from "@/lib/estimates/estimate-status";
 
 // Client-side form shapes for the generic estimate builder. Money/percent fields
 // are strings in the form and converted to numbers on submit (same convention as
@@ -21,6 +22,8 @@ export type FormSection = {
 
 export type GenericFormState = {
   name: string;
+  /** Carried through every save so an edit never resets SENT / ACCEPTED. */
+  status: EstimateStatusValue;
   templateCategory: string;
   templateId: string | null;
   marginPercent: string;

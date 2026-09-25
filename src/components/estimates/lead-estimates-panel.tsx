@@ -21,7 +21,24 @@ import {
   Download,
   Building2,
   ListChecks,
+  ChevronDown,
+  FileSignature,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toneClasses } from "@/lib/ui/tones";
+import {
+  ESTIMATE_STATUS_ACTIONS,
+  ESTIMATE_STATUS_LABEL,
+  ESTIMATE_STATUS_TONE,
+  canGenerateContractFromEstimate,
+  isEstimateStatus,
+} from "@/lib/estimates/estimate-status";
+import { useSetEstimateStatus } from "@/components/estimates/use-estimate-status";
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { useTasks } from "@/components/tasks/use-tasks";
@@ -46,6 +63,7 @@ type GenericEstimateRecord = {
   id: string;
   estimateNumber: string;
   name: string;
+  status: string;
   templateCategory: string;
   subtotalCost: string;
   totalPrice: string;
@@ -59,14 +77,26 @@ const money = (n: number) =>
     maximumFractionDigits: 2,
   })}`;
 
+/** Which estimate a contract is generated from — the two tables differ. */
+export type ContractSource =
+  | { kind: "GENERIC"; id: string; estimateNumber: string; total: number; status: string }
+  | { kind: "ROOFING"; id: string; estimateNumber: string; total: number };
+
 export function LeadEstimatesPanel({
   leadId,
   services = [],
+  jobId,
+  onGenerateContract,
 }: {
   leadId: string;
   services?: LeadServiceLike[];
+  /** Set when the panel is mounted on a job: enables the contract actions. */
+  jobId?: string;
+  onGenerateContract?: (source: ContractSource) => void;
 }) {
   const queryClient = useQueryClient();
+  const setStatus = useSetEstimateStatus(leadId);
+  const contractsEnabled = Boolean(jobId && onGenerateContract);
   const roofingRef = useRef<EstimatesPanelHandle>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
@@ -167,9 +197,10 @@ export function LeadEstimatesPanel({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Estimates for this lead. The template follows the lead&rsquo;s
-          Services Needed. PDFs are saved to the Files tab tagged
-          &ldquo;ESTIMATE&rdquo;.
+          {jobId ? "Estimates for this job's customer." : "Estimates for this lead."}{" "}
+          The template follows the lead&rsquo;s Services Needed. PDFs are
+          saved to the Files tab tagged &ldquo;ESTIMATE&rdquo;.
+          {contractsEnabled && " Mark an estimate accepted to generate the contract from it."}
         </p>
 
         {decision.kind === "roofing" ? (
@@ -232,6 +263,13 @@ export function LeadEstimatesPanel({
                           {CATEGORY_LABELS[est.templateCategory] ??
                             est.templateCategory}
                         </Badge>
+                        {isEstimateStatus(est.status) && (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${toneClasses(ESTIMATE_STATUS_TONE[est.status]).pill}`}
+                          >
+                            {ESTIMATE_STATUS_LABEL[est.status]}
+                          </span>
+                        )}
                         {(() => {
                           const c = tasksByEstimate.get(est.id);
                           return c ? <TaskCountBadge open={c.open} overdue={c.overdue} compact /> : null;
@@ -286,6 +324,49 @@ export function LeadEstimatesPanel({
                       <ListChecks className="mr-1 h-3.5 w-3.5" />
                       Add task
                     </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={<Button size="sm" variant="ghost" disabled={setStatus.isPending} />}
+                      >
+                        Status
+                        <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {ESTIMATE_STATUS_ACTIONS.map((a) => (
+                          <DropdownMenuItem
+                            key={a.to}
+                            disabled={est.status === a.to}
+                            onClick={() => setStatus.mutate({ estimateId: est.id, status: a.to })}
+                          >
+                            {a.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {contractsEnabled && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!canGenerateContractFromEstimate(est.status)}
+                        title={
+                          canGenerateContractFromEstimate(est.status)
+                            ? "Generate a customer contract from this estimate"
+                            : "Mark the estimate accepted first"
+                        }
+                        onClick={() =>
+                          onGenerateContract?.({
+                            kind: "GENERIC",
+                            id: est.id,
+                            estimateNumber: est.estimateNumber,
+                            total: Number(est.totalPrice),
+                            status: est.status,
+                          })
+                        }
+                      >
+                        <FileSignature className="mr-1 h-3.5 w-3.5" />
+                        Generate contract
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"

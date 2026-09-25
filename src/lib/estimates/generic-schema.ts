@@ -60,7 +60,10 @@ export const genericEstimateInputSchema = z.object({
   templateCategory: z.enum(ESTIMATE_TEMPLATE_CATEGORIES),
   templateId: z.string().nullish(),
   name: z.string().trim().min(1, "Estimate name required").max(200),
-  status: z.enum(ESTIMATE_STATUSES).default("DRAFT"),
+  // Optional on purpose: a PUT that omits status keeps the stored one. With
+  // `.default("DRAFT")` every save from a client that did not send status
+  // silently reset SENT / ACCEPTED estimates to DRAFT.
+  status: z.enum(ESTIMATE_STATUSES).optional(),
   sections: z.array(genericSectionSchema).min(1, "Add at least one section"),
   marginPercent: z
     .number({ message: "margin must be a number" })

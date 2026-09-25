@@ -83,9 +83,10 @@ export default function LeadDetailPage() {
         // Won → a job exists. The workflow is the next thing to set up on it.
         const job = updated.job;
         toast.success(`Job ${job.jobNumber} created`, {
-          description: "Apply a workflow to generate its tasks.",
+          description: "Apply a workflow, or start the estimate and customer contract.",
           action: { label: "Set up its workflow", onClick: () => router.push(`/jobs/${job.id}?tab=workflow&apply=1`) },
-          duration: 10_000,
+          cancel: { label: "Estimate & contract", onClick: () => router.push(`/jobs/${job.id}?tab=money&sub=estimates`) },
+          duration: 12_000,
         });
       } else {
         toast.success("Stage updated");

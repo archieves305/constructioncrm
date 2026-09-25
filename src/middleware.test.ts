@@ -35,11 +35,36 @@ describe("middleware public path allowlist", () => {
     "/api/cron/task-reminders",
     "/api/integrations/cc-allocator/jobs",
     "/api/email/unsubscribe?token=abc.def",
+    "/sign/TOKEN",
+    "/api/sign/TOKEN",
+    "/api/sign/TOKEN/pdf",
+    "/_next/static/chunk.js",
   ];
 
   for (const path of publicPaths) {
     it(`lets ${path} through without a session`, () => {
       expect(run(path).headers.get("location")).toBeNull();
+    });
+  }
+
+  // A prefix is a whole segment. Before the boundary check, "/co" matched
+  // "/contracts" and "/api/co" matched "/api/cost-codes", so any office route
+  // whose name began with a public prefix skipped the session gate.
+  const privatePathsThatSharePrefixText = [
+    "/contracts",
+    "/collections",
+    "/signatures",
+    "/api/contracts",
+    "/api/customer-contracts/abc",
+    "/api/cost-codes",
+    "/api/cool",
+    "/api/signing-keys",
+    "/actions",
+  ];
+
+  for (const path of privatePathsThatSharePrefixText) {
+    it(`still gates ${path} (prefix must end at a segment boundary)`, () => {
+      expect(run(path).headers.get("location")).toContain("app.careyos.com/login");
     });
   }
 });

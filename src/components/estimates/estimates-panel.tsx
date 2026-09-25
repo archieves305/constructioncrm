@@ -450,8 +450,10 @@ export const EstimatesPanel = forwardRef<
       {isLoading ? (
         <p className="py-4 text-sm text-muted-foreground">Loading…</p>
       ) : estimates.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No estimates yet. Click &ldquo;New estimate&rdquo; to create one.
+        <p className={`text-center text-sm text-muted-foreground ${hideNewButton ? "py-2 text-xs" : "py-8"}`}>
+          {hideNewButton
+            ? "No roofing estimates yet."
+            : "No estimates yet. Click \u201cNew estimate\u201d to create one."}
         </p>
       ) : (
         <div className="space-y-3">

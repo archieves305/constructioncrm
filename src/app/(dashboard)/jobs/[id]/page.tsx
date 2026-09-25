@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  DollarSign, MapPin, User, Calendar, Hammer, Shield, ClipboardCheck, MoreHorizontal, CornerDownRight, Copy, ExternalLink, Wallet,
+  DollarSign, MapPin, User, Calendar, Hammer, Shield, ClipboardCheck, MoreHorizontal, CornerDownRight, Copy, ExternalLink, Wallet, FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { FilesPanel } from "@/components/files/files-panel";
@@ -47,6 +47,8 @@ import { LaborContractsPanel } from "@/components/jobs/labor-contracts-panel";
 import { ChangeOrdersPanel } from "@/components/jobs/change-orders-panel";
 import { BudgetPanel } from "@/components/jobs/budget-panel";
 import { PricingPanel } from "@/components/jobs/pricing-panel";
+import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
+import { Callout } from "@/components/shared/callout";
 import { RentalTurnoverPanel } from "@/components/jobs/rental-turnover-panel";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 import { useTasks } from "@/components/tasks/use-tasks";
@@ -317,6 +319,9 @@ export default function JobDetailPage() {
                 <DropdownMenuItem onClick={() => setTab("money", "payments")}>
                   <Wallet className="size-4" /> Record payment
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTab("money", "estimates")}>
+                  <FileText className="size-4" /> Estimates
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
                     void navigator.clipboard?.writeText(job.jobNumber);
@@ -492,8 +497,23 @@ export default function JobDetailPage() {
 
         {/* Right column: tabs */}
         <div className="lg:col-span-2">
+          {job.jobType === "FIXED_PRICE" && Number(job.contractAmount) === 0 && (
+            <Callout
+              tone="info"
+              className="mb-4"
+              title="Next: create an estimate, then generate the contract"
+              action={
+                <Button size="sm" variant="outline" onClick={() => setTab("money", "estimates")}>
+                  Open estimates
+                </Button>
+              }
+            >
+              This job has no contract amount yet. Build the estimate under Money → Estimates, mark it accepted, and generate the customer contract from it.
+            </Callout>
+          )}
           {(() => {
             const MONEY = [
+              { value: "estimates", label: "Estimates" },
               { value: "payments", label: `Payments (${job.payments?.length || 0})` },
               { value: "invoices", label: "Invoices" },
               { value: "expenses", label: "Expenses" },
@@ -572,6 +592,14 @@ export default function JobDetailPage() {
 
             <TabsContent value="workflow">
               <JobWorkflowPanel jobId={id} />
+            </TabsContent>
+
+            <TabsContent value="estimates">
+              <LeadEstimatesPanel
+                leadId={job.leadId}
+                services={job.lead?.services ?? []}
+                jobId={id}
+              />
             </TabsContent>
 
             <TabsContent value="payments" className="space-y-4">

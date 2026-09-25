@@ -21,6 +21,12 @@ import {
   calculateGenericEstimate,
   CATEGORY_LABELS,
 } from "@/lib/estimates/generic-calc";
+import {
+  ESTIMATE_STATUS_LABEL,
+  ESTIMATE_STATUS_TONE,
+  isEstimateStatus,
+} from "@/lib/estimates/estimate-status";
+import { toneClasses } from "@/lib/ui/tones";
 import type { EstimateUnitType } from "@/generated/prisma/enums";
 import {
   type GenericFormState,
@@ -56,6 +62,7 @@ type TemplateResponse = {
 type EstimateResponse = {
   id: string;
   name: string;
+  status: string;
   templateId: string | null;
   templateCategory: string;
   marginPercent: string;
@@ -81,6 +88,7 @@ type EstimateResponse = {
 function baseForm(category: string): GenericFormState {
   return {
     name: `${CATEGORY_LABELS[category] ?? "Project"} estimate`,
+    status: "DRAFT",
     templateCategory: category,
     templateId: null,
     marginPercent: "0",
@@ -114,6 +122,7 @@ function templateToForm(t: TemplateResponse): GenericFormState {
   }));
   return {
     name: `${CATEGORY_LABELS[t.category] ?? t.name} estimate`,
+    status: "DRAFT",
     templateCategory: t.category,
     templateId: t.id,
     marginPercent: "0",
@@ -130,6 +139,7 @@ function templateToForm(t: TemplateResponse): GenericFormState {
 function estimateToForm(e: EstimateResponse): GenericFormState {
   return {
     name: e.name,
+    status: isEstimateStatus(e.status) ? e.status : "DRAFT",
     templateCategory: e.templateCategory,
     templateId: e.templateId,
     marginPercent: String(Number(e.marginPercent)),
@@ -160,6 +170,7 @@ function formToPayload(form: GenericFormState) {
     templateCategory: form.templateCategory,
     templateId: form.templateId,
     name: form.name.trim(),
+    status: form.status,
     sections: form.sections.map((s, sIdx) => ({
       title: s.title.trim() || `Section ${sIdx + 1}`,
       sortOrder: sIdx,
@@ -305,8 +316,15 @@ export function GenericEstimateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
             {isEdit ? "Edit" : "New"} {categoryLabel} estimate
+            {isEdit && form && form.status !== "DRAFT" && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${toneClasses(ESTIMATE_STATUS_TONE[form.status]).pill}`}
+              >
+                {ESTIMATE_STATUS_LABEL[form.status]}
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 

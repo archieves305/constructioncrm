@@ -25,7 +25,9 @@ const PUBLIC_PREFIXES = [
   "/login",
   "/action",
   "/co",
+  "/sign",
   "/api/co",
+  "/api/sign",
   "/api/auth",
   "/api/track",
   "/api/email/unsubscribe",
@@ -34,13 +36,23 @@ const PUBLIC_PREFIXES = [
   "/_next",
 ];
 
+/**
+ * A prefix matches a whole path segment, never a partial one: "/co" opens
+ * "/co/TOKEN" but not "/contracts" or "/collections". The bare startsWith it
+ * replaced let any office route whose name happened to begin with a public
+ * prefix past the gate (route handlers still called getSession(), so it was a
+ * gap, not a hole — but a silent one).
+ */
+export function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (
-    pathname === "/favicon.ico" ||
-    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
-  ) {
+  if (pathname === "/favicon.ico" || isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
