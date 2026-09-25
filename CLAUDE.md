@@ -53,8 +53,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    19 duplicates removed ($16,070.96), 23 credits posted (−$7,580), BNW
    $11,694.15 job-costed. Findings + outcome:
    [job-cost-reconciliation-2026-09-24.md](docs/project-memory/job-cost-reconciliation-2026-09-24.md).
-   Phase 2 (a postings export from cc-allocator so deleted/unposted classes
-   show continuously) is optional.
+   **Phase 2 deployed 2026-09-25 (`972affe` + cc-allocator PR #32)**: the
+   page reads cc-allocator's postings export and shows "posted but missing
+   here", "linked, never posted" (with the reason) and "held for review".
+   **Waiting on Richard to place the shared key** (`CRM_RECON_API_KEY` in
+   cc-allocator's `.env`, `CC_ALLOCATOR_BASE_URL` + `CC_ALLOCATOR_RECON_KEY`
+   in `/etc/knuco/env`, then restart both) — until then the page says
+   "not connected".
 3. ✅ `field-log-digest` self-healed — prod journal shows every weekday run
    since the MailerSend upgrade at `attempted 6, sent 6, failures 0`
    (checked 2026-09-24 across Sep 17–24).
@@ -67,6 +72,23 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — Job-cost reconciliation, Phase 2 (deployed; keys pending)
+
+cc-allocator PR #32 (`75078d4`, deployed with
+`/var/www/careyos/scripts/deploy-ccallocator.sh` **run as `knuco`** — root
+has no GitHub key, and a stashed local `package-lock.json` drift had been
+blocking `git pull`): `GET /api/internal/crm-postings`, bearer
+`CRM_RECON_API_KEY`, every card/bank row with a CRM job or expense id in
+one flat shape. CRM: `lib/integrations/cc-allocator/postings.ts` (fetch +
+zod, 10s timeout, never throws), pure `lib/expenses/reconcile-allocator.ts`
+(`missingInCrm` / `neverPosted` with reason / `heldPending`), `allocator`
+block on `GET /api/admin/job-cost-reconciliation`, "From cc-allocator's
+side" card. The env-file writes were refused by the auto-mode classifier,
+so **Richard places the key** (commands in the 2026-09-25 session-history
+entry). Also fixed: archived `scripts/cc-allocator/*` had broken
+typecheck on `main` since `107f43c` — excluded in tsconfig. 615 tests,
+lint 6/28. **Deployed `972affe`** (build `-1tKwAW5IigEUf_Jhe-Sm`).
 
 ### 2026-09-24 — Job-cost reconciliation, Phase 1 (deployed + applied)
 
@@ -454,16 +476,15 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Every engineering workstream in §3 is closed as of `3e8b211`. What
-> remains is operator work (SPF on `knuconstruction.com`, then
-> `TASK_ESCALATIONS_ENABLED=1`; `PHONE_ROUTING_API_KEY`; the 302→301
-> promotion) and Richard's own click-throughs (workflow tab, apps 13–14 on
-> JOB-00009, the new Cost Reconciliation page). Candidates for the next
-> build, in rough value order, each to be pressure-tested against prod
-> data first: (a) **Phase 2 of reconciliation** — a small export in
-> cc-allocator of its CRM-linked postings so the Cost Reconciliation page
-> can show "posted but missing here" and "linked but never posted"
-> continuously; (b) **drop `User.passwordHash`** in a schema pass; (c)
-> **business-day durations** in the workflow report. Same rules: explicit
+> Reconciliation Phase 2 is deployed on both apps (`972affe`, cc-allocator
+> `75078d4`) but **not yet connected**: Richard has to place the shared
+> key (see the 2026-09-25 session-history entry for the exact commands),
+> then the Cost Reconciliation page's "From cc-allocator's side" card
+> should show 0 missing / 4 never-posted bank rows ($4,749.60, three
+> queued + one needs assignment) / 0 held. Verify that first. After that
+> every workstream is closed; remaining candidates are a schema pass to
+> drop `User.passwordHash`, and business-day durations in the workflow
+> report. Operator items (SPF → `TASK_ESCALATIONS_ENABLED=1`,
+> `PHONE_ROUTING_API_KEY`, 302→301) are Richard's. Same rules: explicit
 > role lists, tests + typecheck + build green, lint ≤ 6/28, deploy with
 > `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

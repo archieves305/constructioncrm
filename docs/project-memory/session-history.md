@@ -6,6 +6,38 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 
 
+## 2026-09-25 — Job-cost reconciliation, Phase 2 (deployed; keys pending)
+
+cc-allocator (local clone `~/cc-allocator`, branch → PR #32 → squash-merge):
+`src/server/crm/postings.ts` (pure serializer + 3 tests),
+`src/app/api/internal/crm-postings/route.ts` (bearer `CRM_RECON_API_KEY`,
+503 unset / 401 bad, `no-store`), `.env.example`, CLAUDE.md. Deploy: the
+suite script `/var/www/careyos/scripts/deploy-ccallocator.sh` does `git
+pull` + `npm ci` + `prisma db push` + build + pm2 restart; it failed
+silently under `sudo` (root has no GitHub key) and on a dirty
+`package-lock.json` — fixed by `git stash` (msg "pre-deploy lockfile drift
+2026-09-25") and running as `sudo -u knuco bash -lc`. Web + worker healthy
+on `75078d4`; route answers 503 pending the key. CRM:
+`lib/integrations/cc-allocator/postings.ts`, `lib/expenses/reconcile-allocator.ts`
+(+test), route + page additions, `env.ts` vars, tsconfig excludes
+`scripts/cc-allocator`. Dev: not-configured state renders; 615 tests.
+Deployed `972affe`.
+
+**Richard's step (assistant is not permitted to write env files):**
+
+```bash
+# on knuco-droplet
+KEY=$(openssl rand -hex 32)
+printf '\nCRM_RECON_API_KEY=%s\n' "$KEY" | sudo tee -a /var/www/cc-allocator/.env >/dev/null
+printf '\nCC_ALLOCATOR_BASE_URL=http://127.0.0.1:3115\nCC_ALLOCATOR_RECON_KEY=%s\n' "$KEY" | sudo tee -a /etc/knuco/env >/dev/null
+sudo -u knuco bash -lc 'bash /var/www/careyos/scripts/deploy-ccallocator.sh'   # re-sources .env into pm2
+sudo systemctl restart knuco
+curl -s -H "Authorization: Bearer $KEY" http://127.0.0.1:3115/api/internal/crm-postings | head -c 200
+```
+
+Then open Admin → Cost Reconciliation: expect 0 missing, 4 never-posted
+bank rows ($4,749.60), 0 held.
+
 ## 2026-09-24 — Job-cost reconciliation, Phase 1 (deployed + applied)
 
 New: `lib/expenses/reconcile.ts` (+test), `lib/expenses/delete.ts`,

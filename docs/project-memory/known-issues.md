@@ -4,11 +4,13 @@ _Updated 2026-09-24._
 
 ## Open — needs a decision or action
 
-- **cc-allocator reconciliation, Phase 2 (optional).** The Cost
-  Reconciliation page sees only what the CRM holds. "Posted but deleted
-  here" and "linked but never posted" still need the SQL dump in
-  `job-cost-reconciliation-2026-09-24.md`; a small postings export from
-  cc-allocator would make them continuous.
+- ⚠️ **Reconciliation Phase 2 is deployed but not connected.** Both apps
+  ship the code (`972affe`, cc-allocator PR #32); the shared bearer key is
+  not placed yet because env-file writes are refused to the assistant.
+  Until Richard sets `CRM_RECON_API_KEY` (cc-allocator `.env`) and
+  `CC_ALLOCATOR_BASE_URL=http://127.0.0.1:3115` +
+  `CC_ALLOCATOR_RECON_KEY` (`/etc/knuco/env`) and restarts both, the page
+  shows "cc-allocator's side is not connected".
 - The three deleted postings ($25,584.10) were **intentional** (Richard,
   2026-09-24) — not re-entered. Four bank rows ($4,749.60) sit in
   cc-allocator's own queue; when Roberto Rodriguez $432 (06-05) posts it
