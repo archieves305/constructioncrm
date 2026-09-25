@@ -6,6 +6,28 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 
 
+## 2026-09-24 — SSO dead-code cleanup, pickers, digest check
+
+Deleted `src/lib/auth/lockout.ts`, `lockout.test.ts`, `lockout-error.ts`,
+`password-policy.ts`, `password-policy.test.ts`, `scripts/create-admin.ts`.
+`/api/admin/users/route.ts` reduced to GET; `[id]/route.ts` lost
+`password`, `bcrypt`, `validatePassword`, `clearLoginFailures`.
+`admin/users/page.tsx` lost the Create User dialog, the per-row Password
+button and the change-password dialog (header now says users come from
+the CareyOS admin). `npm uninstall next-auth bcryptjs @types/bcryptjs`;
+`prisma/seed.ts` writes `"sso:careyos"`. Pickers: `leads/[id]`,
+`leads/new`, `leads/[id]/edit`, `permits`, `jobs/[id]` (permit form),
+`jobs`, `leads` → `fetchJson("/api/users/assignable")` under
+`["assignable-users"]` (the `["users"]` key was shared with the admin
+page's full rows, so the key change matters). Left on `/api/admin/users`:
+the admin page, job-task templates, field-assignments panel (all
+ADMIN/MANAGER). Digest: prod journal Sep 17–24 shows
+`field-log-digest cron done … sent 6, failures 0` every weekday. Dev QA:
+as `john.rep`, assignable → 3 users / 3 roles, admin list 403, POST 405;
+as admin, PATCH `{password}` → "No fields to update"; `/admin/users` and
+`/leads` render with no page errors. 605 tests, lint **6/28**, build
+clean. Deployed `cf746a2` (no migration; build `3FNcA-gRq83Kv0jIR_b9V`).
+
 ## 2026-09-24 — Progress billing, Stage 3
 
 `lib/billing/g702.ts`: `previousRetainagePercent` input, `previousRetainage`

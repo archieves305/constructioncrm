@@ -35,9 +35,9 @@ _Updated 2026-09-24._
   jobs-list and leads-list `withTaskCounts`). `OPEN_TASK_STATUSES` everywhere.
 - **Assignee pickers 403'd for non-admin roles** — every user dropdown hit
   `/api/admin/users` (ADMIN/MANAGER only). Task pickers now use
-  `/api/users/assignable`. The lead detail, jobs and leads pages still fetch
-  `/api/admin/users` for their own assignment dropdowns — same latent bug,
-  not fixed here.
+  `/api/users/assignable`. ✅ The remaining seven pickers (jobs list, job
+  permit form, leads list, lead detail, new/edit lead, permits) followed on
+  2026-09-24 (`cf746a2`).
 - **Tasks board rendered 5 columns in a 4-column grid**, wrapping CANCELLED.
 
 ## Resolved 2026-08-03 (later) — MailerSend upgraded
@@ -49,7 +49,8 @@ _Updated 2026-09-24._
   journal shows zero 422s. **The task-reminders cron has been re-enabled**
   (`30 11 * * 1-5`). `field-log-digest`, which had been silently failing for
   all four of those people every weekday, should self-heal on its next run.
-  Worth confirming tomorrow morning.
+  ✅ Confirmed 2026-09-24: every weekday run Sep 17–24 logged
+  `attempted 6, sent 6, failures 0`.
 
 ### Original finding, kept for the record
 
@@ -103,18 +104,14 @@ _Updated 2026-09-24._
   keep the `/api/integrations/` **proxy** exemption (see POST-through-302
   below).
 
-## Dead code from the SSO cutover
+## Dead code from the SSO cutover — ✅ removed 2026-09-24 (`cf746a2`)
 
-Left in place deliberately rather than widening an auth change's blast
-radius. Safe to remove in a dedicated pass:
-
-- `src/lib/auth/lockout.ts`, `lockout-error.ts`, `password-policy.ts` (plus
-  their tests) — only `password-policy` still has live callers, in
-  `admin/users`.
-- The password-setting path in `src/app/api/admin/users/route.ts` and
-  `[id]/route.ts` (`bcrypt.hash`) — sets a password nothing can log in with.
-  User creation properly belongs in the CareyOS admin now.
-- `next-auth` / `@auth/prisma-adapter` in `package.json` — imported nowhere.
+`lockout*`, `password-policy` (+ tests), `scripts/create-admin.ts`, the
+create-user POST and the password path on `/api/admin/users`, and the
+`next-auth` / `bcryptjs` packages are gone. What remains on purpose:
+`User.passwordHash` (required column) holds the `"sso:careyos"` sentinel
+written by the auto-provisioner and the seed — dropping it is a schema
+migration, not a cleanup.
 
 ## Constraints / fragile areas
 
@@ -135,7 +132,7 @@ radius. Safe to remove in a dedicated pass:
 - **`prisma migrate dev` wants to reset the dev DB** (a modified applied
   migration). Apply new migrations via `migrate diff` + `db execute` +
   `resolve` instead.
-- **Lint baseline: 6 errors, 29 warnings**, all pre-existing and in files
+- **Lint baseline: 6 errors, 28 warnings**, all pre-existing and in files
   untouched this session (canvassing/properties, permits, personnel,
   door-knock-routes ×2, rich-text-editor). Mostly
   `react-hooks/set-state-in-effect` and `no-explicit-any`. Do not treat a

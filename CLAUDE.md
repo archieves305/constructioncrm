@@ -49,18 +49,33 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    shipped. Remaining: **reconciliation against cc-allocator**, and **12
    candidate duplicate charges ($9,166.20) still need a human to confirm** —
    see [known-issues.md](docs/project-memory/known-issues.md).
-3. Confirm `field-log-digest` self-healed on its next 7:00am run — it had
-   been failing for all four `@calibertrust.com` users under the old
-   MailerSend cap, which is now lifted.
+3. ✅ `field-log-digest` self-healed — prod journal shows every weekday run
+   since the MailerSend upgrade at `attempted 6, sent 6, failures 0`
+   (checked 2026-09-24 across Sep 17–24).
 3. Add the SPF record for `knuconstruction.com` (see §5).
 3. Set `PHONE_ROUTING_API_KEY` to activate the phone-routing integration.
-4. Dead-code cleanup from the auth swap.
+4. ✅ Dead-code cleanup from the auth swap — done 2026-09-24 (`cf746a2`).
 5. Promote the old domain's 302 → 301 — **deliberately parked**, not
    blocked (see §5).
 
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-24 — SSO dead-code cleanup + pickers (deployed)
+
+Removed `lib/auth/lockout*`, `password-policy` (+ tests) and
+`scripts/create-admin.ts`; `/api/admin/users` is GET-only and PATCH no
+longer takes `password` (admin page loses Add User / Password and says
+users come from CareyOS); `next-auth`, `bcryptjs`, `@types/bcryptjs`
+uninstalled; seed writes the `"sso:careyos"` sentinel. Seven assignee
+pickers (jobs list, job permit form, leads list, lead detail, new/edit
+lead, permits) moved from `/api/admin/users` to `/api/users/assignable`
+under the `assignable-users` key — ADMIN/MANAGER-only surfaces stay.
+Digest check closed from the prod journal. Verified as SALES_REP on dev
+(assignable 200, admin 403, create 405). 605/605 tests, **lint 6/28**,
+build clean. **Deployed `cf746a2`** (no migration; build
+`3FNcA-gRq83Kv0jIR_b9V`).
 
 ### 2026-09-24 — Progress billing, Stage 3 (deployed)
 
@@ -286,12 +301,11 @@ Full list: [known-issues.md](docs/project-memory/known-issues.md).
   SSO was proven**. Promote when the old host goes quiet. It is an nginx
   vhost edit on the droplet, not a code deploy; must preserve path + query
   and the `/api/integrations/` proxy exemption.
-- Dead code: `lockout*`, `password-policy`, `admin/users` password path,
-  `next-auth` in package.json.
-- **Lint baseline: 6 errors / 29 warnings**, all pre-existing.
-- Lead detail, jobs list and leads list still fetch `/api/admin/users`
-  (ADMIN/MANAGER only) for their assignment dropdowns — empty for other
-  roles. Task pickers moved to `/api/users/assignable`; these did not.
+- **Lint baseline: 6 errors / 28 warnings**, all pre-existing.
+- `User.passwordHash` is still a required column carrying the
+  `"sso:careyos"` sentinel (auto-provisioner and seed). Dropping it is a
+  migration, not a cleanup — leave it unless a schema pass is happening
+  anyway.
 
 ## 6. Resume Instructions
 
@@ -394,19 +408,19 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Progress billing is complete (`4833ea3`) and the workflow feature is
-> complete (`f332e26`). Two small, fully specified hygiene items from §5 are
-> next, in one session: (1) **finish the auth-swap dead-code cleanup** —
-> remove `lockout*`, `password-policy`, the `admin/users` password path and
-> `next-auth` from package.json, keeping `src/middleware.test.ts` and the
-> public-path list intact; (2) **move the three remaining assignment
-> dropdowns** (lead detail, jobs list, leads list) off `/api/admin/users`
-> (ADMIN/MANAGER only, so empty for everyone else) onto
-> `/api/users/assignable`, the way the task pickers already did — check
-> what roles each picker should offer before switching. Then re-run the
-> `field-log-digest` check (§3 item 3) and report. Same rules: tests +
-> typecheck + build green, lint ≤ 6/29, deploy with
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`. The larger
-> open engineering item after that is the **job-costing reconciliation
-> against cc-allocator** (§3 item 2) — pressure-test a design against the
-> 12 candidate duplicates before building.
+> Everything engineering-shaped in §3 is done except **job-costing
+> reconciliation against cc-allocator** (§3 item 2). Start with a
+> pressure test, not code: pull cc-allocator's postings for the jobs that
+> have `JobExpense.externalId` rows (prod, read-only via psql over ssh and
+> the integration route), diff them against the CRM's APPROVED expenses,
+> and classify every mismatch — missing here, missing there, amount drift,
+> the 12 candidate duplicate pairs from `known-issues.md`. Write the
+> findings up (counts, dollars, one example per class) and propose the
+> smallest reconciliation that would hold: most likely a read-only
+> `GET /api/admin/job-cost-reconciliation` + an admin page that lists
+> mismatches with a "confirm duplicate → REJECT" action, since cc-allocator
+> owns money that moved and the CRM only approves. Do not build the
+> mutation until Richard has seen the diff. Remaining operator items (SPF,
+> `PHONE_ROUTING_API_KEY`, 302→301) are his, not code. Same rules: explicit
+> role lists, tests + typecheck + build green, lint ≤ 6/28, deploy with
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
