@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CORE } from "../../../prisma/seeds/workflows/core";
 import { ROOFING } from "../../../prisma/seeds/workflows/roofing";
+import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/code-violation";
 import { fakeTree } from "./test-helpers";
 
 vi.mock("@/lib/db/prisma", () => ({ prisma: {} }));
@@ -51,5 +52,28 @@ describe("validateTree", () => {
     tree.dependencies = tree.dependencies.filter((d) => d.dependsOnRef !== "determine_permit_requirement");
     const r = validateTree(tree, null);
     expect(r.issues.some((i) => i.message.includes('key "determine_permit_requirement"'))).toBe(true);
+  });
+});
+
+describe("validateTree — VIOLATION kind", () => {
+  it("passes the seeded code-violation template without needing Core", () => {
+    expect(validateTree(fakeTree(CODE_VIOLATION), null)).toEqual({ ok: true, issues: [] });
+  });
+
+  it("rejects core: references, off-template anchors and overrides; warns on payment evidence", () => {
+    const tree = fakeTree(CODE_VIOLATION);
+    tree.dependencies.push({ id: "x", versionId: tree.id, taskKey: "close_case", dependsOnRef: "core:close_job", kind: "BLOCKING" });
+    tree.tasks[0]!.overridesCoreKey = "review_contract";
+    tree.tasks[1]!.requiredEvidence = "PAYMENT_STATUS";
+    const r = validateTree(tree, null);
+    expect(r.ok).toBe(false);
+    const msgs = r.issues.map((i) => `${i.level}:${i.message}`);
+    expect(msgs.some((m) => m.startsWith("error:") && m.includes("never composes with Core"))).toBe(true);
+    expect(msgs.some((m) => m.startsWith("error:") && m.includes("only a trade step may override"))).toBe(true);
+    expect(msgs.some((m) => m.startsWith("warning:") && m.includes("FINE_STATUS"))).toBe(true);
+    // A trade may not use the case anchors.
+    const roofing = fakeTree(ROOFING);
+    roofing.tasks[0]!.anchor = "HEARING_DATE";
+    expect(validateTree(roofing, coreKeys).issues.some((i) => i.message.includes("hearing date anchor only exists on a violation template"))).toBe(true);
   });
 });

@@ -83,6 +83,7 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
       blockedReason: true,
       leadId: true,
       jobId: true,
+      violationCaseId: true,
       title: true,
       remindAt: true,
       fieldIssue: { select: { id: true, status: true } },

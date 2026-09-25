@@ -3,15 +3,21 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { readScopeToggles } from "@/lib/workflows/load";
 
+const KINDS = ["CORE", "TRADE", "VIOLATION"] as const;
+
 /**
- * Published workflow templates, for the Apply dialog and the library page.
+ * Published workflow templates, for the Apply dialogs and the library page.
  * `?suggestForJobId=` marks the trades whose service categories match the
  * job's lead services ("Roofing, Windows" → Roofing + Doors & Windows).
+ * `?kind=` narrows to one kind (a job dialog never offers a VIOLATION
+ * template and a case dialog never offers a trade).
  */
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
 
+  const kindParam = request.nextUrl.searchParams.get("kind");
+  const kind = KINDS.find((k) => k === kindParam);
   const suggestFor = request.nextUrl.searchParams.get("suggestForJobId");
   const serviceNames = new Set<string>();
   if (suggestFor) {
@@ -20,7 +26,7 @@ export async function GET(request: NextRequest) {
   }
 
   const templates = await prisma.workflowTemplate.findMany({
-    where: { isActive: true, versions: { some: { status: "PUBLISHED" } } },
+    where: { isActive: true, versions: { some: { status: "PUBLISHED" } }, ...(kind ? { kind } : {}) },
     orderBy: [{ kind: "asc" }, { name: "asc" }],
     include: {
       serviceCategories: { include: { serviceCategory: { select: { name: true } } } },

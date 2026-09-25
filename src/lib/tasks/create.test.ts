@@ -11,6 +11,8 @@ const { db, notifyTaskAssigned } = vi.hoisted(() => ({
     estimate: { findUnique: vi.fn() },
     prospect: { findUnique: vi.fn() },
     job: { findUnique: vi.fn() },
+    codeViolationCase: { findUnique: vi.fn() },
+    codeViolationItem: { findUnique: vi.fn() },
   },
   notifyTaskAssigned: vi.fn(),
 }));
@@ -135,5 +137,27 @@ describe("createTask", () => {
     expect(data.remindSetByUserId).toBe("u-creator");
     const types = db.taskEvent.createMany.mock.calls[0][0].data.map((e: { type: string }) => e.type);
     expect(types).toEqual(["CREATED", "REMINDER_SET"]);
+  });
+});
+
+describe("createTask — code-violation links", () => {
+  it("a task on a violation item carries the item's case and the case's lead, and no jobId", async () => {
+    db.codeViolationItem.findUnique.mockResolvedValue({ caseId: "c1" });
+    db.codeViolationCase.findUnique.mockResolvedValue({ leadId: "l1" });
+    await createTask({ ...base, violationItemId: "i1" });
+    const data = db.task.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({ violationItemId: "i1", violationCaseId: "c1", leadId: "l1", jobId: null });
+    // The lead's activity feed still gets the row.
+    expect(db.activityLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ leadId: "l1" }) }));
+  });
+
+  it("a task on a case resolves the lead the same way; unknown ids are link errors", async () => {
+    db.codeViolationCase.findUnique.mockResolvedValue({ leadId: "l1" });
+    await createTask({ ...base, violationCaseId: "c1" });
+    expect(db.task.create.mock.calls[0][0].data).toMatchObject({ violationCaseId: "c1", leadId: "l1", violationItemId: null });
+    db.codeViolationItem.findUnique.mockResolvedValue(null);
+    await expect(createTask({ ...base, violationItemId: "ghost" })).rejects.toMatchObject({ name: "TaskLinkError", field: "violationItemId" });
+    db.codeViolationCase.findUnique.mockResolvedValue(null);
+    await expect(createTask({ ...base, violationCaseId: "ghost" })).rejects.toBeInstanceOf(TaskLinkError);
   });
 });

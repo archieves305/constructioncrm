@@ -5,6 +5,7 @@ import { isReady, isSatisfied } from "./dependencies";
 import { activationDueAt, type ScheduleContext } from "./schedule";
 import { notifyTasksReady } from "./notify";
 import { ACTIVE_OPEN_WHERE } from "./state";
+import { loadSubjectForInstance, scheduleContextFor } from "./subject";
 
 /** Correction tasks carry this in their key (see inspections.ts; duplicated to avoid an import cycle). */
 const CORRECTION_MARK = ":correction:";
@@ -23,12 +24,9 @@ const CORRECTION_MARK = ":correction:";
 type Db = Prisma.TransactionClient | typeof prisma;
 
 export async function loadScheduleContext(db: Db, instanceId: string): Promise<ScheduleContext | null> {
-  const inst = await db.jobWorkflowInstance.findUnique({
-    where: { id: instanceId },
-    select: { appliedAt: true, job: { select: { createdAt: true, targetStartDate: true } } },
-  });
-  if (!inst) return null;
-  return { jobCreatedAt: inst.job.createdAt, appliedAt: inst.appliedAt, targetStartDate: inst.job.targetStartDate };
+  const subject = await loadSubjectForInstance(db, instanceId);
+  if (!subject?.instance) return null;
+  return scheduleContextFor(subject, subject.instance.appliedAt);
 }
 
 const ACTIVATABLE_SELECT = {
@@ -181,13 +179,19 @@ export async function sweepActivation(instanceId: string, actorUserId: string | 
   return activated;
 }
 
-/** Every step closed → the workflow is complete. Reopening a step reactivates it. */
-export async function maybeCompleteInstance(instanceId: string): Promise<void> {
+/**
+ * Every step closed → the workflow is complete. Reopening a step reactivates
+ * it. Returns whether THIS call flipped the instance to COMPLETED, so a
+ * caller can react once (a linked violation case stamps its corrective work
+ * complete on that edge).
+ */
+export async function maybeCompleteInstance(instanceId: string): Promise<{ completed: boolean }> {
   const open = await prisma.task.count({ where: { workflowInstanceId: instanceId, status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] } } });
-  await prisma.jobWorkflowInstance.updateMany({
+  const r = await prisma.jobWorkflowInstance.updateMany({
     where: { id: instanceId, status: open === 0 ? "ACTIVE" : "COMPLETED" },
     data: { status: open === 0 ? "COMPLETED" : "ACTIVE" },
   });
+  return { completed: open === 0 && (r?.count ?? 0) > 0 };
 }
 
 /** Where-fragment for "ready right now" — exported for the tab's count chips. */

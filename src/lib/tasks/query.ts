@@ -11,7 +11,7 @@ import { OPEN_TASK_STATUSES } from "./status";
  * is what keeps a sales rep from reading another rep's tasks off a job page.
  */
 
-const LINK_PARAMS = ["leadId", "jobId", "estimateId", "invoiceId", "prospectId", "dailyLogId"] as const;
+const LINK_PARAMS = ["leadId", "jobId", "estimateId", "invoiceId", "prospectId", "dailyLogId", "violationCaseId", "violationItemId"] as const;
 
 export type TaskListParams = {
   assignedUserId?: string;

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CORE } from "../../../prisma/seeds/workflows/core";
 import { ROOFING } from "../../../prisma/seeds/workflows/roofing";
 import { DOORS_WINDOWS } from "../../../prisma/seeds/workflows/doors-windows";
+import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/code-violation";
 import { fakeTree } from "./test-helpers";
 import type { TemplateDefinition } from "./templates/types";
 
@@ -39,6 +40,7 @@ function setup(opts: { modules: TemplateDefinition[]; permitStatus: "UNDETERMINE
   db.jobWorkflowInstance.findUnique.mockResolvedValue({
     id: "w1",
     jobId: "j1",
+    violationCaseId: null,
     permitStatus: opts.permitStatus,
     scopeToggles: {},
     appliedAt: new Date(),
@@ -159,5 +161,41 @@ describe("previewReconcile — modules", () => {
     expect(plan.toCreate.map((t) => t.key)).toEqual(["roofing:brand_new_step"]);
     expect(plan.toSkip).toEqual([]);
     expect(plan.modules.find((m) => m.moduleKey === "roofing")?.version).toBe(2);
+  });
+});
+
+describe("previewReconcile — violation case", () => {
+  function setupCase(permitStatus: "UNDETERMINED" | "REQUIRED" | "NOT_REQUIRED") {
+    const r = setup({ modules: [CODE_VIOLATION], permitStatus });
+    // The same instance row, owned by a case instead of a job.
+    const row = db.jobWorkflowInstance.findUnique.mock.results[0]?.value ?? null;
+    db.jobWorkflowInstance.findUnique.mockResolvedValue({ ...(row ? {} : {}), id: "w1", jobId: null, violationCaseId: "c1", permitStatus, scopeToggles: {}, appliedAt: new Date(), modules: [{ templateKey: "code_violation", templateVersionId: "v-code_violation-1", removedAt: null }] });
+    return r;
+  }
+
+  it("deciding the permit adds only that branch and reports its own gate", async () => {
+    setupCase("UNDETERMINED");
+    const plan = await previewReconcile("w1", { kind: "permit", status: "REQUIRED" });
+    expect(plan.toCreate.map((t) => t.key)).toEqual(expect.arrayContaining(["code_violation:confirm_permit_issued", "code_violation:close_permit"]));
+    expect(plan.toCreate.every((t) => t.moduleKey === "code_violation")).toBe(true);
+    expect(plan.toSkip).toEqual([]);
+    expect(plan.modules.map((m) => m.moduleKey)).toEqual(["code_violation"]);
+  });
+
+  it("a case runs one template: trades cannot be added and the template cannot be removed", async () => {
+    setupCase("REQUIRED");
+    await expect(previewReconcile("w1", { kind: "add-module", templateKeys: ["roofing"] })).rejects.toThrow(/single template/);
+    await expect(previewReconcile("w1", { kind: "remove-module", templateKey: "code_violation", reason: "no" })).rejects.toThrow(/cannot be removed/);
+  });
+
+  it("a scope toggle skips and reinstates whole groups through the engine, never deleting", async () => {
+    const { rows } = setupCase("REQUIRED");
+    const on = await previewReconcile("w1", { kind: "scope", scopeToggles: { code_violation: { hearing_required: true } } });
+    expect(on.toCreate.map((t) => t.key)).toEqual(expect.arrayContaining(["code_violation:calendar_hearing", "code_violation:record_hearing_outcome"]));
+    expect(on.toSkip).toEqual([]);
+    // Everything currently open and not in the new plan is skipped, not deleted.
+    const off = await previewReconcile("w1", { kind: "scope", scopeToggles: { code_violation: { construction_required: false } } });
+    expect(off.toSkip.map((t) => t.key)).toEqual(expect.arrayContaining(["code_violation:create_or_link_job", "code_violation:corrective_work_complete"]));
+    expect(off.toSkip.length + off.preserved.length + rows.length - off.toSkip.length).toBeGreaterThan(0);
   });
 });

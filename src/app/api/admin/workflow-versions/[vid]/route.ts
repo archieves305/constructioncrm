@@ -15,7 +15,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const v = await prisma.workflowTemplateVersion.findUnique({ where: { id: vid }, include: VERSION_TREE_INCLUDE });
   if (!v) return NextResponse.json({ error: "Version not found" }, { status: 404 });
   const mod = toComposeModule(v);
-  const core = v.template.kind === "CORE" ? null : await loadPublishedVersion(prisma, CORE_MODULE_KEY);
+  // Only a trade references or overrides Core steps.
+  const core = v.template.kind === "TRADE" ? await loadPublishedVersion(prisma, CORE_MODULE_KEY) : null;
   const referenced = await prisma.jobWorkflowModule.count({ where: { templateVersionId: vid } });
   return NextResponse.json({
     id: v.id,

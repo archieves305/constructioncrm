@@ -10,6 +10,7 @@ const ctx: RoleContext = {
   team: { SUPERINTENDENT: "u-sup" },
   projectManagerId: "u-pm",
   salesRepId: null,
+  caseManagerId: null,
   defaults: { ACCOUNTING: "u-acc", SUPERINTENDENT: "u-default-sup" },
 };
 
@@ -27,5 +28,18 @@ describe("resolveAssignee", () => {
       "PERMIT_COORDINATOR",
       "SALES_REP",
     ]);
+  });
+});
+
+describe("resolveAssignee — violation cases", () => {
+  it("CASE_MANAGER resolves to the case's manager, then the default, then nobody; a team slot still wins", () => {
+    const base: RoleContext = { team: {}, projectManagerId: null, salesRepId: null, caseManagerId: "u-cm", defaults: { CASE_MANAGER: "u-default-cm" } };
+    expect(resolveAssignee("CASE_MANAGER", base)).toBe("u-cm");
+    expect(resolveAssignee("CASE_MANAGER", { ...base, caseManagerId: null })).toBe("u-default-cm");
+    expect(resolveAssignee("CASE_MANAGER", { ...base, caseManagerId: null, defaults: {} })).toBeNull();
+    expect(resolveAssignee("CASE_MANAGER", { ...base, team: { CASE_MANAGER: "u-slot" } })).toBe("u-slot");
+    // A case's PROJECT_MANAGER steps come from the linked job's PM, carried on the same context.
+    expect(resolveAssignee("PROJECT_MANAGER", { ...base, projectManagerId: "u-job-pm" })).toBe("u-job-pm");
+    expect(unassignedRoles(["CASE_MANAGER", "PROJECT_MANAGER"], base)).toEqual(["PROJECT_MANAGER"]);
   });
 });

@@ -4,14 +4,14 @@ import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/help
 import { validateBody } from "@/lib/validation/body";
 import { taskDependencySchema } from "@/lib/validators/workflow";
 import { canEditDependencies } from "@/lib/workflows/access";
-import { jobScopeFor } from "@/lib/workflows/visibility";
+import { subjectScopeForTask } from "@/lib/workflows/visibility";
 import { findCycle } from "@/lib/workflows/dependencies";
 import { recordTaskEvent } from "@/lib/tasks/events";
 import { recordAudit } from "@/lib/audit/record";
 import { sweepActivation } from "@/lib/workflows/activation";
 
 async function load(id: string) {
-  return prisma.task.findUnique({ where: { id }, select: { id: true, jobId: true, workflowInstanceId: true, status: true, activatedAt: true } });
+  return prisma.task.findUnique({ where: { id }, select: { id: true, jobId: true, violationCaseId: true, workflowInstanceId: true, status: true, activatedAt: true } });
 }
 
 /** Make this task wait on another step of the same workflow. 400 with the path on a cycle. */
@@ -22,11 +22,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const parsed = await validateBody(request, taskDependencySchema);
   if (!parsed.ok) return parsed.response;
   const [task, other] = await Promise.all([load(id), load(parsed.data.dependsOnTaskId)]);
-  if (!task || !task.jobId) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  if (!task || (!task.jobId && !task.violationCaseId)) return NextResponse.json({ error: "Task not found" }, { status: 404 });
   if (!other || other.workflowInstanceId !== task.workflowInstanceId || !task.workflowInstanceId) return badRequest("Both tasks must be steps in the same workflow");
   if (other.id === task.id) return badRequest("A task cannot wait on itself");
-  const jobScope = await jobScopeFor(task.jobId);
-  if (!jobScope || !canEditDependencies(session.user, jobScope)) return forbidden();
+  const subjectScope = await subjectScopeForTask(task);
+  if (!subjectScope || !canEditDependencies(session.user, subjectScope)) return forbidden();
 
   const edges = await prisma.taskDependency.findMany({
     where: { task: { workflowInstanceId: task.workflowInstanceId } },
@@ -63,9 +63,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const dependsOnTaskId = request.nextUrl.searchParams.get("dependsOnTaskId");
   if (!dependsOnTaskId) return badRequest("dependsOnTaskId is required");
   const task = await load(id);
-  if (!task || !task.jobId || !task.workflowInstanceId) return NextResponse.json({ error: "Task not found" }, { status: 404 });
-  const jobScope = await jobScopeFor(task.jobId);
-  if (!jobScope || !canEditDependencies(session.user, jobScope)) return forbidden();
+  if (!task || (!task.jobId && !task.violationCaseId) || !task.workflowInstanceId) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  const subjectScope = await subjectScopeForTask(task);
+  if (!subjectScope || !canEditDependencies(session.user, subjectScope)) return forbidden();
   const existing = await prisma.taskDependency.findUnique({ where: { taskId_dependsOnTaskId: { taskId: id, dependsOnTaskId } }, select: { id: true, source: true } });
   if (!existing) return NextResponse.json({ error: "No such dependency" }, { status: 404 });
   await prisma.taskDependency.delete({ where: { id: existing.id } });

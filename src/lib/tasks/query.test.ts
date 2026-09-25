@@ -109,3 +109,21 @@ describe("buildTaskListWhere — workflow filters", () => {
     expect((w("", office, { jobIds: ["j1"] }).AND as Record<string, unknown>[])[1]).toEqual({});
   });
 });
+
+describe("buildTaskListWhere — violation cases", () => {
+  const rep = { id: "u-rep", role: "SALES_REP" as const };
+  const office = { id: "u-office", role: "OFFICE_STAFF" as const };
+  type U = { id: string; role: RoleName };
+  const w = (qs: string, user: U = office, scope?: { jobIds: string[]; violationCaseIds?: string[] }) =>
+    buildTaskListWhere(readTaskListParams(new URLSearchParams(qs)), user, new Date("2026-10-01T12:00:00Z"), scope);
+  const first = (qs: string, user: U = office) => (w(qs, user).AND as Record<string, unknown>[])[0]!;
+
+  it("filters by violationCaseId / violationItemId and widens an own-only scope to the cases they are on", () => {
+    expect(first("violationCaseId=c1")).toMatchObject({ violationCaseId: "c1" });
+    expect(first("violationItemId=i1")).toMatchObject({ violationItemId: "i1" });
+    const vis = (w("", rep, { jobIds: ["j1"], violationCaseIds: ["c1"] }).AND as Record<string, unknown>[])[1]!;
+    expect(vis).toEqual({
+      OR: [{ assignedUserId: "u-rep" }, { createdByUserId: "u-rep" }, { jobId: { in: ["j1"] } }, { violationCaseId: { in: ["c1"] } }],
+    });
+  });
+});

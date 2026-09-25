@@ -8,7 +8,7 @@ import type {
   WorkflowRole,
   WorkflowTemplateKind,
 } from "@/generated/prisma/client";
-import { CORE_MODULE_KEY, DETERMINE_PERMIT_FULL_KEY, fullKey, resolveRef, type ScopeToggleState } from "./keys";
+import { CORE_MODULE_KEY, fullKey, isBaseKind, permitGateKeyFor, resolveRef, type ScopeToggleState } from "./keys";
 import { findCycle, type DepEdge } from "./dependencies";
 import type { TaskCondition, TemplateDefinition } from "./templates/types";
 
@@ -31,7 +31,8 @@ import type { TaskCondition, TemplateDefinition } from "./templates/types";
  *    determination task).
  *  - A trade task with `overridesCoreKey` suppresses that Core task and takes
  *    over its incoming edges.
- *  - Phases interleave by band; within a band Core comes first.
+ *  - Phases interleave by band; within a band the base module (Core on a
+ *    job, the VIOLATION template on a case) comes first.
  */
 
 export type ComposeModule = {
@@ -100,6 +101,8 @@ export type ComposedPlan = {
   edges: DepEdge<string>[];
   excluded: { key: string; reason: ExclusionReason }[];
   warnings: string[];
+  /** The permit-determination gate this plan routes undetermined branches to ("core:…" on a job). */
+  permitGateKey: string | null;
 };
 
 export class ComposeCycleError extends Error {
@@ -142,9 +145,10 @@ type Candidate = {
 
 export function compose(input: ComposeInput): ComposedPlan {
   const warnings: string[] = [];
-  // Core first, then the trades in the order given.
-  const modules = [...input.modules].sort((a, b) => Number(b.kind === "CORE") - Number(a.kind === "CORE"));
+  // The base module first, then the trades in the order given.
+  const modules = [...input.modules].sort((a, b) => Number(isBaseKind(b.kind)) - Number(isBaseKind(a.kind)));
   const moduleIndex = new Map(modules.map((m, i) => [m.moduleKey, i]));
+  const permitGateKey = permitGateKeyFor(modules);
 
   const candidates = new Map<string, Candidate>();
   const overriders = new Map<string, string[]>(); // core full key → trade full keys
@@ -230,8 +234,8 @@ export function compose(input: ComposeInput): ComposedPlan {
       case "overridden":
         return (overriders.get(target) ?? []).filter((k) => !candidates.get(k)?.excluded);
       case "permit-undetermined": {
-        const gate = candidates.get(DETERMINE_PERMIT_FULL_KEY);
-        if (gate && !gate.excluded) return [DETERMINE_PERMIT_FULL_KEY];
+        const gate = permitGateKey ? candidates.get(permitGateKey) : undefined;
+        if (gate && !gate.excluded) return [permitGateKey!];
         warnings.push(`Dependency on "${target}" dropped: permit status undetermined and no gate task`);
         return [];
       }
@@ -324,5 +328,6 @@ export function compose(input: ComposeInput): ComposedPlan {
       .filter((c) => c.excluded)
       .map((c) => ({ key: c.task.key, reason: c.excluded! })),
     warnings,
+    permitGateKey,
   };
 }

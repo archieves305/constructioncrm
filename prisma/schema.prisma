@@ -442,6 +442,13 @@ model User {
   workflowTeamSlots        JobWorkflowTeamMember[] @relation("WorkflowTeamUser")
   workflowsApplied         JobWorkflowInstance[]   @relation("WorkflowAppliedBy")
   permitsDetermined        JobWorkflowInstance[]   @relation("WorkflowPermitDeterminedBy")
+  violationCasesManaged    CodeViolationCase[]     @relation("ViolationCaseManager")
+  violationCasesCreated    CodeViolationCase[]     @relation("ViolationCaseCreatedBy")
+  violationCasesClosed     CodeViolationCase[]     @relation("ViolationCaseClosedBy")
+  violationItemsAssigned   CodeViolationItem[]     @relation("ViolationItemAssignedTo")
+  violationHearingsAttending CodeViolationHearing[] @relation("ViolationHearingAttendee")
+  violationInspectionsAttending CodeViolationInspection[] @relation("ViolationInspectionAttendee")
+  violationEvents          CodeViolationEvent[]    @relation("ViolationEventActor")
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -579,6 +586,7 @@ model Lead {
   estimates      Estimate[]
   roofrOrders    RoofrOrder[]
   prospect       Prospect?
+  violationCases CodeViolationCase[]
 
   @@index([primaryPhone])
   @@index([email])
@@ -653,6 +661,11 @@ model Task {
   invoiceId       String?    @map("invoice_id")
   prospectId      String?    @map("prospect_id")
   dailyLogId      String?    @map("daily_log_id")
+  // A task on a code-violation case (or one of its items) carries the case's
+  // leadId but NOT a jobId — even when the case has a linked corrective job —
+  // so case steps never appear in the construction job's queue or counts.
+  violationCaseId String?    @map("violation_case_id")
+  violationItemId String?    @map("violation_item_id")
   title           String
   description     String?    @db.Text
   assignedUserId  String?    @map("assigned_user_id")
@@ -728,6 +741,8 @@ model Task {
   invoice     Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   prospect    Prospect?     @relation(fields: [prospectId], references: [id], onDelete: SetNull)
   dailyLog    DailyLog?     @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  violationCase CodeViolationCase? @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  violationItem CodeViolationItem? @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
   assignedTo  User?         @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
   createdBy   User          @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
   completedBy User?         @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
@@ -753,6 +768,8 @@ model Task {
   @@index([invoiceId])
   @@index([prospectId])
   @@index([dailyLogId])
+  @@index([violationCaseId])
+  @@index([violationItemId])
   @@index([sourceKey])
   @@index([remindAt])
   @@map("tasks")
@@ -868,12 +885,16 @@ model Communication {
   sentAt            DateTime?              @map("sent_at")
   receivedAt        DateTime?              @map("received_at")
   createdByUserId   String?                @map("created_by_user_id")
+  // Logged from a code-violation case; the lead's tab still lists it.
+  violationCaseId   String?                @map("violation_case_id")
   createdAt         DateTime               @default(now()) @map("created_at")
 
-  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  createdBy User? @relation(fields: [createdByUserId], references: [id])
+  lead          Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy     User?              @relation(fields: [createdByUserId], references: [id])
+  violationCase CodeViolationCase? @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
 
   @@index([leadId])
+  @@index([violationCaseId])
   @@map("communications")
 }
 
@@ -940,17 +961,25 @@ model File {
   // Evidence for a workflow step. leadId stays required and is copied from
   // the task, so the lead's Files tab still lists it.
   taskId           String?      @map("task_id")
+  // Documents and photos on a code-violation case / item. leadId stays
+  // required and is copied from the case, so the lead's Files tab lists them.
+  violationCaseId  String?      @map("violation_case_id")
+  violationItemId  String?      @map("violation_item_id")
   createdAt        DateTime     @default(now()) @map("created_at")
 
   lead               Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
   uploadedBy         User                @relation(fields: [uploadedByUserId], references: [id])
   doorKnock          PropertyDoorKnock?  @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
   task               Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  violationCase      CodeViolationCase?  @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  violationItem      CodeViolationItem?  @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
   generatedDocuments GeneratedDocument[]
 
   @@index([leadId])
   @@index([doorKnockId])
   @@index([taskId])
+  @@index([violationCaseId])
+  @@index([violationItemId])
   @@map("files")
 }
 
@@ -1229,6 +1258,7 @@ model Job {
   fieldPhotos        FieldPhoto[]
   fieldIssues        FieldIssue[]
   workflow           JobWorkflowInstance?
+  violationCases     CodeViolationCase[]
 
   @@index([leadId])
   @@index([currentStageId])
@@ -2927,9 +2957,13 @@ model FieldIssue {
 // once a job references them; jobs pin the version they were applied with.
 // Full write-up: docs/project-memory/features/workflows.md
 
+/// CORE and TRADE compose together on a job (Core always present). A
+/// VIOLATION template is applied alone to a code-violation case — never with
+/// Core — and carries its own `determine_permit_requirement` gate.
 enum WorkflowTemplateKind {
   CORE
   TRADE
+  VIOLATION
 }
 
 enum WorkflowVersionStatus {
@@ -2953,15 +2987,23 @@ enum WorkflowRole {
   PURCHASING
   ACCOUNTING
   QUALITY_CONTROL
+  /// Code-violation cases: resolves to CodeViolationCase.caseManagerId.
+  CASE_MANAGER
 }
 
-/// What a task's due-date offset counts from.
+/// What a task's due-date offset counts from. JOB_CREATED is "subject
+/// created" — a job's or a violation case's createdAt; the name is kept
+/// because every seeded template's content hash contains it.
 enum WorkflowAnchor {
   JOB_CREATED
   APPLIED_AT
   TARGET_START
   PHASE_START
   PREDECESSOR
+  /// Violation cases only: the case's current compliance deadline (negative offsets allowed).
+  COMPLIANCE_DEADLINE
+  /// Violation cases only: the next scheduled hearing (negative offsets allowed).
+  HEARING_DATE
 }
 
 enum WorkflowEvidenceType {
@@ -2972,6 +3014,19 @@ enum WorkflowEvidenceType {
   INSPECTION_RESULT
   PAYMENT_STATUS
   NOTE
+  // ── Code-violation cases ──
+  /// The agency's written compliance confirmation is recorded on the case.
+  AGENCY_CONFIRMATION
+  /// The latest hearing has an outcome.
+  HEARING_RESULT
+  /// Param STOPPED | OFFICIAL_BALANCE | PAID | RESOLVED | LIEN_RELEASED.
+  FINE_STATUS
+  /// Param EXISTS (≥ 1 item) | COMPLETE (every item verified or withdrawn).
+  VIOLATION_ITEMS
+  /// Param EXISTS (a job is linked) | WORKFLOW (it has a workflow) | COMPLETE (corrective work stamped complete).
+  LINKED_JOB
+  /// Param NUMBER | ISSUED | FINAL, read from the linked job's permits.
+  LINKED_JOB_PERMIT
 }
 
 enum WorkflowPermitCondition {
@@ -3141,9 +3196,15 @@ model WorkflowRoleDefault {
   @@map("workflow_role_defaults")
 }
 
+/// One applied workflow. Owned by EXACTLY ONE subject — a Job or a
+/// CodeViolationCase — enforced by a CHECK constraint in the migration
+/// (Prisma has no @@check). The `Job` prefix is historical: modules, team
+/// slots and tasks key on `instanceId` only, so nothing else knows which
+/// kind of subject owns the instance.
 model JobWorkflowInstance {
   id                       String               @id @default(cuid())
-  jobId                    String               @unique @map("job_id")
+  jobId                    String?              @unique @map("job_id")
+  violationCaseId          String?              @unique @map("violation_case_id")
   status                   JobWorkflowStatus    @default(ACTIVE)
   permitStatus             WorkflowPermitStatus @default(UNDETERMINED) @map("permit_status")
   permitDeterminedByUserId String?              @map("permit_determined_by_user_id")
@@ -3158,7 +3219,8 @@ model JobWorkflowInstance {
   createdAt                DateTime             @default(now()) @map("created_at")
   updatedAt                DateTime             @updatedAt @map("updated_at")
 
-  job                Job                     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job                Job?                    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  violationCase      CodeViolationCase?      @relation(fields: [violationCaseId], references: [id], onDelete: Cascade)
   appliedBy          User                    @relation("WorkflowAppliedBy", fields: [appliedByUserId], references: [id])
   permitDeterminedBy User?                   @relation("WorkflowPermitDeterminedBy", fields: [permitDeterminedByUserId], references: [id])
   modules            JobWorkflowModule[]
@@ -3221,4 +3283,484 @@ model TaskDependency {
   @@unique([taskId, dependsOnTaskId])
   @@index([dependsOnTaskId])
   @@map("task_dependencies")
+}
+
+// ─── Code Violations ────────────────────────────────────────────────────────
+//
+// A CodeViolationCase is anchored to a Lead (the property + owner/customer
+// record) and optionally to a Job (the corrective construction). Its work
+// is ordinary Tasks generated by a VIOLATION workflow template through the
+// same engine jobs use; the case itself holds the agency facts, the money
+// (official figures only — the accrual ESTIMATE is computed, never stored)
+// and the resolution/closure record.
+
+/// Lifecycle only. "Where the case is" (awaiting reinspection, hearing
+/// scheduled, lien recorded…) is derived from the workflow phase, the flags
+/// and the ledger — storing it twice would drift the moment a step closed.
+enum CodeViolationStatus {
+  NEW
+  ACTIVE
+  ON_HOLD
+  APPEALED
+  /// Agency confirmed compliance; fines or a lien may still be open.
+  COMPLIED
+  CLOSED
+  CANCELLED
+}
+
+enum CodeViolationSeverity {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum CodeViolationItemStatus {
+  OPEN
+  IN_PROGRESS
+  CORRECTED
+  /// The agency (or a final internal check) accepted the correction.
+  VERIFIED
+  WITHDRAWN
+}
+
+enum CodeViolationHearingType {
+  SPECIAL_MAGISTRATE
+  CODE_ENFORCEMENT_BOARD
+  APPEAL
+  LIEN_REDUCTION
+  OTHER
+}
+
+enum CodeViolationHearingStatus {
+  SCHEDULED
+  CONTINUED
+  HELD
+  CANCELLED
+}
+
+enum CodeViolationHearingOutcome {
+  COMPLIANCE_ORDERED
+  FINE_IMPOSED
+  CONTINUED
+  DISMISSED
+  FOUND_IN_COMPLIANCE
+  LIEN_AUTHORIZED
+  MITIGATION_GRANTED
+  MITIGATION_DENIED
+  OTHER
+}
+
+/// Agency inspections requested by the CRM (initial, reinspection, final).
+/// Distinct from JobPermitInspection; the result reuses PermitInspectionResult.
+enum CodeViolationInspectionStatus {
+  REQUESTED
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum CodeViolationExtensionStatus {
+  REQUESTED
+  GRANTED
+  DENIED
+  WITHDRAWN
+}
+
+enum CodeViolationMitigationStatus {
+  NONE
+  REQUESTED
+  GRANTED
+  PARTIALLY_GRANTED
+  DENIED
+}
+
+enum CodeViolationLienStatus {
+  NONE
+  RECORDED
+  RELEASED
+}
+
+/// The fine ledger. OFFICIAL_BALANCE is an absolute figure as of a date;
+/// PAYMENT reduces; FINE_IMPOSED / ADMIN_COST add; the rest carry facts
+/// (accrual start/stop, lien recorded/released, mitigation) with an amount
+/// where one applies. The case's snapshot columns mirror the latest entries.
+enum CodeViolationFineEntryType {
+  OFFICIAL_BALANCE
+  ACCRUAL_STARTED
+  ACCRUAL_STOPPED
+  FINE_IMPOSED
+  ADMIN_COST
+  PAYMENT
+  MITIGATION_REQUESTED
+  MITIGATION_DECIDED
+  LIEN_RECORDED
+  LIEN_RELEASED
+  ADJUSTMENT
+  NOTE
+}
+
+/// The case timeline, same shape as TaskEvent: NOTE rows are the only
+/// editable kind; everything else records something that happened.
+enum CodeViolationEventType {
+  NOTE
+  CREATED
+  STATUS_CHANGED
+  ASSIGNED
+  DEADLINE_CHANGED
+  EXTENSION_REQUESTED
+  EXTENSION_DECIDED
+  HEARING_SCHEDULED
+  HEARING_RESULT
+  INSPECTION_REQUESTED
+  INSPECTION_RESULT
+  ITEM_ADDED
+  ITEM_STATUS_CHANGED
+  FINE_ENTRY
+  LIEN_RECORDED
+  LIEN_RELEASED
+  AGENCY_CONFIRMED
+  CORRECTIVE_WORK_COMPLETED
+  JOB_LINKED
+  JOB_UNLINKED
+  WORKFLOW_APPLIED
+  CLOSED
+  REOPENED
+  FILE_ATTACHED
+  COMMUNICATION_LOGGED
+}
+
+/// Configurable violation categories (seeded with 22; a table so admins can
+/// edit them without a deploy and items keep their category through renames).
+model CodeViolationCategory {
+  id                       String               @id @default(cuid())
+  key                      String               @unique
+  name                     String
+  description              String?              @db.Text
+  defaultResponsibleTrade  String?              @map("default_responsible_trade")
+  defaultPermitRequirement WorkflowPermitStatus @default(UNDETERMINED) @map("default_permit_requirement")
+  /// Categories that usually mean corrective construction (roofing, structural…).
+  defaultConstructionRequired Boolean           @default(false) @map("default_construction_required")
+  sortOrder                Int                  @default(0) @map("sort_order")
+  isActive                 Boolean              @default(true) @map("is_active")
+  createdAt                DateTime             @default(now()) @map("created_at")
+  updatedAt                DateTime             @updatedAt @map("updated_at")
+
+  items CodeViolationItem[]
+
+  @@map("code_violation_categories")
+}
+
+model CodeViolationCase {
+  id               String  @id @default(cuid())
+  /// "CV-00001", from the code_violation_case_number_seq sequence (see migration).
+  caseNumber       String  @unique @map("case_number")
+  agencyCaseNumber String? @map("agency_case_number")
+  /// The property + owner/customer record. Required: the address lives here.
+  leadId           String  @map("lead_id")
+  /// The corrective construction job, once one exists.
+  jobId            String? @map("job_id")
+  parcelNumber     String? @map("parcel_number")
+  /// Owner as printed on the notice; the lead may differ.
+  ownerNameSnapshot String? @map("owner_name_snapshot")
+  jurisdiction     String?
+  department       String?
+  officerName      String? @map("officer_name")
+  officerPhone     String? @map("officer_phone")
+  officerEmail     String? @map("officer_email")
+  noticeType       String? @map("notice_type")
+  title            String
+  summary          String? @db.Text
+
+  receivedAt       DateTime  @map("received_at")
+  noticeDate       DateTime? @map("notice_date")
+  originalDeadline DateTime? @map("original_deadline")
+  /// Schedule anchor COMPLIANCE_DEADLINE. Moves through the deadline-change path only.
+  currentDeadline  DateTime? @map("current_deadline")
+  /// Denormalised from hearings; schedule anchor HEARING_DATE.
+  nextHearingAt    DateTime? @map("next_hearing_at")
+  appealDeadline   DateTime? @map("appeal_deadline")
+
+  status          CodeViolationStatus   @default(NEW)
+  priority        Priority              @default(MEDIUM)
+  severity        CodeViolationSeverity @default(MODERATE)
+  caseManagerId   String?               @map("case_manager_id")
+  /// "Responsible team" — which functional role owns the fix.
+  responsibleRole WorkflowRole?         @map("responsible_role")
+
+  // Flags. Permit-required is NOT here: it is the workflow instance's
+  // permitStatus, exactly as on a job.
+  hearingRequired      Boolean @default(false) @map("hearing_required")
+  reinspectionRequired Boolean @default(true) @map("reinspection_required")
+  emergency            Boolean @default(false)
+  constructionRequired Boolean @default(false) @map("construction_required")
+
+  // Current extension request (history in CodeViolationExtension).
+  extensionStatus      CodeViolationExtensionStatus? @map("extension_status")
+  extensionRequestedAt DateTime?                     @map("extension_requested_at")
+  extensionDeadline    DateTime?                     @map("extension_deadline")
+
+  estimatedCost Decimal? @map("estimated_cost") @db.Decimal(12, 2)
+  actualCost    Decimal? @map("actual_cost") @db.Decimal(12, 2)
+
+  // ── Fines: OFFICIAL figures, entered. The system ESTIMATE is computed
+  // on read from the terms below (see src/lib/violations/fines.ts) and is
+  // never stored, so the two can never be confused.
+  initialFine               Decimal?  @map("initial_fine") @db.Decimal(12, 2)
+  dailyFine                 Decimal?  @map("daily_fine") @db.Decimal(12, 2)
+  fineAccrualStartDate      DateTime? @map("fine_accrual_start_date")
+  /// The OFFICIAL stop date. Corrective-work completion never sets this.
+  fineAccrualStoppedAt      DateTime? @map("fine_accrual_stopped_at")
+  adminCosts                Decimal   @default(0) @map("admin_costs") @db.Decimal(12, 2)
+  officialBalance           Decimal?  @map("official_balance") @db.Decimal(12, 2)
+  officialBalanceAsOf       DateTime? @map("official_balance_as_of")
+  amountPaid                Decimal   @default(0) @map("amount_paid") @db.Decimal(12, 2)
+  mitigationStatus          CodeViolationMitigationStatus @default(NONE) @map("mitigation_status")
+  mitigationRequestedAmount Decimal?  @map("mitigation_requested_amount") @db.Decimal(12, 2)
+  mitigationGrantedAmount   Decimal?  @map("mitigation_granted_amount") @db.Decimal(12, 2)
+  mitigationRequestedAt     DateTime? @map("mitigation_requested_at")
+  mitigationDecidedAt       DateTime? @map("mitigation_decided_at")
+  /// ADMIN/MANAGER override of the system estimate, with a reason (audited).
+  fineEstimateOverride      Decimal?  @map("fine_estimate_override") @db.Decimal(12, 2)
+  fineEstimateOverrideReason String?  @map("fine_estimate_override_reason") @db.Text
+  fineEstimateOverrideAt    DateTime? @map("fine_estimate_override_at")
+  fineTermsUpdatedAt        DateTime? @map("fine_terms_updated_at")
+  lienStatus                CodeViolationLienStatus @default(NONE) @map("lien_status")
+  lienAmount                Decimal?  @map("lien_amount") @db.Decimal(12, 2)
+  lienRecordedAt            DateTime? @map("lien_recorded_at")
+  lienInstrumentNumber      String?   @map("lien_instrument_number")
+  lienBookPage              String?   @map("lien_book_page")
+  lienReleasedAt            DateTime? @map("lien_released_at")
+  lienReleaseInstrumentNumber String? @map("lien_release_instrument_number")
+
+  // ── Resolution. Construction completion ≠ compliance: the agency's
+  // confirmation is a separate, later fact and the closure gate.
+  correctiveWorkCompletedAt DateTime?               @map("corrective_work_completed_at")
+  reinspectionRequestedAt   DateTime?               @map("reinspection_requested_at")
+  finalInspectionResult     PermitInspectionResult? @map("final_inspection_result")
+  agencyConfirmedAt         DateTime?               @map("agency_confirmed_at")
+  agencyConfirmedByName     String?                 @map("agency_confirmed_by_name")
+  agencyConfirmationMethod  String?                 @map("agency_confirmation_method")
+  agencyConfirmationRef     String?                 @map("agency_confirmation_ref")
+  agencyConfirmationFileId  String?                 @map("agency_confirmation_file_id")
+  officialComplianceDate    DateTime?               @map("official_compliance_date")
+  permitClosedAt            DateTime?               @map("permit_closed_at")
+  fineResolvedAt            DateTime?               @map("fine_resolved_at")
+  closedAt                  DateTime?               @map("closed_at")
+  closedByUserId            String?                 @map("closed_by_user_id")
+  closeReason               String?                 @map("close_reason") @db.Text
+  /// Set when an ADMIN/MANAGER closed past the blockers (audited separately).
+  closureOverrideReason     String?                 @map("closure_override_reason") @db.Text
+
+  createdByUserId String   @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  lead        Lead  @relation(fields: [leadId], references: [id])
+  job         Job?  @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  caseManager User? @relation("ViolationCaseManager", fields: [caseManagerId], references: [id])
+  createdBy   User  @relation("ViolationCaseCreatedBy", fields: [createdByUserId], references: [id])
+  closedBy    User? @relation("ViolationCaseClosedBy", fields: [closedByUserId], references: [id])
+
+  workflow       JobWorkflowInstance?
+  items          CodeViolationItem[]
+  hearings       CodeViolationHearing[]
+  inspections    CodeViolationInspection[]
+  extensions     CodeViolationExtension[]
+  fineEntries    CodeViolationFineEntry[]
+  events         CodeViolationEvent[]
+  reminderLogs   CodeViolationReminderLog[]
+  tasks          Task[]
+  files          File[]
+  communications Communication[]
+
+  @@index([leadId])
+  @@index([jobId])
+  @@index([status])
+  @@index([caseManagerId, status])
+  @@index([currentDeadline])
+  @@index([nextHearingAt])
+  @@index([agencyCaseNumber])
+  @@index([jurisdiction])
+  @@map("code_violation_cases")
+}
+
+/// One cited violation on a notice. A notice usually carries several.
+model CodeViolationItem {
+  id                 String                  @id @default(cuid())
+  caseId             String                  @map("case_id")
+  itemNumber         Int                     @map("item_number")
+  categoryId         String?                 @map("category_id")
+  codeSection        String?                 @map("code_section")
+  description        String                  @db.Text
+  correctiveAction   String?                 @map("corrective_action") @db.Text
+  responsibleTrade   String?                 @map("responsible_trade")
+  permitRequirement  WorkflowPermitStatus    @default(UNDETERMINED) @map("permit_requirement")
+  assignedUserId     String?                 @map("assigned_user_id")
+  assignedRole       WorkflowRole?           @map("assigned_role")
+  contractorName     String?                 @map("contractor_name")
+  status             CodeViolationItemStatus @default(OPEN)
+  targetCompletionAt DateTime?               @map("target_completion_at")
+  actualCompletionAt DateTime?               @map("actual_completion_at")
+  verifiedAt         DateTime?               @map("verified_at")
+  estimatedCost      Decimal?                @map("estimated_cost") @db.Decimal(12, 2)
+  actualCost         Decimal?                @map("actual_cost") @db.Decimal(12, 2)
+  sortOrder          Int                     @default(0) @map("sort_order")
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+
+  case       CodeViolationCase      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  category   CodeViolationCategory? @relation(fields: [categoryId], references: [id])
+  assignedTo User?                  @relation("ViolationItemAssignedTo", fields: [assignedUserId], references: [id])
+  tasks      Task[]
+  files      File[]
+
+  @@unique([caseId, itemNumber])
+  @@index([caseId, status])
+  @@index([assignedUserId, status])
+  @@map("code_violation_items")
+}
+
+model CodeViolationHearing {
+  id                 String                       @id @default(cuid())
+  caseId             String                       @map("case_id")
+  type               CodeViolationHearingType     @default(SPECIAL_MAGISTRATE)
+  status             CodeViolationHearingStatus   @default(SCHEDULED)
+  scheduledAt        DateTime                     @map("scheduled_at")
+  location           String?
+  attendeeUserId     String?                      @map("attendee_user_id")
+  caseNumberAtHearing String?                     @map("case_number_at_hearing")
+  outcome            CodeViolationHearingOutcome?
+  outcomeNotes       String?                      @map("outcome_notes") @db.Text
+  orderDeadline      DateTime?                    @map("order_deadline")
+  orderedFineAmount  Decimal?                     @map("ordered_fine_amount") @db.Decimal(12, 2)
+  orderedDailyFine   Decimal?                     @map("ordered_daily_fine") @db.Decimal(12, 2)
+  /// A continued hearing points at its replacement.
+  continuedToId      String?                      @unique @map("continued_to_id")
+  orderFileId        String?                      @map("order_file_id")
+  notes              String?                      @db.Text
+  createdByUserId    String                       @map("created_by_user_id")
+  createdAt          DateTime                     @default(now()) @map("created_at")
+  updatedAt          DateTime                     @updatedAt @map("updated_at")
+
+  case        CodeViolationCase     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  attendee    User?                 @relation("ViolationHearingAttendee", fields: [attendeeUserId], references: [id])
+  continuedTo CodeViolationHearing? @relation("HearingContinuation", fields: [continuedToId], references: [id])
+  continuedFrom CodeViolationHearing? @relation("HearingContinuation")
+
+  @@index([caseId, scheduledAt])
+  @@index([scheduledAt])
+  @@map("code_violation_hearings")
+}
+
+/// An AGENCY inspection on the case (initial, reinspection, final).
+model CodeViolationInspection {
+  id                String                        @id @default(cuid())
+  caseId            String                        @map("case_id")
+  /// "INITIAL" | "REINSPECTION" | "FINAL" — free text on purpose.
+  kind              String                        @default("REINSPECTION")
+  status            CodeViolationInspectionStatus @default(REQUESTED)
+  requestedAt       DateTime                      @default(now()) @map("requested_at")
+  requestedByUserId String?                       @map("requested_by_user_id")
+  scheduledFor      DateTime?                     @map("scheduled_for")
+  attendeeUserId    String?                       @map("attendee_user_id")
+  completedAt       DateTime?                     @map("completed_at")
+  result            PermitInspectionResult?
+  inspectorName     String?                       @map("inspector_name")
+  notes             String?                       @db.Text
+  /// Items the agency re-cited on a FAIL; they reopen.
+  failedItemIds     String[]                      @default([]) @map("failed_item_ids")
+  reportFileId      String?                       @map("report_file_id")
+  /// The workflow step the result was recorded on, when there was one.
+  taskId            String?                       @map("task_id")
+  createdAt         DateTime                      @default(now()) @map("created_at")
+  updatedAt         DateTime                      @updatedAt @map("updated_at")
+
+  case     CodeViolationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  attendee User?             @relation("ViolationInspectionAttendee", fields: [attendeeUserId], references: [id])
+
+  @@index([caseId, requestedAt])
+  @@index([scheduledFor])
+  @@map("code_violation_inspections")
+}
+
+model CodeViolationExtension {
+  id                String                       @id @default(cuid())
+  caseId            String                       @map("case_id")
+  requestedAt       DateTime                     @default(now()) @map("requested_at")
+  requestedDeadline DateTime                     @map("requested_deadline")
+  reason            String?                      @db.Text
+  status            CodeViolationExtensionStatus @default(REQUESTED)
+  decidedAt         DateTime?                    @map("decided_at")
+  grantedDeadline   DateTime?                    @map("granted_deadline")
+  decisionNotes     String?                      @map("decision_notes") @db.Text
+  requestFileId     String?                      @map("request_file_id")
+  createdByUserId   String                       @map("created_by_user_id")
+  createdAt         DateTime                     @default(now()) @map("created_at")
+
+  case CodeViolationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@map("code_violation_extensions")
+}
+
+/// The fine ledger: every official figure with its date, so "official
+/// balance" has a history and the snapshot on the case is reproducible.
+model CodeViolationFineEntry {
+  id              String                     @id @default(cuid())
+  caseId          String                     @map("case_id")
+  type            CodeViolationFineEntryType
+  amount          Decimal?                   @db.Decimal(12, 2)
+  effectiveAt     DateTime                   @map("effective_at")
+  reference       String?
+  notes           String?                    @db.Text
+  fileId          String?                    @map("file_id")
+  createdByUserId String                     @map("created_by_user_id")
+  createdAt       DateTime                   @default(now()) @map("created_at")
+
+  case CodeViolationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, effectiveAt])
+  @@map("code_violation_fine_entries")
+}
+
+model CodeViolationEvent {
+  id          String                 @id @default(cuid())
+  caseId      String                 @map("case_id")
+  itemId      String?                @map("item_id")
+  actorUserId String?                @map("actor_user_id")
+  type        CodeViolationEventType
+  body        String?                @db.Text
+  fromValue   String?                @map("from_value")
+  toValue     String?                @map("to_value")
+  editedAt    DateTime?              @map("edited_at")
+  createdAt   DateTime               @default(now()) @map("created_at")
+
+  case  CodeViolationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  actor User?             @relation("ViolationEventActor", fields: [actorUserId], references: [id])
+
+  @@index([caseId, createdAt])
+  @@map("code_violation_events")
+}
+
+/// Deadline-reminder and escalation ledger for the violation-deadlines cron.
+/// One row per (case, deadline kind, dated entity, offset) — insert before
+/// send, so a run that dies half-way sends nothing twice; delete on provider
+/// failure so the next run retries. entityId carries the date ("<id>@<ymd>"),
+/// so a moved deadline starts a fresh series by itself.
+model CodeViolationReminderLog {
+  id               String   @id @default(cuid())
+  caseId           String   @map("case_id")
+  kind             String
+  entityId         String   @map("entity_id")
+  /// "d30" … "d0", "od:<ymd>" for daily overdue, "esc:<level>" for escalations.
+  offsetKey        String   @map("offset_key")
+  recipientUserIds String[] @default([]) @map("recipient_user_ids")
+  channel          String   @default("email")
+  sentAt           DateTime @default(now()) @map("sent_at")
+
+  case CodeViolationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, kind, entityId, offsetKey])
+  @@map("code_violation_reminder_logs")
 }

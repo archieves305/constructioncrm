@@ -146,3 +146,48 @@ describe("defineTemplate", () => {
     expectFail(spec, "cannot depend on itself");
   });
 });
+
+describe("defineTemplate — VIOLATION kind", () => {
+  const violation = (over: Partial<TemplateSpec> = {}, task: Partial<TemplateSpec["phases"][number]["tasks"][number]> = {}): TemplateSpec => ({
+    key: "code_violation",
+    name: "Code Violation Case",
+    kind: "VIOLATION",
+    phases: [
+      {
+        key: "intake",
+        name: "Intake",
+        band: 100,
+        tasks: [
+          { key: "review_notice", title: "Review notice", role: "CASE_MANAGER" },
+          { key: "determine_permit_requirement", title: "Determine permit requirement", role: "PERMIT_COORDINATOR", dependsOn: ["^"], blocking: true },
+          { key: "submit_proof", title: "Submit proof", role: "CASE_MANAGER", dependsOn: ["^"], ...task },
+        ],
+      },
+    ],
+    ...over,
+  });
+
+  it("needs no trade, must not use the core key, and must carry the permit gate", () => {
+    expect(defineTemplate(violation()).trade).toBeNull();
+    expect(() => defineTemplate(violation({ key: "core" }))).toThrow(TemplateDefinitionError);
+    expect(() =>
+      defineTemplate(violation({ phases: [{ key: "intake", name: "Intake", band: 100, tasks: [{ key: "review_notice", title: "Review notice", role: "CASE_MANAGER" }] }] })),
+    ).toThrow(/must contain "determine_permit_requirement"/);
+  });
+
+  it("never composes with Core, so core: references are rejected", () => {
+    expect(() => defineTemplate(violation({}, { dependsOn: ["core:kickoff"] }))).toThrow(/never composes with Core/);
+  });
+
+  it("allows negative offsets from the case's date anchors and nowhere else", () => {
+    expect(defineTemplate(violation({}, { anchor: "COMPLIANCE_DEADLINE", dueOffsetBusinessDays: -5 })).tasks.at(-1)).toMatchObject({ anchor: "COMPLIANCE_DEADLINE", dueOffsetBusinessDays: -5 });
+    expect(defineTemplate(violation({}, { anchor: "HEARING_DATE", dueOffsetBusinessDays: -3 })).tasks.at(-1)!.anchor).toBe("HEARING_DATE");
+    expect(() => defineTemplate(violation({}, { dueOffsetBusinessDays: -2 }))).toThrow(/negative offset only makes sense from a date anchor/);
+  });
+
+  it("the case anchors are not available on job templates", () => {
+    expect(() => defineTemplate(trade({ phases: [{ key: "scope", name: "Scope", band: 300, tasks: [{ key: "measure", title: "Measure", role: "ESTIMATOR", anchor: "COMPLIANCE_DEADLINE", dueOffsetBusinessDays: -1 }] }] }))).toThrow(
+      /only available on a VIOLATION template/,
+    );
+  });
+});

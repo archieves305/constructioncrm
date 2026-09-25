@@ -13,11 +13,29 @@
  * another trade.
  */
 
+import type { WorkflowTemplateKind } from "@/generated/prisma/client";
+
 export const CORE_MODULE_KEY = "core";
 
-/** "Determine permit requirement" — the one Core task every permit branch hangs off. */
+/**
+ * "Determine permit requirement" — the one task every permit branch hangs
+ * off. On a job it lives in Core; a VIOLATION template carries its own
+ * (`isBaseKind`), so compose looks the gate up by the base module rather
+ * than assuming Core.
+ */
 export const DETERMINE_PERMIT_TASK_KEY = "determine_permit_requirement";
 export const DETERMINE_PERMIT_FULL_KEY = `${CORE_MODULE_KEY}:${DETERMINE_PERMIT_TASK_KEY}`;
+
+/** A "base" module composes first and owns the permit gate: Core on a job, the VIOLATION template on a case. */
+export function isBaseKind(kind: WorkflowTemplateKind): boolean {
+  return kind === "CORE" || kind === "VIOLATION";
+}
+
+/** Full key of the permit gate for a set of modules, or null when no base module is present. */
+export function permitGateKeyFor(modules: readonly { moduleKey: string; kind: WorkflowTemplateKind }[]): string | null {
+  const base = modules.find((m) => isBaseKind(m.kind));
+  return base ? fullKey(base.moduleKey, DETERMINE_PERMIT_TASK_KEY) : null;
+}
 
 export const KEY_PATTERN = /^[a-z][a-z0-9_]*$/;
 

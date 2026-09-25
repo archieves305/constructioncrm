@@ -559,8 +559,9 @@ const REPORT_TASK_SELECT = {
 /** The full report. `range` limits which workflows count, by the date they were applied. */
 export async function loadWorkflowReport(range: { from: Date | null; to: Date | null }, now = new Date()): Promise<WorkflowReport> {
   const appliedAt = { ...(range.from && { gte: range.from }), ...(range.to && { lte: range.to }) };
+  // Job workflows only: violation cases have their own report.
   const rows = await prisma.jobWorkflowInstance.findMany({
-    where: Object.keys(appliedAt).length > 0 ? { appliedAt } : undefined,
+    where: { jobId: { not: null }, ...(Object.keys(appliedAt).length > 0 ? { appliedAt } : {}) },
     select: {
       id: true,
       jobId: true,
@@ -584,6 +585,7 @@ export async function loadWorkflowReport(range: { from: Date | null; to: Date | 
     prisma.task.findMany({ where: { workflowInstanceId: { in: rows.map((r) => r.id) }, workflowTaskKey: { not: null } }, select: REPORT_TASK_SELECT }),
   ]);
   for (const r of rows) {
+    if (!r.jobId || !r.job) continue;
     const phases = new Map<string, SummaryPhase>();
     for (const m of r.modules) {
       for (const p of phaseRows) {

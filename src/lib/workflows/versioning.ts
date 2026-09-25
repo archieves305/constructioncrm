@@ -1,4 +1,4 @@
-import type { Prisma, RoleName, WorkflowRole } from "@/generated/prisma/client";
+import type { Prisma, RoleName, WorkflowAnchor, WorkflowEvidenceType, WorkflowRole } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit/record";
 import { isValidKey } from "./keys";
@@ -151,7 +151,7 @@ export async function archiveVersion(versionId: string, actor: Actor): Promise<V
   return loadTree(versionId);
 }
 
-export type TemplateMeta = { key: string; name: string; kind: "CORE" | "TRADE"; trade?: string | null; description?: string | null; isActive?: boolean; serviceCategoryIds?: string[] };
+export type TemplateMeta = { key: string; name: string; kind: "CORE" | "TRADE" | "VIOLATION"; trade?: string | null; description?: string | null; isActive?: boolean; serviceCategoryIds?: string[] };
 
 export async function createTemplate(meta: TemplateMeta, actor: Actor) {
   if (!isValidKey(meta.key)) throw new VersioningError(400, "Key must be lowercase letters, digits and underscores");
@@ -162,8 +162,9 @@ export async function createTemplate(meta: TemplateMeta, actor: Actor) {
     data: {
       key: meta.key,
       name: meta.name.trim(),
-      kind: "TRADE",
-      trade: meta.trade?.trim() || meta.name.trim(),
+      kind: meta.kind,
+      // A trade is named after itself unless told otherwise; a violation template has no trade.
+      trade: meta.kind === "TRADE" ? meta.trade?.trim() || meta.name.trim() : null,
       description: meta.description?.trim() || null,
       isActive: meta.isActive ?? true,
       versions: { create: { version: 1, status: "DRAFT", contentHash: "", scopeToggles: [], createdByUserId: actor.id } },
@@ -197,7 +198,11 @@ async function setServiceCategories(templateId: string, ids: string[]) {
   if (ids.length > 0) await prisma.workflowTemplateServiceCategory.createMany({ data: ids.map((serviceCategoryId) => ({ templateId, serviceCategoryId })), skipDuplicates: true });
 }
 
-/** A new TRADE template whose v1 DRAFT is a copy of this template's published (or latest) version. */
+/**
+ * A new template whose v1 DRAFT is a copy of this template's published (or
+ * latest) version. Same kind as the source, except that copying Core yields
+ * a TRADE (there is only ever one Core).
+ */
 export async function duplicateTemplate(templateId: string, meta: { key: string; name: string }, actor: Actor) {
   const src = await prisma.workflowTemplate.findUnique({
     where: { id: templateId },
@@ -209,8 +214,9 @@ export async function duplicateTemplate(templateId: string, meta: { key: string;
   const sourceId = src.versions.find((v) => v.status === "PUBLISHED")?.id ?? src.versions[0]?.id;
   const source = sourceId ? await loadTree(sourceId) : null;
   const created = await prisma.$transaction(async (tx) => {
+    const kind = src.kind === "CORE" ? "TRADE" : src.kind;
     const t = await tx.workflowTemplate.create({
-      data: { key: meta.key, name: meta.name.trim(), kind: "TRADE", trade: meta.name.trim(), description: src.description, isActive: true },
+      data: { key: meta.key, name: meta.name.trim(), kind, trade: kind === "TRADE" ? meta.name.trim() : null, description: src.description, isActive: true },
     });
     const v = await tx.workflowTemplateVersion.create({
       data: { templateId: t.id, version: 1, status: "DRAFT", contentHash: "", scopeToggles: (source?.scopeToggles ?? []) as Prisma.InputJsonValue, sourceVersionId: source?.id ?? null, createdByUserId: actor.id },
@@ -300,12 +306,12 @@ export type TaskInput = {
   description?: string | null;
   role: WorkflowRole;
   priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-  anchor?: "JOB_CREATED" | "APPLIED_AT" | "TARGET_START" | "PHASE_START" | "PREDECESSOR";
+  anchor?: WorkflowAnchor;
   dueOffsetBusinessDays?: number;
   durationBusinessDays?: number | null;
   autoActivate?: boolean;
   blocking?: boolean;
-  requiredEvidence?: "ATTACHMENT" | "PHOTO" | "PERMIT_NUMBER" | "PERMIT_DETERMINATION" | "INSPECTION_RESULT" | "PAYMENT_STATUS" | "NOTE" | null;
+  requiredEvidence?: WorkflowEvidenceType | null;
   requiredEvidenceParam?: string | null;
   checklist?: { label: string; condition?: { anyOf?: string[]; allOf?: string[] } | null }[];
   conditionPermit?: "REQUIRED" | "NOT_REQUIRED" | null;

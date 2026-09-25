@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { seedWorkflowTemplates } from "../prisma/seed-workflows";
+import { seedViolationCategories } from "../prisma/seed-violations";
 
 // Production reference-data seed.
 //
@@ -186,6 +187,7 @@ async function main() {
   await seedJobStages();
   await seedCrews();
   await seedWorkflowTemplates(prisma);
+  await seedViolationCategories(prisma);
   console.log(
     "Done. No demo users created. Use scripts/create-admin.ts to add the initial admin.",
   );

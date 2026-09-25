@@ -7,6 +7,8 @@ export const createTaskSchema = z.object({
   invoiceId: z.string().optional(),
   prospectId: z.string().optional(),
   dailyLogId: z.string().optional(),
+  violationCaseId: z.string().optional(),
+  violationItemId: z.string().optional(),
   title: z.string().min(1, "Task title is required"),
   description: z.string().optional(),
   assignedUserId: z.string().optional(),

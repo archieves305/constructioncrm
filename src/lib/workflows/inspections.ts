@@ -19,8 +19,9 @@ import { loadRoleContext, resolveAssignee } from "./roles";
  *                  whole history (fail, fix, re-request, pass) reads on
  *                  its timeline.
  *
- * The task is the authoritative record; a `JobPermitInspection` row is
- * mirrored only when the caller names one.
+ * The task is the authoritative record; a `JobPermitInspection` (job) or a
+ * `CodeViolationInspection` (agency reinspection on a case) row is mirrored
+ * only when the caller names one.
  */
 
 export const CORRECTION_MARK = ":correction:";
@@ -35,6 +36,7 @@ export type InspectionResultInput = {
   notes?: string | null;
   inspectedAt?: Date | null;
   jobPermitInspectionId?: string | null;
+  violationInspectionId?: string | null;
   actor: { id: string; role: RoleName };
 };
 
@@ -55,7 +57,10 @@ export async function recordInspectionResult(input: InspectionResultInput): Prom
       id: true,
       title: true,
       status: true,
+      leadId: true,
       jobId: true,
+      violationCaseId: true,
+      violationItemId: true,
       assignedUserId: true,
       dueLocked: true,
       workflowInstanceId: true,
@@ -84,11 +89,17 @@ export async function recordInspectionResult(input: InspectionResultInput): Prom
       data: { result: input.result, completedAt: now, notes: notes ?? undefined },
     });
   }
+  if (input.violationInspectionId) {
+    await prisma.codeViolationInspection.updateMany({
+      where: { id: input.violationInspectionId },
+      data: { result: input.result, status: "COMPLETED", completedAt: now, notes: notes ?? undefined, taskId: task.id },
+    });
+  }
 
   let correctionTaskId: string | null = null;
   if (input.result === "FAIL" || input.result === "CONDITIONAL") {
     const n = task._count.dependencies + 1;
-    const roleCtx = await loadRoleContext(prisma, { jobId: task.jobId!, instanceId: task.workflowInstanceId });
+    const roleCtx = await loadRoleContext(prisma, { instanceId: task.workflowInstanceId });
     const assignee = resolveAssignee("SUPERINTENDENT", roleCtx) ?? task.assignedUserId;
     const correction = await createTask(
       {
@@ -98,7 +109,11 @@ export async function recordInspectionResult(input: InspectionResultInput): Prom
         dueAt: atDueHour(addBusinessDaysFrom(now, 2)),
         assignedUserId: assignee,
         createdByUserId: input.actor.id,
+        // The correction lives wherever the failed step lives (job, or case + item).
+        leadId: task.leadId,
         jobId: task.jobId,
+        violationCaseId: task.violationCaseId,
+        violationItemId: task.violationItemId,
         source: "workflow",
         activatedAt: now,
         workflow: {
@@ -149,7 +164,7 @@ export async function recordInspectionResult(input: InspectionResultInput): Prom
     entityType: "Task",
     entityId: task.id,
     action: "inspection_result",
-    after: { result: input.result, notes, correctionTaskId, jobPermitInspectionId: input.jobPermitInspectionId ?? null },
+    after: { result: input.result, notes, correctionTaskId, jobPermitInspectionId: input.jobPermitInspectionId ?? null, violationInspectionId: input.violationInspectionId ?? null },
   });
   return { status, correctionTaskId };
 }

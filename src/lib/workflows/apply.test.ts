@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { compose } from "./compose";
 import { CORE } from "../../../prisma/seeds/workflows/core";
 import { ROOFING } from "../../../prisma/seeds/workflows/roofing";
+import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/code-violation";
 
 /**
  * materializePlan against an in-memory "database": proves the two rules the
@@ -50,10 +51,10 @@ function fakeTx(rows: Row[], edges: Edge[]) {
 }
 
 const mod = (def: typeof CORE) => ({ moduleKey: def.key, kind: def.kind, name: def.name, trade: def.trade, versionId: `v-${def.key}`, version: 1, definition: def });
-const roleCtx = { team: {}, projectManagerId: "u-pm", salesRepId: null, defaults: {} };
+const roleCtx = { team: {}, projectManagerId: "u-pm", salesRepId: null, caseManagerId: null, defaults: {} };
 const now = new Date(2026, 9, 2, 10);
-const ctx = { jobCreatedAt: now, appliedAt: now, targetStartDate: null };
-const args = (tx: ReturnType<typeof fakeTx>, plan: ReturnType<typeof compose>) => ({ instanceId: "w1", jobId: "j1", plan, roleCtx, ctx, actorUserId: "u-me", now });
+const ctx = { subjectCreatedAt: now, appliedAt: now, targetStartDate: null };
+const args = (tx: ReturnType<typeof fakeTx>, plan: ReturnType<typeof compose>) => ({ instanceId: "w1", links: { leadId: "l1", jobId: "j1" }, plan, roleCtx, ctx, actorUserId: "u-me", now });
 
 // Braces matter: a hook that RETURNS the mock registers it as a cleanup hook.
 beforeEach(() => {
@@ -116,5 +117,33 @@ describe("materializePlan", () => {
     expect(r.edgesRemoved).toBeGreaterThan(0);
     // Nothing that existed was recreated: the no-permit branch was never made.
     expect(rows.some((x) => x.workflowTaskKey === "roofing:obtain_pm_approval_no_permit")).toBe(false);
+  });
+});
+
+describe("materializePlan — violation case", () => {
+  it("links every case step to the case and its lead, never a jobId, and a second pass creates nothing", async () => {
+    const rows: Row[] = [];
+    const edges: Edge[] = [];
+    const tx = fakeTx(rows, edges);
+    const plan = compose({ modules: [mod(CODE_VIOLATION as typeof CORE)], permitStatus: "UNDETERMINED", scopeToggles: {} });
+    const caseArgs = { ...args(tx, plan), links: { leadId: "l1", violationCaseId: "c1" } };
+    const caseCtx = { team: {}, projectManagerId: null, salesRepId: null, caseManagerId: "u-cm", defaults: {} };
+
+    const first = await materializePlan(tx, { ...caseArgs, roleCtx: caseCtx });
+    expect(first.created).toHaveLength(plan.tasks.length);
+    for (const call of createTask.mock.calls) {
+      const input = call[0] as { violationCaseId?: string; leadId?: string; jobId?: string; sourceKey: string; workflow: { taskKey: string; role: string }; assignedUserId: string | null };
+      expect(input.violationCaseId).toBe("c1");
+      expect(input.leadId).toBe("l1");
+      expect(input.jobId).toBeUndefined();
+      expect(input.sourceKey).toBe(`wf:w1:${input.workflow.taskKey}`);
+      expect(input.workflow.taskKey.startsWith("code_violation:")).toBe(true);
+      if (input.workflow.role === "CASE_MANAGER") expect(input.assignedUserId).toBe("u-cm");
+    }
+    createTask.mockClear();
+    const second = await materializePlan(tx, { ...caseArgs, roleCtx: caseCtx });
+    expect(second.created).toEqual([]);
+    expect(second.existing).toBe(plan.tasks.length);
+    expect(createTask).not.toHaveBeenCalled();
   });
 });

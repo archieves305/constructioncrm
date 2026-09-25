@@ -1,8 +1,9 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { CORE_MODULE_KEY, DETERMINE_PERMIT_TASK_KEY, isValidKey } from "./keys";
+import { CORE_MODULE_KEY, DETERMINE_PERMIT_TASK_KEY, isBaseKind, isValidKey } from "./keys";
 import { findCycle, type DepEdge } from "./dependencies";
 import { loadPublishedVersion, readScopeToggles, VERSION_TREE_INCLUDE, type VersionTree } from "./load";
+import { DATE_ANCHORS } from "./schedule";
 import { LEGAL_NO_PERMIT_WARNING } from "./templates/types";
 
 /**
@@ -26,6 +27,8 @@ export function validateTree(v: VersionTree, coreTaskKeys: ReadonlySet<string> |
   const err = (message: string, loc: { phaseKey?: string; taskKey?: string } = {}) => issues.push({ level: "error", message, ...loc });
   const warn = (message: string, loc: { phaseKey?: string; taskKey?: string } = {}) => issues.push({ level: "warning", message, ...loc });
   const isCore = v.template.kind === "CORE";
+  const isViolation = v.template.kind === "VIOLATION";
+  const isBase = isBaseKind(v.template.kind);
   const toggles = new Set(readScopeToggles(v.scopeToggles).map((t) => t.key));
 
   if (v.phases.length === 0) err("The template has no phases");
@@ -50,11 +53,13 @@ export function validateTree(v: VersionTree, coreTaskKeys: ReadonlySet<string> |
     taskKeys.add(t.key);
     if (!t.title.trim()) err("A step has no title", loc);
     if (!phase) err(`Step "${t.title}" points at a phase that no longer exists`, loc);
-    if (t.dueOffsetBusinessDays < 0 && t.anchor !== "TARGET_START") err(`"${t.title}": a negative offset only makes sense from the target start date`, loc);
+    if (t.dueOffsetBusinessDays < 0 && !DATE_ANCHORS.has(t.anchor)) err(`"${t.title}": a negative offset only makes sense from a date anchor (target start, compliance deadline, hearing date)`, loc);
+    if ((t.anchor === "COMPLIANCE_DEADLINE" || t.anchor === "HEARING_DATE") && !isViolation) err(`"${t.title}": the ${t.anchor === "COMPLIANCE_DEADLINE" ? "compliance deadline" : "hearing date"} anchor only exists on a violation template`, loc);
+    if (t.requiredEvidence === "PAYMENT_STATUS" && isViolation) warn(`"${t.title}": payment evidence reads the job's payments — a violation step should use FINE_STATUS`, loc);
     for (const k of [...t.conditionAnyOf, ...t.conditionAllOf]) if (!toggles.has(k)) err(`"${t.title}" uses unknown scope toggle "${k}"`, loc);
     if (t.conditionPermit && phase?.conditionPermit && t.conditionPermit !== phase.conditionPermit) err(`"${t.title}" contradicts its phase's permit branch`, loc);
     if (t.overridesCoreKey) {
-      if (isCore) err(`"${t.title}": only a trade step may override a Core step`, loc);
+      if (isBase) err(`"${t.title}": only a trade step may override a Core step`, loc);
       else if (t.overridesCoreKey === DETERMINE_PERMIT_TASK_KEY) err(`"${t.title}": "Determine permit requirement" is never overridden`, loc);
       else if (coreTaskKeys && !coreTaskKeys.has(t.overridesCoreKey)) err(`"${t.title}" overrides Core step "${t.overridesCoreKey}", which does not exist`, loc);
     }
@@ -65,7 +70,7 @@ export function validateTree(v: VersionTree, coreTaskKeys: ReadonlySet<string> |
       }
     }
   }
-  if (isCore && !taskKeys.has(DETERMINE_PERMIT_TASK_KEY)) err(`The Core template must contain a step with key "${DETERMINE_PERMIT_TASK_KEY}"`);
+  if (isBase && !taskKeys.has(DETERMINE_PERMIT_TASK_KEY)) err(`${isCore ? "The Core" : "A violation"} template must contain a step with key "${DETERMINE_PERMIT_TASK_KEY}"`);
 
   const edges: DepEdge<string>[] = [];
   for (const d of v.dependencies) {
@@ -77,6 +82,7 @@ export function validateTree(v: VersionTree, coreTaskKeys: ReadonlySet<string> |
     }
     if (d.dependsOnRef.startsWith(`${CORE_MODULE_KEY}:`)) {
       if (isCore) err(`"${d.taskKey}" refers to core: inside the Core template — use the bare key`, loc);
+      else if (isViolation) err(`"${d.taskKey}" waits on "${d.dependsOnRef}" — a violation template never composes with Core`, loc);
       else if (coreTaskKeys && !coreTaskKeys.has(d.dependsOnRef.slice(CORE_MODULE_KEY.length + 1))) err(`"${d.taskKey}" waits on Core step "${d.dependsOnRef}", which does not exist`, loc);
       continue;
     }
@@ -104,7 +110,7 @@ export async function validateVersion(versionId: string): Promise<ValidationResu
   const v = await prisma.workflowTemplateVersion.findUnique({ where: { id: versionId }, include: VERSION_TREE_INCLUDE });
   if (!v) return { ok: false, issues: [{ level: "error", message: "Version not found" }] };
   let coreKeys: Set<string> | null = null;
-  if (v.template.kind !== "CORE") {
+  if (v.template.kind === "TRADE") {
     const core = await loadPublishedVersion(prisma, CORE_MODULE_KEY);
     coreKeys = core ? new Set(core.tasks.map((t) => t.key)) : null;
   }

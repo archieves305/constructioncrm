@@ -5,7 +5,8 @@ const { db, createTask, updateTask, recordTaskEvent } = vi.hoisted(() => ({
     task: { findUnique: vi.fn(), update: vi.fn() },
     taskDependency: { create: vi.fn() },
     jobPermitInspection: { updateMany: vi.fn() },
-    job: { findUnique: vi.fn() },
+    codeViolationInspection: { updateMany: vi.fn() },
+    jobWorkflowInstance: { findUnique: vi.fn() },
     workflowRoleDefault: { findMany: vi.fn() },
     jobWorkflowTeamMember: { findMany: vi.fn() },
   },
@@ -47,7 +48,18 @@ beforeEach(() => {
   recordTaskEvent.mockReset();
   db.task.findUnique.mockResolvedValue(step);
   db.task.update.mockResolvedValue({});
-  db.job.findUnique.mockResolvedValue({ projectManagerId: "u-pm", salesRepId: null });
+  // Role context now comes from the instance's owning subject (a job here).
+  db.jobWorkflowInstance.findUnique.mockResolvedValue({
+    id: "w1",
+    appliedAt: new Date(),
+    permitStatus: "REQUIRED",
+    scopeToggles: {},
+    modules: [],
+    jobId: "j1",
+    violationCaseId: null,
+    job: { id: "j1", leadId: "l1", jobNumber: "JOB-00001", createdAt: new Date(), targetStartDate: null, jurisdiction: null, projectManagerId: "u-pm", salesRepId: null },
+    violationCase: null,
+  });
   db.workflowRoleDefault.findMany.mockResolvedValue([]);
   db.jobWorkflowTeamMember.findMany.mockResolvedValue([{ role: "SUPERINTENDENT", userId: "u-sup" }]);
   db.taskDependency.create.mockResolvedValue({});

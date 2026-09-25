@@ -11,6 +11,8 @@ export const WORKFLOW_ROLES: readonly WorkflowRole[] = [
   "PURCHASING",
   "ACCOUNTING",
   "QUALITY_CONTROL",
+  // Appended, not inserted: `unassignedRoles` reports in this order.
+  "CASE_MANAGER",
 ];
 
 export const WORKFLOW_ROLE_LABEL: Record<WorkflowRole, string> = {
@@ -23,4 +25,5 @@ export const WORKFLOW_ROLE_LABEL: Record<WorkflowRole, string> = {
   PURCHASING: "Purchasing",
   ACCOUNTING: "Accounting",
   QUALITY_CONTROL: "Quality control",
+  CASE_MANAGER: "Case manager",
 };

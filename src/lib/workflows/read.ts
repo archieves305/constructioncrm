@@ -8,11 +8,16 @@ import { fullKey, splitFullKey, type ScopeToggleState } from "./keys";
 import { unassignedRoles, loadRoleContext } from "./roles";
 import { canApplyWorkflow, canCoordinateWorkflow, canOverrideBlockingGate, canSetPermitStatus, type JobScope } from "./access";
 import { availableUpgrades } from "./versioning";
+import { loadSubject, type WorkflowSubject } from "./subject";
 
 /**
  * Everything the Workflow tab needs in one read: the instance, its modules
  * and team, phases in band order with progress, the (visibility-scoped)
  * tasks with their dependencies, and what this viewer may do.
+ *
+ * `readJobWorkflow` and `readCaseWorkflow` load their subject and hand the
+ * instance to the same `readInstanceWorkflow`, so the tab renders a job's
+ * and a case's workflow from one shape.
  */
 
 export const WORKFLOW_TASK_INCLUDE = {
@@ -29,6 +34,21 @@ export const WORKFLOW_TASK_INCLUDE = {
 } satisfies Prisma.TaskInclude;
 
 export type WorkflowTaskRow = Prisma.TaskGetPayload<{ include: typeof WORKFLOW_TASK_INCLUDE }>;
+
+export const WORKFLOW_INSTANCE_INCLUDE = {
+  modules: {
+    orderBy: { addedAt: "asc" },
+    include: {
+      template: { select: { key: true, name: true, kind: true, trade: true } },
+      templateVersion: { select: { id: true, version: true } },
+    },
+  },
+  team: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
+  appliedBy: { select: { id: true, firstName: true, lastName: true } },
+  permitDeterminedBy: { select: { id: true, firstName: true, lastName: true } },
+} satisfies Prisma.JobWorkflowInstanceInclude;
+
+type InstanceRow = Prisma.JobWorkflowInstanceGetPayload<{ include: typeof WORKFLOW_INSTANCE_INCLUDE }>;
 
 export type PhaseProgress = {
   total: number;
@@ -59,55 +79,22 @@ function tally(p: PhaseProgress, t: WorkflowTaskRow, now: Date) {
   if (open && !t.assignedUserId && t.workflowTaskKey) p.unassigned++;
 }
 
-export async function readJobWorkflow(
-  jobId: string,
-  user: { id: string; role: RoleName },
-  scope: VisibilityScope | undefined,
-  jobScope: JobScope,
-) {
-  const now = new Date();
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    select: {
-      id: true,
-      leadId: true,
-      jobNumber: true,
-      title: true,
-      serviceType: true,
-      projectManagerId: true,
-      salesRepId: true,
-      targetStartDate: true,
-      jurisdiction: true,
-      createdAt: true,
-      workflow: {
-        include: {
-          modules: {
-            orderBy: { addedAt: "asc" },
-            include: {
-              template: { select: { key: true, name: true, kind: true, trade: true } },
-              templateVersion: { select: { id: true, version: true } },
-            },
-          },
-          team: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
-          appliedBy: { select: { id: true, firstName: true, lastName: true } },
-          permitDeterminedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-      },
-    },
-  });
-  if (!job) return null;
+type Viewer = { id: string; role: RoleName };
 
-  const permissions = {
+function permissionsFor(user: Viewer, subjectScope: JobScope) {
+  return {
     canApply: canApplyWorkflow(user.role),
-    canSetPermit: canSetPermitStatus(user, jobScope),
-    canCoordinate: canCoordinateWorkflow(user, jobScope),
+    canSetPermit: canSetPermitStatus(user, subjectScope),
+    canCoordinate: canCoordinateWorkflow(user, subjectScope),
     canOverrideGate: canOverrideBlockingGate(user.role),
   };
-  const { workflow, ...jobFields } = job;
-  if (!workflow) return { job: jobFields, instance: null, permissions };
+}
 
+/** The instance-level body shared by jobs and violation cases. */
+export async function readInstanceWorkflow(workflow: InstanceRow, subject: WorkflowSubject, user: Viewer, scope: VisibilityScope | undefined) {
+  const now = new Date();
   const modules = await loadInstanceModules(prisma, workflow.id);
-  const jobToggles = (workflow.scopeToggles ?? {}) as ScopeToggleState;
+  const subjectToggles = (workflow.scopeToggles ?? {}) as ScopeToggleState;
   const moduleIndex = new Map(modules.map((m, i) => [m.moduleKey, i]));
 
   const tasks = await prisma.task.findMany({
@@ -188,14 +175,12 @@ export async function readJobWorkflow(
         a.sortOrder - b.sortOrder,
     );
 
-  const roleCtx = await loadRoleContext(prisma, { jobId: job.id, instanceId: workflow.id });
+  const roleCtx = await loadRoleContext(prisma, { subject, instanceId: workflow.id });
   const upgrades = await availableUpgrades(
     workflow.modules.filter((m) => !m.removedAt).map((m) => ({ templateKey: m.template.key, versionId: m.templateVersion.id, version: m.templateVersion.version })),
   );
 
   return {
-    job: jobFields,
-    permissions,
     instance: {
       id: workflow.id,
       status: workflow.status,
@@ -204,7 +189,7 @@ export async function readJobWorkflow(
       permitDeterminedBy: workflow.permitDeterminedBy,
       permitNotes: workflow.permitNotes,
       permitDocumentFileId: workflow.permitDocumentFileId,
-      scopeToggles: jobToggles,
+      scopeToggles: subjectToggles,
       appliedAt: workflow.appliedAt,
       appliedBy: workflow.appliedBy,
       lastReconciledAt: workflow.lastReconciledAt,
@@ -221,7 +206,7 @@ export async function readJobWorkflow(
     team: workflow.team.map((t) => ({ role: t.role, user: t.user })),
     toggles: modules
       .filter((m) => m.definition.scopeToggles.length > 0)
-      .map((m) => ({ moduleKey: m.moduleKey, name: m.name, toggles: m.definition.scopeToggles, values: resolveToggles(m, jobToggles) })),
+      .map((m) => ({ moduleKey: m.moduleKey, name: m.name, toggles: m.definition.scopeToggles, values: resolveToggles(m, subjectToggles) })),
     phases: phaseList,
     tasks,
     progress: overall,
@@ -230,4 +215,71 @@ export async function readJobWorkflow(
   };
 }
 
+export async function readJobWorkflow(
+  jobId: string,
+  user: Viewer,
+  scope: VisibilityScope | undefined,
+  jobScope: JobScope,
+) {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: {
+      id: true,
+      leadId: true,
+      jobNumber: true,
+      title: true,
+      serviceType: true,
+      projectManagerId: true,
+      salesRepId: true,
+      targetStartDate: true,
+      jurisdiction: true,
+      createdAt: true,
+      workflow: { include: WORKFLOW_INSTANCE_INCLUDE },
+    },
+  });
+  if (!job) return null;
+
+  const permissions = permissionsFor(user, jobScope);
+  const { workflow, ...jobFields } = job;
+  if (!workflow) return { job: jobFields, instance: null, permissions };
+  const subject = await loadSubject(prisma, { kind: "job", jobId });
+  if (!subject) return null;
+  const body = await readInstanceWorkflow(workflow, subject, user, scope);
+  return { job: jobFields, permissions, ...body };
+}
+
+export async function readCaseWorkflow(
+  caseId: string,
+  user: Viewer,
+  scope: VisibilityScope | undefined,
+  caseScope: JobScope,
+) {
+  const c = await prisma.codeViolationCase.findUnique({
+    where: { id: caseId },
+    select: {
+      id: true,
+      leadId: true,
+      jobId: true,
+      caseNumber: true,
+      title: true,
+      jurisdiction: true,
+      caseManagerId: true,
+      currentDeadline: true,
+      nextHearingAt: true,
+      createdAt: true,
+      workflow: { include: WORKFLOW_INSTANCE_INCLUDE },
+    },
+  });
+  if (!c) return null;
+
+  const permissions = permissionsFor(user, caseScope);
+  const { workflow, ...caseFields } = c;
+  if (!workflow) return { case: caseFields, instance: null, permissions };
+  const subject = await loadSubject(prisma, { kind: "violation", violationCaseId: caseId });
+  if (!subject) return null;
+  const body = await readInstanceWorkflow(workflow, subject, user, scope);
+  return { case: caseFields, permissions, ...body };
+}
+
 export type JobWorkflowRead = NonNullable<Awaited<ReturnType<typeof readJobWorkflow>>>;
+export type CaseWorkflowRead = NonNullable<Awaited<ReturnType<typeof readCaseWorkflow>>>;

@@ -39,7 +39,8 @@ export type SummaryModule = {
 
 export type SummaryInstance = {
   id: string;
-  jobId: string;
+  /** Null on a violation case's instance. */
+  jobId: string | null;
   status: JobWorkflowStatus;
   permitStatus: WorkflowPermitStatus;
   appliedAt: Date;
@@ -215,6 +216,7 @@ export async function loadJobWorkflowSummaries(jobIds: string[], now = new Date(
   }
 
   for (const inst of instances) {
+    if (!inst.jobId) continue; // filtered by jobId above; narrows the type
     const phases = new Map<string, SummaryPhase>();
     for (const m of inst.modules) {
       for (const p of phaseRows) {

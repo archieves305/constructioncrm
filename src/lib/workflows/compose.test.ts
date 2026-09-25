@@ -172,3 +172,54 @@ describe("compose", () => {
     expect(() => compose({ modules: [mod(coreSpec), mod(cyclic)], permitStatus: "REQUIRED", scopeToggles: {} })).toThrow(ComposeCycleError);
   });
 });
+
+describe("compose — base module and permit gate", () => {
+  const core: ComposeModule = { moduleKey: "core", kind: "CORE", name: "Core", trade: null, versionId: "v-core", version: 1, definition: defineTemplate(coreSpec) };
+  const violationSpec: TemplateSpec = {
+    key: "code_violation",
+    name: "Code Violation Case",
+    kind: "VIOLATION",
+    phases: [
+      {
+        key: "intake",
+        name: "Intake",
+        band: 100,
+        tasks: [
+          { key: "review_notice", title: "Review notice", role: "CASE_MANAGER" },
+          { key: "determine_permit_requirement", title: "Determine permit requirement", role: "PERMIT_COORDINATOR", dependsOn: ["^"], blocking: true },
+        ],
+      },
+      {
+        key: "permitting",
+        name: "Permitting",
+        band: 400,
+        permit: "REQUIRED",
+        startsAfter: ["determine_permit_requirement"],
+        tasks: [{ key: "confirm_permit_issued", title: "Confirm permit issued", role: "PERMIT_COORDINATOR", blocking: true }],
+      },
+      {
+        key: "closure",
+        name: "Closure",
+        band: 800,
+        tasks: [{ key: "close_case", title: "Close case", role: "CASE_MANAGER", dependsOn: ["confirm_permit_issued"], requiredEvidence: "AGENCY_CONFIRMATION" }],
+      },
+    ],
+  };
+  const violation: ComposeModule = { moduleKey: "code_violation", kind: "VIOLATION", name: "Code Violation Case", trade: null, versionId: "v-cv", version: 1, definition: defineTemplate(violationSpec) };
+
+  it("a job plan still names Core's gate, exactly as before", () => {
+    const plan = compose({ modules: [core], permitStatus: "UNDETERMINED", scopeToggles: {} });
+    expect(plan.permitGateKey).toBe("core:determine_permit_requirement");
+  });
+
+  it("a violation plan composes alone, names its own gate, and routes undetermined branches to it", () => {
+    const und = compose({ modules: [violation], permitStatus: "UNDETERMINED", scopeToggles: {} });
+    expect(und.permitGateKey).toBe("code_violation:determine_permit_requirement");
+    expect(und.modules.map((m) => m.moduleKey)).toEqual(["code_violation"]);
+    expect(und.tasks.map((t) => t.key)).toEqual(["code_violation:review_notice", "code_violation:determine_permit_requirement", "code_violation:close_case"]);
+    expect(und.tasks.at(-1)!.dependsOn.map((d) => d.key)).toEqual(["code_violation:determine_permit_requirement"]);
+    expect(und.warnings).toEqual([]);
+    const req = compose({ modules: [violation], permitStatus: "REQUIRED", scopeToggles: {} });
+    expect(req.tasks.at(-1)!.dependsOn.map((d) => d.key)).toEqual(["code_violation:confirm_permit_issued"]);
+  });
+});

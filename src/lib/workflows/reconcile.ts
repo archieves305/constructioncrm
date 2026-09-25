@@ -5,11 +5,12 @@ import { updateTask } from "@/lib/tasks/update";
 import { recordTaskEvent } from "@/lib/tasks/events";
 import { compose, type ComposedPlan, type ComposeModule } from "./compose";
 import { loadInstanceModules, loadPublishedVersion, loadVersionById, readScopeToggles, toComposeModule } from "./load";
-import { CORE_MODULE_KEY, DETERMINE_PERMIT_FULL_KEY, type ScopeToggleState } from "./keys";
+import { CORE_MODULE_KEY, isBaseKind, type ScopeToggleState } from "./keys";
 import { diffEdges, materializePlan, type EdgeRow } from "./apply";
 import { loadRoleContext } from "./roles";
 import { loadScheduleContext, sweepActivation } from "./activation";
 import { isCorrectionKey } from "./inspections";
+import { loadSubjectForInstance, taskLinksFor, writeSubjectFields } from "./subject";
 
 /**
  * Reconciliation: the workflow's shape changed after it was applied —
@@ -85,7 +86,7 @@ export type ReconcilePlan = {
 };
 
 type Instance = Prisma.JobWorkflowInstanceGetPayload<{
-  select: { id: true; jobId: true; permitStatus: true; scopeToggles: true; appliedAt: true; modules: { select: { templateKey: true; templateVersionId: true; removedAt: true } } };
+  select: { id: true; jobId: true; violationCaseId: true; permitStatus: true; scopeToggles: true; appliedAt: true; modules: { select: { templateKey: true; templateVersionId: true; removedAt: true } } };
 }>;
 
 type Built = {
@@ -103,10 +104,15 @@ type Built = {
 async function loadInstance(instanceId: string): Promise<Instance> {
   const inst = await prisma.jobWorkflowInstance.findUnique({
     where: { id: instanceId },
-    select: { id: true, jobId: true, permitStatus: true, scopeToggles: true, appliedAt: true, modules: { select: { templateKey: true, templateVersionId: true, removedAt: true } } },
+    select: { id: true, jobId: true, violationCaseId: true, permitStatus: true, scopeToggles: true, appliedAt: true, modules: { select: { templateKey: true, templateVersionId: true, removedAt: true } } },
   });
   if (!inst) throw new ReconcileError(404, "Workflow not found");
   return inst;
+}
+
+/** A violation case runs one template; adding or removing modules is a job-only change. */
+function isCase(inst: Instance): boolean {
+  return Boolean(inst.violationCaseId);
 }
 
 /** Compose the plan the job SHOULD have after `change`. */
@@ -130,6 +136,7 @@ async function build(inst: Instance, change: ReconcileChange): Promise<Built> {
       break;
     }
     case "add-module": {
+      if (isCase(inst)) throw new ReconcileError(400, "A violation case runs a single template; trades belong on the linked job");
       const have = new Set(modules.map((m) => m.moduleKey));
       const keys = Array.from(new Set(change.templateKeys)).filter((k) => k !== CORE_MODULE_KEY);
       if (keys.length === 0) throw new ReconcileError(400, "Pick at least one trade to add");
@@ -141,6 +148,7 @@ async function build(inst: Instance, change: ReconcileChange): Promise<Built> {
         const v = await loadPublishedVersion(prisma, key);
         if (!v) throw new ReconcileError(400, `No published workflow template "${key}"`);
         const m = toComposeModule(v);
+        if (m.kind !== "TRADE") throw new ReconcileError(400, `"${key}" is not a trade template`);
         modules.push(m);
         moduleWrites.add.push(m);
       }
@@ -150,9 +158,11 @@ async function build(inst: Instance, change: ReconcileChange): Promise<Built> {
     }
     case "remove-module": {
       if (change.templateKey === CORE_MODULE_KEY) throw new ReconcileError(400, "Core Construction cannot be removed");
+      if (isCase(inst)) throw new ReconcileError(400, "The violation template cannot be removed from a case");
       if (!change.reason?.trim()) throw new ReconcileError(400, "Say why this trade is being removed");
       const m = modules.find((x) => x.moduleKey === change.templateKey);
       if (!m) throw new ReconcileError(404, "That trade is not on this job");
+      if (isBaseKind(m.kind)) throw new ReconcileError(400, `${m.name} is the base template and cannot be removed`);
       modules = modules.filter((x) => x.moduleKey !== change.templateKey);
       moduleWrites.remove.push(change.templateKey);
       label = `${m.name} removed — ${change.reason.trim()}`;
@@ -295,7 +305,9 @@ export async function reconcile(instanceId: string, change: ReconcileChange, act
   const inst = await loadInstance(instanceId);
   const built = await build(inst, change);
   const plan = await diff(inst, built, change);
-  const roleCtx = await loadRoleContext(prisma, { jobId: inst.jobId, instanceId: inst.id });
+  const subject = await loadSubjectForInstance(prisma, inst.id);
+  if (!subject) throw new ReconcileError(404, "Workflow not found");
+  const roleCtx = await loadRoleContext(prisma, { subject, instanceId: inst.id });
   const ctx = await loadScheduleContext(prisma, inst.id);
   if (!ctx) throw new ReconcileError(404, "Workflow not found");
   const skipReason = `${ENGINE_SKIP_PREFIX}${built.label}`;
@@ -309,7 +321,7 @@ export async function reconcile(instanceId: string, change: ReconcileChange, act
         data.permitDeterminedAt = now;
         data.permitNotes = change.notes ?? (change.reason ? change.reason.trim() : null);
         data.permitDocumentFileId = change.documentFileId ?? null;
-        if (change.jurisdiction !== undefined) await tx.job.update({ where: { id: inst.jobId }, data: { jurisdiction: change.jurisdiction } });
+        if (change.jurisdiction !== undefined) await writeSubjectFields(tx, subject, { jurisdiction: change.jurisdiction });
       }
       await tx.jobWorkflowInstance.update({ where: { id: inst.id }, data });
       for (const m of built.moduleWrites.add) {
@@ -329,7 +341,7 @@ export async function reconcile(instanceId: string, change: ReconcileChange, act
       for (const r of built.moduleWrites.repin) {
         await tx.jobWorkflowModule.updateMany({ where: { instanceId: inst.id, templateKey: r.templateKey }, data: { templateVersionId: r.versionId } });
       }
-      return materializePlan(tx, { instanceId: inst.id, jobId: inst.jobId, plan: built.plan, roleCtx, ctx, actorUserId: actor.id, now });
+      return materializePlan(tx, { instanceId: inst.id, links: taskLinksFor(subject), plan: built.plan, roleCtx, ctx, actorUserId: actor.id, now });
     },
     { timeout: 60_000, maxWait: 10_000 },
   );
@@ -350,10 +362,11 @@ export async function reconcile(instanceId: string, change: ReconcileChange, act
     await recordTaskEvent({ taskId: id, actorUserId: actor.id, type: "RECONCILED", body: `added — ${built.label}` });
   }
 
-  // Deciding a permit completes the determination gate; the decision IS its evidence.
-  if (change.kind === "permit" && inst.permitStatus === "UNDETERMINED") {
+  // Deciding a permit completes the determination gate; the decision IS its
+  // evidence. The gate is Core's on a job and the violation template's own on a case.
+  if (change.kind === "permit" && inst.permitStatus === "UNDETERMINED" && built.plan.permitGateKey) {
     const gate = await prisma.task.findFirst({
-      where: { workflowInstanceId: inst.id, workflowTaskKey: DETERMINE_PERMIT_FULL_KEY, status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] } },
+      where: { workflowInstanceId: inst.id, workflowTaskKey: built.plan.permitGateKey, status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] } },
       select: { id: true },
     });
     if (gate) {

@@ -15,6 +15,24 @@ export const PUR: WorkflowRole = "PURCHASING";
 export const ACC: WorkflowRole = "ACCOUNTING";
 export const SR: WorkflowRole = "SALES_REP";
 export const QC: WorkflowRole = "QUALITY_CONTROL";
+/** Code-violation cases only: resolves to the case's case manager. */
+export const CM: WorkflowRole = "CASE_MANAGER";
+
+/**
+ * Phase bands for a violation case. A case composes alone (no Core), so
+ * these only need to order its own phases; PERMITTING reuses the shared band
+ * so the legal no-permit phase sits where it does on a job.
+ */
+export const VIOLATION_BANDS = {
+  INTAKE: 100,
+  SITE_INVESTIGATION: 200,
+  STRATEGY: 300,
+  PERMITTING: 400,
+  CORRECTIVE_CONSTRUCTION: 500,
+  AGENCY_COMPLIANCE: 600,
+  HEARINGS_FINES_LIENS: 700,
+  CLOSURE: 800,
+} as const;
 
 type Extra = Omit<TaskSpec, "key" | "title" | "role">;
 

@@ -27,6 +27,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+00. 🔴 **Code Violations module** — four stages, plan approved 2026-09-25
+   (`~/.claude/plans/glistening-growing-perlis.md`). **Stage 1 (engine
+   generalised to a subject + schema + `code_violation` template) built
+   2026-09-25 on dev — not yet committed or deployed.** Stages 2–4 (cases
+   UI/API; deadlines + reminders; dashboard + reports) follow, each
+   deployed and QA'd before the next. Notes:
+   [features/violations.md](docs/project-memory/features/violations.md).
 0. 🔴 **Tasks as the spine of the CRM** — three stages, each deployed and
    QA'd before the next. **Stage 1 (tasks everywhere) deployed 2026-09-24**
    (`ebf1988`, BUILD_ID `TIVSTNlHVR4hHEDg5rmdU`, migration
@@ -73,6 +80,26 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — Code Violations, Stage 1: engine → subject + schema (built on dev, not deployed)
+
+Plan-mode session (three exploration + three design agents) → plan
+approved → Stage 1 built. The workflow engine now runs on a **subject**
+(`src/lib/workflows/subject.ts`): a job composes Core + trades, a
+violation case composes exactly one `VIOLATION` template and never Core.
+`ApplyInput.subject` (+ deprecated `jobId` alias), `materializePlan({links})`,
+`plan.permitGateKey`, `ScheduleContext.subjectCreatedAt` (+ optional
+`complianceDeadline` / `hearingDate`), `rescheduleAnchor`, `CASE_MANAGER`
+role, six case evidence types, `readCaseWorkflow`, `subjectScopeForTask`,
+`Task/File/Communication.violationCaseId` links (case tasks never carry
+`jobId`). Migration `20261002120000_code_violations` (applied on dev; the
+one-subject CHECK and the case-number SEQUENCE are hand-appended; no
+backfill). Template `code_violation` (75 steps, 6 toggles) + 22 categories
+seeded on dev. **Regression proof:** the four v1 hashes are pinned as
+literals in `seed-specs.test.ts`; seeder "unchanged" ×4; `previewWorkflow`
+on JOB-00001 → 170 existing / 0 to create. 653 tests (+37), lint 6/28,
+typecheck + build clean. Details:
+[features/violations.md](docs/project-memory/features/violations.md).
 
 ### 2026-09-25 — Acknowledge deliberately deleted postings (deployed + applied)
 
@@ -423,6 +450,8 @@ KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --dry-run
 
 # Workflow templates (idempotent; run on prod after any spec change)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-workflows.ts"'
+# Code-violation categories (idempotent; upsert by key, never overwrites a rename)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-violations.ts"'
 ```
 
 Prod one-offs: run as user `knuco` on knuco-droplet with `/etc/knuco/env`
@@ -494,16 +523,26 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
   references it — bump the version. Own-only roles see tasks on jobs where
   they are PM, field-assigned or hold a team slot. Every open count uses
   `ACTIVE_OPEN_WHERE` (open **and** activated).
+- **A workflow's subject is a Job or a CodeViolationCase, never both**
+  (DB CHECK). A case runs one `VIOLATION` template alone — never Core —
+  and its tasks carry `violationCaseId + leadId`, never `jobId`.
+  Construction completion is not compliance: the agency's confirmation is
+  a separate gate and `close_case` requires it (ADMIN/MANAGER override with
+  reason, audited). The fine accrual estimate is computed, never stored;
+  only official figures are entered.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
 
-> Every workstream is closed, reconciliation Phase 2 is connected, and the
-> three deleted postings are acknowledged (`e4c6d7e`). Remaining
-> candidates, each pressure-tested first: a schema pass to drop
-> `User.passwordHash`; business-day durations in the workflow report.
+> Code Violations Stage 1 is built on dev and green (653 tests, lint 6/28,
+> build clean, seeds run, JOB-00001 preview 0 to create) but **not committed
+> or deployed**. Next: commit + deploy Stage 1 (`deploy.sh` applies the
+> migration; then run `seed-workflows` and `seed-violations` on prod and
+> confirm "unchanged" ×4), then Stage 2 (cases: services, routes, intake,
+> list + queues, case page, sidebar group, Lead/Job tabs) per the approved
+> plan in `~/.claude/plans/glistening-growing-perlis.md`.
 > Operator items (SPF → `TASK_ESCALATIONS_ENABLED=1`, `PHONE_ROUTING_API_KEY`,
 > 302→301) are Richard's, as are his click-throughs (workflow tab, apps
 > 13–14 on JOB-00009, Cost Reconciliation). Same rules: explicit role

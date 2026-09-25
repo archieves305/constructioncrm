@@ -10,6 +10,21 @@ import { loadPublishedVersion, toComposeModule } from "./load";
 import { notifyTasksReady } from "./notify";
 import { loadRoleContext, resolveAssignee, unassignedRoles, type RoleContext } from "./roles";
 import { activationDueAt, initialDueAt, type ScheduleContext } from "./schedule";
+import {
+  allowedTemplateKinds,
+  instanceCreateLink,
+  instanceWhere,
+  loadSubject,
+  requiresCore,
+  scheduleContextFor,
+  taskLinkWhere,
+  taskLinksFor,
+  writeSubjectFields,
+  type TaskLinks,
+  type WorkflowSubject,
+  type WorkflowSubjectKind,
+  type WorkflowSubjectRef,
+} from "./subject";
 
 /**
  * Apply Workflow: compose the plan, then create exactly the tasks that do
@@ -20,6 +35,9 @@ import { activationDueAt, initialDueAt, type ScheduleContext } from "./schedule"
  * backstop when two applies race, in which case the loser retries once
  * against the winner's rows and creates nothing. A second identical Apply
  * therefore reports "0 created" and changes nothing.
+ *
+ * The subject is a job (Core + trades) or a violation case (one VIOLATION
+ * template, no Core); everything subject-specific goes through `./subject`.
  */
 
 export class WorkflowApplyError extends Error {
@@ -33,8 +51,11 @@ export class WorkflowApplyError extends Error {
 }
 
 export type ApplyInput = {
-  jobId: string;
-  /** Trade template keys. Core is always included. */
+  /** The job or violation case to apply to. */
+  subject?: WorkflowSubjectRef;
+  /** @deprecated Older job-only form; the same as `subject: { kind: "job", jobId }`. */
+  jobId?: string;
+  /** Trade template keys on a job (Core is always included); exactly one VIOLATION key on a case. */
   templateKeys: string[];
   permitStatus: WorkflowPermitStatus;
   scopeToggles: ScopeToggleState;
@@ -71,8 +92,26 @@ export type WorkflowPreview = {
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
-async function loadModules(db: Db, templateKeys: string[]): Promise<ComposeModule[]> {
-  const keys = Array.from(new Set([CORE_MODULE_KEY, ...templateKeys.filter((k) => k !== CORE_MODULE_KEY)]));
+export function subjectRefOf(input: Pick<ApplyInput, "subject" | "jobId">): WorkflowSubjectRef {
+  if (input.subject) return input.subject;
+  if (input.jobId) return { kind: "job", jobId: input.jobId };
+  throw new WorkflowApplyError(400, "A workflow needs a job or a violation case to apply to");
+}
+
+/**
+ * The modules a subject composes. A job always gets Core plus the trades
+ * asked for; a violation case gets exactly one VIOLATION template and never
+ * Core. Applying the wrong kind is refused up front rather than composing
+ * 34 construction steps onto a code case.
+ */
+async function loadModules(db: Db, kind: WorkflowSubjectKind, templateKeys: string[]): Promise<ComposeModule[]> {
+  const keys = requiresCore(kind)
+    ? Array.from(new Set([CORE_MODULE_KEY, ...templateKeys.filter((k) => k !== CORE_MODULE_KEY)]))
+    : Array.from(new Set(templateKeys));
+  if (!requiresCore(kind) && keys.length !== 1) {
+    throw new WorkflowApplyError(400, "A violation case runs exactly one violation workflow template");
+  }
+  const allowed = allowedTemplateKinds(kind);
   const out: ComposeModule[] = [];
   for (const key of keys) {
     const v = await loadPublishedVersion(db, key);
@@ -84,26 +123,19 @@ async function loadModules(db: Db, templateKeys: string[]): Promise<ComposeModul
           : `No published workflow template "${key}"`,
       );
     }
-    out.push(toComposeModule(v));
+    const m = toComposeModule(v);
+    if (!allowed.includes(m.kind)) {
+      throw new WorkflowApplyError(400, `"${key}" is a ${m.kind.toLowerCase()} template and cannot be applied to a ${kind === "job" ? "job" : "violation case"}`);
+    }
+    out.push(m);
   }
   return out;
 }
 
-async function loadJob(db: Db, jobId: string) {
-  const job = await db.job.findUnique({
-    where: { id: jobId },
-    select: {
-      id: true,
-      leadId: true,
-      createdAt: true,
-      targetStartDate: true,
-      projectManagerId: true,
-      salesRepId: true,
-      workflow: { select: { id: true, permitStatus: true, scopeToggles: true, appliedAt: true, modules: { where: { removedAt: null }, select: { templateKey: true } } } },
-    },
-  });
-  if (!job) throw new WorkflowApplyError(404, "Job not found");
-  return job;
+async function loadSubjectOrThrow(db: Db, ref: WorkflowSubjectRef): Promise<WorkflowSubject> {
+  const subject = await loadSubject(db, ref);
+  if (!subject) throw new WorkflowApplyError(404, ref.kind === "job" ? "Job not found" : "Case not found");
+  return subject;
 }
 
 function dueFor(task: ComposedTask, ctx: ScheduleContext, now: Date): Date | null {
@@ -113,23 +145,20 @@ function dueFor(task: ComposedTask, ctx: ScheduleContext, now: Date): Date | nul
 
 export async function previewWorkflow(input: ApplyInput): Promise<WorkflowPreview> {
   const now = new Date();
-  const job = await loadJob(prisma, input.jobId);
-  const modules = await loadModules(prisma, input.templateKeys);
+  const ref = subjectRefOf(input);
+  const subject = await loadSubjectOrThrow(prisma, ref);
+  const modules = await loadModules(prisma, subject.kind, input.templateKeys);
   const plan = compose({ modules, permitStatus: input.permitStatus, scopeToggles: input.scopeToggles });
-  const roleCtx = await loadRoleContext(prisma, { jobId: job.id, instanceId: job.workflow?.id, teamOverride: input.team });
-  const ctx: ScheduleContext = {
-    jobCreatedAt: job.createdAt,
-    appliedAt: job.workflow?.appliedAt ?? now,
-    targetStartDate: input.targetStartDate === undefined ? job.targetStartDate : input.targetStartDate,
-  };
+  const roleCtx = await loadRoleContext(prisma, { subject, instanceId: subject.instance?.id, teamOverride: input.team });
+  const ctx: ScheduleContext = scheduleContextFor(subject, subject.instance?.appliedAt ?? now, { targetStartDate: input.targetStartDate });
 
   const existingKeys = new Set(
-    job.workflow
-      ? (await prisma.task.findMany({ where: { workflowInstanceId: job.workflow.id, workflowTaskKey: { not: null } }, select: { workflowTaskKey: true } })).map((t) => t.workflowTaskKey!)
+    subject.instance
+      ? (await prisma.task.findMany({ where: { workflowInstanceId: subject.instance.id, workflowTaskKey: { not: null } }, select: { workflowTaskKey: true } })).map((t) => t.workflowTaskKey!)
       : [],
   );
   const openManual = await prisma.task.findMany({
-    where: { jobId: job.id, workflowTaskKey: null, status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] } },
+    where: { ...taskLinkWhere(subject), workflowTaskKey: null, status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] } },
     select: { id: true, title: true },
   });
   const byTitle = new Map(openManual.map((t) => [t.title.trim().toLowerCase(), t]));
@@ -214,7 +243,8 @@ export async function materializePlan(
   tx: Prisma.TransactionClient,
   args: {
     instanceId: string;
-    jobId: string;
+    /** Where every created step points: `{leadId, jobId}` on a job, `{leadId, violationCaseId}` on a case. */
+    links: TaskLinks;
     plan: ComposedPlan;
     roleCtx: RoleContext;
     ctx: ScheduleContext;
@@ -242,7 +272,7 @@ export async function materializePlan(
         dueAt: dueFor(t, args.ctx, now),
         assignedUserId,
         createdByUserId: args.actorUserId,
-        jobId: args.jobId,
+        ...args.links,
         source: "workflow",
         sourceKey: sourceKeyFor(args.instanceId, t.key),
         activatedAt: t.initiallyActive ? now : null,
@@ -301,38 +331,31 @@ export type ApplyResult = {
 };
 
 export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
+  const ref = subjectRefOf(input);
   const run = async (): Promise<ApplyResult & { activated: string[]; taskCount: number }> => {
     const now = new Date();
-    const job = await loadJob(prisma, input.jobId);
-    const modules = await loadModules(prisma, input.templateKeys);
+    const subject = await loadSubjectOrThrow(prisma, ref);
+    const modules = await loadModules(prisma, subject.kind, input.templateKeys);
 
-    if (job.workflow) {
+    if (subject.instance) {
       // Re-apply: only the identical configuration (idempotent) or new trades.
-      if (job.workflow.permitStatus !== input.permitStatus) {
-        throw new WorkflowApplyError(409, "This job already has a workflow. Change the permit status from the Workflow tab instead of re-applying.");
+      if (subject.instance.permitStatus !== input.permitStatus) {
+        throw new WorkflowApplyError(409, `This ${subject.kind === "job" ? "job" : "case"} already has a workflow. Change the permit status from the Workflow tab instead of re-applying.`);
       }
     }
 
     const plan = compose({ modules, permitStatus: input.permitStatus, scopeToggles: input.scopeToggles });
-    const roleCtx = await loadRoleContext(prisma, { jobId: job.id, instanceId: job.workflow?.id, teamOverride: input.team });
+    const roleCtx = await loadRoleContext(prisma, { subject, instanceId: subject.instance?.id, teamOverride: input.team });
     const rolesUsed = Array.from(new Set(plan.tasks.map((t) => t.role)));
 
     const result = await prisma.$transaction(
       async (tx) => {
-        if (input.targetStartDate !== undefined || input.jurisdiction !== undefined) {
-          await tx.job.update({
-            where: { id: job.id },
-            data: {
-              ...(input.targetStartDate !== undefined ? { targetStartDate: input.targetStartDate } : {}),
-              ...(input.jurisdiction !== undefined ? { jurisdiction: input.jurisdiction } : {}),
-            },
-          });
-        }
+        await writeSubjectFields(tx, subject, { targetStartDate: input.targetStartDate, jurisdiction: input.jurisdiction });
         const decided = input.permitStatus !== "UNDETERMINED";
         const instance = await tx.jobWorkflowInstance.upsert({
-          where: { jobId: job.id },
+          where: instanceWhere(ref),
           create: {
-            jobId: job.id,
+            ...instanceCreateLink(ref),
             permitStatus: input.permitStatus,
             permitDeterminedByUserId: decided ? input.actor.id : null,
             permitDeterminedAt: decided ? now : null,
@@ -369,16 +392,12 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
             update: { removedAt: null, removedByUserId: null, removeReason: null },
           });
         }
-        const ctx: ScheduleContext = {
-          jobCreatedAt: job.createdAt,
-          appliedAt: instance.appliedAt,
-          targetStartDate: input.targetStartDate === undefined ? job.targetStartDate : input.targetStartDate,
-        };
-        const mat = await materializePlan(tx, { instanceId: instance.id, jobId: job.id, plan, roleCtx, ctx, actorUserId: input.actor.id, now });
+        const ctx: ScheduleContext = scheduleContextFor(subject, instance.appliedAt, { targetStartDate: input.targetStartDate });
+        const mat = await materializePlan(tx, { instanceId: instance.id, links: taskLinksFor(subject), plan, roleCtx, ctx, actorUserId: input.actor.id, now });
         if (mat.created.length > 0) {
           await tx.activityLog.create({
             data: {
-              leadId: job.leadId,
+              leadId: subject.leadId,
               activityType: "TASK_CREATED",
               title: `Workflow applied: ${plan.modules.map((m) => m.name).join(", ")} — ${mat.created.length} task${mat.created.length === 1 ? "" : "s"} created`,
               createdByUserId: input.actor.id,
@@ -407,12 +426,12 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
     out = await run();
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      logger.warn("workflow apply raced another apply; retrying once", { jobId: input.jobId });
+      logger.warn("workflow apply raced another apply; retrying once", { subject: ref });
       try {
         out = await run();
       } catch (again) {
         if (again instanceof Prisma.PrismaClientKnownRequestError && again.code === "P2002") {
-          throw new WorkflowApplyError(409, "Another apply is in progress for this job. Refresh and try again.");
+          throw new WorkflowApplyError(409, `Another apply is in progress for this ${ref.kind === "job" ? "job" : "case"}. Refresh and try again.`);
         }
         throw again;
       }
@@ -427,7 +446,8 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
     entityId: out.instanceId,
     action: "workflow_apply",
     after: {
-      jobId: input.jobId,
+      subject: ref,
+      ...(ref.kind === "job" ? { jobId: ref.jobId } : { violationCaseId: ref.violationCaseId }),
       modules: out.modules,
       permitStatus: input.permitStatus,
       scopeToggles: input.scopeToggles,

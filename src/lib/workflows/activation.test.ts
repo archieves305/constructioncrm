@@ -16,7 +16,18 @@ vi.mock("./notify", () => ({ notifyTasksReady: (...a: unknown[]) => notifyTasksR
 const { onTaskClosed, sweepActivation } = await import("./activation");
 
 const fri = new Date(2026, 9, 2, 10, 0, 0); // Fri
-const ctxRow = { appliedAt: fri, job: { createdAt: fri, targetStartDate: null } };
+// What `loadSubjectForInstance` reads: the instance with its owning job.
+const ctxRow = {
+  id: "w1",
+  appliedAt: fri,
+  permitStatus: "UNDETERMINED",
+  scopeToggles: {},
+  modules: [],
+  jobId: "j1",
+  violationCaseId: null,
+  job: { id: "j1", leadId: "l1", jobNumber: "JOB-00001", createdAt: fri, targetStartDate: null, jurisdiction: null, projectManagerId: null, salesRepId: null },
+  violationCase: null,
+};
 
 const waiting = (id: string, extra: Record<string, unknown> = {}) => ({
   id,

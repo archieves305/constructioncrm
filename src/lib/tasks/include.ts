@@ -15,6 +15,8 @@ export const TASK_LIST_INCLUDE = {
   invoice: { select: { id: true, invoiceNumber: true, jobId: true } },
   prospect: { select: { id: true, propertyAddress1: true, city: true } },
   dailyLog: { select: { id: true, jobId: true, logDate: true } },
+  violationCase: { select: { id: true, caseNumber: true, agencyCaseNumber: true, leadId: true } },
+  violationItem: { select: { id: true, itemNumber: true, caseId: true } },
   assignedTo: { select: { id: true, firstName: true, lastName: true } },
   createdBy: { select: { id: true, firstName: true, lastName: true } },
   _count: { select: { events: { where: { type: "NOTE" } } } },

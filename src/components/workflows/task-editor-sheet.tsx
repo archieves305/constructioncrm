@@ -22,7 +22,11 @@ const ANCHORS: { value: WorkflowAnchor; label: string }[] = [
   { value: "JOB_CREATED", label: "Job created / applied" },
   { value: "APPLIED_AT", label: "Workflow applied" },
   { value: "TARGET_START", label: "Target start date" },
+  { value: "COMPLIANCE_DEADLINE", label: "Compliance deadline (violation cases)" },
+  { value: "HEARING_DATE", label: "Hearing date (violation cases)" },
 ];
+/** Anchors that count from a calendar date, so "N days before" (a negative offset) makes sense. */
+const DATE_ANCHORS = new Set<WorkflowAnchor>(["TARGET_START", "COMPLIANCE_DEADLINE", "HEARING_DATE"]);
 const EVIDENCE: { value: WorkflowEvidenceType | "none"; label: string }[] = [
   { value: "none", label: "Nothing extra" },
   { value: "ATTACHMENT", label: "An attached document" },
@@ -32,6 +36,12 @@ const EVIDENCE: { value: WorkflowEvidenceType | "none"; label: string }[] = [
   { value: "INSPECTION_RESULT", label: "Inspection result (pass)" },
   { value: "PAYMENT_STATUS", label: "Payment recorded" },
   { value: "NOTE", label: "A note" },
+  { value: "AGENCY_CONFIRMATION", label: "Agency compliance confirmation (violation cases)" },
+  { value: "HEARING_RESULT", label: "Hearing outcome recorded (violation cases)" },
+  { value: "FINE_STATUS", label: "Fine status recorded (violation cases)" },
+  { value: "VIOLATION_ITEMS", label: "Violation items on the case" },
+  { value: "LINKED_JOB", label: "Corrective job linked to the case" },
+  { value: "LINKED_JOB_PERMIT", label: "Permit on the linked job" },
 ];
 
 type DepDraft = { ref: string; kind: TaskDependencyKind };
@@ -224,7 +234,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
                 Business days
               </Label>
               <Input id="st-offset" type="number" className="mt-1" value={offset} onChange={(e) => setOffset(e.target.value)} />
-              {anchor !== "TARGET_START" && Number(offset) < 0 && <p className="text-[11px] text-tone-danger-fg">Negative only from the target start date.</p>}
+              {!DATE_ANCHORS.has(anchor) && Number(offset) < 0 && <p className="text-[11px] text-tone-danger-fg">Negative only from a date anchor (target start, compliance deadline, hearing date).</p>}
             </div>
             <div>
               <Label htmlFor="st-dur" className="text-xs">

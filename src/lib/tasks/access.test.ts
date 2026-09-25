@@ -71,3 +71,15 @@ describe("task access — job scope", () => {
     expect(canEditTask(rep, other)).toBe(false);
   });
 });
+
+describe("task access — violation-case scope", () => {
+  const rep = { id: "u-rep", role: "SALES_REP" as const };
+  const other = { assignedUserId: "u-someone", createdByUserId: "u-else", jobId: null, violationCaseId: "c1" };
+
+  it("a rep sees another person's task on a case they manage or hold a slot on, and only there", () => {
+    expect(canViewTask(rep, other)).toBe(false);
+    expect(canViewTask(rep, other, { jobIds: [], violationCaseIds: ["c1"] })).toBe(true);
+    expect(canViewTask(rep, other, { jobIds: [], violationCaseIds: ["c2"] })).toBe(false);
+    expect(canViewTask(rep, other, { jobIds: ["j1"] })).toBe(false);
+  });
+});

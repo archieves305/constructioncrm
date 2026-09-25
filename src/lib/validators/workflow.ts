@@ -11,6 +11,7 @@ export const WORKFLOW_ROLE_VALUES = [
   "PURCHASING",
   "ACCOUNTING",
   "QUALITY_CONTROL",
+  "CASE_MANAGER",
 ] as const;
 
 const roleEnum = z.enum(WORKFLOW_ROLE_VALUES);
@@ -93,6 +94,7 @@ export const inspectionResultSchema = z.object({
   notes: z.string().trim().max(4000).nullable().optional(),
   inspectedAt: dateOnly.optional(),
   jobPermitInspectionId: z.string().min(1).nullable().optional(),
+  violationInspectionId: z.string().min(1).nullable().optional(),
 });
 
 export const taskDependencySchema = z.object({
@@ -101,13 +103,29 @@ export const taskDependencySchema = z.object({
 });
 
 const permitCondition = z.enum(["REQUIRED", "NOT_REQUIRED"]).nullable();
-const evidence = z.enum(["ATTACHMENT", "PHOTO", "PERMIT_NUMBER", "PERMIT_DETERMINATION", "INSPECTION_RESULT", "PAYMENT_STATUS", "NOTE"]).nullable();
+const evidence = z
+  .enum([
+    "ATTACHMENT",
+    "PHOTO",
+    "PERMIT_NUMBER",
+    "PERMIT_DETERMINATION",
+    "INSPECTION_RESULT",
+    "PAYMENT_STATUS",
+    "NOTE",
+    "AGENCY_CONFIRMATION",
+    "HEARING_RESULT",
+    "FINE_STATUS",
+    "VIOLATION_ITEMS",
+    "LINKED_JOB",
+    "LINKED_JOB_PERMIT",
+  ])
+  .nullable();
 const condition = z.object({ anyOf: z.array(key).max(20).optional(), allOf: z.array(key).max(20).optional() }).nullable();
 
 export const templateMetaSchema = z.object({
   key: key.optional(),
   name: z.string().trim().min(1).max(120),
-  kind: z.enum(["CORE", "TRADE"]).default("TRADE"),
+  kind: z.enum(["CORE", "TRADE", "VIOLATION"]).default("TRADE"),
   trade: z.string().trim().max(120).nullable().optional(),
   description: z.string().trim().max(2000).nullable().optional(),
   isActive: z.boolean().optional(),
@@ -140,7 +158,7 @@ export const taskTemplateInputSchema = z.object({
   description: z.string().trim().max(4000).nullable().optional(),
   role: roleEnum,
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
-  anchor: z.enum(["JOB_CREATED", "APPLIED_AT", "TARGET_START", "PHASE_START", "PREDECESSOR"]).optional(),
+  anchor: z.enum(["JOB_CREATED", "APPLIED_AT", "TARGET_START", "PHASE_START", "PREDECESSOR", "COMPLIANCE_DEADLINE", "HEARING_DATE"]).optional(),
   dueOffsetBusinessDays: z.number().int().min(-60).max(365).optional(),
   durationBusinessDays: z.number().int().min(0).max(365).nullable().optional(),
   autoActivate: z.boolean().optional(),

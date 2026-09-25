@@ -68,6 +68,9 @@ export type CreateTaskInput = {
   invoiceId?: string | null;
   prospectId?: string | null;
   dailyLogId?: string | null;
+  /** A code-violation case, or one of its items (which fills in the case). Never carries a jobId. */
+  violationCaseId?: string | null;
+  violationItemId?: string | null;
   watcherUserIds?: string[];
   source?: TaskSource;
   /** Automation idempotency key, e.g. "invoice:SENT:<id>". */
@@ -109,13 +112,15 @@ export class TaskLinkError extends Error {
   }
 }
 
-type ParentLinks = { leadId: string | null; jobId: string | null };
+type ParentLinks = { leadId: string | null; jobId: string | null; violationCaseId: string | null };
 
 /**
  * A task on an invoice or daily log belongs to that job; one on an estimate
- * or promoted prospect belongs to that lead. Filling the parent in means the
- * job panel, the visibility filter and the email context all keep working
- * without knowing about the finer-grained link.
+ * or promoted prospect belongs to that lead; one on a violation item belongs
+ * to that case, and a case task belongs to the case's lead (never to its
+ * linked job). Filling the parent in means the entity panels, the visibility
+ * filter and the email context all keep working without knowing about the
+ * finer-grained link.
  */
 async function resolveParentLinks(
   db: Prisma.TransactionClient,
@@ -123,7 +128,18 @@ async function resolveParentLinks(
 ): Promise<ParentLinks> {
   let leadId = input.leadId ?? null;
   let jobId = input.jobId ?? null;
+  let violationCaseId = input.violationCaseId ?? null;
 
+  if (input.violationItemId) {
+    const item = await db.codeViolationItem.findUnique({ where: { id: input.violationItemId }, select: { caseId: true } });
+    if (!item) throw new TaskLinkError("violationItemId", input.violationItemId);
+    violationCaseId ??= item.caseId;
+  }
+  if (violationCaseId) {
+    const c = await db.codeViolationCase.findUnique({ where: { id: violationCaseId }, select: { leadId: true } });
+    if (!c) throw new TaskLinkError("violationCaseId", violationCaseId);
+    leadId ??= c.leadId;
+  }
   if (input.invoiceId) {
     const inv = await db.invoice.findUnique({ where: { id: input.invoiceId }, select: { jobId: true } });
     if (!inv) throw new TaskLinkError("invoiceId", input.invoiceId);
@@ -149,7 +165,7 @@ async function resolveParentLinks(
     if (!job) throw new TaskLinkError("jobId", jobId);
     leadId = job.leadId;
   }
-  return { leadId, jobId };
+  return { leadId, jobId, violationCaseId };
 }
 
 export async function createTask(
@@ -180,6 +196,8 @@ export async function createTask(
       invoiceId: input.invoiceId ?? null,
       prospectId: input.prospectId ?? null,
       dailyLogId: input.dailyLogId ?? null,
+      violationCaseId: parents.violationCaseId,
+      violationItemId: input.violationItemId ?? null,
       sourceKey: input.sourceKey ?? null,
       remindAt: input.remindAt ?? null,
       remindSetByUserId: input.remindAt ? (input.remindSetByUserId ?? input.createdByUserId) : null,

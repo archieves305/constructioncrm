@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Camera, ClipboardCheck, FileText, Landmark, MessageSquare, Paperclip, Wallet } from "lucide-react";
+import { BadgeCheck, Briefcase, Camera, ClipboardCheck, DollarSign, FileText, Gavel, Landmark, ListChecks, MessageSquare, Paperclip, Wallet } from "lucide-react";
 import type { WorkflowEvidenceType } from "@/generated/prisma/client";
 import type { WorkflowTaskItem } from "./types";
 
@@ -13,6 +13,12 @@ const LABEL: Record<WorkflowEvidenceType, string> = {
   INSPECTION_RESULT: "Needs a passing inspection result",
   PAYMENT_STATUS: "Needs the payment recorded",
   NOTE: "Needs a note saying what was done",
+  AGENCY_CONFIRMATION: "Needs the agency's compliance confirmation on the case",
+  HEARING_RESULT: "Needs the hearing outcome recorded",
+  FINE_STATUS: "Needs the fine status recorded on Fines & Liens",
+  VIOLATION_ITEMS: "Needs the violation items on the case",
+  LINKED_JOB: "Needs the corrective job linked to the case",
+  LINKED_JOB_PERMIT: "Needs the permit on the linked job",
 };
 
 const ICON: Record<WorkflowEvidenceType, typeof Paperclip> = {
@@ -23,6 +29,12 @@ const ICON: Record<WorkflowEvidenceType, typeof Paperclip> = {
   INSPECTION_RESULT: ClipboardCheck,
   PAYMENT_STATUS: Wallet,
   NOTE: MessageSquare,
+  AGENCY_CONFIRMATION: BadgeCheck,
+  HEARING_RESULT: Gavel,
+  FINE_STATUS: DollarSign,
+  VIOLATION_ITEMS: ListChecks,
+  LINKED_JOB: Briefcase,
+  LINKED_JOB_PERMIT: FileText,
 };
 
 /** "Needs X — go here" for a step's required evidence. */

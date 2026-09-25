@@ -1,6 +1,7 @@
 import type { WorkflowAnchor } from "@/generated/prisma/client";
-import { CORE_MODULE_KEY, DETERMINE_PERMIT_TASK_KEY, isValidKey } from "../keys";
+import { CORE_MODULE_KEY, DETERMINE_PERMIT_TASK_KEY, isBaseKind, isValidKey } from "../keys";
 import { findCycle, type DepEdge } from "../dependencies";
+import { DATE_ANCHORS } from "../schedule";
 import type {
   ChecklistItemDef,
   DependencyDef,
@@ -42,7 +43,7 @@ export function defineTemplate(spec: TemplateSpec): TemplateDefinition {
   if (!spec.name?.trim()) fail("name", "is required");
   if (spec.kind === "TRADE" && !spec.trade?.trim()) fail("trade", "is required on a TRADE template");
   if (spec.kind === "CORE" && spec.key !== CORE_MODULE_KEY) fail("key", `a CORE template must use the key "${CORE_MODULE_KEY}"`);
-  if (spec.kind === "TRADE" && spec.key === CORE_MODULE_KEY) fail("key", `"${CORE_MODULE_KEY}" is reserved for the Core template`);
+  if (spec.kind !== "CORE" && spec.key === CORE_MODULE_KEY) fail("key", `"${CORE_MODULE_KEY}" is reserved for the Core template`);
   if (!spec.phases?.length) fail("phases", "at least one phase is required");
 
   const toggles = spec.scopeToggles ?? [];
@@ -118,8 +119,11 @@ export function defineTemplate(spec: TemplateSpec): TemplateDefinition {
 
       const offset = task.dueOffsetBusinessDays ?? DEFAULT_OFFSET_BUSINESS_DAYS;
       if (!Number.isInteger(offset)) fail(`${tpath}.dueOffsetBusinessDays`, "must be a whole number of business days");
-      if (offset < 0 && task.anchor !== "TARGET_START") {
-        fail(`${tpath}.dueOffsetBusinessDays`, "a negative offset only makes sense from TARGET_START");
+      if (offset < 0 && (!task.anchor || !DATE_ANCHORS.has(task.anchor))) {
+        fail(`${tpath}.dueOffsetBusinessDays`, "a negative offset only makes sense from a date anchor (TARGET_START, COMPLIANCE_DEADLINE, HEARING_DATE)");
+      }
+      if (task.anchor && (task.anchor === "COMPLIANCE_DEADLINE" || task.anchor === "HEARING_DATE") && spec.kind !== "VIOLATION") {
+        fail(`${tpath}.anchor`, `${task.anchor} is only available on a VIOLATION template`);
       }
       if (task.durationBusinessDays !== undefined && (!Number.isInteger(task.durationBusinessDays) || task.durationBusinessDays < 0)) {
         fail(`${tpath}.durationBusinessDays`, "must be a non-negative whole number");
@@ -135,6 +139,7 @@ export function defineTemplate(spec: TemplateSpec): TemplateDefinition {
           }
           if (ref.startsWith(`${CORE_MODULE_KEY}:`)) {
             if (spec.kind === "CORE") fail(rpath, "the Core template refers to its own tasks by bare key");
+            if (spec.kind === "VIOLATION") fail(rpath, "a violation template never composes with Core — refer to its own tasks by bare key");
             const k = ref.slice(CORE_MODULE_KEY.length + 1);
             if (!isValidKey(k)) fail(rpath, `"${ref}" is not a valid reference`);
             return ref;
@@ -200,8 +205,9 @@ export function defineTemplate(spec: TemplateSpec): TemplateDefinition {
     if (!taskKeys.has(p.ref)) fail(p.path, `unknown task "${p.ref}"`);
   }
 
-  if (spec.kind === "CORE" && !taskKeys.has(DETERMINE_PERMIT_TASK_KEY)) {
-    fail("tasks", `the Core template must contain "${DETERMINE_PERMIT_TASK_KEY}"`);
+  // The base module owns the permit gate: Core on a job, the VIOLATION template on a case.
+  if (isBaseKind(spec.kind) && !taskKeys.has(DETERMINE_PERMIT_TASK_KEY)) {
+    fail("tasks", `a ${spec.kind === "CORE" ? "Core" : "violation"} template must contain "${DETERMINE_PERMIT_TASK_KEY}"`);
   }
 
   // Cycle check over in-template edges (core: refs point outside and cannot
