@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { jobsInvolvingUserWhere } from "./involvement";
 import { buildJobListWhere, hasWorkflowFilter, parseJobListParams } from "./query";
 
 const now = new Date("2026-09-24T12:00:00Z");
@@ -30,20 +31,30 @@ describe("buildJobListWhere", () => {
     expect(buildJobListWhere({}, admin)).toEqual({});
   });
 
-  it("keeps the classic filters and the sales-rep scope", () => {
+  it("keeps the classic filters and floors a sales rep to the jobs they are on", () => {
     const where = buildJobListWhere({ stageId: "s1", search: "smith" }, { user: { id: "rep", role: "SALES_REP" }, now });
     expect(where).toEqual({
       AND: [
         { currentStageId: "s1" },
-        { OR: expect.arrayContaining([{ jobNumber: { contains: "smith", mode: "insensitive" } }]) },
-        { salesRepId: "rep" },
+        { OR: [{ jobNumber: { contains: "smith", mode: "insensitive" } }, { title: { contains: "smith", mode: "insensitive" } }, { lead: { fullName: { contains: "smith", mode: "insensitive" } } }] },
+        jobsInvolvingUserWhere("rep"),
       ],
     });
   });
 
-  it("a sales rep cannot widen the scope with salesRepId", () => {
-    const where = buildJobListWhere({ salesRepId: "someone-else" }, { user: { id: "rep", role: "SALES_REP" }, now });
-    expect(where).toEqual({ AND: [{ salesRepId: "someone-else" }, { salesRepId: "rep" }] });
+  it("a sales rep cannot widen the scope with salesRepId or scope=all", () => {
+    const where = buildJobListWhere({ salesRepId: "someone-else", scope: "all" }, { user: { id: "rep", role: "SALES_REP" }, now });
+    expect(where).toEqual({ AND: [{ salesRepId: "someone-else" }, jobsInvolvingUserWhere("rep")] });
+  });
+
+  it("an office role chooses: scope=all adds nothing, scope=mine adds involvement", () => {
+    expect(buildJobListWhere({ scope: "all" }, { user: { id: "adm", role: "ADMIN" }, now })).toEqual({});
+    expect(buildJobListWhere({ scope: "mine" }, { user: { id: "adm", role: "ADMIN" }, now })).toEqual(jobsInvolvingUserWhere("adm"));
+  });
+
+  it("involvesUserId and serviceType are ordinary AND filters", () => {
+    const where = buildJobListWhere({ involvesUserId: "pm", serviceType: "Roofing" }, { user: { id: "adm", role: "ADMIN" }, now });
+    expect(where).toEqual({ AND: [jobsInvolvingUserWhere("pm"), { serviceType: "Roofing" }] });
   });
 
   it("filters by applied trade, ignoring removed modules", () => {

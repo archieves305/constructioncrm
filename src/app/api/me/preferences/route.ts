@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod/v4";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
+import { preferencesSchema } from "@/lib/validators/preferences";
 
 /**
- * Per-user notification preferences.
+ * Per-user preferences: notification switches plus what the lists and
+ * boards open on.
  *
  * Task mail is internal work assignment rather than marketing, so it carries
  * no unsubscribe link — but it still needs a way off, or the first noisy week
@@ -13,18 +15,13 @@ import { validateBody } from "@/lib/validation/body";
  * and swallows the urgent assignment along with the noise; this toggle is at
  * least visible in the product and reversible by an admin conversation.
  */
-const preferencesSchema = z.object({
-  taskEmailsEnabled: z.boolean().optional(),
-  escalationEmailsEnabled: z.boolean().optional(),
-  reminderDigestEnabled: z.boolean().optional(),
-  nudgeEmailsEnabled: z.boolean().optional(),
-});
-
 const PREF_SELECT = {
   taskEmailsEnabled: true,
   escalationEmailsEnabled: true,
   reminderDigestEnabled: true,
   nudgeEmailsEnabled: true,
+  defaultListScope: true,
+  boardDensity: true,
 } as const;
 
 export async function GET() {
@@ -42,6 +39,8 @@ export async function GET() {
       escalationEmailsEnabled: user?.escalationEmailsEnabled ?? true,
       reminderDigestEnabled: user?.reminderDigestEnabled ?? true,
       nudgeEmailsEnabled: user?.nudgeEmailsEnabled ?? true,
+      defaultListScope: user?.defaultListScope ?? "MINE",
+      boardDensity: user?.boardDensity ?? "COMFORTABLE",
     },
     { headers: { "Cache-Control": "no-store" } },
   );
@@ -56,11 +55,13 @@ export async function PATCH(request: NextRequest) {
 
   // Field by field, never a spread: an absent key means "leave alone".
   const d = parsed.data;
-  const data: Record<string, boolean> = {};
+  const data: Prisma.UserUpdateInput = {};
   if (d.taskEmailsEnabled !== undefined) data.taskEmailsEnabled = d.taskEmailsEnabled;
   if (d.escalationEmailsEnabled !== undefined) data.escalationEmailsEnabled = d.escalationEmailsEnabled;
   if (d.reminderDigestEnabled !== undefined) data.reminderDigestEnabled = d.reminderDigestEnabled;
   if (d.nudgeEmailsEnabled !== undefined) data.nudgeEmailsEnabled = d.nudgeEmailsEnabled;
+  if (d.defaultListScope !== undefined) data.defaultListScope = d.defaultListScope;
+  if (d.boardDensity !== undefined) data.boardDensity = d.boardDensity;
 
   const updated = await prisma.user.update({
     where: { id: session.user.id },

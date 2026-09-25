@@ -17,6 +17,10 @@ import { Search, Download, ListChecks, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
+import { useListScope } from "@/components/shared/use-list-scope";
+import { useSearchParamState } from "@/components/shared/use-search-param-state";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import type { ListScope } from "@/lib/lists/scope";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -85,9 +89,11 @@ export default function JobsPage() {
   // Workflow filters read the URL once so the dashboard widget can deep-link
   // ("3 blocked" → /jobs?workflowBlocked=1); the rest is local state.
   const initial = useSearchParams();
-  const [search, setSearch] = useState("");
-  const [stageId, setStageId] = useState("");
-  const [salesRepFilter, setSalesRepFilter] = useState("");
+  const { scope, setScope, forced: scopeForced, ready: scopeReady } = useListScope();
+  const { setMany: setUrl } = useSearchParamState();
+  const [search, setSearch] = useState(initial.get("search") ?? "");
+  const [stageId, setStageId] = useState(initial.get("stageId") ?? "");
+  const [salesRepFilter, setSalesRepFilter] = useState(initial.get("salesRepId") ?? "");
   const [workflowTrade, setWorkflowTrade] = useState(initial.get("workflowTrade") ?? "");
   const [permitFilter, setPermitFilter] = useState(initial.get("permitStatus") ?? "");
   const [phaseKey, setPhaseKey] = useState(initial.get("phaseKey") ?? "");
@@ -102,6 +108,7 @@ export default function JobsPage() {
   const [bulkStage, setBulkStage] = useState("");
 
   const params = new URLSearchParams();
+  params.set("scope", scope);
   if (search) params.set("search", search);
   if (stageId) params.set("stageId", stageId);
   if (salesRepFilter) params.set("salesRepId", salesRepFilter);
@@ -127,9 +134,10 @@ export default function JobsPage() {
     page: number;
     totalPages: number;
   }>({
-    queryKey: ["jobs", search, stageId, salesRepFilter, workflowTrade, permitFilter, phaseKey, toggles, page],
+    queryKey: ["jobs", scope, search, stageId, salesRepFilter, workflowTrade, permitFilter, phaseKey, toggles, page],
     queryFn: () => fetchJson(`/api/jobs?${params.toString()}`),
     retry: retryServerErrors,
+    enabled: scopeReady,
   });
 
   const { data: stages } = useQuery<{ id: string; name: string; stageOrder: number; isClosed?: boolean; isWon?: boolean; isLost?: boolean }[]>({
@@ -263,7 +271,7 @@ export default function JobsPage() {
       <PageHeader
         title="Jobs"
         description={
-          jobsError ? "Jobs unavailable" : `${data?.total ?? 0} active jobs`
+          jobsError ? "Jobs unavailable" : `${data?.total ?? 0} ${scope === "mine" ? "jobs you're on" : "active jobs"}`
         }
         actions={
           <Button
@@ -325,7 +333,7 @@ export default function JobsPage() {
                 { key: "overdueSteps", header: "Overdue steps" },
                 { key: "unassignedSteps", header: "Unassigned steps" },
               ]);
-              downloadCsv(`jobs-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+              downloadCsv(`jobs-${scope}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
             }}
           >
             <Download className="mr-2 h-4 w-4" />
@@ -335,6 +343,19 @@ export default function JobsPage() {
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        <SegmentedControl<ListScope>
+          ariaLabel="Scope"
+          size="sm"
+          value={scope}
+          onValueChange={(v) => {
+            setScope(v);
+            setPage(1);
+          }}
+          options={[
+            { value: "mine", label: "My jobs" },
+            { value: "all", label: "All", disabled: scopeForced },
+          ]}
+        />
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
@@ -343,6 +364,7 @@ export default function JobsPage() {
             value={search}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
               setSearch(e.target.value);
+              setUrl({ search: e.target.value.trim() || null });
               setPage(1);
             }}
           />
@@ -350,7 +372,9 @@ export default function JobsPage() {
         <Select
           value={stageId}
           onValueChange={(v: string | null) => {
-            setStageId(!v || v === "all" ? "" : v);
+            const next = !v || v === "all" ? "" : v;
+            setStageId(next);
+            setUrl({ stageId: next || null });
             setPage(1);
           }}
         >
@@ -373,7 +397,9 @@ export default function JobsPage() {
         <Select
           value={salesRepFilter}
           onValueChange={(v: string | null) => {
-            setSalesRepFilter(!v || v === "all" ? "" : v);
+            const next = !v || v === "all" ? "" : v;
+            setSalesRepFilter(next);
+            setUrl({ salesRepId: next || null });
             setPage(1);
           }}
         >

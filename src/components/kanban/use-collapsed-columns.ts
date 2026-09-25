@@ -83,5 +83,14 @@ export function useCollapsedColumns(boardId: string, defaults: string[] = []) {
     write(key, next);
   }
 
-  return { collapsed, toggle };
+  /** Replace the folded set outright (collapse all / collapse empty / expand all). */
+  function setAll(ids: Iterable<string>) {
+    write(key, new Set(ids));
+  }
+
+  function expandAll() {
+    write(key, new Set());
+  }
+
+  return { collapsed, toggle, setAll, expandAll };
 }

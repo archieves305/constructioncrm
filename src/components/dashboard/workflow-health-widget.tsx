@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PermitStatusPill } from "@/components/workflows/job-workflow-summary";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import type { WorkflowHealth } from "@/lib/workflows/reports";
+import type { ListScope } from "@/lib/lists/scope";
 import { cn } from "@/lib/utils";
 import { toneClasses, type Tone } from "@/lib/ui/tones";
 
@@ -17,22 +18,23 @@ import { toneClasses, type Tone } from "@/lib/ui/tones";
  * jobs that most need someone. Every number links to the jobs list already
  * filtered to it, so the widget is a launchpad rather than a scoreboard.
  */
-export function WorkflowHealthWidget({ className }: { className?: string }) {
+export function WorkflowHealthWidget({ className, scope = "all" }: { className?: string; scope?: ListScope }) {
+  const q = `scope=${scope}`;
   const { data, isLoading, error } = useQuery<WorkflowHealth>({
-    queryKey: ["workflow-health"],
-    queryFn: () => fetchJson("/api/reports?type=workflow-health"),
+    queryKey: ["workflow-health", scope],
+    queryFn: () => fetchJson(`/api/reports?type=workflow-health&${q}`),
     retry: retryServerErrors,
     refetchInterval: 5 * 60_000,
   });
 
   const tiles: { label: string; value: number; href: string; tone: Tone; alwaysNeutralWhenZero?: boolean }[] = data
     ? [
-        { label: "Active workflows", value: data.active, href: "/jobs", tone: "info" },
+        { label: "Active workflows", value: data.active, href: `/jobs?${q}`, tone: "info" },
         { label: "Ready steps", value: data.stepsReady, href: "/tasks?source=workflow&ready=1", tone: "info" },
-        { label: "Overdue", value: data.stepsOverdue, href: "/jobs?workflowOverdue=1", tone: "warning" },
-        { label: "Blocked", value: data.stepsBlocked, href: "/jobs?workflowBlocked=1", tone: "danger" },
-        { label: "Unassigned", value: data.stepsUnassigned, href: "/jobs?workflowUnassigned=1", tone: "neutral" },
-        { label: "Permit undetermined", value: data.permitsUndetermined, href: "/jobs?permitStatus=UNDETERMINED", tone: "warning" },
+        { label: "Overdue", value: data.stepsOverdue, href: `/jobs?workflowOverdue=1&${q}`, tone: "warning" },
+        { label: "Blocked", value: data.stepsBlocked, href: `/jobs?workflowBlocked=1&${q}`, tone: "danger" },
+        { label: "Unassigned", value: data.stepsUnassigned, href: `/jobs?workflowUnassigned=1&${q}`, tone: "neutral" },
+        { label: "Permit undetermined", value: data.permitsUndetermined, href: `/jobs?permitStatus=UNDETERMINED&${q}`, tone: "warning" },
       ]
     : [];
 

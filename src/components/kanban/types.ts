@@ -7,9 +7,13 @@ export type KanbanColumnDef = {
   /** e.g. "$412,300 · 2 overdue" */
   aggregate?: React.ReactNode;
   defaultCollapsed?: boolean;
+  /** Soft WIP limit: the count badge turns warning-toned above it. */
+  limit?: number;
 };
 
-export type CardRenderState = { dragging: boolean; overlay: boolean };
+export type CardDensity = "comfortable" | "compact";
+
+export type CardRenderState = { dragging: boolean; overlay: boolean; density: CardDensity };
 
 export type KanbanBoardProps<T extends { id: string }> = {
   /** Namespaces the collapsed-column memory in localStorage. */
@@ -28,4 +32,11 @@ export type KanbanBoardProps<T extends { id: string }> = {
   heightClassName?: string;
   emptyLabel?: string;
   isLoading?: boolean;
+  /** Cards shown per column before a "Show more" button. */
+  maxVisiblePerColumn?: number;
+  density?: CardDensity;
+  /** When this changes (filters, scope), every column's "shown" count resets. */
+  resetKey?: string;
+  /** Rendered above the columns — e.g. "Showing 500 of 640". */
+  notice?: React.ReactNode;
 };

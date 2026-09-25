@@ -33,7 +33,11 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { format } from "date-fns";
-import { fetchJson } from "@/lib/fetch-json";
+import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
+import { useListScope } from "@/components/shared/use-list-scope";
+import { useSearchParamState } from "@/components/shared/use-search-param-state";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import type { ListScope } from "@/lib/lists/scope";
 
 type Lead = {
   id: string;
@@ -67,19 +71,24 @@ const UNASSIGN_VALUE = "__unassigned";
 export default function LeadsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [stageId, setStageId] = useState("");
-  const [sourceId, setSourceId] = useState("");
-  const [includeClosed, setIncludeClosed] = useState(false);
+  const { scope, setScope, forced: scopeForced, ready: scopeReady } = useListScope();
+  const { get: getUrl, setMany: setUrl } = useSearchParamState();
+  const [search, setSearch] = useState(getUrl("search") ?? "");
+  const [stageId, setStageId] = useState(getUrl("stageId") ?? "");
+  const [sourceId, setSourceId] = useState(getUrl("sourceId") ?? "");
+  const [assigneeFilter, setAssigneeFilter] = useState(getUrl("assignedUserId") ?? "");
+  const [includeClosed, setIncludeClosed] = useState(getUrl("includeClosed") === "true");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAssignTo, setBulkAssignTo] = useState<string>("");
   const [bulkStage, setBulkStage] = useState<string>("");
 
   const params = new URLSearchParams();
+  params.set("scope", scope);
   if (search) params.set("search", search);
   if (stageId) params.set("stageId", stageId);
   if (sourceId) params.set("sourceId", sourceId);
+  if (assigneeFilter) params.set("assignedUserId", assigneeFilter);
   if (includeClosed) params.set("includeClosed", "true");
   params.set("page", String(page));
   params.set("withTaskCounts", "true");
@@ -90,18 +99,20 @@ export default function LeadsPage() {
     page: number;
     totalPages: number;
   }>({
-    queryKey: ["leads", search, stageId, sourceId, includeClosed, page, "withCounts"],
-    queryFn: () => fetch(`/api/leads?${params.toString()}`).then((r) => r.json()),
+    queryKey: ["leads", scope, search, stageId, sourceId, assigneeFilter, includeClosed, page, "withCounts"],
+    queryFn: () => fetchJson(`/api/leads?${params.toString()}`),
+    retry: retryServerErrors,
+    enabled: scopeReady,
   });
 
   const { data: stages } = useQuery<{ id: string; name: string; stageOrder: number; isClosed?: boolean; isWon?: boolean; isLost?: boolean }[]>({
     queryKey: ["stages"],
-    queryFn: () => fetch("/api/admin/stages").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/stages"),
   });
 
   const { data: sources } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["sources"],
-    queryFn: () => fetch("/api/admin/sources").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/sources"),
   });
 
   const { data: users } = useQuery<Assignee[]>({
@@ -217,7 +228,7 @@ export default function LeadsPage() {
     <div>
       <PageHeader
         title="Leads"
-        description={`${data?.total || 0} total leads`}
+        description={`${data?.total || 0} ${scope === "mine" ? "leads you're on" : "leads"}`}
         actions={
           <>
             <Button
@@ -251,7 +262,7 @@ export default function LeadsPage() {
                   { key: "assignedTo", header: "Assigned To" },
                   { key: "createdAt", header: "Created" },
                 ]);
-                downloadCsv(`leads-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+                downloadCsv(`leads-${scope}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
               }}
             >
               <Download className="mr-2 h-4 w-4" />
@@ -266,6 +277,19 @@ export default function LeadsPage() {
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        <SegmentedControl<ListScope>
+          ariaLabel="Scope"
+          size="sm"
+          value={scope}
+          onValueChange={(v) => {
+            setScope(v);
+            setPage(1);
+          }}
+          options={[
+            { value: "mine", label: "My leads" },
+            { value: "all", label: "All", disabled: scopeForced },
+          ]}
+        />
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
@@ -274,6 +298,7 @@ export default function LeadsPage() {
             value={search}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
               setSearch(e.target.value);
+              setUrl({ search: e.target.value.trim() || null });
               setPage(1);
             }}
           />
@@ -281,7 +306,9 @@ export default function LeadsPage() {
         <Select
           value={stageId}
           onValueChange={(v: string | null) => {
-            setStageId(!v || v === "all" ? "" : v);
+            const next = !v || v === "all" ? "" : v;
+            setStageId(next);
+            setUrl({ stageId: next || null });
             setPage(1);
           }}
         >
@@ -306,7 +333,9 @@ export default function LeadsPage() {
         <Select
           value={sourceId}
           onValueChange={(v: string | null) => {
-            setSourceId(!v || v === "all" ? "" : v);
+            const next = !v || v === "all" ? "" : v;
+            setSourceId(next);
+            setUrl({ sourceId: next || null });
             setPage(1);
           }}
         >
@@ -328,12 +357,40 @@ export default function LeadsPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={assigneeFilter}
+          onValueChange={(v: string | null) => {
+            const next = !v || v === "all" ? "" : v;
+            setAssigneeFilter(next);
+            setUrl({ assignedUserId: next || null });
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Anyone">
+              {(v: string) => {
+                if (!v) return "Anyone";
+                const u = assignableUsers.find((x) => x.id === v);
+                return u ? `${u.firstName} ${u.lastName}` : "Anyone";
+              }}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Anyone</SelectItem>
+            {assignableUsers.map((u) => (
+              <SelectItem key={u.id} value={u.id}>
+                {u.firstName} {u.lastName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
             checked={includeClosed}
             onChange={(e) => {
               setIncludeClosed(e.target.checked);
+              setUrl({ includeClosed: e.target.checked ? "true" : null });
               setPage(1);
             }}
           />

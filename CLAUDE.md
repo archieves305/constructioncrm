@@ -27,6 +27,16 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+0000. 🔴 **Quieter boards, "my jobs" by default, follow-up + nurture
+   cadence** — two stages, plan approved 2026-09-25
+   (`~/.claude/plans/when-a-lead-is-sprightly-scone.md`). **Stage 1
+   (Mine/All scope on jobs, leads, dashboard + boards toolbar, per-column
+   limit, compact cards, per-user default) built + dev-QA'd 2026-09-25**,
+   commit pending deploy (migration `20261005120000_list_scope_prefs`).
+   Stage 2 (nurture engine: `NurtureSettings` / `NurtureContent` /
+   `LeadNurtureState` / `LeadNurtureSend`, daily cron, admin page, seeds)
+   follows on the `nurture` branch. Operator items: SPF before enabling
+   nurture; `NURTURE_ENABLED`; a `nurture.sh` cron line.
 000. ✅ **Estimates + customer contracts on the job — deployed
    2026-09-25.** Stage 1 (`90c5339`, shipped with the violations deploy),
    Stages 2–3 (`1676d67`, `7e28930`) merged as `d73f950` and **deployed
@@ -99,6 +109,29 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — Mine by default + calmer boards (Stage 1 of 2; built, dev-QA'd)
+
+Richard: boards too busy; users should see only jobs they have a role
+in; open leads need automated follow-ups plus non-salesy nurture emails.
+Plan-mode (3 explore + 2 design agents). Stage 1: one definition of
+"involved" (`src/lib/jobs/involvement.ts`: rep, PM, workflow team slot,
+field assignment, crew membership, personnel scope; leads = assigned or
+customer of an involved job), client-safe `src/lib/lists/scope.ts`
+(`scope=mine|all`, floor SALES_REP + CREW_LEAD, MARKETING unfloored; API
+default stays `all` because seven pickers call the list routes),
+`buildJobListWhere` widened (rep floor is now "involved"), new pure
+`buildLeadListWhere` (fixes the rep `assignedUserId` overwrite), dashboard
++ workflow-health `?scope`, `User.defaultListScope` / `boardDensity`
+(migration `20261005120000_list_scope_prefs`) via `/api/me/preferences`
++ `/settings/lists`, `useListScope` (URL > pref > MINE, `ready` gate),
+kanban kit: `maxVisiblePerColumn` 25 with "Show more", density, WIP
+tone, `BoardToolbar` (Mine/All, search, person/service, density,
+Columns menu), compact `JobBoardCard`/`LeadBoardCard`, 500-cap notice,
+Mine empty states; jobs/leads lists get the toggle, URL-mirrored
+filters, assignee filter (leads), scoped CSV names. 834 tests, lint
+6/28, typecheck + build clean. Dev QA: admin Mine → empty state → All
+persists; counts differ per scope on jobs/leads/dashboard/health.
 
 ### 2026-09-25 — Estimates + customer contracts on the job (built, dev-QA'd, on branch `contracts`)
 

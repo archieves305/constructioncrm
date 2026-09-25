@@ -6,6 +6,9 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { MyTasksWidget } from "@/components/tasks/my-tasks-widget";
 import { WorkflowHealthWidget } from "@/components/dashboard/workflow-health-widget";
 import { fetchJson } from "@/lib/fetch-json";
+import { useListScope } from "@/components/shared/use-list-scope";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import type { ListScope } from "@/lib/lists/scope";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Users,
@@ -36,15 +39,30 @@ const COLORS = [
 ];
 
 export default function DashboardPage() {
+  const { scope, setScope, forced, ready } = useListScope();
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => fetchJson("/api/reports?type=dashboard"),
+    queryKey: ["dashboard", scope],
+    queryFn: () => fetchJson(`/api/reports?type=dashboard&scope=${scope}`),
+    enabled: ready,
   });
+  const description = scope === "mine" ? "Your leads and tasks" : "All leads and tasks";
+  const scopeToggle = (
+    <SegmentedControl<ListScope>
+      ariaLabel="Scope"
+      size="sm"
+      value={scope}
+      onValueChange={setScope}
+      options={[
+        { value: "mine", label: "Mine" },
+        { value: "all", label: "All", disabled: forced },
+      ]}
+    />
+  );
 
-  if (isLoading) {
+  if (isLoading || !ready) {
     return (
       <div>
-        <PageHeader title="Dashboard" description="Lead intelligence overview" />
+        <PageHeader title="Dashboard" description={description} actions={scopeToggle} />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
@@ -60,7 +78,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" description="Lead intelligence overview" />
+      <PageHeader title="Dashboard" description={description} actions={scopeToggle} />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <KpiCard
@@ -92,13 +110,13 @@ export default function DashboardPage() {
           title="Overdue Tasks"
           value={data?.overdueTasks || 0}
           icon={Clock}
-          href="/tasks?overdue=1"
+          href={scope === "mine" ? "/tasks?overdue=1&assignedUserId=me" : "/tasks?overdue=1"}
         />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <MyTasksWidget className="lg:col-span-2" />
-        <WorkflowHealthWidget className="lg:col-span-2" />
+        <WorkflowHealthWidget className="lg:col-span-2" scope={scope} />
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Leads by Stage</CardTitle>

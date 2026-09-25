@@ -1,5 +1,7 @@
 import type { Prisma, RoleName, WorkflowPermitStatus } from "@/generated/prisma/client";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { jobsInvolvingUserWhere } from "./involvement";
+import { effectiveListScope, parseListScope, type ListScope } from "@/lib/lists/scope";
 
 /**
  * The jobs-list `where`, built from query params in one pure function so the
@@ -29,6 +31,11 @@ export type JobListParams = {
   workflowBlocked?: boolean;
   workflowOverdue?: boolean;
   workflowUnassigned?: boolean;
+  /** mine = jobs the caller has a role on (see involvement.ts); the role floor may force it. */
+  scope?: ListScope;
+  /** Jobs this person has a role on — the board's "Person" quick filter. */
+  involvesUserId?: string;
+  serviceType?: string;
 };
 
 export type JobListContext = {
@@ -53,6 +60,9 @@ export function parseJobListParams(searchParams: URLSearchParams): JobListParams
     workflowBlocked: flag(searchParams.get("workflowBlocked")),
     workflowOverdue: flag(searchParams.get("workflowOverdue")),
     workflowUnassigned: flag(searchParams.get("workflowUnassigned")),
+    scope: parseListScope(searchParams.get("scope")),
+    involvesUserId: searchParams.get("involvesUserId") || undefined,
+    serviceType: searchParams.get("serviceType") || undefined,
   };
 }
 
@@ -74,8 +84,11 @@ export function buildJobListWhere(params: JobListParams, ctx: JobListContext): P
     });
   }
 
-  // A sales rep sees their own jobs, whatever else was asked for.
-  if (ctx.user.role === "SALES_REP") and.push({ salesRepId: ctx.user.id });
+  // Mine = jobs the caller has a role on; the floor (sales reps, crew leads)
+  // gets it whatever was asked for, everyone else by choice.
+  if (effectiveListScope(params.scope, ctx.user.role) === "mine") and.push(jobsInvolvingUserWhere(ctx.user.id));
+  if (params.involvesUserId) and.push(jobsInvolvingUserWhere(params.involvesUserId));
+  if (params.serviceType) and.push({ serviceType: params.serviceType });
 
   if (params.workflowTrade) {
     and.push({ workflow: { modules: { some: { templateKey: params.workflowTrade, removedAt: null } } } });

@@ -39,8 +39,13 @@ export function daysInStage(job: BoardJob, now = new Date()): number | null {
   return Math.max(0, differenceInCalendarDays(now, new Date(since)));
 }
 
-/** A job on the production board: readable sizes, one glance per fact. */
-export function JobBoardCard({ job }: { job: BoardJob }) {
+/**
+ * A job on the production board: readable sizes, one glance per fact.
+ * Compact keeps the number, amount, name, badges and the bottom row; the
+ * address, phase text, next-action callout and deposit bar go.
+ */
+export function JobBoardCard({ job, density = "comfortable" }: { job: BoardJob; density?: "comfortable" | "compact" }) {
+  const compact = density === "compact";
   const required = Number(job.depositRequired);
   const pct = required > 0 ? Math.round((Number(job.depositReceived) / required) * 100) : null;
   const days = daysInStage(job);
@@ -48,13 +53,13 @@ export function JobBoardCard({ job }: { job: BoardJob }) {
   const permit = job.permits?.[0]?.status ?? null;
 
   return (
-    <div className="space-y-1.5">
+    <div className={compact ? "space-y-1" : "space-y-1.5"}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-xs text-muted-foreground">{job.jobNumber}</span>
         <span className="text-sm font-semibold tabular-nums text-gray-900">{money0(job.contractAmount)}</span>
       </div>
       <p className="truncate text-sm font-medium leading-tight text-gray-900">{job.lead.fullName}</p>
-      {(job.lead.propertyAddress1 || job.lead.city) && (
+      {!compact && (job.lead.propertyAddress1 || job.lead.city) && (
         <p className="truncate text-xs text-muted-foreground">
           {[job.lead.propertyAddress1, job.lead.city].filter(Boolean).join(", ")}
         </p>
@@ -64,8 +69,16 @@ export function JobBoardCard({ job }: { job: BoardJob }) {
           {job.serviceType}
         </Badge>
         {job.workflow ? <PermitStatusPill status={job.workflow.permitStatus} compact /> : permit && <PermitBadge status={permit} />}
+        {compact && job.workflow && (
+          <>
+            <span className="text-[11px] tabular-nums text-muted-foreground" title={job.workflow.currentPhase?.name ?? "Workflow"}>
+              {job.workflow.percentComplete}%
+            </span>
+            <WorkflowIssueChips summary={job.workflow} />
+          </>
+        )}
       </div>
-      {job.workflow && (
+      {!compact && job.workflow && (
         <div className="flex items-center justify-between gap-2 text-xs">
           <span className="truncate text-muted-foreground" title={job.workflow.trades.map((t) => t.name).join(", ") || "Core only"}>
             {job.workflow.currentPhase?.name ?? (job.workflow.open === 0 ? "Workflow complete" : "Waiting")}
@@ -74,13 +87,13 @@ export function JobBoardCard({ job }: { job: BoardJob }) {
           <WorkflowIssueChips summary={job.workflow} />
         </div>
       )}
-      {job.nextAction && (
+      {!compact && job.nextAction && (
         <div className="flex items-start gap-1.5 rounded-md bg-tone-warning-soft px-2 py-1 text-xs leading-snug text-tone-warning-fg">
           <CornerDownRight className="mt-0.5 size-3 shrink-0" />
           <span className="line-clamp-2">{job.nextAction}</span>
         </div>
       )}
-      {pct !== null && job.jobType !== "OWNED_REHAB" && (
+      {!compact && pct !== null && job.jobType !== "OWNED_REHAB" && (
         <div className="flex items-center gap-2">
           <Progress
             value={pct}
@@ -92,12 +105,19 @@ export function JobBoardCard({ job }: { job: BoardJob }) {
         </div>
       )}
       <div className="flex items-center justify-between gap-2 pt-0.5 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1.5">
           {days !== null && (
-            <>
-              <Clock className="size-3" /> {days}d in stage
-            </>
+            <span className="flex items-center gap-1">
+              <Clock className="size-3" /> {days}d
+              {!compact && " in stage"}
+            </span>
           )}
+          {compact && job.nextAction && (
+            <span className="flex items-center text-tone-warning-fg" title={job.nextAction}>
+              <CornerDownRight className="size-3" />
+            </span>
+          )}
+          {compact && pct !== null && pct < 100 && job.jobType !== "OWNED_REHAB" && <span className="tabular-nums">dep {pct}%</span>}
         </span>
         <span className="flex items-center gap-1.5">
           {job.taskCounts && <TaskCountBadge open={job.taskCounts.pending} overdue={job.taskCounts.overdue} compact />}

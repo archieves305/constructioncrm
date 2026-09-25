@@ -67,7 +67,11 @@ export function KanbanColumn({
       <div className="flex shrink-0 items-center gap-2 px-3 pb-1 pt-2">
         <span className={cn("size-2 shrink-0 rounded-full", column.tone.dot)} />
         <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">{column.title}</h3>
-        <Badge variant="secondary" className="tabular-nums">
+        <Badge
+          variant="secondary"
+          className={cn("tabular-nums", column.limit != null && count > column.limit && "bg-tone-warning-soft text-tone-warning-fg")}
+          title={column.limit != null && count > column.limit ? `Over the ${column.limit}-card limit` : undefined}
+        >
           {count}
         </Badge>
         <button

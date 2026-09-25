@@ -4,6 +4,9 @@ import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { canViewWorkflowReports, workflowHealthScope } from "@/lib/workflows/access";
 import { loadWorkflowHealth, loadWorkflowReport } from "@/lib/workflows/reports";
+import { jobsInvolvingUserWhere, leadsInvolvingUserWhere as jobsInvolvingLeadWhere } from "@/lib/jobs/involvement";
+import { effectiveListScope, parseListScope } from "@/lib/lists/scope";
+import { dashboardLeadWhere, dashboardTaskWhere } from "@/lib/reports/dashboard-scope";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -21,29 +24,20 @@ export async function GET(request: NextRequest) {
   const hasDateFilter = Object.keys(dateFilter).length > 0;
 
   if (type === "dashboard") {
+    // Mine = leads I am on (assigned, or the customer of a job I have a role
+    // on) and tasks assigned to me; the floor pins reps and crew leads.
+    const scope = effectiveListScope(parseListScope(searchParams.get("scope")), session.user.role);
+    const leadWhere = dashboardLeadWhere({ dateFilter: hasDateFilter ? dateFilter : null, scope, userId: session.user.id });
     const [totalLeads, stages, sources, reps, overdueTasks] = await Promise.all([
-      prisma.lead.count({
-        where: hasDateFilter ? { createdAt: dateFilter } : undefined,
-      }),
-      prisma.lead.groupBy({
-        by: ["currentStageId"],
-        _count: { id: true },
-        where: hasDateFilter ? { createdAt: dateFilter } : undefined,
-      }),
-      prisma.lead.groupBy({
-        by: ["sourceId"],
-        _count: { id: true },
-        where: hasDateFilter ? { createdAt: dateFilter } : undefined,
-      }),
-      prisma.lead.groupBy({
-        by: ["assignedUserId"],
-        _count: { id: true },
-        where: hasDateFilter ? { createdAt: dateFilter } : undefined,
-      }),
+      prisma.lead.count({ where: leadWhere }),
+      prisma.lead.groupBy({ by: ["currentStageId"], _count: { id: true }, where: leadWhere }),
+      prisma.lead.groupBy({ by: ["sourceId"], _count: { id: true }, where: leadWhere }),
+      prisma.lead.groupBy({ by: ["assignedUserId"], _count: { id: true }, where: leadWhere }),
       prisma.task.count({
         where: {
           dueAt: { lt: new Date() },
           ...ACTIVE_OPEN_WHERE,
+          ...dashboardTaskWhere({ scope, userId: session.user.id }),
         },
       }),
     ]);
@@ -70,10 +64,12 @@ export async function GET(request: NextRequest) {
       where: {
         nextFollowUpAt: { lt: new Date() },
         currentStage: { isClosed: false },
+        ...(scope === "mine" ? { AND: [jobsInvolvingLeadWhere(session.user.id)] } : {}),
       },
     });
 
     return NextResponse.json({
+      scope,
       totalLeads,
       wonCount,
       lostCount,
@@ -151,11 +147,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (type === "workflow-health") {
-    const scope = workflowHealthScope({ id: session.user.id, role: session.user.role });
-    const health = await loadWorkflowHealth(
-      scope === "all" ? {} : { OR: [{ salesRepId: session.user.id }, { projectManagerId: session.user.id }] },
-    );
-    return NextResponse.json(health);
+    // The role floor first, then the requested scope for everyone else.
+    const floor = workflowHealthScope({ id: session.user.id, role: session.user.role });
+    const scope = floor === "own" ? "mine" : (parseListScope(searchParams.get("scope")) ?? "all");
+    const health = await loadWorkflowHealth(scope === "all" ? {} : jobsInvolvingUserWhere(session.user.id));
+    return NextResponse.json({ ...health, scope });
   }
 
   return NextResponse.json({ error: "Unknown report type" }, { status: 400 });

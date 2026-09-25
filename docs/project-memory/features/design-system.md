@@ -52,6 +52,22 @@ sheet). Cards: `jobs/job-board-card.tsx`, `leads/lead-board-card.tsx`.
 `/api/jobs` and `/api/leads` lists include the latest `stageHistory` row so
 cards can say "6d in stage".
 
+**Scope + calm (2026-09-25).** Every board and list opens on **Mine** —
+`useListScope()` (`components/shared/use-list-scope.ts`) resolves URL
+`?scope` > `User.defaultListScope` > MINE and gates the query on `ready`
+so there is no Mine→All flash; `setScope` writes both the URL and the
+preference. "Mine" is one helper, `jobsInvolvingUserWhere` /
+`leadsInvolvingUserWhere` (`lib/jobs/involvement.ts`), and the role floor
+(`lib/lists/scope.ts`: SALES_REP, CREW_LEAD) cannot be escaped with
+`?scope=all`; the API default stays `all` for the pickers. `BoardToolbar`
+(Mine/All, search, page filters, density, Columns menu backed by
+`setAll` / `expandAll` on the collapse store) sits above the board;
+`KanbanBoard` takes `maxVisiblePerColumn` (25, "Show N more" per column,
+reset via `resetKey`), `density` (passed to `renderCard`; cards have a
+compact variant), `notice` (the "Showing 500 of N" callout) and
+`KanbanColumnDef.limit` (WIP tone). Mine with nothing on it renders an
+`EmptyState` whose action flips to All.
+
 ## Record pages
 
 `shared/entity-header.tsx` (breadcrumb, title, subtitle, badges, actions,

@@ -4,8 +4,8 @@ import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { getSession } from "@/lib/auth/helpers";
 import { unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createLeadSchema } from "@/lib/validators/lead";
-import { Prisma } from "@/generated/prisma/client";
 import { emitLeadEvent } from "@/lib/follow-ups/events";
+import { buildLeadListWhere, parseLeadListParams } from "@/lib/leads/query";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -14,54 +14,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "25");
-  const search = searchParams.get("search") || undefined;
-  const stageId = searchParams.get("stageId") || undefined;
-  const sourceId = searchParams.get("sourceId") || undefined;
-  const assignedUserId = searchParams.get("assignedUserId") || undefined;
-  const serviceCategoryId = searchParams.get("serviceCategoryId") || undefined;
-  const city = searchParams.get("city") || undefined;
-  const county = searchParams.get("county") || undefined;
-  const dateFrom = searchParams.get("dateFrom") || undefined;
-  const dateTo = searchParams.get("dateTo") || undefined;
-  const includeClosed = searchParams.get("includeClosed") === "true";
   const withTaskCounts = searchParams.get("withTaskCounts") === "true";
 
-  const where: Prisma.LeadWhereInput = {};
-
-  if (!includeClosed && !stageId) {
-    where.currentStage = { isClosed: false };
-  }
-
-  if (search) {
-    where.OR = [
-      { fullName: { contains: search, mode: "insensitive" } },
-      { primaryPhone: { contains: search } },
-      { email: { contains: search, mode: "insensitive" } },
-      { propertyAddress1: { contains: search, mode: "insensitive" } },
-      { companyName: { contains: search, mode: "insensitive" } },
-    ];
-  }
-
-  if (stageId) where.currentStageId = stageId;
-  if (sourceId) where.sourceId = sourceId;
-  if (assignedUserId) where.assignedUserId = assignedUserId;
-  if (city) where.city = { contains: city, mode: "insensitive" };
-  if (county) where.county = { contains: county, mode: "insensitive" };
-
-  if (serviceCategoryId) {
-    where.services = { some: { serviceCategoryId } };
-  }
-
-  if (dateFrom || dateTo) {
-    where.createdAt = {};
-    if (dateFrom) where.createdAt.gte = new Date(dateFrom);
-    if (dateTo) where.createdAt.lte = new Date(dateTo);
-  }
-
-  // Sales reps only see their own leads
-  if (session.user.role === "SALES_REP") {
-    where.assignedUserId = session.user.id;
-  }
+  // One pure builder (src/lib/leads/query.ts): every filter ANDed, the
+  // sales-rep floor included, scope=mine|all resolved against the role.
+  const where = buildLeadListWhere(parseLeadListParams(searchParams), { user: session.user });
 
   const [data, total] = await Promise.all([
     prisma.lead.findMany({

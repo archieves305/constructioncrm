@@ -15,12 +15,15 @@ export function KanbanCard({
   dragHandle = false,
   children,
   className,
+  compact = false,
 }: {
   id: string;
   onOpen?: () => void;
   dragHandle?: boolean;
   children: React.ReactNode;
   className?: string;
+  /** Tighter padding for the board's compact density. */
+  compact?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id });
   const base = cn(
@@ -65,7 +68,7 @@ export function KanbanCard({
           onOpen();
         }
       }}
-      className={cn(base, "cursor-grab p-3 active:cursor-grabbing")}
+      className={cn(base, "cursor-grab active:cursor-grabbing", compact ? "p-2" : "p-3")}
     >
       {children}
     </div>

@@ -9,6 +9,16 @@ datasource db {
 
 // ─── Enums ──────────────────────────────────────────────────────────────────
 
+enum ListScope {
+  MINE
+  ALL
+}
+
+enum BoardDensity {
+  COMFORTABLE
+  COMPACT
+}
+
 enum RoleName {
   ADMIN
   MANAGER
@@ -374,12 +384,17 @@ model User {
   // unsubscribe link — but a user who mutes here stops receiving it. The
   // pressure valve exists so nobody resorts to a mail-client filter, which
   // would be invisible to us and would swallow genuinely urgent assignments.
-  taskEmailsEnabled       Boolean @default(true) @map("task_emails_enabled")
+  taskEmailsEnabled       Boolean      @default(true) @map("task_emails_enabled")
   // Sub-channels under the master switch above. All three are moot when it
   // is off; each can be muted alone when it is on.
-  escalationEmailsEnabled Boolean @default(true) @map("escalation_emails_enabled")
-  reminderDigestEnabled   Boolean @default(true) @map("reminder_digest_enabled")
-  nudgeEmailsEnabled      Boolean @default(true) @map("nudge_emails_enabled")
+  escalationEmailsEnabled Boolean      @default(true) @map("escalation_emails_enabled")
+  reminderDigestEnabled   Boolean      @default(true) @map("reminder_digest_enabled")
+  nudgeEmailsEnabled      Boolean      @default(true) @map("nudge_emails_enabled")
+  // What the jobs/leads lists and boards open on; every page has a Mine/All
+  // toggle that writes back here. Floored roles (SALES_REP, CREW_LEAD) are
+  // pinned to their own rows server-side whatever this says.
+  defaultListScope        ListScope    @default(MINE) @map("default_list_scope")
+  boardDensity            BoardDensity @default(COMFORTABLE) @map("board_density")
 
   role Role @relation(fields: [roleId], references: [id])
 

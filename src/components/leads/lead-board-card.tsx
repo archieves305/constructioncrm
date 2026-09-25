@@ -20,14 +20,16 @@ export type BoardLead = {
   taskCounts?: { pending: number; overdue: number };
 };
 
-export function LeadBoardCard({ lead }: { lead: BoardLead }) {
+/** Compact keeps the name, an overdue/today follow-up line and the bottom row. */
+export function LeadBoardCard({ lead, density = "comfortable" }: { lead: BoardLead; density?: "comfortable" | "compact" }) {
+  const compact = density === "compact";
   const follow = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
   const overdue = follow ? isPast(follow) && !isToday(follow) : false;
   const overdueDays = follow && overdue ? differenceInCalendarDays(new Date(), follow) : 0;
   const services = lead.services ?? [];
 
   return (
-    <div className="space-y-1.5">
+    <div className={compact ? "space-y-1" : "space-y-1.5"}>
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-gray-900">{lead.fullName}</p>
         {lead.urgent && (
@@ -36,12 +38,12 @@ export function LeadBoardCard({ lead }: { lead: BoardLead }) {
           </Badge>
         )}
       </div>
-      {lead.primaryPhone && (
+      {!compact && lead.primaryPhone && (
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           <Phone className="size-3" /> {lead.primaryPhone}
         </p>
       )}
-      {follow && (
+      {follow && (!compact || overdue || isToday(follow)) && (
         <p
           className={cn(
             "flex items-center gap-1 text-xs",
@@ -52,7 +54,7 @@ export function LeadBoardCard({ lead }: { lead: BoardLead }) {
           {overdue ? `Follow-up ${overdueDays}d overdue` : isToday(follow) ? "Follow-up today" : `Follow-up ${format(follow, "MMM d")}`}
         </p>
       )}
-      {services.length > 0 && (
+      {!compact && services.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {services.slice(0, 2).map((s, i) => (
             <Badge key={i} variant="outline" className="text-[11px]">
