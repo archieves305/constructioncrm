@@ -45,15 +45,16 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    Stage 3 (retainage release + Collections split) `4833ea3`, both
    2026-09-24. Apps 13–14 on JOB-00009 still to be entered in the UI by
    Richard; retainage release is a normal application at a lower rate.
-2. 🔴 **Job-costing check-and-balance.** Write gate and pending state both
-   shipped. **Pressure test done 2026-09-24** —
-   [job-cost-reconciliation-2026-09-24.md](docs/project-memory/job-cost-reconciliation-2026-09-24.md)
-   (also published for Richard: https://claude.ai/artifact/Afy7pAJjbqSdvKRo7GFnxG). Now **20 duplicate pairs
-   ($16,502.96, 18 likely real)**, 23 card credits the CRM refused
-   (−$7,580), 3 postings deleted after cc-allocator recorded them
-   ($25,584.10), 5 bank rows queued/unflagged ($16,443.75). **Waiting on
-   Richard's four decisions** before Phase 1 (intake guard → PENDING,
-   accept credits, reconciliation page with audited delete) is built.
+2. ✅ **Job-costing check-and-balance — complete.** Write gate, pending
+   state, and (2026-09-24, `3e8b211`) the cc-allocator reconciliation:
+   intake guard holds a posting that twins a manual charge as PENDING,
+   credits are accepted, expense deletes are audited, and the **Cost
+   Reconciliation** admin page rules on pairs. Books cleaned the same day:
+   19 duplicates removed ($16,070.96), 23 credits posted (−$7,580), BNW
+   $11,694.15 job-costed. Findings + outcome:
+   [job-cost-reconciliation-2026-09-24.md](docs/project-memory/job-cost-reconciliation-2026-09-24.md).
+   Phase 2 (a postings export from cc-allocator so deleted/unposted classes
+   show continuously) is optional.
 3. ✅ `field-log-digest` self-healed — prod journal shows every weekday run
    since the MailerSend upgrade at `attempted 6, sent 6, failures 0`
    (checked 2026-09-24 across Sep 17–24).
@@ -66,6 +67,24 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-24 — Job-cost reconciliation, Phase 1 (deployed + applied)
+
+Richard ruled on the findings the same evening. Built: pure
+`lib/expenses/reconcile.ts` (twin = manual APPROVED non-payroll row, same
+job + amount, ±3 days; `findManualTwin`, `pairCandidates`); intake creates a
+twinned posting **PENDING** with a review note and accepts **negative
+amounts** (credits) from that route only; `lib/expenses/delete.ts` is the
+one audited delete path (`expense_delete`); `ExpenseReconciliation`
+(migration `20260926120000`) + `GET/POST /api/admin/job-cost-reconciliation[/resolve]`
+(`canApproveJobCosts` list) + `/admin/job-cost-reconciliation` page.
+Applied on prod through `resolvePair`: **19 duplicates removed
+($16,070.96; the doc had said 18 — 10+4+3+2 is 19, dollars were right), 2
+KEEPs**; 19 audit events. cc-allocator side via two scripts kept in
+`scripts/cc-allocator/`: BNW $11,694.15 → JOB-00010, 23 credits → −$7,580
+(BullMQ job-id dedupe needed the stale jobs removed first). Prod: 453
+expenses, 0 pending, 0 CRM errors in cc-allocator. 612 tests, lint 6/28.
+**Deployed `3e8b211`** (build `P9PjvUEYphWrWc-OX3EMp`).
 
 ### 2026-09-24 — Job-cost reconciliation pressure test (no code)
 
@@ -433,23 +452,16 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> The job-cost reconciliation pressure test is written up
-> (`docs/project-memory/job-cost-reconciliation-2026-09-24.md`, published
-> at https://claude.ai/artifact/Afy7pAJjbqSdvKRo7GFnxG) and is **waiting on Richard's four decisions** at the end of
-> it (confirm the 18 duplicates; the three deleted postings; BNW
-> $11,694.15 on JOB-00010; accept credits). Once he answers, build
-> **Phase 1** exactly as proposed: (1) a pure, tested `findManualTwin` in
-> `src/lib/expenses/reconcile.ts` used by
-> `POST /api/integrations/cc-allocator/expense` to create the posting as
-> PENDING with a review note when an APPROVED manual row on the same job
-> has the same amount within ±3 days; (2) accept negative amounts from
-> that route only (credits), checking every sum and the UI still read
-> right, then confirm cc-allocator's worker replays the 23 rejected rows;
-> (3) an `AuditEvent` on `DELETE /api/expenses/[id]`, then
-> `GET /api/admin/job-cost-reconciliation` (job-cost approver roles,
-> explicit list) + an admin page listing manual↔allocator pairs with
-> "Confirm duplicate → delete manual row" and "Keep both". Back out the
-> confirmed pairs through that page, not by SQL. If he says the deletions
-> were mistakes, re-enter the three rows by hand with a note. Same rules:
-> tests + typecheck + build green, lint ≤ 6/28, deploy with
+> Every engineering workstream in §3 is closed as of `3e8b211`. What
+> remains is operator work (SPF on `knuconstruction.com`, then
+> `TASK_ESCALATIONS_ENABLED=1`; `PHONE_ROUTING_API_KEY`; the 302→301
+> promotion) and Richard's own click-throughs (workflow tab, apps 13–14 on
+> JOB-00009, the new Cost Reconciliation page). Candidates for the next
+> build, in rough value order, each to be pressure-tested against prod
+> data first: (a) **Phase 2 of reconciliation** — a small export in
+> cc-allocator of its CRM-linked postings so the Cost Reconciliation page
+> can show "posted but missing here" and "linked but never posted"
+> continuously; (b) **drop `User.passwordHash`** in a schema pass; (c)
+> **business-day durations** in the workflow report. Same rules: explicit
+> role lists, tests + typecheck + build green, lint ≤ 6/28, deploy with
 > `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

@@ -6,6 +6,32 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 
 
+## 2026-09-24 — Job-cost reconciliation, Phase 1 (deployed + applied)
+
+New: `lib/expenses/reconcile.ts` (+test), `lib/expenses/delete.ts`,
+`lib/expenses/resolve-pair.ts`, `api/admin/job-cost-reconciliation/{route,resolve/route}.ts`,
+`(dashboard)/admin/job-cost-reconciliation/page.tsx`, sidebar "Cost
+Reconciliation" (ADMIN/MANAGER/OFFICE_STAFF), migration
+`20260926120000_expense_reconciliations`,
+`scripts/reconcile-duplicate-expenses-2026-09-24.ts`, `scripts/cc-allocator/*`.
+Changed: cc-allocator intake (twin → PENDING + note; negative amounts;
+zero refused; signed increments; response `status`/`suspectedDuplicateOf`),
+`DELETE /api/expenses/[id]` → `deleteExpense`. Dev QA (dev started with
+`CC_ALLOCATOR_API_KEY=devkey`): twin 2 days apart → PENDING; 5 days →
+APPROVED; −$50 billable → contract −50; zero → 400; approve-then-DUPLICATE
+→ manual deleted, contract reversed 321.45, audit + decision rows;
+cleanup restored the contract to the cent; QA decision row purged from
+dev. Prod: dry run showed 19 same-day duplicates (doc had said 18 — my
+addition error; $16,070.96 matched), EXPECTED corrected and `--yes` run
+via `sudo -E -u knuco npx tsx`; then in `/var/www/cc-allocator`
+`replay-crm-leg` (BNW: `postCrm=true`, `PARTIALLY_POSTED`, enqueue; 23
+credits enqueued) — only the 2 credits with fresh job ids posted, so
+`replay-crm-credits-requeue` removed the stale `crm-<id>` BullMQ jobs and
+re-added (that script does its work then hangs on open Redis handles;
+killed). End state: CRM 453 expenses / 23 credits / 0 pending;
+cc-allocator 23/23 credits posted, 0 errors, BNW POSTED with CRM id.
+Deployed `3e8b211` (build `P9PjvUEYphWrWc-OX3EMp`).
+
 ## 2026-09-24 — Job-cost reconciliation pressure test (read-only)
 
 Method: on knuco-droplet, `psql \copy` of CRM `job_expenses ⋈ jobs` (448)

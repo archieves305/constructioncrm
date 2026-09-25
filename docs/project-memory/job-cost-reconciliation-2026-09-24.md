@@ -2,7 +2,9 @@
 
 _Read-only pressure test, prod data as of 2026-09-24 ~20:20 ET. CRM
 `job_expenses` and cc-allocator `Transaction` (card) + `BankTxn` (bank)
-dumped over ssh and diffed offline. Nothing was changed._
+dumped over ssh and diffed offline. **Richard ruled the same evening and
+Phase 1 was built, deployed (`3e8b211`) and applied — see "Outcome" at the
+end.**_
 
 ## Populations
 
@@ -130,10 +132,38 @@ SQL dump used here.
 
 ## Decisions needed from Richard before any mutation is built
 
-1. Confirm the 18 likely duplicates (JOB-00003 ×10, JOB-00009 ×4,
-   JOB-00002 ×3, JOB-00004 ×2 — the JOB-00006 $432 and $800 look genuine).
+1. Confirm the likely duplicates (JOB-00003 ×10, JOB-00009 ×4,
+   JOB-00002 ×3, JOB-00004 ×2 — that is **19**, not the "18" this doc
+   first said; the $16,070.96 was right — the JOB-00006 $432 and $800 look
+   genuine).
 2. The three deleted postings ($25,584.10): intended, or re-enter?
 3. BNW Construction $11,694.15 on JOB-00010: should it be job-costed
    (flip `postCrm` in cc-allocator)?
 4. Credits policy: accept negative postings from the card feed as
    described in Phase 1.2?
+
+## Outcome (2026-09-24, same evening)
+
+Richard: the listed pairs are duplicates; the three deletions were
+intentional; BNW should be job-costed; accept credits.
+
+- **Phase 1 shipped** (`3e8b211`, migration `20260926120000_expense_reconciliations`):
+  intake guard (twin → PENDING with review note), credits accepted from the
+  integration route, audited `deleteExpense`, `ExpenseReconciliation`,
+  `GET/POST /api/admin/job-cost-reconciliation[/resolve]`, the **Cost
+  Reconciliation** admin page.
+- **19 duplicates removed, $16,070.96** (`scripts/reconcile-duplicate-expenses-2026-09-24.ts`
+  through `resolvePair`, attributed to Richard): 19 `expense_delete` audit
+  events, 19 DUPLICATE + 2 KEEP `expense_reconciliations` rows. JOB-00003's
+  rollup recomputed itself.
+- **23 credits posted, −$7,580.00**, and **BNW $11,694.15 on JOB-00010**
+  posted, via two scripts run inside cc-allocator
+  (`scripts/cc-allocator/`); cc-allocator now shows 0 CRM errors on
+  credits. Gotcha: BullMQ keeps `crm-<id>` job ids, so a failed attempt has
+  to be removed before a re-add does anything.
+- **Not touched, by decision:** the three deleted postings ($25,584.10).
+  The three APPROVED-awaiting-worker and one NEEDS_ASSIGNMENT bank rows
+  ($4,749.60) are cc-allocator's normal queue; when the queued Roberto
+  Rodriguez $432 (06-05) posts it will pair with the manual $432 on
+  JOB-00006 and arrive PENDING.
+- Prod after: 453 expenses (448 − 19 + 23 + 1), 0 pending.

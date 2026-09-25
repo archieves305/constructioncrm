@@ -4,30 +4,15 @@ _Updated 2026-09-24._
 
 ## Open — needs a decision or action
 
-- 🔴 **20 candidate duplicate charges, $16,502.96 (was 12 / $9,166.20 on
-  2026-08-03; 8 new since).** Same job + amount + day, one row manual, one
-  from cc-allocator; the manual row came first in 19 of 20. Full diff,
-  per-job table and the two pairs that look genuine (JOB-00006 $432 and
-  $800) are in
-  [job-cost-reconciliation-2026-09-24.md](job-cost-reconciliation-2026-09-24.md)
-  / https://claude.ai/artifact/Afy7pAJjbqSdvKRo7GFnxG. **Correction:** none inflate a customer bill — the ten
-  "billable" rows are on the owned rehab JOB-00003, where the flag moves
-  nothing; job costs and that rollup are what is overstated. Waiting on
-  Richard to confirm the 18 before anything is backed out (delete the
-  manual row; the delete route reverses cleanly).
-- 🔴 **Card credits never reach job costing.** The cc-allocator intake
-  refuses negative amounts (`400 Too small`), so 23 returns/refunds
-  (−$7,580.00) sit on cc-allocator's side and four jobs' costs are
-  overstated by that much. Fix = accept negatives from that route.
-- 🔴 **Three allocator postings were deleted in the CRM after posting**
-  ($25,584.10: BNW Construction ×2 on JOB-00011/00010, Roberto Rodriguez
-  on JOB-00006). cc-allocator holds a `crmExpenseId` so will never retry;
-  expense deletes are **not audited**, so who/why is unknown. Needs
-  Richard: intended, or re-enter.
-- **No reconciliation against cc-allocator.** When it posts an expense,
-  nothing looks for a near-matching manual row to flag as a possible
-  duplicate. That is the control that would have caught all 20 above —
-  proposed as Phase 1 in the findings doc.
+- **cc-allocator reconciliation, Phase 2 (optional).** The Cost
+  Reconciliation page sees only what the CRM holds. "Posted but deleted
+  here" and "linked but never posted" still need the SQL dump in
+  `job-cost-reconciliation-2026-09-24.md`; a small postings export from
+  cc-allocator would make them continuous.
+- The three deleted postings ($25,584.10) were **intentional** (Richard,
+  2026-09-24) — not re-entered. Four bank rows ($4,749.60) sit in
+  cc-allocator's own queue; when Roberto Rodriguez $432 (06-05) posts it
+  will twin the manual $432 on JOB-00006 and arrive PENDING.
 
 - ⚠️ **SPF is not configured on `knuconstruction.com` in MailerSend.**
   The domain reports `is_verified: true` and `dkim: true` but **`spf: false`**.
@@ -37,6 +22,20 @@ _Updated 2026-09-24._
   SPF TXT record while the DNS is being touched anyway. Not urgent, but it is
   the next most likely cause of "the email never arrived" reports now that the
   recipient cap is gone.
+
+## Resolved 2026-09-24 — job-cost reconciliation (`3e8b211`)
+
+- ✅ **19 duplicate charges removed, $16,070.96** (was "12 / $9,166.20" in
+  August, then 20 pairs found of which 19 were duplicates and 1 genuine).
+  Backed out through `resolvePair`, audited, attributed to Richard.
+- ✅ **Credits reach job costing.** Intake accepts negative amounts from
+  cc-allocator; 23 stuck returns (−$7,580.00) replayed.
+- ✅ **Expense deletes are audited** (`expense_delete` AuditEvent with a
+  snapshot) and go through one service.
+- ✅ **Twins are caught at intake.** A posting matching a manual charge
+  within ±3 days arrives PENDING with a note; the Cost Reconciliation page
+  rules on approved pairs.
+- ✅ BNW Construction $11,694.15 job-costed on JOB-00010.
 
 ## Resolved 2026-09-24 — tasks everywhere (Stage 1)
 
