@@ -32,10 +32,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (`.claude/worktrees/contracts`) 2026-09-25: Stage 1 estimates on the
    job + status fix + middleware boundary (`90c5339`, on `main`); Stage 2
    contract generation, versioned templates, admin editor (`1676d67`);
-   Stage 3 send / public e-sign / certificate / money effects. **Not yet
-   merged or deployed** — merge `contracts` into `main` once the
-   violations work lands, apply migration `20261003120000_customer_contracts`,
-   run `prisma/seed-contract-templates.ts` on prod. Notes:
+   Stage 3 send / public e-sign / certificate / money effects
+   (`7e28930`). **Merged into `main` as `d73f950` (fast-forward) on
+   2026-09-25; push + deploy pending** — the auto-mode classifier refused
+   `git push`, so Richard runs `git push origin main`, then
+   `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` (applies
+   migration `20261003120000_customer_contracts`), then the template seed
+   in §7. Notes:
    [features/customer-contracts.md](docs/project-memory/features/customer-contracts.md).
 00. 🔴 **Code Violations module** — four stages, plan approved 2026-09-25
    (`~/.claude/plans/glistening-growing-perlis.md`). **Stage 1 (engine
@@ -622,6 +625,11 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
+> Customer contracts (estimate → agreement → e-sign) are merged on `main`
+> at `d73f950` but NOT pushed/deployed: run `git push origin main`, the
+> deploy command, then `prisma/seed-contract-templates.ts` on prod, and
+> record the BUILD_ID here. Richard then reviews the seeded agreement
+> text under Admin → Contract Templates before the first real send.
 > Code Violations Stages 1–2 are deployed. Next: Stage 3 (reminders
 > 30/14/7/3/1/0 + daily overdue via `CodeViolationReminderLog`,
 > escalation chain assignee → case manager → MANAGERs → ADMINs behind
@@ -630,9 +638,7 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 > in `~/.claude/plans/glistening-growing-perlis.md`; no migration. Then
 > Stage 4 (dashboard breakdowns, `?type=violations` report + CSV,
 > `ViolationsWidget`). Richard's click-through of Stage 2 on prod comes
-> first: `/violations/new` from a real notice. A sibling session works on
-> "estimate + contract on the job" in `.claude/worktrees/contracts` —
-> pull before committing; both touch `jobs/[id]/page.tsx`.
+> first: `/violations/new` from a real notice.
 > Operator items (SPF → `TASK_ESCALATIONS_ENABLED=1`, `PHONE_ROUTING_API_KEY`,
 > 302→301) are Richard's, as are his click-throughs (workflow tab, apps
 > 13–14 on JOB-00009, Cost Reconciliation). Same rules: explicit role
