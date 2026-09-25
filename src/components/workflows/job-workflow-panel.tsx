@@ -33,30 +33,37 @@ import { CompleteTaskDialog } from "./complete-task-dialog";
 import { PhaseSection } from "./phase-section";
 import { SkipTaskDialog } from "./skip-task-dialog";
 import { deriveTaskState, PERMIT_STATUS_LABEL, PERMIT_STATUS_TONE, type WorkflowTaskState } from "./status";
-import { useAddWorkflowTask, useInvalidateWorkflow, useJobWorkflow, usePatchWorkflow } from "./use-workflow";
+import { useAddWorkflowTask, useInvalidateWorkflow, usePatchWorkflow, useSubjectWorkflow, workflowKeys } from "./use-workflow";
 import { WorkflowTaskRow } from "./workflow-task-row";
 import { WorkflowTeamDialog } from "./workflow-team-dialog";
-import type { WorkflowTaskItem } from "./types";
+import { subjectInfoOf, type WorkflowSubjectRef, type WorkflowTaskItem } from "./types";
 
 type Chip = "ready" | "inProgress" | "blocked" | "overdue" | "notActive" | "skipped" | null;
 
-/**
- * The Workflow tab. Summary strip (modules, permit status, progress, team),
- * count chips that filter, then the phases in band order with a row per
- * step. Every row edit goes through the same task hooks as the rest of the
- * app, so the Tasks tab and /tasks agree with what is shown here.
- */
+/** The Workflow tab on a job. */
 export function JobWorkflowPanel({ jobId }: { jobId: string }) {
+  return <WorkflowPanel subject={{ kind: "job", id: jobId }} />;
+}
+
+/**
+ * The Workflow tab, on a job or a violation case. Summary strip (modules,
+ * permit status, progress, team), count chips that filter, then the phases
+ * in band order with a row per step. Every row edit goes through the same
+ * task hooks as the rest of the app, so the Tasks tab and /tasks agree with
+ * what is shown here.
+ */
+export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
   const { data: session } = useSession();
-  const { data, isLoading, error } = useJobWorkflow(jobId);
+  const { data, isLoading, error } = useSubjectWorkflow(subject);
   const { data: users = [] } = useAssignableUsers();
-  const invalidate = useInvalidateWorkflow(jobId);
-  const update = useUpdateTask({ invalidateKeys: [["job-workflow", jobId]] });
-  const patchWorkflow = usePatchWorkflow(jobId);
-  const addTask = useAddWorkflowTask(jobId);
+  const invalidate = useInvalidateWorkflow(subject);
+  const update = useUpdateTask({ invalidateKeys: [workflowKeys.subject(subject)] });
+  const patchWorkflow = usePatchWorkflow(subject);
+  const addTask = useAddWorkflowTask(subject);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isCase = subject.kind === "violation";
 
   const [chip, setChip] = useState<Chip>(null);
   const [applyOpen, setApplyOpen] = useState(false);
@@ -133,6 +140,7 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
     );
   }
 
+  const info = subjectInfoOf(data);
   const user = session?.user;
   const canApply = data.permissions.canApply;
 
@@ -141,8 +149,12 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
       <div className="rounded-lg border bg-white">
         <EmptyState
           icon={Route}
-          title="No workflow on this job yet"
-          description="Apply Core Construction plus the trades on this job to generate every step in order, with owners, due dates and the permit branch."
+          title={isCase ? "No workflow on this case yet" : "No workflow on this job yet"}
+          description={
+            isCase
+              ? "Apply the code-violation workflow to generate every step from intake to agency-confirmed closure, with owners, due dates and the permit branch."
+              : "Apply Core Construction plus the trades on this job to generate every step in order, with owners, due dates and the permit branch."
+          }
           action={
             canApply ? (
               <Button variant="brand" onClick={() => setApplyOpen(true)}>
@@ -153,7 +165,7 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
             )
           }
         />
-        <ApplyWorkflowDialog jobId={jobId} data={data} open={applyOpen} onOpenChange={setApplyOpen} />
+        <ApplyWorkflowDialog subject={subject} data={data} open={applyOpen} onOpenChange={setApplyOpen} />
       </div>
     );
   }
@@ -165,6 +177,7 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
   const permitTone = toneClasses(PERMIT_STATUS_TONE[inst.permitStatus]);
   const team = data.team ?? [];
   const unassigned = data.unassignedRoles ?? [];
+  const isBase = (kind: string) => kind === "CORE" || kind === "VIOLATION";
 
   const chips: { key: Exclude<Chip, null>; label: string; n: number; tone: string }[] = [
     { key: "ready", label: "Ready", n: progress.ready, tone: "bg-tone-info-soft text-tone-info-fg" },
@@ -199,14 +212,15 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
             <div className="flex flex-wrap items-center gap-1.5">
               {(data.modules ?? []).filter((m) => !m.removedAt).map((m) => {
                 const upgrade = (data.upgrades ?? []).find((u) => u.templateKey === m.templateKey);
+                const menu = canApply && (!isBase(m.kind) || upgrade);
                 const pill = (
-                  <Badge variant="outline" className={cn("text-xs", m.kind === "CORE" && "border-dashed", canApply && m.kind !== "CORE" && "cursor-pointer hover:bg-gray-50")}>
+                  <Badge variant="outline" className={cn("text-xs", isBase(m.kind) && "border-dashed", menu && "cursor-pointer hover:bg-gray-50")}>
                     {m.name} <span className="ml-1 text-muted-foreground">v{m.version}</span>
                     {upgrade && <ArrowUpCircle className="ml-1 size-3 text-tone-info-fg" aria-label={`v${upgrade.to} available`} />}
-                    {canApply && m.kind !== "CORE" && <ChevronDown className="ml-0.5 size-3 text-muted-foreground" />}
+                    {menu && <ChevronDown className="ml-0.5 size-3 text-muted-foreground" />}
                   </Badge>
                 );
-                if (!canApply || m.kind === "CORE") return <span key={m.templateKey}>{pill}</span>;
+                if (!menu) return <span key={m.templateKey}>{pill}</span>;
                 return (
                   <DropdownMenu key={m.templateKey}>
                     <DropdownMenuTrigger render={<button type="button" aria-label={`${m.name} options`} />}>{pill}</DropdownMenuTrigger>
@@ -216,7 +230,7 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
                           <ArrowUpCircle className="size-4" /> Upgrade to v{upgrade.to}…
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onClick={() => setReconcile({ kind: "remove-trade", templateKey: m.templateKey, name: m.name })}>Remove {m.name}…</DropdownMenuItem>
+                      {!isBase(m.kind) && <DropdownMenuItem onClick={() => setReconcile({ kind: "remove-trade", templateKey: m.templateKey, name: m.name })}>Remove {m.name}…</DropdownMenuItem>}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 );
@@ -280,9 +294,11 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
             </div>
             {canApply && (
               <div className="flex gap-1">
-                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setReconcile({ kind: "add-trade" })}>
-                  Add a trade…
-                </Button>
+                {!isCase && (
+                  <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setReconcile({ kind: "add-trade" })}>
+                    Add a trade…
+                  </Button>
+                )}
                 {(data.toggles ?? []).length > 0 && (
                   <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setReconcile({ kind: "scope" })}>
                     <SlidersHorizontal className="size-3.5" /> Scope
@@ -295,7 +311,7 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
 
         {(data.upgrades ?? []).length > 0 && canApply && (
           <Callout tone="info" className="mt-3" icon={ArrowUpCircle} title="A newer template version is available">
-            {(data.upgrades ?? []).map((u) => `${(data.modules ?? []).find((m) => m.templateKey === u.templateKey)?.name ?? u.templateKey} v${u.from} → v${u.to}`).join(" · ")}. Use the trade&apos;s menu to upgrade; this job keeps its version until you do.
+            {(data.upgrades ?? []).map((u) => `${(data.modules ?? []).find((m) => m.templateKey === u.templateKey)?.name ?? u.templateKey} v${u.from} → v${u.to}`).join(" · ")}. Use the template&apos;s menu to upgrade; this {isCase ? "case" : "job"} keeps its version until you do.
           </Callout>
         )}
         {inst.permitStatus === "UNDETERMINED" && (
@@ -311,14 +327,14 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
               ) : undefined
             }
           >
-            Production steps stay Not active until “Determine permit requirement” is completed. The permit or no-permit branch is generated when you decide.
+            {isCase ? "Permitting and corrective-work" : "Production"} steps stay Not active until “Determine permit requirement” is completed. The permit or no-permit branch is generated when you decide.
           </Callout>
         )}
         {inst.permitStatus !== "UNDETERMINED" && inst.permitDeterminedBy && (
           <p className="mt-2 text-[11px] text-muted-foreground">
             {PERMIT_STATUS_LABEL[inst.permitStatus]} — confirmed by {inst.permitDeterminedBy.firstName} {inst.permitDeterminedBy.lastName}
             {inst.permitDeterminedAt ? ` on ${new Date(inst.permitDeterminedAt).toLocaleDateString()}` : ""}
-            {data.job.jurisdiction ? ` · ${data.job.jurisdiction}` : ""}
+            {info.jurisdiction ? ` · ${info.jurisdiction}` : ""}
             {inst.permitNotes ? ` · ${inst.permitNotes}` : ""}
           </p>
         )}
@@ -379,9 +395,9 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
       </div>
 
       {/* Dialogs */}
-      <ApplyWorkflowDialog jobId={jobId} data={data} open={applyOpen} onOpenChange={setApplyOpen} />
-      {reconcile && <ReconcileDialog jobId={jobId} data={data} mode={reconcile} open onOpenChange={(o) => !o && setReconcile(null)} />}
-      <ApplyWorkflowDialog jobId={jobId} data={data} open={permitOpen} onOpenChange={setPermitOpen} mode="permit-only" />
+      <ApplyWorkflowDialog subject={subject} data={data} open={applyOpen} onOpenChange={setApplyOpen} />
+      {reconcile && <ReconcileDialog subject={subject} data={data} mode={reconcile} open onOpenChange={(o) => !o && setReconcile(null)} />}
+      <ApplyWorkflowDialog subject={subject} data={data} open={permitOpen} onOpenChange={setPermitOpen} mode="permit-only" />
       <WorkflowTeamDialog
         data={data}
         users={users}
@@ -402,7 +418,7 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
       />
       <CompleteTaskDialog
         task={completeTarget ? (tasksById.get(completeTarget.id) ?? completeTarget) : null}
-        jobId={jobId}
+        subject={subject}
         open={Boolean(completeTarget)}
         onOpenChange={(o) => !o && setCompleteTarget(null)}
         canOverrideGate={data.permissions.canOverrideGate}
@@ -423,8 +439,12 @@ export function JobWorkflowPanel({ jobId }: { jobId: string }) {
       <AddTaskDialog
         open={Boolean(addPhaseKey)}
         onOpenChange={(o) => !o && setAddPhaseKey(null)}
-        context={{ jobId, label: `${data.job.jobNumber} · ${data.phases?.find((p) => p.key === addPhaseKey)?.name ?? "phase"}`, href: `/jobs/${jobId}?tab=workflow` }}
-        defaults={{ assignedUserId: data.job.projectManagerId ?? undefined }}
+        context={{
+          ...(isCase ? { violationCaseId: subject.id } : { jobId: subject.id }),
+          label: `${info.label} · ${data.phases?.find((p) => p.key === addPhaseKey)?.name ?? "phase"}`,
+          href: `${info.href}?tab=workflow`,
+        }}
+        defaults={{ assignedUserId: info.projectManagerId ?? info.caseManagerId ?? undefined }}
         submitOverride={
           addPhaseKey
             ? async (payload) => {

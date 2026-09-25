@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import type { CreateLeadInput } from "@/lib/validators/lead";
@@ -37,6 +37,7 @@ type ContactMatch = {
 
 export default function NewLeadPage() {
   const router = useRouter();
+  const returnTo = useSearchParams().get("returnTo");
 
   const {
     register,
@@ -86,6 +87,13 @@ export default function NewLeadPage() {
         );
       } else {
         toast.success("Lead created successfully");
+      }
+      // A "create the property first" round trip (code-violation intake):
+      // go back where we came from with the new lead's id.
+      if (returnTo && returnTo.startsWith("/")) {
+        const sep = returnTo.includes("?") ? "&" : "?";
+        router.push(`${returnTo}${sep}createdLeadId=${result.lead.id}`);
+        return;
       }
       router.push(`/leads/${result.lead.id}`);
     },

@@ -66,8 +66,52 @@ export type WorkflowPhaseItem = {
 
 export type ScopeToggleDef = { key: string; label: string; description?: string; default: boolean };
 
+/** The record a workflow runs on. A string is a job id (the older form). */
+export type WorkflowSubjectRef = { kind: "job" | "violation"; id: string };
+export type SubjectLike = string | WorkflowSubjectRef;
+
+export function toSubjectRef(s: SubjectLike): WorkflowSubjectRef {
+  return typeof s === "string" ? { kind: "job", id: s } : s;
+}
+
+/** The subject a task belongs to, from its links: a violation case first (its tasks never carry a job). */
+export function subjectOfTask(task: { job?: { id: string } | null; violationCase?: { id: string } | null }): WorkflowSubjectRef | null {
+  if (task.violationCase) return { kind: "violation", id: task.violationCase.id };
+  if (task.job) return { kind: "job", id: task.job.id };
+  return null;
+}
+
+export function subjectHref(ref: WorkflowSubjectRef): string {
+  return ref.kind === "job" ? `/jobs/${ref.id}` : `/violations/${ref.id}`;
+}
+
+/** What the tab and its dialogs need from the subject, whichever kind it is. */
+export type WorkflowSubjectInfo = {
+  kind: "job" | "violation";
+  id: string;
+  leadId: string;
+  /** "JOB-00012" / "CV-00003" */
+  label: string;
+  title: string;
+  href: string;
+  jurisdiction: string | null;
+  targetStartDate: string | null;
+  projectManagerId: string | null;
+  salesRepId: string | null;
+  caseManagerId: string | null;
+};
+
+export function subjectInfoOf(data: JobWorkflowData): WorkflowSubjectInfo {
+  if (data.case) {
+    const c = data.case;
+    return { kind: "violation", id: c.id, leadId: c.leadId, label: c.caseNumber, title: c.title, href: `/violations/${c.id}`, jurisdiction: c.jurisdiction, targetStartDate: null, projectManagerId: null, salesRepId: null, caseManagerId: c.caseManagerId };
+  }
+  const j = data.job!;
+  return { kind: "job", id: j.id, leadId: j.leadId, label: j.jobNumber, title: j.title, href: `/jobs/${j.id}`, jurisdiction: j.jurisdiction, targetStartDate: j.targetStartDate, projectManagerId: j.projectManagerId, salesRepId: j.salesRepId, caseManagerId: null };
+}
+
 export type JobWorkflowData = {
-  job: {
+  job?: {
     id: string;
     leadId: string;
     jobNumber: string;
@@ -77,6 +121,18 @@ export type JobWorkflowData = {
     salesRepId: string | null;
     targetStartDate: string | null;
     jurisdiction: string | null;
+    createdAt: string;
+  };
+  case?: {
+    id: string;
+    leadId: string;
+    jobId: string | null;
+    caseNumber: string;
+    title: string;
+    jurisdiction: string | null;
+    caseManagerId: string | null;
+    currentDeadline: string | null;
+    nextHearingAt: string | null;
     createdAt: string;
   };
   permissions: { canApply: boolean; canSetPermit: boolean; canCoordinate: boolean; canOverrideGate: boolean };
@@ -131,7 +187,7 @@ export type ReconcilePlanData = {
 
 export type ReconcileResultData = { plan: ReconcilePlanData; created: number; reinstated: number; skipped: number; activated: number };
 
-export type InspectionBody = { result: "PASS" | "FAIL" | "CONDITIONAL"; notes?: string | null; inspectedAt?: string; jobPermitInspectionId?: string | null };
+export type InspectionBody = { result: "PASS" | "FAIL" | "CONDITIONAL"; notes?: string | null; inspectedAt?: string; jobPermitInspectionId?: string | null; violationInspectionId?: string | null };
 
 export type VersionStatus = "DRAFT" | "PUBLISHED" | "SUPERSEDED" | "ARCHIVED";
 

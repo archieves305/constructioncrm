@@ -18,11 +18,14 @@ import type {
   ReconcileResultData,
   RoleDefaultRow,
   ScopeToggleDef,
+  SubjectLike,
   TaskTemplateInput,
   ValidationResultData,
   WorkflowPreviewData,
+  WorkflowSubjectRef,
   WorkflowTemplateOption,
 } from "./types";
+import { toSubjectRef } from "./types";
 
 /**
  * Data access for the Workflow tab. Every mutation fans out to the task
@@ -31,41 +34,62 @@ import type {
  */
 
 export const workflowKeys = {
+  /** A job's or a case's workflow read. Kept as "job-workflow" for jobs so older invalidations still hit. */
+  subject: (s: SubjectLike) => {
+    const ref = toSubjectRef(s);
+    return (ref.kind === "job" ? ["job-workflow", ref.id] : ["case-workflow", ref.id]) as readonly [string, string];
+  },
   job: (jobId: string) => ["job-workflow", jobId] as const,
-  templates: (jobId?: string) => ["workflow-templates", jobId ?? "all"] as const,
+  templates: (jobId?: string, kind?: string) => ["workflow-templates", jobId ?? "all", kind ?? "any"] as const,
   roleDefaults: ["workflow-role-defaults"] as const,
   adminTemplates: ["admin-workflow-templates"] as const,
   adminTemplate: (id: string) => ["admin-workflow-template", id] as const,
   version: (vid: string) => ["admin-workflow-version", vid] as const,
 };
 
-export function useJobWorkflow(jobId: string, opts: { enabled?: boolean } = {}) {
+/** `/api/jobs/:id/workflow` or `/api/violations/:id/workflow` — the same routes exist on both. */
+export function workflowBase(s: SubjectLike): string {
+  const ref = toSubjectRef(s);
+  return ref.kind === "job" ? `/api/jobs/${ref.id}/workflow` : `/api/violations/${ref.id}/workflow`;
+}
+
+export function useSubjectWorkflow(subject: SubjectLike | null, opts: { enabled?: boolean } = {}) {
+  const ref: WorkflowSubjectRef = subject ? toSubjectRef(subject) : { kind: "job", id: "" };
   return useQuery<JobWorkflowData>({
-    queryKey: workflowKeys.job(jobId),
-    queryFn: () => fetchJson(`/api/jobs/${jobId}/workflow`),
+    queryKey: workflowKeys.subject(ref),
+    queryFn: () => fetchJson(workflowBase(ref)),
     retry: retryServerErrors,
-    enabled: opts.enabled ?? true,
+    enabled: (opts.enabled ?? true) && Boolean(subject) && ref.id.length > 0,
   });
 }
 
-export function useWorkflowTemplates(jobId?: string, opts: { enabled?: boolean } = {}) {
+export function useJobWorkflow(jobId: string, opts: { enabled?: boolean } = {}) {
+  return useSubjectWorkflow(jobId ? { kind: "job", id: jobId } : null, opts);
+}
+
+export function useWorkflowTemplates(jobId?: string, opts: { enabled?: boolean; kind?: "CORE" | "TRADE" | "VIOLATION" } = {}) {
+  const qs = new URLSearchParams();
+  if (jobId) qs.set("suggestForJobId", jobId);
+  if (opts.kind) qs.set("kind", opts.kind);
+  const q = qs.toString();
   return useQuery<WorkflowTemplateOption[]>({
-    queryKey: workflowKeys.templates(jobId),
-    queryFn: () => fetchJson(`/api/workflow-templates${jobId ? `?suggestForJobId=${jobId}` : ""}`),
+    queryKey: workflowKeys.templates(jobId, opts.kind),
+    queryFn: () => fetchJson(`/api/workflow-templates${q ? `?${q}` : ""}`),
     staleTime: 5 * 60_000,
     retry: retryServerErrors,
     enabled: opts.enabled ?? true,
   });
 }
 
-export function useInvalidateWorkflow(jobId: string) {
+export function useInvalidateWorkflow(subject: SubjectLike) {
   const qc = useQueryClient();
+  const ref = toSubjectRef(subject);
   return (extra: QueryKey[] = []) => {
-    qc.invalidateQueries({ queryKey: workflowKeys.job(jobId) });
-    qc.invalidateQueries({ queryKey: ["job", jobId] });
+    qc.invalidateQueries({ queryKey: workflowKeys.subject(ref) });
+    qc.invalidateQueries({ queryKey: [ref.kind === "job" ? "job" : "violation", ref.id] });
     qc.invalidateQueries({ queryKey: taskKeys.all });
     qc.invalidateQueries({ queryKey: taskKeys.summary });
-    for (const k of [["jobs"], ["dashboard"], ["field-today"], ...extra]) qc.invalidateQueries({ queryKey: k });
+    for (const k of [["jobs"], ["violations"], ["violations-summary"], ["dashboard"], ["field-today"], ...extra]) qc.invalidateQueries({ queryKey: k });
   };
 }
 
@@ -73,17 +97,17 @@ function post<T>(url: string, body: unknown, method = "POST") {
   return fetchJson<T>(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 }
 
-export function usePreviewWorkflow(jobId: string) {
+export function usePreviewWorkflow(subject: SubjectLike) {
   return useMutation({
-    mutationFn: (body: ApplyBody) => post<WorkflowPreviewData>(`/api/jobs/${jobId}/workflow/preview`, body),
+    mutationFn: (body: ApplyBody) => post<WorkflowPreviewData>(`${workflowBase(subject)}/preview`, body),
     onError: (e: Error) => toast.error(e.message || "Could not build the preview"),
   });
 }
 
-export function useApplyWorkflow(jobId: string) {
-  const invalidate = useInvalidateWorkflow(jobId);
+export function useApplyWorkflow(subject: SubjectLike) {
+  const invalidate = useInvalidateWorkflow(subject);
   return useMutation({
-    mutationFn: (body: ApplyBody) => post<ApplyResultData>(`/api/jobs/${jobId}/workflow/apply`, body),
+    mutationFn: (body: ApplyBody) => post<ApplyResultData>(`${workflowBase(subject)}/apply`, body),
     onSuccess: (r) => {
       invalidate();
       toast.success(
@@ -96,20 +120,20 @@ export function useApplyWorkflow(jobId: string) {
   });
 }
 
-export function usePatchWorkflow(jobId: string) {
-  const invalidate = useInvalidateWorkflow(jobId);
+export function usePatchWorkflow(subject: SubjectLike) {
+  const invalidate = useInvalidateWorkflow(subject);
   return useMutation({
-    mutationFn: (body: PatchWorkflowBody) => post<JobWorkflowData & { result: Record<string, unknown> }>(`/api/jobs/${jobId}/workflow`, body, "PATCH"),
+    mutationFn: (body: PatchWorkflowBody) => post<JobWorkflowData & { result: Record<string, unknown> }>(workflowBase(subject), body, "PATCH"),
     onSuccess: () => invalidate(),
     onError: (e: Error) => toast.error(e.message || "Could not update the workflow"),
   });
 }
 
-export function useAddWorkflowTask(jobId: string) {
-  const invalidate = useInvalidateWorkflow(jobId);
+export function useAddWorkflowTask(subject: SubjectLike) {
+  const invalidate = useInvalidateWorkflow(subject);
   return useMutation({
     mutationFn: (body: { phaseKey: string; title: string; description?: string; assignedUserId?: string | null; dueAt?: string; priority?: string; dependsOnTaskIds?: string[] }) =>
-      post(`/api/jobs/${jobId}/workflow/tasks`, body),
+      post(`${workflowBase(subject)}/tasks`, body),
     onSuccess: () => {
       invalidate();
       toast.success("Task added to the phase");
@@ -141,17 +165,17 @@ export function useSaveRoleDefaults() {
 
 // ── Stage 2: reconciliation, inspections, dependencies ──
 
-export function useReconcilePreview(jobId: string) {
+export function useReconcilePreview(subject: SubjectLike) {
   return useMutation({
-    mutationFn: (change: ReconcileChange) => post<ReconcilePlanData>(`/api/jobs/${jobId}/workflow/reconcile/preview`, change),
+    mutationFn: (change: ReconcileChange) => post<ReconcilePlanData>(`${workflowBase(subject)}/reconcile/preview`, change),
     onError: (e: Error) => toast.error(e.message || "Could not build the preview"),
   });
 }
 
-export function useReconcile(jobId: string) {
-  const invalidate = useInvalidateWorkflow(jobId);
+export function useReconcile(subject: SubjectLike) {
+  const invalidate = useInvalidateWorkflow(subject);
   return useMutation({
-    mutationFn: (change: ReconcileChange) => post<JobWorkflowData & { result: ReconcileResultData }>(`/api/jobs/${jobId}/workflow/reconcile`, change),
+    mutationFn: (change: ReconcileChange) => post<JobWorkflowData & { result: ReconcileResultData }>(`${workflowBase(subject)}/reconcile`, change),
     onSuccess: (d) => {
       invalidate();
       const r = d.result;
@@ -162,7 +186,7 @@ export function useReconcile(jobId: string) {
   });
 }
 
-export function useRecordInspection(taskId: string, jobId?: string | null) {
+export function useRecordInspection(taskId: string, subject?: SubjectLike | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: InspectionBody) => post<{ status: string; correctionTaskId: string | null }>(`/api/tasks/${taskId}/inspection`, body),
@@ -170,19 +194,23 @@ export function useRecordInspection(taskId: string, jobId?: string | null) {
       qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) });
       qc.invalidateQueries({ queryKey: taskKeys.all });
       qc.invalidateQueries({ queryKey: taskKeys.summary });
-      if (jobId) qc.invalidateQueries({ queryKey: workflowKeys.job(jobId) });
+      if (subject) {
+        const ref = toSubjectRef(subject);
+        qc.invalidateQueries({ queryKey: workflowKeys.subject(ref) });
+        qc.invalidateQueries({ queryKey: [ref.kind === "job" ? "job" : "violation", ref.id] });
+      }
       toast.success(r.status === "BLOCKED" ? "Failed inspection recorded — correction task created" : r.correctionTaskId ? "Inspection recorded with conditions — correction task created" : "Inspection passed");
     },
     onError: (e: Error) => toast.error(e.message || "Could not record the inspection"),
   });
 }
 
-export function useTaskDependencies(taskId: string, jobId?: string | null) {
+export function useTaskDependencies(taskId: string, subject?: SubjectLike | null) {
   const qc = useQueryClient();
   const refresh = () => {
     qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) });
     qc.invalidateQueries({ queryKey: taskKeys.all });
-    if (jobId) qc.invalidateQueries({ queryKey: workflowKeys.job(jobId) });
+    if (subject) qc.invalidateQueries({ queryKey: workflowKeys.subject(toSubjectRef(subject)) });
   };
   const add = useMutation({
     mutationFn: (body: { dependsOnTaskId: string; kind?: "BLOCKING" | "DATE_ONLY" }) => post(`/api/tasks/${taskId}/dependencies`, body),

@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Sibling worktrees checked out under the repo (`.claude/worktrees/*`)
+    // are whole copies of the tree; linting them doubles every count.
+    ".claude/**",
   ]),
 ]);
 

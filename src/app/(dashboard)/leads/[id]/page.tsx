@@ -28,6 +28,7 @@ import { FilesPanel } from "@/components/files/files-panel";
 import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
 import { RoofrPanel } from "@/components/roofr/roofr-panel";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
+import { CaseListMini } from "@/components/violations/case-list-mini";
 import { useTasks } from "@/components/tasks/use-tasks";
 import { fetchJson } from "@/lib/fetch-json";
 import {
@@ -338,6 +339,7 @@ export default function LeadDetailPage() {
               <TabsTrigger value="estimates">Estimates</TabsTrigger>
               <TabsTrigger value="roofr">Roofr</TabsTrigger>
               <TabsTrigger value="files">Files</TabsTrigger>
+              <TabsTrigger value="violations">Violations</TabsTrigger>
               <TabsTrigger value="history">Stage History</TabsTrigger>
             </TabsList>
 
@@ -514,6 +516,10 @@ export default function LeadDetailPage() {
 
             <TabsContent value="files">
               <FilesPanel leadId={id} />
+            </TabsContent>
+
+            <TabsContent value="violations">
+              <CaseListMini scope={{ leadId: id }} newHref={`/violations/new?leadId=${id}`} />
             </TabsContent>
 
             <TabsContent value="history" className="space-y-2">

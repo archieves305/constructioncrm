@@ -314,7 +314,7 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
   // Wake up whatever was waiting on this step. Inline, so the next task
   // exists by the time the response goes back; never throws.
   if (statusChanged && inWorkflow) {
-    await onTaskTransition({ taskId: id, from: existing.status, to: task.status, actorUserId });
+    await onTaskTransition({ taskId: id, from: existing.status, to: task.status, actorUserId, actorRole: args.actorRole ?? null });
   }
 
   if (notify !== "none") {

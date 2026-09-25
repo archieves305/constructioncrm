@@ -1,4 +1,4 @@
-import type { JobWorkflowStatus, PermitInspectionResult, TaskStatus, WorkflowPermitStatus, WorkflowTemplateKind } from "@/generated/prisma/client";
+import type { JobWorkflowStatus, PermitInspectionResult, Prisma, TaskStatus, WorkflowPermitStatus, WorkflowTemplateKind } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 import { fullKey, splitFullKey } from "./keys";
@@ -153,9 +153,21 @@ export function summarizeInstance(
 export async function loadJobWorkflowSummaries(jobIds: string[], now = new Date()): Promise<Map<string, JobWorkflowSummary>> {
   const out = new Map<string, JobWorkflowSummary>();
   if (jobIds.length === 0) return out;
+  const byInstance = await loadWorkflowSummariesWhere({ jobId: { in: jobIds } }, now);
+  for (const s of byInstance.values()) if (s.jobId) out.set(s.jobId, s);
+  return out;
+}
 
+/** The same summaries keyed by instance id — what a violation case (no jobId) reads. */
+export async function loadWorkflowSummariesByInstance(instanceIds: string[], now = new Date()): Promise<Map<string, JobWorkflowSummary>> {
+  if (instanceIds.length === 0) return new Map();
+  return loadWorkflowSummariesWhere({ id: { in: instanceIds } }, now);
+}
+
+async function loadWorkflowSummariesWhere(where: Prisma.JobWorkflowInstanceWhereInput, now: Date): Promise<Map<string, JobWorkflowSummary & { jobId: string | null }>> {
+  const out = new Map<string, JobWorkflowSummary & { jobId: string | null }>();
   const instances = await prisma.jobWorkflowInstance.findMany({
-    where: { jobId: { in: jobIds } },
+    where,
     select: {
       id: true,
       jobId: true,
@@ -216,7 +228,6 @@ export async function loadJobWorkflowSummaries(jobIds: string[], now = new Date(
   }
 
   for (const inst of instances) {
-    if (!inst.jobId) continue; // filtered by jobId above; narrows the type
     const phases = new Map<string, SummaryPhase>();
     for (const m of inst.modules) {
       for (const p of phaseRows) {
@@ -239,7 +250,7 @@ export async function loadJobWorkflowSummaries(jobIds: string[], now = new Date(
       phases,
       now,
     );
-    out.set(inst.jobId, summary);
+    out.set(inst.id, { ...summary, jobId: inst.jobId });
   }
   return out;
 }

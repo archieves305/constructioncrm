@@ -15,6 +15,8 @@ export const PERMIT_FILTER_VALUES = ["UNDETERMINED", "REQUIRED", "NOT_REQUIRED",
 export type PermitFilter = (typeof PERMIT_FILTER_VALUES)[number];
 
 export type JobListParams = {
+  /** Jobs on one property (lead) — the violation intake's job picker. */
+  leadId?: string;
   stageId?: string;
   salesRepId?: string;
   search?: string;
@@ -41,6 +43,7 @@ function flag(v: string | null): boolean {
 export function parseJobListParams(searchParams: URLSearchParams): JobListParams {
   const permit = searchParams.get("permitStatus");
   return {
+    leadId: searchParams.get("leadId") || undefined,
     stageId: searchParams.get("stageId") || undefined,
     salesRepId: searchParams.get("salesRepId") || undefined,
     search: searchParams.get("search") || undefined,
@@ -58,6 +61,7 @@ const WORKFLOW_STEP = { workflowTaskKey: { not: null } } satisfies Prisma.TaskWh
 export function buildJobListWhere(params: JobListParams, ctx: JobListContext): Prisma.JobWhereInput {
   const and: Prisma.JobWhereInput[] = [];
 
+  if (params.leadId) and.push({ leadId: params.leadId });
   if (params.stageId) and.push({ currentStageId: params.stageId });
   if (params.salesRepId) and.push({ salesRepId: params.salesRepId });
   if (params.search) {

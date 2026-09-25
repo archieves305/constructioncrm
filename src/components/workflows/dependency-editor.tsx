@@ -7,15 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { deriveTaskState, WORKFLOW_STATE_DOT, WORKFLOW_STATE_LABEL } from "./status";
-import { useJobWorkflow, useTaskDependencies } from "./use-workflow";
+import { useSubjectWorkflow, useTaskDependencies } from "./use-workflow";
+import { subjectOfTask } from "./types";
 import type { WorkflowTaskItem } from "./types";
 
 /** "Waits on" for a step: the list with status dots, remove buttons, and an add picker over the job's other steps. */
 export function DependencyEditor({ task, canEdit }: { task: WorkflowTaskItem; canEdit: boolean }) {
-  const jobId = task.job?.id ?? null;
-  const { add, remove } = useTaskDependencies(task.id, jobId);
+  const subject = subjectOfTask(task);
+  const { add, remove } = useTaskDependencies(task.id, subject);
   const [adding, setAdding] = useState(false);
-  const { data } = useJobWorkflow(jobId ?? "", { enabled: adding && Boolean(jobId) });
+  const { data } = useSubjectWorkflow(subject, { enabled: adding && Boolean(subject) });
   const blocking = task.dependencies.filter((d) => d.kind === "BLOCKING");
   const dateOnly = task.dependencies.filter((d) => d.kind === "DATE_ONLY");
   const have = new Set(task.dependencies.map((d) => d.dependsOnTaskId));

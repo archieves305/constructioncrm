@@ -134,7 +134,7 @@ export function AddTaskDialog({
     if (form.remindAt) payload.remindAt = form.remindAt;
     if (form.watcherIds.length) payload.watcherUserIds = form.watcherIds;
     if (context) {
-      for (const k of ["leadId", "jobId", "estimateId", "invoiceId", "prospectId", "dailyLogId"] as const) {
+      for (const k of ["leadId", "jobId", "estimateId", "invoiceId", "prospectId", "dailyLogId", "violationCaseId", "violationItemId"] as const) {
         if (context[k]) payload[k] = context[k];
       }
     } else if (form.jobId) {

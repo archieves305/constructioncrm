@@ -40,13 +40,16 @@ import {
   useRoleDefaults,
   useWorkflowTemplates,
 } from "./use-workflow";
-import type {
-  ApplyBody,
-  JobWorkflowData,
-  WorkflowPermitStatus,
-  WorkflowPreviewData,
-  WorkflowRole,
-  WorkflowTemplateOption,
+import {
+  subjectInfoOf,
+  toSubjectRef,
+  type ApplyBody,
+  type JobWorkflowData,
+  type SubjectLike,
+  type WorkflowPermitStatus,
+  type WorkflowPreviewData,
+  type WorkflowRole,
+  type WorkflowTemplateOption,
 } from "./types";
 
 type LeadFile = { id: string; fileName: string; category: string };
@@ -55,25 +58,31 @@ type LeadFile = { id: string; fileName: string; category: string };
  * Two steps: choose (trades, scope, permit status, team, target start), then
  * review the composed plan before anything is created. `mode="permit-only"`
  * reuses the permit section on its own for the Undetermined callout.
+ *
+ * On a violation case the "trades" section is instead a single choice among
+ * the published violation templates (no Core, no target start).
  */
 export function ApplyWorkflowDialog({
-  jobId,
+  subject,
   data,
   open,
   onOpenChange,
   mode = "apply",
 }: {
-  jobId: string;
+  subject: SubjectLike;
   data: JobWorkflowData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode?: "apply" | "permit-only";
 }) {
+  const ref = toSubjectRef(subject);
   // The shell loads what the form needs; the body mounts once that is ready
   // and seeds its own state from props, so closing and reopening starts
   // fresh without any effect-driven resets.
-  const { data: templates = [], isLoading: loadingTemplates } =
-    useWorkflowTemplates(jobId, { enabled: open && mode === "apply" });
+  const { data: templates = [], isLoading: loadingTemplates } = useWorkflowTemplates(ref.kind === "job" ? ref.id : undefined, {
+    enabled: open && mode === "apply",
+    kind: ref.kind === "violation" ? "VIOLATION" : undefined,
+  });
   const { data: roleDefaults = [], isLoading: loadingDefaults } =
     useRoleDefaults({ enabled: open && mode === "apply" });
   const ready =
@@ -89,7 +98,7 @@ export function ApplyWorkflowDialog({
       >
         {open && ready ? (
           <ApplyWorkflowBody
-            jobId={jobId}
+            subject={ref}
             data={data}
             mode={mode}
             templates={templates}
@@ -116,35 +125,37 @@ export function ApplyWorkflowDialog({
 }
 
 function ApplyWorkflowBody({
-  jobId,
+  subject,
   data,
   mode,
   templates,
   roleDefaults,
   onOpenChange,
 }: {
-  jobId: string;
+  subject: { kind: "job" | "violation"; id: string };
   data: JobWorkflowData;
   mode: "apply" | "permit-only";
   templates: WorkflowTemplateOption[];
   roleDefaults: { role: WorkflowRole; user: { id: string } | null }[];
   onOpenChange: (open: boolean) => void;
 }) {
+  const info = subjectInfoOf(data);
+  const isCase = subject.kind === "violation";
   const { data: session } = useSession();
   const { data: users = [] } = useAssignableUsers();
   const { data: leadFiles = [] } = useQuery<LeadFile[]>({
-    queryKey: ["files", "lead", data.job.leadId],
-    queryFn: () => fetchJson(`/api/files?leadId=${data.job.leadId}`),
+    queryKey: ["files", "lead", info.leadId],
+    queryFn: () => fetchJson(`/api/files?leadId=${info.leadId}`),
   });
-  const preview = usePreviewWorkflow(jobId);
-  const apply = useApplyWorkflow(jobId);
-  const patch = usePatchWorkflow(jobId);
+  const preview = usePreviewWorkflow(subject);
+  const apply = useApplyWorkflow(subject);
+  const patch = usePatchWorkflow(subject);
 
   const trades = useMemo(
-    () => templates.filter((t) => t.kind === "TRADE"),
-    [templates],
+    () => templates.filter((t) => (isCase ? t.kind === "VIOLATION" : t.kind === "TRADE")),
+    [templates, isCase],
   );
-  const core = templates.find((t) => t.kind === "CORE");
+  const core = isCase ? undefined : templates.find((t) => t.kind === "CORE");
   const applied = useMemo(
     () =>
       new Set(
@@ -154,16 +165,15 @@ function ApplyWorkflowBody({
       ),
     [data.modules],
   );
+  const roles = useMemo(() => WORKFLOW_ROLES.filter((r) => (isCase ? r !== "SALES_REP" : r !== "CASE_MANAGER")), [isCase]);
 
   const [step, setStep] = useState<"choose" | "review">("choose");
-  const [selected, setSelected] = useState<Set<string>>(
-    () =>
-      new Set(
-        trades
-          .filter((t) => t.suggested || applied.has(t.key))
-          .map((t) => t.key),
-      ),
-  );
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    const preselected = trades.filter((t) => t.suggested || applied.has(t.key)).map((t) => t.key);
+    // A case runs exactly one template: default to the applied one, else the first published.
+    if (isCase) return new Set(preselected.length > 0 ? [preselected[0]!] : trades[0] ? [trades[0].key] : []);
+    return new Set(preselected);
+  });
   const [toggles, setToggles] = useState<
     Record<string, Record<string, boolean>>
   >(() =>
@@ -186,7 +196,7 @@ function ApplyWorkflowBody({
   const [permitFileId, setPermitFileId] = useState<string | null>(
     data.instance?.permitDocumentFileId ?? null,
   );
-  const [jurisdiction, setJurisdiction] = useState(data.job.jurisdiction ?? "");
+  const [jurisdiction, setJurisdiction] = useState(info.jurisdiction ?? "");
   const [team, setTeam] = useState<
     Partial<Record<WorkflowRole, string | null>>
   >(() => {
@@ -195,16 +205,16 @@ function ApplyWorkflowBody({
     return t;
   });
   const [targetStart, setTargetStart] = useState(
-    data.job.targetStartDate ? data.job.targetStartDate.slice(0, 10) : "",
+    info.targetStartDate ? info.targetStartDate.slice(0, 10) : "",
   );
   const [previewData, setPreviewData] = useState<WorkflowPreviewData | null>(
     null,
   );
 
   const defaultFor = (role: WorkflowRole): string | null => {
-    if (role === "PROJECT_MANAGER" && data.job.projectManagerId)
-      return data.job.projectManagerId;
-    if (role === "SALES_REP" && data.job.salesRepId) return data.job.salesRepId;
+    if (role === "PROJECT_MANAGER" && info.projectManagerId) return info.projectManagerId;
+    if (role === "SALES_REP" && info.salesRepId) return info.salesRepId;
+    if (role === "CASE_MANAGER" && info.caseManagerId) return info.caseManagerId;
     return roleDefaults.find((r) => r.role === role)?.user?.id ?? null;
   };
 
@@ -215,7 +225,7 @@ function ApplyWorkflowBody({
       Array.from(selected).map((k) => [k, toggles[k] ?? {}]),
     ),
     team,
-    targetStartDate: targetStart || null,
+    ...(isCase ? {} : { targetStartDate: targetStart || null }),
     jurisdiction: jurisdiction.trim() || null,
     permit:
       permitStatus === "UNDETERMINED"
@@ -292,9 +302,11 @@ function ApplyWorkflowBody({
                   <span className="font-medium">{PERMIT_STATUS_LABEL[s]}</span>
                   <span className="block text-xs text-muted-foreground">
                     {s === "REQUIRED"
-                      ? "Generates the permit application, tracking, posting and inspection steps."
+                      ? isCase
+                        ? "Generates the permit oversight steps; the permit itself is tracked on the linked job."
+                        : "Generates the permit application, tracking, posting and inspection steps."
                       : s === "NOT_REQUIRED"
-                        ? "Generates the documentation and PM-approval steps instead. Production waits on that approval."
+                        ? "Generates the documentation and PM-approval steps instead. Corrective work waits on that approval."
                         : "Generates everything that does not depend on the decision, plus a blocking “Determine permit requirement” step."}
                   </span>
                 </span>
@@ -418,7 +430,9 @@ function ApplyWorkflowBody({
         </DialogTitle>
         <DialogDescription>
           {step === "choose"
-            ? `Core Construction is always included. Pick the trades on ${data.job.jobNumber}, the permit status and who fills each role.`
+            ? isCase
+              ? `Pick the workflow for ${info.label}, the permit status and who fills each role.`
+              : `Core Construction is always included. Pick the trades on ${info.label}, the permit status and who fills each role.`
             : "Nothing has been created yet. Confirm to generate these tasks."}
         </DialogDescription>
       </DialogHeader>
@@ -426,7 +440,7 @@ function ApplyWorkflowBody({
       {step === "choose" && (
         <div className="space-y-6">
           <section>
-            <Label className="text-xs">Trades</Label>
+            <Label className="text-xs">{isCase ? "Workflow template" : "Trades"}</Label>
             {loadingTemplates ? (
               <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
                 <Skeleton className="h-20" />
@@ -456,8 +470,10 @@ function ApplyWorkflowBody({
                     template={t}
                     checked={selected.has(t.key)}
                     applied={applied.has(t.key)}
+                    single={isCase}
                     onChange={(c) =>
                       setSelected((s) => {
+                        if (isCase) return c ? new Set([t.key]) : new Set();
                         const n = new Set(s);
                         if (c) n.add(t.key);
                         else n.delete(t.key);
@@ -466,9 +482,12 @@ function ApplyWorkflowBody({
                     }
                   />
                 ))}
+                {isCase && trades.length === 0 && (
+                  <p className="text-sm text-muted-foreground sm:col-span-3">No violation workflow template is published. Run the workflow seed, or publish one in the template library.</p>
+                )}
               </div>
             )}
-            {selected.size === 0 && !loadingTemplates && (
+            {selected.size === 0 && !loadingTemplates && !isCase && (
               <p className="mt-1.5 text-xs text-muted-foreground">
                 No trade selected — only the Core Construction steps will be
                 created.
@@ -486,6 +505,7 @@ function ApplyWorkflowBody({
                     <label
                       key={s.key}
                       className="flex items-center gap-2 text-sm"
+                      title={s.description}
                     >
                       <Checkbox
                         checked={toggles[t.key]?.[s.key] ?? s.default}
@@ -509,11 +529,12 @@ function ApplyWorkflowBody({
           <section>
             <Label className="text-xs">Team</Label>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Empty slots fall back to the job&apos;s PM and sales rep, then the
-              company defaults.
+              {isCase
+                ? "Empty slots fall back to the case manager (and the linked job's PM), then the company defaults."
+                : "Empty slots fall back to the job's PM and sales rep, then the company defaults."}
             </p>
             <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
-              {WORKFLOW_ROLES.map((role) => {
+              {roles.map((role) => {
                 const fallback = defaultFor(role);
                 const fb = fallback
                   ? users.find((u) => u.id === fallback)
@@ -541,29 +562,31 @@ function ApplyWorkflowBody({
             </div>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="wf-target-start" className="text-xs">
-                Target start date (optional)
-              </Label>
-              <Input
-                id="wf-target-start"
-                type="date"
-                className="mt-1"
-                value={targetStart}
-                onChange={(e) => setTargetStart(e.target.value)}
-              />
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                Steps counted back from the start date get dates once this is
-                set.
-              </p>
-            </div>
-          </section>
+          {!isCase && (
+            <section className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="wf-target-start" className="text-xs">
+                  Target start date (optional)
+                </Label>
+                <Input
+                  id="wf-target-start"
+                  type="date"
+                  className="mt-1"
+                  value={targetStart}
+                  onChange={(e) => setTargetStart(e.target.value)}
+                />
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Steps counted back from the start date get dates once this is
+                  set.
+                </p>
+              </div>
+            </section>
+          )}
         </div>
       )}
 
       {step === "review" && previewData && (
-        <ReviewPanel preview={previewData} users={users} />
+        <WorkflowPreviewPanel preview={previewData} users={users} />
       )}
 
       <div className="flex items-center justify-between gap-2 pt-2">
@@ -596,7 +619,7 @@ function ApplyWorkflowBody({
                 Cancel
               </Button>
               <Button
-                disabled={preview.isPending || loadingTemplates}
+                disabled={preview.isPending || loadingTemplates || (isCase && selected.size !== 1)}
                 onClick={goReview}
               >
                 {preview.isPending ? "Building preview…" : "Review"}
@@ -613,11 +636,14 @@ function TradeCard({
   template,
   checked,
   applied,
+  single,
   onChange,
 }: {
   template: WorkflowTemplateOption;
   checked: boolean;
   applied: boolean;
+  /** Radio semantics: exactly one may be picked. */
+  single?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
@@ -632,7 +658,7 @@ function TradeCard({
         <Checkbox
           checked={checked}
           disabled={applied}
-          onCheckedChange={(v) => onChange(Boolean(v))}
+          onCheckedChange={(v) => onChange(single ? true : Boolean(v))}
           aria-label={template.name}
         />
         {template.name}
@@ -660,7 +686,8 @@ function TradeCard({
   );
 }
 
-function ReviewPanel({
+/** The composed plan before anything is created. Shared with the violation intake's review step. */
+export function WorkflowPreviewPanel({
   preview,
   users,
 }: {
@@ -796,7 +823,7 @@ function ReviewPanel({
             <li key={p.key} className="flex justify-between gap-2">
               <span>
                 {p.name}
-                {p.moduleName !== "Core Construction" && (
+                {p.moduleName !== "Core Construction" && preview.modules.length > 1 && (
                   <span className="ml-1 text-xs text-muted-foreground">
                     · {p.moduleName}
                   </span>

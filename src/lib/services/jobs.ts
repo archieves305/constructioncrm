@@ -158,6 +158,9 @@ export async function changeJobStage(jobId: string, stageId: string, userId: str
     await sendReviewRequestIfNeeded(jobId, job.leadId, userId).catch((e) =>
       console.error("sendReviewRequestIfNeeded failed", e),
     );
+    // A corrective job for a code-violation case reached a closed stage.
+    const { onJobCompleted } = await import("@/lib/violations/job-sync");
+    await onJobCompleted(jobId, userId, "stage");
   }
 
   await spawnTasksFromTemplates(jobId, stageId, userId).catch((e) =>

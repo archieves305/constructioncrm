@@ -29,10 +29,15 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 00. 🔴 **Code Violations module** — four stages, plan approved 2026-09-25
    (`~/.claude/plans/glistening-growing-perlis.md`). **Stage 1 (engine
-   generalised to a subject + schema + `code_violation` template) built
-   2026-09-25 on dev — not yet committed or deployed.** Stages 2–4 (cases
-   UI/API; deadlines + reminders; dashboard + reports) follow, each
-   deployed and QA'd before the next. Notes:
+   generalised to a subject + schema + `code_violation` template) deployed
+   2026-09-25** (`106555c`, BUILD_ID `IOfCCkc_XvREIsTLQ5zyR`, migration
+   applied, prod seeds "unchanged" ×4 + `code_violation` created + 22
+   categories). **Stage 2 (cases: services, routes, intake, list +
+   queues, case page, sidebar group, Lead/Job tabs, task chip, files
+   scope, job-sync, reinspection, closure guard) built + dev-QA'd
+   2026-09-25**, deploying (no migration). Stages 3–4 (reminders +
+   escalations + cron; dashboard + reports) follow, each deployed and
+   QA'd before the next. Notes:
    [features/violations.md](docs/project-memory/features/violations.md).
 0. 🔴 **Tasks as the spine of the CRM** — three stages, each deployed and
    QA'd before the next. **Stage 1 (tasks everywhere) deployed 2026-09-24**
@@ -81,7 +86,31 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-25 — Code Violations, Stage 1: engine → subject + schema (built on dev, not deployed)
+### 2026-09-25 — Code Violations, Stage 2: cases (built, dev-QA'd)
+
+Everything case-shaped, no migration: `src/lib/violations/*` (access with
+explicit role lists + `casePermissions` returned by `readCase`; list
+queues as a pure tested `buildViolationListWhere`; `deriveCaseState` +
+`deriveCaseAlerts`; fines estimate computed on read, official balance
+never merged; `closeCase` engine-skips open steps and audits an
+ADMIN/MANAGER override separately; agency inspections with FAIL → item
+reopen; `onJobCompleted` from the transition chain and stage change),
+validators, ~40 routes under `/api/violations/**`, sidebar sections
+(collapsible, scrollable, tested `isNavActive`), `ConfirmDialog`,
+`useSearchParamState`, five-step intake with a lead picker + `returnTo`,
+list with queues/flags/bulk-assign/CSV, case page with 13 tabs, hearings
+and inspections pages, `TemplateLibrary` shared with admin, Lead/Job
+Violations tabs, task chip + `/tasks` filter, files scope, field labels.
+Dev QA (headless Chromium + API as ADMIN and SALES_REP) found **one
+defect — reopening a closed case left every step cancelled** — fixed:
+`reopenCase` reinstates the closure's engine skips and re-sweeps
+activation (`close.test.ts`). Also: `.claude/worktrees/**` ignored by
+eslint and git (a sibling session's worktree was doubling lint counts
+and would have blocked `deploy.sh`'s clean-tree gate). 711 tests, lint
+6/28, typecheck + build clean. Details:
+[features/violations.md](docs/project-memory/features/violations.md).
+
+### 2026-09-25 — Code Violations, Stage 1: engine → subject + schema (deployed)
 
 Plan-mode session (three exploration + three design agents) → plan
 approved → Stage 1 built. The workflow engine now runs on a **subject**
@@ -98,7 +127,9 @@ backfill). Template `code_violation` (75 steps, 6 toggles) + 22 categories
 seeded on dev. **Regression proof:** the four v1 hashes are pinned as
 literals in `seed-specs.test.ts`; seeder "unchanged" ×4; `previewWorkflow`
 on JOB-00001 → 170 existing / 0 to create. 653 tests (+37), lint 6/28,
-typecheck + build clean. Details:
+typecheck + build clean. **Deployed `106555c`** (build
+`IOfCCkc_XvREIsTLQ5zyR`; prod: CHECK + sequence verified, seeds run,
+the one live instance still job-owned). Details:
 [features/violations.md](docs/project-memory/features/violations.md).
 
 ### 2026-09-25 — Acknowledge deliberately deleted postings (deployed + applied)
@@ -536,13 +567,17 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Code Violations Stage 1 is built on dev and green (653 tests, lint 6/28,
-> build clean, seeds run, JOB-00001 preview 0 to create) but **not committed
-> or deployed**. Next: commit + deploy Stage 1 (`deploy.sh` applies the
-> migration; then run `seed-workflows` and `seed-violations` on prod and
-> confirm "unchanged" ×4), then Stage 2 (cases: services, routes, intake,
-> list + queues, case page, sidebar group, Lead/Job tabs) per the approved
-> plan in `~/.claude/plans/glistening-growing-perlis.md`.
+> Code Violations Stages 1–2 are deployed. Next: Stage 3 (reminders
+> 30/14/7/3/1/0 + daily overdue via `CodeViolationReminderLog`,
+> escalation chain assignee → case manager → MANAGERs → ADMINs behind
+> `VIOLATION_ESCALATIONS_ENABLED`, `POST /api/cron/violation-deadlines`,
+> email + bell rows; deadline change/extension already ship) per the plan
+> in `~/.claude/plans/glistening-growing-perlis.md`; no migration. Then
+> Stage 4 (dashboard breakdowns, `?type=violations` report + CSV,
+> `ViolationsWidget`). Richard's click-through of Stage 2 on prod comes
+> first: `/violations/new` from a real notice. A sibling session works on
+> "estimate + contract on the job" in `.claude/worktrees/contracts` —
+> pull before committing; both touch `jobs/[id]/page.tsx`.
 > Operator items (SPF → `TASK_ESCALATIONS_ENABLED=1`, `PHONE_ROUTING_API_KEY`,
 > 302→301) are Richard's, as are his click-throughs (workflow tab, apps
 > 13–14 on JOB-00009, Cost Reconciliation). Same rules: explicit role

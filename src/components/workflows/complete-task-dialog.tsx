@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Callout } from "@/components/shared/callout";
 import { HttpError } from "@/lib/fetch-json";
-import type { WorkflowTaskItem } from "./types";
-import { EvidenceLine } from "./evidence-line";
+import type { WorkflowSubjectRef, WorkflowTaskItem } from "./types";
+import { EvidenceLine, evidenceHref } from "./evidence-line";
 
 /**
  * Complete with the gates in view: the checklist to tick, the evidence the
@@ -19,7 +19,7 @@ import { EvidenceLine } from "./evidence-line";
  */
 export function CompleteTaskDialog({
   task,
-  jobId,
+  subject,
   open,
   onOpenChange,
   onComplete,
@@ -28,7 +28,7 @@ export function CompleteTaskDialog({
   canOverrideGate,
 }: {
   task: WorkflowTaskItem | null;
-  jobId: string;
+  subject: WorkflowSubjectRef;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Resolves when the server accepted; rejects with the server error otherwise. */
@@ -93,7 +93,7 @@ export function CompleteTaskDialog({
           </div>
         )}
 
-        {task?.requiredEvidence && <EvidenceLine task={task} jobId={jobId} onOpenTask={onOpenTask} />}
+        {task?.requiredEvidence && <EvidenceLine task={task} subject={subject} onOpenTask={onOpenTask} />}
 
         {error && (
           <Callout tone="warning" title={error.message}>
@@ -101,15 +101,11 @@ export function CompleteTaskDialog({
               <button type="button" className="underline" onClick={onOpenTask}>
                 Open the step to attach it
               </button>
-            ) : error.hint === "permit" ? (
-              <Link href={`/jobs/${jobId}?tab=permits`} className="underline">
-                Go to the Permits tab
-              </Link>
             ) : error.hint === "permit_status" ? (
               "Use “Set permit status” at the top of the Workflow tab."
-            ) : error.hint === "payment" ? (
-              <Link href={`/jobs/${jobId}?tab=money&sub=payments`} className="underline">
-                Go to Payments
+            ) : error.hint && evidenceHref(subject, error.hint) ? (
+              <Link href={evidenceHref(subject, error.hint)!.href} className="underline">
+                Go to {evidenceHref(subject, error.hint)!.label}
               </Link>
             ) : null}
           </Callout>

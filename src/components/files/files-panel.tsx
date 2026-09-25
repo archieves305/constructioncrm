@@ -48,24 +48,44 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function FilesPanel({ leadId }: { leadId: string }) {
+/**
+ * Files on a record. The scope is a lead (the Files tab on leads and jobs),
+ * or a code-violation case / item — those files still carry the lead, so
+ * the lead's tab lists them too, but the case tab shows only its own.
+ */
+export type FilesScope = { leadId: string; violationCaseId?: string; violationItemId?: string };
+
+export function FilesPanel(props: { leadId: string; scope?: FilesScope } | { scope: FilesScope; leadId?: string }) {
+  const scope: FilesScope = props.scope ?? { leadId: props.leadId! };
+  const leadId = scope.leadId;
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const [category, setCategory] = useState<Category>("OTHER");
+  const [category, setCategory] = useState<Category>(scope.violationCaseId ? "PHOTOS" : "OTHER");
   const [uploadingCount, setUploadingCount] = useState(0);
 
+  const queryKey = scope.violationItemId ? ["violation-item-files", scope.violationItemId] : scope.violationCaseId ? ["violation-files", scope.violationCaseId] : ["lead-files", leadId];
+  const listUrl = scope.violationItemId ? `/api/files?violationItemId=${scope.violationItemId}` : scope.violationCaseId ? `/api/files?violationCaseId=${scope.violationCaseId}` : `/api/files?leadId=${leadId}`;
   const { data: files = [], isLoading } = useQuery<FileRecord[]>({
-    queryKey: ["lead-files", leadId],
-    queryFn: () =>
-      fetch(`/api/files?leadId=${leadId}`).then((r) => r.json()),
+    queryKey,
+    queryFn: () => fetch(listUrl).then((r) => r.json()),
   });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey });
+    queryClient.invalidateQueries({ queryKey: ["lead-files", leadId] });
+    if (scope.violationCaseId) {
+      queryClient.invalidateQueries({ queryKey: ["violation-files", scope.violationCaseId] });
+      queryClient.invalidateQueries({ queryKey: ["violation", scope.violationCaseId] });
+    }
+  };
 
   const uploadOne = useMutation({
     mutationFn: async (file: File) => {
       const form = new FormData();
       form.append("file", file);
       form.append("leadId", leadId);
+      if (scope.violationCaseId) form.append("violationCaseId", scope.violationCaseId);
+      if (scope.violationItemId) form.append("violationItemId", scope.violationItemId);
       form.append("category", category);
       const res = await fetch("/api/files", { method: "POST", body: form });
       if (!res.ok) {
@@ -94,7 +114,7 @@ export function FilesPanel({ leadId }: { leadId: string }) {
     }
     setUploadingCount(0);
     if (ok > 0) toast.success(`Uploaded ${ok} file${ok === 1 ? "" : "s"}`);
-    queryClient.invalidateQueries({ queryKey: ["lead-files", leadId] });
+    invalidate();
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (failed === 0 && ok === 0) {
@@ -110,7 +130,7 @@ export function FilesPanel({ leadId }: { leadId: string }) {
     },
     onSuccess: () => {
       toast.success("File deleted");
-      queryClient.invalidateQueries({ queryKey: ["lead-files", leadId] });
+      invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
   });
