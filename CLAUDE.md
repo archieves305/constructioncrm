@@ -57,10 +57,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    page reads cc-allocator's postings export and shows "posted but missing
    here", "linked, never posted" (with the reason) and "held for review".
    **Connected 2026-09-25** (key placed at Richard's request, both apps
-   restarted): the card shows the 3 intentionally deleted postings as
-   "missing here" (they will keep showing — an acknowledge action is a
-   possible follow-up), 6 never-posted rows in cc-allocator's queue
-   ($5,125.27), 0 held.
+   restarted). **Acknowledge action added 2026-09-25 (`e4c6d7e`)** and
+   Richard's ruling on the 3 intentional deletions recorded through it,
+   so the card now shows 0 missing / 6 never-posted rows in cc-allocator's
+   queue ($5,125.27) / 0 held / 3 acknowledged ($25,584.10, collapsed).
 3. ✅ `field-log-digest` self-healed — prod journal shows every weekday run
    since the MailerSend upgrade at `attempted 6, sent 6, failures 0`
    (checked 2026-09-24 across Sep 17–24).
@@ -73,6 +73,25 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — Acknowledge deliberately deleted postings (deployed + applied)
+
+`AllocatorPostingAck` (migration `20260927120000_allocator_posting_acks`,
+keyed by the posting's `externalId`, snapshot + decidedBy);
+`classifyAllocatorPostings(postings, rows, acknowledgedIds)` moves acked
+postings to their own list; shared `lib/expenses/acknowledge-posting.ts`
+(verifies the posting is missing right now; audit
+`allocator_posting_acknowledged` / `_unacknowledged`);
+`POST/DELETE /api/admin/job-cost-reconciliation/acknowledge` (job-cost
+approver list); page: Acknowledge on each missing row, collapsed
+"Acknowledged as deliberately deleted" list with Undo.
+`scripts/acknowledge-deleted-postings-2026-09-25.ts` recorded Richard's
+ruling on the three ($25,584.10) on prod through the same service: 3 ack
+rows, 3 audit events; classifier now missing 0 / acknowledged 3. A first
+schema-edit attempt left an empty migration recorded on dev — removed
+from `_prisma_migrations` and regenerated under the same name before it
+ever left dev. 616 tests, lint 6/28. **Deployed `e4c6d7e`** (build
+`bVpT1lcJe0HpTzQMnhFPE`).
 
 ### 2026-09-25 — Job-cost reconciliation, Phase 2 (deployed; keys pending)
 
@@ -481,14 +500,12 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Every workstream is closed and reconciliation Phase 2 is connected
-> (`972affe` + cc-allocator `75078d4`). Small follow-ups if wanted, each
-> pressure-tested first: (a) an **acknowledge** action on the Cost
-> Reconciliation page's "missing here" list so the three intentionally
-> deleted postings stop showing (record it in `ExpenseReconciliation` with
-> a new decision, or a tiny sibling table); (b) a schema pass to drop
-> `User.passwordHash`; (c) business-day durations in the workflow report.
+> Every workstream is closed, reconciliation Phase 2 is connected, and the
+> three deleted postings are acknowledged (`e4c6d7e`). Remaining
+> candidates, each pressure-tested first: a schema pass to drop
+> `User.passwordHash`; business-day durations in the workflow report.
 > Operator items (SPF → `TASK_ESCALATIONS_ENABLED=1`, `PHONE_ROUTING_API_KEY`,
-> 302→301) are Richard's. Same rules: explicit role lists, tests +
-> typecheck + build green, lint ≤ 6/28, deploy with
+> 302→301) are Richard's, as are his click-throughs (workflow tab, apps
+> 13–14 on JOB-00009, Cost Reconciliation). Same rules: explicit role
+> lists, tests + typecheck + build green, lint ≤ 6/28, deploy with
 > `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

@@ -6,6 +6,21 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 
 
+## 2026-09-25 — Acknowledge action (deployed + applied)
+
+New: `AllocatorPostingAck` model + migration `20260927120000_allocator_posting_acks`
+(dev: a first empty migration got recorded by mistake — deleted from
+`_prisma_migrations`, dir regenerated, applied, resolved),
+`lib/expenses/acknowledge-posting.ts`, `api/admin/job-cost-reconciliation/acknowledge/route.ts`
+(POST/DELETE), `scripts/acknowledge-deleted-postings-2026-09-25.ts`.
+Changed: `reconcile-allocator.ts` (third arg `acknowledgedExternalIds`,
+`acknowledged` list + total; test), reconciliation GET (loads acks, passes
+the set, returns `acknowledged[]` with who/when), page (Acknowledge
+buttons, collapsed acknowledged list with Undo). Prod: deploy `e4c6d7e`
+(migration applied), script dry-run then `--yes` → 3 acks, 3 audit
+events; classifier missing 0 / acknowledged 3 ($25,584.10) / never posted
+6 / held 0.
+
 ## 2026-09-25 — Job-cost reconciliation, Phase 2 (deployed; keys pending)
 
 cc-allocator (local clone `~/cc-allocator`, branch → PR #32 → squash-merge):

@@ -4,10 +4,9 @@ _Updated 2026-09-24._
 
 ## Open — needs a decision or action
 
-- **Cost Reconciliation shows the three intentionally deleted postings
-  forever** ($25,584.10, "posted by cc-allocator, missing here"). Correct
-  by construction — cc-allocator holds a CRM expense id for them — but
-  noisy. An "acknowledge" decision would hide them; not built.
+- ✅ (2026-09-25, `e4c6d7e`) The three intentionally deleted postings are
+  **acknowledged** (`AllocatorPostingAck`) and sit collapsed on the Cost
+  Reconciliation page instead of showing as missing.
 - The three deleted postings ($25,584.10) were **intentional** (Richard,
   2026-09-24) — not re-entered. Four bank rows ($4,749.60) sit in
   cc-allocator's own queue; when Roberto Rodriguez $432 (06-05) posts it
