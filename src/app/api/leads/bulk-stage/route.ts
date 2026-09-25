@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { emitLeadEvent } from "@/lib/follow-ups/events";
+import { onLeadStageChanged } from "@/lib/nurture/hooks";
 import { recordAudit } from "@/lib/audit/record";
 import { logger } from "@/lib/logger";
 
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
         after: { stageId, reason: reason ?? null, bulk: true },
       });
 
+      await onLeadStageChanged(leadId, stage);
       await emitLeadEvent("LEAD_STAGE_CHANGED", leadId, { targetStageId: stageId }).catch((e) =>
         logger.exception(e, { where: "bulk-stage.emitLeadEvent", leadId }),
       );

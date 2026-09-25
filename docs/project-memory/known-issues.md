@@ -1,6 +1,6 @@
 # Known Issues / Technical Debt — KNU Construction CRM
 
-_Updated 2026-09-24._
+_Updated 2026-09-25._
 
 ## Open — needs a decision or action
 
@@ -12,6 +12,12 @@ _Updated 2026-09-24._
   cc-allocator's own queue; when Roberto Rodriguez $432 (06-05) posts it
   will twin the manual $432 on JOB-00006 and arrive PENDING.
 
+- **MailerSend rejects custom headers on the current plan** (422
+  "requires a Professional plan", seen on dev 2026-09-25). The nurture
+  runner sends none. `src/lib/follow-ups/processor.ts` (the old
+  `FollowUpRule` engine, never scheduled on the droplet) still sets
+  `List-Unsubscribe` headers and would fail the same way if it were ever
+  wired up — drop the headers there before scheduling it.
 - ⚠️ **SPF is not configured on `knuconstruction.com` in MailerSend.**
   The domain reports `is_verified: true` and `dkim: true` but **`spf: false`**.
   Mail sends and has been delivering (48/48 on the domain's own stats), but

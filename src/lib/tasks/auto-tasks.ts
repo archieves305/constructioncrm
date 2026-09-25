@@ -23,14 +23,15 @@ import { OPEN_TASK_STATUSES } from "./status";
  * already succeeded, so a failure here is logged, never thrown.
  */
 
-export type AutoTaskKind = "estimate.sent" | "invoice.sent" | "daily-log.returned" | "change-order.sent" | "contract.sent";
+export type AutoTaskKind = "estimate.sent" | "invoice.sent" | "daily-log.returned" | "change-order.sent" | "contract.sent" | "nurture.personal-touch";
 
 export type AutoTaskSource =
   | { kind: "estimate.sent"; estimateId: string }
   | { kind: "invoice.sent"; invoiceId: string }
   | { kind: "daily-log.returned"; dailyLogId: string; crewLeadUserId: string | null }
   | { kind: "change-order.sent"; changeOrderId: string }
-  | { kind: "contract.sent"; contractId: string };
+  | { kind: "contract.sent"; contractId: string }
+  | { kind: "nurture.personal-touch"; leadId: string };
 
 export function sourceKeyFor(s: AutoTaskSource): string {
   switch (s.kind) {
@@ -44,6 +45,8 @@ export function sourceKeyFor(s: AutoTaskSource): string {
       return `change-order:SENT:${s.changeOrderId}`;
     case "contract.sent":
       return `customer-contract:SENT:${s.contractId}`;
+    case "nurture.personal-touch":
+      return `lead:NURTURE_TOUCH:${s.leadId}`;
   }
 }
 
@@ -155,6 +158,21 @@ async function specFor(source: AutoTaskSource, now: Date): Promise<TaskSpec | nu
           source.crewLeadUserId ?? log.managerUserId ?? log.job.fieldAssignments[0]?.userId ?? null,
         jobId: log.jobId,
         dailyLogId: source.dailyLogId,
+      };
+    }
+    case "nurture.personal-touch": {
+      const lead = await prisma.lead.findUnique({
+        where: { id: source.leadId },
+        select: { id: true, fullName: true, assignedUserId: true, currentStage: { select: { name: true } } },
+      });
+      if (!lead) return null;
+      return {
+        title: `Personal follow-up with ${lead.fullName}`,
+        description: `No personal contact logged recently and automated follow-ups are running. A call or a note from you keeps ${lead.currentStage.name} moving; log it on the lead when done.`,
+        priority: "MEDIUM",
+        dueAt: dueInBusinessDays(2, now),
+        assignedUserId: lead.assignedUserId ?? (await oldestActiveOfficeStaff()),
+        leadId: lead.id,
       };
     }
     case "contract.sent": {

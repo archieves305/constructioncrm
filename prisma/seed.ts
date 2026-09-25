@@ -19,6 +19,7 @@ import { seedEstimateTemplates } from "./seed-estimate-templates";
 import { seedWorkflowTemplates } from "./seed-workflows";
 import { seedViolationCategories } from "./seed-violations";
 import { seedContractTemplates } from "./seed-contract-templates";
+import { seedNurture } from "./seed-nurture";
 
 const connectionString = process.env.DATABASE_URL!;
 console.log("Connecting to:", connectionString.replace(/\/\/.*@/, "//***@"));
@@ -302,6 +303,7 @@ async function main() {
   await seedWorkflowTemplates(prisma);
   await seedViolationCategories(prisma);
   await seedContractTemplates(prisma);
+  await seedNurture(prisma);
 
   console.log("Seeding complete!");
 }

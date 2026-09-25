@@ -8,7 +8,7 @@ const { db, createTask, recordTaskEvent, envRef } = vi.hoisted(() => ({
     dailyLog: { findUnique: vi.fn() },
     changeOrder: { findUnique: vi.fn() },
     user: { findFirst: vi.fn() },
-    lead: { updateMany: vi.fn() },
+    lead: { updateMany: vi.fn(), findUnique: vi.fn() },
   },
   createTask: vi.fn(),
   recordTaskEvent: vi.fn(),
@@ -36,6 +36,7 @@ describe("sourceKeyFor / isRuleEnabled", () => {
     expect(sourceKeyFor({ kind: "daily-log.returned", dailyLogId: "d1", crewLeadUserId: null })).toBe(
       "daily-log:RETURNED:d1",
     );
+    expect(sourceKeyFor({ kind: "nurture.personal-touch", leadId: "l1" })).toBe("lead:NURTURE_TOUCH:l1");
   });
   it("honours the disabled list", () => {
     expect(isRuleEnabled("invoice.sent", "invoice.sent, estimate.sent")).toBe(false);
@@ -116,6 +117,29 @@ describe("ensureAutoTask", () => {
     expect(spec.assignedUserId).toBe("frank");
     expect(spec.description).toBe("Missing crew hours");
     expect(spec.dailyLogId).toBe("d1");
+  });
+});
+
+describe("ensureAutoTask nurture.personal-touch", () => {
+  it("goes MEDIUM to the lead's rep, linked to the lead only, due in two business days", async () => {
+    db.task.findFirst.mockResolvedValue(null);
+    db.lead.findUnique.mockResolvedValue({ id: "l1", fullName: "Jane Doe", assignedUserId: "rep", currentStage: { name: "Estimate Sent" } });
+    await ensureAutoTask({ kind: "nurture.personal-touch", leadId: "l1" }, "u1", new Date("2026-10-01T13:00:00Z"));
+    const spec = createTask.mock.calls[0][0];
+    expect(spec.title).toBe("Personal follow-up with Jane Doe");
+    expect(spec.priority).toBe("MEDIUM");
+    expect(spec.assignedUserId).toBe("rep");
+    expect(spec.leadId).toBe("l1");
+    expect(spec.jobId).toBeUndefined();
+    expect(spec.dueAt.toISOString().slice(0, 10)).toBe("2026-10-05");
+    expect(spec.sourceKey).toBe("lead:NURTURE_TOUCH:l1");
+  });
+  it("falls back to office staff when the lead is unassigned", async () => {
+    db.task.findFirst.mockResolvedValue(null);
+    db.lead.findUnique.mockResolvedValue({ id: "l1", fullName: "Jane Doe", assignedUserId: null, currentStage: { name: "New Lead" } });
+    db.user.findFirst.mockResolvedValue({ id: "office" });
+    await ensureAutoTask({ kind: "nurture.personal-touch", leadId: "l1" }, "u1");
+    expect(createTask.mock.calls[0][0].assignedUserId).toBe("office");
   });
 });
 

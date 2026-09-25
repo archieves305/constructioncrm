@@ -611,6 +611,8 @@ model Lead {
   prospect          Prospect?
   violationCases    CodeViolationCase[]
   customerContracts CustomerContract[]
+  nurtureState      LeadNurtureState?
+  nurtureSends      LeadNurtureSend[]
 
   @@index([primaryPhone])
   @@index([email])
@@ -3934,4 +3936,142 @@ model CustomerContract {
   @@index([jobId, status])
   @@index([leadId])
   @@map("customer_contracts")
+}
+
+// ─── Lead nurture (automated follow-up + nurture cadence) ───────────────────
+//
+// A per-lead state machine, separate from FollowUpRule (which is event → one
+// delayed send). Open leads with an email are enrolled by the daily cron;
+// follow-ups run off `anchorAt` (re-anchored by stage changes, estimate
+// sent, contract sent, a personal touch), nurture pieces off `nurtureBaseAt`
+// (set once). Won / Lost / opt-out stop it. Sends are their own rows so the
+// (leadId, slotKey) unique is the idempotency key and failures are visible.
+
+enum NurtureContentKind {
+  FOLLOW_UP
+  NURTURE
+}
+
+enum LeadNurtureStatus {
+  ACTIVE
+  PAUSED
+  STOPPED
+}
+
+enum LeadNurtureSendStatus {
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model NurtureSettings {
+  id                       String   @id @default("default")
+  // Operator switch; env NURTURE_ENABLED is the deploy gate. Both must be on.
+  enabled                  Boolean  @default(false)
+  followUpDays             Int[]    @default([2, 7, 14, 30]) @map("follow_up_days")
+  followUpEveryDaysAfter   Int      @default(30) @map("follow_up_every_days_after")
+  nurtureDays              Int[]    @default([4, 10, 21]) @map("nurture_days")
+  nurtureEveryDaysAfter    Int      @default(30) @map("nurture_every_days_after")
+  nurtureMonthlyOffsetDays Int      @default(15) @map("nurture_monthly_offset_days")
+  minGapHours              Int      @default(48) @map("min_gap_hours")
+  sendWindowStartHour      Int      @default(8) @map("send_window_start_hour")
+  sendWindowEndHour        Int      @default(11) @map("send_window_end_hour")
+  timeZone                 String   @default("America/New_York") @map("time_zone")
+  weekdaysOnly             Boolean  @default(true) @map("weekdays_only")
+  personalTouchSkipDays    Int      @default(3) @map("personal_touch_skip_days")
+  repPromptAfterDays       Int      @default(10) @map("rep_prompt_after_days")
+  excludedStageIds         String[] @default([]) @map("excluded_stage_ids")
+  updatedByUserId          String?  @map("updated_by_user_id")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  @@map("nurture_settings")
+}
+
+model NurtureContent {
+  id        String             @id @default(cuid())
+  kind      NurtureContentKind
+  // FOLLOW_UP only: 1..n; the highest step is reused for every later follow-up.
+  step      Int?
+  seedKey   String?            @unique @map("seed_key")
+  subject   String
+  body      String             @db.Text
+  category  String?
+  sortOrder Int                @default(0) @map("sort_order")
+  isActive  Boolean            @default(true) @map("is_active")
+  sentCount Int                @default(0) @map("sent_count")
+  // Set by the admin editor; the seeder never overwrites an edited row.
+  editedAt  DateTime?          @map("edited_at")
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  sends LeadNurtureSend[]
+
+  @@index([kind, isActive, sortOrder])
+  @@map("nurture_content")
+}
+
+model LeadNurtureState {
+  id                       String            @id @default(cuid())
+  leadId                   String            @unique @map("lead_id")
+  status                   LeadNurtureStatus @default(ACTIVE)
+  stoppedReason            String?           @map("stopped_reason")
+  pausedReason             String?           @map("paused_reason")
+  // Non-null = a person paused it; the cron never auto-resumes those.
+  pausedByUserId           String?           @map("paused_by_user_id")
+  enrolledAt               DateTime          @default(now()) @map("enrolled_at")
+  // The follow-up clock. Re-anchored by stage change, estimate sent,
+  // contract sent (step resets) and personal touch (step kept).
+  anchorAt                 DateTime          @map("anchor_at")
+  anchorReason             String            @map("anchor_reason")
+  followUpStep             Int               @default(0) @map("follow_up_step")
+  // The nurture clock: set at enrolment, never re-anchored.
+  nurtureBaseAt            DateTime          @map("nurture_base_at")
+  nurtureSlot              Int               @default(0) @map("nurture_slot")
+  nextFollowUpAt           DateTime?         @map("next_follow_up_at")
+  nextNurtureAt            DateTime?         @map("next_nurture_at")
+  lastFollowUpAt           DateTime?         @map("last_follow_up_at")
+  lastNurtureAt            DateTime?         @map("last_nurture_at")
+  lastAutoEmailAt          DateTime?         @map("last_auto_email_at")
+  lastPersonalTouchAt      DateTime?         @map("last_personal_touch_at")
+  repPromptedAt            DateTime?         @map("rep_prompted_at")
+  stepsExhaustedNotifiedAt DateTime?         @map("steps_exhausted_notified_at")
+  nurtureExhaustedAt       DateTime?         @map("nurture_exhausted_at")
+  updatedAt                DateTime          @updatedAt @map("updated_at")
+
+  lead  Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sends LeadNurtureSend[]
+
+  @@index([status, nextFollowUpAt])
+  @@index([status, nextNurtureAt])
+  @@map("lead_nurture_states")
+}
+
+model LeadNurtureSend {
+  id                String                @id @default(cuid())
+  leadId            String                @map("lead_id")
+  stateId           String                @map("state_id")
+  kind              NurtureContentKind
+  contentId         String?               @map("content_id")
+  step              Int?
+  // "FOLLOW_UP:2026-10-06" in the send-window time zone: one per lead/kind/day.
+  slotKey           String                @map("slot_key")
+  scheduledFor      DateTime              @map("scheduled_for")
+  sentAt            DateTime?             @map("sent_at")
+  status            LeadNurtureSendStatus
+  error             String?               @db.Text
+  subject           String
+  toEmail           String                @map("to_email")
+  communicationId   String?               @map("communication_id")
+  externalMessageId String?               @map("external_message_id")
+  createdAt         DateTime              @default(now()) @map("created_at")
+
+  lead    Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  state   LeadNurtureState @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  content NurtureContent?  @relation(fields: [contentId], references: [id], onDelete: SetNull)
+
+  @@unique([leadId, slotKey])
+  @@index([leadId, kind, contentId])
+  @@index([toEmail, sentAt])
+  @@index([createdAt])
+  @@map("lead_nurture_sends")
 }

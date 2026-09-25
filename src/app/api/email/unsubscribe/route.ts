@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { onLeadOptedOut } from "@/lib/nurture/hooks";
 import { verifyUnsubscribeToken } from "@/lib/email/unsubscribe";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
@@ -41,6 +42,7 @@ async function unsubscribe(request: NextRequest): Promise<NextResponse> {
       where: { id: leadId },
       data: { emailOptedOut: true, emailOptedOutAt: new Date() },
     });
+    await onLeadOptedOut(leadId);
   } catch (err) {
     logger.exception(err, { where: "email.unsubscribe", leadId });
     return page("Unsubscribe failed", "We couldn't process your request. Please contact us directly.", 500);

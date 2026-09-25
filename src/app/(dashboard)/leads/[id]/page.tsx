@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FilesPanel } from "@/components/files/files-panel";
+import { NurtureCard } from "@/components/leads/nurture-card";
 import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
 import { RoofrPanel } from "@/components/roofr/roofr-panel";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
@@ -280,6 +281,7 @@ export default function LeadDetailPage() {
             </CardContent>
           </Card>
 
+          <NurtureCard leadId={id} />
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Details</CardTitle>

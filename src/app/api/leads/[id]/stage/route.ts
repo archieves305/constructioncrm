@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createJobFromLead } from "@/lib/services/jobs";
 import { emitLeadEvent } from "@/lib/follow-ups/events";
+import { onLeadStageChanged } from "@/lib/nurture/hooks";
 import { recordAudit } from "@/lib/audit/record";
 import { logger } from "@/lib/logger";
 
@@ -69,6 +70,7 @@ export async function POST(
     userAgent: request.headers.get("user-agent"),
   });
 
+  await onLeadStageChanged(id, newStage);
   await emitLeadEvent("LEAD_STAGE_CHANGED", id, { targetStageId: stageId }).catch((e) =>
     logger.exception(e, { where: "emitLeadEvent", event: "LEAD_STAGE_CHANGED", leadId: id }),
   );

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { onEstimateTransition } from "@/lib/tasks/auto-tasks";
+import { onEstimateSent } from "@/lib/nurture/hooks";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
@@ -87,6 +88,7 @@ export async function PUT(
     const actorUserId = session.user.id;
     after(async () => {
       await onEstimateTransition(estimateId, from, to, actorUserId);
+      if (to === "SENT") await onEstimateSent(id);
     });
   }
 
@@ -132,6 +134,7 @@ export async function PATCH(
     const actorUserId = session.user.id;
     after(async () => {
       await onEstimateTransition(estimateId, from, to, actorUserId);
+      if (to === "SENT") await onEstimateSent(id);
     });
   }
 

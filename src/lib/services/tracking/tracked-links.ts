@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { onLeadStageChanged, onPersonalTouch } from "@/lib/nurture/hooks";
 import { randomBytes } from "crypto";
 import type { TrackedActionType } from "@/generated/prisma/client";
 import { env } from "@/lib/env";
@@ -109,6 +110,8 @@ export async function resolveTrackedLink(token: string, ip?: string, ua?: string
         where: { id: link.leadId },
         data: { currentStageId: attemptedStage.id, lastContactAt: now },
       });
+      await onPersonalTouch(link.leadId, now, "tracked_link");
+      await onLeadStageChanged(link.leadId, attemptedStage, now);
     }
   } else if (link.actionType === "MARK_CONTACTED") {
     const contactedStage = await prisma.leadStage.findFirst({ where: { name: "Contacted" } });
@@ -117,6 +120,8 @@ export async function resolveTrackedLink(token: string, ip?: string, ua?: string
         where: { id: link.leadId },
         data: { currentStageId: contactedStage.id, lastContactAt: now },
       });
+      await onPersonalTouch(link.leadId, now, "tracked_link");
+      await onLeadStageChanged(link.leadId, contactedStage, now);
     }
   }
 

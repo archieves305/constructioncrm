@@ -43,6 +43,7 @@ import {
   Landmark,
   Hourglass,
   Archive,
+  Repeat,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
@@ -124,6 +125,7 @@ const navSections: NavSection[] = [
       { href: "/admin/follow-up-rules", label: "Follow-ups", icon: Zap },
       { href: "/admin/workflow-templates", label: "Workflow Templates", icon: Route },
       { href: "/admin/contract-templates", label: "Contract Templates", icon: FileSignature },
+      { href: "/admin/nurture", label: "Customer Nurture", icon: Repeat },
       { href: "/admin/workflow-role-defaults", label: "Workflow Roles", icon: UsersRound },
       { href: "/admin/job-task-templates", label: "Stage Task Templates", icon: CheckSquare },
       { href: "/admin/canvassing-settings", label: "Lead Scoring", icon: Gauge },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { onPersonalTouch } from "@/lib/nurture/hooks";
 
 export async function GET(
   _request: NextRequest,
@@ -66,6 +67,8 @@ export async function POST(
     where: { id },
     data: { lastContactAt: new Date() },
   });
+  // A logged call / text / email is a personal touch: re-anchors the nurture cadence.
+  await onPersonalTouch(id, new Date(), "communication");
 
   return NextResponse.json(communication, { status: 201 });
 }

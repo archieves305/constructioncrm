@@ -32,11 +32,17 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (`~/.claude/plans/when-a-lead-is-sprightly-scone.md`). **Stage 1
    (Mine/All scope on jobs, leads, dashboard + boards toolbar, per-column
    limit, compact cards, per-user default) built + dev-QA'd 2026-09-25**,
-   commit pending deploy (migration `20261005120000_list_scope_prefs`).
-   Stage 2 (nurture engine: `NurtureSettings` / `NurtureContent` /
-   `LeadNurtureState` / `LeadNurtureSend`, daily cron, admin page, seeds)
-   follows on the `nurture` branch. Operator items: SPF before enabling
-   nurture; `NURTURE_ENABLED`; a `nurture.sh` cron line.
+   committed `9159ff6` (migration `20261005120000_list_scope_prefs`).
+   **Stage 2 (nurture engine) built + dev-QA'd 2026-09-25** on the
+   `nurture` branch: `NurtureSettings` / `NurtureContent` /
+   `LeadNurtureState` / `LeadNurtureSend` (migration
+   `20261004120000_lead_nurture`), pure planner, `POST /api/cron/nurture`,
+   hooks on stage / touch / estimate / contract / unsubscribe, Admin →
+   Customer Nurture, lead card, seeds. **Both stages await push + deploy**,
+   then prod seed. Operator items: SPF before enabling; `nurture.sh` cron
+   line (`15 13 * * 1-5`); `NURTURE_ENABLED=1` then the DB switch; first
+   day `NURTURE_MAX_PER_RUN=10`. Notes:
+   [features/nurture.md](docs/project-memory/features/nurture.md).
 000. ✅ **Estimates + customer contracts on the job — deployed
    2026-09-25.** Stage 1 (`90c5339`, shipped with the violations deploy),
    Stages 2–3 (`1676d67`, `7e28930`) merged as `d73f950` and **deployed
@@ -109,6 +115,31 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — Customer nurture cadence (Stage 2 of 2; built, dev-QA'd, on branch `nurture`)
+
+Automated follow-ups (day 2/7/14/30 then monthly, from the rep, reply-to
+the rep) and non-salesy nurture pieces (day 4/10/21 then monthly, offset
+from the follow-up) to every open lead with an email, until Won / Lost /
+opt-out. Schema `20261004120000_lead_nurture` (settings singleton,
+content library with `seedKey` + `sentCount` + `editedAt`, one state per
+lead, sends with `@@unique([leadId, slotKey])`), DST-safe `time.ts`,
+pure `plan.ts` (`decideAction` matrix: stop / pause / resume / none /
+skip_follow_up / follow_up / nurture / nurture_exhausted; re-anchor
+resets the step for stage/estimate/contract, keeps it for a personal
+touch), runner `run.ts` (enrol → reconcile → sync touches → due, capped,
+one per address → act with send-row-first idempotency → rep prompt task
+`nurture.personal-touch` → `reportDelivery`), hooks in eight write paths,
+`POST /api/cron/nurture` (`?dryRun=1`), admin routes + `/admin/nurture`
+(Cadence / Library with preview + test send / Queue with "Preview
+today's run" / Log), `/api/leads/[id]/nurture` + lead card. Gates:
+`NURTURE_ENABLED` env **and** the DB switch; dry runs work with both off.
+Seeds: 4 follow-ups + 8 nurture drafts. Dev QA found two things: MailerSend
+rejects `List-Unsubscribe` headers below the Professional plan (422) —
+headers dropped, body link stays; and the dry run skipped leads it would
+enrol the same run — now planned in memory. 886 tests (+52), lint 6/28,
+typecheck + build clean. Details:
+[features/nurture.md](docs/project-memory/features/nurture.md).
 
 ### 2026-09-25 — Mine by default + calmer boards (Stage 1 of 2; built, dev-QA'd)
 
@@ -592,6 +623,10 @@ ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd 
 ssh knuco-droplet '/home/knuco/crm-cron/violation-deadlines.sh; tail -1 /home/knuco/crm-cron/violation-deadlines.log'
 # Customer-contract template (idempotent; hash-pinned; refuses to rewrite a version a contract pins)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-contract-templates.ts"'
+# Nurture settings + content (idempotent; settings create-only; content by seedKey, edited rows untouched)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-nurture.ts"'
+# Nurture dry run on prod (plans, writes nothing; works with the gates off)
+ssh knuco-droplet 'set -a; . /etc/knuco/env; set +a; curl -s -X POST -H "x-cron-secret: $CRON_SECRET" "http://127.0.0.1:4000/api/cron/nurture?dryRun=1"'
 ```
 
 Prod one-offs: run as user `knuco` on knuco-droplet with `/etc/knuco/env`
@@ -625,7 +660,10 @@ deadline), `VIOLATION_ESCALATIONS_ENABLED` (default off; `1` after SPF),
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
 `ZYLOW_API_KEY`, `ZYLOW_API_BASE`, `WORKFLOW_READY_EMAILS_ENABLED` ("1" mails
 an assignee when a workflow step becomes Ready; default off, the digest
-covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
+covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`,
+`NURTURE_ENABLED` (default `0`; `1` after SPF — the DB switch under
+Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
+`50`; `10` on the first live day).
 
 ## 9. Important Product / Business Rules
 
@@ -680,23 +718,29 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
   rollup types alone, and never touches a schedule of values once a payment
   application is issued. Voiding a signed contract is ADMIN/MANAGER and
   reverses the base. Signed PDFs and signature files are never deleted.
+- **Nurture emails are automation, not contact.** They go only to open
+  leads with an email, from the rep with reply-to the rep, carry the
+  unsubscribe link in the body (no custom headers — the MailerSend plan
+  rejects them), are `Communication` rows with `provider "nurture"` and
+  `createdByUserId null`, and **never move `lastContactAt`**. Won, Lost
+  and opt-out stop them; a personal touch restarts the follow-up clock.
+  Every automated sender reports through `reportDelivery`.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
 
-> Code Violations Stages 1–3 are deployed; the droplet runs
-> `violation-deadlines.sh` at 11:35 UTC weekdays. Next: Stage 4
-> (`/violations` dashboard breakdowns by jurisdiction / category /
-> assignee + upcoming hearings/inspections cards via
-> `?type=violations-dashboard`, `?type=violations` report + CSV on
-> `/reports` and `/violations/reports`, `ViolationsWidget` on the main
-> dashboard; optional template matching rules) per the plan in
-> `~/.claude/plans/glistening-growing-perlis.md`; no migration. Operator
-> items: `VIOLATION_ESCALATIONS_ENABLED=1` once SPF exists (same gate as
-> tasks); Richard's click-through of `/violations/new` from a real notice.
-> A sibling session ships customer contracts on main — pull before
-> committing. Same rules: explicit role lists, tests + typecheck + build
-> green, lint ≤ 6/28, deploy with
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
+> Stage 1 (`9159ff6`, "my jobs" by default + calmer boards) and Stage 2
+> (customer nurture, on branch `nurture`, a fast-forward onto
+> `main`) are built and dev-QA'd but **not merged, pushed or deployed**.
+> Richard runs the merge, the push and
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` with the
+> `!` prefix; then verify both migrations
+> (`20261005120000_list_scope_prefs`, `20261004120000_lead_nurture`)
+> applied, seed nurture on prod, run the prod dry run with Richard,
+> install `/home/knuco/crm-cron/nurture.sh` (`15 13 * * 1-5`). Sending
+> stays off until SPF exists; then `NURTURE_ENABLED=1`, the DB switch,
+> `NURTURE_MAX_PER_RUN=10` for a day. Code Violations Stage 4 belongs to
+> the sibling session. Same rules: explicit role lists, tests +
+> typecheck + build green, lint ≤ 6/28.

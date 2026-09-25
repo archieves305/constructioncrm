@@ -1,5 +1,7 @@
 #!/bin/sh
-# Called by launchd every minute to process pending follow-up executions.
+# Called by launchd every minute to process pending follow-up executions
+# (the FollowUpRule engine). Unrelated to /api/cron/nurture, which is the
+# daily customer follow-up + nurture cadence run from the droplet crontab.
 set -eu
 
 : "${CRON_SECRET:?CRON_SECRET not set}"

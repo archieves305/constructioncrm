@@ -15,6 +15,7 @@ import { closeAutoTask, ensureAutoTask, onEstimateTransition, sourceKeyFor } fro
 import { createTask } from "@/lib/tasks/create";
 import { runAfterResponse } from "@/lib/tasks/defer";
 import { sendContractEmail, sendContractOutcomeInternalEmail, sendContractSignedCustomerEmail, signUrlFor } from "./email";
+import { onContractSent } from "@/lib/nurture/hooks";
 import {
   ContractError,
   contractFileName,
@@ -85,6 +86,7 @@ export async function sendContract(id: string, userId: string, opts: { to?: stri
   await recordAudit({ actorUserId: userId, entityType: "CustomerContract", entityId: id, action: "send", after: { to, emailed, expiresAt, unsignedPdfSha256: sha256(pdf.buffer) } });
   runAfterResponse(async () => {
     await ensureAutoTask({ kind: "contract.sent", contractId: id }, userId);
+    await onContractSent(c.leadId);
   }, { where: "contracts.send.after", contractId: id });
 
   return { ok: true, token, signUrl: signUrlFor(token), emailed, sentTo: to, expiresAt };

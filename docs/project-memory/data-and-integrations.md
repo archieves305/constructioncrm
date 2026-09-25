@@ -40,16 +40,22 @@ speed-to-lead follow-up runs.
 
 ## Cron
 
-Four scripts in `/home/knuco/crm-cron/*.sh` — invoice-aging,
-field-log-reminders, field-log-digest, payroll-weekly — POST to
+Scripts in `/home/knuco/crm-cron/*.sh` — invoice-aging,
+field-log-reminders, field-log-digest, payroll-weekly, task-reminders,
+violation-deadlines, and (to install with the nurture deploy)
+**nurture** (`15 13 * * 1-5` → `POST /api/cron/nurture`) — POST to
 **`http://127.0.0.1:4000`** with an `x-cron-secret` header. They bypass
-nginx entirely, so hostname changes never affect them.
+nginx entirely, so hostname changes never affect them. The nurture run is
+idempotent per local day (`LeadNurtureSend` slot key) and accepts
+`?dryRun=1`.
 
 ## Outbound providers
 
 - **Twilio** — SMS, outbound only. The CRM exposes **no** inbound Twilio
   webhook, so nothing in the Twilio console points here.
 - **MailerSend** — transactional email (`MAILERSEND_API_KEY`, `EMAIL_FROM`).
+  The current plan **rejects custom headers** (`List-Unsubscribe`,
+  generic `headers`) with a 422 — put unsubscribe links in the body.
 - **Outlook** — lead intake mailbox polling.
 - **Zylow** — read-only property API for door-knock enrichment
   (`ZYLOW_API_KEY`, `ZYLOW_API_BASE`), mirrored to a local cache.

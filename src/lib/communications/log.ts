@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
+import { onPersonalTouch } from "@/lib/nurture/hooks";
 
 type Channel = "SMS" | "EMAIL";
 
@@ -89,6 +90,8 @@ export async function logInboundCommunication(
         data: { lastContactAt: receivedAt },
       }),
     ]);
+    // The customer replied: that is a touch for the nurture cadence too.
+    await onPersonalTouch(args.leadId, receivedAt, `inbound_${args.channel.toLowerCase()}`);
   } catch (err) {
     logger.exception(err, {
       where: "logInboundCommunication",

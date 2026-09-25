@@ -58,7 +58,7 @@ const schema = z.object({
   // "overdue" subjects before the sending domain's SPF record is in place —
   // set "1" to turn on. Auto-rule kinds listed in TASK_AUTO_RULES_DISABLED
   // (comma-separated: estimate.sent, invoice.sent, daily-log.returned,
-  // change-order.sent, contract.sent) create no tasks; invoice.sent is off by default for
+  // change-order.sent, contract.sent, nurture.personal-touch) create no tasks; invoice.sent is off by default for
   // its first week because it touches the most write paths.
   TASK_ESCALATION_DAYS: z.string().regex(/^\d+(,\d+)*$/).default("2,5"),
   TASK_ESCALATIONS_ENABLED: z.string().default("0"),
@@ -71,6 +71,11 @@ const schema = z.object({
   // ADMIN is mailed. Off by default for the same SPF reason as tasks.
   VIOLATION_ESCALATION_DAYS: z.string().regex(/^\d+(,\d+)*$/).default("1,3,7"),
   VIOLATION_ESCALATIONS_ENABLED: z.string().default("0"),
+  // Customer follow-up + nurture cadence (src/lib/nurture). "1" lets the
+  // daily cron send; the DB NurtureSettings.enabled switch must be on too.
+  // Off by default for the SPF reason above. MAX_PER_RUN is the throttle.
+  NURTURE_ENABLED: z.string().default("0"),
+  NURTURE_MAX_PER_RUN: z.string().regex(/^\d+$/).default("50"),
 
   // Bearer token cc-allocator's worker presents on integration calls.
   // Optional at server-start so the app boots without it; the integration
