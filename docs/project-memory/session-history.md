@@ -6,6 +6,29 @@ _Detailed, append-only log. Newest first. Concise summary in `/CLAUDE.md` §4._
 
 
 
+## 2026-09-24 — Job-cost reconciliation pressure test (read-only)
+
+Method: on knuco-droplet, `psql \copy` of CRM `job_expenses ⋈ jobs` (448)
+and cc-allocator `Transaction` (279 with `crmJobId`/`crmExpenseId`, joined
+to `Vendor`) + `BankTxn` (102) to CSV, scp'd to the scratchpad, deleted
+from `/tmp`, diffed with a Python script: by `externalId` (= txn id /
+`bank:<id>`) for classes 1–3, by job+amount+date (exact and ±3 days) for
+manual twins. cc-allocator's DB is `cc_allocator` on the same cluster;
+its `.env` was sourced in a subshell, never printed. Audit check:
+`audit_events` has no `JobExpense` rows at all (deletes unaudited).
+Findings: 347 agree; billable-flag drift on 98 JOB-00003 + 1 fixed-price
++ 2 bank rows; 3 bank postings missing in CRM ($25,584.10); 26 card rows
+never posted (23 negatives −$7,580, 21 with `CRM 400: Too small`, 3
+positives $389.56 in flight/failed); 5 bank rows never posted
+($16,443.75; BNW $11,694.15 has `postCrm=false`); 20 exact-day twins
+$16,502.96 (Richard 11 in April, Erica 4 in July, Elizabeth 5 in August;
+15 card, 5 bank; manual first 19/20; JOB-00006 $432 has different payees
+and the bank's own Roberto Rodriguez $432 is still queued); 1 ±3-day
+$800 (different payees); 0 orphans / manual-manual / allocator-flagged
+dupes / pending posted. Write-up in
+`docs/project-memory/job-cost-reconciliation-2026-09-24.md` and published
+at https://claude.ai/artifact/Afy7pAJjbqSdvKRo7GFnxG. No code, no deploy.
+
 ## 2026-09-24 — SSO dead-code cleanup, pickers, digest check
 
 Deleted `src/lib/auth/lockout.ts`, `lockout.test.ts`, `lockout-error.ts`,

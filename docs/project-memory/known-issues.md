@@ -4,17 +4,30 @@ _Updated 2026-09-24._
 
 ## Open — needs a decision or action
 
-- 🔴 **12 candidate duplicate charges, $9,166.20, 7 of them billable.** Same
-  job + vendor + amount + date, where one row is manual (`external_id IS
-  NULL`) and one came from cc-allocator. Nothing compares the two
-  populations, so the same charge entered by hand and later imported from the
-  card lands twice — and a billable duplicate inflates `contractAmount`, i.e.
-  what the customer owes. Needs a human to confirm each pair (two genuine
-  same-day same-amount charges are possible) before anything is backed out.
-  Query to regenerate the list is in `session-history.md` under 2026-08-03.
+- 🔴 **20 candidate duplicate charges, $16,502.96 (was 12 / $9,166.20 on
+  2026-08-03; 8 new since).** Same job + amount + day, one row manual, one
+  from cc-allocator; the manual row came first in 19 of 20. Full diff,
+  per-job table and the two pairs that look genuine (JOB-00006 $432 and
+  $800) are in
+  [job-cost-reconciliation-2026-09-24.md](job-cost-reconciliation-2026-09-24.md)
+  / https://claude.ai/artifact/Afy7pAJjbqSdvKRo7GFnxG. **Correction:** none inflate a customer bill — the ten
+  "billable" rows are on the owned rehab JOB-00003, where the flag moves
+  nothing; job costs and that rollup are what is overstated. Waiting on
+  Richard to confirm the 18 before anything is backed out (delete the
+  manual row; the delete route reverses cleanly).
+- 🔴 **Card credits never reach job costing.** The cc-allocator intake
+  refuses negative amounts (`400 Too small`), so 23 returns/refunds
+  (−$7,580.00) sit on cc-allocator's side and four jobs' costs are
+  overstated by that much. Fix = accept negatives from that route.
+- 🔴 **Three allocator postings were deleted in the CRM after posting**
+  ($25,584.10: BNW Construction ×2 on JOB-00011/00010, Roberto Rodriguez
+  on JOB-00006). cc-allocator holds a `crmExpenseId` so will never retry;
+  expense deletes are **not audited**, so who/why is unknown. Needs
+  Richard: intended, or re-enter.
 - **No reconciliation against cc-allocator.** When it posts an expense,
   nothing looks for a near-matching manual row to flag as a possible
-  duplicate. That is the control that would have caught all 12 above.
+  duplicate. That is the control that would have caught all 20 above —
+  proposed as Phase 1 in the findings doc.
 
 - ⚠️ **SPF is not configured on `knuconstruction.com` in MailerSend.**
   The domain reports `is_verified: true` and `dkim: true` but **`spf: false`**.
