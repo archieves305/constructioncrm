@@ -32,16 +32,23 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (`~/.claude/plans/when-a-lead-is-sprightly-scone.md`). **Stage 1
    (Mine/All scope on jobs, leads, dashboard + boards toolbar, per-column
    limit, compact cards, per-user default) built + dev-QA'd 2026-09-25**,
-   committed `9159ff6` (migration `20261005120000_list_scope_prefs`).
+   committed `9159ff6` (migration `20261005120000_list_scope_prefs`),
+   deployed with Stage 2.
    **Stage 2 (nurture engine) built + dev-QA'd 2026-09-25** on the
    `nurture` branch: `NurtureSettings` / `NurtureContent` /
    `LeadNurtureState` / `LeadNurtureSend` (migration
    `20261004120000_lead_nurture`), pure planner, `POST /api/cron/nurture`,
    hooks on stage / touch / estimate / contract / unsubscribe, Admin →
-   Customer Nurture, lead card, seeds. **Both stages await push + deploy**,
-   then prod seed. Operator items: SPF before enabling; `nurture.sh` cron
-   line (`15 13 * * 1-5`); `NURTURE_ENABLED=1` then the DB switch; first
-   day `NURTURE_MAX_PER_RUN=10`. Notes:
+   Customer Nurture, lead card, seeds. **Both stages deployed 2026-09-25
+   as `6b42725`** (BUILD_ID `Rh7FTDIQPnuwxPK6C8LD2`, both migrations
+   applied, DB backup `postgres-2026-09-25-173110.dump`, prod seed 12
+   created then unchanged, `/home/knuco/crm-cron/nurture.sh` installed at
+   `15 13 * * 1-5` and run once by hand → 200 with the gates off; prod dry
+   run: 11 leads would enrol, 6 already due). **Sending is off.** Operator
+   order: SPF → `NURTURE_ENABLED=1` in `/etc/knuco/env` + restart → tick
+   "Sending switched on" under Admin → Customer Nurture → first day
+   `NURTURE_MAX_PER_RUN=10`. Richard should also read the 8 nurture drafts
+   in the Library tab before the switch goes on. Notes:
    [features/nurture.md](docs/project-memory/features/nurture.md).
 000. ✅ **Estimates + customer contracts on the job — deployed
    2026-09-25.** Stage 1 (`90c5339`, shipped with the violations deploy),
@@ -115,6 +122,21 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — Nurture + "my jobs" deployed (`6b42725`)
+
+`nurture` fast-forwarded onto `main` (Richard's first attempt ran inside
+the worktree: merge was a no-op, push shipped Stage 1 alone, deploy
+refused "not on main"; the session left the worktree and merged from the
+main checkout, whose generated Prisma client had to be regenerated
+first). Deploy `6b42725` → BUILD_ID `Rh7FTDIQPnuwxPK6C8LD2`, 72
+migrations up to date, smoke 307 ×2, journal clean, backup
+`postgres-2026-09-25-173110.dump`; the wrapper's exit 1 was the shell,
+not the deploy. Prod: seed 12 created / second run unchanged; dry run
+enrolled 11 / due 6 / all `outside_window` (after 11:00 ET) with
+`enabled:false`; public routes 403 / 307; `nurture.sh` + crontab line
+installed as `knuco` and run once (200, gates off). Nothing sends until
+SPF, `NURTURE_ENABLED=1` and the admin switch.
 
 ### 2026-09-25 — Customer nurture cadence (Stage 2 of 2; built, dev-QA'd, on branch `nurture`)
 
@@ -731,16 +753,14 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 ## 10. Next Prompt
 
-> Stage 1 (`9159ff6`, "my jobs" by default + calmer boards) and Stage 2
-> (customer nurture, on branch `nurture`, a fast-forward onto
-> `main`) are built and dev-QA'd but **not merged, pushed or deployed**.
-> Richard runs the merge, the push and
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` with the
-> `!` prefix; then verify both migrations
-> (`20261005120000_list_scope_prefs`, `20261004120000_lead_nurture`)
-> applied, seed nurture on prod, run the prod dry run with Richard,
-> install `/home/knuco/crm-cron/nurture.sh` (`15 13 * * 1-5`). Sending
-> stays off until SPF exists; then `NURTURE_ENABLED=1`, the DB switch,
-> `NURTURE_MAX_PER_RUN=10` for a day. Code Violations Stage 4 belongs to
-> the sibling session. Same rules: explicit role lists, tests +
-> typecheck + build green, lint ≤ 6/28.
+> "My jobs" by default + customer nurture are **deployed** (`6b42725`,
+> build `Rh7FTDIQPnuwxPK6C8LD2`); prod is seeded and the nurture cron is
+> installed but sending is off. Operator items (Richard): SPF for
+> `knuconstruction.com`, then `NURTURE_ENABLED=1` in `/etc/knuco/env` +
+> `systemctl restart knuco`, then the switch under Admin → Customer
+> Nurture, with `NURTURE_MAX_PER_RUN=10` for the first live day; read the
+> 8 nurture drafts in the Library tab first. Click-throughs: Mine/All on
+> the boards and lists, `/settings/lists`, the lead card, "Preview
+> today's run". Code Violations Stage 4 belongs to the sibling session.
+> Same rules: explicit role lists, tests + typecheck + build green, lint
+> ≤ 6/28, deploy with `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

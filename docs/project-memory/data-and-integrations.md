@@ -42,8 +42,8 @@ speed-to-lead follow-up runs.
 
 Scripts in `/home/knuco/crm-cron/*.sh` — invoice-aging,
 field-log-reminders, field-log-digest, payroll-weekly, task-reminders,
-violation-deadlines, and (to install with the nurture deploy)
-**nurture** (`15 13 * * 1-5` → `POST /api/cron/nurture`) — POST to
+violation-deadlines and **nurture** (`15 13 * * 1-5` →
+`POST /api/cron/nurture`, installed 2026-09-25) — POST to
 **`http://127.0.0.1:4000`** with an `x-cron-secret` header. They bypass
 nginx entirely, so hostname changes never affect them. The nurture run is
 idempotent per local day (`LeadNurtureSend` slot key) and accepts

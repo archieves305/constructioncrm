@@ -112,6 +112,15 @@ ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd 
 - The old `FollowUpRule` engine and its launchd `scripts/follow-up-tick.sh`
   are untouched and unrelated.
 
+## Deployed 2026-09-25
+
+`6b42725`, BUILD_ID `Rh7FTDIQPnuwxPK6C8LD2`. Prod seeded (12 created, then
+unchanged); `/home/knuco/crm-cron/nurture.sh` + crontab `15 13 * * 1-5`
+installed as `knuco`, run once by hand → 200 with the gates off. First
+prod dry run: 11 open leads would enrol, 6 already past a due date
+(after the window that day). Sending stays off until SPF,
+`NURTURE_ENABLED=1` and the admin switch.
+
 ## Dev QA (2026-09-25)
 
 Headless run with the SSO bypass: five QA leads (backdated, one On Hold,
