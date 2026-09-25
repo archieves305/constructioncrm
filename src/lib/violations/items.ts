@@ -2,6 +2,7 @@ import type { CodeViolationItemStatus, Prisma, RoleName } from "@/generated/pris
 import { prisma } from "@/lib/db/prisma";
 import { parseDueAt } from "@/lib/tasks/dates";
 import { auditCase } from "./audit";
+import { notifyItemAssigned } from "./notify";
 import { ViolationError } from "./errors";
 import { recordCaseEvent } from "./events";
 
@@ -38,6 +39,7 @@ export async function addItem(caseId: string, body: Record<string, unknown>, act
   });
   await recordCaseEvent(prisma, { caseId, itemId: row.id, actorUserId: actor.id, type: "ITEM_ADDED", body: `Item ${itemNumber}: ${b.description.slice(0, 120)}` });
   await auditCase({ actorUserId: actor.id, entityType: "CodeViolationItem", entityId: row.id, action: "violation_item_add", after: { caseId, itemNumber, categoryId: b.categoryId ?? null, description: b.description } });
+  if (row.assignedUserId) await notifyItemAssigned(caseId, row.id, row.assignedUserId, actor.id);
   return row;
 }
 
@@ -72,6 +74,7 @@ export async function updateItem(caseId: string, itemId: string, body: Record<st
   if (Object.keys(rest).length > 0) {
     await auditCase({ actorUserId: actor.id, entityType: "CodeViolationItem", entityId: itemId, action: "violation_item_update", before: Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v.from])), after: { caseId, ...Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v.to])) } });
   }
+  if (b.assignedUserId !== undefined && row.assignedUserId && row.assignedUserId !== before.assignedUserId) await notifyItemAssigned(caseId, itemId, row.assignedUserId, actor.id);
   return row;
 }
 

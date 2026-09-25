@@ -7,6 +7,7 @@ import { recordTaskEvent } from "@/lib/tasks/events";
 import { ENGINE_SKIP_PREFIX } from "@/lib/workflows/reconcile";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { auditCase } from "./audit";
+import { notifyAgencyConfirmation, notifyCaseClosed } from "./notify";
 import { ViolationError } from "./errors";
 import { recordCaseEvent } from "./events";
 import { closureBlockers, type ClosureBlocker } from "./rules";
@@ -62,6 +63,7 @@ export async function closeCase(input: { caseId: string; actor: Actor; reason?: 
   if (blockers.length > 0) {
     await auditCase({ actorUserId: input.actor.id, entityType: "CodeViolationCase", entityId: input.caseId, action: "violation_closure_override", after: { blockers: blockers.map((b) => b.key), actorRole: input.actor.role, source: input.source ?? "manual" }, reason: override });
   }
+  await notifyCaseClosed(input.caseId, input.actor.id);
   return { case: updated, skippedTasks: skipped, overridden: blockers.length > 0 };
 }
 
@@ -120,5 +122,6 @@ export async function confirmAgency(
   await recordCaseEvent(prisma, { caseId, actorUserId: actor.id, type: "AGENCY_CONFIRMED", toValue: confirmedAt.toISOString(), body: [body.confirmedByName, body.method, body.reference, body.notes].filter(Boolean).join(" · ") || null });
   if (updated.status !== c.status) await recordCaseEvent(prisma, { caseId, actorUserId: actor.id, type: "STATUS_CHANGED", fromValue: c.status, toValue: updated.status, body: "Agency confirmed compliance" });
   await auditCase({ actorUserId: actor.id, entityType: "CodeViolationCase", entityId: caseId, action: "violation_agency_confirmed", before: { agencyConfirmedAt: c.agencyConfirmedAt?.toISOString() ?? null, status: c.status }, after: { confirmedAt: confirmedAt.toISOString(), confirmedByName: body.confirmedByName ?? null, method: body.method ?? null, reference: body.reference ?? null, fileId: body.fileId ?? null, status: updated.status, source } });
+  await notifyAgencyConfirmation(caseId, actor.id);
   return updated;
 }

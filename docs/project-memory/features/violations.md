@@ -11,7 +11,7 @@ each deployed and QA'd before the next.
 |---|---|---|
 | 1 | Engine generalised to a *subject* (job \| case), schema + migration, `code_violation` template seeded, 22 categories seeded | **Deployed 2026-09-25 (`106555c`)** |
 | 2 | `src/lib/violations/*` services, routes, intake page, list + queues, case page + tabs, sidebar group, Lead/Job tabs, task chip, files scope, job-sync hook, reinspection + item reopen, closure guard | **Deployed 2026-09-25 (`aeb7ad0`, build `_txMHaK7zd-4SxSb2eGWr`)** |
-| 3 | Reminders, escalations, cron, email/bell (deadline change + preview, extensions, hearing-order deadlines already ship in Stage 2) | next |
+| 3 | Deadline reminders 30/14/7/3/1/0 + daily overdue, escalation chain, `POST /api/cron/violation-deadlines`, case notices (assigned, item assigned, inspection scheduled, agency confirmed, closed), bell rows | **Built + dev-QA'd 2026-09-25**, deploying |
 | 4 | Dashboard, reports, widget, template library page, optional matching rules | |
 
 ## Decisions (approved)
@@ -191,12 +191,75 @@ changes and extensions work, silently); the Photos tab lists case files
 of category PHOTOS only; `/violations/reports` and the dashboard
 breakdowns are Stage 4.
 
+## Stage 3 — what changed (reminders, escalations, notices)
+
+**Pure** (`src/lib/violations/`): `deadlines.ts` — `collectDeadlines(case,
+now)` turns an open case into `DeadlineRef`s (compliance to the case
+manager, appeal, fine-accrual start, each open hearing / agency inspection
+to its attendee, the linked job's live permit expirations to its PM), each
+keyed `"<rowId>@<yyyy-MM-dd>"` so a moved date is a new reminder series;
+`planReminders(refs, now, sentKeys)` sends at most ONE reminder per date
+per run — the nearest crossed offset of `[30,14,7,3,1,0]` not yet logged
+(a cron that was off a week sends one catch-up mail) — and, for the
+compliance deadline only, one overdue reminder per calendar day
+(`od:<ymd>`). `escalations.ts` — `planCaseEscalations` (levels = thresholds
+passed, default `1,3,7` days overdue) and `caseEscalationAudience` (level
+1 the case manager, 2 + every MANAGER, 3 + every ADMIN; no case manager →
+managers hear level 1). `email.ts` — `renderViolationDeadlineEmail`
+(Overdue / Due today / Coming up), `renderCaseEscalationEmail`,
+`renderCaseNoticeEmail`, all on `renderEmailLayout`.
+
+**Runners** (`reminder-run.ts`): `runViolationReminders(now)` loads open
+cases with their open hearings/inspections/permits, plans, resolves
+recipients on the **reminder** channel (`reminderDigestEnabled`), writes
+`CodeViolationReminderLog` rows **before** each send and deletes them when
+that send fails, one mail per person, a bell row per item; muted or
+inactive recipients get a `channel: "none"` row so the reminder stops
+re-planning daily. `runViolationEscalations(now)` — behind
+`VIOLATION_ESCALATIONS_ENABLED=1` — reads the current level from `esc:<n>`
+rows, mails on the **escalation** channel, and advances the ledger only
+for cases somebody was actually reached about. Cron:
+`POST /api/cron/violation-deadlines` (`x-cron-secret`), fenced passes,
+503 without email.
+
+**Notices** (`notify.ts`, best-effort, never throw, actor suppressed):
+`notifyCaseAssigned` (create, update, bulk assign), `notifyItemAssigned`
+(add / reassign), `notifyInspectionScheduled` (a date or attendee set),
+`notifyAgencyConfirmation` and `notifyCaseClosed` (case manager, linked
+job's PM, creator). Every send also writes a lead-scoped
+`NotificationEvent` (`channel IN_APP`, `provider "violations"`, body starts
+with the case number) so the bell shows it even with mail muted.
+Task-level mail (steps assigned, ready, blocked, nudged) is unchanged —
+`createTask`/`updateTask` own it, so nothing is sent twice.
+
+**Dev QA 2026-09-25** (API + cron, then purged): a case with the deadline
+in 3 days, a hearing tomorrow and an inspection in 7 days (case manager
+Sarah) → bell rows for "assigned" and "inspection scheduled" appeared at
+once; cron run 1 → `cases 1, deadlines 3, planned 3, people 1` (d3 / d1 /
+d7); back-dated to 5 days overdue with escalations on → `od:<today>` +
+escalation level 2 planned for Sarah alone (the ADMIN correctly not
+reached at level 2); unauthenticated cron → 403. The fake dev users are **hard-bounce
+suppressed at MailerSend** (202 + `ALL_SUPPRESSED`, no message id, so
+`sendEmail` returns null), which exercised the **failure path** end to
+end: the pre-written log rows were removed each time and the next run
+re-planned the same three — the retry-tomorrow behaviour. The success
+path was then run with Richard as case manager: the assignment notice
+and a "deadline in 3d" digest both delivered, run 2 planned 0, the `d3`
+row persisted with his id, two bell rows; also covered by
+`reminder-run.test.ts`. Known gap, shared with the task crons: a
+permanently suppressed recipient retries (and alerts ops) every day.
+
 ## Runbook
 
 ```bash
 # prod, after deploy (both idempotent; run as knuco with /etc/knuco/env)
 npx tsx prisma/seed-workflows.ts     # expect unchanged ×4, code_violation created
 npx tsx prisma/seed-violations.ts    # 22 categories
+
+# cron (droplet, user knuco): /home/knuco/crm-cron/violation-deadlines.sh
+# 35 11 * * 1-5  → 7:35am ET weekdays, five minutes after task-reminders.
+# Manual run:  curl -sS -XPOST -H "x-cron-secret: $SECRET" http://127.0.0.1:4000/api/cron/violation-deadlines
+# Env (defaults apply when unset): VIOLATION_ESCALATIONS_ENABLED=0, VIOLATION_ESCALATION_DAYS=1,3,7
 ```
 
 Migration on prod goes through `prisma migrate deploy` inside `deploy.sh`

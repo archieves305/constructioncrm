@@ -4,6 +4,7 @@ import { parseDueAt } from "@/lib/tasks/dates";
 import { reassignUnresolved } from "@/lib/workflows/roles";
 import type { UpdateCaseBody } from "@/lib/validators/violation";
 import { auditCase } from "./audit";
+import { notifyCaseAssigned } from "./notify";
 import { ViolationError } from "./errors";
 import { recordCaseEvent } from "./events";
 import { syncCorrectiveWorkFromJob } from "./job-sync";
@@ -42,6 +43,7 @@ export async function updateCase(id: string, body: UpdateCaseBody, actor: Actor)
     await auditCase({ actorUserId: actor.id, entityType: "CodeViolationCase", entityId: id, action: "violation_assign", before: { caseManagerId: before.caseManagerId }, after: { caseManagerId: updated.caseManagerId } });
     const inst = await prisma.jobWorkflowInstance.findUnique({ where: { violationCaseId: id }, select: { id: true } });
     if (inst) await reassignUnresolved(inst.id, actor.id);
+    if (updated.caseManagerId) await notifyCaseAssigned(id, updated.caseManagerId, actor.id);
   }
   const rest = Object.fromEntries(Object.entries(changed).filter(([k]) => k !== "caseManagerId"));
   if (Object.keys(rest).length > 0) {
@@ -64,6 +66,7 @@ export async function assignCases(caseIds: string[], caseManagerId: string | nul
     await auditCase({ actorUserId: actor.id, entityType: "CodeViolationCase", entityId: id, action: "violation_assign", before, after: { caseManagerId } });
     const inst = await prisma.jobWorkflowInstance.findUnique({ where: { violationCaseId: id }, select: { id: true } });
     if (inst) await reassignUnresolved(inst.id, actor.id);
+    if (caseManagerId) await notifyCaseAssigned(id, caseManagerId, actor.id);
     n++;
   }
   return n;

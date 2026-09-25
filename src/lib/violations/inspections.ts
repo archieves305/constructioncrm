@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { parseDueAt } from "@/lib/tasks/dates";
 import { InspectionError, recordInspectionResult } from "@/lib/workflows/inspections";
 import { auditCase } from "./audit";
+import { notifyInspectionScheduled } from "./notify";
 import { confirmAgency } from "./close";
 import { ViolationError } from "./errors";
 import { recordCaseEvent } from "./events";
@@ -26,6 +27,7 @@ export async function requestInspection(caseId: string, body: { kind?: "INITIAL"
   if (marks && !c.reinspectionRequestedAt) await prisma.codeViolationCase.update({ where: { id: caseId }, data: { reinspectionRequestedAt: now } });
   await recordCaseEvent(prisma, { caseId, actorUserId: actor.id, type: "INSPECTION_REQUESTED", toValue: scheduledFor?.toISOString() ?? null, body: `${kind.toLowerCase()} inspection ${scheduledFor ? "scheduled" : "requested"}` });
   await auditCase({ actorUserId: actor.id, entityType: "CodeViolationInspection", entityId: row.id, action: scheduledFor ? "violation_inspection_scheduled" : "violation_inspection_requested", after: { caseId, kind, scheduledFor: scheduledFor?.toISOString() ?? null, attendeeUserId: body.attendeeUserId ?? null } });
+  if (scheduledFor) await notifyInspectionScheduled(caseId, row.id, actor.id);
   return row;
 }
 
@@ -47,6 +49,9 @@ export async function updateInspection(caseId: string, inspectionId: string, bod
   if (body.scheduledFor && (before.scheduledFor?.getTime() ?? null) !== row.scheduledFor?.getTime()) {
     await recordCaseEvent(prisma, { caseId, actorUserId: actor.id, type: "INSPECTION_REQUESTED", toValue: row.scheduledFor?.toISOString() ?? null, body: `${row.kind.toLowerCase()} inspection scheduled` });
   }
+  const dateMoved = (before.scheduledFor?.getTime() ?? null) !== (row.scheduledFor?.getTime() ?? null);
+  const attendeeMoved = body.attendeeUserId !== undefined && before.attendeeUserId !== row.attendeeUserId;
+  if (row.scheduledFor && (dateMoved || attendeeMoved) && row.status !== "CANCELLED" && row.status !== "COMPLETED") await notifyInspectionScheduled(caseId, inspectionId, actor.id);
   return row;
 }
 

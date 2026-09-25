@@ -47,9 +47,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    scope, job-sync, reinspection, closure guard) deployed 2026-09-25**
    (`aeb7ad0`, BUILD_ID `_txMHaK7zd-4SxSb2eGWr`, no migration; the deploy
    also carried the sibling session's `90c5339` estimates commit that was
-   already on main). Stages 3–4 (reminders +
-   escalations + cron; dashboard + reports) follow, each deployed and
-   QA'd before the next. Notes:
+   already on main). **Stage 3 (deadline reminders + escalation chain
+   + `POST /api/cron/violation-deadlines` + case notices + bell rows)
+   built + dev-QA'd 2026-09-25**, deploying (no migration; cron line on
+   the droplet). Stage 4 (dashboard breakdowns + reports) follows. Notes:
    [features/violations.md](docs/project-memory/features/violations.md).
 0. 🔴 **Tasks as the spine of the CRM** — three stages, each deployed and
    QA'd before the next. **Stage 1 (tasks everywhere) deployed 2026-09-24**
@@ -127,6 +128,28 @@ deposit $500 on sign and back on void. 739 tests, lint 6/28, typecheck
 clean. `scripts/qa-cleanup-contracts.ts` purges the dev QA rows.
 Details: [features/customer-contracts.md](docs/project-memory/features/customer-contracts.md).
 
+
+### 2026-09-25 — Code Violations, Stage 3: reminders, escalations, notices (built, dev-QA'd)
+
+No migration (the reminder log shipped in Stage 1). Pure `deadlines.ts`
+(`collectDeadlines` → compliance / appeal / fine-accrual start / hearings /
+agency inspections / linked-job permit expirations, each keyed
+`<row>@<date>` so a moved date is a new series; `planReminders` = the
+nearest crossed offset of 30/14/7/3/1/0 not yet logged, one mail on
+catch-up, and a daily `od:<ymd>` for an overdue compliance deadline),
+`escalations.ts` (levels = thresholds passed, default `1,3,7`; case
+manager → + MANAGERs → + ADMINs), `email.ts` (deadline digest, escalation,
+single-case notice on the branded shell), `notify.ts` (assigned, item
+assigned, inspection scheduled, agency confirmed, closed — actor
+suppressed, a lead-scoped `NotificationEvent` bell row per send),
+`reminder-run.ts` (log-before-send, delete on failure, one mail per person,
+muted recipients logged as `channel: none`; escalations behind
+`VIOLATION_ESCALATIONS_ENABLED`, ledger advanced only when someone was
+reached) and the cron route. Hooks in create/update/items/inspections/
+close. Dev QA: planner, gating, bell rows, catch-up and the failure/retry
+path all as designed (see the feature doc for the MailerSend detail).
+802 tests (+91), lint 6/28, typecheck clean. Details:
+[features/violations.md](docs/project-memory/features/violations.md).
 
 ### 2026-09-25 — Code Violations, Stage 2: cases (deployed)
 
@@ -528,6 +551,8 @@ KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --dry-run
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-workflows.ts"'
 # Code-violation categories (idempotent; upsert by key, never overwrites a rename)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-violations.ts"'
+# Code-violation deadline cron, by hand (droplet; idempotent per day)
+ssh knuco-droplet '/home/knuco/crm-cron/violation-deadlines.sh; tail -1 /home/knuco/crm-cron/violation-deadlines.log'
 # Customer-contract template (idempotent; hash-pinned; refuses to rewrite a version a contract pins)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-contract-templates.ts"'
 ```
@@ -558,6 +583,8 @@ unset = the page says so),
 `TASK_ESCALATION_DAYS` (default `2,5`), `TASK_ESCALATIONS_ENABLED` (default
 off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
 `invoice.sent`; empty string enables everything),
+`VIOLATION_ESCALATION_DAYS` (default `1,3,7`, days past the compliance
+deadline), `VIOLATION_ESCALATIONS_ENABLED` (default off; `1` after SPF),
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
 `ZYLOW_API_KEY`, `ZYLOW_API_BASE`, `WORKFLOW_READY_EMAILS_ENABLED` ("1" mails
 an assignee when a workflow step becomes Ready; default off, the digest
@@ -622,22 +649,17 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Customer contracts (estimate → agreement → e-sign) are deployed
-> (`d6f046f`, build `kEXJSGQMOsB90OCO_uMyr`; template seeded). Richard
-> reviews the seeded agreement text under Admin → Contract Templates
-> before the first real send; note that the auto-mode classifier refuses
-> `git push` and `./deploy.sh` from Claude — Richard runs both with `!`.
-> Code Violations Stages 1–2 are deployed. Next: Stage 3 (reminders
-> 30/14/7/3/1/0 + daily overdue via `CodeViolationReminderLog`,
-> escalation chain assignee → case manager → MANAGERs → ADMINs behind
-> `VIOLATION_ESCALATIONS_ENABLED`, `POST /api/cron/violation-deadlines`,
-> email + bell rows; deadline change/extension already ship) per the plan
-> in `~/.claude/plans/glistening-growing-perlis.md`; no migration. Then
-> Stage 4 (dashboard breakdowns, `?type=violations` report + CSV,
-> `ViolationsWidget`). Richard's click-through of Stage 2 on prod comes
-> first: `/violations/new` from a real notice.
-> Operator items (SPF → `TASK_ESCALATIONS_ENABLED=1`, `PHONE_ROUTING_API_KEY`,
-> 302→301) are Richard's, as are his click-throughs (workflow tab, apps
-> 13–14 on JOB-00009, Cost Reconciliation). Same rules: explicit role
-> lists, tests + typecheck + build green, lint ≤ 6/28, deploy with
+> Code Violations Stages 1–3 are deployed; the droplet runs
+> `violation-deadlines.sh` at 11:35 UTC weekdays. Next: Stage 4
+> (`/violations` dashboard breakdowns by jurisdiction / category /
+> assignee + upcoming hearings/inspections cards via
+> `?type=violations-dashboard`, `?type=violations` report + CSV on
+> `/reports` and `/violations/reports`, `ViolationsWidget` on the main
+> dashboard; optional template matching rules) per the plan in
+> `~/.claude/plans/glistening-growing-perlis.md`; no migration. Operator
+> items: `VIOLATION_ESCALATIONS_ENABLED=1` once SPF exists (same gate as
+> tasks); Richard's click-through of `/violations/new` from a real notice.
+> A sibling session ships customer contracts on main — pull before
+> committing. Same rules: explicit role lists, tests + typecheck + build
+> green, lint ≤ 6/28, deploy with
 > `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

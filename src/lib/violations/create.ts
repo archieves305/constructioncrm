@@ -7,6 +7,7 @@ import { auditCase } from "./audit";
 import { nextCaseNumber } from "./case-number";
 import { ViolationError } from "./errors";
 import { recordCaseEvents, type CaseEventInput } from "./events";
+import { notifyCaseAssigned } from "./notify";
 import { applyCaseWorkflow } from "./workflow";
 
 const d = (v: string | null | undefined): Date | null => (v ? parseDueAt(v) : null);
@@ -154,5 +155,6 @@ export async function createCase(body: CreateCaseBody, actor: { id: string; role
       logger.exception(err, { where: "violations.createCase.apply", caseId: created.id });
     }
   }
+  if (body.caseManagerId && body.caseManagerId !== actor.id) await notifyCaseAssigned(created.id, body.caseManagerId, actor.id);
   return { id: created.id, caseNumber: created.caseNumber, tasksCreated, workflowWarning };
 }
