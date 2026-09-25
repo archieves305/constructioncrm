@@ -21,3 +21,13 @@ describe("genericEstimateInputSchema.status", () => {
     expect(genericEstimateInputSchema.safeParse({ ...base, status: "VOID" }).success).toBe(false);
   });
 });
+
+describe("genericEstimateInputSchema limits", () => {
+  it("accepts a pasted scope paragraph up to 2000 characters and rejects beyond", () => {
+    const item = (n: number) => ({ ...base, sections: [{ title: "S", items: [{ description: "x".repeat(n), unitType: "EACH", quantity: 1, unitPrice: 1 }] }] });
+    expect(genericEstimateInputSchema.safeParse(item(2000)).success).toBe(true);
+    const r = genericEstimateInputSchema.safeParse(item(2001));
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.path.join(".")).toBe("sections.0.items.0.description");
+  });
+});

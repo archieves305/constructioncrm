@@ -27,6 +27,7 @@ import {
   isEstimateStatus,
 } from "@/lib/estimates/estimate-status";
 import { toneClasses } from "@/lib/ui/tones";
+import { describeEstimateValidationErrors } from "@/lib/estimates/validation-messages";
 import type { EstimateUnitType } from "@/generated/prisma/enums";
 import {
   type GenericFormState,
@@ -209,6 +210,7 @@ export function GenericEstimateDialog({
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<GenericFormState | null>(null);
+  const [problems, setProblems] = useState<string[]>([]);
 
   const isEdit = mode?.kind === "edit";
 
@@ -287,9 +289,13 @@ export function GenericEstimateDialog({
         body: JSON.stringify(formToPayload(form)),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Save failed" }));
-        throw new Error(err.error || "Save failed");
+        const err = (await res.json().catch(() => ({ error: "Save failed" }))) as { error?: string; fields?: Record<string, string[]> };
+        // Say WHICH field, not just "Validation failed".
+        const detail = err.fields ? describeEstimateValidationErrors(err.fields, form) : [];
+        setProblems(detail);
+        throw new Error(detail.length > 0 ? `${err.error ?? "Validation failed"}: ${detail[0]}${detail.length > 1 ? ` (+${detail.length - 1} more)` : ""}` : err.error || "Save failed");
       }
+      setProblems([]);
       return res.json();
     },
     onSuccess: () => {
@@ -468,6 +474,16 @@ export function GenericEstimateDialog({
           </div>
         )}
 
+        {problems.length > 0 && (
+          <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <p className="font-medium">Fix these before saving:</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
+              {problems.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel

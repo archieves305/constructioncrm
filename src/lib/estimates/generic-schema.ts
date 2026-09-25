@@ -41,17 +41,18 @@ const percent = z
   .default(0);
 
 export const genericLineItemSchema = z.object({
-  description: z.string().trim().min(1, "Description required").max(300),
+  // Scope lines are often a pasted paragraph; the PDF wraps them.
+  description: z.string().trim().min(1, "Description required").max(2000),
   unitType: z.enum(ESTIMATE_UNIT_TYPES),
   quantity: money,
   unitPrice: money,
   isOptional: z.boolean().default(false),
-  notes: z.string().trim().max(1000).nullish(),
+  notes: z.string().trim().max(4000).nullish(),
   sortOrder: z.number().int().min(0).max(10_000).default(0),
 });
 
 export const genericSectionSchema = z.object({
-  title: z.string().trim().min(1, "Section title required").max(200),
+  title: z.string().trim().min(1, "Section title required").max(300),
   sortOrder: z.number().int().min(0).max(10_000).default(0),
   items: z.array(genericLineItemSchema).max(200).default([]),
 });
@@ -59,7 +60,7 @@ export const genericSectionSchema = z.object({
 export const genericEstimateInputSchema = z.object({
   templateCategory: z.enum(ESTIMATE_TEMPLATE_CATEGORIES),
   templateId: z.string().nullish(),
-  name: z.string().trim().min(1, "Estimate name required").max(200),
+  name: z.string().trim().min(1, "Estimate name required").max(300),
   // Optional on purpose: a PUT that omits status keeps the stored one. With
   // `.default("DRAFT")` every save from a client that did not send status
   // silently reset SENT / ACCEPTED estimates to DRAFT.
