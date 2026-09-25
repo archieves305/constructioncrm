@@ -9,9 +9,9 @@ each deployed and QA'd before the next.
 
 | Stage | Ships | Status |
 |---|---|---|
-| 1 | Engine generalised to a *subject* (job \| case), schema + migration, `code_violation` template seeded, 22 categories seeded | **Built 2026-09-25, on dev; not yet committed/deployed** |
-| 2 | `src/lib/violations/*` services, routes, intake page, list + queues, case page + tabs, sidebar group, Lead/Job tabs, task chip, files scope, job-sync hook, reinspection + item reopen, closure guard | next |
-| 3 | Deadlines, fine estimate vs official, reminders, escalations, deadline-change preview, cron | |
+| 1 | Engine generalised to a *subject* (job \| case), schema + migration, `code_violation` template seeded, 22 categories seeded | **Deployed 2026-09-25 (`106555c`)** |
+| 2 | `src/lib/violations/*` services, routes, intake page, list + queues, case page + tabs, sidebar group, Lead/Job tabs, task chip, files scope, job-sync hook, reinspection + item reopen, closure guard | **Deployed 2026-09-25 (`aeb7ad0`, build `_txMHaK7zd-4SxSb2eGWr`)** |
+| 3 | Reminders, escalations, cron, email/bell (deadline change + preview, extensions, hearing-order deadlines already ship in Stage 2) | next |
 | 4 | Dashboard, reports, widget, template library page, optional matching rules | |
 
 ## Decisions (approved)
@@ -108,6 +108,88 @@ literals (captured 2026-09-25 before the change); the seeder logs
 "unchanged" ×4 on dev; `previewWorkflow` on JOB-00001 (core + doors_windows
 + roofing, REQUIRED) → 170 existing, 0 to create, through both the
 `subject` and legacy `jobId` forms. 653 tests, lint 6/28, build clean.
+
+## Stage 2 — what changed (cases)
+
+**Server** (`src/lib/violations/`, every pure part tested): `access.ts`
+(explicit role lists; `casePermissions` is what `readCase` returns so the
+client shows/hides from one source), `scope.ts` (`caseScopeFor` → the
+existing `JobScope` shape with the case manager in the PM slot),
+`query.ts` (`parseViolationListParams` / `buildViolationListWhere`: views
+`all mine new due-soon overdue fines awaiting-agency closed`, flags,
+`__unassigned`, always ANDed with `violationVisibilityFilter`),
+`read.ts` (`readCase` → row + permissions/fines/state/alerts/closure
+blockers/next action/workflow summary; `listCases`), `state.ts`
+(`deriveCaseState`: phase + flags + the 21 labels, never stored),
+`alerts.ts`, `fines.ts` (`estimateAccruedFine`, `computeExposure`,
+`overrideIsStale`; official balance never merged), `rules.ts`
+(`allowedTransitions`, `closureBlockers`, `itemsToReopen`), `intake.ts`
+(`toggleDefaultsFromIntake`), `create.ts` (one tx for case + items +
+first hearing + opening ledger rows, then `applyCaseWorkflow`; a failed
+apply leaves a NEW case with a Workflow-tab callout), `update.ts`,
+`close.ts` (`closeCase` engine-skips open steps as `Workflow: case CV-n
+closed`, ADMIN/MANAGER override audited as `violation_closure_override`;
+`reopenCase` **reinstates exactly those skips** and re-sweeps activation —
+found by dev QA, a reopened case had zero live steps; `confirmAgency`
+auto-moves ACTIVE → COMPLIED), `deadline.ts` (preview → apply through
+`updateTask` + `rescheduleAnchor`; extensions granted take the same
+path), `items.ts`, `hearings.ts` (recomputes `nextHearingAt`, order
+deadlines can move the case deadline), `inspections.ts` (agency
+inspections; FAIL reopens the re-cited items and, when an open
+reinspection step is passed, records the engine inspection result on
+it; PASS may double as the agency confirmation for ADMIN/MANAGER),
+`fine-ledger.ts` (`recordFineEntry` is the one write path; mirrors the
+snapshot columns), `job-sync.ts` (`onJobCompleted` from the task
+transition chain and `changeJobStage`; `syncCorrectiveWorkFromJob` on a
+late link), `notes/communications/activity/categories/summary.ts`.
+Validators in `src/lib/validators/violation.ts`.
+
+**Routes** `src/app/api/violations/**` (list/create, preview, summary,
+categories, hearings, inspections, bulk-assign; per case: status, close
+(GET blockers / POST), reopen, agency-confirm, extension(+decide),
+link-job (POST/DELETE), notes, communications, activity, files, lien,
+deadline(+preview), items, hearings, inspections(+result), fines
+(entries/terms/override), workflow (+preview/apply/reconcile/tasks —
+copies of the job routes on the subject engine)) and
+`/api/admin/violation-categories`. `POST /api/files` accepts
+`violationCaseId`/`violationItemId`, takes `leadId` from the case, checks
+`canEditCase`, writes a `FILE_ATTACHED` event.
+
+**Client**: sidebar `navSections` (collapsible groups, `overflow-y-auto`,
+active item scrolled into view, pure `isNavActive` with query-key
+matching, `ViolationsNavBadge`), `useSearchParamState`, `ConfirmDialog`
+(reason + acknowledgement), `components/violations/*` (hooks with a
+`Jsonify<CaseDetail>` type so the client never re-declares the row,
+status/tone maps, widgets, alerts, `CaseListMini` for Lead/Job tabs,
+`ScheduleList` for hearings/inspections, items/inspections/hearings/
+fines/permits/photos/communications/notes/activity panels, case dialogs,
+five-step intake with a lead picker and `returnTo` round trip through
+`/leads/new`), pages `/violations` (queue tiles), `/violations/list`,
+`/violations/new`, `/violations/[id]` (13 tabs, `?tab&item`),
+`/violations/{hearings,inspections,templates}`. Shared `TemplateLibrary`
+(`kind` filter) now backs both `/admin/workflow-templates` and
+`/violations/templates`. `WorkflowPanel subject={{kind:"violation"}}`,
+`EntityTaskPanel context={{violationCaseId}}`, the task chip renders
+"CV-00012 · Item 3", `/tasks?violationCaseId=`, field task pages show the
+case number, `FilesPanel scope`, `JobPhotoGallery readOnly`.
+
+**Dev QA 2026-09-25** (headless Chromium + API, then purged): create with
+3 items / permit REQUIRED / fines / hearing → CV-00001, 67 tasks;
+re-apply → created 0 / existing 67; link JOB-00005; close without
+confirmation → 400 with three blockers; FAIL reinspection re-citing item
+1 → item 1 OPEN, item 2 stays CORRECTED; close with ADMIN override →
+CLOSED, 67 engine skips, `violation_closed` + `violation_closure_override`
+audit rows; reopen → 67 reinstated, 2 Ready (after the fix); agency
+confirmation → COMPLIED; PNG upload lands on lead + case; SALES_REP not on
+the case → 403 / list 0 / create 403, as case manager → 200 / mine 1 /
+close 403 / fines 403. Not exercised: the FAIL → blocked step →
+correction → reopen cycle on an *active* reinspection step (engine tests
+cover it).
+
+**Known gaps for Stage 3**: no reminder/escalation mail yet (deadline
+changes and extensions work, silently); the Photos tab lists case files
+of category PHOTOS only; `/violations/reports` and the dashboard
+breakdowns are Stage 4.
 
 ## Runbook
 

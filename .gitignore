@@ -50,3 +50,6 @@ next-env.d.ts
 /jobimports/
 /Clewiston Towne Place Suites - Knu Construction LLC - Applications 1-11/
 /Clewiston Towne Place Suites - Knu Construction LLC - Applications 1-11.zip
+
+# Sibling worktrees another session checks out under the repo
+.claude/worktrees/

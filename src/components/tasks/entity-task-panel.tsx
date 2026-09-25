@@ -77,7 +77,7 @@ export function EntityTaskPanel({
         <CheckSquare className="size-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">{title}</h3>
         <TaskCountBadge open={open.length} overdue={overdue} compact />
-        {context.jobId && !compact && (
+        {(context.jobId || context.violationCaseId) && !compact && (
           <SegmentedControl
             ariaLabel="Task source"
             size="sm"

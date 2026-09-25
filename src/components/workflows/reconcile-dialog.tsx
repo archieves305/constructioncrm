@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { PERMIT_STATUS_LABEL } from "./status";
 import { ReconcilePreviewPanel } from "./reconcile-preview-panel";
 import { useReconcile, useReconcilePreview, useWorkflowTemplates } from "./use-workflow";
-import type { JobWorkflowData, ReconcileChange, ReconcilePlanData } from "./types";
+import { subjectInfoOf, toSubjectRef, type JobWorkflowData, type ReconcileChange, type ReconcilePlanData, type SubjectLike } from "./types";
 
 export type ReconcileMode =
   | { kind: "permit" }
@@ -27,22 +27,25 @@ export type ReconcileMode =
 /**
  * Every re-plan goes through the same two steps: describe the change, see
  * exactly what it does (To add / To skip / Kept), then confirm. The form
- * half varies by mode; the preview half is shared.
+ * half varies by mode; the preview half is shared. Works on a job or a
+ * violation case (which never offers add/remove trade).
  */
-export function ReconcileDialog({ jobId, data, mode, open, onOpenChange }: { jobId: string; data: JobWorkflowData; mode: ReconcileMode; open: boolean; onOpenChange: (o: boolean) => void }) {
+export function ReconcileDialog({ subject, data, mode, open, onOpenChange }: { subject: SubjectLike; data: JobWorkflowData; mode: ReconcileMode; open: boolean; onOpenChange: (o: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
-        {open && <ReconcileBody jobId={jobId} data={data} mode={mode} onClose={() => onOpenChange(false)} />}
+        {open && <ReconcileBody subject={subject} data={data} mode={mode} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function ReconcileBody({ jobId, data, mode, onClose }: { jobId: string; data: JobWorkflowData; mode: ReconcileMode; onClose: () => void }) {
-  const preview = useReconcilePreview(jobId);
-  const apply = useReconcile(jobId);
-  const { data: templates = [], isLoading: loadingTemplates } = useWorkflowTemplates(jobId, { enabled: mode.kind === "add-trade" });
+function ReconcileBody({ subject, data, mode, onClose }: { subject: SubjectLike; data: JobWorkflowData; mode: ReconcileMode; onClose: () => void }) {
+  const ref = toSubjectRef(subject);
+  const info = subjectInfoOf(data);
+  const preview = useReconcilePreview(ref);
+  const apply = useReconcile(ref);
+  const { data: templates = [], isLoading: loadingTemplates } = useWorkflowTemplates(ref.kind === "job" ? ref.id : undefined, { enabled: mode.kind === "add-trade", kind: "TRADE" });
   const inst = data.instance!;
   const applied = useMemo(() => new Set((data.modules ?? []).filter((m) => !m.removedAt).map((m) => m.templateKey)), [data.modules]);
 
@@ -52,7 +55,7 @@ function ReconcileBody({ jobId, data, mode, onClose }: { jobId: string; data: Jo
   // permit
   const [permitStatus, setPermitStatus] = useState<"REQUIRED" | "NOT_REQUIRED">(inst.permitStatus === "REQUIRED" ? "NOT_REQUIRED" : "REQUIRED");
   const [reason, setReason] = useState("");
-  const [jurisdiction, setJurisdiction] = useState(data.job.jurisdiction ?? "");
+  const [jurisdiction, setJurisdiction] = useState(info.jurisdiction ?? "");
   // add-trade
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toggles, setToggles] = useState<Record<string, Record<string, boolean>>>({});

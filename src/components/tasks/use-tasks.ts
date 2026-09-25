@@ -38,6 +38,8 @@ export type TaskListFilters = {
   invoiceId?: string;
   prospectId?: string;
   dailyLogId?: string;
+  violationCaseId?: string;
+  violationItemId?: string;
   // Workflow filters (see lib/tasks/query.ts)
   source?: "manual" | "workflow";
   workflowInstanceId?: string;

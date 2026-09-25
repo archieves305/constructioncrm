@@ -89,6 +89,7 @@ function TaskRow({ task, overdue }: { task: TaskListItem; overdue: boolean }) {
                 </span>
               )}
               {task.job && <span className="font-mono text-muted-foreground">{task.job.jobNumber}</span>}
+              {task.violationCase && <span className="font-mono text-muted-foreground">{task.violationCase.caseNumber}</span>}
               {(task._count?.events ?? 0) > 0 && (
                 <span className="flex items-center gap-0.5 text-muted-foreground">
                   <MessageSquare className="h-3 w-3" />

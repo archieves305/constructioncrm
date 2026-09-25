@@ -70,6 +70,7 @@ export default function TasksPage() {
   const [filterAssignee, setFilterAssignee] = useState(searchParams.get("assignedUserId") ?? "");
   const [filterPriority, setFilterPriority] = useState(searchParams.get("priority") ?? "");
   const [filterJob, setFilterJob] = useState(searchParams.get("jobId") ?? "");
+  const [filterCase, setFilterCase] = useState(searchParams.get("violationCaseId") ?? "");
   const [filterStage, setFilterStage] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(
     searchParams.get("overdue") === "1" || searchParams.get("overdue") === "true",
@@ -92,6 +93,7 @@ export default function TasksPage() {
     assignedUserId: effectiveAssignee || undefined,
     priority: filterPriority || undefined,
     jobId: filterJob || undefined,
+    violationCaseId: filterCase || undefined,
     overdue: overdueOnly || undefined,
     includeCompleted: includeCompleted || undefined,
     source: filterSource || undefined,
@@ -202,7 +204,7 @@ export default function TasksPage() {
   ).length;
   const emailsOn = prefs?.taskEmailsEnabled ?? true;
   const activeFilters =
-    [filterAssignee, filterPriority, filterJob, filterStage, filterSource].filter(Boolean).length +
+    [filterAssignee, filterPriority, filterJob, filterCase, filterStage, filterSource].filter(Boolean).length +
     (overdueOnly ? 1 : 0) + (readyOnly ? 1 : 0) + (blockedOnly ? 1 : 0) + (showInactive ? 1 : 0);
 
   function showMine(overdue: boolean) {
@@ -337,6 +339,14 @@ export default function TasksPage() {
               </SelectContent>
             </Select>
           </div>
+          {filterCase && (
+            <div className="flex items-center gap-1 self-end rounded-md border bg-gray-50 px-2 py-1.5 text-xs">
+              Code-violation case
+              <button type="button" className="ml-1 rounded p-0.5 hover:bg-gray-200" aria-label="Clear case filter" onClick={() => setFilterCase("")}>
+                ×
+              </button>
+            </div>
+          )}
           <div className="min-w-[180px]">
             <Label className="text-xs">Job stage</Label>
             <Select

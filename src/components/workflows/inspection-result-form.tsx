@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Callout } from "@/components/shared/callout";
 import { cn } from "@/lib/utils";
 import { useRecordInspection } from "./use-workflow";
+import { subjectOfTask } from "./types";
 import type { WorkflowTaskItem } from "./types";
 
 const RESULTS = [
@@ -22,7 +23,7 @@ const RESULTS = [
 
 /** Pass / Fail / Conditional on an inspection step, with notes and the date. */
 export function InspectionResultForm({ task, canRecord }: { task: WorkflowTaskItem; canRecord: boolean }) {
-  const record = useRecordInspection(task.id, task.job?.id);
+  const record = useRecordInspection(task.id, subjectOfTask(task));
   const [result, setResult] = useState<"PASS" | "FAIL" | "CONDITIONAL">("PASS");
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));

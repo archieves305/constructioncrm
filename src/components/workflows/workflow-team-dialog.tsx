@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import type { UserOption } from "@/components/tasks/types";
 import { WORKFLOW_ROLE_LABEL, WORKFLOW_ROLES } from "@/lib/workflows/role-labels";
-import type { JobWorkflowData, WorkflowRole } from "./types";
+import { subjectInfoOf, type JobWorkflowData, type WorkflowRole } from "./types";
 
 /**
  * Who fills each functional role on this job. PM and Sales rep fall back to
@@ -37,9 +37,11 @@ export function WorkflowTeamDialog({
   };
 
   const valueFor = (role: WorkflowRole) => (role in draft ? (draft[role] ?? null) : (current[role] ?? null));
+  const info = subjectInfoOf(data);
   const fallback = (role: WorkflowRole): string | null => {
-    if (role === "PROJECT_MANAGER" && data.job.projectManagerId) return "the job's project manager";
-    if (role === "SALES_REP" && data.job.salesRepId) return "the job's sales rep";
+    if (role === "PROJECT_MANAGER" && info.projectManagerId) return "the job's project manager";
+    if (role === "SALES_REP" && info.salesRepId) return "the job's sales rep";
+    if (role === "CASE_MANAGER" && info.caseManagerId) return "the case manager";
     return null;
   };
   const unassigned = new Set(data.unassignedRoles ?? []);

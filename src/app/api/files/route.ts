@@ -12,10 +12,12 @@ export async function GET(request: NextRequest) {
 
   const leadId = request.nextUrl.searchParams.get("leadId");
   const taskId = request.nextUrl.searchParams.get("taskId");
-  if (!leadId && !taskId) return badRequest("leadId or taskId is required");
+  const violationCaseId = request.nextUrl.searchParams.get("violationCaseId");
+  const violationItemId = request.nextUrl.searchParams.get("violationItemId");
+  if (!leadId && !taskId && !violationCaseId && !violationItemId) return badRequest("leadId, taskId, violationCaseId or violationItemId is required");
 
   const files = await prisma.file.findMany({
-    where: taskId ? { taskId } : { leadId: leadId! },
+    where: taskId ? { taskId } : violationItemId ? { violationItemId } : violationCaseId ? { violationCaseId } : { leadId: leadId! },
     orderBy: { createdAt: "desc" },
     include: {
       uploadedBy: { select: { id: true, firstName: true, lastName: true } },
@@ -41,6 +43,26 @@ export async function POST(request: NextRequest) {
   // task may attach to it.
   const taskId = typeof taskIdRaw === "string" && taskIdRaw ? taskIdRaw : null;
   let leadId = typeof leadIdRaw === "string" && leadIdRaw ? leadIdRaw : null;
+  // A document or photo on a code-violation case (or one of its items): the
+  // file hangs off the case AND the case's lead. Anyone who may edit the case may attach.
+  const caseIdRaw = form.get("violationCaseId");
+  const itemIdRaw = form.get("violationItemId");
+  let violationCaseId = typeof caseIdRaw === "string" && caseIdRaw ? caseIdRaw : null;
+  const violationItemId = typeof itemIdRaw === "string" && itemIdRaw ? itemIdRaw : null;
+  if (violationItemId) {
+    const item = await prisma.codeViolationItem.findUnique({ where: { id: violationItemId }, select: { caseId: true } });
+    if (!item) return badRequest("violation item not found");
+    violationCaseId = item.caseId;
+  }
+  if (violationCaseId) {
+    const { caseScopeFor } = await import("@/lib/violations/scope");
+    const { canEditCase } = await import("@/lib/violations/access");
+    const c = await prisma.codeViolationCase.findUnique({ where: { id: violationCaseId }, select: { leadId: true } });
+    const scope = await caseScopeFor(violationCaseId);
+    if (!c || !scope) return badRequest("violation case not found");
+    if (!canEditCase(session.user, scope)) return forbidden();
+    leadId = c.leadId;
+  }
   if (taskId) {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
@@ -82,6 +104,8 @@ export async function POST(request: NextRequest) {
       category,
       uploadedByUserId: session.user.id,
       taskId,
+      violationCaseId,
+      violationItemId,
     },
     include: {
       uploadedBy: { select: { id: true, firstName: true, lastName: true } },
@@ -89,6 +113,10 @@ export async function POST(request: NextRequest) {
   });
   if (taskId) {
     await recordTaskEvent({ taskId, actorUserId: session.user.id, type: "EVIDENCE_ATTACHED", toValue: record.id, body: record.fileName });
+  }
+  if (violationCaseId) {
+    const { recordCaseEvent } = await import("@/lib/violations/events");
+    await recordCaseEvent(prisma, { caseId: violationCaseId, itemId: violationItemId, actorUserId: session.user.id, type: "FILE_ATTACHED", toValue: record.id, body: `${record.category.toLowerCase()} · ${record.fileName}` });
   }
 
   return NextResponse.json(record, { status: 201 });

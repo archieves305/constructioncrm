@@ -18,7 +18,7 @@ import { deriveTaskState, WORKFLOW_STATE_LABEL, WORKFLOW_STATE_PILL } from "./st
 import { SkipTaskDialog } from "./skip-task-dialog";
 import { InspectionResultForm } from "./inspection-result-form";
 import { DependencyEditor } from "./dependency-editor";
-import type { WorkflowTaskItem } from "./types";
+import { subjectHref, subjectOfTask, type WorkflowTaskItem } from "./types";
 
 type FileRow = { id: string; fileName: string; fileType: string; fileSize: number; createdAt: string; uploadedBy: { firstName: string; lastName: string } };
 
@@ -64,6 +64,7 @@ export function TaskWorkflowBlock({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: taskKeys.detail(task.id) });
       qc.invalidateQueries({ queryKey: ["job-workflow"] });
+      qc.invalidateQueries({ queryKey: ["case-workflow"] });
       toast.success("File attached");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -73,7 +74,7 @@ export function TaskWorkflowBlock({
   const state = deriveTaskState(task);
   const open = state !== "COMPLETED" && state !== "SKIPPED" && state !== "CANCELLED";
   const isStep = task.workflowTaskKey !== null;
-  const jobId = task.job?.id;
+  const subject = subjectOfTask(task);
   const moduleName = task.workflowModuleKey ? humanize(task.workflowModuleKey) : "Workflow";
   const phaseName = task.workflowPhaseKey ? humanize(task.workflowPhaseKey.split(":")[1] ?? "") : null;
   const waitingOn = task.dependencies.filter((d) => d.kind === "BLOCKING").filter((d) => d.dependsOn.status !== "COMPLETED" && d.dependsOn.status !== "CANCELLED");
@@ -90,8 +91,8 @@ export function TaskWorkflowBlock({
           {task.blocking && <span className="rounded bg-tone-warning-soft px-1 text-[10px] text-tone-warning-fg">blocking gate</span>}
           {!isStep && <span className="rounded bg-gray-100 px-1 text-[10px] text-gray-600">manual task in phase</span>}
         </div>
-        {jobId && (
-          <Link href={`/jobs/${jobId}?tab=workflow#task-${task.id}`} className="inline-flex items-center gap-1 text-xs text-brand-fg hover:underline">
+        {subject && (
+          <Link href={`${subjectHref(subject)}?tab=workflow#task-${task.id}`} className="inline-flex items-center gap-1 text-xs text-brand-fg hover:underline">
             View in workflow <ArrowUpRight className="size-3" />
           </Link>
         )}
@@ -130,7 +131,7 @@ export function TaskWorkflowBlock({
 
       {(task.requiredEvidence || files.length > 0) && (
         <div>
-          {task.requiredEvidence && jobId && <EvidenceLine task={{ ...task, _count: { ...(task._count ?? { events: 0 }), files: files.length } }} jobId={jobId} />}
+          {task.requiredEvidence && subject && <EvidenceLine task={{ ...task, _count: { ...(task._count ?? { events: 0 }), files: files.length } }} subject={subject} />}
           {files.length > 0 && (
             <ul className="mt-1 space-y-0.5 text-sm">
               {files.map((f) => (

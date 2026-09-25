@@ -30,7 +30,8 @@ type GalleryPhoto = {
   takenBy: { firstName: string; lastName: string };
 };
 
-export function JobPhotoGallery({ jobId }: { jobId: string }) {
+/** `readOnly` hides delete — for the gallery shown on a code-violation case, where the photos belong to the job. */
+export function JobPhotoGallery({ jobId, readOnly = false }: { jobId: string; readOnly?: boolean }) {
   const qc = useQueryClient();
   const [category, setCategory] = useState("");
   const [from, setFrom] = useState("");
@@ -199,15 +200,17 @@ export function JobPhotoGallery({ jobId }: { jobId: string }) {
                     <Download className="h-4 w-4" />
                   </Button>
                 </a>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (confirm("Delete this photo?")) deletePhoto.mutate(current.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
+                {!readOnly && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (confirm("Delete this photo?")) deletePhoto.mutate(current.id);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                )}
               </div>
               <Badge variant="secondary" className="w-fit">
                 {lightboxIndex! + 1} of {photos.length}

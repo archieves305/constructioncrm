@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { Briefcase, ClipboardList, FileText, MapPin, Receipt, UserRound } from "lucide-react";
+import { Briefcase, ClipboardList, FileText, Gavel, MapPin, Receipt, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TaskEntityContext, TaskListItem } from "./types";
 
@@ -14,6 +14,17 @@ import type { TaskEntityContext, TaskListItem } from "./types";
 type Chip = { icon: React.ElementType; label: string; href: string | null; mono?: boolean };
 
 export function chipForTask(task: TaskListItem): Chip | null {
+  // A code-violation step: the case number (and item) in mono, to the case.
+  if (task.violationCase) {
+    const c = task.violationCase;
+    const item = task.violationItem;
+    return {
+      icon: Gavel,
+      label: item ? `${c.caseNumber} · Item ${item.itemNumber}` : c.caseNumber,
+      href: item ? `/violations/${c.id}?tab=items&item=${item.id}` : `/violations/${c.id}`,
+      mono: true,
+    };
+  }
   if (task.invoice) {
     return { icon: Receipt, label: task.invoice.invoiceNumber, href: `/jobs/${task.invoice.jobId}`, mono: true };
   }
@@ -73,7 +84,9 @@ export function TaskEntityChip({ task, className }: { task: TaskListItem; classN
 
 /** The chip for a context the user is creating a task FROM. */
 export function EntityContextChip({ context, className }: { context: TaskEntityContext; className?: string }) {
-  const icon = context.invoiceId
+  const icon = context.violationCaseId || context.violationItemId
+    ? Gavel
+    : context.invoiceId
     ? Receipt
     : context.estimateId
       ? FileText

@@ -26,6 +26,8 @@ export type TaskListItem = {
   invoice?: { id: string; invoiceNumber: string; jobId: string } | null;
   prospect?: { id: string; propertyAddress1: string; city: string } | null;
   dailyLog?: { id: string; jobId: string; logDate: string } | null;
+  violationCase?: { id: string; caseNumber: string; agencyCaseNumber: string | null; leadId: string } | null;
+  violationItem?: { id: string; itemNumber: number; caseId: string } | null;
   assignedTo: Person | null;
   createdBy?: Person | null;
   _count?: { events: number; files?: number; dependents?: number };
@@ -54,14 +56,18 @@ export type TaskEntityContext = {
   invoiceId?: string;
   prospectId?: string;
   dailyLogId?: string;
+  violationCaseId?: string;
+  violationItemId?: string;
   label: string;
   href?: string;
 };
 
-export type EntityLinkKey = "leadId" | "jobId" | "estimateId" | "invoiceId" | "prospectId" | "dailyLogId";
+export type EntityLinkKey = "leadId" | "jobId" | "estimateId" | "invoiceId" | "prospectId" | "dailyLogId" | "violationCaseId" | "violationItemId";
 
 /** Most specific link first — that is the one the panel filters on. */
 export const ENTITY_LINK_KEYS: EntityLinkKey[] = [
+  "violationItemId",
+  "violationCaseId",
   "dailyLogId",
   "invoiceId",
   "estimateId",

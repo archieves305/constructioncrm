@@ -40,6 +40,8 @@ type FieldTask = {
   dueAt: string | null;
   blockedReason: string | null;
   job: { id: string; jobNumber: string; title: string } | null;
+  lead?: { id: string; fullName: string; address1?: string | null; city?: string | null } | null;
+  violationCase?: { id: string; caseNumber: string; agencyCaseNumber: string | null } | null;
   assignedTo: Person | null;
   createdBy: Person | null;
   events: {
@@ -162,6 +164,12 @@ export default function FieldTaskPage({
           {task.job && (
             <p className="text-sm text-muted-foreground">
               <span className="font-mono">{task.job.jobNumber}</span> — {task.job.title}
+            </p>
+          )}
+          {task.violationCase && (
+            <p className="text-sm text-muted-foreground">
+              Code violation <span className="font-mono">{task.violationCase.caseNumber}</span>
+              {task.lead ? ` — ${[task.lead.address1, task.lead.city].filter(Boolean).join(", ") || task.lead.fullName}` : ""}
             </p>
           )}
 

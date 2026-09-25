@@ -53,6 +53,7 @@ import { useJobContracts } from "@/components/customer-contracts/use-customer-co
 import { Callout } from "@/components/shared/callout";
 import { RentalTurnoverPanel } from "@/components/jobs/rental-turnover-panel";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
+import { CaseListMini } from "@/components/violations/case-list-mini";
 import { useTasks } from "@/components/tasks/use-tasks";
 import { JobWorkflowPanel } from "@/components/workflows/job-workflow-panel";
 import { useJobWorkflow } from "@/components/workflows/use-workflow";
@@ -570,6 +571,7 @@ export default function JobDetailPage() {
                   { value: "permits", label: <>Permits{count(job.permits?.length || 0)}</> },
                   { value: "tasks", label: <>Tasks{overdueTasks > 0 ? count(overdueTasks, "danger") : count(jobTasks.length)}</> },
                   { value: "files", label: "Files" },
+                  { value: "violations", label: "Violations" },
                   { value: "history", label: "History" },
                 ].map((g) => (
                   <button
@@ -592,7 +594,7 @@ export default function JobDetailPage() {
               )}
             </div>
             <TabsList className="hidden">
-              {[...MONEY, ...FIELD, { value: "workflow" }, { value: "permits" }, { value: "tasks" }, { value: "files" }, { value: "history" }].map((t) => (
+              {[...MONEY, ...FIELD, { value: "workflow" }, { value: "permits" }, { value: "tasks" }, { value: "files" }, { value: "violations" }, { value: "history" }].map((t) => (
                 <TabsTrigger key={t.value} value={t.value}>{t.value}</TabsTrigger>
               ))}
             </TabsList>
@@ -956,6 +958,10 @@ export default function JobDetailPage() {
                 <BudgetPanel jobId={id} totalJobCost={Number(job.contractAmount)} />
               </TabsContent>
             )}
+
+            <TabsContent value="violations">
+              <CaseListMini scope={{ jobId: id, leadId: job.leadId }} newHref={`/violations/new?leadId=${job.leadId}&jobId=${id}`} linkAction />
+            </TabsContent>
 
             <TabsContent value="history" className="space-y-2">
               {job.stageHistory?.map((h: { id: string; fromStage: { name: string } | null; toStage: { name: string }; changedBy: { firstName: string; lastName: string }; changedAt: string }) => (
