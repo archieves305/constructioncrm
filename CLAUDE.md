@@ -34,8 +34,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    applied, prod seeds "unchanged" ×4 + `code_violation` created + 22
    categories). **Stage 2 (cases: services, routes, intake, list +
    queues, case page, sidebar group, Lead/Job tabs, task chip, files
-   scope, job-sync, reinspection, closure guard) built + dev-QA'd
-   2026-09-25**, deploying (no migration). Stages 3–4 (reminders +
+   scope, job-sync, reinspection, closure guard) deployed 2026-09-25**
+   (`aeb7ad0`, BUILD_ID `_txMHaK7zd-4SxSb2eGWr`, no migration; the deploy
+   also carried the sibling session's `90c5339` estimates commit that was
+   already on main). Stages 3–4 (reminders +
    escalations + cron; dashboard + reports) follow, each deployed and
    QA'd before the next. Notes:
    [features/violations.md](docs/project-memory/features/violations.md).
@@ -86,7 +88,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-25 — Code Violations, Stage 2: cases (built, dev-QA'd)
+### 2026-09-25 — Code Violations, Stage 2: cases (deployed)
 
 Everything case-shaped, no migration: `src/lib/violations/*` (access with
 explicit role lists + `casePermissions` returned by `readCase`; list
@@ -107,7 +109,10 @@ defect — reopening a closed case left every step cancelled** — fixed:
 activation (`close.test.ts`). Also: `.claude/worktrees/**` ignored by
 eslint and git (a sibling session's worktree was doubling lint counts
 and would have blocked `deploy.sh`'s clean-tree gate). 711 tests, lint
-6/28, typecheck + build clean. Details:
+6/28, typecheck + build clean. **Deployed `aeb7ad0`** (build
+`_txMHaK7zd-4SxSb2eGWr`; smoke 307 ×2, journal clean; `90c5339` — the
+sibling session's "estimates on the job page" commit, already on local
+main — shipped with it). Details:
 [features/violations.md](docs/project-memory/features/violations.md).
 
 ### 2026-09-25 — Code Violations, Stage 1: engine → subject + schema (deployed)

@@ -10,7 +10,7 @@ each deployed and QA'd before the next.
 | Stage | Ships | Status |
 |---|---|---|
 | 1 | Engine generalised to a *subject* (job \| case), schema + migration, `code_violation` template seeded, 22 categories seeded | **Deployed 2026-09-25 (`106555c`)** |
-| 2 | `src/lib/violations/*` services, routes, intake page, list + queues, case page + tabs, sidebar group, Lead/Job tabs, task chip, files scope, job-sync hook, reinspection + item reopen, closure guard | **Built + dev-QA'd 2026-09-25**, deploying |
+| 2 | `src/lib/violations/*` services, routes, intake page, list + queues, case page + tabs, sidebar group, Lead/Job tabs, task chip, files scope, job-sync hook, reinspection + item reopen, closure guard | **Deployed 2026-09-25 (`aeb7ad0`, build `_txMHaK7zd-4SxSb2eGWr`)** |
 | 3 | Reminders, escalations, cron, email/bell (deadline change + preview, extensions, hearing-order deadlines already ship in Stage 2) | next |
 | 4 | Dashboard, reports, widget, template library page, optional matching rules | |
 
