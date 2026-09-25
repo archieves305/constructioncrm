@@ -11,7 +11,7 @@ each deployed and QA'd before the next.
 |---|---|---|
 | 1 | Engine generalised to a *subject* (job \| case), schema + migration, `code_violation` template seeded, 22 categories seeded | **Deployed 2026-09-25 (`106555c`)** |
 | 2 | `src/lib/violations/*` services, routes, intake page, list + queues, case page + tabs, sidebar group, Lead/Job tabs, task chip, files scope, job-sync hook, reinspection + item reopen, closure guard | **Deployed 2026-09-25 (`aeb7ad0`, build `_txMHaK7zd-4SxSb2eGWr`)** |
-| 3 | Deadline reminders 30/14/7/3/1/0 + daily overdue, escalation chain, `POST /api/cron/violation-deadlines`, case notices (assigned, item assigned, inspection scheduled, agency confirmed, closed), bell rows | **Built + dev-QA'd 2026-09-25**, deploying |
+| 3 | Deadline reminders 30/14/7/3/1/0 + daily overdue, escalation chain, `POST /api/cron/violation-deadlines`, case notices (assigned, item assigned, inspection scheduled, agency confirmed, closed), bell rows | **Deployed 2026-09-25 (`fb9cc70`, build `3n5-hSws66cBDrKEdWGqz`; cron installed)** |
 | 4 | Dashboard, reports, widget, template library page, optional matching rules | |
 
 ## Decisions (approved)

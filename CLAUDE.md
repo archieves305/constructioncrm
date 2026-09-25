@@ -49,8 +49,9 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    also carried the sibling session's `90c5339` estimates commit that was
    already on main). **Stage 3 (deadline reminders + escalation chain
    + `POST /api/cron/violation-deadlines` + case notices + bell rows)
-   built + dev-QA'd 2026-09-25**, deploying (no migration; cron line on
-   the droplet). Stage 4 (dashboard breakdowns + reports) follows. Notes:
+   deployed 2026-09-25** (`fb9cc70`, BUILD_ID `3n5-hSws66cBDrKEdWGqz`,
+   no migration; `crm-cron/violation-deadlines.sh` at 11:35 UTC weekdays,
+   first prod run 200 with 1 case / 0 due). Stage 4 (dashboard breakdowns + reports) follows. Notes:
    [features/violations.md](docs/project-memory/features/violations.md).
 0. 🔴 **Tasks as the spine of the CRM** — three stages, each deployed and
    QA'd before the next. **Stage 1 (tasks everywhere) deployed 2026-09-24**
@@ -129,7 +130,7 @@ clean. `scripts/qa-cleanup-contracts.ts` purges the dev QA rows.
 Details: [features/customer-contracts.md](docs/project-memory/features/customer-contracts.md).
 
 
-### 2026-09-25 — Code Violations, Stage 3: reminders, escalations, notices (built, dev-QA'd)
+### 2026-09-25 — Code Violations, Stage 3: reminders, escalations, notices (deployed)
 
 No migration (the reminder log shipped in Stage 1). Pure `deadlines.ts`
 (`collectDeadlines` → compliance / appeal / fine-accrual start / hearings /
@@ -148,7 +149,10 @@ muted recipients logged as `channel: none`; escalations behind
 reached) and the cron route. Hooks in create/update/items/inspections/
 close. Dev QA: planner, gating, bell rows, catch-up and the failure/retry
 path all as designed (see the feature doc for the MailerSend detail).
-802 tests (+91), lint 6/28, typecheck clean. Details:
+802 tests (+91), lint 6/28, typecheck clean. **Deployed `fb9cc70`**
+(build `3n5-hSws66cBDrKEdWGqz`; droplet wrapper + crontab line installed
+as `knuco`; manual prod run → 200, 1 case, 0 due; no secret → 403).
+Details:
 [features/violations.md](docs/project-memory/features/violations.md).
 
 ### 2026-09-25 — Code Violations, Stage 2: cases (deployed)
