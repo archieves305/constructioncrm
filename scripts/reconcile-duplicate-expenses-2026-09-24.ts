@@ -16,7 +16,8 @@
  *   npx tsx scripts/reconcile-duplicate-expenses-2026-09-24.ts --yes    # apply
  *
  * Refuses to apply unless the dry run finds exactly the expected shape
- * (18 duplicates totalling $16,070.96 and 2 keeps) — pass --force to
+ * (19 duplicates totalling $16,070.96 and 2 keeps; the findings doc said
+ * "18" but listed 10+4+3+2 — the dollars were right) — pass --force to
  * override after reading the table.
  */
 import "dotenv/config";
@@ -25,7 +26,7 @@ import { pairCandidates, pairKey } from "../src/lib/expenses/reconcile";
 import { resolvePair } from "../src/lib/expenses/resolve-pair";
 
 const ACTOR_EMAIL = "richard@rcareylaw.com";
-const EXPECTED = { duplicates: 18, keeps: 2, duplicateTotal: 16070.96 };
+const EXPECTED = { duplicates: 19, keeps: 2, duplicateTotal: 16070.96 };
 const KEEP_RULES: { jobNumber: string; amount: number; why: string }[] = [
   { jobNumber: "JOB-00006", amount: 432, why: "different payees: Roberto Rodriguez (typed) vs Richard Perez (bank)" },
   { jobNumber: "JOB-00006", amount: 800, why: "different payees: Octavio Obregon (typed) vs Sikaffy & Bogran (bank), 3 days apart" },
