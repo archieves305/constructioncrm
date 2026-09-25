@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { UserCheck, X } from "lucide-react";
+import { fetchJson } from "@/lib/fetch-json";
 
 type ContactMatch = {
   firstName: string;
@@ -64,8 +65,8 @@ export default function NewLeadPage() {
   });
 
   const { data: users } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+    queryKey: ["assignable-users"],
+    queryFn: () => fetchJson("/api/users/assignable"),
   });
 
   const createLead = useMutation({

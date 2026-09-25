@@ -1,7 +1,11 @@
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import bcrypt from "bcryptjs";
+
+// Users sign in through CareyOS; the CRM keeps no usable password. The
+// column is required, so seeded users carry the same non-hash sentinel the
+// SSO auto-provisioner writes (see src/lib/auth/helpers.ts).
+const SSO_MANAGED_PASSWORD = "sso:careyos";
 import type { ZylowPropertyRecord } from "../src/lib/services/zylow/types";
 import { normalizeFromZylow } from "../src/lib/services/canvassing/normalize";
 import { computeKnockScore } from "../src/lib/services/canvassing/score";
@@ -128,7 +132,7 @@ async function main() {
 
   // ── Default Admin User ──────────────────────────────────────────────────
   const adminRole = roles.find((r) => r.name === "ADMIN")!;
-  const hashedPassword = await bcrypt.hash("admin123", 12);
+  const hashedPassword = SSO_MANAGED_PASSWORD;
   const admin = await prisma.user.upsert({
     where: { email: "admin@constructioncrm.com" },
     update: {},
@@ -144,7 +148,7 @@ async function main() {
 
   // ── Demo Sales Rep ──────────────────────────────────────────────────────
   const repRole = roles.find((r) => r.name === "SALES_REP")!;
-  const repPassword = await bcrypt.hash("rep123", 12);
+  const repPassword = SSO_MANAGED_PASSWORD;
   const rep = await prisma.user.upsert({
     where: { email: "john.rep@constructioncrm.com" },
     update: {},
@@ -160,7 +164,7 @@ async function main() {
 
   // ── Demo Manager ────────────────────────────────────────────────────────
   const mgrRole = roles.find((r) => r.name === "MANAGER")!;
-  const mgrPassword = await bcrypt.hash("mgr123", 12);
+  const mgrPassword = SSO_MANAGED_PASSWORD;
   const mgr = await prisma.user.upsert({
     where: { email: "sarah.mgr@constructioncrm.com" },
     update: {},

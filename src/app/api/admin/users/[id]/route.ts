@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 import { requireRole, badRequest } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
-import { validatePassword } from "@/lib/auth/password-policy";
-import { clearLoginFailures } from "@/lib/auth/lockout";
 import { recordAudit } from "@/lib/audit/record";
+
+// Passwords are not managed here: CareyOS is the identity provider, so
+// resets and lockouts live in the portal. This route edits role, active
+// flag, names/email and the field-module grants only.
 
 async function isLastAdmin(userId: string): Promise<boolean> {
   const target = await prisma.user.findUnique({
@@ -27,7 +28,6 @@ const updateUserSchema = z
     email: z.string().trim().toLowerCase().email().optional(),
     roleId: z.string().min(1).optional(),
     isActive: z.boolean().optional(),
-    password: z.string().min(1).optional(),
     canViewSensitivePersonnel: z.boolean().optional(),
     canEditPayRates: z.boolean().optional(),
     canViewPayrollReports: z.boolean().optional(),
@@ -109,26 +109,6 @@ export async function PATCH(
     }
   }
 
-  let emailBeforeUpdate: string | undefined;
-  if (body.password !== undefined) {
-    const existing = await prisma.user.findUnique({ where: { id } });
-    if (!existing) return badRequest("User not found");
-    emailBeforeUpdate = existing.email;
-
-    const policy = validatePassword(body.password, [
-      body.email ?? existing.email,
-      body.firstName ?? existing.firstName,
-      body.lastName ?? existing.lastName,
-    ]);
-    if (!policy.ok) {
-      return NextResponse.json(
-        { error: policy.reason, suggestions: policy.suggestions },
-        { status: 400 },
-      );
-    }
-    updateData.passwordHash = await bcrypt.hash(body.password, 12);
-  }
-
   if (Object.keys(updateData).length === 0) {
     return badRequest("No fields to update");
   }
@@ -150,13 +130,6 @@ export async function PATCH(
     data: updateData,
     include: { role: true },
   });
-
-  // A deliberate password reset means the legitimate user is back in control:
-  // drop any failed-login lockout so the new password works immediately.
-  if (body.password !== undefined) {
-    clearLoginFailures(user.email);
-    if (emailBeforeUpdate) clearLoginFailures(emailBeforeUpdate);
-  }
 
   if (before) {
     await recordAudit({

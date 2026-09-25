@@ -33,6 +33,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { format } from "date-fns";
+import { fetchJson } from "@/lib/fetch-json";
 
 type Lead = {
   id: string;
@@ -105,7 +106,7 @@ export default function LeadsPage() {
 
   const { data: users } = useQuery<Assignee[]>({
     queryKey: ["assignable-users"],
-    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/users/assignable"),
   });
 
   const assignableUsers = useMemo(

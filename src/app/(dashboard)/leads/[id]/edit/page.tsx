@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { fetchJson } from "@/lib/fetch-json";
 
 function toDatetimeLocal(value: string | null | undefined): string {
   if (!value) return "";
@@ -68,8 +69,8 @@ export default function EditLeadPage() {
   });
 
   const { data: users } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+    queryKey: ["assignable-users"],
+    queryFn: () => fetchJson("/api/users/assignable"),
   });
 
   useEffect(() => {

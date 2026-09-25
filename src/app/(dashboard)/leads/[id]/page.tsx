@@ -29,6 +29,7 @@ import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel"
 import { RoofrPanel } from "@/components/roofr/roofr-panel";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 import { useTasks } from "@/components/tasks/use-tasks";
+import { fetchJson } from "@/lib/fetch-json";
 import {
   ArrowLeft,
   Phone,
@@ -62,8 +63,8 @@ export default function LeadDetailPage() {
   });
 
   const { data: users } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+    queryKey: ["assignable-users"],
+    queryFn: () => fetchJson("/api/users/assignable"),
   });
 
   // Scoped through /api/tasks so the count matches what this viewer may see.

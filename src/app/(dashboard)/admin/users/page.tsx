@@ -4,8 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -13,7 +11,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -31,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, KeyRound, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
 import { roleDisplayName } from "@/lib/auth/role-display";
 import type { RoleName } from "@/generated/prisma/client";
 import { useSession } from "@/lib/auth/session-client";
@@ -108,17 +105,7 @@ export default function AdminUsersPage() {
   const { data: session } = useSession();
   const currentUser = (session?.user as SessionUser | undefined) ?? {};
   const isAdmin = currentUser.role === "ADMIN";
-  const [createOpen, setCreateOpen] = useState(false);
   const [grantsUserId, setGrantsUserId] = useState<string | null>(null);
-  const [pwUser, setPwUser] = useState<UserRow | null>(null);
-  const [newPassword, setNewPassword] = useState("");
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    roleId: "",
-  });
 
   const { data: users, isLoading } = useQuery<UserRow[]>({
     queryKey: ["users"],
@@ -128,25 +115,6 @@ export default function AdminUsersPage() {
   const { data: roles } = useQuery<SelectableRole[]>({
     queryKey: ["roles"],
     queryFn: () => fetch("/api/admin/roles").then((r) => r.json()),
-  });
-
-  const createUser = useMutation({
-    mutationFn: async (data: typeof form) => {
-      const res = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error(await parseError(res));
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      setCreateOpen(false);
-      setForm({ firstName: "", lastName: "", email: "", password: "", roleId: "" });
-      toast.success("User created");
-    },
-    onError: (err: Error) => toast.error(err.message),
   });
 
   const toggleActive = useMutation({
@@ -208,114 +176,15 @@ export default function AdminUsersPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const changePassword = useMutation({
-    mutationFn: async ({ id, password }: { id: string; password: string }) => {
-      const res = await fetch(`/api/admin/users/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (!res.ok) throw new Error(await parseError(res));
-      return res.json();
-    },
-    onSuccess: () => {
-      setPwUser(null);
-      setNewPassword("");
-      toast.success("Password updated");
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
   return (
     <div>
       <PageHeader
         title="Users"
         description="Manage CRM users and roles"
         actions={
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger>
-              <Button type="button">
-                <Plus className="mr-2 h-4 w-4" />
-                Add User
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create User</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>First Name</Label>
-                    <Input
-                      value={form.firstName}
-                      onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Last Name</Label>
-                    <Input
-                      value={form.lastName}
-                      onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Password</Label>
-                  <Input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Min 12 characters. Avoid common words and the user&apos;s name.
-                  </p>
-                </div>
-                <div>
-                  <Label>Role</Label>
-                  <Select
-                    value={form.roleId}
-                    onValueChange={(v: string | null) => v && setForm({ ...form, roleId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role">
-                        {(v: string | null) =>
-                          roles?.find((r) => r.id === v)?.displayName ?? "Select role"
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles?.map((r) => (
-                        <SelectItem key={r.id} value={r.id} label={r.displayName}>
-                          <div className="flex flex-col">
-                            <span>{r.displayName}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {r.description}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  className="w-full"
-                  disabled={createUser.isPending}
-                  onClick={() => createUser.mutate(form)}
-                >
-                  {createUser.isPending ? "Creating..." : "Create User"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <p className="max-w-xs text-right text-xs text-muted-foreground">
+            Users are created in the CareyOS admin and appear here on their first sign-in.
+          </p>
         }
       />
 
@@ -407,17 +276,6 @@ export default function AdminUsersPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
-                          setPwUser(user);
-                          setNewPassword("");
-                        }}
-                      >
-                        <KeyRound className="mr-1 h-4 w-4" />
-                        Password
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
                         onClick={() =>
                           toggleActive.mutate({
                             id: user.id,
@@ -500,46 +358,6 @@ export default function AdminUsersPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={pwUser !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPwUser(null);
-            setNewPassword("");
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Change password — {pwUser?.firstName} {pwUser?.lastName}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>New password</Label>
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Min 12 characters. Avoid common words and the user&apos;s name.
-              </p>
-            </div>
-            <Button
-              className="w-full"
-              disabled={changePassword.isPending || !newPassword || !pwUser}
-              onClick={() =>
-                pwUser && changePassword.mutate({ id: pwUser.id, password: newPassword })
-              }
-            >
-              {changePassword.isPending ? "Saving..." : "Save new password"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

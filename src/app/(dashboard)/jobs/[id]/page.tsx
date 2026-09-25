@@ -209,8 +209,8 @@ export default function JobDetailPage() {
     setPermitForm((f) => ({ ...f, [k]: v }));
 
   const { data: jobUsers = [] } = useQuery<{ id: string; firstName: string; lastName: string }[]>({
-    queryKey: ["users"],
-    queryFn: () => fetchJson("/api/admin/users"),
+    queryKey: ["assignable-users"],
+    queryFn: () => fetchJson("/api/users/assignable"),
   });
 
   const addPermit = useMutation({

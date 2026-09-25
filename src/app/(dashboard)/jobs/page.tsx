@@ -140,7 +140,7 @@ export default function JobsPage() {
 
   const { data: users } = useQuery<Assignee[]>({
     queryKey: ["assignable-users"],
-    queryFn: () => fetchJson("/api/admin/users"),
+    queryFn: () => fetchJson("/api/users/assignable"),
     retry: retryServerErrors,
   });
 

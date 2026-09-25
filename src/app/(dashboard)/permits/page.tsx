@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { AlertTriangle, Download, ExternalLink } from "lucide-react";
 import { toCsv, downloadCsv } from "@/lib/csv";
+import { fetchJson } from "@/lib/fetch-json";
 
 const STATUS_COLORS: Record<string, string> = {
   APPLIED: "bg-blue-100 text-blue-800",
@@ -87,8 +88,8 @@ export default function PermitCenterPage() {
   });
 
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["users"],
-    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+    queryKey: ["assignable-users"],
+    queryFn: () => fetchJson("/api/users/assignable"),
   });
 
   const updatePermit = useMutation({
