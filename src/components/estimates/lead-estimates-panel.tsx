@@ -39,6 +39,7 @@ import {
   isEstimateStatus,
 } from "@/lib/estimates/estimate-status";
 import { useSetEstimateStatus } from "@/components/estimates/use-estimate-status";
+import { GenerateContractDialog } from "@/components/estimates/generate-contract-dialog";
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { useTasks } from "@/components/tasks/use-tasks";
@@ -96,7 +97,9 @@ export function LeadEstimatesPanel({
 }) {
   const queryClient = useQueryClient();
   const setStatus = useSetEstimateStatus(leadId);
-  const contractsEnabled = Boolean(jobId && onGenerateContract);
+  const [contractSource, setContractSource] = useState<ContractSource | null>(null);
+  const contractsEnabled = Boolean(jobId);
+  const generateContract = (source: ContractSource) => (onGenerateContract ? onGenerateContract(source) : setContractSource(source));
   const roofingRef = useRef<EstimatesPanelHandle>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
@@ -242,7 +245,12 @@ export function LeadEstimatesPanel({
       </div>
 
       {/* Roofing estimates — rendered by the existing specialized panel. */}
-      <EstimatesPanel ref={roofingRef} leadId={leadId} hideNewButton />
+      <EstimatesPanel
+        ref={roofingRef}
+        leadId={leadId}
+        hideNewButton
+        onGenerateContract={contractsEnabled ? (est) => generateContract({ kind: "ROOFING", id: est.id, estimateNumber: est.estimateNumber, total: est.totalPrice }) : undefined}
+      />
 
       {/* Generic template estimates (Drywall / Interior Reno / Windows & Doors). */}
       {estimates.length > 0 && (
@@ -354,7 +362,7 @@ export function LeadEstimatesPanel({
                             : "Mark the estimate accepted first"
                         }
                         onClick={() =>
-                          onGenerateContract?.({
+                          generateContract({
                             kind: "GENERIC",
                             id: est.id,
                             estimateNumber: est.estimateNumber,
@@ -420,6 +428,10 @@ export function LeadEstimatesPanel({
         onOpenChange={setDialogOpen}
         mode={dialogMode}
       />
+
+      {jobId && (
+        <GenerateContractDialog jobId={jobId} leadId={leadId} source={contractSource} onOpenChange={(o) => !o && setContractSource(null)} />
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,9 @@ type Job = {
   marginValue: string | null;
 };
 
-export function PricingPanel({ job }: { job: Job }) {
+export type SignedContractSummary = { id: string; contractNumber: string; signedAt: string; contractAmount: string };
+
+export function PricingPanel({ job, signedContract }: { job: Job; signedContract?: SignedContractSummary | null }) {
   const qc = useQueryClient();
   const [jobType, setJobType] = useState<JobType>(job.jobType);
   const [contractAmount, setContractAmount] = useState(
@@ -73,7 +76,8 @@ export function PricingPanel({ job }: { job: Job }) {
     mutationFn: async () => {
       const body: Record<string, unknown> = { jobType };
       if (jobType === "FIXED_PRICE") {
-        body.contractAmount = Number(contractAmount) || 0;
+        // A signed contract owns the amount; only the other fields save.
+        if (!signedContract) body.contractAmount = Number(contractAmount) || 0;
       } else if (jobType === "OWNED_REHAB") {
         // When crew contracts own laborCost, don't overwrite it from here.
         if (!laborFromCrews) body.laborCost = Number(laborCost) || 0;
@@ -143,11 +147,23 @@ export function PricingPanel({ job }: { job: Job }) {
               type="number"
               min={0}
               step="0.01"
-              value={contractAmount}
+              value={signedContract ? String(Number(job.contractAmount || 0)) : contractAmount}
               onChange={(e) => setContractAmount(e.target.value)}
+              disabled={Boolean(signedContract)}
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Profit = Contract − non-billable expenses
+              {signedContract ? (
+                <>
+                  Set by signed contract{" "}
+                  <Link href="?tab=money&sub=contract" className="text-brand-fg hover:underline">
+                    {signedContract.contractNumber}
+                  </Link>{" "}
+                  on {new Date(signedContract.signedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  {Number(job.contractAmount) !== Number(signedContract.contractAmount) ? " (plus approved change orders)" : ""}. Void the contract to edit.
+                </>
+              ) : (
+                "Profit = Contract − non-billable expenses"
+              )}
             </p>
           </div>
         ) : jobType === "OWNED_REHAB" ? (

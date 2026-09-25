@@ -34,6 +34,7 @@ import {
   Download,
   Building2,
   X,
+  FileSignature,
 } from "lucide-react";
 import {
   calculateEstimate,
@@ -292,8 +293,13 @@ export type EstimatesPanelHandle = { openCreate: () => void };
 
 export const EstimatesPanel = forwardRef<
   EstimatesPanelHandle,
-  { leadId: string; hideNewButton?: boolean }
->(function EstimatesPanel({ leadId, hideNewButton = false }, ref) {
+  {
+    leadId: string;
+    hideNewButton?: boolean;
+    /** Set on the job page: shows "Generate contract" on each roofing estimate. */
+    onGenerateContract?: (est: { id: string; estimateNumber: string; totalPrice: number }) => void;
+  }
+>(function EstimatesPanel({ leadId, hideNewButton = false, onGenerateContract }, ref) {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -519,6 +525,17 @@ export const EstimatesPanel = forwardRef<
                     <Pencil className="mr-1 h-3.5 w-3.5" />
                     Edit
                   </Button>
+                  {onGenerateContract && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      title="Generate a customer contract from this proposal"
+                      onClick={() => onGenerateContract({ id: est.id, estimateNumber: est.estimateNumber, totalPrice: Number(est.totalPrice) })}
+                    >
+                      <FileSignature className="mr-1 h-3.5 w-3.5" />
+                      Generate contract
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"

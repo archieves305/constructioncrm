@@ -258,6 +258,7 @@ enum FileCategory {
   LABOR_CONTRACT
   INTERIOR_RENOVATION_LABOR_CONTRACT
   CONTRACT_ADDENDUM
+  CUSTOMER_CONTRACT
   OTHER
 }
 
@@ -265,6 +266,8 @@ enum GeneratedDocumentType {
   LABOR_CONTRACT
   INTERIOR_RENOVATION_LABOR_CONTRACT
   CONTRACT_ADDENDUM
+  CUSTOMER_CONTRACT
+  CUSTOMER_CONTRACT_SIGNED
 }
 
 enum DoorKnockOutcome {
@@ -380,75 +383,80 @@ model User {
 
   role Role @relation(fields: [roleId], references: [id])
 
-  assignedLeads            Lead[]                  @relation("AssignedUser")
-  createdLeads             Lead[]                  @relation("CreatedByUser")
-  assignmentsGiven         LeadAssignment[]        @relation("AssignedByUser")
-  assignmentsOwned         LeadAssignment[]        @relation("AssignedToUser")
-  stageChanges             LeadStageHistory[]      @relation("ChangedByUser")
-  tasksAssigned            Task[]                  @relation("TaskAssignedUser")
-  tasksCreated             Task[]                  @relation("TaskCreatedByUser")
-  tasksCompleted           Task[]                  @relation("TaskCompletedByUser")
-  tasksRemindSet           Task[]                  @relation("TaskRemindSetBy")
-  taskEvents               TaskEvent[]             @relation("TaskEventActor")
-  taskWatching             TaskWatcher[]           @relation("TaskWatcherUser")
-  activityLogs             ActivityLog[]
-  communications           Communication[]
-  filesUploaded            File[]
-  permitLookupRuns         PermitLookupRun[]
-  managedJobs              Job[]                   @relation("ProjectManager")
-  soldJobs                 Job[]                   @relation("SalesRep")
-  jobStageChanges          JobStageHistory[]       @relation("JobChangedByUser")
-  assignedPermits          JobPermit[]             @relation("PermitAssignedUser")
-  inspections              Inspection[]
-  passwordResetTokens      PasswordResetToken[]
-  notifications            NotificationEvent[]
-  expensesCreated          JobExpense[]
-  expensesApproved         JobExpense[]            @relation("ExpenseApprovedBy")
-  expenseReconciliations   ExpenseReconciliation[] @relation("ExpenseReconciledBy")
-  allocatorPostingAcks     AllocatorPostingAck[]   @relation("AllocatorPostingAckedBy")
-  jobTaskTemplatesDefault  JobTaskTemplate[]
-  auditEvents              AuditEvent[]
-  roofEstimatesCreated     RoofEstimate[]          @relation("RoofEstimateCreatedBy")
-  estimatesCreated         Estimate[]              @relation("EstimateCreatedBy")
-  roofrOrdersCreated       RoofrOrder[]            @relation("RoofrOrderCreatedBy")
-  doorKnocksCreated        PropertyDoorKnock[]     @relation("DoorKnockKnockedBy")
-  doorKnocksDeleted        PropertyDoorKnock[]     @relation("DoorKnockDeletedBy")
-  doorKnockRoutesCreated   DoorKnockRoute[]        @relation("DoorKnockRouteCreatedBy")
-  doorKnockRoutesAssigned  DoorKnockRoute[]        @relation("DoorKnockRouteAssignedTo")
-  prospectsCreated         Prospect[]              @relation("ProspectCreatedBy")
-  prospectsAssigned        Prospect[]              @relation("ProspectAssignedTo")
-  laborContractsCreated    LaborContract[]
-  laborPaymentsCreated     LaborPayment[]
-  laborChangeOrdersCreated LaborChangeOrder[]
-  changeOrdersCreated      ChangeOrder[]
-  generatedDocuments       GeneratedDocument[]
-  personnelRecord          Personnel?              @relation("PersonnelUser")
-  personnelCreated         Personnel[]             @relation("PersonnelCreatedBy")
-  personnelDocsUploaded    PersonnelDocument[]     @relation("PersonnelDocUploadedBy")
-  jobPersonnelScopes       JobPersonnelScope[]     @relation("JobPersonnelScopeCreatedBy")
-  dailyLogsManaged         DailyLog[]              @relation("DailyLogManager")
-  dailyLogsSubmitted       DailyLog[]              @relation("DailyLogSubmittedBy")
-  dailyLogsApproved        DailyLog[]              @relation("DailyLogApprovedBy")
-  dailyLogsCreated         DailyLog[]              @relation("DailyLogCreatedBy")
-  laborEntriesCreated      DailyLaborEntry[]       @relation("LaborEntryCreatedBy")
-  payrollPaymentsMade      PayrollPayment[]        @relation("PayrollPaymentsMade")
-  fieldAssignments         JobFieldAssignment[]    @relation("JobFieldAssignmentUser")
-  fieldAssignmentsCreated  JobFieldAssignment[]    @relation("JobFieldAssignmentCreatedBy")
-  fieldPhotosTaken         FieldPhoto[]            @relation("FieldPhotoTakenBy")
-  fieldIssuesRaised        FieldIssue[]            @relation("FieldIssueRaisedBy")
-  fieldIssuesAssigned      FieldIssue[]            @relation("FieldIssueAssignedTo")
-  fieldIssuesResolved      FieldIssue[]            @relation("FieldIssueResolvedBy")
-  workflowRoleDefaults     WorkflowRoleDefault[]   @relation("WorkflowRoleDefaultUser")
-  workflowTeamSlots        JobWorkflowTeamMember[] @relation("WorkflowTeamUser")
-  workflowsApplied         JobWorkflowInstance[]   @relation("WorkflowAppliedBy")
-  permitsDetermined        JobWorkflowInstance[]   @relation("WorkflowPermitDeterminedBy")
-  violationCasesManaged    CodeViolationCase[]     @relation("ViolationCaseManager")
-  violationCasesCreated    CodeViolationCase[]     @relation("ViolationCaseCreatedBy")
-  violationCasesClosed     CodeViolationCase[]     @relation("ViolationCaseClosedBy")
-  violationItemsAssigned   CodeViolationItem[]     @relation("ViolationItemAssignedTo")
-  violationHearingsAttending CodeViolationHearing[] @relation("ViolationHearingAttendee")
-  violationInspectionsAttending CodeViolationInspection[] @relation("ViolationInspectionAttendee")
-  violationEvents          CodeViolationEvent[]    @relation("ViolationEventActor")
+  assignedLeads                     Lead[]                    @relation("AssignedUser")
+  createdLeads                      Lead[]                    @relation("CreatedByUser")
+  assignmentsGiven                  LeadAssignment[]          @relation("AssignedByUser")
+  assignmentsOwned                  LeadAssignment[]          @relation("AssignedToUser")
+  stageChanges                      LeadStageHistory[]        @relation("ChangedByUser")
+  tasksAssigned                     Task[]                    @relation("TaskAssignedUser")
+  tasksCreated                      Task[]                    @relation("TaskCreatedByUser")
+  tasksCompleted                    Task[]                    @relation("TaskCompletedByUser")
+  tasksRemindSet                    Task[]                    @relation("TaskRemindSetBy")
+  taskEvents                        TaskEvent[]               @relation("TaskEventActor")
+  taskWatching                      TaskWatcher[]             @relation("TaskWatcherUser")
+  activityLogs                      ActivityLog[]
+  communications                    Communication[]
+  filesUploaded                     File[]
+  permitLookupRuns                  PermitLookupRun[]
+  managedJobs                       Job[]                     @relation("ProjectManager")
+  soldJobs                          Job[]                     @relation("SalesRep")
+  jobStageChanges                   JobStageHistory[]         @relation("JobChangedByUser")
+  assignedPermits                   JobPermit[]               @relation("PermitAssignedUser")
+  inspections                       Inspection[]
+  passwordResetTokens               PasswordResetToken[]
+  notifications                     NotificationEvent[]
+  expensesCreated                   JobExpense[]
+  expensesApproved                  JobExpense[]              @relation("ExpenseApprovedBy")
+  expenseReconciliations            ExpenseReconciliation[]   @relation("ExpenseReconciledBy")
+  allocatorPostingAcks              AllocatorPostingAck[]     @relation("AllocatorPostingAckedBy")
+  jobTaskTemplatesDefault           JobTaskTemplate[]
+  auditEvents                       AuditEvent[]
+  roofEstimatesCreated              RoofEstimate[]            @relation("RoofEstimateCreatedBy")
+  estimatesCreated                  Estimate[]                @relation("EstimateCreatedBy")
+  roofrOrdersCreated                RoofrOrder[]              @relation("RoofrOrderCreatedBy")
+  doorKnocksCreated                 PropertyDoorKnock[]       @relation("DoorKnockKnockedBy")
+  doorKnocksDeleted                 PropertyDoorKnock[]       @relation("DoorKnockDeletedBy")
+  doorKnockRoutesCreated            DoorKnockRoute[]          @relation("DoorKnockRouteCreatedBy")
+  doorKnockRoutesAssigned           DoorKnockRoute[]          @relation("DoorKnockRouteAssignedTo")
+  prospectsCreated                  Prospect[]                @relation("ProspectCreatedBy")
+  prospectsAssigned                 Prospect[]                @relation("ProspectAssignedTo")
+  laborContractsCreated             LaborContract[]
+  laborPaymentsCreated              LaborPayment[]
+  laborChangeOrdersCreated          LaborChangeOrder[]
+  changeOrdersCreated               ChangeOrder[]
+  generatedDocuments                GeneratedDocument[]
+  personnelRecord                   Personnel?                @relation("PersonnelUser")
+  personnelCreated                  Personnel[]               @relation("PersonnelCreatedBy")
+  personnelDocsUploaded             PersonnelDocument[]       @relation("PersonnelDocUploadedBy")
+  jobPersonnelScopes                JobPersonnelScope[]       @relation("JobPersonnelScopeCreatedBy")
+  dailyLogsManaged                  DailyLog[]                @relation("DailyLogManager")
+  dailyLogsSubmitted                DailyLog[]                @relation("DailyLogSubmittedBy")
+  dailyLogsApproved                 DailyLog[]                @relation("DailyLogApprovedBy")
+  dailyLogsCreated                  DailyLog[]                @relation("DailyLogCreatedBy")
+  laborEntriesCreated               DailyLaborEntry[]         @relation("LaborEntryCreatedBy")
+  payrollPaymentsMade               PayrollPayment[]          @relation("PayrollPaymentsMade")
+  fieldAssignments                  JobFieldAssignment[]      @relation("JobFieldAssignmentUser")
+  fieldAssignmentsCreated           JobFieldAssignment[]      @relation("JobFieldAssignmentCreatedBy")
+  fieldPhotosTaken                  FieldPhoto[]              @relation("FieldPhotoTakenBy")
+  fieldIssuesRaised                 FieldIssue[]              @relation("FieldIssueRaisedBy")
+  fieldIssuesAssigned               FieldIssue[]              @relation("FieldIssueAssignedTo")
+  fieldIssuesResolved               FieldIssue[]              @relation("FieldIssueResolvedBy")
+  workflowRoleDefaults              WorkflowRoleDefault[]     @relation("WorkflowRoleDefaultUser")
+  workflowTeamSlots                 JobWorkflowTeamMember[]   @relation("WorkflowTeamUser")
+  workflowsApplied                  JobWorkflowInstance[]     @relation("WorkflowAppliedBy")
+  permitsDetermined                 JobWorkflowInstance[]     @relation("WorkflowPermitDeterminedBy")
+  violationCasesManaged             CodeViolationCase[]       @relation("ViolationCaseManager")
+  violationCasesCreated             CodeViolationCase[]       @relation("ViolationCaseCreatedBy")
+  violationCasesClosed              CodeViolationCase[]       @relation("ViolationCaseClosedBy")
+  customerContractsCreated          CustomerContract[]        @relation("CustomerContractCreatedBy")
+  customerContractsSent             CustomerContract[]        @relation("CustomerContractSentBy")
+  customerContractsVoided           CustomerContract[]        @relation("CustomerContractVoidedBy")
+  contractTemplateVersionsCreated   ContractTemplateVersion[] @relation("ContractTemplateVersionCreatedBy")
+  contractTemplateVersionsPublished ContractTemplateVersion[] @relation("ContractTemplateVersionPublishedBy")
+  violationItemsAssigned            CodeViolationItem[]       @relation("ViolationItemAssignedTo")
+  violationHearingsAttending        CodeViolationHearing[]    @relation("ViolationHearingAttendee")
+  violationInspectionsAttending     CodeViolationInspection[] @relation("ViolationInspectionAttendee")
+  violationEvents                   CodeViolationEvent[]      @relation("ViolationEventActor")
 
   signatureHtml String? @map("signature_html") @db.Text
   signatureText String? @map("signature_text") @db.Text
@@ -568,25 +576,26 @@ model Lead {
   currentStage LeadStage   @relation(fields: [currentStageId], references: [id])
   createdBy    User        @relation("CreatedByUser", fields: [createdByUserId], references: [id])
 
-  services       LeadService[]
-  stageHistory   LeadStageHistory[]
-  assignments    LeadAssignment[]
-  tasks          Task[]
-  activityLogs   ActivityLog[]
-  communications Communication[]
-  permits        Permit[]
-  permitLookups  PermitLookupRun[]
-  files          File[]
-  jobs           Job[]
-  reviewRequests ReviewRequest[]
-  referrals      Referral[]
-  notifications  NotificationEvent[]
-  followUps      FollowUpExecution[]
-  roofEstimates  RoofEstimate[]
-  estimates      Estimate[]
-  roofrOrders    RoofrOrder[]
-  prospect       Prospect?
-  violationCases CodeViolationCase[]
+  services          LeadService[]
+  stageHistory      LeadStageHistory[]
+  assignments       LeadAssignment[]
+  tasks             Task[]
+  activityLogs      ActivityLog[]
+  communications    Communication[]
+  permits           Permit[]
+  permitLookups     PermitLookupRun[]
+  files             File[]
+  jobs              Job[]
+  reviewRequests    ReviewRequest[]
+  referrals         Referral[]
+  notifications     NotificationEvent[]
+  followUps         FollowUpExecution[]
+  roofEstimates     RoofEstimate[]
+  estimates         Estimate[]
+  roofrOrders       RoofrOrder[]
+  prospect          Prospect?
+  violationCases    CodeViolationCase[]
+  customerContracts CustomerContract[]
 
   @@index([primaryPhone])
   @@index([email])
@@ -735,21 +744,21 @@ model Task {
   inspectionResult      PermitInspectionResult? @map("inspection_result")
   inspectionRecordedAt  DateTime?               @map("inspection_recorded_at")
 
-  lead        Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  job         Job?          @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  estimate    Estimate?     @relation(fields: [estimateId], references: [id], onDelete: SetNull)
-  invoice     Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  prospect    Prospect?     @relation(fields: [prospectId], references: [id], onDelete: SetNull)
-  dailyLog    DailyLog?     @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  lead          Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  job           Job?               @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  estimate      Estimate?          @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+  invoice       Invoice?           @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  prospect      Prospect?          @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  dailyLog      DailyLog?          @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
   violationCase CodeViolationCase? @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
   violationItem CodeViolationItem? @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
-  assignedTo  User?         @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
-  createdBy   User          @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
-  completedBy User?         @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
-  remindSetBy User?         @relation("TaskRemindSetBy", fields: [remindSetByUserId], references: [id])
-  fieldIssue  FieldIssue?
-  events      TaskEvent[]
-  watchers    TaskWatcher[]
+  assignedTo    User?              @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
+  createdBy     User               @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
+  completedBy   User?              @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
+  remindSetBy   User?              @relation("TaskRemindSetBy", fields: [remindSetByUserId], references: [id])
+  fieldIssue    FieldIssue?
+  events        TaskEvent[]
+  watchers      TaskWatcher[]
 
   workflowInstance JobWorkflowInstance? @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
   dependencies     TaskDependency[]     @relation("TaskDependencyTask")
@@ -1259,6 +1268,7 @@ model Job {
   fieldIssues        FieldIssue[]
   workflow           JobWorkflowInstance?
   violationCases     CodeViolationCase[]
+  customerContracts  CustomerContract[]
 
   @@index([leadId])
   @@index([currentStageId])
@@ -1552,6 +1562,7 @@ model GeneratedDocument {
   jobId              String                @map("job_id")
   laborContractId    String?               @map("labor_contract_id")
   changeOrderId      String?               @map("change_order_id")
+  customerContractId String?               @map("customer_contract_id")
   documentType       GeneratedDocumentType @map("document_type")
   versionNumber      Int                   @map("version_number")
   fileName           String                @map("file_name")
@@ -1561,15 +1572,17 @@ model GeneratedDocument {
   generatedAt        DateTime              @default(now()) @map("generated_at")
   sourceDataSnapshot Json                  @map("source_data_snapshot")
 
-  job           Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  laborContract LaborContract?    @relation(fields: [laborContractId], references: [id], onDelete: SetNull)
-  changeOrder   LaborChangeOrder? @relation(fields: [changeOrderId], references: [id], onDelete: SetNull)
-  file          File?             @relation(fields: [fileId], references: [id], onDelete: SetNull)
-  generatedBy   User              @relation(fields: [generatedByUserId], references: [id])
+  job              Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  laborContract    LaborContract?    @relation(fields: [laborContractId], references: [id], onDelete: SetNull)
+  changeOrder      LaborChangeOrder? @relation(fields: [changeOrderId], references: [id], onDelete: SetNull)
+  customerContract CustomerContract? @relation(fields: [customerContractId], references: [id], onDelete: SetNull)
+  file             File?             @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  generatedBy      User              @relation(fields: [generatedByUserId], references: [id])
 
   @@index([jobId])
   @@index([laborContractId])
   @@index([changeOrderId])
+  @@index([customerContractId])
   @@map("generated_documents")
 }
 
@@ -2195,8 +2208,9 @@ model RoofEstimate {
   createdAt                DateTime @default(now()) @map("created_at")
   updatedAt                DateTime @updatedAt @map("updated_at")
 
-  lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  createdBy User @relation("RoofEstimateCreatedBy", fields: [createdByUserId], references: [id])
+  lead              Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy         User               @relation("RoofEstimateCreatedBy", fields: [createdByUserId], references: [id])
+  customerContracts CustomerContract[]
 
   @@index([leadId])
   @@map("roof_estimates")
@@ -2479,11 +2493,12 @@ model Estimate {
   createdAt        DateTime                 @default(now()) @map("created_at")
   updatedAt        DateTime                 @updatedAt @map("updated_at")
 
-  lead      Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  template  EstimateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  createdBy User              @relation("EstimateCreatedBy", fields: [createdByUserId], references: [id])
-  sections  EstimateSection[]
-  tasks     Task[]
+  lead              Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  template          EstimateTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy         User               @relation("EstimateCreatedBy", fields: [createdByUserId], references: [id])
+  sections          EstimateSection[]
+  tasks             Task[]
+  customerContracts CustomerContract[]
 
   @@index([leadId])
   @@index([templateCategory])
@@ -3433,18 +3448,18 @@ enum CodeViolationEventType {
 /// Configurable violation categories (seeded with 22; a table so admins can
 /// edit them without a deploy and items keep their category through renames).
 model CodeViolationCategory {
-  id                       String               @id @default(cuid())
-  key                      String               @unique
-  name                     String
-  description              String?              @db.Text
-  defaultResponsibleTrade  String?              @map("default_responsible_trade")
-  defaultPermitRequirement WorkflowPermitStatus @default(UNDETERMINED) @map("default_permit_requirement")
+  id                          String               @id @default(cuid())
+  key                         String               @unique
+  name                        String
+  description                 String?              @db.Text
+  defaultResponsibleTrade     String?              @map("default_responsible_trade")
+  defaultPermitRequirement    WorkflowPermitStatus @default(UNDETERMINED) @map("default_permit_requirement")
   /// Categories that usually mean corrective construction (roofing, structural…).
-  defaultConstructionRequired Boolean           @default(false) @map("default_construction_required")
-  sortOrder                Int                  @default(0) @map("sort_order")
-  isActive                 Boolean              @default(true) @map("is_active")
-  createdAt                DateTime             @default(now()) @map("created_at")
-  updatedAt                DateTime             @updatedAt @map("updated_at")
+  defaultConstructionRequired Boolean              @default(false) @map("default_construction_required")
+  sortOrder                   Int                  @default(0) @map("sort_order")
+  isActive                    Boolean              @default(true) @map("is_active")
+  createdAt                   DateTime             @default(now()) @map("created_at")
+  updatedAt                   DateTime             @updatedAt @map("updated_at")
 
   items CodeViolationItem[]
 
@@ -3452,25 +3467,25 @@ model CodeViolationCategory {
 }
 
 model CodeViolationCase {
-  id               String  @id @default(cuid())
+  id                String  @id @default(cuid())
   /// "CV-00001", from the code_violation_case_number_seq sequence (see migration).
-  caseNumber       String  @unique @map("case_number")
-  agencyCaseNumber String? @map("agency_case_number")
+  caseNumber        String  @unique @map("case_number")
+  agencyCaseNumber  String? @map("agency_case_number")
   /// The property + owner/customer record. Required: the address lives here.
-  leadId           String  @map("lead_id")
+  leadId            String  @map("lead_id")
   /// The corrective construction job, once one exists.
-  jobId            String? @map("job_id")
-  parcelNumber     String? @map("parcel_number")
+  jobId             String? @map("job_id")
+  parcelNumber      String? @map("parcel_number")
   /// Owner as printed on the notice; the lead may differ.
   ownerNameSnapshot String? @map("owner_name_snapshot")
-  jurisdiction     String?
-  department       String?
-  officerName      String? @map("officer_name")
-  officerPhone     String? @map("officer_phone")
-  officerEmail     String? @map("officer_email")
-  noticeType       String? @map("notice_type")
-  title            String
-  summary          String? @db.Text
+  jurisdiction      String?
+  department        String?
+  officerName       String? @map("officer_name")
+  officerPhone      String? @map("officer_phone")
+  officerEmail      String? @map("officer_email")
+  noticeType        String? @map("notice_type")
+  title             String
+  summary           String? @db.Text
 
   receivedAt       DateTime  @map("received_at")
   noticeDate       DateTime? @map("notice_date")
@@ -3506,32 +3521,32 @@ model CodeViolationCase {
   // ── Fines: OFFICIAL figures, entered. The system ESTIMATE is computed
   // on read from the terms below (see src/lib/violations/fines.ts) and is
   // never stored, so the two can never be confused.
-  initialFine               Decimal?  @map("initial_fine") @db.Decimal(12, 2)
-  dailyFine                 Decimal?  @map("daily_fine") @db.Decimal(12, 2)
-  fineAccrualStartDate      DateTime? @map("fine_accrual_start_date")
+  initialFine                 Decimal?                      @map("initial_fine") @db.Decimal(12, 2)
+  dailyFine                   Decimal?                      @map("daily_fine") @db.Decimal(12, 2)
+  fineAccrualStartDate        DateTime?                     @map("fine_accrual_start_date")
   /// The OFFICIAL stop date. Corrective-work completion never sets this.
-  fineAccrualStoppedAt      DateTime? @map("fine_accrual_stopped_at")
-  adminCosts                Decimal   @default(0) @map("admin_costs") @db.Decimal(12, 2)
-  officialBalance           Decimal?  @map("official_balance") @db.Decimal(12, 2)
-  officialBalanceAsOf       DateTime? @map("official_balance_as_of")
-  amountPaid                Decimal   @default(0) @map("amount_paid") @db.Decimal(12, 2)
-  mitigationStatus          CodeViolationMitigationStatus @default(NONE) @map("mitigation_status")
-  mitigationRequestedAmount Decimal?  @map("mitigation_requested_amount") @db.Decimal(12, 2)
-  mitigationGrantedAmount   Decimal?  @map("mitigation_granted_amount") @db.Decimal(12, 2)
-  mitigationRequestedAt     DateTime? @map("mitigation_requested_at")
-  mitigationDecidedAt       DateTime? @map("mitigation_decided_at")
+  fineAccrualStoppedAt        DateTime?                     @map("fine_accrual_stopped_at")
+  adminCosts                  Decimal                       @default(0) @map("admin_costs") @db.Decimal(12, 2)
+  officialBalance             Decimal?                      @map("official_balance") @db.Decimal(12, 2)
+  officialBalanceAsOf         DateTime?                     @map("official_balance_as_of")
+  amountPaid                  Decimal                       @default(0) @map("amount_paid") @db.Decimal(12, 2)
+  mitigationStatus            CodeViolationMitigationStatus @default(NONE) @map("mitigation_status")
+  mitigationRequestedAmount   Decimal?                      @map("mitigation_requested_amount") @db.Decimal(12, 2)
+  mitigationGrantedAmount     Decimal?                      @map("mitigation_granted_amount") @db.Decimal(12, 2)
+  mitigationRequestedAt       DateTime?                     @map("mitigation_requested_at")
+  mitigationDecidedAt         DateTime?                     @map("mitigation_decided_at")
   /// ADMIN/MANAGER override of the system estimate, with a reason (audited).
-  fineEstimateOverride      Decimal?  @map("fine_estimate_override") @db.Decimal(12, 2)
-  fineEstimateOverrideReason String?  @map("fine_estimate_override_reason") @db.Text
-  fineEstimateOverrideAt    DateTime? @map("fine_estimate_override_at")
-  fineTermsUpdatedAt        DateTime? @map("fine_terms_updated_at")
-  lienStatus                CodeViolationLienStatus @default(NONE) @map("lien_status")
-  lienAmount                Decimal?  @map("lien_amount") @db.Decimal(12, 2)
-  lienRecordedAt            DateTime? @map("lien_recorded_at")
-  lienInstrumentNumber      String?   @map("lien_instrument_number")
-  lienBookPage              String?   @map("lien_book_page")
-  lienReleasedAt            DateTime? @map("lien_released_at")
-  lienReleaseInstrumentNumber String? @map("lien_release_instrument_number")
+  fineEstimateOverride        Decimal?                      @map("fine_estimate_override") @db.Decimal(12, 2)
+  fineEstimateOverrideReason  String?                       @map("fine_estimate_override_reason") @db.Text
+  fineEstimateOverrideAt      DateTime?                     @map("fine_estimate_override_at")
+  fineTermsUpdatedAt          DateTime?                     @map("fine_terms_updated_at")
+  lienStatus                  CodeViolationLienStatus       @default(NONE) @map("lien_status")
+  lienAmount                  Decimal?                      @map("lien_amount") @db.Decimal(12, 2)
+  lienRecordedAt              DateTime?                     @map("lien_recorded_at")
+  lienInstrumentNumber        String?                       @map("lien_instrument_number")
+  lienBookPage                String?                       @map("lien_book_page")
+  lienReleasedAt              DateTime?                     @map("lien_released_at")
+  lienReleaseInstrumentNumber String?                       @map("lien_release_instrument_number")
 
   // ── Resolution. Construction completion ≠ compliance: the agency's
   // confirmation is a separate, later fact and the closure gate.
@@ -3622,30 +3637,30 @@ model CodeViolationItem {
 }
 
 model CodeViolationHearing {
-  id                 String                       @id @default(cuid())
-  caseId             String                       @map("case_id")
-  type               CodeViolationHearingType     @default(SPECIAL_MAGISTRATE)
-  status             CodeViolationHearingStatus   @default(SCHEDULED)
-  scheduledAt        DateTime                     @map("scheduled_at")
-  location           String?
-  attendeeUserId     String?                      @map("attendee_user_id")
-  caseNumberAtHearing String?                     @map("case_number_at_hearing")
-  outcome            CodeViolationHearingOutcome?
-  outcomeNotes       String?                      @map("outcome_notes") @db.Text
-  orderDeadline      DateTime?                    @map("order_deadline")
-  orderedFineAmount  Decimal?                     @map("ordered_fine_amount") @db.Decimal(12, 2)
-  orderedDailyFine   Decimal?                     @map("ordered_daily_fine") @db.Decimal(12, 2)
+  id                  String                       @id @default(cuid())
+  caseId              String                       @map("case_id")
+  type                CodeViolationHearingType     @default(SPECIAL_MAGISTRATE)
+  status              CodeViolationHearingStatus   @default(SCHEDULED)
+  scheduledAt         DateTime                     @map("scheduled_at")
+  location            String?
+  attendeeUserId      String?                      @map("attendee_user_id")
+  caseNumberAtHearing String?                      @map("case_number_at_hearing")
+  outcome             CodeViolationHearingOutcome?
+  outcomeNotes        String?                      @map("outcome_notes") @db.Text
+  orderDeadline       DateTime?                    @map("order_deadline")
+  orderedFineAmount   Decimal?                     @map("ordered_fine_amount") @db.Decimal(12, 2)
+  orderedDailyFine    Decimal?                     @map("ordered_daily_fine") @db.Decimal(12, 2)
   /// A continued hearing points at its replacement.
-  continuedToId      String?                      @unique @map("continued_to_id")
-  orderFileId        String?                      @map("order_file_id")
-  notes              String?                      @db.Text
-  createdByUserId    String                       @map("created_by_user_id")
-  createdAt          DateTime                     @default(now()) @map("created_at")
-  updatedAt          DateTime                     @updatedAt @map("updated_at")
+  continuedToId       String?                      @unique @map("continued_to_id")
+  orderFileId         String?                      @map("order_file_id")
+  notes               String?                      @db.Text
+  createdByUserId     String                       @map("created_by_user_id")
+  createdAt           DateTime                     @default(now()) @map("created_at")
+  updatedAt           DateTime                     @updatedAt @map("updated_at")
 
-  case        CodeViolationCase     @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  attendee    User?                 @relation("ViolationHearingAttendee", fields: [attendeeUserId], references: [id])
-  continuedTo CodeViolationHearing? @relation("HearingContinuation", fields: [continuedToId], references: [id])
+  case          CodeViolationCase     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  attendee      User?                 @relation("ViolationHearingAttendee", fields: [attendeeUserId], references: [id])
+  continuedTo   CodeViolationHearing? @relation("HearingContinuation", fields: [continuedToId], references: [id])
   continuedFrom CodeViolationHearing? @relation("HearingContinuation")
 
   @@index([caseId, scheduledAt])
@@ -3763,4 +3778,145 @@ model CodeViolationReminderLog {
 
   @@unique([caseId, kind, entityId, offsetKey])
   @@map("code_violation_reminder_logs")
+}
+
+// ─── Customer contracts (estimate → agreement → e-signature) ─────────────────
+//
+// A CustomerContract is generated from ONE accepted estimate (template or
+// roofing — the DB CHECK enforces exactly one source) against a pinned,
+// immutable ContractTemplateVersion. `snapshot` is the merged document exactly
+// as rendered; the signed PDF is re-rendered from it, never from live data.
+
+enum CustomerContractStatus {
+  DRAFT
+  SENT
+  SIGNED
+  DECLINED
+  VOID
+}
+
+enum ContractTemplateVersionStatus {
+  DRAFT
+  PUBLISHED
+  SUPERSEDED
+  ARCHIVED
+}
+
+model ContractTemplate {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?  @db.Text
+  isDefault   Boolean  @default(false) @map("is_default")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  versions ContractTemplateVersion[]
+
+  @@map("contract_templates")
+}
+
+model ContractTemplateVersion {
+  id                  String                        @id @default(cuid())
+  templateId          String                        @map("template_id")
+  version             Int
+  status              ContractTemplateVersionStatus @default(DRAFT)
+  title               String
+  // [{ key, title, body }] — body is plain text with {{merge.fields}};
+  // a blank line starts a new paragraph, a line starting "- " is a bullet.
+  articles            Json                          @default("[]")
+  // { items: [{ key, label, percent, trigger }] } — percents sum to 100
+  paymentSchedule     Json                          @map("payment_schedule")
+  // Printed above the schedule table; may carry merge fields.
+  paymentScheduleText String                        @map("payment_schedule_text") @db.Text
+  // The e-sign consent sentence the customer must tick.
+  consentText         String                        @map("consent_text") @db.Text
+  changeNotes         String?                       @map("change_notes") @db.Text
+  contentHash         String                        @map("content_hash")
+  sourceVersionId     String?                       @map("source_version_id")
+  createdByUserId     String?                       @map("created_by_user_id")
+  publishedByUserId   String?                       @map("published_by_user_id")
+  publishedAt         DateTime?                     @map("published_at")
+  supersededAt        DateTime?                     @map("superseded_at")
+  createdAt           DateTime                      @default(now()) @map("created_at")
+  updatedAt           DateTime                      @updatedAt @map("updated_at")
+
+  template    ContractTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  createdBy   User?              @relation("ContractTemplateVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  publishedBy User?              @relation("ContractTemplateVersionPublishedBy", fields: [publishedByUserId], references: [id], onDelete: SetNull)
+  contracts   CustomerContract[]
+
+  @@unique([templateId, version])
+  @@index([templateId, status])
+  @@map("contract_template_versions")
+}
+
+model CustomerContract {
+  id                  String                 @id @default(cuid())
+  jobId               String                 @map("job_id")
+  // Denormalised from the job: File rows and the lead timeline key on it.
+  leadId              String                 @map("lead_id")
+  // Per job, max+1 inside the transaction; the unique index is the backstop.
+  number              Int
+  contractNumber      String                 @unique @map("contract_number") // "JOB-00012-C1"
+  templateVersionId   String                 @map("template_version_id")
+  // Exactly one source (CHECK constraint, hand-appended in the migration).
+  estimateId          String?                @map("estimate_id")
+  roofEstimateId      String?                @map("roof_estimate_id")
+  status              CustomerContractStatus @default(DRAFT)
+  // Money as frozen in the snapshot (re-frozen on regenerate while DRAFT).
+  contractAmount      Decimal                @map("contract_amount") @db.Decimal(12, 2)
+  depositAmount       Decimal                @map("deposit_amount") @db.Decimal(12, 2)
+  paymentSchedule     Json                   @map("payment_schedule") // [{key,label,percent,trigger,amount}]
+  // The merged document (CustomerContractSnapshot) exactly as rendered.
+  snapshot            Json
+  // GeneratedDocument.versionNumber of the current unsigned PDF.
+  snapshotVersion     Int                    @default(1) @map("snapshot_version")
+  // Send
+  token               String?                @unique
+  tokenExpiresAt      DateTime?              @map("token_expires_at")
+  sentAt              DateTime?              @map("sent_at")
+  sentToEmail         String?                @map("sent_to_email")
+  sentByUserId        String?                @map("sent_by_user_id")
+  // SHA-256 of the exact unsigned PDF bytes emailed; printed on the certificate.
+  unsignedPdfSha256   String?                @map("unsigned_pdf_sha256")
+  // Sign
+  signedAt            DateTime?              @map("signed_at")
+  signerName          String?                @map("signer_name")
+  signerEmail         String?                @map("signer_email")
+  signerIp            String?                @map("signer_ip")
+  signerUserAgent     String?                @map("signer_user_agent") @db.Text
+  consentText         String?                @map("consent_text") @db.Text
+  consentAt           DateTime?              @map("consent_at")
+  signatureStorageKey String?                @map("signature_storage_key")
+  signedPdfSha256     String?                @map("signed_pdf_sha256")
+  // Money effects applied on sign (null on a SIGNED row = not applied; the
+  // note says why, e.g. applications already issued on a PROGRESS job).
+  moneyAppliedAt      DateTime?              @map("money_applied_at")
+  moneyApplyNote      String?                @map("money_apply_note") @db.Text
+  // Decline / void
+  declinedAt          DateTime?              @map("declined_at")
+  declineReason       String?                @map("decline_reason") @db.Text
+  voidedAt            DateTime?              @map("voided_at")
+  voidedByUserId      String?                @map("voided_by_user_id")
+  voidReason          String?                @map("void_reason") @db.Text
+  createdByUserId     String                 @map("created_by_user_id")
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
+
+  job             Job                     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  lead            Lead                    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  templateVersion ContractTemplateVersion @relation(fields: [templateVersionId], references: [id])
+  estimate        Estimate?               @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+  roofEstimate    RoofEstimate?           @relation(fields: [roofEstimateId], references: [id], onDelete: SetNull)
+  createdBy       User                    @relation("CustomerContractCreatedBy", fields: [createdByUserId], references: [id])
+  sentBy          User?                   @relation("CustomerContractSentBy", fields: [sentByUserId], references: [id], onDelete: SetNull)
+  voidedBy        User?                   @relation("CustomerContractVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+  documents       GeneratedDocument[]
+
+  @@unique([jobId, number])
+  @@index([jobId, status])
+  @@index([leadId])
+  @@map("customer_contracts")
 }

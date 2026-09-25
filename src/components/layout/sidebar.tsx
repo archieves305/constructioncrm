@@ -29,6 +29,7 @@ import {
   Route,
   UsersRound,
   Scale,
+  FileSignature,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
@@ -107,6 +108,12 @@ const navItems: NavItem[] = [
     href: "/admin/workflow-templates",
     label: "Workflow Templates",
     icon: Route,
+    roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
+  },
+  {
+    href: "/admin/contract-templates",
+    label: "Contract Templates",
+    icon: FileSignature,
     roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
   },
   {

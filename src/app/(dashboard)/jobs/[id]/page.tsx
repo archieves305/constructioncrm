@@ -48,6 +48,8 @@ import { ChangeOrdersPanel } from "@/components/jobs/change-orders-panel";
 import { BudgetPanel } from "@/components/jobs/budget-panel";
 import { PricingPanel } from "@/components/jobs/pricing-panel";
 import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
+import { ContractPanel } from "@/components/jobs/contract-panel";
+import { useJobContracts } from "@/components/customer-contracts/use-customer-contracts";
 import { Callout } from "@/components/shared/callout";
 import { RentalTurnoverPanel } from "@/components/jobs/rental-turnover-panel";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
@@ -94,6 +96,10 @@ export default function JobDetailPage() {
   // Scoped through /api/tasks so the count matches what this viewer may see.
   const { data: jobTasks = [] } = useTasks({ jobId: id });
   const { data: workflow } = useJobWorkflow(id);
+  const { data: contracts = [], isFetched: contractsLoaded } = useJobContracts(id);
+  const signedRow = contracts.find((c) => c.status === "SIGNED") ?? null;
+  const signedContract = signedRow ? { id: signedRow.id, contractNumber: signedRow.contractNumber, signedAt: signedRow.signedAt ?? signedRow.updatedAt, contractAmount: signedRow.contractAmount } : null;
+  const awaitingSignature = contracts.filter((c) => c.status === "SENT").length;
 
   const { data: crews = [] } = useQuery<{ id: string; name: string; trades: string[] }[]>({
     queryKey: ["crews", "active"],
@@ -491,13 +497,13 @@ export default function JobDetailPage() {
             </CardContent>
           </Card>
 
-          <PricingPanel job={job} />
+          <PricingPanel job={job} signedContract={signedContract} />
           <RentalTurnoverPanel job={job} />
         </div>
 
         {/* Right column: tabs */}
         <div className="lg:col-span-2">
-          {job.jobType === "FIXED_PRICE" && Number(job.contractAmount) === 0 && (
+          {job.jobType === "FIXED_PRICE" && Number(job.contractAmount) === 0 && contractsLoaded && contracts.length === 0 && (
             <Callout
               tone="info"
               className="mb-4"
@@ -518,6 +524,7 @@ export default function JobDetailPage() {
               { value: "invoices", label: "Invoices" },
               { value: "expenses", label: "Expenses" },
               { value: "change-orders", label: "Change orders" },
+              { value: "contract", label: awaitingSignature > 0 ? `Contract (${awaitingSignature})` : "Contract" },
               ...(job.jobType === "OWNED_REHAB" ? [{ value: "budget", label: "Budget" }] : []),
             ];
             const FIELD = [
@@ -712,6 +719,10 @@ export default function JobDetailPage() {
                 ))}
                 {!job.payments?.length && <p className="py-6 text-center text-sm text-muted-foreground">No payments recorded</p>}
               </div>
+            </TabsContent>
+
+            <TabsContent value="contract">
+              <ContractPanel jobId={id} job={{ contractAmount: String(job.contractAmount ?? 0), jobType: job.jobType, billingMethod: job.billingMethod, lead: { email: job.lead?.email ?? null, fullName: job.lead?.fullName ?? "" } }} />
             </TabsContent>
 
             <TabsContent value="invoices">
