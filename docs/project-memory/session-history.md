@@ -35,8 +35,15 @@ sudo systemctl restart knuco
 curl -s -H "Authorization: Bearer $KEY" http://127.0.0.1:3115/api/internal/crm-postings | head -c 200
 ```
 
-Then open Admin → Cost Reconciliation: expect 0 missing, 4 never-posted
-bank rows ($4,749.60), 0 held.
+Richard then asked for it to be run here; the same command went through
+(key generated on the droplet, appended to both files, cc-allocator
+redeployed, `knuco` restarted). Verified with a throwaway tsx script on
+prod calling the CRM's own `fetchAllocatorPostings` + classifier: counts
+279 card / 102 bank / 374 with expense id; **missing 3 ($25,584.10 — the
+intentional deletions), never posted 6 ($5,125.27: Roberto Rodriguez
+$3,135.60 + $432 + $432 and Sikaffy & Bogran $750 on the bank side, Home
+Depot $210.88 and ACI Miami-Dade $164.79 on the card side), held 0.** The
+earlier "expect 4 / $4,749.60" forgot the two card rows in flight.
 
 ## 2026-09-24 — Job-cost reconciliation, Phase 1 (deployed + applied)
 

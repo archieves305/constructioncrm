@@ -4,13 +4,10 @@ _Updated 2026-09-24._
 
 ## Open — needs a decision or action
 
-- ⚠️ **Reconciliation Phase 2 is deployed but not connected.** Both apps
-  ship the code (`972affe`, cc-allocator PR #32); the shared bearer key is
-  not placed yet because env-file writes are refused to the assistant.
-  Until Richard sets `CRM_RECON_API_KEY` (cc-allocator `.env`) and
-  `CC_ALLOCATOR_BASE_URL=http://127.0.0.1:3115` +
-  `CC_ALLOCATOR_RECON_KEY` (`/etc/knuco/env`) and restarts both, the page
-  shows "cc-allocator's side is not connected".
+- **Cost Reconciliation shows the three intentionally deleted postings
+  forever** ($25,584.10, "posted by cc-allocator, missing here"). Correct
+  by construction — cc-allocator holds a CRM expense id for them — but
+  noisy. An "acknowledge" decision would hide them; not built.
 - The three deleted postings ($25,584.10) were **intentional** (Richard,
   2026-09-24) — not re-entered. Four bank rows ($4,749.60) sit in
   cc-allocator's own queue; when Roberto Rodriguez $432 (06-05) posts it

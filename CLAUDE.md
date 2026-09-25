@@ -56,10 +56,11 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    **Phase 2 deployed 2026-09-25 (`972affe` + cc-allocator PR #32)**: the
    page reads cc-allocator's postings export and shows "posted but missing
    here", "linked, never posted" (with the reason) and "held for review".
-   **Waiting on Richard to place the shared key** (`CRM_RECON_API_KEY` in
-   cc-allocator's `.env`, `CC_ALLOCATOR_BASE_URL` + `CC_ALLOCATOR_RECON_KEY`
-   in `/etc/knuco/env`, then restart both) — until then the page says
-   "not connected".
+   **Connected 2026-09-25** (key placed at Richard's request, both apps
+   restarted): the card shows the 3 intentionally deleted postings as
+   "missing here" (they will keep showing — an acknowledge action is a
+   possible follow-up), 6 never-posted rows in cc-allocator's queue
+   ($5,125.27), 0 held.
 3. ✅ `field-log-digest` self-healed — prod journal shows every weekday run
    since the MailerSend upgrade at `attempted 6, sent 6, failures 0`
    (checked 2026-09-24 across Sep 17–24).
@@ -85,8 +86,12 @@ zod, 10s timeout, never throws), pure `lib/expenses/reconcile-allocator.ts`
 (`missingInCrm` / `neverPosted` with reason / `heldPending`), `allocator`
 block on `GET /api/admin/job-cost-reconciliation`, "From cc-allocator's
 side" card. The env-file writes were refused by the auto-mode classifier,
-so **Richard places the key** (commands in the 2026-09-25 session-history
-entry). Also fixed: archived `scripts/cc-allocator/*` had broken
+so Richard asked for it explicitly and the same command then went
+through: key placed, both apps restarted, the CRM's own
+`fetchAllocatorPostings` + classifier run on prod → counts 279/102/374,
+missing 3 ($25,584.10, the intentional deletions), never posted 6
+($5,125.27: four bank rows queued/awaiting, two card rows in flight),
+held 0. Also fixed: archived `scripts/cc-allocator/*` had broken
 typecheck on `main` since `107f43c` — excluded in tsconfig. 615 tests,
 lint 6/28. **Deployed `972affe`** (build `-1tKwAW5IigEUf_Jhe-Sm`).
 
@@ -476,15 +481,14 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Reconciliation Phase 2 is deployed on both apps (`972affe`, cc-allocator
-> `75078d4`) but **not yet connected**: Richard has to place the shared
-> key (see the 2026-09-25 session-history entry for the exact commands),
-> then the Cost Reconciliation page's "From cc-allocator's side" card
-> should show 0 missing / 4 never-posted bank rows ($4,749.60, three
-> queued + one needs assignment) / 0 held. Verify that first. After that
-> every workstream is closed; remaining candidates are a schema pass to
-> drop `User.passwordHash`, and business-day durations in the workflow
-> report. Operator items (SPF → `TASK_ESCALATIONS_ENABLED=1`,
-> `PHONE_ROUTING_API_KEY`, 302→301) are Richard's. Same rules: explicit
-> role lists, tests + typecheck + build green, lint ≤ 6/28, deploy with
+> Every workstream is closed and reconciliation Phase 2 is connected
+> (`972affe` + cc-allocator `75078d4`). Small follow-ups if wanted, each
+> pressure-tested first: (a) an **acknowledge** action on the Cost
+> Reconciliation page's "missing here" list so the three intentionally
+> deleted postings stop showing (record it in `ExpenseReconciliation` with
+> a new decision, or a tiny sibling table); (b) a schema pass to drop
+> `User.passwordHash`; (c) business-day durations in the workflow report.
+> Operator items (SPF → `TASK_ESCALATIONS_ENABLED=1`, `PHONE_ROUTING_API_KEY`,
+> 302→301) are Richard's. Same rules: explicit role lists, tests +
+> typecheck + build green, lint ≤ 6/28, deploy with
 > `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
