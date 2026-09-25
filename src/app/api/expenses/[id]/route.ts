@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
+import { deleteExpense } from "@/lib/expenses/delete";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import {
   canDeleteExpense,
@@ -157,30 +158,7 @@ export async function DELETE(
     );
   }
 
-  const isCostPlus = rollsExpensesIntoContract(existing.job.jobType);
-  // Reverse only what was actually applied. Deleting a pending or rejected
-  // charge must not decrement a contract it never incremented — that would
-  // silently reduce what the customer owes.
-  const wasCounted = existing.status === "APPROVED";
-  const reverseAmount =
-    wasCounted && !isCostPlus && existing.billable ? Number(existing.amount) : 0;
-
-  await prisma.$transaction([
-    prisma.jobExpense.delete({ where: { id } }),
-    ...(reverseAmount > 0
-      ? [
-          prisma.job.update({
-            where: { id: existing.jobId },
-            data: { contractAmount: { decrement: reverseAmount } },
-          }),
-        ]
-      : []),
-  ]);
-
-  // balanceDue is derived — recompute it via the single writer. Rollup jobs
-  // only need it when the deleted row was in the sum to begin with.
-  if (isCostPlus && wasCounted) await recomputeCostPlusJob(existing.jobId);
-  else if (reverseAmount > 0) await recomputeJobBalance(existing.jobId);
+  await deleteExpense(existing, existing.job.jobType, { userId: session.user.id, reason: "deleted from the job" });
 
   return NextResponse.json({ ok: true });
 }

@@ -28,6 +28,7 @@ import {
   Gauge,
   Route,
   UsersRound,
+  Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
@@ -125,6 +126,12 @@ const navItems: NavItem[] = [
     label: "Lead Scoring",
     icon: Gauge,
     roles: ["ADMIN", "MANAGER"],
+  },
+  {
+    href: "/admin/job-cost-reconciliation",
+    label: "Cost Reconciliation",
+    icon: Scale,
+    roles: ["ADMIN", "MANAGER", "OFFICE_STAFF"],
   },
   {
     href: "/admin/settings",

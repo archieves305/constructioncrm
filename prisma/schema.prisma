@@ -404,6 +404,7 @@ model User {
   notifications            NotificationEvent[]
   expensesCreated          JobExpense[]
   expensesApproved         JobExpense[]            @relation("ExpenseApprovedBy")
+  expenseReconciliations   ExpenseReconciliation[] @relation("ExpenseReconciledBy")
   jobTaskTemplatesDefault  JobTaskTemplate[]
   auditEvents              AuditEvent[]
   roofEstimatesCreated     RoofEstimate[]          @relation("RoofEstimateCreatedBy")
@@ -1684,6 +1685,38 @@ model JobExpense {
   // Drives the review queue: "everything still pending, oldest first".
   @@index([status, incurredDate])
   @@map("job_expenses")
+}
+
+/// A human decision about a manual expense and the cc-allocator posting
+/// that looks like the same charge. DUPLICATE deletes the manual row (the
+/// delete reverses any contract increment); KEEP records that both are
+/// real so the pair stops appearing. The manual row's identity is
+/// snapshotted because it is gone after a DUPLICATE.
+enum ExpenseReconcileDecision {
+  DUPLICATE
+  KEEP
+}
+
+model ExpenseReconciliation {
+  id                 String                   @id @default(cuid())
+  manualExpenseId    String                   @map("manual_expense_id")
+  externalExpenseId  String                   @map("external_expense_id")
+  decision           ExpenseReconcileDecision
+  jobId              String                   @map("job_id")
+  amount             Decimal                  @db.Decimal(12, 2)
+  manualVendor       String?                  @map("manual_vendor")
+  externalVendor     String?                  @map("external_vendor")
+  manualIncurredOn   DateTime                 @map("manual_incurred_on")
+  externalIncurredOn DateTime                 @map("external_incurred_on")
+  note               String?                  @db.Text
+  decidedByUserId    String?                  @map("decided_by_user_id")
+  decidedAt          DateTime                 @default(now()) @map("decided_at")
+
+  decidedBy User? @relation("ExpenseReconciledBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([manualExpenseId, externalExpenseId])
+  @@index([jobId])
+  @@map("expense_reconciliations")
 }
 
 model Invoice {
