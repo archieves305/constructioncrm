@@ -23,13 +23,14 @@ import { OPEN_TASK_STATUSES } from "./status";
  * already succeeded, so a failure here is logged, never thrown.
  */
 
-export type AutoTaskKind = "estimate.sent" | "invoice.sent" | "daily-log.returned" | "change-order.sent";
+export type AutoTaskKind = "estimate.sent" | "invoice.sent" | "daily-log.returned" | "change-order.sent" | "contract.sent";
 
 export type AutoTaskSource =
   | { kind: "estimate.sent"; estimateId: string }
   | { kind: "invoice.sent"; invoiceId: string }
   | { kind: "daily-log.returned"; dailyLogId: string; crewLeadUserId: string | null }
-  | { kind: "change-order.sent"; changeOrderId: string };
+  | { kind: "change-order.sent"; changeOrderId: string }
+  | { kind: "contract.sent"; contractId: string };
 
 export function sourceKeyFor(s: AutoTaskSource): string {
   switch (s.kind) {
@@ -41,6 +42,8 @@ export function sourceKeyFor(s: AutoTaskSource): string {
       return `daily-log:RETURNED:${s.dailyLogId}`;
     case "change-order.sent":
       return `change-order:SENT:${s.changeOrderId}`;
+    case "contract.sent":
+      return `customer-contract:SENT:${s.contractId}`;
   }
 }
 
@@ -152,6 +155,31 @@ async function specFor(source: AutoTaskSource, now: Date): Promise<TaskSpec | nu
           source.crewLeadUserId ?? log.managerUserId ?? log.job.fieldAssignments[0]?.userId ?? null,
         jobId: log.jobId,
         dailyLogId: source.dailyLogId,
+      };
+    }
+    case "contract.sent": {
+      const c = await prisma.customerContract.findUnique({
+        where: { id: source.contractId },
+        select: {
+          contractNumber: true,
+          contractAmount: true,
+          createdByUserId: true,
+          sentByUserId: true,
+          jobId: true,
+          leadId: true,
+          job: { select: { salesRepId: true } },
+          lead: { select: { fullName: true } },
+        },
+      });
+      if (!c) return null;
+      return {
+        title: `Follow up with ${c.lead.fullName} on contract ${c.contractNumber}`,
+        description: `${money(c.contractAmount)} awaiting signature. Sent ${format(now, "MMM d")}.`,
+        priority: "MEDIUM",
+        dueAt: dueInBusinessDays(3, now),
+        assignedUserId: c.job.salesRepId ?? c.sentByUserId ?? c.createdByUserId,
+        jobId: c.jobId,
+        leadId: c.leadId,
       };
     }
     case "change-order.sent": {

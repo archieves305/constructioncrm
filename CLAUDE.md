@@ -27,6 +27,16 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+000. 🟢 **Estimates + customer contracts on the job** — three stages
+   built, dev-QA'd and committed on the `contracts` branch
+   (`.claude/worktrees/contracts`) 2026-09-25: Stage 1 estimates on the
+   job + status fix + middleware boundary (`90c5339`, on `main`); Stage 2
+   contract generation, versioned templates, admin editor (`1676d67`);
+   Stage 3 send / public e-sign / certificate / money effects. **Not yet
+   merged or deployed** — merge `contracts` into `main` once the
+   violations work lands, apply migration `20261003120000_customer_contracts`,
+   run `prisma/seed-contract-templates.ts` on prod. Notes:
+   [features/customer-contracts.md](docs/project-memory/features/customer-contracts.md).
 00. 🔴 **Code Violations module** — four stages, plan approved 2026-09-25
    (`~/.claude/plans/glistening-growing-perlis.md`). **Stage 1 (engine
    generalised to a subject + schema + `code_violation` template) built
@@ -80,6 +90,35 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — Estimates + customer contracts on the job (built, dev-QA'd, on branch `contracts`)
+
+Richard: "When a lead is changed to a job I need a place to create an
+estimate and to be able to generate a contract for signing." Plan-mode
+(3 explore + 2 design agents); decisions: both estimate systems on the
+job, drawn + typed + consent e-signature, admin-editable versioned
+template with a seeded residential default, signing sets the job's
+contract amount. A second session was editing the same checkout, so
+Stages 2–3 were built in an isolated worktree. **Stage 1** (`90c5339`, main):
+Money → Estimates on the job, status pill + Mark sent/accepted/declined
+(status-only PATCH; fixed the dialog resetting SENT/ACCEPTED to DRAFT on
+every save), Won toast "Estimate & contract", middleware public prefixes
+now match on a segment boundary (`/co` no longer opened `/contracts`).
+**Stage 2** (`1676d67`): schema (`CustomerContract`, `ContractTemplate`
++ versions, CHECK one source), pure libs (merge fields, schedule,
+snapshot via the estimators' own math, state + money effects, template
+content hash), PDF renderer, seeded `residential_construction` v1
+(hash-pinned), service + routes, Contract panel, Generate dialog with
+optional-line pick, locked Pricing card, admin template editor.
+**Stage 3**: send/resend (token rotates), `/sign/[token]` page + rate-
+limited public API, single-use sign (conditional `updateMany`), signed PDF
+with certificate page (unsigned SHA-256, sha256(token), IP, UA, consent),
+money effects + `recomputeJobBalance`, `contract.sent` auto-task, escaped
+branded emails, decline, void-of-signed reversal. Dev QA: API lifecycle +
+headless Chromium signing at phone width; job went $30,000 → $1,250 /
+deposit $500 on sign and back on void. 739 tests, lint 6/28, typecheck
+clean. `scripts/qa-cleanup-contracts.ts` purges the dev QA rows.
+Details: [features/customer-contracts.md](docs/project-memory/features/customer-contracts.md).
 
 ### 2026-09-25 — Code Violations, Stage 1: engine → subject + schema (built on dev, not deployed)
 
@@ -452,6 +491,8 @@ KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --dry-run
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-workflows.ts"'
 # Code-violation categories (idempotent; upsert by key, never overwrites a rename)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-violations.ts"'
+# Customer-contract template (idempotent; hash-pinned; refuses to rewrite a version a contract pins)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-contract-templates.ts"'
 ```
 
 Prod one-offs: run as user `knuco` on knuco-droplet with `/etc/knuco/env`
@@ -530,6 +571,14 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
   a separate gate and `close_case` requires it (ADMIN/MANAGER override with
   reason, audited). The fine accrual estimate is computed, never stored;
   only official figures are entered.
+- **A customer contract is generated from exactly one accepted estimate**
+  (DB CHECK) against a pinned published template version; the stored
+  snapshot is the contract and the signed PDF is re-rendered from it, never
+  from live data. Signing is single-use, sets `Job.contractAmount` (base +
+  approved change orders) and `depositRequired` on FIXED_PRICE jobs, leaves
+  rollup types alone, and never touches a schedule of values once a payment
+  application is issued. Voiding a signed contract is ADMIN/MANAGER and
+  reverses the base. Signed PDFs and signature files are never deleted.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.

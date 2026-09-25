@@ -11,6 +11,7 @@ import { MissingFieldsError, NotFoundError, type LeadLike } from "@/lib/contract
 import { readFile, saveFile } from "@/lib/files/storage";
 import { loadEstimateBrand } from "@/lib/pdf/brand";
 import { renderCustomerContractPdf } from "@/lib/pdf/customer-contract";
+import { recomputeJobBalance } from "@/lib/services/job-pricing";
 import type { EstimateInput, RoofTypeLine } from "@/lib/estimates/calc";
 import { getPublishedVersion } from "./templates";
 import { buildContractSnapshot, validateContractSnapshot, type EstimateForContract, type RoofEstimateForContract } from "./snapshot";
@@ -408,21 +409,49 @@ export async function deleteDraftContract(id: string, userId: string): Promise<v
 }
 
 /**
- * Void a DRAFT or SENT contract: the link dies immediately. Voiding a SIGNED
- * contract (Stage 3) additionally reverses the money it applied.
+ * Void a contract. DRAFT / SENT: the link dies immediately. SIGNED (stricter
+ * role, checked at the route): additionally reverse the contract sum it
+ * applied to a fixed-price job; the schedule of values is never touched
+ * here, and a PROGRESS job with issued applications refuses. The signed
+ * PDF, signature and File rows stay: they are evidence.
  */
 export async function voidContract(id: string, userId: string, reason: string): Promise<{ ok: true; reversedMoney: boolean } | { ok: false; reason: "already_void" | "not_found" }> {
-  const c = await prisma.customerContract.findUnique({ where: { id }, select: { id: true, status: true, contractNumber: true, leadId: true, token: true } });
+  const c = await prisma.customerContract.findUnique({
+    where: { id },
+    select: { id: true, status: true, contractNumber: true, leadId: true, jobId: true, token: true, contractAmount: true, moneyAppliedAt: true, job: { select: { jobType: true, billingMethod: true } } },
+  });
   if (!c) return { ok: false, reason: "not_found" };
   if (c.status === "VOID") return { ok: false, reason: "already_void" };
   if (!canVoid(c)) throw new ContractError("validation", `A ${c.status.toLowerCase()} contract cannot be voided`);
-  if (c.status === "SIGNED") throw new ContractError("validation", "Voiding a signed contract is not available yet");
+
+  let reversedMoney = false;
+  const notes: string[] = [];
+  if (c.status === "SIGNED") {
+    if (c.job.billingMethod === "PROGRESS") {
+      const issued = await prisma.invoice.count({ where: { jobId: c.jobId, applicationNumber: { not: null }, status: { notIn: ["DRAFT", "VOID"] } } });
+      if (issued > 0) throw new ContractError("applications_issued", "Payment applications have been issued against this contract; void or correct them on the Invoices tab first");
+      notes.push("The schedule of values was left as it is — adjust it on the Invoices tab.");
+    }
+    if (c.moneyAppliedAt && c.job.jobType === "FIXED_PRICE") reversedMoney = true;
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.customerContract.update({ where: { id }, data: { status: "VOID", voidedAt: new Date(), voidedByUserId: userId, voidReason: reason, token: null, tokenExpiresAt: null } });
-    await tx.activityLog.create({ data: { leadId: c.leadId, activityType: "NOTE", title: `Contract ${c.contractNumber} voided`, description: reason, createdByUserId: userId } });
+    if (reversedMoney) {
+      await tx.job.update({ where: { id: c.jobId }, data: { contractAmount: { decrement: Number(c.contractAmount) } } });
+    }
+    await tx.activityLog.create({
+      data: {
+        leadId: c.leadId,
+        activityType: "NOTE",
+        title: `Contract ${c.contractNumber} voided`,
+        description: [reason, reversedMoney ? `Contract amount reduced by $${Number(c.contractAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })}.` : null, ...notes].filter(Boolean).join(" "),
+        createdByUserId: userId,
+      },
+    });
   });
-  await recordAudit({ actorUserId: userId, entityType: "CustomerContract", entityId: id, action: "void", before: { status: c.status }, after: { reason } });
-  logger.info("customer contract voided", { contractId: id, from: c.status });
-  return { ok: true, reversedMoney: false };
+  if (reversedMoney) await recomputeJobBalance(c.jobId);
+  await recordAudit({ actorUserId: userId, entityType: "CustomerContract", entityId: id, action: "void", before: { status: c.status }, after: { reason, reversedMoney } });
+  logger.info("customer contract voided", { contractId: id, from: c.status, reversedMoney });
+  return { ok: true, reversedMoney };
 }

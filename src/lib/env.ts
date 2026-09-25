@@ -58,7 +58,7 @@ const schema = z.object({
   // "overdue" subjects before the sending domain's SPF record is in place —
   // set "1" to turn on. Auto-rule kinds listed in TASK_AUTO_RULES_DISABLED
   // (comma-separated: estimate.sent, invoice.sent, daily-log.returned,
-  // change-order.sent) create no tasks; invoice.sent is off by default for
+  // change-order.sent, contract.sent) create no tasks; invoice.sent is off by default for
   // its first week because it touches the most write paths.
   TASK_ESCALATION_DAYS: z.string().regex(/^\d+(,\d+)*$/).default("2,5"),
   TASK_ESCALATIONS_ENABLED: z.string().default("0"),
