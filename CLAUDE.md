@@ -27,19 +27,16 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-000. 🟢 **Estimates + customer contracts on the job** — three stages
-   built, dev-QA'd and committed on the `contracts` branch
-   (`.claude/worktrees/contracts`) 2026-09-25: Stage 1 estimates on the
-   job + status fix + middleware boundary (`90c5339`, on `main`); Stage 2
-   contract generation, versioned templates, admin editor (`1676d67`);
-   Stage 3 send / public e-sign / certificate / money effects
-   (`7e28930`). **Merged into `main` as `d73f950` (fast-forward) on
-   2026-09-25; push + deploy pending** — the auto-mode classifier refused
-   `git push`, so Richard runs `git push origin main`, then
-   `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` (applies
-   migration `20261003120000_customer_contracts`), then the template seed
-   in §7. Notes:
-   [features/customer-contracts.md](docs/project-memory/features/customer-contracts.md).
+000. ✅ **Estimates + customer contracts on the job — deployed
+   2026-09-25.** Stage 1 (`90c5339`, shipped with the violations deploy),
+   Stages 2–3 (`1676d67`, `7e28930`) merged as `d73f950` and **deployed
+   as `d6f046f`** (BUILD_ID `kEXJSGQMOsB90OCO_uMyr`, migration
+   `20261003120000_customer_contracts` applied, backup
+   `postgres-2026-09-25-155528.dump`, prod seed `residential_construction
+   v1: created` then `unchanged`). Richard's next click-through: review
+   the agreement text under Admin → Contract Templates, then Money →
+   Estimates → Mark accepted → Generate contract → Send on a real job.
+   Notes: [features/customer-contracts.md](docs/project-memory/features/customer-contracts.md).
 00. 🔴 **Code Violations module** — four stages, plan approved 2026-09-25
    (`~/.claude/plans/glistening-growing-perlis.md`). **Stage 1 (engine
    generalised to a subject + schema + `code_violation` template) deployed
@@ -625,11 +622,11 @@ covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`.
 
 ## 10. Next Prompt
 
-> Customer contracts (estimate → agreement → e-sign) are merged on `main`
-> at `d73f950` but NOT pushed/deployed: run `git push origin main`, the
-> deploy command, then `prisma/seed-contract-templates.ts` on prod, and
-> record the BUILD_ID here. Richard then reviews the seeded agreement
-> text under Admin → Contract Templates before the first real send.
+> Customer contracts (estimate → agreement → e-sign) are deployed
+> (`d6f046f`, build `kEXJSGQMOsB90OCO_uMyr`; template seeded). Richard
+> reviews the seeded agreement text under Admin → Contract Templates
+> before the first real send; note that the auto-mode classifier refuses
+> `git push` and `./deploy.sh` from Claude — Richard runs both with `!`.
 > Code Violations Stages 1–2 are deployed. Next: Stage 3 (reminders
 > 30/14/7/3/1/0 + daily overdue via `CodeViolationReminderLog`,
 > escalation chain assignee → case manager → MANAGERs → ADMINs behind
