@@ -58,6 +58,7 @@ type AllocatorRow = {
   lastCrmError: string | null;
   reason?: NeverPostedReason;
   crmExpenseIdHere?: string;
+  ack?: { note: string | null; decidedAt: string; decidedBy: string | null } | null;
 };
 type Allocator =
   | { configured: false }
@@ -68,12 +69,14 @@ type Allocator =
       generatedAt: string;
       counts: { card: number; bank: number; withExpenseId: number };
       missingInCrm: AllocatorRow[];
+      acknowledged: AllocatorRow[];
       neverPosted: AllocatorRow[];
       heldPending: AllocatorRow[];
       totals: {
         missing: { count: number; amount: number };
         neverPosted: { count: number; amount: number; credits: { count: number; amount: number } };
         held: { count: number; amount: number };
+        acknowledged: { count: number; amount: number };
       };
     };
 type Payload = { allocator: Allocator; pairs: Pair[]; summary: { pairs: number; exact: number; amount: number }; decisions: Decision[] };
@@ -279,6 +282,21 @@ export default function JobCostReconciliationPage() {
 
 /** What only cc-allocator's side can show. */
 function AllocatorSection({ a }: { a: Allocator }) {
+  const qc = useQueryClient();
+  const [showAcked, setShowAcked] = useState(false);
+  const ack = useMutation({
+    mutationFn: ({ externalId, undo }: { externalId: string; undo?: boolean }) =>
+      fetchJson("/api/admin/job-cost-reconciliation/acknowledge", {
+        method: undo ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ externalId }),
+      }),
+    onSuccess: (_r, v) => {
+      toast.success(v.undo ? "Back on the missing list" : "Acknowledged — it will stay out of the missing list");
+      qc.invalidateQueries({ queryKey: ["job-cost-reconciliation"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   if (!a.configured) {
     return (
       <Callout tone="info" title="cc-allocator's side is not connected">
@@ -290,6 +308,16 @@ function AllocatorSection({ a }: { a: Allocator }) {
     return <Callout tone="warning" title="Couldn't read cc-allocator's postings">{a.error}</Callout>;
   }
   const empty = a.missingInCrm.length === 0 && a.neverPosted.length === 0 && a.heldPending.length === 0;
+  const acknowledge = (externalId: string) => (
+    <Button size="sm" variant="outline" className="h-7 text-xs" disabled={ack.isPending} onClick={() => ack.mutate({ externalId })}>
+      Acknowledge
+    </Button>
+  );
+  const unacknowledge = (externalId: string) => (
+    <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={ack.isPending} onClick={() => ack.mutate({ externalId, undo: true })}>
+      Undo
+    </Button>
+  );
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -307,8 +335,25 @@ function AllocatorSection({ a }: { a: Allocator }) {
               Posted by cc-allocator, missing here
               <Badge variant="destructive" className="text-[10px]">{a.totals.missing.count} · {money(a.totals.missing.amount)}</Badge>
             </div>
-            <p className="mb-2 text-xs text-muted-foreground">cc-allocator holds a CRM expense id for these, so it will never retry. They were deleted in the CRM after posting; re-enter by hand if that was a mistake.</p>
-            <AllocatorTable rows={a.missingInCrm} />
+            <p className="mb-2 text-xs text-muted-foreground">cc-allocator holds a CRM expense id for these, so it will never retry. They were deleted in the CRM after posting: re-enter by hand if that was a mistake, or acknowledge it if the deletion was deliberate.</p>
+            <AllocatorTable rows={a.missingInCrm} action={(r) => acknowledge(r.externalId)} />
+          </div>
+        )}
+
+        {a.acknowledged.length > 0 && (
+          <div>
+            <button type="button" className="mb-1 flex items-center gap-2 text-sm font-medium hover:underline" onClick={() => setShowAcked((v) => !v)}>
+              Acknowledged as deliberately deleted
+              <Badge variant="outline" className="text-[10px]">{a.totals.acknowledged.count} · {money(a.totals.acknowledged.amount)}</Badge>
+              <span className="text-xs font-normal text-muted-foreground">{showAcked ? "hide" : "show"}</span>
+            </button>
+            {showAcked && (
+              <AllocatorTable
+                rows={a.acknowledged}
+                statusText={(r) => (r.ack ? `acknowledged ${format(new Date(r.ack.decidedAt), "MMM d, yyyy")}${r.ack.decidedBy ? ` by ${r.ack.decidedBy}` : ""}` : "acknowledged")}
+                action={(r) => unacknowledge(r.externalId)}
+              />
+            )}
           </div>
         )}
 
@@ -341,7 +386,17 @@ function AllocatorSection({ a }: { a: Allocator }) {
   );
 }
 
-function AllocatorTable({ rows, showReason = false }: { rows: AllocatorRow[]; showReason?: boolean }) {
+function AllocatorTable({
+  rows,
+  showReason = false,
+  action,
+  statusText,
+}: {
+  rows: AllocatorRow[];
+  showReason?: boolean;
+  action?: (r: AllocatorRow) => React.ReactNode;
+  statusText?: (r: AllocatorRow) => string;
+}) {
   return (
     <div className="rounded-md border">
       <Table>
@@ -353,6 +408,7 @@ function AllocatorTable({ rows, showReason = false }: { rows: AllocatorRow[]; sh
             <TableHead className="text-right">Amount</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>{showReason ? "Why" : "cc-allocator status"}</TableHead>
+            {action && <TableHead className="w-[120px] text-right" />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -372,9 +428,10 @@ function AllocatorTable({ rows, showReason = false }: { rows: AllocatorRow[]; sh
               <TableCell className={`text-right tabular-nums ${r.amount < 0 ? "text-green-700" : ""}`}>{money(r.amount)}</TableCell>
               <TableCell className="text-xs">{r.source === "bank" ? "bank feed" : "card feed"}</TableCell>
               <TableCell className="text-xs">
-                {showReason && r.reason ? NEVER_POSTED_LABEL[r.reason] : r.status.toLowerCase().replace(/_/g, " ")}
+                {statusText ? statusText(r) : showReason && r.reason ? NEVER_POSTED_LABEL[r.reason] : r.status.toLowerCase().replace(/_/g, " ")}
                 {r.lastCrmError && <div className="max-w-[260px] truncate text-muted-foreground" title={r.lastCrmError}>{r.lastCrmError}</div>}
               </TableCell>
+              {action && <TableCell className="text-right">{action(r)}</TableCell>}
             </TableRow>
           ))}
         </TableBody>

@@ -45,12 +45,15 @@ export type HeldPosting = AllocatorPosting & { crmExpenseIdHere: string };
 
 export type AllocatorClasses = {
   missingInCrm: MissingPosting[];
+  /** Missing postings a person has acknowledged as deliberate — kept out of the main list. */
+  acknowledged: MissingPosting[];
   neverPosted: NeverPosted[];
   heldPending: HeldPosting[];
   totals: {
     missing: { count: number; amount: number };
     neverPosted: { count: number; amount: number; credits: { count: number; amount: number } };
     held: { count: number; amount: number };
+    acknowledged: { count: number; amount: number };
   };
 };
 
@@ -74,9 +77,14 @@ export function neverPostedReason(p: AllocatorPosting): NeverPostedReason {
   return "not_attempted";
 }
 
-export function classifyAllocatorPostings(postings: AllocatorPosting[], crmRows: CrmExternalRow[]): AllocatorClasses {
+export function classifyAllocatorPostings(
+  postings: AllocatorPosting[],
+  crmRows: CrmExternalRow[],
+  acknowledgedExternalIds: ReadonlySet<string> = new Set(),
+): AllocatorClasses {
   const byExt = new Map(crmRows.map((r) => [r.externalId, r]));
   const missingInCrm: MissingPosting[] = [];
+  const acknowledged: MissingPosting[] = [];
   const neverPosted: NeverPosted[] = [];
   const heldPending: HeldPosting[] = [];
   for (const p of postings) {
@@ -86,7 +94,7 @@ export function classifyAllocatorPostings(postings: AllocatorPosting[], crmRows:
       continue;
     }
     if (p.crmExpenseId) {
-      missingInCrm.push(p);
+      (acknowledgedExternalIds.has(p.externalId) ? acknowledged : missingInCrm).push(p);
       continue;
     }
     if (p.crmJobId) neverPosted.push({ ...p, reason: neverPostedReason(p) });
@@ -96,12 +104,14 @@ export function classifyAllocatorPostings(postings: AllocatorPosting[], crmRows:
   const byAmountDesc = <T extends { amount: number }>(xs: T[]) => xs.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
   return {
     missingInCrm: byAmountDesc(missingInCrm),
+    acknowledged: byAmountDesc(acknowledged),
     neverPosted: byAmountDesc(neverPosted),
     heldPending: byAmountDesc(heldPending),
     totals: {
       missing: { count: missingInCrm.length, amount: sum(missingInCrm) },
       neverPosted: { count: neverPosted.length, amount: sum(neverPosted), credits: { count: credits.length, amount: sum(credits) } },
       held: { count: heldPending.length, amount: sum(heldPending) },
+      acknowledged: { count: acknowledged.length, amount: sum(acknowledged) },
     },
   };
 }

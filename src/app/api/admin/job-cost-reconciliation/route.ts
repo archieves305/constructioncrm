@@ -48,6 +48,11 @@ export async function GET() {
     prisma.jobExpense.findMany({ where: { externalId: { not: null } }, select: { id: true, externalId: true, status: true } }),
     fetchAllocatorPostings(),
   ]);
+  const acks = await prisma.allocatorPostingAck.findMany({
+    include: { decidedBy: { select: { firstName: true, lastName: true } } },
+    orderBy: { decidedAt: "desc" },
+  });
+  const ackByExt = new Map(acks.map((a) => [a.externalId, a]));
 
   // cc-allocator's side, with CRM job numbers attached where the id resolves.
   let allocatorOut: Record<string, unknown> = { configured: false };
@@ -56,8 +61,9 @@ export async function GET() {
     const classes = classifyAllocatorPostings(
       allocator.data.postings,
       externalRows.map((r) => ({ id: r.id, externalId: r.externalId as string, status: r.status })),
+      new Set(ackByExt.keys()),
     );
-    const jobIds = Array.from(new Set([...classes.missingInCrm, ...classes.neverPosted, ...classes.heldPending].map((p) => p.crmJobId).filter((x): x is string => Boolean(x))));
+    const jobIds = Array.from(new Set([...classes.missingInCrm, ...classes.acknowledged, ...classes.neverPosted, ...classes.heldPending].map((p) => p.crmJobId).filter((x): x is string => Boolean(x))));
     const jobs = await prisma.job.findMany({ where: { id: { in: jobIds } }, select: { id: true, jobNumber: true } });
     const jobNo = new Map(jobs.map((j) => [j.id, j.jobNumber]));
     const withJob = <T extends { crmJobId: string | null }>(p: T) => ({ ...p, jobNumber: p.crmJobId ? (jobNo.get(p.crmJobId) ?? null) : null });
@@ -67,6 +73,15 @@ export async function GET() {
       generatedAt: allocator.data.generatedAt,
       counts: allocator.data.counts,
       missingInCrm: classes.missingInCrm.map(withJob),
+      acknowledged: classes.acknowledged.map((p) => {
+        const a = ackByExt.get(p.externalId);
+        return {
+          ...withJob(p),
+          ack: a
+            ? { note: a.note, decidedAt: a.decidedAt.toISOString(), decidedBy: a.decidedBy ? `${a.decidedBy.firstName} ${a.decidedBy.lastName}`.trim() : null }
+            : null,
+        };
+      }),
       neverPosted: classes.neverPosted.map(withJob),
       heldPending: classes.heldPending.map(withJob),
       totals: classes.totals,

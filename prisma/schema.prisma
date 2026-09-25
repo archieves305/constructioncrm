@@ -405,6 +405,7 @@ model User {
   expensesCreated          JobExpense[]
   expensesApproved         JobExpense[]            @relation("ExpenseApprovedBy")
   expenseReconciliations   ExpenseReconciliation[] @relation("ExpenseReconciledBy")
+  allocatorPostingAcks     AllocatorPostingAck[]   @relation("AllocatorPostingAckedBy")
   jobTaskTemplatesDefault  JobTaskTemplate[]
   auditEvents              AuditEvent[]
   roofEstimatesCreated     RoofEstimate[]          @relation("RoofEstimateCreatedBy")
@@ -1695,6 +1696,28 @@ model JobExpense {
 enum ExpenseReconcileDecision {
   DUPLICATE
   KEEP
+}
+
+/// A person's acknowledgement that a cc-allocator posting is deliberately
+/// absent from the CRM (deleted here on purpose). Keyed by the posting's
+/// externalId — the only identity both systems share — so the Cost
+/// Reconciliation page can stop listing it as "missing here". Snapshots
+/// the posting so the reason survives either side changing.
+model AllocatorPostingAck {
+  id              String   @id @default(cuid())
+  externalId      String   @unique @map("external_id")
+  source          String
+  amount          Decimal  @db.Decimal(12, 2)
+  payee           String?
+  postedOn        DateTime @map("posted_on")
+  crmJobId        String?  @map("crm_job_id")
+  note            String?  @db.Text
+  decidedByUserId String?  @map("decided_by_user_id")
+  decidedAt       DateTime @default(now()) @map("decided_at")
+
+  decidedBy User? @relation("AllocatorPostingAckedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@map("allocator_posting_acks")
 }
 
 model ExpenseReconciliation {

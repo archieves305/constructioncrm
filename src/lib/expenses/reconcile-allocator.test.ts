@@ -71,6 +71,17 @@ describe("classifyAllocatorPostings", () => {
       missing: { count: 1, amount: 14029.76 },
       neverPosted: { count: 2, amount: 11499.41, credits: { count: 1, amount: -194.74 } },
       held: { count: 1, amount: 321.45 },
+      acknowledged: { count: 0, amount: 0 },
     });
+  });
+
+  it("moves an acknowledged missing posting out of the main list", () => {
+    const gone = posting({ source: "bank", externalId: "bank:gone", crmExpenseId: "e-gone", amount: 14029.76 });
+    const gone2 = posting({ source: "bank", externalId: "bank:gone2", crmExpenseId: "e-gone2", amount: 1029.6 });
+    const out = classifyAllocatorPostings([gone, gone2], [], new Set(["bank:gone"]));
+    expect(out.missingInCrm.map((p) => p.externalId)).toEqual(["bank:gone2"]);
+    expect(out.acknowledged.map((p) => p.externalId)).toEqual(["bank:gone"]);
+    expect(out.totals.missing).toEqual({ count: 1, amount: 1029.6 });
+    expect(out.totals.acknowledged).toEqual({ count: 1, amount: 14029.76 });
   });
 });
