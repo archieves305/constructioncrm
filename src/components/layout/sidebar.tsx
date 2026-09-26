@@ -12,14 +12,12 @@ import {
   LayoutDashboard,
   Users,
   ClipboardList,
-  KanbanSquare,
   BarChart3,
   Settings,
   LogOut,
   HardHat,
   CheckSquare,
   Briefcase,
-  Factory,
   DollarSign,
   Zap,
   Shield,
@@ -36,29 +34,28 @@ import {
   ChevronDown,
   ListChecks,
   UserCheck,
-  Inbox,
-  CalendarClock,
-  AlertTriangle,
   ClipboardCheck,
-  Landmark,
-  Hourglass,
-  Archive,
   Repeat,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
 import { useViolationSummary } from "@/components/violations/use-violations";
 
-type NavItem = {
+export type NavItem = {
   href: string;
   label: string;
   icon: React.ElementType;
   roles?: RoleName[];
   badge?: "tasks" | "violations";
   match?: "exact" | "prefix";
+  /** A sub-heading printed above this item inside its group (Admin → Templates…). */
+  heading?: string;
+  /** One line of plain English for jargon, shown on hover. */
+  hint?: string;
 };
 
-type NavSection = {
+export type NavSection = {
   key: string;
   /** Unlabelled sections render flat, as the main list always has. */
   label?: string;
@@ -70,28 +67,23 @@ type NavSection = {
 const OFFICE: RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF"];
 const VIOLATION_VIEWERS: RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "READ_ONLY"];
 
-const navSections: NavSection[] = [
+/**
+ * Eleven entries for an admin (it was 41 links). One item per thing people
+ * open daily; boards are a view of Leads / Jobs, not a second entry; the
+ * seven saved violation views live on the Cases page itself; Field, Money
+ * and Admin are groups.
+ */
+export const navSections: NavSection[] = [
   {
     key: "main",
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/leads", label: "Leads", icon: Users },
-      { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
-      { href: "/jobs", label: "Jobs", icon: Briefcase },
-      { href: "/production", label: "Production", icon: Factory },
-      { href: "/permits", label: "Permits", icon: Shield },
-      { href: "/schedule", label: "Schedule", icon: Calendar },
-      { href: "/canvassing", label: "Canvassing Leads", icon: MapPin },
-      { href: "/crews", label: "Crews", icon: Hammer, roles: ["ADMIN", "MANAGER"] },
-      { href: "/personnel", label: "Personnel", icon: Users, roles: OFFICE },
-      { href: "/field-logs", label: "Daily Logs", icon: ClipboardList, roles: OFFICE },
-      { href: "/field", label: "Field Mode", icon: HardHat, roles: OFFICE },
-      { href: "/collections", label: "Collections", icon: DollarSign },
-      { href: "/referrals", label: "Referrals", icon: DollarSign, roles: ["ADMIN", "MANAGER"] },
+      { href: "/leads", label: "Leads", icon: Users, hint: "Inquiries, from first call to Won — table or board" },
+      { href: "/jobs", label: "Jobs", icon: Briefcase, hint: "Won work, from deposit to close — table or board" },
       { href: "/tasks", label: "Tasks", icon: CheckSquare, badge: "tasks" },
-      { href: "/reports", label: "Reports", icon: BarChart3 },
-      { href: "/reports/labor", label: "Labor Reports", icon: HardHat, roles: OFFICE },
-      { href: "/response-dashboard", label: "Response Times", icon: Zap, roles: ["ADMIN", "MANAGER"] },
+      { href: "/schedule", label: "Schedule", icon: Calendar },
+      { href: "/permits", label: "Permits", icon: Shield },
+      { href: "/canvassing", label: "Canvassing", icon: MapPin, hint: "Door-knocking routes and the properties knocked; a prospect becomes a lead when it converts" },
     ],
   },
   {
@@ -101,17 +93,33 @@ const navSections: NavSection[] = [
     roles: VIOLATION_VIEWERS,
     items: [
       { href: "/violations", label: "Overview", icon: LayoutDashboard, match: "exact" },
-      { href: "/violations/list", label: "All Cases", icon: ListChecks, badge: "violations" },
-      { href: "/violations/list?view=mine", label: "My Assigned", icon: UserCheck },
-      { href: "/violations/list?view=new", label: "New / Unreviewed", icon: Inbox },
-      { href: "/violations/list?view=due-soon", label: "Upcoming Deadlines", icon: CalendarClock },
-      { href: "/violations/list?view=overdue", label: "Overdue", icon: AlertTriangle },
+      { href: "/violations/list", label: "Cases", icon: ListChecks, badge: "violations", hint: "Every case; the queues (mine, overdue, awaiting agency…) are on the page" },
       { href: "/violations/inspections", label: "Inspections", icon: ClipboardCheck },
       { href: "/violations/hearings", label: "Hearings", icon: Gavel },
-      { href: "/violations/list?view=fines", label: "Fines & Liens", icon: Landmark },
-      { href: "/violations/list?view=awaiting-agency", label: "Awaiting Agency", icon: Hourglass },
-      { href: "/violations/list?view=closed", label: "Closed", icon: Archive },
-      { href: "/violations/templates", label: "Workflow Templates", icon: Route, roles: OFFICE },
+    ],
+  },
+  {
+    key: "field",
+    label: "Field",
+    icon: HardHat,
+    roles: OFFICE,
+    items: [
+      { href: "/field", label: "Field Mode", icon: HardHat, hint: "The crew-lead view: today's jobs, daily logs and tasks" },
+      { href: "/field-logs", label: "Daily Logs", icon: ClipboardList },
+      { href: "/crews", label: "Crews", icon: Hammer, roles: ["ADMIN", "MANAGER"] },
+      { href: "/personnel", label: "Personnel", icon: Users },
+    ],
+  },
+  {
+    key: "money",
+    label: "Money",
+    icon: DollarSign,
+    items: [
+      { href: "/collections", label: "Collections", icon: DollarSign, hint: "Deposits missing, balances due and unpaid invoices" },
+      { href: "/referrals", label: "Referrals", icon: Repeat, roles: ["ADMIN", "MANAGER"] },
+      { href: "/reports", label: "Reports", icon: BarChart3 },
+      { href: "/reports/labor", label: "Labor Reports", icon: HardHat, roles: OFFICE },
+      { href: "/response-dashboard", label: "Response Times", icon: Zap, roles: ["ADMIN", "MANAGER"], hint: "How fast new web leads get their first call" },
     ],
   },
   {
@@ -120,17 +128,18 @@ const navSections: NavSection[] = [
     icon: Settings,
     roles: ["ADMIN", "MANAGER"],
     items: [
-      { href: "/admin/users", label: "Users", icon: ClipboardList },
-      { href: "/admin/templates", label: "Message Templates", icon: MessageSquare },
-      { href: "/admin/follow-up-rules", label: "Follow-ups", icon: Zap },
-      { href: "/admin/workflow-templates", label: "Workflow Templates", icon: Route },
-      { href: "/admin/contract-templates", label: "Contract Templates", icon: FileSignature },
-      { href: "/admin/nurture", label: "Customer Nurture", icon: Repeat },
-      { href: "/admin/workflow-role-defaults", label: "Workflow Roles", icon: UsersRound },
-      { href: "/admin/job-task-templates", label: "Stage Task Templates", icon: CheckSquare },
-      { href: "/admin/canvassing-settings", label: "Lead Scoring", icon: Gauge },
-      { href: "/admin/job-cost-reconciliation", label: "Cost Reconciliation", icon: Scale },
+      { href: "/admin/users", label: "Users", icon: UsersRound, heading: "People" },
       { href: "/admin/settings", label: "Settings", icon: Settings },
+      { href: "/admin/templates", label: "Message Templates", icon: MessageSquare, heading: "Templates" },
+      { href: "/admin/contract-templates", label: "Contract Templates", icon: FileSignature },
+      { href: "/admin/workflow-templates", label: "Job Workflow Templates", icon: Route, hint: "The phases and steps a job runs through, per trade" },
+      { href: "/violations/templates", label: "Violation Workflow Templates", icon: Route, roles: OFFICE, hint: "The steps a code-violation case runs through" },
+      { href: "/admin/job-task-templates", label: "Stage Task Templates", icon: CheckSquare, hint: "Tasks raised automatically when a job enters a stage" },
+      { href: "/admin/follow-up-rules", label: "Follow-up Rules", icon: Zap, heading: "Automation" },
+      { href: "/admin/nurture", label: "Customer Nurture", icon: Repeat, hint: "Automatic check-in emails to open leads that have gone quiet" },
+      { href: "/admin/workflow-role-defaults", label: "Workflow Role Defaults", icon: UserCheck, hint: "Who a workflow step is assigned to when the job has nobody in that role" },
+      { href: "/admin/canvassing-settings", label: "Knock Scoring", icon: Gauge, heading: "Canvassing", hint: "How promising a canvassed door looks, from its history and neighbourhood" },
+      { href: "/admin/job-cost-reconciliation", label: "Cost Reconciliation", icon: Scale, heading: "Finance", hint: "Matches card postings from cc-allocator against job expenses" },
     ],
   },
 ];
@@ -212,7 +221,7 @@ function writeOpen(key: string, open: boolean) {
   window.dispatchEvent(new Event(NAV_EVENT));
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, onSearch }: SidebarProps & { onSearch?: () => void }) {
   const pathname = usePathname();
   const search = useSearchParams();
 
@@ -228,6 +237,19 @@ export function Sidebar({ user }: SidebarProps) {
         <HardHat className="h-6 w-6 text-brand" />
         <span className="text-lg font-bold">Knu Construction</span>
       </div>
+      {onSearch && (
+        <div className="px-3 pt-3">
+          <button
+            type="button"
+            onClick={onSearch}
+            className="flex w-full items-center gap-2 rounded-md border bg-gray-50 px-3 py-1.5 text-sm text-gray-500 hover:border-gray-300 hover:bg-white hover:text-gray-900"
+          >
+            <Search className="h-4 w-4" />
+            <span className="flex-1 text-left">Search…</span>
+            <kbd className="rounded border bg-white px-1.5 py-0.5 font-mono text-[10px] text-gray-500">⌘K</kbd>
+          </button>
+        </div>
+      )}
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {sections.map((section) =>
@@ -291,6 +313,7 @@ function NavLink({ item, active, nested }: { item: NavItem; active: boolean; nes
     <Link
       ref={ref}
       href={item.href}
+      title={item.hint}
       aria-current={active ? "page" : undefined}
       className={cn(
         "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
@@ -330,7 +353,12 @@ function NavGroup({ section, pathname, search, allItems }: { section: NavSection
       {shown && (
         <div className="mt-0.5 space-y-0.5">
           {section.items.map((item, i) => (
-            <NavLink key={item.href} item={item} active={active[i]!} nested />
+            <div key={item.href}>
+              {item.heading && item.heading !== section.items[i - 1]?.heading && (
+                <div className="px-3 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{item.heading}</div>
+              )}
+              <NavLink item={item} active={active[i]!} nested />
+            </div>
           ))}
         </div>
       )}

@@ -36,9 +36,9 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (BUILD_ID `QLO41RrNwa7l830TCo1bd`, no migration, smoke 307 ×2, journal
    clean, backup `postgres-2026-09-26-023438.dump`; the wrapper's exit 1
    was the shell, as before).
-   Stage 2 (sidebar 41 → 11 entries, Leads/Jobs Table|Board merge with
-   redirects, ⌘K search + recently viewed) is being built on branch
-   `ux-nav`. Stages 3 (job page contact card + Money next-step + panel
+   **Stage 2 (sidebar 41 → 11 entries, Leads/Jobs Table|Board merge with
+   redirects, ⌘K search + recently viewed) built + dev-QA'd on `ux-nav`,
+   merged to `main` 2026-09-25** — push + deploy pending. Stages 3 (job page contact card + Money next-step + panel
    extraction, lead page tab-in-URL + fail-loud fetches) and 4 (shared
    list toolbar, URL filters, task search, empty/loading/error states,
    breadcrumbs, glossary, mobile columns) follow. Notes:
@@ -797,11 +797,11 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 ## 10. Next Prompt
 
 > UX Stage 1 (address-first labels) is **on prod** (`67416fd`, build
-> `QLO41RrNwa7l830TCo1bd`). Richard: click through `/tasks` (chips + the
-> Job filter picker), `/jobs`, a job page, the board, `/field`. Then, one
-> at a time and only after the previous is seen on prod: `git merge
-> ux-nav` (sidebar + Table|Board + ⌘K), push, deploy, check the sidebar /
-> `/pipeline` redirect / ⌘K; `git merge ux-pages` (Customer card, Money
+> `QLO41RrNwa7l830TCo1bd`). **Stage 2 (`ux-nav`) is merged into `main`
+> and not yet pushed/deployed**: Richard runs `git push` then the deploy
+> (no migration), then checks the sidebar, `/pipeline` (redirects to the
+> Leads board), the Table|Board toggle and ⌘K. Then, only after that is
+> seen on prod: `git merge ux-pages` (Customer card, Money
 > next-step, lead `?tab=`); `git merge ux-polish` (URL filters + task
 > search, states, breadcrumbs, glossary, phone columns). No migration in
 > any of them. Plan: `~/.claude/plans/spicy-drifting-shore.md`; notes:

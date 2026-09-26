@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, HardHat, X } from "lucide-react";
+import { Menu, HardHat, Search, X } from "lucide-react";
 import type { RoleName } from "@/generated/prisma/client";
 import { Sidebar } from "./sidebar";
+import { CommandPalette } from "./command-palette";
 import { cn } from "@/lib/utils";
 
 type User = {
@@ -21,7 +22,21 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const pathname = usePathname();
+
+  // ⌘K / Ctrl+K anywhere in the office shell, except while typing.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      e.preventDefault();
+      setPaletteOpen((o) => !o);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const [prevPathname, setPrevPathname] = useState(pathname);
 
   if (pathname !== prevPathname) {
@@ -31,8 +46,9 @@ export function AppShell({
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} role={user.role} />
       <div className="hidden md:block">
-        <Sidebar user={user} />
+        <Sidebar user={user} onSearch={() => setPaletteOpen(true)} />
       </div>
 
       {open && (
@@ -49,7 +65,7 @@ export function AppShell({
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <Sidebar user={user} />
+        <Sidebar user={user} onSearch={() => setPaletteOpen(true)} />
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -66,6 +82,9 @@ export function AppShell({
             <HardHat className="h-5 w-5 text-blue-600" />
             <span className="text-sm font-bold">Knu Construction</span>
           </div>
+          <button type="button" onClick={() => setPaletteOpen(true)} className="ml-auto rounded p-2 hover:bg-gray-100" aria-label="Search">
+            <Search className="h-5 w-5" />
+          </button>
         </header>
         <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
           {children}

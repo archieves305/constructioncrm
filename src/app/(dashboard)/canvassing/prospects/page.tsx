@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, DoorOpen, FileText, ListChecks, MapPin, Search, Trash2, UserPlus } from "lucide-react";
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
@@ -89,10 +89,11 @@ const statusVariant = (s: string) =>
       : ("secondary" as const);
 
 export default function ProspectsPage() {
+  const urlParams = useSearchParams();
   const qc = useQueryClient();
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => urlParams.get("search") ?? "");
   const [knockProspect, setKnockProspect] = useState<Prospect | null>(null);
   const [promoteProspect, setPromoteProspect] = useState<Prospect | null>(null);
   const [summaryProspect, setSummaryProspect] = useState<Prospect | null>(null);

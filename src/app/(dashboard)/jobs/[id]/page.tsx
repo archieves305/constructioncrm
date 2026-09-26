@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { RecordRecent } from "@/components/shared/record-recent";
 import { jobLabel, jobText } from "@/lib/labels/job";
 import { formatAddressFull } from "@/lib/labels/address";
 import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -292,6 +293,7 @@ export default function JobDetailPage() {
 
   return (
     <div>
+      <RecordRecent item={{ type: "job", id, primary: jobLabel(job).primary, secondary: jobLabel(job).secondary, code: job.jobNumber, href: `/jobs/${id}` }} />
       <EntityHeader
         breadcrumb={[{ label: "Jobs", href: "/jobs" }, { label: jobLabel(job).primary }]}
         title={jobLabel(job).primary}

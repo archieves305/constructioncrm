@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { useListScope } from "@/components/shared/use-list-scope";
+import { JobsBoard } from "@/components/jobs/jobs-board";
+import { KanbanSquare, Table2 } from "lucide-react";
 import { useSearchParamState } from "@/components/shared/use-search-param-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { ListScope } from "@/lib/lists/scope";
@@ -93,7 +95,8 @@ export default function JobsPage() {
   // ("3 blocked" → /jobs?workflowBlocked=1); the rest is local state.
   const initial = useSearchParams();
   const { scope, setScope, forced: scopeForced, ready: scopeReady } = useListScope();
-  const { setMany: setUrl } = useSearchParamState();
+  const { get: getUrl, setMany: setUrl } = useSearchParamState();
+  const view: "table" | "board" = getUrl("view") === "board" ? "board" : "table";
   const [search, setSearch] = useState(initial.get("search") ?? "");
   const [stageId, setStageId] = useState(initial.get("stageId") ?? "");
   const [salesRepFilter, setSalesRepFilter] = useState(initial.get("salesRepId") ?? "");
@@ -140,7 +143,7 @@ export default function JobsPage() {
     queryKey: ["jobs", scope, search, stageId, salesRepFilter, workflowTrade, permitFilter, phaseKey, toggles, page],
     queryFn: () => fetchJson(`/api/jobs?${params.toString()}`),
     retry: retryServerErrors,
-    enabled: scopeReady,
+    enabled: scopeReady && view === "table",
   });
 
   const { data: stages } = useQuery<{ id: string; name: string; stageOrder: number; isClosed?: boolean; isWon?: boolean; isLost?: boolean }[]>({
@@ -274,9 +277,24 @@ export default function JobsPage() {
       <PageHeader
         title="Jobs"
         description={
-          jobsError ? "Jobs unavailable" : `${data?.total ?? 0} ${scope === "mine" ? "jobs you're on" : "active jobs"}`
+          view === "board"
+            ? `${scope === "mine" ? "Your jobs" : "All jobs"} — drag a job to move it to the next stage. Space picks a card up from the keyboard.`
+            : jobsError
+              ? "Jobs unavailable"
+              : `${data?.total ?? 0} ${scope === "mine" ? "jobs you're on" : "active jobs"}`
         }
         actions={
+          <>
+          <SegmentedControl
+            ariaLabel="View"
+            value={view}
+            onValueChange={(v) => setUrl({ view: v === "board" ? "board" : null })}
+            options={[
+              { value: "table", label: "Table", icon: Table2 },
+              { value: "board", label: "Board", icon: KanbanSquare },
+            ]}
+          />
+          {view === "table" && (
           <Button
             variant="outline"
             onClick={async () => {
@@ -344,9 +362,15 @@ export default function JobsPage() {
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
+          )}
+          </>
         }
       />
 
+      {view === "board" ? (
+        <JobsBoard />
+      ) : (
+      <>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SegmentedControl<ListScope>
           ariaLabel="Scope"
@@ -789,6 +813,8 @@ export default function JobsPage() {
           </div>
         </div>
       ) : null}
+      </>
+      )}
     </div>
   );
 }
