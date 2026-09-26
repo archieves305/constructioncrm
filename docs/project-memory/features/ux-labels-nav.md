@@ -134,7 +134,7 @@ toggle flips the URL, Money → Invoices deep link lands, ⌘K "equifirst" →
 rep search for "navarre" returns nothing. 926 tests, lint 6/27, build
 clean.
 
-## Stage 3 — job page and lead page (branch `ux-pages`, off `ux-nav`)
+## Stage 3 — job page and lead page (branch `ux-pages`) — deployed 2026-09-25 as `8b0740c`, build `P2cLnp1LPVdhUtb8v8hLf`
 
 - `components/shared/contact-card.tsx` — customer name (linked to the lead
   on the job page), company (hidden when it equals the name), phones as

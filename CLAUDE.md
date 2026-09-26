@@ -43,7 +43,9 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    backup `postgres-2026-09-26-024325.dump`).
    **Stage 3 (job page contact card + Money next-step + panel
    extraction, lead page tab-in-URL + fail-loud fetches) built + dev-QA'd
-   on `ux-pages`, merged to `main` 2026-09-25** — push + deploy pending.
+   on `ux-pages`, merged to `main` and deployed 2026-09-25 as `8b0740c`**
+   (BUILD_ID `P2cLnp1LPVdhUtb8v8hLf`, no migration, smoke 307 ×2, journal
+   clean since restart, backup `postgres-2026-09-26-025157.dump`).
    Stages 3 (job page contact card + Money next-step + panel
    extraction, lead page tab-in-URL + fail-loud fetches) and 4 (shared
    list toolbar, URL filters, task search, empty/loading/error states,
@@ -144,6 +146,18 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — UX Stage 3 deployed (`8b0740c`)
+
+`ux-pages` merged into `main` (CLAUDE.md conflict again, resolved to the
+deployed wording); gate on the merged tree: typecheck clean, lint 6/22,
+930 tests, build clean. Richard pushed and deployed from `!`: BUILD_ID
+`JzcQ_qnobf471IUalTKX_` → `P2cLnp1LPVdhUtb8v8hLf`, no pending migrations,
+smoke 307 ×2, backup `postgres-2026-09-26-025157.dump`. The journal held
+16 `ENOENT …/.next/required-server-files.json` / `pages/500.html` lines
+from the **old** process during the ~7 s the new build rewrote `.next`
+under it; zero since the restart. That is how `deploy.sh` has always
+built (in place, old server running) — a known blip, not a regression.
 
 ### 2026-09-25 — UX Stage 2 deployed (`46f4b11`)
 
@@ -816,11 +830,10 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 > UX Stage 1 (address-first labels) is **on prod** (`67416fd`, build
 > `QLO41RrNwa7l830TCo1bd`) and **Stage 2 is on prod** (`46f4b11`, build
-> `JzcQ_qnobf471IUalTKX_`). **Stage 3 (`ux-pages`) is merged into `main`
-> and not yet pushed/deployed**: Richard runs `git push` then the deploy
-> (no migration), then checks a job page (Customer card with tel/mail/map,
-> Money opening on the next step) and a lead page (`?tab=`). Then, only
-> after that is seen on prod: `git merge ux-polish` (URL filters + task
+> `JzcQ_qnobf471IUalTKX_`), **Stage 3 is on prod** (`8b0740c`, build
+> `P2cLnp1LPVdhUtb8v8hLf`). Richard: check a job page (Customer card with
+> tel/mail/map, Money opening on the next step) and a lead page (`?tab=`).
+> Then, only after that is seen on prod: `git merge ux-polish` (URL filters + task
 > search, states, breadcrumbs, glossary, phone columns). No migration in
 > any of them. Plan: `~/.claude/plans/spicy-drifting-shore.md`; notes:
 > `docs/project-memory/features/ux-labels-nav.md`. Nurture operator items
