@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCronSecret } from "@/lib/cron/auth";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
+import { jobText } from "@/lib/labels/job";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { fromDbDate, addDays, toDbDate } from "@/lib/labor/dates";
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest) {
       where: { status: "DRAFT", logDate: { lt: toDbDate(staleCutoff) } },
       select: {
         logDate: true,
-        job: { select: { jobNumber: true, title: true } },
+        job: { select: JOB_LABEL_SELECT },
         manager: { select: { firstName: true, lastName: true } },
       },
       orderBy: { logDate: "asc" },
@@ -79,14 +81,14 @@ export async function POST(request: NextRequest) {
       );
       const link = `${env.APP_BASE_URL}/jobs/${l.job.id}/daily-logs/${fromDbDate(l.logDate)}`;
       const lead = l.manager ? ` · ${l.manager.firstName} ${l.manager.lastName}` : "";
-      return `<li style="margin-bottom:4px;"><a href="${link}">${fmtDate(l.logDate)} — ${escapeHtml(`${l.job.jobNumber} ${l.job.title}`)}</a> (${crew} crew, ${hours}h${lead})</li>`;
+      return `<li style="margin-bottom:4px;"><a href="${link}">${fmtDate(l.logDate)} — ${escapeHtml(jobText(l.job))}</a> (${crew} crew, ${hours}h${lead})</li>`;
     })
     .join("");
 
   const staleHtml = staleDrafts
     .map(
       (l) =>
-        `<li style="margin-bottom:4px;">${fmtDate(l.logDate)} — ${escapeHtml(`${l.job.jobNumber} ${l.job.title}`)}${l.manager ? ` · ${l.manager.firstName} ${l.manager.lastName}` : ""}</li>`,
+        `<li style="margin-bottom:4px;">${fmtDate(l.logDate)} — ${escapeHtml(jobText(l.job))}${l.manager ? ` · ${l.manager.firstName} ${l.manager.lastName}` : ""}</li>`,
     )
     .join("");
 

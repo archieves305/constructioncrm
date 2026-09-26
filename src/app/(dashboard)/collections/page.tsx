@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { JobRef } from "@/components/shared/entity-label";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -21,7 +22,7 @@ type CollectionJob = {
   balanceDue: string;
   finalPaymentReceived: boolean;
   currentStage: { name: string };
-  lead: { fullName: string; primaryPhone: string; city: string };
+  lead: { fullName: string; primaryPhone: string; propertyAddress1?: string | null; propertyAddress2?: string | null; city: string };
   salesRep: { firstName: string; lastName: string } | null;
 };
 
@@ -71,6 +72,7 @@ type FinancialsResponse = {
     jobs: {
       jobId: string;
       jobNumber: string;
+      address?: string;
       title: string;
       jobType: string;
       revenue: number;
@@ -169,7 +171,7 @@ export default function CollectionsPage() {
                   {depositsMissing.map((j) => (
                     <TableRow key={j.id} className="cursor-pointer hover:bg-gray-50"
                       onClick={() => router.push(`/jobs/${j.id}`)}>
-                      <TableCell className="font-mono text-xs">{j.jobNumber}</TableCell>
+                      <TableCell className="max-w-56"><JobRef job={j} href={null} customer={false} trade={false} /></TableCell>
                       <TableCell className="text-sm">{j.lead.fullName}</TableCell>
                       <TableCell className="text-right">${Number(j.depositRequired).toLocaleString()}</TableCell>
                       <TableCell className="text-right">${Number(j.depositReceived).toLocaleString()}</TableCell>
@@ -203,7 +205,7 @@ export default function CollectionsPage() {
                   {finalPaymentDue.map((j) => (
                     <TableRow key={j.id} className="cursor-pointer hover:bg-gray-50"
                       onClick={() => router.push(`/jobs/${j.id}`)}>
-                      <TableCell className="font-mono text-xs">{j.jobNumber}</TableCell>
+                      <TableCell className="max-w-56"><JobRef job={j} href={null} customer={false} trade={false} /></TableCell>
                       <TableCell className="text-sm">{j.lead.fullName}</TableCell>
                       <TableCell className="text-sm">{j.lead.primaryPhone}</TableCell>
                       <TableCell className="text-right text-red-600 font-medium">
@@ -344,7 +346,10 @@ export default function CollectionsPage() {
                   {profitability.map((j) => (
                     <TableRow key={j.jobId} className="cursor-pointer hover:bg-gray-50"
                       onClick={() => router.push(`/jobs/${j.jobId}`)}>
-                      <TableCell className="font-mono text-xs">{j.jobNumber}</TableCell>
+                      <TableCell className="max-w-56">
+                        <span className="block truncate text-sm font-medium">{j.address || j.jobNumber}</span>
+                        {j.address && <span className="font-mono text-[11px] text-muted-foreground">{j.jobNumber}</span>}
+                      </TableCell>
                       <TableCell className="text-sm">{j.title}</TableCell>
                       <TableCell className="text-right">{money(j.revenue)}</TableCell>
                       <TableCell className="text-right">{money(j.cost)}</TableCell>
@@ -383,7 +388,7 @@ export default function CollectionsPage() {
                   {balancesDue.map((j) => (
                     <TableRow key={j.id} className="cursor-pointer hover:bg-gray-50"
                       onClick={() => router.push(`/jobs/${j.id}`)}>
-                      <TableCell className="font-mono text-xs">{j.jobNumber}</TableCell>
+                      <TableCell className="max-w-56"><JobRef job={j} href={null} customer={false} trade={false} /></TableCell>
                       <TableCell className="text-sm">{j.lead.fullName}</TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px]">{j.currentStage.name}</Badge></TableCell>
                       <TableCell className="text-right">${Number(j.contractAmount).toLocaleString()}</TableCell>

@@ -1,5 +1,6 @@
 import { startOfDay } from "date-fns";
 import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
+import { jobTextWithCustomer } from "@/lib/labels/job";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -169,7 +170,7 @@ export async function runEscalations(now: Date = new Date()): Promise<Escalation
         dueAt: t.dueAt,
         priority: t.priority,
         level: plan.toLevel,
-        context: t.job ? `${t.job.jobNumber} — ${t.job.title}` : (t.lead?.fullName ?? "No job or lead"),
+        context: t.job ? jobTextWithCustomer(t.job) : (t.lead?.fullName ?? "No job or lead"),
         url: taskUrlForRole(t.id, r.role),
         lastNote,
       };

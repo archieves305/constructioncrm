@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { jobLabel } from "@/lib/labels/job";
+import type { JobLabel } from "@/components/tasks/types";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
@@ -73,7 +75,7 @@ type CrewData = {
   assignments: {
     id: string;
     installDate: string | null;
-    job: { id: string; jobNumber: string; title: string; scheduledDate: string | null };
+    job: JobLabel & { scheduledDate: string | null };
   }[];
 };
 
@@ -630,7 +632,7 @@ export default function CrewsPage() {
                       className="flex cursor-pointer items-center justify-between rounded bg-gray-50 p-1.5 text-xs hover:bg-gray-100"
                       onClick={() => router.push(`/jobs/${a.job.id}`)}
                     >
-                      <span className="font-mono">{a.job.jobNumber}</span>
+                      <span className="min-w-0 truncate" title={a.job.jobNumber}>{jobLabel(a.job, { customer: false, trade: false }).primary}</span>
                       {a.installDate && (
                         <span className="text-muted-foreground">
                           {format(new Date(a.installDate), "MMM d")}

@@ -1,5 +1,7 @@
 import { addDays, format } from "date-fns";
 import { prisma } from "@/lib/db/prisma";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
+import { jobLabel, jobText } from "@/lib/labels/job";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import type { InvoiceStatus, Priority } from "@/generated/prisma/client";
@@ -117,14 +119,14 @@ async function specFor(source: AutoTaskSource, now: Date): Promise<TaskSpec | nu
           dueDate: true,
           issueDate: true,
           jobId: true,
-          job: { select: { jobNumber: true, title: true, projectManagerId: true, salesRepId: true } },
+          job: { select: { ...JOB_LABEL_SELECT, projectManagerId: true, salesRepId: true } },
         },
       });
       if (!inv) return null;
       const dueAt = inv.dueDate ?? addDays(inv.issueDate, 30);
       return {
         title: `Collect payment on ${inv.invoiceNumber}`,
-        description: `${money(inv.amount)} due ${format(dueAt, "MMM d, yyyy")}. ${inv.job.jobNumber} — ${inv.job.title}.`,
+        description: `${money(inv.amount)} due ${format(dueAt, "MMM d, yyyy")}. ${jobText(inv.job)}.`,
         priority: "MEDIUM",
         dueAt,
         assignedUserId: inv.job.projectManagerId ?? inv.job.salesRepId ?? (await oldestActiveOfficeStaff()),
@@ -142,7 +144,7 @@ async function specFor(source: AutoTaskSource, now: Date): Promise<TaskSpec | nu
           jobId: true,
           job: {
             select: {
-              jobNumber: true,
+              ...JOB_LABEL_SELECT,
               fieldAssignments: { take: 1, orderBy: { createdAt: "asc" }, select: { userId: true } },
             },
           },
@@ -150,7 +152,7 @@ async function specFor(source: AutoTaskSource, now: Date): Promise<TaskSpec | nu
       });
       if (!log) return null;
       return {
-        title: `Fix returned daily log ${format(log.logDate, "MMM d")} — ${log.job.jobNumber}`,
+        title: `Fix returned daily log ${format(log.logDate, "MMM d")} — ${jobLabel(log.job, { customer: false, trade: false }).primary}`,
         description: log.returnNote,
         priority: "HIGH",
         dueAt: dueTomorrow(now),

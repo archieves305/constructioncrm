@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { createTask } from "@/lib/tasks/create";
+import { formatAddressLine } from "@/lib/labels/address";
 import { onInvoiceTransition } from "@/lib/tasks/auto-tasks";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { env } from "@/lib/env";
@@ -45,7 +46,7 @@ export async function createJobFromLead(leadId: string, userId: string) {
     data: {
       leadId,
       jobNumber: await nextJobNumber(),
-      title: `${serviceType} — ${lead.fullName}`,
+      title: `${serviceType} — ${formatAddressLine(lead) || lead.fullName}`,
       serviceType,
       contractAmount,
       depositRequired,
@@ -73,7 +74,7 @@ export async function createJobFromLead(leadId: string, userId: string) {
     {
       jobId: job.id,
       leadId,
-      title: `Collect deposit for ${job.jobNumber}`,
+      title: `Collect deposit — ${formatAddressLine(lead) || job.jobNumber}`,
       description: `Deposit required: $${depositRequired.toLocaleString()}`,
       assignedUserId: lead.assignedUserId,
       createdByUserId: userId,
@@ -229,7 +230,7 @@ async function sendReviewRequestIfNeeded(
   const [job, sender] = await Promise.all([
     prisma.job.findUnique({
       where: { id: jobId },
-      include: { lead: { select: { fullName: true, email: true, firstName: true } } },
+      include: { lead: { select: { fullName: true, email: true, firstName: true, propertyAddress1: true, propertyAddress2: true, city: true } } },
     }),
     prisma.user.findUnique({
       where: { id: userId },
@@ -251,9 +252,9 @@ async function sendReviewRequestIfNeeded(
     try {
       const subject = `Quick favor? Share your experience with us`;
       const html = `<p>Hi ${job.lead.firstName},</p>
-<p>Thanks for choosing us for your recent project (${job.jobNumber}). If you have a moment, we'd really appreciate an honest review — it helps other homeowners make informed decisions.</p>
+<p>Thanks for choosing us for your recent project${formatAddressLine(job.lead) ? ` at ${formatAddressLine(job.lead)}` : ""}. If you have a moment, we'd really appreciate an honest review — it helps other homeowners make informed decisions.</p>
 <p>Thank you!</p>`;
-      const text = `Hi ${job.lead.firstName}, thanks for choosing us for ${job.jobNumber}. If you have a moment, we'd appreciate a review.`;
+      const text = `Hi ${job.lead.firstName}, thanks for choosing us for your recent project${formatAddressLine(job.lead) ? ` at ${formatAddressLine(job.lead)}` : ""}. If you have a moment, we'd appreciate a review.`;
       const emailResult = await sendEmail({
         to: job.lead.email,
         subject,

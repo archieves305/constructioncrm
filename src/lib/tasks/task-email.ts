@@ -1,5 +1,7 @@
 import { format } from "date-fns";
 import { renderEmailLayout } from "@/lib/email/layout";
+import { formatAddressLine } from "@/lib/labels/address";
+import { jobText, jobTextWithCustomer, type CustomerInput, type JobLabelInput } from "@/lib/labels/job";
 import type { EmailBrand } from "@/lib/email/brand";
 import type { Priority, TaskStatus } from "@/generated/prisma/client";
 
@@ -27,8 +29,8 @@ export type TaskEmailTask = {
   priority: Priority;
   dueAt: Date | null;
   blockedReason: string | null;
-  job: { jobNumber: string; title: string } | null;
-  lead: { fullName: string } | null;
+  job: JobLabelInput | null;
+  lead: (CustomerInput & { fullName: string }) | null;
   invoice?: { invoiceNumber: string } | null;
   estimate?: { estimateNumber: string; name: string } | null;
   prospect?: { propertyAddress1: string; city: string } | null;
@@ -167,18 +169,19 @@ function taskBlock(task: TaskEmailTask, now: Date): { html: string; text: string
   ].join("");
 
   // Most specific anchor first, then the job or lead it hangs off.
+  const leadAddress = formatAddressLine(task.lead);
   const [contextLabel, context] = task.invoice
-    ? ["Invoice", `${task.invoice.invoiceNumber}${task.job ? ` — ${task.job.jobNumber}` : ""}`]
+    ? ["Invoice", `${task.invoice.invoiceNumber}${task.job ? ` — ${jobText(task.job)}` : ""}`]
     : task.estimate
-      ? ["Estimate", `${task.estimate.estimateNumber} — ${task.estimate.name}`]
+      ? ["Estimate", `${task.estimate.estimateNumber} — ${task.estimate.name}${leadAddress ? ` — ${leadAddress}` : ""}`]
       : task.dailyLog
-        ? ["Daily log", `${format(task.dailyLog.logDate, "MMM d")}${task.job ? ` — ${task.job.jobNumber}` : ""}`]
+        ? ["Daily log", `${format(task.dailyLog.logDate, "MMM d")}${task.job ? ` — ${jobText(task.job)}` : ""}`]
         : task.prospect
           ? ["Prospect", `${task.prospect.propertyAddress1}, ${task.prospect.city}`]
           : task.job
-            ? ["Job", `${task.job.jobNumber} — ${task.job.title}`]
+            ? ["Job", jobTextWithCustomer(task.job)]
             : task.lead
-              ? ["Lead", task.lead.fullName]
+              ? ["Lead", leadAddress ? `${task.lead.fullName} — ${leadAddress}` : task.lead.fullName]
               : ["Lead", "—"];
 
   const rows = [

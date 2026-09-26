@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { JobRef } from "@/components/shared/entity-label";
+import type { JobLabel } from "@/components/tasks/types";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,7 +12,7 @@ import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
 import { useCaseAction, type CaseData } from "./use-violations";
 
-type JobRow = { id: string; jobNumber: string; title: string; currentStage: { name: string; isClosed: boolean } };
+type JobRow = JobLabel & { currentStage: { name: string; isClosed: boolean } };
 
 /** Link one of the property's jobs as the corrective work. A closed job stamps corrective-work-complete at once. */
 export function LinkJobDialog({ data, open, onOpenChange }: { data: CaseData; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -34,8 +36,7 @@ export function LinkJobDialog({ data, open, onOpenChange }: { data: CaseData; op
             {rows.map((j) => (
               <li key={j.id}>
                 <button type="button" onClick={() => setPicked(j.id)} className={cn("flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm hover:bg-gray-50", picked === j.id && "border-brand bg-brand/5")}>
-                  <span className="font-mono text-xs">{j.jobNumber}</span>
-                  <span className="min-w-0 flex-1 truncate">{j.title}</span>
+                  <JobRef job={j} href={null} customer={false} className="min-w-0 flex-1" />
                   <span className="text-xs text-muted-foreground">{j.currentStage.name}</span>
                 </button>
               </li>

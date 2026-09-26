@@ -54,6 +54,7 @@ export type ReportInstance = {
   jobId: string;
   jobNumber: string;
   jobTitle: string;
+  jobAddress?: string | null;
   status: JobWorkflowStatus;
   permitStatus: WorkflowPermitStatus;
   appliedAt: Date;
@@ -254,6 +255,7 @@ export type StalledItem = {
   jobId: string;
   jobNumber: string;
   jobTitle: string;
+  jobAddress?: string | null;
   title: string;
   cause: DelayCause;
   state: "BLOCKED" | "OVERDUE";
@@ -290,6 +292,7 @@ export function stalledSteps(tasks: ReportTask[], instances: Map<string, ReportI
       jobId: inst.jobId,
       jobNumber: inst.jobNumber,
       jobTitle: inst.jobTitle,
+      jobAddress: inst.jobAddress ?? null,
       title: t.title,
       cause,
       state: blocked ? "BLOCKED" : "OVERDUE",
@@ -572,7 +575,7 @@ export async function loadWorkflowReport(range: { from: Date | null; to: Date | 
       status: true,
       permitStatus: true,
       appliedAt: true,
-      job: { select: { jobNumber: true, title: true, createdAt: true } },
+      job: { select: { ...JOB_LABEL_SELECT, createdAt: true } },
       modules: {
         where: { removedAt: null },
         orderBy: { addedAt: "asc" },
@@ -603,6 +606,7 @@ export async function loadWorkflowReport(range: { from: Date | null; to: Date | 
       jobId: r.jobId,
       jobNumber: r.job.jobNumber,
       jobTitle: r.job.title,
+      jobAddress: formatAddressLine(r.job.lead) || null,
       status: r.status,
       permitStatus: r.permitStatus,
       appliedAt: r.appliedAt,

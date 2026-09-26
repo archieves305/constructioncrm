@@ -11,7 +11,7 @@ type Props = {
   title: string | null;
   description: string | null;
   customerPrice: number;
-  job: { jobNumber: string; title: string; serviceType: string };
+  job: { jobNumber: string; title: string; serviceType: string; address?: string };
   customer: { fullName: string; address: string };
   brand: {
     companyName: string;
@@ -111,7 +111,8 @@ export function ChangeOrderBillView(props: Props) {
           <div className="font-medium text-gray-900">{props.customer.fullName}</div>
           <div>{props.customer.address}</div>
           <div className="mt-2">
-            Project: {props.job.jobNumber} — {props.job.title}
+            Project: {props.job.address || props.job.title} · {props.job.serviceType}{" "}
+            <span className="font-mono text-xs text-gray-400">{props.job.jobNumber}</span>
           </div>
         </div>
 

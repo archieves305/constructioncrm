@@ -81,6 +81,18 @@ describe("renderTaskAssignedEmail", () => {
     expect(rendered.html).toContain("J-1042");
   });
 
+  it("names the job by its address when the lead carries one, number alongside", () => {
+    const withAddress = renderTaskAssignedEmail({
+      task: { ...task, job: { jobNumber: "J-1042", title: "Rodriguez re-roof", lead: { fullName: "Ana Rodriguez", propertyAddress1: "12 Palm Ct", city: "Miami" } } },
+      recipientFirstName: "Frank",
+      actorName: "Jo Garcia",
+      url: "https://crm.careyos.com/tasks?task=t1",
+      brand,
+      now: NOW,
+    });
+    expect(withAddress.html).toContain("12 Palm Ct, Miami — Ana Rodriguez (J-1042)");
+  });
+
   it("always ships a plain-text alternate", () => {
     expect(rendered.text).toContain("Order roofing materials");
     expect(rendered.text).toContain("https://crm.careyos.com/tasks?task=t1");

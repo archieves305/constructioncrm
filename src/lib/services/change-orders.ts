@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { Prisma } from "@/generated/prisma/client";
+import { formatAddressLine } from "@/lib/labels/address";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { recomputeJobLabor, recomputeJobBalance } from "@/lib/services/job-pricing";
@@ -119,6 +120,7 @@ export function buildBillData(co: ChangeOrderWithContext) {
       jobNumber: co.job.jobNumber,
       title: co.job.title,
       serviceType: co.job.serviceType,
+      address: formatAddressLine(co.job.lead),
     },
     customer: {
       fullName: co.job.lead.fullName,
@@ -165,7 +167,7 @@ export async function sendChangeOrderEmail(
     </div>
     <div style="border:1px solid #e5e7eb;border-top:none;padding:24px;border-radius:0 0 8px 8px">
       <p>Hi ${co.job.lead.fullName.split(" ")[0] || co.job.lead.fullName},</p>
-      <p>We've prepared a change order for your project <strong>${co.job.title}</strong> (${co.job.jobNumber}).</p>
+      <p>We've prepared a change order for your project at <strong>${formatAddressLine(co.job.lead) || co.job.title}</strong>.</p>
       ${co.description ? `<p style="background:#f9fafb;border:1px solid #eee;border-radius:6px;padding:12px;white-space:pre-wrap">${co.description}</p>` : ""}
       <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:16px;margin:16px 0">
         <div style="font-size:11px;text-transform:uppercase;color:#92400e">Additional amount</div>
@@ -180,12 +182,12 @@ export async function sendChangeOrderEmail(
     </div>
   </div>`;
 
-  const text = `${heading}\n\nProject: ${co.job.title} (${co.job.jobNumber})\nAdditional amount: ${price}\n\nReview and respond: ${url}`;
+  const text = `${heading}\n\nProject: ${formatAddressLine(co.job.lead) || co.job.title}\nAdditional amount: ${price}\n\nReview and respond: ${url}`;
 
   try {
     await sendEmail({
       to,
-      subject: `${heading} — ${co.job.title}`,
+      subject: `${heading} — ${formatAddressLine(co.job.lead) || co.job.title}`,
       html,
       text,
       replyTo: replyTo || undefined,

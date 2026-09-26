@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { JobRef } from "@/components/shared/entity-label";
+import type { JobLabel } from "@/components/tasks/types";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -725,7 +727,7 @@ function Summary({ label, value }: { label: string; value: string }) {
 }
 
 function JobPickerRow({ leadId, value, onChange }: { leadId: string; value: string | null; onChange: (v: string | null) => void }) {
-  const { data } = useQuery<{ data: { id: string; jobNumber: string; title: string }[] }>({ queryKey: ["jobs", "for-case", leadId], queryFn: () => fetchJson(`/api/jobs?leadId=${leadId}&pageSize=100`), retry: retryServerErrors });
+  const { data } = useQuery<{ data: JobLabel[] }>({ queryKey: ["jobs", "for-case", leadId], queryFn: () => fetchJson(`/api/jobs?leadId=${leadId}&pageSize=100`), retry: retryServerErrors });
   const jobs = data?.data ?? [];
   if (jobs.length === 0) return null;
   return (
@@ -733,13 +735,13 @@ function JobPickerRow({ leadId, value, onChange }: { leadId: string; value: stri
       <Label className="text-xs">Corrective job on this property (optional)</Label>
       <Select value={value ?? "__none"} onValueChange={(v: string | null) => onChange(!v || v === "__none" ? null : v)}>
         <SelectTrigger className="mt-1">
-          <SelectValue>{(v: string) => (!v || v === "__none" ? "No job linked yet" : (jobs.find((j) => j.id === v)?.jobNumber ?? "—"))}</SelectValue>
+          <SelectValue>{(v: string) => { if (!v || v === "__none") return "No job linked yet"; const j = jobs.find((x) => x.id === v); return j ? `${j.serviceType ?? j.title} · ${j.jobNumber}` : "—"; }}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none">No job linked yet</SelectItem>
           {jobs.map((j) => (
             <SelectItem key={j.id} value={j.id}>
-              {j.jobNumber} · {j.title}
+              <JobRef job={j} href={null} customer={false} inline />
             </SelectItem>
           ))}
         </SelectContent>

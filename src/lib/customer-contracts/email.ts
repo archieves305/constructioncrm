@@ -2,6 +2,7 @@
 // the branded shell (renderEmailLayout); the PDF rides along as an attachment.
 
 import { env } from "@/lib/env";
+import { jobText, type CustomerInput, type JobLabelInput } from "@/lib/labels/job";
 import { getEmailBrand } from "@/lib/email/brand";
 import { escapeHtml } from "@/lib/email/escape";
 import { renderEmailLayout } from "@/lib/email/layout";
@@ -29,7 +30,7 @@ type ContractForEmail = {
   signerEmail: string | null;
   signedAt: Date | null;
   declineReason: string | null;
-  job: { jobNumber: string; title: string; lead: { fullName: string; email: string | null } };
+  job: JobLabelInput & { title: string; lead: CustomerInput & { fullName: string; email: string | null } };
 };
 
 function firstName(fullName: string): string {
@@ -130,10 +131,10 @@ export async function sendContractOutcomeInternalEmail(
   const headline = outcome === "signed" ? `${c.contractNumber} signed by ${c.signerName ?? "the customer"}` : `${c.contractNumber} declined`;
   const detail =
     outcome === "signed"
-      ? `<p>${escapeHtml(c.job.lead.fullName)} signed the agreement for <strong>${escapeHtml(c.job.jobNumber)} — ${escapeHtml(c.job.title)}</strong> (${escapeHtml(formatMoney(snap.price.total))})${c.signedAt ? ` on ${escapeHtml(longDate(c.signedAt))}` : ""}. The job's contract amount and deposit are set from it.</p>`
-      : `<p>${escapeHtml(c.job.lead.fullName)} declined the agreement for <strong>${escapeHtml(c.job.jobNumber)} — ${escapeHtml(c.job.title)}</strong>.</p>${c.declineReason ? `<blockquote style="margin:12px 0;padding:10px 14px;border-left:3px solid #ef4444;background:#fef2f2">${escapeHtml(c.declineReason)}</blockquote>` : "<p><em>No reason given.</em></p>"}`;
+      ? `<p>${escapeHtml(c.job.lead.fullName)} signed the agreement for <strong>${escapeHtml(jobText(c.job))}</strong> (${escapeHtml(formatMoney(snap.price.total))})${c.signedAt ? ` on ${escapeHtml(longDate(c.signedAt))}` : ""}. The job's contract amount and deposit are set from it.</p>`
+      : `<p>${escapeHtml(c.job.lead.fullName)} declined the agreement for <strong>${escapeHtml(jobText(c.job))}</strong>.</p>${c.declineReason ? `<blockquote style="margin:12px 0;padding:10px 14px;border-left:3px solid #ef4444;background:#fef2f2">${escapeHtml(c.declineReason)}</blockquote>` : "<p><em>No reason given.</em></p>"}`;
   const bodyHtml = `<p><strong>${escapeHtml(headline)}</strong></p>${detail}${button(jobUrl, "Open job", brand.primaryColor)}`;
-  const bodyText = `${headline}\n\n${outcome === "signed" ? `${c.job.lead.fullName} signed ${c.job.jobNumber} — ${c.job.title} (${formatMoney(snap.price.total)}).` : `${c.job.lead.fullName} declined ${c.job.jobNumber} — ${c.job.title}.${c.declineReason ? `\nReason: ${c.declineReason}` : ""}`}\n\nOpen job: ${jobUrl}`;
+  const bodyText = `${headline}\n\n${outcome === "signed" ? `${c.job.lead.fullName} signed ${jobText(c.job)} (${formatMoney(snap.price.total)}).` : `${c.job.lead.fullName} declined ${jobText(c.job)}.${c.declineReason ? `\nReason: ${c.declineReason}` : ""}`}\n\nOpen job: ${jobUrl}`;
   const { html, text } = renderEmailLayout({ bodyHtml, bodyText, brand });
   try {
     const result = await sendEmail({

@@ -376,10 +376,13 @@ export function WorkflowReportSection({ report }: { report: WorkflowReport }) {
                   {report.stalled.items.map((i) => (
                     <TableRow key={i.taskId}>
                       <TableCell>
-                        <Link href={`/jobs/${i.jobId}?tab=workflow`} className="font-mono text-xs hover:underline">
-                          {i.jobNumber}
+                        <Link href={`/jobs/${i.jobId}?tab=workflow`} className="text-xs font-medium hover:underline">
+                          {i.jobAddress ?? i.jobNumber}
                         </Link>
-                        <div className="max-w-[180px] truncate text-xs text-muted-foreground">{i.jobTitle}</div>
+                        <div className="max-w-[180px] truncate text-xs text-muted-foreground">
+                          {i.jobAddress && <span className="mr-1 font-mono">{i.jobNumber}</span>}
+                          {i.jobTitle}
+                        </div>
                       </TableCell>
                       <TableCell className="max-w-[260px] truncate text-sm" title={i.title}>
                         {i.title}
@@ -429,7 +432,7 @@ export function workflowCsvSections(report: WorkflowReport): { name: string; row
     },
     { name: "Workflow overdue by role", rows: report.overdueByRole.map(({ role, label, count, unassigned, avgDaysOverdue, maxDaysOverdue }) => ({ role, label, count, unassigned, avgDaysOverdue, maxDaysOverdue })) },
     { name: "Workflow stalled by cause", rows: report.stalled.byCause.map(({ cause, label, blocked, overdue, jobs }) => ({ cause, label, blocked, overdue, jobs })) },
-    { name: "Workflow stalled steps", rows: report.stalled.items.map(({ jobNumber, jobTitle, title, role, cause, state, daysOverdue, assigned }) => ({ jobNumber, jobTitle, title, role, cause, state, daysOverdue, assigned })) },
+    { name: "Workflow stalled steps", rows: report.stalled.items.map(({ jobNumber, jobAddress, jobTitle, title, role, cause, state, daysOverdue, assigned }) => ({ jobNumber, jobAddress: jobAddress ?? "", jobTitle, title, role, cause, state, daysOverdue, assigned })) },
     { name: "Workflow lead times", rows: report.leadTimes.overall.map(({ metric, label, n, avgDays, medianDays, p90Days }) => ({ metric, label, n, avgDays, medianDays, p90Days })) },
     { name: "Workflow production start by trade", rows: report.leadTimes.productionStartByTrade.map(({ key, name, n, avgDays, medianDays, p90Days }) => ({ key, name, n, avgDays, medianDays, p90Days })) },
     { name: "Workflow most-skipped steps", rows: report.mostSkipped.map(({ key, title, count, userSkips, engineSkips, lastReason }) => ({ key, title, count, userSkips, engineSkips, lastReason })) },

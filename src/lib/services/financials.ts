@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { getBillingSummary, round2 } from "@/lib/services/progress-billing";
+import { formatAddressLine } from "@/lib/labels/address";
 
 const MS_PER_DAY = 86400000;
 
@@ -100,6 +101,8 @@ export async function getArAging(now = new Date()): Promise<ArAging> {
 export type JobProfitability = {
   jobId: string;
   jobNumber: string;
+  /** Street + city from the lead; empty when the lead has no real street. */
+  address: string;
   title: string;
   jobType: string;
   revenue: number;
@@ -140,6 +143,7 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
         contractAmount: true,
         balanceDue: true,
         laborCost: true,
+        lead: { select: { propertyAddress1: true, propertyAddress2: true, city: true } },
         // Mirrors `payments` below: only reviewed money counts toward cost
         // and profit. An unapproved charge would understate margin on a job
         // nobody has agreed actually owes it.
@@ -181,6 +185,7 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
     profitability.push({
       jobId: j.id,
       jobNumber: j.jobNumber,
+      address: formatAddressLine(j.lead),
       title: j.title,
       jobType: j.jobType,
       revenue: contract,

@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import { jobLabel } from "@/lib/labels/job";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -125,8 +126,8 @@ function CaseView({ data, tab, setTab, openItem, onOpenItem }: { data: CaseData;
             {data.jurisdiction && <span>{data.jurisdiction}</span>}
             {data.agencyCaseNumber && <span className="font-mono text-xs">Agency # {data.agencyCaseNumber}</span>}
             {data.job && (
-              <Link href={`/jobs/${data.job.id}`} className="font-mono text-xs hover:underline">
-                {data.job.jobNumber}
+              <Link href={`/jobs/${data.job.id}`} className="text-xs hover:underline">
+                Job: {data.job.serviceType ?? data.job.title} <span className="font-mono">{data.job.jobNumber}</span>
               </Link>
             )}
           </span>
@@ -463,10 +464,11 @@ function Overview({ data, onSetTab }: { data: CaseData; onSetTab: (t: string) =>
           <CardContent className="text-sm">
             {data.job ? (
               <>
-                <Link href={`/jobs/${data.job.id}`} className="font-mono hover:underline">
-                  {data.job.jobNumber}
+                <Link href={`/jobs/${data.job.id}`} className="font-medium hover:underline">
+                  {jobLabel({ ...data.job, lead: data.lead }, { customer: false }).primary}
                 </Link>{" "}
-                <span>{data.job.title}</span>
+                <span className="font-mono text-xs text-muted-foreground">{data.job.jobNumber}</span>
+                <div className="text-xs text-muted-foreground">{data.job.title}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   Stage {data.job.currentStage.name}
                   {data.job.workflow ? ` · workflow ${data.job.workflow.status.toLowerCase()}` : " · no workflow"}

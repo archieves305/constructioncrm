@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { escapeHtml } from "@/lib/email/escape";
+import { formatAddressLine } from "@/lib/labels/address";
 import { forbidden } from "@/lib/auth/helpers";
 import {
   requireJobFieldAccess,
@@ -63,7 +65,7 @@ export async function POST(_request: NextRequest, context: Context) {
         jobNumber: true,
         title: true,
         dailyReportRecipients: true,
-        lead: { select: { propertyAddress1: true, city: true, state: true } },
+        lead: { select: { propertyAddress1: true, propertyAddress2: true, city: true, state: true } },
       },
     });
     if (job && job.dailyReportRecipients.length > 0) {
@@ -76,8 +78,8 @@ export async function POST(_request: NextRequest, context: Context) {
         const dateDisplay = format(new Date(`${date}T12:00:00`), "EEEE, MMMM d, yyyy");
         const html = `
         <div style="font-family:Helvetica,Arial,sans-serif;color:#111;max-width:560px;">
-          <h2 style="margin:0 0 4px;">Daily Report — ${job.jobNumber}</h2>
-          <p style="color:#6b7280;margin:0 0 12px;">${job.title} · ${dateDisplay}</p>
+          <h2 style="margin:0 0 4px;">Daily Report — ${escapeHtml(formatAddressLine(job.lead) || job.jobNumber)}</h2>
+          <p style="color:#6b7280;margin:0 0 12px;">${escapeHtml(job.jobNumber)} · ${escapeHtml(job.title)} · ${dateDisplay}</p>
           <p>The approved daily report is attached (crew, work performed, and photos).</p>
           <p style="color:#9ca3af;font-size:12px;margin-top:16px;">Sent automatically by KNUCO CRM on approval.</p>
         </div>`;
@@ -85,7 +87,7 @@ export async function POST(_request: NextRequest, context: Context) {
           try {
             const result = await sendEmail({
               to,
-              subject: `Daily Report — ${job.jobNumber} — ${date}`,
+              subject: `Daily Report — ${formatAddressLine(job.lead) || job.jobNumber} — ${date}`,
               html,
               attachments: [
                 {

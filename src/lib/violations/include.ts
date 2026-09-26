@@ -25,7 +25,7 @@ export const CASE_DETAIL_INCLUDE = {
   },
   job: {
     select: {
-      id: true, jobNumber: true, title: true, projectManagerId: true, targetStartDate: true, completionDate: true,
+      id: true, jobNumber: true, title: true, serviceType: true, projectManagerId: true, targetStartDate: true, completionDate: true,
       currentStage: { select: { id: true, name: true, isClosed: true } },
       workflow: { select: { id: true, status: true } },
       permits: { orderBy: { createdAt: "desc" }, select: { id: true, municipality: true, permitType: true, permitNumber: true, status: true, submittedDate: true, approvedDate: true, expirationDate: true, finalPassedDate: true, inspectorName: true } },

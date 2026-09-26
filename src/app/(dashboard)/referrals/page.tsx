@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { JobRef } from "@/components/shared/entity-label";
+import type { JobLabel } from "@/components/tasks/types";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
@@ -45,7 +47,7 @@ type Referral = {
   commissionAmount: string | null;
   commissionPaidAt: string | null;
   createdAt: string;
-  job: { id: string; jobNumber: string };
+  job: JobLabel;
   referredBy: { id: string; fullName: string };
 };
 
@@ -242,11 +244,8 @@ export default function ReferralsPage() {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell
-                      className="cursor-pointer font-mono text-xs hover:underline"
-                      onClick={() => router.push(`/jobs/${r.job.id}`)}
-                    >
-                      {r.job.jobNumber}
+                    <TableCell className="cursor-pointer" onClick={() => router.push(`/jobs/${r.job.id}`)}>
+                      <JobRef job={r.job} href={null} trade={false} inline />
                     </TableCell>
                     <TableCell>
                       <Button

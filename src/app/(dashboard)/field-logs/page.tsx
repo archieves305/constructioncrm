@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { jobText } from "@/lib/labels/job";
+import type { JobLabel } from "@/components/tasks/types";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
@@ -22,7 +24,7 @@ type QueueRow = {
   logDate: string;
   status: "DRAFT" | "SUBMITTED" | "APPROVED";
   submittedAt: string | null;
-  job: { id: string; jobNumber: string; title: string };
+  job: JobLabel;
   manager: { firstName: string; lastName: string } | null;
   submittedBy: { firstName: string; lastName: string } | null;
   workersOnsite: number;
@@ -119,7 +121,7 @@ export default function FieldLogsQueuePage() {
                     </TableCell>
                     <TableCell>
                       <Link href={`/jobs/${log.jobId}`} className="hover:underline">
-                        {log.job.jobNumber} — {log.job.title}
+                        {jobText(log.job)}
                       </Link>
                     </TableCell>
                     <TableCell>

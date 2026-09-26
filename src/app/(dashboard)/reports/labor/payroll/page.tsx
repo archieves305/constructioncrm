@@ -39,6 +39,7 @@ type JobSplit = {
   jobId: string;
   jobNumber: string;
   title: string;
+  address?: string | null;
   hours: number;
   amount: number;
 };
@@ -243,7 +244,7 @@ export default function PayrollPage() {
                   <TableCell className="text-muted-foreground text-sm">
                     {row.byJob.map((j) => (
                       <div key={j.jobId}>
-                        {j.jobNumber} · {money(j.amount)}
+                        {j.address ?? j.jobNumber} · {money(j.amount)}
                       </div>
                     ))}
                   </TableCell>
@@ -328,7 +329,7 @@ export default function PayrollPage() {
                   {payFor.byJob.map((j) => (
                     <div key={j.jobId} className="flex justify-between">
                       <span>
-                        {j.jobNumber} — {j.title}
+                        {j.address ? `${j.address} (${j.jobNumber})` : `${j.jobNumber} — ${j.title}`}
                       </span>
                       <span>{money(j.amount)}</span>
                     </div>

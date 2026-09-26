@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { formatAddressLine } from "@/lib/labels/address";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -84,7 +85,7 @@ export default function LeadDetailPage() {
       if (updated?.job) {
         // Won → a job exists. The workflow is the next thing to set up on it.
         const job = updated.job;
-        toast.success(`Job ${job.jobNumber} created`, {
+        toast.success(`Job created — ${formatAddressLine(lead) || job.jobNumber}`, {
           description: "Apply a workflow, or start the estimate and customer contract.",
           action: { label: "Set up its workflow", onClick: () => router.push(`/jobs/${job.id}?tab=workflow&apply=1`) },
           cancel: { label: "Estimate & contract", onClick: () => router.push(`/jobs/${job.id}?tab=money&sub=estimates`) },

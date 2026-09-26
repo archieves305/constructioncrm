@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCronSecret } from "@/lib/cron/auth";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
+import { jobText } from "@/lib/labels/job";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { fromDbDate, addDays, toDbDate } from "@/lib/labor/dates";
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
       returnNote: true,
       manager: { select: { id: true, email: true, firstName: true, isActive: true } },
       createdBy: { select: { id: true, email: true, firstName: true, isActive: true } },
-      job: { select: { id: true, jobNumber: true, title: true } },
+      job: { select: JOB_LABEL_SELECT },
       laborEntries: { select: { isAbsent: true } },
     },
     orderBy: { logDate: "asc" },
@@ -49,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
     bucket.items.push({
       date: fromDbDate(log.logDate),
-      job: `${log.job.jobNumber} — ${log.job.title}`,
+      job: jobText(log.job),
       jobId: log.job.id,
       crew: log.laborEntries.filter((e) => !e.isAbsent).length,
       returned: Boolean(log.returnNote),

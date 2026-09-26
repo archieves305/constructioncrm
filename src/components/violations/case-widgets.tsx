@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatAddressLine } from "@/lib/labels/address";
 import { format } from "date-fns";
 import { AlertTriangle, Ban, CalendarClock, ClipboardCheck, DollarSign, Gavel, Hourglass, Landmark, Shield, Siren } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -91,7 +92,6 @@ export function CaseNumberLink({ id, caseNumber, className }: { id: string; case
   );
 }
 
-export function addressOf(lead: { propertyAddress1: string; city: string; state?: string } | null | undefined): string {
-  if (!lead) return "";
-  return `${lead.propertyAddress1}, ${lead.city}`;
+export function addressOf(lead: { propertyAddress1: string; propertyAddress2?: string | null; city: string; state?: string } | null | undefined): string {
+  return formatAddressLine(lead) || (lead ? `${lead.propertyAddress1}, ${lead.city}` : "");
 }

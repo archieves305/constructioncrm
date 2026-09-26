@@ -1,6 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { jobLabel } from "@/lib/labels/job";
+import { formatAddressLine } from "@/lib/labels/address";
+import { JobRef } from "@/components/shared/entity-label";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
@@ -123,7 +126,7 @@ export default function PermitCenterPage() {
               const rows = allPermits.map((p) => ({
                 jobNumber: p.job.jobNumber,
                 customer: p.job.lead.fullName,
-                address: `${p.job.lead.propertyAddress1}, ${p.job.lead.city}`,
+                address: formatAddressLine(p.job.lead),
                 municipality: p.municipality,
                 permitType: p.permitType ?? "",
                 permitNumber: p.permitNumber ?? "",
@@ -212,7 +215,7 @@ export default function PermitCenterPage() {
                         >
                           <CardContent className="p-3 space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-mono">{p.job.jobNumber}</span>
+                              <span className="truncate text-xs font-medium" title={p.job.jobNumber}>{jobLabel(p.job, { customer: false, trade: false }).primary}</span>
                               {p.agingDays !== null && p.agingDays > 14 && (
                                 <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
                               )}
@@ -305,7 +308,7 @@ export default function PermitCenterPage() {
                     className="cursor-pointer hover:bg-gray-50"
                     onClick={() => setSelectedPermitId(p.id)}
                   >
-                    <TableCell className="font-mono text-xs">{p.job.jobNumber}</TableCell>
+                    <TableCell className="max-w-56"><JobRef job={p.job} href={null} customer={false} trade={false} /></TableCell>
                     <TableCell className="text-sm">{p.job.lead.fullName}</TableCell>
                     <TableCell className="text-sm">{p.municipality}</TableCell>
                     <TableCell className="text-sm">{p.permitType || "—"}</TableCell>
@@ -362,7 +365,7 @@ export default function PermitCenterPage() {
                   <TableBody>
                     {allPermits.map((p) => (
                       <TableRow key={p.id}>
-                        <TableCell className="font-mono text-xs">{p.job.jobNumber}</TableCell>
+                        <TableCell className="max-w-56"><JobRef job={p.job} href={null} customer={false} trade={false} /></TableCell>
                         <TableCell>{p.job.lead.fullName}</TableCell>
                         <TableCell>{p.municipality}</TableCell>
                         <TableCell className="text-red-600 font-medium">{p.agingDays}d</TableCell>
@@ -440,9 +443,9 @@ function PermitDetailDrawer({
               className="underline-offset-2 hover:underline"
               onClick={() => onOpenJob(permit.job.id)}
             >
-              {permit.job.jobNumber}
+              {jobLabel(permit.job, { customer: false, trade: false }).primary}
             </button>
-            {" · "}{permit.job.lead.fullName}{" · "}{permit.job.lead.propertyAddress1}, {permit.job.lead.city}
+            {" · "}{permit.job.lead.fullName}{" · "}<span className="font-mono text-xs">{permit.job.jobNumber}</span>
           </div>
         </SheetHeader>
 

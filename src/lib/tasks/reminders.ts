@@ -1,5 +1,6 @@
 import { endOfDay, startOfDay } from "date-fns";
 import type { CustomerInput, JobLabelInput } from "@/lib/labels/job";
+import { jobTextWithCustomer } from "@/lib/labels/job";
 import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
@@ -135,7 +136,7 @@ export async function runMorningDigest(now: Date = new Date()): Promise<DigestRu
   const brand = await getEmailBrand();
 
   const context = (t: DueTask) =>
-    t.job ? `${t.job.jobNumber} — ${t.job.title}` : (t.lead?.fullName ?? "No job or lead");
+    t.job ? jobTextWithCustomer(t.job) : (t.lead?.fullName ?? "No job or lead");
 
   let sent = 0;
   const failures: DeliveryFailure[] = [];

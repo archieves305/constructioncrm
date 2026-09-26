@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { formatAddressLine } from "@/lib/labels/address";
 import { prisma } from "@/lib/db/prisma";
 import { validateBody } from "@/lib/validation/body";
 import {
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest, context: Context) {
     select: {
       jobNumber: true,
       title: true,
-      lead: { select: { propertyAddress1: true, city: true, state: true } },
+      lead: { select: { propertyAddress1: true, propertyAddress2: true, city: true, state: true } },
     },
   });
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -61,9 +62,9 @@ export async function POST(request: NextRequest, context: Context) {
 
   const html = `
   <div style="font-family:Helvetica,Arial,sans-serif;color:#111;max-width:560px;">
-    <h2 style="margin:0 0 4px;">Daily Report — ${escapeHtml(job.jobNumber)}</h2>
+    <h2 style="margin:0 0 4px;">Daily Report — ${escapeHtml(formatAddressLine(job.lead) || job.jobNumber)}</h2>
     <p style="color:#6b7280;margin:0 0 12px;">
-      ${escapeHtml(job.title)} · ${dateDisplay}
+      ${escapeHtml(job.jobNumber)} · ${escapeHtml(job.title)} · ${dateDisplay}
     </p>
     ${v.data.note ? `<p style="white-space:pre-line;">${escapeHtml(v.data.note)}</p>` : ""}
     <p>The full daily report is attached as a PDF (crew, work performed, and photos).</p>
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest, context: Context) {
   try {
     const result = await sendEmail({
       to: v.data.to,
-      subject: `Daily Report — ${job.jobNumber} — ${date}`,
+      subject: `Daily Report — ${formatAddressLine(job.lead) || job.jobNumber} — ${date}`,
       html,
       attachments: [
         {

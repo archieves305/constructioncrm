@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
+import { formatAddressLine } from "@/lib/labels/address";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { canApproveJobCosts } from "@/lib/expenses/permissions";
 import { pairCandidates, pairKey } from "@/lib/expenses/reconcile";
@@ -38,7 +40,7 @@ export async function GET() {
         createdAt: true,
         createdByUserId: true,
         createdBy: { select: { firstName: true, lastName: true } },
-        job: { select: { jobNumber: true, title: true, jobType: true } },
+        job: { select: { ...JOB_LABEL_SELECT, jobType: true } },
       },
     }),
     prisma.expenseReconciliation.findMany({
@@ -110,6 +112,7 @@ export async function GET() {
       key: p.key,
       jobId: m.jobId,
       jobNumber: m.job.jobNumber,
+      jobAddress: formatAddressLine(m.job.lead) || null,
       jobTitle: m.job.title,
       jobType: m.job.jobType,
       amount: Number(m.amount),

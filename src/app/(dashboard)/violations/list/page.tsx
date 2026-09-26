@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
+import { jobText } from "@/lib/labels/job";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Download, Gavel, Plus, Search, UserCheck } from "lucide-react";
@@ -100,7 +101,7 @@ function ListBody() {
         lien: r.lienStatus,
         nextAction: r.nextAction?.title ?? "",
         caseManager: r.caseManager ? `${r.caseManager.firstName} ${r.caseManager.lastName}` : "",
-        job: r.job?.jobNumber ?? "",
+        job: r.job ? jobText(r.job) : "",
         flags: r.state.flags.join(" "),
       })),
       [

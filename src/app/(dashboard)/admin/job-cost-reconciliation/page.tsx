@@ -22,6 +22,7 @@ type Pair = {
   key: string;
   jobId: string;
   jobNumber: string;
+  jobAddress?: string | null;
   jobTitle: string;
   jobType: string;
   amount: number;
@@ -167,9 +168,10 @@ export default function JobCostReconciliationPage() {
                       return (
                         <TableRow key={p.key}>
                           <TableCell>
-                            <Link href={`/jobs/${p.jobId}?tab=money&sub=expenses`} className="font-mono text-xs hover:underline">
-                              {p.jobNumber}
+                            <Link href={`/jobs/${p.jobId}?tab=money&sub=expenses`} className="text-xs font-medium hover:underline">
+                              {p.jobAddress ?? p.jobNumber}
                             </Link>
+                            {p.jobAddress && <span className="ml-1 font-mono text-[10px] text-muted-foreground">{p.jobNumber}</span>}
                             <div className="max-w-[160px] truncate text-xs text-muted-foreground" title={p.jobTitle}>
                               {p.jobTitle}
                             </div>
@@ -207,7 +209,7 @@ export default function JobCostReconciliationPage() {
                                 onClick={() => {
                                   if (
                                     confirm(
-                                      `Remove the typed-in ${money(p.amount)} charge (${p.manual.vendor ?? "no vendor"}, ${day(p.manual.incurredDate)}) on ${p.jobNumber}? The cc-allocator posting stays. This cannot be undone.`,
+                                      `Remove the typed-in ${money(p.amount)} charge (${p.manual.vendor ?? "no vendor"}, ${day(p.manual.incurredDate)}) on ${p.jobAddress ?? p.jobNumber}? The cc-allocator posting stays. This cannot be undone.`,
                                     )
                                   )
                                     resolve.mutate({ key: p.key, manualExpenseId: p.manual.id, externalExpenseId: p.external.id, decision: "DUPLICATE" });
