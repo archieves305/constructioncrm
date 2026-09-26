@@ -27,7 +27,7 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-00000. 🔴 **Friendlier CRM: address-first labels + calmer navigation** —
+00000. ✅ **Friendlier CRM: address-first labels + calmer navigation** —
    four stages, plan approved 2026-09-25
    (`~/.claude/plans/spicy-drifting-shore.md`). **Stage 1 built + dev-QA'd
    2026-09-25 on `main`** as `fa52de5` (core: label module, shared
@@ -49,8 +49,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    **Stage 4 (shared list toolbar, URL filters + text search on tasks and
    permits, skeletons / empty / error / not-found, breadcrumbs, glossary
    terms, terminology, phone columns) built + dev-QA'd on `ux-polish`,
-   merged to `main` 2026-09-25** — push + deploy pending.
-   Notes:
+   merged to `main` and deployed 2026-09-25 as `f95b425`** (BUILD_ID
+   `rNiggElI_oVOOMlbDSI2q`, no migration, smoke 307 ×2, journal clean,
+   backup `postgres-2026-09-26-030123.dump`). **All four stages are on
+   prod**; what remains is Richard's click-through. Notes:
    [features/ux-labels-nav.md](docs/project-memory/features/ux-labels-nav.md).
 0000. 🔴 **Quieter boards, "my jobs" by default, follow-up + nurture
    cadence** — two stages, plan approved 2026-09-25
@@ -147,6 +149,16 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — UX Stage 4 deployed (`f95b425`); the four-stage plan is on prod
+
+`ux-polish` merged into `main` (CLAUDE.md conflict resolved as before);
+gate: typecheck clean, lint 6/22, 932 tests, build clean. Richard pushed
+and deployed from `!`: BUILD_ID `P2cLnp1LPVdhUtb8v8hLf` →
+`rNiggElI_oVOOMlbDSI2q`, no pending migrations, smoke 307 ×2, journal
+clean since restart, backup `postgres-2026-09-26-030123.dump`. The
+three stage branches were deleted locally after the merges. Across the
+day: 886 → 932 tests, lint 6/28 → 6/22, no migration in any stage.
 
 ### 2026-09-25 — UX Stage 3 deployed (`8b0740c`)
 
@@ -829,15 +841,16 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 ## 10. Next Prompt
 
-> UX Stage 1 (address-first labels) is **on prod** (`67416fd`, build
-> `QLO41RrNwa7l830TCo1bd`) and **Stage 2 is on prod** (`46f4b11`, build
-> `JzcQ_qnobf471IUalTKX_`), **Stage 3 is on prod** (`8b0740c`, build
-> `P2cLnp1LPVdhUtb8v8hLf`). **Stage 4 (`ux-polish`) is merged into `main`
-> and not yet pushed/deployed**: Richard runs `git push` then the deploy
-> (no migration), then checks `/tasks` (search box in Filters, filters
-> survive a reload), `/permits`, `/nope`, a phone-width `/jobs`. That
-> completes the four-stage UX plan. Plan: `~/.claude/plans/spicy-drifting-shore.md`; notes:
-> `docs/project-memory/features/ux-labels-nav.md`. Nurture operator items
-> (SPF → `NURTURE_ENABLED=1` → admin switch, `NURTURE_MAX_PER_RUN=10`)
-> still stand. Same rules: explicit role lists, tests + typecheck + build
-> green, lint ≤ 6/28, deploy with `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
+> The four-stage UX plan (address-first labels; sidebar + Table|Board + ⌘K;
+> job/lead page; polish) is **fully on prod** as of `f95b425` (build
+> `rNiggElI_oVOOMlbDSI2q`). Richard's click-through: `/tasks` (chips,
+> Job filter picker, search under Filters, filters survive reload),
+> `/jobs` + a job page (Customer card, Money next-step), the boards,
+> ⌘K, `/permits`, `/nope`, a phone-width `/jobs`. Anything he dislikes
+> is a follow-up on `main`. Nurture operator items (SPF →
+> `NURTURE_ENABLED=1` → admin switch, `NURTURE_MAX_PER_RUN=10`) and Code
+> Violations Stage 4 (dashboard breakdowns + reports) still stand. Known
+> pre-existing: `/api/permits?status=<bad>` 500s; a hydration warning on
+> `/tasks` from the header pills. Same rules: explicit role lists, tests +
+> typecheck + build green, lint ≤ 6/28, deploy with
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

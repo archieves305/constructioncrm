@@ -2,7 +2,9 @@
 
 _Plan approved 2026-09-25 (`~/.claude/plans/spicy-drifting-shore.md`). Four
 stages, each deployed and QA'd before the next: 1 labels · 2 sidebar +
-Table|Board merge + ⌘K search · 3 job + lead page · 4 polish._
+Table|Board merge + ⌘K search · 3 job + lead page · 4 polish. **All four
+on prod by the end of 2026-09-25** (`67416fd`, `46f4b11`, `8b0740c`,
+`f95b425`)._
 
 ## Why
 
@@ -171,7 +173,7 @@ selects Communications and clicking Tasks writes `?tab=tasks`;
 `/leads/does-not-exist` shows "Lead not found". 930 tests (+4), lint
 6/22, build clean.
 
-## Stage 4 — polish (branch `ux-polish`, off `ux-pages`)
+## Stage 4 — polish (branch `ux-polish`) — deployed 2026-09-25 as `f95b425`, build `rNiggElI_oVOOMlbDSI2q`
 
 - **Shared list toolbar** `components/shared/list-toolbar.tsx` (scope,
   search, filters, reset, `trailing`), lifted out of `BoardToolbar`, which
