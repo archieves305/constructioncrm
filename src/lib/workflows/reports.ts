@@ -8,6 +8,8 @@ import type {
   WorkflowRole,
 } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { formatAddressLine } from "@/lib/labels/address";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 import { DETERMINE_PERMIT_FULL_KEY, fullKey, splitFullKey } from "./keys";
 import { ENGINE_SKIP_PREFIX } from "./reconcile";
@@ -459,6 +461,7 @@ export type WorkflowHealthJob = {
   jobNumber: string;
   title: string;
   customer: string | null;
+  address: string | null;
   currentPhase: string | null;
   percentComplete: number;
   overdue: number;
@@ -481,7 +484,7 @@ export type WorkflowHealth = {
 };
 
 export function buildWorkflowHealth(
-  jobs: { id: string; jobNumber: string; title: string; customer: string | null }[],
+  jobs: { id: string; jobNumber: string; title: string; customer: string | null; address?: string | null }[],
   summaries: Map<string, JobWorkflowSummary>,
   now: Date,
   limit = 5,
@@ -517,6 +520,7 @@ export function buildWorkflowHealth(
         jobNumber: j.jobNumber,
         title: j.title,
         customer: j.customer,
+        address: j.address ?? null,
         currentPhase: s.currentPhase?.name ?? null,
         percentComplete: s.percentComplete,
         overdue: s.overdue,
@@ -614,12 +618,12 @@ export async function loadWorkflowReport(range: { from: Date | null; to: Date | 
 export async function loadWorkflowHealth(jobWhere: Prisma.JobWhereInput, now = new Date()): Promise<WorkflowHealth> {
   const jobs = await prisma.job.findMany({
     where: { ...jobWhere, workflow: { status: "ACTIVE" } },
-    select: { id: true, jobNumber: true, title: true, lead: { select: { fullName: true } } },
+    select: JOB_LABEL_SELECT,
     orderBy: { createdAt: "desc" },
   });
   const summaries = await loadJobWorkflowSummaries(jobs.map((j) => j.id), now);
   return buildWorkflowHealth(
-    jobs.map((j) => ({ id: j.id, jobNumber: j.jobNumber, title: j.title, customer: j.lead.fullName })),
+    jobs.map((j) => ({ id: j.id, jobNumber: j.jobNumber, title: j.title, customer: j.lead.fullName, address: formatAddressLine(j.lead) || null })),
     summaries,
     now,
   );

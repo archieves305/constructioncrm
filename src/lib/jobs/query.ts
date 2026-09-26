@@ -79,7 +79,18 @@ export function buildJobListWhere(params: JobListParams, ctx: JobListContext): P
       OR: [
         { jobNumber: { contains: params.search, mode: "insensitive" } },
         { title: { contains: params.search, mode: "insensitive" } },
-        { lead: { fullName: { contains: params.search, mode: "insensitive" } } },
+        {
+          lead: {
+            OR: [
+              { fullName: { contains: params.search, mode: "insensitive" } },
+              { companyName: { contains: params.search, mode: "insensitive" } },
+              { propertyAddress1: { contains: params.search, mode: "insensitive" } },
+              { city: { contains: params.search, mode: "insensitive" } },
+              { zipCode: { contains: params.search } },
+              { primaryPhone: { contains: params.search } },
+            ],
+          },
+        },
       ],
     });
   }

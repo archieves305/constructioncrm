@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
+import { formatAddressLine } from "@/lib/labels/address";
+import type { JobLabelInput } from "@/lib/labels/job";
 import { getLaborSettings } from "@/lib/labor/settings";
 import { addDays, fromDbDate, toDbDate, weekStartOf } from "@/lib/labor/dates";
 import { recordAudit } from "@/lib/audit/record";
@@ -17,6 +20,7 @@ export type PayrollJobSplit = {
   jobId: string;
   jobNumber: string;
   title: string;
+  address: string | null;
   hours: number;
   amount: number;
 };
@@ -72,7 +76,7 @@ const ENTRY_SELECT = {
   totalCost: true,
   payrollPaymentId: true,
   dailyLog: { select: { status: true } },
-  job: { select: { jobNumber: true, title: true } },
+  job: { select: JOB_LABEL_SELECT },
   personnel: {
     select: {
       firstName: true,
@@ -95,7 +99,7 @@ type WeekEntry = {
   totalCost: unknown;
   payrollPaymentId: string | null;
   dailyLog: { status: string };
-  job: { jobNumber: string; title: string };
+  job: JobLabelInput;
   personnel: {
     firstName: string;
     lastName: string;
@@ -111,7 +115,8 @@ function splitByJob(entries: WeekEntry[]): PayrollJobSplit[] {
     const split = byJob.get(e.jobId) ?? {
       jobId: e.jobId,
       jobNumber: e.job.jobNumber,
-      title: e.job.title,
+      title: e.job.title ?? "",
+      address: formatAddressLine(e.job.lead) || null,
       hours: 0,
       amount: 0,
     };

@@ -1,4 +1,6 @@
 import { endOfDay, startOfDay } from "date-fns";
+import type { CustomerInput, JobLabelInput } from "@/lib/labels/job";
+import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
 import { sendEmail } from "@/lib/email/send";
@@ -25,8 +27,8 @@ type DueTask = {
   priority: ReminderItem["priority"];
   dueAt: Date | null;
   assignedUserId: string | null;
-  job: { jobNumber: string; title: string } | null;
-  lead: { fullName: string } | null;
+  job: (JobLabelInput & { id: string }) | null;
+  lead: (CustomerInput & { id: string }) | null;
 };
 
 type ReminderTask = DueTask & {
@@ -84,8 +86,8 @@ const TASK_SELECT = {
   priority: true,
   dueAt: true,
   assignedUserId: true,
-  job: { select: { jobNumber: true, title: true } },
-  lead: { select: { fullName: true } },
+  job: { select: JOB_LABEL_SELECT },
+  lead: { select: LEAD_LABEL_SELECT },
 } as const;
 
 export async function runMorningDigest(now: Date = new Date()): Promise<DigestRunResult> {

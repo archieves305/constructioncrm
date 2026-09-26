@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { jobLabel } from "@/lib/labels/job";
 import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ChevronRight, History, Mail, MapPin, TriangleAlert } from "lucide-react";
+import { ChevronRight, History, Mail, TriangleAlert } from "lucide-react";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { fetchJson } from "@/lib/fetch-json";
 
@@ -98,21 +99,14 @@ export default function FieldHomePage() {
               <CardContent className="space-y-3 py-4">
                 <div className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-base font-semibold">{job.title}</div>
+                    <div className="truncate text-base font-semibold">{jobLabel(job, { customer: false }).primary}</div>
                     <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                      <span>{job.jobNumber}</span>
+                      <span className="font-mono text-xs">{job.jobNumber}</span>
+                      <span className="truncate">{job.serviceType}</span>
                       {job.taskCounts && (job.taskCounts.open > 0 || job.taskCounts.overdue > 0) && (
                         <Link href={`/field/tasks?job=${job.id}`} onClick={(e) => e.stopPropagation()}>
                           <TaskCountBadge open={job.taskCounts.open} overdue={job.taskCounts.overdue} />
                         </Link>
-                      )}
-                      {(job.lead.propertyAddress1 || job.lead.city) && (
-                        <span className="flex min-w-0 items-center gap-1 truncate">
-                          <MapPin className="h-3.5 w-3.5 shrink-0" />
-                          {[job.lead.propertyAddress1, job.lead.city]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </span>
                       )}
                     </div>
                   </div>

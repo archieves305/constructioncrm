@@ -1,9 +1,11 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { LEAD_LABEL_SELECT } from "@/lib/labels/select";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 
 /** The one shape the list, the mini lists on Lead/Job and the dashboard read. */
 export const CASE_LIST_INCLUDE = {
-  lead: { select: { id: true, fullName: true, propertyAddress1: true, city: true, state: true, zipCode: true } },
-  job: { select: { id: true, jobNumber: true, title: true } },
+  lead: { select: LEAD_LABEL_SELECT },
+  job: { select: JOB_LABEL_SELECT },
   caseManager: { select: { id: true, firstName: true, lastName: true } },
   items: { orderBy: { itemNumber: "asc" }, select: { id: true, itemNumber: true, status: true, category: { select: { id: true, key: true, name: true } } } },
   workflow: { select: { id: true, status: true, permitStatus: true } },

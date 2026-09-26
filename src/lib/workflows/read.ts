@@ -1,4 +1,5 @@
 import type { Prisma, RoleName, WorkflowRole } from "@/generated/prisma/client";
+import { LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { TASK_LIST_INCLUDE } from "@/lib/tasks/include";
 import { taskVisibilityFilter, type VisibilityScope } from "@/lib/tasks/access";
@@ -234,6 +235,7 @@ export async function readJobWorkflow(
       targetStartDate: true,
       jurisdiction: true,
       createdAt: true,
+      lead: { select: LEAD_LABEL_SELECT },
       workflow: { include: WORKFLOW_INSTANCE_INCLUDE },
     },
   });
@@ -267,6 +269,7 @@ export async function readCaseWorkflow(
       currentDeadline: true,
       nextHearingAt: true,
       createdAt: true,
+      lead: { select: LEAD_LABEL_SELECT },
       workflow: { include: WORKFLOW_INSTANCE_INCLUDE },
     },
   });

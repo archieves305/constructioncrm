@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
 
 /**
  * The one shape every task reader and writer returns.
@@ -9,8 +10,8 @@ import type { Prisma } from "@/generated/prisma/client";
  * fed a row that was created through a path that forgot to include it.
  */
 export const TASK_LIST_INCLUDE = {
-  lead: { select: { id: true, fullName: true } },
-  job: { select: { id: true, jobNumber: true, title: true } },
+  lead: { select: LEAD_LABEL_SELECT },
+  job: { select: JOB_LABEL_SELECT },
   estimate: { select: { id: true, estimateNumber: true, name: true, leadId: true } },
   invoice: { select: { id: true, invoiceNumber: true, jobId: true } },
   prospect: { select: { id: true, propertyAddress1: true, city: true } },

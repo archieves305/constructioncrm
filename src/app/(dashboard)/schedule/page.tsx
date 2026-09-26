@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { jobLabel } from "@/lib/labels/job";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
@@ -31,7 +32,7 @@ type ScheduledJob = {
   serviceType: string;
   scheduledDate: string | null;
   currentStage: { name: string };
-  lead: { fullName: string; city: string };
+  lead: { fullName: string; propertyAddress1?: string | null; propertyAddress2?: string | null; city: string };
   crewAssignments: { crew: { id: string; name: string; trades: string[] } }[];
 };
 
@@ -358,7 +359,7 @@ function JobPill({ job, dragging }: { job: ScheduledJob; dragging?: boolean }) {
         dragging && "shadow-lg ring-2 ring-blue-400",
       )}
     >
-      <div className="font-mono font-medium">{job.jobNumber}</div>
+      <div className="truncate font-medium" title={`${jobLabel(job).primary} · ${job.jobNumber}`}>{jobLabel(job).primary}</div>
       <div className="truncate">{job.lead.fullName}</div>
       <Badge variant="outline" className="mt-0.5 px-1 py-0 text-[9px]">
         {job.serviceType}

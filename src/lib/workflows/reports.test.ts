@@ -261,7 +261,7 @@ describe("buildWorkflowHealth", () => {
     const h = R.buildWorkflowHealth(jobs, summaries, now, 1);
     expect(h).toMatchObject({ active: 3, stepsReady: 9, stepsOverdue: 2, stepsBlocked: 1, stepsUnassigned: 1, failedInspections: 1, permitsUndetermined: 1, jobsWithIssues: 2 });
     expect(h.attention).toEqual([
-      { jobId: "a", jobNumber: "JOB-1", title: "A", customer: "Ann", currentPhase: "Job Setup", percentComplete: 20, overdue: 2, blocked: 0, unassigned: 0, permitStatus: "UNDETERMINED" },
+      { jobId: "a", jobNumber: "JOB-1", title: "A", customer: "Ann", address: null, currentPhase: "Job Setup", percentComplete: 20, overdue: 2, blocked: 0, unassigned: 0, permitStatus: "UNDETERMINED" },
     ]);
   });
 });

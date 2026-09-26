@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { jobLabel } from "@/lib/labels/job";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { format } from "date-fns";
@@ -31,7 +32,8 @@ export default function FieldTasksPage() {
     { key: "upcoming", title: "Coming up", tone: "text-gray-700" },
     { key: "noDate", title: "No due date", tone: "text-gray-500" },
   ];
-  const jobLabel = jobId ? tasks.find((t) => t.job?.id === jobId)?.job?.jobNumber : null;
+  const jobFilter = jobId ? tasks.find((t) => t.job?.id === jobId)?.job : null;
+  const jobLabelText = jobFilter ? jobLabel(jobFilter, { customer: false }).primary : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4">
@@ -39,7 +41,7 @@ export default function FieldTasksPage() {
         <h1 className="text-xl font-bold">My Tasks</h1>
         {jobId && (
           <Link href="/field/tasks" className="text-sm text-blue-700 hover:underline">
-            {jobLabel ? `${jobLabel} · ` : ""}Show all
+            {jobLabelText ? `${jobLabelText} · ` : ""}Show all
           </Link>
         )}
       </div>
@@ -88,7 +90,9 @@ function TaskRow({ task, overdue }: { task: TaskListItem; overdue: boolean }) {
                   {format(new Date(task.dueAt), "EEE, MMM d")}
                 </span>
               )}
-              {task.job && <span className="font-mono text-muted-foreground">{task.job.jobNumber}</span>}
+              {task.job && !task.violationCase && (
+                <span className="truncate text-muted-foreground" title={task.job.jobNumber}>{jobLabel(task.job, { customer: false }).primary}</span>
+              )}
               {task.violationCase && <span className="font-mono text-muted-foreground">{task.violationCase.caseNumber}</span>}
               {(task._count?.events ?? 0) > 0 && (
                 <span className="flex items-center gap-0.5 text-muted-foreground">

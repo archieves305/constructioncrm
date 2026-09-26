@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
   const reviews = await prisma.reviewRequest.findMany({
     where: status ? { status: status as "PENDING" | "SENT" | "COMPLETED" | "DECLINED" } : undefined,
     include: {
-      job: { select: { id: true, jobNumber: true, title: true } },
+      job: { select: JOB_LABEL_SELECT },
       lead: { select: { id: true, fullName: true, primaryPhone: true, email: true } },
     },
     orderBy: { createdAt: "desc" },

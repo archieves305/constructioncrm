@@ -1,4 +1,5 @@
 import { startOfDay } from "date-fns";
+import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -109,8 +110,8 @@ export async function runEscalations(now: Date = new Date()): Promise<Escalation
       assignedUserId: true,
       createdByUserId: true,
       assignedTo: { select: { firstName: true, lastName: true } },
-      job: { select: { jobNumber: true, title: true } },
-      lead: { select: { fullName: true } },
+      job: { select: JOB_LABEL_SELECT },
+      lead: { select: LEAD_LABEL_SELECT },
       events: {
         where: { type: "NOTE" },
         orderBy: { createdAt: "desc" },

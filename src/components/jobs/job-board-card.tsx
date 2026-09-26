@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
+import { jobLabel } from "@/lib/labels/job";
+import { cn } from "@/lib/utils";
 import { PermitBadge } from "./permit-badge";
 import { PermitStatusPill, WorkflowIssueChips, type JobWorkflowSummaryData } from "@/components/workflows/job-workflow-summary";
 
@@ -21,7 +23,7 @@ export type BoardJob = {
   nextAction: string | null;
   currentStageId?: string;
   currentStage: { id: string; name: string };
-  lead: { fullName: string; propertyAddress1?: string | null; city: string | null };
+  lead: { fullName: string; propertyAddress1?: string | null; propertyAddress2?: string | null; city: string | null };
   salesRep: { id?: string; firstName: string; lastName: string } | null;
   projectManager?: { id?: string; firstName: string; lastName: string } | null;
   permits?: { status: string }[];
@@ -41,8 +43,10 @@ export function daysInStage(job: BoardJob, now = new Date()): number | null {
 
 /**
  * A job on the production board: readable sizes, one glance per fact.
- * Compact keeps the number, amount, name, badges and the bottom row; the
- * address, phase text, next-action callout and deposit bar go.
+ * The address leads (it is how people know the job), the customer sits
+ * under it, the number rides in the bottom row. Compact keeps the address,
+ * amount, badges and the bottom row; the customer, phase text, next-action
+ * callout and deposit bar go.
  */
 export function JobBoardCard({ job, density = "comfortable" }: { job: BoardJob; density?: "comfortable" | "compact" }) {
   const compact = density === "compact";
@@ -51,19 +55,17 @@ export function JobBoardCard({ job, density = "comfortable" }: { job: BoardJob; 
   const days = daysInStage(job);
   const person = job.projectManager ?? job.salesRep;
   const permit = job.permits?.[0]?.status ?? null;
+  const label = jobLabel(job, { customer: false });
 
   return (
     <div className={compact ? "space-y-1" : "space-y-1.5"}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-xs text-muted-foreground">{job.jobNumber}</span>
-        <span className="text-sm font-semibold tabular-nums text-gray-900">{money0(job.contractAmount)}</span>
-      </div>
-      <p className="truncate text-sm font-medium leading-tight text-gray-900">{job.lead.fullName}</p>
-      {!compact && (job.lead.propertyAddress1 || job.lead.city) && (
-        <p className="truncate text-xs text-muted-foreground">
-          {[job.lead.propertyAddress1, job.lead.city].filter(Boolean).join(", ")}
+      <div className="flex items-start justify-between gap-2">
+        <p className={cn("min-w-0 truncate text-sm font-medium leading-tight text-gray-900", label.placeholder && "italic")} title={label.primary}>
+          {label.primary}
         </p>
-      )}
+        <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-900">{money0(job.contractAmount)}</span>
+      </div>
+      {!compact && <p className="truncate text-xs text-muted-foreground">{job.lead.fullName}</p>}
       <div className="flex flex-wrap items-center gap-1">
         <Badge variant="outline" className="text-[11px]">
           {job.serviceType}
@@ -106,6 +108,7 @@ export function JobBoardCard({ job, density = "comfortable" }: { job: BoardJob; 
       )}
       <div className="flex items-center justify-between gap-2 pt-0.5 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
+          <span className="font-mono text-[11px]">{job.jobNumber}</span>
           {days !== null && (
             <span className="flex items-center gap-1">
               <Clock className="size-3" /> {days}d

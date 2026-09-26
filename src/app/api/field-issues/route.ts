@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
         : {}),
     },
     include: {
-      job: { select: { id: true, jobNumber: true, title: true } },
+      job: { select: JOB_LABEL_SELECT },
       raisedBy: { select: { id: true, firstName: true, lastName: true } },
       assignedTo: { select: { id: true, firstName: true, lastName: true } },
     },

@@ -1,6 +1,9 @@
 "use client";
 
 import { use, useState } from "react";
+import type { JobLabel, LeadLabel } from "@/components/tasks/types";
+import { formatAddressLine } from "@/lib/labels/address";
+import { jobLabel } from "@/lib/labels/job";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -39,8 +42,8 @@ type FieldTask = {
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   dueAt: string | null;
   blockedReason: string | null;
-  job: { id: string; jobNumber: string; title: string } | null;
-  lead?: { id: string; fullName: string; address1?: string | null; city?: string | null } | null;
+  job: JobLabel | null;
+  lead?: LeadLabel | null;
   violationCase?: { id: string; caseNumber: string; agencyCaseNumber: string | null } | null;
   assignedTo: Person | null;
   createdBy: Person | null;
@@ -161,15 +164,16 @@ export default function FieldTaskPage({
             )}
           </div>
 
-          {task.job && (
+          {task.job && !task.violationCase && (
             <p className="text-sm text-muted-foreground">
-              <span className="font-mono">{task.job.jobNumber}</span> — {task.job.title}
+              {jobLabel(task.job).primary}
+              {jobLabel(task.job).code && <span className="ml-2 font-mono text-xs">{jobLabel(task.job).code}</span>}
             </p>
           )}
           {task.violationCase && (
             <p className="text-sm text-muted-foreground">
               Code violation <span className="font-mono">{task.violationCase.caseNumber}</span>
-              {task.lead ? ` — ${[task.lead.address1, task.lead.city].filter(Boolean).join(", ") || task.lead.fullName}` : ""}
+              {task.lead ? ` — ${formatAddressLine(task.lead) || task.lead.fullName}` : ""}
             </p>
           )}
 

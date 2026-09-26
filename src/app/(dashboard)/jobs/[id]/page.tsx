@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { jobLabel, jobText } from "@/lib/labels/job";
+import { formatAddressFull } from "@/lib/labels/address";
 import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState } from "react";
 import { EntityHeader } from "@/components/shared/entity-header";
@@ -291,11 +293,13 @@ export default function JobDetailPage() {
   return (
     <div>
       <EntityHeader
-        breadcrumb={[{ label: "Jobs", href: "/jobs" }, { label: job.jobNumber }]}
-        title={job.jobNumber}
+        breadcrumb={[{ label: "Jobs", href: "/jobs" }, { label: jobLabel(job).primary }]}
+        title={jobLabel(job).primary}
         subtitle={
           <>
-            {job.title}
+            <span className="font-mono text-xs text-muted-foreground">{job.jobNumber}</span>
+            {" · "}
+            {job.serviceType}
             {" · "}
             <Link href={`/leads/${job.lead.id}`} className="text-brand-fg hover:underline">
               {job.lead.fullName}
@@ -337,6 +341,14 @@ export default function JobDetailPage() {
                 >
                   <Copy className="size-4" /> Copy job number
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(formatAddressFull(job.lead));
+                    toast.success("Address copied");
+                  }}
+                >
+                  <Copy className="size-4" /> Copy address
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setTab("history")}>Stage history</DropdownMenuItem>
               </DropdownMenuContent>
@@ -348,7 +360,7 @@ export default function JobDetailPage() {
           <StageStepper
             stages={stages}
             currentStageId={job.currentStage.id}
-            entityLabel={job.jobNumber}
+            entityLabel={jobLabel(job).primary}
             disabled={changeStage.isPending}
             onChange={(stageId) => changeStage.mutate(stageId)}
             confirmNote={() => "Moving a job runs its stage templates: new tasks may be raised and the next action updated."}
@@ -940,7 +952,7 @@ export default function JobDetailPage() {
               <EntityTaskPanel
                 context={{
                   jobId: id,
-                  label: `${job.jobNumber} · ${job.title}`,
+                  label: jobText(job),
                   href: `/jobs/${id}`,
                 }}
                 invalidateKeys={[["job", id]]}

@@ -26,20 +26,15 @@ import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import { STATUS_LABEL, STATUS_TONE, TASK_PRIORITIES, TASK_STATUSES } from "@/components/tasks/task-colors";
 import { useAssignableUsers, useCreateTask, useTaskSummary, useTasks, useUpdateTask } from "@/components/tasks/use-tasks";
 import type { TaskListItem, TaskStatus, UpdatePatch, UserOption } from "@/components/tasks/types";
+import { JobPicker } from "@/components/shared/job-picker";
 
 type JobOption = {
   id: string;
   jobNumber: string;
   title: string;
   currentStage: { id: string; name: string };
-  lead: { fullName: string; propertyAddress1: string; city: string | null };
 };
 
-function jobLabel(j: JobOption): string {
-  const addr = j.lead.propertyAddress1 || j.title;
-  const city = j.lead.city ? `, ${j.lead.city}` : "";
-  return `${addr}${city}`;
-}
 type StageOption = { id: string; name: string; stageOrder: number };
 
 const ALL = "__all";
@@ -131,7 +126,7 @@ export default function TasksPage() {
     queryKey: ["jobs-for-tasks"],
     queryFn: () => fetchJson("/api/jobs?pageSize=500"),
   });
-  const jobs = jobsData?.data || [];
+  const jobs = useMemo(() => jobsData?.data ?? [], [jobsData]);
 
   const { data: stages = [] } = useQuery<StageOption[]>({
     queryKey: ["jobStages"],
@@ -319,25 +314,7 @@ export default function TasksPage() {
           </div>
           <div className="min-w-[180px]">
             <Label className="text-xs">Job</Label>
-            <Select value={filterJob || ALL} onValueChange={(v: string | null) => setFilterJob(!v || v === ALL ? "" : v)}>
-              <SelectTrigger className="mt-1">
-                <SelectValue>
-                  {(v: string) => {
-                    if (!v || v === ALL) return "All jobs";
-                    const j = jobs.find((x) => x.id === v);
-                    return j ? jobLabel(j) : "—";
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All jobs</SelectItem>
-                {jobs.map((j) => (
-                  <SelectItem key={j.id} value={j.id}>
-                    {jobLabel(j)} <span className="text-muted-foreground">· {j.jobNumber}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <JobPicker value={filterJob || null} onChange={(j) => setFilterJob(j?.id ?? "")} placeholder="All jobs" className="mt-1" />
           </div>
           {filterCase && (
             <div className="flex items-center gap-1 self-end rounded-md border bg-gray-50 px-2 py-1.5 text-xs">

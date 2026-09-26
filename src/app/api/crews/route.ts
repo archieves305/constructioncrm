@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
           job: { currentStage: { isClosed: false } },
         },
         include: {
-          job: { select: { id: true, jobNumber: true, title: true, scheduledDate: true } },
+          job: { select: { ...JOB_LABEL_SELECT, scheduledDate: true } },
         },
         orderBy: { installDate: "asc" },
       },

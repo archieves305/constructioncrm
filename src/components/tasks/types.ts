@@ -6,6 +6,27 @@ export type Person = { id: string; firstName: string; lastName: string };
 
 export type UserOption = Person & { isActive: boolean; role?: { name: string } };
 
+/** The lead fields a label needs — what `LEAD_LABEL_SELECT` returns. */
+export type LeadLabel = {
+  id: string;
+  fullName: string;
+  companyName?: string | null;
+  propertyAddress1: string;
+  propertyAddress2?: string | null;
+  city: string;
+  state?: string;
+  zipCode?: string;
+};
+
+/** The job fields a label needs — what `JOB_LABEL_SELECT` returns. */
+export type JobLabel = {
+  id: string;
+  jobNumber: string;
+  title: string;
+  serviceType?: string;
+  lead?: LeadLabel | null;
+};
+
 /** What `/api/tasks` returns — `TaskListRow` with dates as ISO strings. */
 export type TaskListItem = {
   id: string;
@@ -20,8 +41,8 @@ export type TaskListItem = {
   createdByUserId?: string;
   remindAt?: string | null;
   sourceKey?: string | null;
-  lead: { id: string; fullName: string } | null;
-  job: { id: string; jobNumber: string; title: string } | null;
+  lead: LeadLabel | null;
+  job: JobLabel | null;
   estimate?: { id: string; estimateNumber: string; name: string; leadId: string } | null;
   invoice?: { id: string; invoiceNumber: string; jobId: string } | null;
   prospect?: { id: string; propertyAddress1: string; city: string } | null;

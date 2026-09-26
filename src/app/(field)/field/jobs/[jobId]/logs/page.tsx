@@ -1,6 +1,8 @@
 "use client";
 
 import { use, useState } from "react";
+import { jobText } from "@/lib/labels/job";
+import type { JobLabel } from "@/components/tasks/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,7 +57,7 @@ export default function FieldLogsListPage({
   });
 
   const { data: fieldToday } = useQuery<{
-    jobs: { id: string; title: string; jobNumber: string }[];
+    jobs: JobLabel[];
   }>({
     queryKey: ["field-today-jobs"],
     queryFn: () => fetch("/api/field/today").then((r) => r.json()),
@@ -121,7 +123,7 @@ export default function FieldLogsListPage({
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-bold">Daily Logs</h1>
           <p className="text-muted-foreground truncate text-sm">
-            {job ? `${job.jobNumber} — ${job.title}` : ""}
+            {job ? jobText(job) : ""}
           </p>
         </div>
       </div>

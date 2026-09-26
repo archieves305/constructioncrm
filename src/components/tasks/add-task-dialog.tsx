@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, type QueryKey } from "@tanstack/react-query";
+import type { QueryKey } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,30 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSession } from "@/lib/auth/session-client";
-import { fetchJson } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
 import { AssigneePicker } from "./assignee-picker";
 import { DueDatePresets } from "./due-date-presets";
 import { PriorityChips } from "./priority-chips";
+import { JobPicker } from "@/components/shared/job-picker";
 import { EntityContextChip } from "./task-entity-chip";
 import { useAssignableUsers, useCreateTask } from "./use-tasks";
 import { fullName, type CreateTaskPayload, type Priority, type TaskEntityContext, type TaskListItem } from "./types";
-
-type JobOption = {
-  id: string;
-  jobNumber: string;
-  title: string;
-  lead: { fullName: string; propertyAddress1: string; city: string | null };
-};
-
-function jobLabel(j: JobOption): string {
-  const addr = j.lead.propertyAddress1 || j.title;
-  return `${addr}${j.lead.city ? `, ${j.lead.city}` : ""}`;
-}
-
-const NO_JOB = "__none";
 
 export type AddTaskDialogProps = {
   open: boolean;
@@ -106,13 +91,6 @@ export function AddTaskDialog({
     else setShowWatchers(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaults?.title, defaults?.assignedUserId, defaults?.dueAt, defaults?.priority]);
-
-  const { data: jobsData } = useQuery<{ data: JobOption[] }>({
-    queryKey: ["jobs-for-tasks"],
-    queryFn: () => fetchJson("/api/jobs?pageSize=500"),
-    enabled: open && allowJobPicker && !context,
-  });
-  const jobs = jobsData?.data ?? [];
 
   const watcherCandidates = useMemo(
     () => users.filter((u) => u.id !== form.assignedUserId && u.id !== session?.user.id),
@@ -236,28 +214,7 @@ export function AddTaskDialog({
               {!context && allowJobPicker && (
                 <div>
                   <Label className="mb-1.5 block text-xs text-muted-foreground">Job (optional)</Label>
-                  <Select
-                    value={form.jobId ?? NO_JOB}
-                    onValueChange={(v: string | null) => setForm({ ...form, jobId: !v || v === NO_JOB ? null : v })}
-                  >
-                    <SelectTrigger className="h-9 w-full">
-                      <SelectValue>
-                        {(v: string) => {
-                          if (!v || v === NO_JOB) return <span className="text-muted-foreground">No job</span>;
-                          const j = jobs.find((x) => x.id === v);
-                          return j ? jobLabel(j) : "—";
-                        }}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_JOB}>No job</SelectItem>
-                      {jobs.map((j) => (
-                        <SelectItem key={j.id} value={j.id}>
-                          {jobLabel(j)} <span className="text-muted-foreground">· {j.jobNumber}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <JobPicker value={form.jobId} onChange={(j) => setForm({ ...form, jobId: j?.id ?? null })} placeholder="No job" />
                 </div>
               )}
             </div>

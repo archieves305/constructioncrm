@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { logger } from "@/lib/logger";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
 import { getEmailBrand } from "@/lib/email/brand";
@@ -36,8 +37,8 @@ const TASK_SELECT = {
   dueAt: true,
   blockedReason: true,
   assignedUserId: true,
-  job: { select: { jobNumber: true, title: true } },
-  lead: { select: { fullName: true } },
+  job: { select: JOB_LABEL_SELECT },
+  lead: { select: LEAD_LABEL_SELECT },
   invoice: { select: { invoiceNumber: true } },
   estimate: { select: { estimateNumber: true, name: true } },
   prospect: { select: { propertyAddress1: true, city: true } },

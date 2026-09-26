@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 
@@ -8,7 +9,7 @@ export async function GET() {
 
   const referrals = await prisma.referral.findMany({
     include: {
-      job: { select: { id: true, jobNumber: true } },
+      job: { select: JOB_LABEL_SELECT },
       referredBy: { select: { id: true, fullName: true } },
     },
     orderBy: { createdAt: "desc" },

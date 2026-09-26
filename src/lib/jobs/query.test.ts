@@ -36,10 +36,33 @@ describe("buildJobListWhere", () => {
     expect(where).toEqual({
       AND: [
         { currentStageId: "s1" },
-        { OR: [{ jobNumber: { contains: "smith", mode: "insensitive" } }, { title: { contains: "smith", mode: "insensitive" } }, { lead: { fullName: { contains: "smith", mode: "insensitive" } } }] },
+        {
+          OR: [
+            { jobNumber: { contains: "smith", mode: "insensitive" } },
+            { title: { contains: "smith", mode: "insensitive" } },
+            {
+              lead: {
+                OR: [
+                  { fullName: { contains: "smith", mode: "insensitive" } },
+                  { companyName: { contains: "smith", mode: "insensitive" } },
+                  { propertyAddress1: { contains: "smith", mode: "insensitive" } },
+                  { city: { contains: "smith", mode: "insensitive" } },
+                  { zipCode: { contains: "smith" } },
+                  { primaryPhone: { contains: "smith" } },
+                ],
+              },
+            },
+          ],
+        },
         jobsInvolvingUserWhere("rep"),
       ],
     });
+  });
+
+  it("search reaches the property: address, city, zip and phone live on the lead", () => {
+    const where = buildJobListWhere({ search: "wind" }, admin);
+    const leadOr = (where.OR as { lead?: { OR: Record<string, unknown>[] } }[]).find((o) => o.lead)!.lead!.OR;
+    expect(leadOr.map((o) => Object.keys(o)[0])).toEqual(["fullName", "companyName", "propertyAddress1", "city", "zipCode", "primaryPhone"]);
   });
 
   it("a sales rep cannot widen the scope with salesRepId or scope=all", () => {

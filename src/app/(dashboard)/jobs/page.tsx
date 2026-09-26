@@ -1,6 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { jobLabel } from "@/lib/labels/job";
+import { formatAddressLine } from "@/lib/labels/address";
+import { JobRef } from "@/components/shared/entity-label";
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -293,6 +296,7 @@ export default function JobsPage() {
               }
               const rows = (body.data || []).map((j: JobRow) => ({
                 jobNumber: j.jobNumber,
+                address: formatAddressLine(j.lead),
                 title: j.title,
                 customer: j.lead.fullName,
                 serviceType: j.serviceType,
@@ -315,6 +319,7 @@ export default function JobsPage() {
               }));
               const csv = toCsv(rows, [
                 { key: "jobNumber", header: "Job #" },
+                { key: "address", header: "Property" },
                 { key: "title", header: "Title" },
                 { key: "customer", header: "Customer" },
                 { key: "serviceType", header: "Service" },
@@ -581,7 +586,7 @@ export default function JobsPage() {
               <TableHead className="w-8">
                 <Checkbox checked={allSelected} onCheckedChange={() => toggleAll()} aria-label="Select all on page" />
               </TableHead>
-              <TableHead>Job #</TableHead>
+              <TableHead>Property</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Service</TableHead>
               <TableHead>Stage</TableHead>
@@ -653,15 +658,16 @@ export default function JobsPage() {
                       <Checkbox
                         checked={selected.has(job.id)}
                         onCheckedChange={() => toggleRow(job.id)}
-                        aria-label={`Select ${job.jobNumber}`}
+                        aria-label={`Select ${jobLabel(job).primary}`}
                       />
                     </TableCell>
-                    <TableCell className="font-mono text-sm font-medium">{job.jobNumber}</TableCell>
+                    <TableCell className="max-w-64">
+                      <JobRef job={job} href={null} customer={false} trade={false} />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium">{job.lead.fullName}</div>
-                          <div className="truncate text-xs text-muted-foreground">{job.lead.propertyAddress1}, {job.lead.city}</div>
                         </div>
                         <TaskCountBadge open={taskCount} overdue={overdueTasks} compact />
                       </div>

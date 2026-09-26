@@ -10,7 +10,9 @@ import type {
   WorkflowRole,
   WorkflowTemplateKind,
 } from "@/generated/prisma/client";
-import type { Person, TaskListItem } from "@/components/tasks/types";
+import type { LeadLabel, Person, TaskListItem } from "@/components/tasks/types";
+import { caseLabel } from "@/lib/labels/case";
+import { jobLabel } from "@/lib/labels/job";
 import type { PhaseProgress } from "@/lib/workflows/read";
 
 export type { WorkflowRole, WorkflowPermitStatus, PhaseProgress };
@@ -90,8 +92,10 @@ export type WorkflowSubjectInfo = {
   kind: "job" | "violation";
   id: string;
   leadId: string;
-  /** "JOB-00012" / "CV-00003" */
+  /** Address-led display name; falls back to the title, then the number. */
   label: string;
+  /** "JOB-00012" / "CV-00003" */
+  code: string;
   title: string;
   href: string;
   jurisdiction: string | null;
@@ -104,10 +108,10 @@ export type WorkflowSubjectInfo = {
 export function subjectInfoOf(data: JobWorkflowData): WorkflowSubjectInfo {
   if (data.case) {
     const c = data.case;
-    return { kind: "violation", id: c.id, leadId: c.leadId, label: c.caseNumber, title: c.title, href: `/violations/${c.id}`, jurisdiction: c.jurisdiction, targetStartDate: null, projectManagerId: null, salesRepId: null, caseManagerId: c.caseManagerId };
+    return { kind: "violation", id: c.id, leadId: c.leadId, label: caseLabel(c).primary, code: c.caseNumber, title: c.title, href: `/violations/${c.id}`, jurisdiction: c.jurisdiction, targetStartDate: null, projectManagerId: null, salesRepId: null, caseManagerId: c.caseManagerId };
   }
   const j = data.job!;
-  return { kind: "job", id: j.id, leadId: j.leadId, label: j.jobNumber, title: j.title, href: `/jobs/${j.id}`, jurisdiction: j.jurisdiction, targetStartDate: j.targetStartDate, projectManagerId: j.projectManagerId, salesRepId: j.salesRepId, caseManagerId: null };
+  return { kind: "job", id: j.id, leadId: j.leadId, label: jobLabel(j).primary, code: j.jobNumber, title: j.title, href: `/jobs/${j.id}`, jurisdiction: j.jurisdiction, targetStartDate: j.targetStartDate, projectManagerId: j.projectManagerId, salesRepId: j.salesRepId, caseManagerId: null };
 }
 
 export type JobWorkflowData = {
@@ -122,6 +126,7 @@ export type JobWorkflowData = {
     targetStartDate: string | null;
     jurisdiction: string | null;
     createdAt: string;
+    lead?: LeadLabel | null;
   };
   case?: {
     id: string;
@@ -134,6 +139,7 @@ export type JobWorkflowData = {
     currentDeadline: string | null;
     nextHearingAt: string | null;
     createdAt: string;
+    lead?: LeadLabel | null;
   };
   permissions: { canApply: boolean; canSetPermit: boolean; canCoordinate: boolean; canOverrideGate: boolean };
   instance: {

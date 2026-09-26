@@ -90,11 +90,14 @@ export function WorkflowHealthWidget({ className, scope = "all" }: { className?:
                 {data.attention.map((j) => (
                   <li key={j.jobId}>
                     <Link href={`/jobs/${j.jobId}?tab=workflow`} className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50">
-                      <span className="w-24 shrink-0 font-mono text-xs text-muted-foreground">{j.jobNumber}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">{j.customer ?? j.title}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{j.currentPhase ?? "Waiting"}</span>
+                        <span className="block truncate font-medium">{j.address ?? j.customer ?? j.title}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {j.address && j.customer ? `${j.customer} · ` : ""}
+                          {j.currentPhase ?? "Waiting"}
+                        </span>
                       </span>
+                      <span className="hidden shrink-0 font-mono text-[11px] text-muted-foreground sm:inline">{j.jobNumber}</span>
                       <PermitStatusPill status={j.permitStatus} compact className="hidden sm:inline-flex" />
                       <span className="hidden w-24 items-center gap-2 md:flex">
                         <Progress value={j.percentComplete} className="h-1.5 flex-1" label={`${j.percentComplete}% complete`} />

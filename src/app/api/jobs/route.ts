@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         currentStage: true,
-        lead: { select: { id: true, fullName: true, primaryPhone: true, propertyAddress1: true, city: true } },
+        lead: { select: { ...LEAD_LABEL_SELECT, primaryPhone: true } },
         salesRep: { select: { id: true, firstName: true, lastName: true } },
         projectManager: { select: { id: true, firstName: true, lastName: true } },
         payments: { select: { paymentType: true, amount: true, status: true } },
