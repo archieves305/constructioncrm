@@ -38,7 +38,9 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    was the shell, as before).
    **Stage 2 (sidebar 41 → 11 entries, Leads/Jobs Table|Board merge with
    redirects, ⌘K search + recently viewed) built + dev-QA'd on `ux-nav`,
-   merged to `main` 2026-09-25** — push + deploy pending. Stages 3 (job page contact card + Money next-step + panel
+   merged to `main` and deployed 2026-09-25 as `46f4b11`** (BUILD_ID
+   `JzcQ_qnobf471IUalTKX_`, no migration, smoke 307 ×2, journal clean,
+   backup `postgres-2026-09-26-024325.dump`). Stages 3 (job page contact card + Money next-step + panel
    extraction, lead page tab-in-URL + fail-loud fetches) and 4 (shared
    list toolbar, URL filters, task search, empty/loading/error states,
    breadcrumbs, glossary, mobile columns) follow. Notes:
@@ -138,6 +140,18 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — UX Stage 2 deployed (`46f4b11`)
+
+`ux-nav` merged into `main` with one CLAUDE.md conflict (both sides had
+edited §3 and §10; resolved to the deployed wording). Gate on the merged
+tree: typecheck clean, lint 6/27, 926 tests, build clean. Richard pushed
+and deployed from `!`: BUILD_ID `QLO41RrNwa7l830TCo1bd` →
+`JzcQ_qnobf471IUalTKX_`, no pending migrations, smoke 307 ×2, journal
+clean, backup `postgres-2026-09-26-024325.dump`, `.deploy-sha` `46f4b11`.
+The public host answers the old `/pipeline` and `/production` URLs with
+the SSO redirect first (middleware runs before the page), so the
+board-view redirect is checked from a signed-in session.
 
 ### 2026-09-25 — UX Stage 1 deployed (`67416fd`); Stages 2–4 built on stacked branches
 
@@ -797,11 +811,10 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 ## 10. Next Prompt
 
 > UX Stage 1 (address-first labels) is **on prod** (`67416fd`, build
-> `QLO41RrNwa7l830TCo1bd`). **Stage 2 (`ux-nav`) is merged into `main`
-> and not yet pushed/deployed**: Richard runs `git push` then the deploy
-> (no migration), then checks the sidebar, `/pipeline` (redirects to the
-> Leads board), the Table|Board toggle and ⌘K. Then, only after that is
-> seen on prod: `git merge ux-pages` (Customer card, Money
+> `QLO41RrNwa7l830TCo1bd`) and **Stage 2 is on prod** (`46f4b11`, build
+> `JzcQ_qnobf471IUalTKX_`). Richard: check the sidebar, `/pipeline`
+> (redirects to the Leads board), the Table|Board toggle and ⌘K. Then,
+> only after that is seen on prod: `git merge ux-pages` (Customer card, Money
 > next-step, lead `?tab=`); `git merge ux-polish` (URL filters + task
 > search, states, breadcrumbs, glossary, phone columns). No migration in
 > any of them. Plan: `~/.claude/plans/spicy-drifting-shore.md`; notes:

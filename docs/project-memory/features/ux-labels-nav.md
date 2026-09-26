@@ -84,7 +84,7 @@ table + board + schedule + dashboard + field pages, collections; `curl
 has no permits, change orders or violation cases, so those surfaces are
 covered by typecheck only. 916 tests (+28), lint 6/27, build clean.
 
-## Stage 2 — sidebar, Table | Board, ⌘K (branch `ux-nav`)
+## Stage 2 — sidebar, Table | Board, ⌘K (branch `ux-nav`) — deployed 2026-09-25 as `46f4b11`, build `JzcQ_qnobf471IUalTKX_`
 
 **Sidebar** (`components/layout/sidebar.tsx`, data-only): 11 entries for an
 admin (32 links, was 41 flat) — Dashboard · Leads · Jobs · Tasks ·
