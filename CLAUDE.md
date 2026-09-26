@@ -40,7 +40,11 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    redirects, ⌘K search + recently viewed) built + dev-QA'd on `ux-nav`,
    merged to `main` and deployed 2026-09-25 as `46f4b11`** (BUILD_ID
    `JzcQ_qnobf471IUalTKX_`, no migration, smoke 307 ×2, journal clean,
-   backup `postgres-2026-09-26-024325.dump`). Stages 3 (job page contact card + Money next-step + panel
+   backup `postgres-2026-09-26-024325.dump`).
+   **Stage 3 (job page contact card + Money next-step + panel
+   extraction, lead page tab-in-URL + fail-loud fetches) built + dev-QA'd
+   on `ux-pages`, merged to `main` 2026-09-25** — push + deploy pending.
+   Stages 3 (job page contact card + Money next-step + panel
    extraction, lead page tab-in-URL + fail-loud fetches) and 4 (shared
    list toolbar, URL filters, task search, empty/loading/error states,
    breadcrumbs, glossary, mobile columns) follow. Notes:
@@ -812,10 +816,11 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 > UX Stage 1 (address-first labels) is **on prod** (`67416fd`, build
 > `QLO41RrNwa7l830TCo1bd`) and **Stage 2 is on prod** (`46f4b11`, build
-> `JzcQ_qnobf471IUalTKX_`). Richard: check the sidebar, `/pipeline`
-> (redirects to the Leads board), the Table|Board toggle and ⌘K. Then,
-> only after that is seen on prod: `git merge ux-pages` (Customer card, Money
-> next-step, lead `?tab=`); `git merge ux-polish` (URL filters + task
+> `JzcQ_qnobf471IUalTKX_`). **Stage 3 (`ux-pages`) is merged into `main`
+> and not yet pushed/deployed**: Richard runs `git push` then the deploy
+> (no migration), then checks a job page (Customer card with tel/mail/map,
+> Money opening on the next step) and a lead page (`?tab=`). Then, only
+> after that is seen on prod: `git merge ux-polish` (URL filters + task
 > search, states, breadcrumbs, glossary, phone columns). No migration in
 > any of them. Plan: `~/.claude/plans/spicy-drifting-shore.md`; notes:
 > `docs/project-memory/features/ux-labels-nav.md`. Nurture operator items

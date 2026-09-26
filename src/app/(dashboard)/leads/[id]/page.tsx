@@ -6,13 +6,11 @@ import { formatAddressLine } from "@/lib/labels/address";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { PageHeader } from "@/components/shared/page-header";
 import { EntityHeader } from "@/components/shared/entity-header";
 import { StageBadge } from "@/components/shared/stage-badge";
 import { StageStepper } from "@/components/shared/stage-stepper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,12 +31,12 @@ import { RoofrPanel } from "@/components/roofr/roofr-panel";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 import { CaseListMini } from "@/components/violations/case-list-mini";
 import { useTasks } from "@/components/tasks/use-tasks";
-import { fetchJson } from "@/lib/fetch-json";
+import { fetchJson, HttpError, retryServerErrors } from "@/lib/fetch-json";
+import { useSearchParamState } from "@/components/shared/use-search-param-state";
+import { ContactCard } from "@/components/shared/contact-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  ArrowLeft,
   Phone,
-  Mail,
-  MapPin,
   User,
   Calendar,
   AlertTriangle,
@@ -50,20 +48,26 @@ import {
   Pencil,
 } from "lucide-react";
 
+const LEAD_TABS = ["activity", "tasks", "comms", "permits", "estimates", "roofr", "files", "violations", "history"];
+
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [noteContent, setNoteContent] = useState("");
 
-  const { data: lead, isLoading } = useQuery({
+  const { get: getUrl, set: setUrl } = useSearchParamState();
+  const tab = LEAD_TABS.includes(getUrl("tab") ?? "") ? (getUrl("tab") as string) : "activity";
+
+  const { data: lead, isLoading, error: leadError, refetch: refetchLead, isRefetching } = useQuery({
     queryKey: ["lead", id],
-    queryFn: () => fetch(`/api/leads/${id}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/leads/${id}`),
+    retry: retryServerErrors,
   });
 
   const { data: stages } = useQuery({
     queryKey: ["stages"],
-    queryFn: () => fetch("/api/admin/stages").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/stages"),
   });
 
   const { data: users } = useQuery({
@@ -76,11 +80,11 @@ export default function LeadDetailPage() {
 
   const changeStage = useMutation({
     mutationFn: (stageId: string) =>
-      fetch(`/api/leads/${id}/stage`, {
+      fetchJson(`/api/leads/${id}/stage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stageId }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: (updated: { job?: { id: string; jobNumber: string } | null }) => {
       queryClient.invalidateQueries({ queryKey: ["lead", id] });
       if (updated?.job) {
@@ -96,63 +100,95 @@ export default function LeadDetailPage() {
         toast.success("Stage updated");
       }
     },
+    onError: (e: Error) => toast.error(e.message || "Could not change the stage"),
   });
 
   const assignLead = useMutation({
     mutationFn: (assignedUserId: string) =>
-      fetch(`/api/leads/${id}/assign`, {
+      fetchJson(`/api/leads/${id}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assignedUserId }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead", id] });
       toast.success("Lead reassigned");
     },
+    onError: (e: Error) => toast.error(e.message || "Could not reassign the lead"),
   });
 
   const addNote = useMutation({
     mutationFn: (content: string) =>
-      fetch(`/api/leads/${id}/notes`, {
+      fetchJson(`/api/leads/${id}/notes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead", id] });
       setNoteContent("");
       toast.success("Note added");
     },
+    onError: (e: Error) => toast.error(e.message || "Could not add the note"),
   });
 
   const logComm = useMutation({
     mutationFn: (data: { communicationType: string; body: string }) =>
-      fetch(`/api/leads/${id}/communications`, {
+      fetchJson(`/api/leads/${id}/communications`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead", id] });
       toast.success("Communication logged");
     },
+    onError: (e: Error) => toast.error(e.message || "Could not log that"),
   });
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-muted-foreground">Loading lead...</p>
+      <div aria-busy="true" aria-label="Loading lead">
+        <Skeleton className="mb-2 h-3 w-24" />
+        <Skeleton className="mb-2 h-7 w-72" />
+        <Skeleton className="mb-6 h-4 w-80" />
+        <Skeleton className="mb-6 h-10 w-full" />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-4">
+            <Skeleton className="h-56" />
+            <Skeleton className="h-32" />
+          </div>
+          <div className="lg:col-span-2">
+            <Skeleton className="mb-4 h-9 w-full" />
+            <Skeleton className="h-72" />
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (!lead || lead.error) {
+  // A lead that isn't there and a lead we couldn't reach are different
+  // problems; "not found" for both once sent people hunting a deleted record.
+  if (leadError || !lead) {
+    const missing = leadError instanceof HttpError && leadError.isNotFound;
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <p className="text-muted-foreground">Lead not found</p>
-        <Button variant="outline" onClick={() => router.push("/leads")}>
-          Back to Leads
-        </Button>
+      <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
+        <div>
+          <p className="font-medium">{missing ? "Lead not found" : "Couldn't load this lead"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {missing ? "It may have been deleted, or the link may be wrong." : leadError instanceof Error ? leadError.message : "Something went wrong loading this lead."}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {!missing && (
+            <Button variant="outline" onClick={() => refetchLead()} disabled={isRefetching}>
+              {isRefetching ? "Retrying..." : "Try again"}
+            </Button>
+          )}
+          <Button variant={missing ? "outline" : "ghost"} onClick={() => router.push("/leads")}>
+            Back to Leads
+          </Button>
+        </div>
       </div>
     );
   }
@@ -200,56 +236,16 @@ export default function LeadDetailPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column: contact and property info */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Contact Info</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span>{lead.primaryPhone}</span>
-              </div>
-              {lead.secondaryPhone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{lead.secondaryPhone}</span>
-                </div>
-              )}
-              {lead.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{lead.email}</span>
-                </div>
-              )}
-              {lead.companyName && (
-                <div className="text-muted-foreground">
-                  Company: {lead.companyName}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Property</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex items-start gap-2">
-                <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div>
-                  <div>{lead.propertyAddress1}</div>
-                  {lead.propertyAddress2 && <div>{lead.propertyAddress2}</div>}
-                  <div>
-                    {lead.city}, {lead.state} {lead.zipCode}
-                  </div>
-                  {lead.county && <div className="text-muted-foreground">{lead.county} County</div>}
-                </div>
-              </div>
-              <div className="text-muted-foreground capitalize">
-                {lead.propertyType?.toLowerCase()}
-              </div>
-            </CardContent>
-          </Card>
+          <ContactCard
+            name={lead.fullName}
+            companyName={lead.companyName}
+            phone={lead.primaryPhone}
+            secondaryPhone={lead.secondaryPhone}
+            email={lead.email}
+            address={lead}
+            county={lead.county}
+            propertyType={lead.propertyType}
+          />
 
           <Card>
             <CardHeader className="pb-3">
@@ -335,7 +331,7 @@ export default function LeadDetailPage() {
 
         {/* Right column: tabs */}
         <div className="lg:col-span-2">
-          <Tabs defaultValue="activity">
+          <Tabs value={tab} onValueChange={(v) => v && setUrl("tab", v === "activity" ? null : String(v))}>
             <TabsList>
               <TabsTrigger value="activity">Activity</TabsTrigger>
               <TabsTrigger value="tasks">Tasks ({leadTasks.length})</TabsTrigger>

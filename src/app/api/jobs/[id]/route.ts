@@ -29,7 +29,7 @@ export async function GET(
       currentStage: true,
       lead: {
         select: {
-          id: true, fullName: true, primaryPhone: true, email: true,
+          id: true, fullName: true, companyName: true, primaryPhone: true, secondaryPhone: true, email: true, propertyType: true,
           propertyAddress1: true, propertyAddress2: true, city: true, county: true, state: true, zipCode: true,
           source: { select: { name: true } },
           services: { include: { serviceCategory: true } },
