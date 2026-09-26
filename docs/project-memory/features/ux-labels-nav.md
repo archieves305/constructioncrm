@@ -12,7 +12,7 @@ canonical job label, a task API that never returned an address, a job
 search that could not find a job by address, a 41-link sidebar, and a
 989-line job page with the customer's phone missing from it.
 
-## Stage 1 — address-first labels (`fa52de5` core, `3f462e7` long tail)
+## Stage 1 — address-first labels (`fa52de5` core, `3f462e7` long tail) — deployed 2026-09-25 as `67416fd`, build `QLO41RrNwa7l830TCo1bd`
 
 **One label module, `src/lib/labels/`** (pure, client-safe: `import type
 { Prisma }` only).

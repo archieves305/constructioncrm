@@ -32,7 +32,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (`~/.claude/plans/spicy-drifting-shore.md`). **Stage 1 built + dev-QA'd
    2026-09-25 on `main`** as `fa52de5` (core: label module, shared
    selects, JobPicker, tasks / jobs / boards / field) + `3f462e7` (long
-   tail, emails, new-job titles) — **not yet deployed**; no migration.
+   tail, emails, new-job titles). **Deployed 2026-09-25 as `67416fd`**
+   (BUILD_ID `QLO41RrNwa7l830TCo1bd`, no migration, smoke 307 ×2, journal
+   clean, backup `postgres-2026-09-26-023438.dump`; the wrapper's exit 1
+   was the shell, as before).
    Stage 2 (sidebar 41 → 11 entries, Leads/Jobs Table|Board merge with
    redirects, ⌘K search + recently viewed) is being built on branch
    `ux-nav`. Stages 3 (job page contact card + Money next-step + panel
@@ -136,7 +139,16 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-25 — Address-first labels (UX Stage 1 of 4; built, dev-QA'd, on `main`, not deployed)
+### 2026-09-25 — UX Stage 1 deployed (`67416fd`); Stages 2–4 built on stacked branches
+
+Richard pushed and deployed from `!`: BUILD_ID `Rh7FTDIQPnuwxPK6C8LD2` →
+`QLO41RrNwa7l830TCo1bd`, 72 migrations / none pending, smoke 307 ×2,
+journal clean, backup `postgres-2026-09-26-023438.dump`, `.deploy-sha`
+`67416fd`. Stages 2 (`ux-nav` `51b29cc`), 3 (`ux-pages` `8c7805c`) and 4
+(`ux-polish` `e710d49`) are built and dev-QA'd, stacked in that order,
+waiting on Richard's prod click-through of each before the next merge.
+
+### 2026-09-25 — Address-first labels (UX Stage 1 of 4; built, dev-QA'd)
 
 Richard: task items say "JOB-00009" where users know the address; make the
 whole UI friendlier. Plan-mode (3 explore + 2 design agents); decisions:
@@ -784,14 +796,16 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 ## 10. Next Prompt
 
-> UX Stage 1 (address-first labels, `fa52de5` + `3f462e7`) is on `main`,
-> tests/lint/build green, **not deployed**. Richard: `git push`, then
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` (no
-> migration), then click through `/tasks` (chips + Job filter picker),
-> `/jobs`, a job page, the board, `/field`. Stage 2 (sidebar + Table|Board
-> + ⌘K) lives on branch `ux-nav`; merge and deploy it only after Stage 1
-> has been seen on prod. Then Stages 3 and 4 per
-> `~/.claude/plans/spicy-drifting-shore.md`. Nurture operator items
+> UX Stage 1 (address-first labels) is **on prod** (`67416fd`, build
+> `QLO41RrNwa7l830TCo1bd`). Richard: click through `/tasks` (chips + the
+> Job filter picker), `/jobs`, a job page, the board, `/field`. Then, one
+> at a time and only after the previous is seen on prod: `git merge
+> ux-nav` (sidebar + Table|Board + ⌘K), push, deploy, check the sidebar /
+> `/pipeline` redirect / ⌘K; `git merge ux-pages` (Customer card, Money
+> next-step, lead `?tab=`); `git merge ux-polish` (URL filters + task
+> search, states, breadcrumbs, glossary, phone columns). No migration in
+> any of them. Plan: `~/.claude/plans/spicy-drifting-shore.md`; notes:
+> `docs/project-memory/features/ux-labels-nav.md`. Nurture operator items
 > (SPF → `NURTURE_ENABLED=1` → admin switch, `NURTURE_MAX_PER_RUN=10`)
 > still stand. Same rules: explicit role lists, tests + typecheck + build
 > green, lint ≤ 6/28, deploy with `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
