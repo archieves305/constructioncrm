@@ -134,7 +134,44 @@ toggle flips the URL, Money → Invoices deep link lands, ⌘K "equifirst" →
 rep search for "navarre" returns nothing. 926 tests, lint 6/27, build
 clean.
 
-## Stages 3–4
+## Stage 3 — job page and lead page (branch `ux-pages`, off `ux-nav`)
+
+- `components/shared/contact-card.tsx` — customer name (linked to the lead
+  on the job page), company (hidden when it equals the name), phones as
+  `tel:` links when they have ≥ 7 digits (a "TBD" stays plain), `mailto:`,
+  the address with an "Open in Maps" link, county, property type. Replaces
+  the Property card on the job page and Contact Info + Property on the
+  lead page. `/api/jobs/[id]` now selects `companyName`, `secondaryPhone`,
+  `propertyType`.
+- `lib/jobs/money-step.ts` (tested) — `moneyStep(job, contracts)` →
+  `{ panel, title, body }`: owned rehab → invoices; a SIGNED contract →
+  invoices; a DRAFT/SENT contract → contract ("send" / "waiting on the
+  signature"); no contract and $0 → estimates; otherwise invoices. The job
+  page uses it for the Money default sub-panel **only when `?sub` is
+  absent** and for the "Next:" callout, so estimate → contract is one
+  click and email deep links are untouched.
+- Job page 989 → ~600 lines: the inline payment, permit and crew forms and
+  the inspections / stage-history lists moved verbatim (state, queries and
+  invalidations included) into `components/jobs/payments-panel.tsx`,
+  `job-permits-panel.tsx` (label now "Jurisdiction *"), `crews-panel.tsx`
+  (renders `JobPersonnelScopePanel`), `inspections-list.tsx`,
+  `stage-history-list.tsx`; each empty list is an `EmptyState`.
+  `job-page-skeleton.tsx` replaces "Loading...".
+- Lead page: the tab lives in `?tab=` (`useSearchParamState`, `activity`
+  omitted); the lead + stages queries and the stage / reassign / note /
+  communication mutations use `fetchJson` with `toast.error` on failure
+  (they used to report success on a failed save); not-found vs
+  couldn't-load split with "Try again", like the job page; skeleton.
+
+Dev QA (headless Chromium, ADMIN): job page has 1 tel: and 1 maps link;
+Money opens on Invoices for a priced job and the URL gains `sub=invoices`;
+`?tab=money&sub=payments` lands on Payments with the Record Payment
+button; Permits / Crews / History panels render; `/leads/<id>?tab=comms`
+selects Communications and clicking Tasks writes `?tab=tasks`;
+`/leads/does-not-exist` shows "Lead not found". 930 tests (+4), lint
+6/22, build clean.
+
+## Stage 4
 
 See the plan file. Stage 2 (sidebar tree of 11 entries, `/leads` +
 `/jobs` with `?view=board`, `/pipeline` + `/production` redirects, ⌘K

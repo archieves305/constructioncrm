@@ -5,8 +5,15 @@ import { RecordRecent } from "@/components/shared/record-recent";
 import { jobLabel, jobText } from "@/lib/labels/job";
 import { formatAddressFull } from "@/lib/labels/address";
 import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useState } from "react";
 import { EntityHeader } from "@/components/shared/entity-header";
+import { ContactCard } from "@/components/shared/contact-card";
+import { JobPageSkeleton } from "@/components/jobs/job-page-skeleton";
+import { PaymentsPanel } from "@/components/jobs/payments-panel";
+import { JobPermitsPanel } from "@/components/jobs/job-permits-panel";
+import { CrewsPanel } from "@/components/jobs/crews-panel";
+import { InspectionsList } from "@/components/jobs/inspections-list";
+import { StageHistoryList } from "@/components/jobs/stage-history-list";
+import { moneyStep } from "@/lib/jobs/money-step";
 import { StageStepper } from "@/components/shared/stage-stepper";
 import { Progress } from "@/components/ui/progress";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -20,26 +27,17 @@ import {
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { toneClasses } from "@/lib/ui/tones";
 import { format } from "date-fns";
-import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DailyLogsPanel } from "@/components/jobs/daily-logs-panel";
 import { FieldLaborSummary } from "@/components/jobs/field-labor-summary";
 import { FieldAssignmentsPanel } from "@/components/jobs/field-assignments-panel";
-import { JobPersonnelScopePanel } from "@/components/jobs/job-personnel-scope-panel";
 import { JobPhotoGallery } from "@/components/photos/job-photo-gallery";
-import { Separator } from "@/components/ui/separator";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  DollarSign, MapPin, User, Calendar, Hammer, Shield, ClipboardCheck, MoreHorizontal, CornerDownRight, Copy, ExternalLink, Wallet, FileText,
+  DollarSign, User, Calendar, Hammer, Shield, MoreHorizontal, CornerDownRight, Copy, ExternalLink, Wallet, FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { FilesPanel } from "@/components/files/files-panel";
@@ -104,33 +102,8 @@ export default function JobDetailPage() {
   const signedRow = contracts.find((c) => c.status === "SIGNED") ?? null;
   const signedContract = signedRow ? { id: signedRow.id, contractNumber: signedRow.contractNumber, signedAt: signedRow.signedAt ?? signedRow.updatedAt, contractAmount: signedRow.contractAmount } : null;
   const awaitingSignature = contracts.filter((c) => c.status === "SENT").length;
-
-  const { data: crews = [] } = useQuery<{ id: string; name: string; trades: string[] }[]>({
-    queryKey: ["crews", "active"],
-    queryFn: () => fetchJson("/api/crews?activeOnly=true"),
-  });
-
-  const [assignCrewId, setAssignCrewId] = useState("");
-  const [assignInstallDate, setAssignInstallDate] = useState("");
-
-  const assignCrew = useMutation({
-    mutationFn: (data: { crewId: string; installDate: string }) =>
-      fetchJson(`/api/jobs/${id}/crews`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          crewId: data.crewId,
-          installDate: data.installDate || null,
-        }),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["job", id] });
-      setAssignCrewId("");
-      setAssignInstallDate("");
-      toast.success("Crew assigned");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  // Money opens on the panel with work left in it (only when the URL has no ?sub).
+  const moneyNext = moneyStep(job ?? { jobType: "FIXED_PRICE", contractAmount: 0 }, contracts);
 
   const { data: budgetLines = [] } = useQuery<{ amount: string }[]>({
     queryKey: ["budget", id],
@@ -150,103 +123,7 @@ export default function JobDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const [payAmount, setPayAmount] = useState("");
-  const [payType, setPayType] = useState("DEPOSIT");
-  const [payMethod, setPayMethod] = useState("CHECK");
-  const [payReference, setPayReference] = useState("");
-  const [payInvoiceId, setPayInvoiceId] = useState("__none");
-
-  const { data: jobInvoices = [] } = useQuery<
-    { id: string; invoiceNumber: string; amount: string; status: string }[]
-  >({
-    queryKey: ["invoices", id],
-    queryFn: () => fetchJson(`/api/jobs/${id}/invoices`),
-  });
-  const openInvoices = jobInvoices.filter(
-    (inv) => inv.status !== "PAID" && inv.status !== "VOID",
-  );
-
-  const refreshFinancials = () => {
-    qc.invalidateQueries({ queryKey: ["job", id] });
-    qc.invalidateQueries({ queryKey: ["invoices", id] });
-  };
-
-  const recordPayment = useMutation({
-    mutationFn: (data: {
-      paymentType: string;
-      amount: number;
-      method: string;
-      reference: string;
-      invoiceId?: string | null;
-    }) =>
-      fetchJson(`/api/jobs/${id}/payments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      }),
-    onSuccess: () => {
-      refreshFinancials();
-      setPayAmount("");
-      setPayReference("");
-      setPayInvoiceId("__none");
-      toast.success("Payment recorded");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const deletePayment = useMutation({
-    mutationFn: (paymentId: string) =>
-      fetchJson(`/api/payments/${paymentId}`, { method: "DELETE" }),
-    onSuccess: () => {
-      refreshFinancials();
-      toast.success("Payment deleted");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const emptyPermitForm = {
-    municipality: "",
-    permitType: "",
-    permitNumber: "",
-    submittedDate: new Date().toISOString().slice(0, 10),
-    expectedApprovalDate: "",
-    expirationDate: "",
-    permitFee: "",
-    inspectorName: "",
-    assignedUserId: "",
-    notes: "",
-  };
-  const [permitForm, setPermitForm] = useState(emptyPermitForm);
-  const setPermitField = (k: keyof typeof emptyPermitForm, v: string) =>
-    setPermitForm((f) => ({ ...f, [k]: v }));
-
-  const { data: jobUsers = [] } = useQuery<{ id: string; firstName: string; lastName: string }[]>({
-    queryKey: ["assignable-users"],
-    queryFn: () => fetchJson("/api/users/assignable"),
-  });
-
-  const addPermit = useMutation({
-    mutationFn: (data: typeof emptyPermitForm) =>
-      fetchJson(`/api/jobs/${id}/permits`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          assignedUserId: data.assignedUserId || null,
-          permitFee: data.permitFee || null,
-          expectedApprovalDate: data.expectedApprovalDate || null,
-          expirationDate: data.expirationDate || null,
-        }),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["job", id] });
-      setPermitForm(emptyPermitForm);
-      toast.success("Permit added");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  if (isLoading) return <div className="flex items-center justify-center py-20"><p className="text-muted-foreground">Loading...</p></div>;
+  if (isLoading) return <JobPageSkeleton />;
 
   // A job that isn't there and a job we couldn't reach are different problems
   // with different remedies. Reporting both as "not found" once sent people
@@ -451,19 +328,17 @@ export default function JobDetailPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm">Property</CardTitle></CardHeader>
-            <CardContent className="text-sm space-y-2">
-              <div className="flex items-start gap-2">
-                <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div>
-                  <div>{job.lead.propertyAddress1}</div>
-                  <div>{job.lead.city}, {job.lead.state} {job.lead.zipCode}</div>
-                  {job.lead.county && <div className="text-muted-foreground">{job.lead.county} County</div>}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ContactCard
+            name={job.lead.fullName}
+            nameHref={`/leads/${job.lead.id}`}
+            companyName={job.lead.companyName}
+            phone={job.lead.primaryPhone}
+            secondaryPhone={job.lead.secondaryPhone}
+            email={job.lead.email}
+            address={job.lead}
+            county={job.lead.county}
+            propertyType={job.lead.propertyType}
+          />
 
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-sm">Team</CardTitle></CardHeader>
@@ -518,18 +393,18 @@ export default function JobDetailPage() {
 
         {/* Right column: tabs */}
         <div className="lg:col-span-2">
-          {job.jobType === "FIXED_PRICE" && Number(job.contractAmount) === 0 && contractsLoaded && contracts.length === 0 && (
+          {contractsLoaded && moneyNext.title && (
             <Callout
               tone="info"
               className="mb-4"
-              title="Next: create an estimate, then generate the contract"
+              title={moneyNext.title}
               action={
-                <Button size="sm" variant="outline" onClick={() => setTab("money", "estimates")}>
-                  Open estimates
+                <Button size="sm" variant="outline" onClick={() => setTab("money", moneyNext.panel)}>
+                  {moneyNext.panel === "estimates" ? "Open estimates" : "Open contract"}
                 </Button>
               }
             >
-              This job has no contract amount yet. Build the estimate under Money → Estimates, mark it accepted, and generate the customer contract from it.
+              {moneyNext.body}
             </Callout>
           )}
           {(() => {
@@ -554,7 +429,7 @@ export default function JobDetailPage() {
             ).length;
             const group = tab;
             const panel =
-              group === "money" ? (MONEY.some((m) => m.value === sub) ? sub : "payments")
+              group === "money" ? (MONEY.some((m) => m.value === sub) ? sub : moneyNext.panel)
               : group === "field" ? (FIELD.some((f) => f.value === sub) ? sub : "labor")
               : group;
             const count = (n: number, tone?: "danger") => (
@@ -591,7 +466,7 @@ export default function JobDetailPage() {
                   <button
                     key={g.value}
                     type="button"
-                    onClick={() => setTab(g.value, g.value === "money" ? (MONEY.some((m) => m.value === sub) ? sub : "payments") : g.value === "field" ? (FIELD.some((f) => f.value === sub) ? sub : "labor") : undefined)}
+                    onClick={() => setTab(g.value, g.value === "money" ? (MONEY.some((m) => m.value === sub) ? sub : moneyNext.panel) : g.value === "field" ? (FIELD.some((f) => f.value === sub) ? sub : "labor") : undefined)}
                     className={`-mb-px inline-flex h-9 items-center border-b-2 px-3 text-sm font-medium transition-colors ${
                       group === g.value ? "border-brand text-gray-900" : "border-transparent text-gray-500 hover:text-gray-900"
                     }`}
@@ -625,116 +500,8 @@ export default function JobDetailPage() {
               />
             </TabsContent>
 
-            <TabsContent value="payments" className="space-y-4">
-              <Card>
-                <CardContent className="space-y-2 pt-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Select value={payType} onValueChange={(v: string | null) => setPayType(v ?? "DEPOSIT")}>
-                      <SelectTrigger className="w-[150px]">
-                        <SelectValue>{(v: string) => v?.replace("_", " ") || "Type"}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="DEPOSIT">Deposit</SelectItem>
-                        <SelectItem value="PROGRESS">Progress</SelectItem>
-                        <SelectItem value="FINAL">Final</SelectItem>
-                        <SelectItem value="FINANCING_FUNDING">Financing</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={payMethod} onValueChange={(v: string | null) => setPayMethod(v ?? "CHECK")}>
-                      <SelectTrigger className="w-[130px]">
-                        <SelectValue>{(v: string) => v || "Method"}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CHECK">Check</SelectItem>
-                        <SelectItem value="CARD">Card</SelectItem>
-                        <SelectItem value="ACH">ACH</SelectItem>
-                        <SelectItem value="CASH">Cash</SelectItem>
-                        <SelectItem value="FINANCING">Financing</SelectItem>
-                        <SelectItem value="WIRE">Wire</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="number" placeholder="Amount" value={payAmount}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayAmount(e.target.value)}
-                      className="w-[130px]"
-                    />
-                    <Input
-                      placeholder="Check # / ref."
-                      value={payReference}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPayReference(e.target.value)}
-                      className="w-[160px]"
-                    />
-                    <Select value={payInvoiceId} onValueChange={(v: string | null) => setPayInvoiceId(v ?? "__none")}>
-                      <SelectTrigger className="w-[190px]">
-                        <SelectValue>{(v: string) => (v === "__none" || !v ? "Apply to invoice (optional)" : v)}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none">No invoice</SelectItem>
-                        {openInvoices.map((inv) => (
-                          <SelectItem key={inv.id} value={inv.id}>
-                            {inv.invoiceNumber} — ${Number(inv.amount).toLocaleString()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button size="sm" disabled={!payAmount || recordPayment.isPending}
-                      onClick={() => recordPayment.mutate({
-                        paymentType: payType,
-                        amount: Number(payAmount),
-                        method: payMethod,
-                        reference: payReference,
-                        invoiceId: payInvoiceId === "__none" ? null : payInvoiceId,
-                      })}>
-                      Record Payment
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <div className="space-y-2">
-                {job.payments?.map((p: { id: string; paymentType: string; method: string | null; reference: string | null; amount: string; status: string; receivedDate: string | null; notes: string | null }) => (
-                  <Card key={p.id}>
-                    <CardContent className="flex items-center justify-between gap-3 py-3 px-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="text-xs">{p.paymentType}</Badge>
-                          {p.method && (
-                            <Badge variant="secondary" className="text-xs">{p.method}</Badge>
-                          )}
-                          <span className="font-medium">${Number(p.amount).toLocaleString()}</span>
-                          {p.reference && (
-                            <span className="text-xs text-muted-foreground">#{p.reference}</span>
-                          )}
-                        </div>
-                        {p.notes && <div className="mt-1 text-xs text-muted-foreground">{p.notes}</div>}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        {p.receivedDate ? format(new Date(p.receivedDate), "MMM d, yyyy") : p.status}
-                        {p.status === "RECEIVED" && (
-                          <a
-                            href={`/api/payments/${p.id}/receipt`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="rounded border px-2 py-1 text-[11px] hover:bg-gray-50"
-                          >
-                            Receipt PDF
-                          </a>
-                        )}
-                        <button
-                          onClick={() => {
-                            if (confirm("Delete this payment? The balance will be recomputed."))
-                              deletePayment.mutate(p.id);
-                          }}
-                          className="rounded border px-2 py-1 text-[11px] text-red-600 hover:bg-red-50"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {!job.payments?.length && <p className="py-6 text-center text-sm text-muted-foreground">No payments recorded</p>}
-              </div>
+            <TabsContent value="payments">
+              <PaymentsPanel jobId={id} payments={job.payments ?? []} />
             </TabsContent>
 
             <TabsContent value="contract">
@@ -776,152 +543,12 @@ export default function JobDetailPage() {
               <ChangeOrdersPanel jobId={id} jobType={job.jobType} billingMethod={job.billingMethod} />
             </TabsContent>
 
-            <TabsContent value="permits" className="space-y-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Add a permit</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 pt-0">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <Label className="text-[11px]">Municipality *</Label>
-                      <Input value={permitForm.municipality}
-                        onChange={(e) => setPermitField("municipality", e.target.value)} placeholder="City of Boca Raton" />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">Permit type</Label>
-                      <Input value={permitForm.permitType}
-                        onChange={(e) => setPermitField("permitType", e.target.value)} placeholder="Re-roof, Electrical, …" />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">Permit #</Label>
-                      <Input value={permitForm.permitNumber}
-                        onChange={(e) => setPermitField("permitNumber", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">Coordinator</Label>
-                      <Select value={permitForm.assignedUserId || "unassigned"}
-                        onValueChange={(v: string | null) => v && setPermitField("assignedUserId", v === "unassigned" ? "" : v)}>
-                        <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unassigned">Unassigned</SelectItem>
-                          {jobUsers.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>{u.firstName} {u.lastName}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">Submitted</Label>
-                      <Input type="date" value={permitForm.submittedDate}
-                        onChange={(e) => setPermitField("submittedDate", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">Expected approval</Label>
-                      <Input type="date" value={permitForm.expectedApprovalDate}
-                        onChange={(e) => setPermitField("expectedApprovalDate", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">Expires</Label>
-                      <Input type="date" value={permitForm.expirationDate}
-                        onChange={(e) => setPermitField("expirationDate", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label className="text-[11px]">Permit fee</Label>
-                      <Input value={permitForm.permitFee} inputMode="decimal" placeholder="0.00"
-                        onChange={(e) => setPermitField("permitFee", e.target.value)} />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Label className="text-[11px]">Inspector</Label>
-                      <Input value={permitForm.inspectorName}
-                        onChange={(e) => setPermitField("inspectorName", e.target.value)} />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Label className="text-[11px]">Notes</Label>
-                      <Textarea rows={2} value={permitForm.notes}
-                        onChange={(e) => setPermitField("notes", e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button size="sm"
-                      disabled={!permitForm.municipality || addPermit.isPending}
-                      onClick={() => addPermit.mutate(permitForm)}
-                    >
-                      Add permit
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <div className="space-y-2">
-                {job.permits?.map((p: { id: string; permitType: string | null; municipality: string; status: string; permitNumber: string | null; submittedDate: string | null; approvedDate: string | null; expirationDate?: string | null }) => (
-                  <Card key={p.id}>
-                    <CardContent className="flex items-center justify-between py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <span className="text-sm font-medium">{p.permitType || "General"}</span>
-                          <span className="text-xs text-muted-foreground ml-2">({p.municipality})</span>
-                          {p.permitNumber && <span className="text-xs ml-2">#{p.permitNumber}</span>}
-                          {p.expirationDate && (
-                            <span className="text-[10px] text-muted-foreground ml-2">
-                              exp {format(new Date(p.expirationDate), "MMM d, yyyy")}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-xs">{p.status}</Badge>
-                    </CardContent>
-                  </Card>
-                ))}
-                {!job.permits?.length && <p className="py-6 text-center text-sm text-muted-foreground">No permits</p>}
-              </div>
+            <TabsContent value="permits">
+              <JobPermitsPanel jobId={id} permits={job.permits ?? []} />
             </TabsContent>
 
-            <TabsContent value="crews" className="space-y-2">
-              <Card>
-                <CardContent className="flex flex-wrap items-end gap-2 pt-4">
-                  <div className="flex-1 min-w-[180px]">
-                    <Label className="text-[11px]">Crew</Label>
-                    <Select value={assignCrewId || "__none"}
-                      onValueChange={(v: string | null) => setAssignCrewId(!v || v === "__none" ? "" : v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a crew">
-                          {(v: string) => (!v || v === "__none" ? "Select a crew" : crews.find((c) => c.id === v)?.name || "Select a crew")}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {crews.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}{c.trades?.length ? ` — ${c.trades.join(", ")}` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-[11px]">Install date (optional)</Label>
-                    <Input type="date" value={assignInstallDate}
-                      onChange={(e) => setAssignInstallDate(e.target.value)} />
-                  </div>
-                  <Button size="sm" disabled={!assignCrewId || assignCrew.isPending}
-                    onClick={() => assignCrew.mutate({ crewId: assignCrewId, installDate: assignInstallDate })}>
-                    Assign crew
-                  </Button>
-                </CardContent>
-              </Card>
-              {job.crewAssignments?.map((ca: { id: string; crew: { name: string; trades: string[] }; installDate: string | null }) => (
-                <Card key={ca.id}>
-                  <CardContent className="flex items-center justify-between py-3 px-4">
-                    <div>
-                      <span className="text-sm font-medium">{ca.crew.name}</span>
-                      <Badge variant="outline" className="text-[10px] ml-2">{ca.crew.trades?.join(", ") || "—"}</Badge>
-                    </div>
-                    {ca.installDate && <span className="text-xs text-muted-foreground">{format(new Date(ca.installDate), "MMM d, yyyy")}</span>}
-                  </CardContent>
-                </Card>
-              ))}
-              {!job.crewAssignments?.length && <p className="py-6 text-center text-sm text-muted-foreground">No crews assigned</p>}
-              <JobPersonnelScopePanel jobId={id} />
+            <TabsContent value="crews">
+              <CrewsPanel jobId={id} crewAssignments={job.crewAssignments ?? []} />
             </TabsContent>
 
             <TabsContent value="daily-logs">
@@ -934,20 +561,8 @@ export default function JobDetailPage() {
               <JobPhotoGallery jobId={id} />
             </TabsContent>
 
-            <TabsContent value="inspections" className="space-y-2">
-              {job.inspections?.map((i: { id: string; type: string; result: string; scheduledDate: string | null; notes: string | null }) => (
-                <Card key={i.id}>
-                  <CardContent className="flex items-center justify-between py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{i.type}</span>
-                      <Badge variant={i.result === "PASSED" ? "default" : "outline"} className="text-[10px]">{i.result}</Badge>
-                    </div>
-                    {i.scheduledDate && <span className="text-xs text-muted-foreground">{format(new Date(i.scheduledDate), "MMM d, yyyy")}</span>}
-                  </CardContent>
-                </Card>
-              ))}
-              {!job.inspections?.length && <p className="py-6 text-center text-sm text-muted-foreground">No inspections</p>}
+            <TabsContent value="inspections">
+              <InspectionsList inspections={job.inspections ?? []} />
             </TabsContent>
 
             <TabsContent value="tasks">
@@ -977,21 +592,8 @@ export default function JobDetailPage() {
               <CaseListMini scope={{ jobId: id, leadId: job.leadId }} newHref={`/violations/new?leadId=${job.leadId}&jobId=${id}`} linkAction />
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-2">
-              {job.stageHistory?.map((h: { id: string; fromStage: { name: string } | null; toStage: { name: string }; changedBy: { firstName: string; lastName: string }; changedAt: string }) => (
-                <Card key={h.id}>
-                  <CardContent className="flex items-center justify-between py-3 px-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      {h.fromStage && <><Badge variant="outline" className="text-xs">{h.fromStage.name}</Badge><span>&rarr;</span></>}
-                      <Badge variant="outline" className="text-xs">{h.toStage.name}</Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground text-right">
-                      <div>{format(new Date(h.changedAt), "MMM d, h:mm a")}</div>
-                      <div>{h.changedBy.firstName} {h.changedBy.lastName}</div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <TabsContent value="history">
+              <StageHistoryList history={job.stageHistory ?? []} />
             </TabsContent>
           </Tabs>
             );
