@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Term } from "@/components/shared/term";
 import { JobRef } from "@/components/shared/entity-label";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
@@ -237,7 +238,7 @@ export default function CollectionsPage() {
                     <TableHead className="text-right">Contract</TableHead>
                     <TableHead className="text-right">Completed</TableHead>
                     <TableHead className="text-right">Open A/R</TableHead>
-                    <TableHead className="text-right">Retainage held</TableHead>
+                    <TableHead className="text-right"><Term k="retainage">Retainage held</Term></TableHead>
                     <TableHead className="text-right">Balance to finish</TableHead>
                     <TableHead className="text-right">Balance due</TableHead>
                   </TableRow>

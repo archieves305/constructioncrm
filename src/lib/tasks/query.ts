@@ -14,6 +14,8 @@ import { OPEN_TASK_STATUSES } from "./status";
 const LINK_PARAMS = ["leadId", "jobId", "estimateId", "invoiceId", "prospectId", "dailyLogId", "violationCaseId", "violationItemId"] as const;
 
 export type TaskListParams = {
+  /** Free text over the title, description, job number, address and customer. */
+  search?: string;
   assignedUserId?: string;
   status?: string;
   priority?: string;
@@ -38,6 +40,7 @@ const flag = (sp: URLSearchParams, key: string) => sp.get(key) === "true" || sp.
 
 export function readTaskListParams(searchParams: URLSearchParams): TaskListParams {
   const out: TaskListParams = {
+    search: searchParams.get("search")?.trim() || undefined,
     assignedUserId: searchParams.get("assignedUserId") || undefined,
     status: searchParams.get("status") || undefined,
     priority: searchParams.get("priority") || undefined,
@@ -108,5 +111,22 @@ export function buildTaskListWhere(
     where.activatedAt = { not: null };
   }
 
-  return { AND: [where, taskVisibilityFilter(user, scope)] };
+  const and: Prisma.TaskWhereInput[] = [where];
+  if (params.search) {
+    const q = params.search;
+    const contains = { contains: q, mode: "insensitive" as const };
+    and.push({
+      OR: [
+        { title: contains },
+        { description: contains },
+        { job: { jobNumber: contains } },
+        { job: { lead: { propertyAddress1: contains } } },
+        { job: { lead: { fullName: contains } } },
+        { lead: { fullName: contains } },
+        { lead: { propertyAddress1: contains } },
+      ],
+    });
+  }
+  and.push(taskVisibilityFilter(user, scope));
+  return { AND: and };
 }

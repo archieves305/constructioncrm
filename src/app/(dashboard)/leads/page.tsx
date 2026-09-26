@@ -497,13 +497,13 @@ export default function LeadsPage() {
                 <Checkbox checked={allSelected} onCheckedChange={() => toggleAll()} aria-label="Select all on page" />
               </TableHead>
               <TableHead>Name</TableHead>
-              <TableHead>Phone</TableHead>
+              <TableHead className="hidden md:table-cell">Phone</TableHead>
               <TableHead>Address</TableHead>
               <TableHead>Stage</TableHead>
-              <TableHead>Source</TableHead>
+              <TableHead className="hidden md:table-cell">Source</TableHead>
               <TableHead>Assigned To</TableHead>
-              <TableHead>Services</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead className="hidden md:table-cell">Services</TableHead>
+              <TableHead className="hidden md:table-cell">Created</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -558,7 +558,7 @@ export default function LeadsPage() {
                         <TaskCountBadge open={taskCount} overdue={overdueTasks} compact />
                       </div>
                     </TableCell>
-                    <TableCell>{lead.primaryPhone}</TableCell>
+                    <TableCell className="hidden md:table-cell">{lead.primaryPhone}</TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {lead.propertyAddress1}, {lead.city}
                     </TableCell>
@@ -570,7 +570,7 @@ export default function LeadsPage() {
                         onChange={(stageId) => changeStage.mutate({ leadId: lead.id, stageId })}
                       />
                     </TableCell>
-                    <TableCell>{lead.source?.name || "—"}</TableCell>
+                    <TableCell className="hidden md:table-cell">{lead.source?.name || "—"}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select
                         value={lead.assignedUser?.id ?? UNASSIGN_VALUE}
@@ -608,7 +608,7 @@ export default function LeadsPage() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {lead.services.slice(0, 2).map((s, i) => (
                           <Badge key={i} variant="outline" className="text-[10px]">
@@ -622,7 +622,7 @@ export default function LeadsPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-muted-foreground">
                       {format(new Date(lead.createdAt), "MMM d, yyyy")}
                     </TableCell>
                     <TableCell>

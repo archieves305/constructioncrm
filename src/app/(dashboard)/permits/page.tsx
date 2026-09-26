@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParamState } from "@/components/shared/use-search-param-state";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { jobLabel } from "@/lib/labels/job";
 import { formatAddressLine } from "@/lib/labels/address";
 import { JobRef } from "@/components/shared/entity-label";
@@ -28,7 +30,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { AlertTriangle, Download, ExternalLink } from "lucide-react";
 import { toCsv, downloadCsv } from "@/lib/csv";
-import { fetchJson } from "@/lib/fetch-json";
+import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 
 const STATUS_COLORS: Record<string, string> = {
   APPLIED: "bg-blue-100 text-blue-800",
@@ -73,10 +75,16 @@ const dateInput = (s: string | null) => (s ? s.slice(0, 10) : "");
 export default function PermitCenterPage() {
   const router = useRouter();
   const qc = useQueryClient();
-  const [tab, setTab] = useState("board");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterMuni, setFilterMuni] = useState("");
-  const [filterCoordinator, setFilterCoordinator] = useState("");
+  // The view and filters live in the URL, so a reload or a shared link keeps them.
+  const { get: getUrl, setMany: setUrl } = useSearchParamState();
+  const tab = ["board", "list", "aging"].includes(getUrl("tab") ?? "") ? (getUrl("tab") as string) : "board";
+  const setTab = (v: string | null) => setUrl({ tab: v && v !== "board" ? v : null });
+  const filterStatus = getUrl("status") ?? "";
+  const setFilterStatus = (v: string) => setUrl({ status: v || null });
+  const filterMuni = getUrl("jurisdiction") ?? "";
+  const setFilterMuni = (v: string) => setUrl({ jurisdiction: v || null });
+  const filterCoordinator = getUrl("coordinator") ?? "";
+  const setFilterCoordinator = (v: string) => setUrl({ coordinator: v || null });
   const [selectedPermitId, setSelectedPermitId] = useState<string | null>(null);
 
   const params = new URLSearchParams();
@@ -87,7 +95,8 @@ export default function PermitCenterPage() {
 
   const { data: permits, isLoading } = useQuery({
     queryKey: ["permits", tab, filterStatus, filterMuni, filterCoordinator],
-    queryFn: () => fetch(`/api/permits?${params.toString()}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/permits?${params.toString()}`),
+    retry: retryServerErrors,
   });
 
   const { data: users = [] } = useQuery<User[]>({
@@ -145,7 +154,7 @@ export default function PermitCenterPage() {
                 { key: "jobNumber", header: "Job #" },
                 { key: "customer", header: "Customer" },
                 { key: "address", header: "Address" },
-                { key: "municipality", header: "Municipality" },
+                { key: "municipality", header: "Jurisdiction" },
                 { key: "permitType", header: "Type" },
                 { key: "permitNumber", header: "Permit #" },
                 { key: "status", header: "Status" },
@@ -168,9 +177,9 @@ export default function PermitCenterPage() {
 
       <div className="mb-3 flex flex-wrap gap-2">
         <Select value={filterCoordinator} onValueChange={(v: string | null) => setFilterCoordinator(!v || v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="All Coordinators" /></SelectTrigger>
+          <SelectTrigger className="w-[200px]" aria-label="Coordinator"><SelectValue placeholder="Anyone" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Coordinators</SelectItem>
+            <SelectItem value="all">Anyone</SelectItem>
             <SelectItem value="unassigned">Unassigned</SelectItem>
             {users.map((u) => (
               <SelectItem key={u.id} value={u.id}>{u.firstName} {u.lastName}</SelectItem>
@@ -178,15 +187,15 @@ export default function PermitCenterPage() {
           </SelectContent>
         </Select>
         <Select value={filterMuni} onValueChange={(v: string | null) => setFilterMuni(!v || v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="All Municipalities" /></SelectTrigger>
+          <SelectTrigger className="w-[200px]" aria-label="Jurisdiction"><SelectValue placeholder="Any jurisdiction" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Municipalities</SelectItem>
+            <SelectItem value="all">Any jurisdiction</SelectItem>
             {municipalities.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={(v) => setTab(v ? String(v) : null)}>
         <TabsList>
           <TabsTrigger value="board">Board</TabsTrigger>
           <TabsTrigger value="list">List View</TabsTrigger>
@@ -292,7 +301,7 @@ export default function PermitCenterPage() {
                 <TableRow>
                   <TableHead>Job</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Municipality</TableHead>
+                  <TableHead>Jurisdiction</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Submitted</TableHead>
@@ -346,7 +355,7 @@ export default function PermitCenterPage() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">Loading...</p>
+                <ListSkeleton rows={6} />
               ) : allPermits.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">No aging permits</p>
               ) : (
@@ -355,7 +364,7 @@ export default function PermitCenterPage() {
                     <TableRow>
                       <TableHead>Job</TableHead>
                       <TableHead>Customer</TableHead>
-                      <TableHead>Municipality</TableHead>
+                      <TableHead>Jurisdiction</TableHead>
                       <TableHead>Days</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Coordinator</TableHead>
@@ -451,7 +460,7 @@ function PermitDetailDrawer({
 
         <div className="space-y-4 px-4 pb-24">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Municipality">
+            <Field label="Jurisdiction">
               <Input value={String(v("municipality") ?? "")} onChange={(e) => setField("municipality", e.target.value)} />
             </Field>
             <Field label="Permit type">
@@ -701,7 +710,7 @@ function InspectionsPanel({ permitId }: { permitId: string }) {
       )}
 
       {isLoading ? (
-        <p className="py-2 text-center text-xs text-muted-foreground">Loading…</p>
+        <ListSkeleton rows={2} />
       ) : inspections.length === 0 ? (
         <p className="py-2 text-center text-xs text-muted-foreground">
           No inspections yet.

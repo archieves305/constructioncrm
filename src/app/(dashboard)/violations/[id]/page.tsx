@@ -52,7 +52,7 @@ const TABS = [
   { value: "hearings", label: "Hearings" },
   { value: "permits", label: "Permits" },
   { value: "fines", label: "Fines & Liens" },
-  { value: "files", label: "Documents" },
+  { value: "files", label: "Files" },
   { value: "photos", label: "Photos" },
   { value: "comms", label: "Communications" },
   { value: "notes", label: "Notes" },

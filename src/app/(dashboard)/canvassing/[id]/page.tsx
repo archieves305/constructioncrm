@@ -315,13 +315,8 @@ export default function RouteDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/canvassing">
-        <Button variant="ghost" size="sm">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to routes
-        </Button>
-      </Link>
-
       <PageHeader
+        breadcrumb={[{ label: "Canvassing", href: "/canvassing" }, { label: route.name }]}
         title={route.name}
         description={route.description || "Canvassing route"}
         actions={

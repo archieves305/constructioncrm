@@ -101,7 +101,7 @@ export function PhotosPanel({ data }: { data: CaseData }) {
         {isLoading ? (
           <Skeleton className="h-32" />
         ) : photos.length === 0 ? (
-          <EmptyState icon={Camera} title="No photos on the case yet" description="Upload before/after photos on the Documents tab (category Photos), or on an item." />
+          <EmptyState icon={Camera} title="No photos on the case yet" description="Upload before/after photos on the Files tab (category Photos), or on an item." />
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {photos.map((f) => (

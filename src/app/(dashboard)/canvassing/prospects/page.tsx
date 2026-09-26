@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -163,6 +164,7 @@ export default function ProspectsPage() {
       </Link>
 
       <PageHeader
+        breadcrumb={[{ label: "Canvassing", href: "/canvassing" }, { label: "Prospects" }]}
         title="Prospects"
         description="Properties you're canvassing — knock, track, and promote to leads"
         actions={
@@ -194,7 +196,7 @@ export default function ProspectsPage() {
       </div>
 
       {isLoading ? (
-        <p className="py-8 text-center text-muted-foreground">Loading…</p>
+        <ListSkeleton rows={5} />
       ) : prospects.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">

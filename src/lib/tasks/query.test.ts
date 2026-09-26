@@ -7,8 +7,11 @@ const rep = { id: "rep-1", role: "SALES_REP" as const };
 
 function whereOf(qs: string, user: { id: string; role: RoleName } = admin) {
   const w = buildTaskListWhere(readTaskListParams(new URLSearchParams(qs)), user);
-  const [filters, scope] = w.AND as [Record<string, unknown>, Record<string, unknown>];
-  return { filters, scope };
+  const and = w.AND as Record<string, unknown>[];
+  const [filters, ...rest] = and;
+  const scope = rest[rest.length - 1]!;
+  const search = rest.length > 1 ? rest[0] : undefined;
+  return { filters, scope, search };
 }
 
 describe("buildTaskListWhere", () => {
@@ -125,5 +128,26 @@ describe("buildTaskListWhere — violation cases", () => {
     expect(vis).toEqual({
       OR: [{ assignedUserId: "u-rep" }, { createdByUserId: "u-rep" }, { jobId: { in: ["j1"] } }, { violationCaseId: { in: ["c1"] } }],
     });
+  });
+});
+
+describe("search", () => {
+  it("matches title, description, the job's number, address and customer, and the lead — still ANDed with the role scope", () => {
+    const { search, scope } = whereOf("search=roof", rep);
+    const keys = (search!.OR as Record<string, unknown>[]).map((o) => JSON.stringify(o));
+    expect(keys).toEqual([
+      '{"title":{"contains":"roof","mode":"insensitive"}}',
+      '{"description":{"contains":"roof","mode":"insensitive"}}',
+      '{"job":{"jobNumber":{"contains":"roof","mode":"insensitive"}}}',
+      '{"job":{"lead":{"propertyAddress1":{"contains":"roof","mode":"insensitive"}}}}',
+      '{"job":{"lead":{"fullName":{"contains":"roof","mode":"insensitive"}}}}',
+      '{"lead":{"fullName":{"contains":"roof","mode":"insensitive"}}}',
+      '{"lead":{"propertyAddress1":{"contains":"roof","mode":"insensitive"}}}',
+    ]);
+    expect(scope).not.toEqual({});
+  });
+  it("no search, no OR", () => {
+    expect(whereOf("").search).toBeUndefined();
+    expect(whereOf("search=%20").search).toBeUndefined();
   });
 });

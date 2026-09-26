@@ -433,16 +433,16 @@ export default function JobsPage() {
           }}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Reps">
+            <SelectValue placeholder="Anyone">
               {(v: string) => {
-                if (!v) return "All Reps";
+                if (!v) return "Anyone";
                 const u = assignableUsers.find((x) => x.id === v);
-                return u ? `${u.firstName} ${u.lastName}` : "All Reps";
+                return u ? `${u.firstName} ${u.lastName}` : "Anyone";
               }}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Reps</SelectItem>
+            <SelectItem value="all">Anyone</SelectItem>
             {assignableUsers.map((u) => (
               <SelectItem key={u.id} value={u.id}>
                 {u.firstName} {u.lastName}
@@ -612,15 +612,15 @@ export default function JobsPage() {
               </TableHead>
               <TableHead>Property</TableHead>
               <TableHead>Customer</TableHead>
-              <TableHead>Service</TableHead>
+              <TableHead className="hidden md:table-cell">Service</TableHead>
               <TableHead>Stage</TableHead>
-              <TableHead>Phase</TableHead>
+              <TableHead className="hidden md:table-cell">Phase</TableHead>
               <TableHead className="text-right">Contract</TableHead>
-              <TableHead>Deposit</TableHead>
-              <TableHead>Permit</TableHead>
+              <TableHead className="hidden md:table-cell">Deposit</TableHead>
+              <TableHead className="hidden md:table-cell">Permit</TableHead>
               <TableHead className="text-right">Balance</TableHead>
-              <TableHead>Next Action</TableHead>
-              <TableHead>Rep</TableHead>
+              <TableHead className="hidden md:table-cell">Next Action</TableHead>
+              <TableHead className="hidden md:table-cell">Rep</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -696,7 +696,7 @@ export default function JobsPage() {
                         <TaskCountBadge open={taskCount} overdue={overdueTasks} compact />
                       </div>
                     </TableCell>
-                    <TableCell><Badge variant="outline" className="text-xs">{job.serviceType}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className="hidden md:table-cell text-xs">{job.serviceType}</Badge></TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <StagePillSelect
                         value={job.currentStageId}
@@ -704,7 +704,7 @@ export default function JobsPage() {
                         onChange={(stageId) => changeStage.mutate({ jobId: job.id, stageId })}
                       />
                     </TableCell>
-                    <TableCell className="max-w-[200px]">
+                    <TableCell className="hidden md:table-cell max-w-[200px]">
                       <WorkflowPhaseCell jobId={job.id} summary={job.workflow} />
                     </TableCell>
                     <TableCell className="text-right font-medium">
@@ -716,7 +716,7 @@ export default function JobsPage() {
                         <div className="text-[10px] font-normal text-muted-foreground">Owned</div>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="flex items-center gap-2">
                         <Progress
                           value={depositPct}
@@ -727,7 +727,7 @@ export default function JobsPage() {
                         <span className="text-xs tabular-nums text-muted-foreground">{depositPct}%</span>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="flex flex-col items-start gap-0.5">
                         {job.workflow && <PermitStatusPill status={job.workflow.permitStatus} compact />}
                         {(hasPermit || !job.workflow) && <PermitBadge status={hasPermit ? permitStatus : null} />}
@@ -738,12 +738,12 @@ export default function JobsPage() {
                         ${Number(job.balanceDue).toLocaleString()}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       {job.nextAction ? (
                         <span className="inline-block max-w-[220px] truncate rounded-md bg-tone-warning-soft px-2 py-0.5 text-xs text-tone-warning-fg" title={job.nextAction}>{job.nextAction}</span>
                       ) : "—"}
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
                       <Select
                         value={job.salesRep?.id ?? UNASSIGN_VALUE}
                         onValueChange={(v: string | null) => {

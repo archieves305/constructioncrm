@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useSession } from "@/lib/auth/session-client";
@@ -22,7 +23,7 @@ export default function ListSettingsPage() {
         </CardHeader>
         <CardContent className="divide-y p-0">
           {isLoading || !prefs ? (
-            <p className="p-6 text-sm text-muted-foreground">Loading…</p>
+            <div className="p-6"><ListSkeleton rows={2} /></div>
           ) : (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">

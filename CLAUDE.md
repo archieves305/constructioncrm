@@ -38,7 +38,12 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    branch `ux-nav`** — merge to `main` only after Stage 1 is on prod.
    **Stage 3 (job page contact card + Money next-step + panel
    extraction, lead page tab-in-URL + fail-loud fetches) built + dev-QA'd
-   2026-09-25 on branch `ux-pages` (off `ux-nav`)** — merge after Stage 2. Stages 3 (job page contact card + Money next-step + panel
+   2026-09-25 on branch `ux-pages` (off `ux-nav`)** — merge after Stage 2.
+   **Stage 4 (shared list toolbar, URL filters + text search on tasks and
+   permits, skeletons / empty / error / not-found, breadcrumbs, glossary
+   terms, terminology, phone columns) built + dev-QA'd 2026-09-25 on
+   branch `ux-polish` (off `ux-pages`)** — merge last. Branch order:
+   main ← ux-nav ← ux-pages ← ux-polish. Stages 3 (job page contact card + Money next-step + panel
    extraction, lead page tab-in-URL + fail-loud fetches) and 4 (shared
    list toolbar, URL filters, task search, empty/loading/error states,
    breadcrumbs, glossary, mobile columns) follow. Notes:
@@ -797,7 +802,9 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 > click the sidebar, `/pipeline` (redirects), the Table|Board toggle and ⌘K.
 > Stage 3 is on branch `ux-pages` (off `ux-nav`): merge after Stage 2 is
 > on prod, then click a job page (Customer card, Money opening on the next
-> step) and a lead page (`?tab=`). Then Stages 3 and 4 per
+> step) and a lead page (`?tab=`). Stage 4 is on `ux-polish` (off
+> `ux-pages`): merge last, then `/tasks` search + Filters, `/permits`,
+> `/nope`, a phone-width `/jobs`. All four stages: no migration. Then Stages 3 and 4 per
 > `~/.claude/plans/spicy-drifting-shore.md`. Nurture operator items
 > (SPF → `NURTURE_ENABLED=1` → admin switch, `NURTURE_MAX_PER_RUN=10`)
 > still stand. Same rules: explicit role lists, tests + typecheck + build

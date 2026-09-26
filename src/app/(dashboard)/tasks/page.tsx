@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, LayoutGrid, ListChecks, Bell, BellOff, SlidersHorizontal } from "lucide-react";
+import { Plus, LayoutGrid, ListChecks, Bell, BellOff, SlidersHorizontal, Search, CheckSquare } from "lucide-react";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import type { KanbanColumnDef } from "@/components/kanban/types";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -26,6 +26,10 @@ import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import { STATUS_LABEL, STATUS_TONE, TASK_PRIORITIES, TASK_STATUSES } from "@/components/tasks/task-colors";
 import { useAssignableUsers, useCreateTask, useTaskSummary, useTasks, useUpdateTask } from "@/components/tasks/use-tasks";
 import type { TaskListItem, TaskStatus, UpdatePatch, UserOption } from "@/components/tasks/types";
+import { useSearchParamState } from "@/components/shared/use-search-param-state";
+import { useDebouncedValue } from "@/components/shared/use-debounced-value";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
 import { JobPicker } from "@/components/shared/job-picker";
 
 type JobOption = {
@@ -62,21 +66,34 @@ export default function TasksPage() {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
-  const [filterAssignee, setFilterAssignee] = useState(searchParams.get("assignedUserId") ?? "");
-  const [filterPriority, setFilterPriority] = useState(searchParams.get("priority") ?? "");
-  const [filterJob, setFilterJob] = useState(searchParams.get("jobId") ?? "");
-  const [filterCase, setFilterCase] = useState(searchParams.get("violationCaseId") ?? "");
+  // Every filter lives in the URL, so a copied link reproduces the list and
+  // a reload keeps it. Only the client-side stage filter stays local.
+  const { get: getUrl, setMany: setUrl } = useSearchParamState();
+  const flagOn = (k: string) => getUrl(k) === "1" || getUrl(k) === "true";
+  const filterAssignee = getUrl("assignedUserId") ?? "";
+  const setFilterAssignee = (v: string) => setUrl({ assignedUserId: v || null });
+  const filterPriority = getUrl("priority") ?? "";
+  const setFilterPriority = (v: string) => setUrl({ priority: v || null });
+  const filterJob = getUrl("jobId") ?? "";
+  const setFilterJob = (v: string) => setUrl({ jobId: v || null });
+  const filterCase = getUrl("violationCaseId") ?? "";
+  const setFilterCase = (v: string) => setUrl({ violationCaseId: v || null });
   const [filterStage, setFilterStage] = useState("");
-  const [overdueOnly, setOverdueOnly] = useState(
-    searchParams.get("overdue") === "1" || searchParams.get("overdue") === "true",
-  );
-  const [includeCompleted, setIncludeCompleted] = useState(false);
-  const [filterSource, setFilterSource] = useState<"" | "manual" | "workflow">(
-    searchParams.get("source") === "manual" || searchParams.get("source") === "workflow" ? (searchParams.get("source") as "manual" | "workflow") : "",
-  );
-  const [readyOnly, setReadyOnly] = useState(searchParams.get("ready") === "1" || searchParams.get("ready") === "true");
-  const [blockedOnly, setBlockedOnly] = useState(searchParams.get("blocked") === "1" || searchParams.get("blocked") === "true");
-  const [showInactive, setShowInactive] = useState(searchParams.get("includeInactive") === "1" || searchParams.get("includeInactive") === "true");
+  const overdueOnly = flagOn("overdue");
+  const setOverdueOnly = (v: boolean) => setUrl({ overdue: v ? "1" : null });
+  const includeCompleted = flagOn("includeCompleted");
+  const setIncludeCompleted = (v: boolean) => setUrl({ includeCompleted: v ? "1" : null });
+  const sourceRaw = getUrl("source");
+  const filterSource: "" | "manual" | "workflow" = sourceRaw === "manual" || sourceRaw === "workflow" ? sourceRaw : "";
+  const setFilterSource = (v: "" | "manual" | "workflow") => setUrl({ source: v || null });
+  const readyOnly = flagOn("ready");
+  const setReadyOnly = (v: boolean) => setUrl({ ready: v ? "1" : null });
+  const blockedOnly = flagOn("blocked");
+  const setBlockedOnly = (v: boolean) => setUrl({ blocked: v ? "1" : null });
+  const showInactive = flagOn("includeInactive");
+  const setShowInactive = (v: boolean) => setUrl({ includeInactive: v ? "1" : null });
+  const [search, setSearch] = useState(getUrl("q") ?? "");
+  const q = useDebouncedValue(search.trim(), 300);
   const [quickAdd, setQuickAdd] = useState({ title: "", dueAt: "", assignedUserId: null as string | null });
 
   // A "me" filter from the URL resolves to the real id once the session is
@@ -85,6 +102,7 @@ export default function TasksPage() {
   const effectiveAssignee = filterAssignee === "me" ? (session?.user.id ?? "me") : filterAssignee;
 
   const { data: tasks = [], isLoading } = useTasks({
+    search: q || undefined,
     assignedUserId: effectiveAssignee || undefined,
     priority: filterPriority || undefined,
     jobId: filterJob || undefined,
@@ -199,7 +217,7 @@ export default function TasksPage() {
   ).length;
   const emailsOn = prefs?.taskEmailsEnabled ?? true;
   const activeFilters =
-    [filterAssignee, filterPriority, filterJob, filterCase, filterStage, filterSource].filter(Boolean).length +
+    [q, filterAssignee, filterPriority, filterJob, filterCase, filterStage, filterSource].filter(Boolean).length +
     (overdueOnly ? 1 : 0) + (readyOnly ? 1 : 0) + (blockedOnly ? 1 : 0) + (showInactive ? 1 : 0);
 
   function showMine(overdue: boolean) {
@@ -283,13 +301,29 @@ export default function TasksPage() {
       {/* Filters */}
       <Card className={cn("mb-4", !showFilters && activeFilters === 0 && "hidden")}>
         <CardContent className="flex flex-wrap items-end gap-3 pt-4">
+          <div className="w-full sm:w-auto sm:min-w-[220px]">
+            <Label className="text-xs">Search</Label>
+            <div className="relative mt-1">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setUrl({ q: e.target.value.trim() || null });
+                }}
+                placeholder="Title, address, customer, job #…"
+                className="pl-8"
+                aria-label="Search tasks"
+              />
+            </div>
+          </div>
           <div className="min-w-[180px]">
             <Label className="text-xs">Assignee</Label>
             <AssigneePicker
               value={effectiveAssignee && effectiveAssignee !== "me" ? effectiveAssignee : null}
               onChange={(id) => setFilterAssignee(id ?? "")}
               users={users}
-              placeholder="All assignees"
+              placeholder="Anyone"
               className="mt-1 w-full"
             />
           </div>
@@ -420,7 +454,7 @@ export default function TasksPage() {
       <AddTaskDialog open={open} onOpenChange={setOpen} allowJobPicker />
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+        <ListSkeleton rows={6} />
       ) : view === "board" ? (
         <BoardView
           tasks={stageFilteredTasks}
@@ -503,7 +537,7 @@ function ListView({
     Object.values(buckets).every((b) => b.length === 0) && (!showCompleted || completed.length === 0);
   return (
     <div className="space-y-4">
-      {empty && <p className="py-12 text-center text-sm text-muted-foreground">Nothing here. Nice.</p>}
+      {empty && <EmptyState icon={CheckSquare} title="Nothing here. Nice." description="No open tasks match. Clear a filter, or press n to add one." />}
       <Section title="Overdue" tone="destructive" tasks={buckets.overdue} {...shared} />
       <Section title="Today" tone="primary" tasks={buckets.today} {...shared} />
       <Section title="This Week" tasks={buckets.week} {...shared} />

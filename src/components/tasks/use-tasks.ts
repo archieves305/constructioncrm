@@ -27,6 +27,7 @@ export const taskKeys = {
 const RELATED_KEYS: QueryKey[] = [["field-today"], ["dashboard"], ["jobs"], ["leads"], ["prospects"]];
 
 export type TaskListFilters = {
+  search?: string;
   assignedUserId?: string;
   status?: string;
   priority?: string;

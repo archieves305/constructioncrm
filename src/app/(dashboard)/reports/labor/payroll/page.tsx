@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Breadcrumb } from "@/components/shared/breadcrumb";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { useSession } from "@/lib/auth/session-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -26,7 +27,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  ArrowLeft,
   BadgeDollarSign,
   ChevronLeft,
   ChevronRight,
@@ -157,12 +157,8 @@ export default function PayrollPage() {
 
   return (
     <div className="space-y-4 p-6">
+      <Breadcrumb items={[{ label: "Money" }, { label: "Labor Reports", href: "/reports/labor" }, { label: "Weekly Payroll" }]} />
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/reports/labor">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Labor Reports
-          </Button>
-        </Link>
         <h1 className="text-2xl font-bold">Weekly Payroll</h1>
         <div className="flex-1" />
         {data && (
@@ -205,7 +201,7 @@ export default function PayrollPage() {
       </Card>
 
       {isLoading ? (
-        <div className="text-muted-foreground py-12 text-center">Loading…</div>
+        <ListSkeleton rows={5} />
       ) : error ? (
         <div className="text-muted-foreground py-12 text-center">{(error as Error).message}</div>
       ) : rows.length === 0 ? (

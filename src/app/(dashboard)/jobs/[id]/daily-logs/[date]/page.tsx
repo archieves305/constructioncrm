@@ -1,6 +1,8 @@
 "use client";
 
 import { use, useState } from "react";
+import { Breadcrumb } from "@/components/shared/breadcrumb";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth/session-client";
@@ -25,7 +27,6 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
-  ArrowLeft,
   CheckCircle2,
   FileDown,
   Pencil,
@@ -139,7 +140,7 @@ export default function DailyLogReviewPage({
     onError: (err: Error) => toast.error(err.message),
   });
 
-  if (isLoading) return <div className="text-muted-foreground p-6">Loading…</div>;
+  if (isLoading) return <div className="p-6"><ListSkeleton rows={5} /></div>;
   if (!log) return <div className="text-muted-foreground p-6">Log not found.</div>;
 
   const record = log as unknown as Record<string, string | number | null>;
@@ -165,12 +166,8 @@ export default function DailyLogReviewPage({
 
   return (
     <div className="space-y-6 p-6">
+      <Breadcrumb items={[{ label: "Jobs", href: "/jobs" }, { label: "Job", href: `/jobs/${jobId}?tab=field&sub=daily-logs` }, { label: "Daily log" }]} />
       <div className="flex flex-wrap items-center gap-3">
-        <Link href={`/jobs/${jobId}`}>
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Job
-          </Button>
-        </Link>
         <h1 className="text-2xl font-bold">
           Daily Log — {format(new Date(`${date}T12:00:00`), "EEEE, MMM d, yyyy")}
         </h1>

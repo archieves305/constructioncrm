@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { ClipboardList } from "lucide-react";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { jobText } from "@/lib/labels/job";
 import type { JobLabel } from "@/components/tasks/types";
 import { useQuery } from "@tanstack/react-query";
@@ -85,13 +88,13 @@ export default function FieldLogsQueuePage() {
       </div>
 
       {isLoading ? (
-        <div className="text-muted-foreground py-12 text-center">Loading…</div>
+        <ListSkeleton rows={5} />
       ) : logs.length === 0 ? (
-        <div className="text-muted-foreground rounded-md border py-12 text-center">
-          {status === "SUBMITTED"
-            ? "Nothing waiting for approval."
-            : "No logs found."}
-        </div>
+        <EmptyState
+          icon={ClipboardList}
+          title={status === "SUBMITTED" ? "Nothing waiting for approval" : "No daily logs match"}
+          description={status === "SUBMITTED" ? "Submitted logs land here for review." : "Try another status or date range."}
+        />
       ) : (
         <div className="overflow-x-auto rounded-md border">
           <Table>

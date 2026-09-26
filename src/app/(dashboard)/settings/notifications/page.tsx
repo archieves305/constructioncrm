@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { toast } from "sonner";
 import { Bell, BellRing, AlarmClock, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -78,7 +79,7 @@ export default function NotificationSettingsPage() {
         </CardHeader>
         <CardContent className="divide-y p-0">
           {isLoading || !prefs ? (
-            <p className="p-6 text-sm text-muted-foreground">Loading…</p>
+            <div className="p-6"><ListSkeleton rows={2} /></div>
           ) : (
             ROWS.map((row) => {
               const Icon = row.icon;

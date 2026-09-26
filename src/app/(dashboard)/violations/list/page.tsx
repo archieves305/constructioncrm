@@ -109,7 +109,7 @@ function ListBody() {
         { key: "agencyCaseNumber", header: "Agency #" },
         { key: "title", header: "Title" },
         { key: "property", header: "Property" },
-        { key: "owner", header: "Owner / lead" },
+        { key: "owner", header: "Customer" },
         { key: "jurisdiction", header: "Jurisdiction" },
         { key: "status", header: "Status" },
         { key: "state", header: "State" },

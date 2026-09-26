@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -171,7 +172,7 @@ export default function CanvassingSettingsPage() {
   });
 
   if (!draft) {
-    return <p className="py-10 text-center text-muted-foreground">Loading…</p>;
+    return <ListSkeleton rows={4} />;
   }
   const c = draft.scoringConfig;
 

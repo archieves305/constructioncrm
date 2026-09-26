@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { PageHeader } from "@/components/shared/page-header";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,5 +28,10 @@ function Body() {
       </Callout>
     );
   }
-  return <IntakeForm prefill={{ leadId: sp.get("leadId"), jobId: sp.get("jobId") }} returnedLeadId={sp.get("createdLeadId")} />;
+  return (
+    <div>
+      <PageHeader breadcrumb={[{ label: "Code Violations", href: "/violations" }, { label: "Cases", href: "/violations/list" }, { label: "New case" }]} title="New case" description="Five steps: property, notice, items, scope, review." />
+      <IntakeForm prefill={{ leadId: sp.get("leadId"), jobId: sp.get("jobId") }} returnedLeadId={sp.get("createdLeadId")} />
+    </div>
+  );
 }
