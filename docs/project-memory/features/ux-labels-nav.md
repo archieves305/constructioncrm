@@ -171,7 +171,57 @@ selects Communications and clicking Tasks writes `?tab=tasks`;
 `/leads/does-not-exist` shows "Lead not found". 930 tests (+4), lint
 6/22, build clean.
 
-## Stage 4
+## Stage 4 — polish (branch `ux-polish`, off `ux-pages`)
+
+- **Shared list toolbar** `components/shared/list-toolbar.tsx` (scope,
+  search, filters, reset, `trailing`), lifted out of `BoardToolbar`, which
+  now renders it with density + Columns on the right.
+- **Filters in the URL**: `/tasks` (every filter but the client-side job
+  stage; `?q=` text search) and `/permits` (`?tab`, `?status`,
+  `?jurisdiction`, `?coordinator`) via `useSearchParamState`, so a reload or
+  a shared link reproduces the list. `/api/permits` still takes the raw
+  `status` param — an unknown value 500s (pre-existing).
+- **Task text search**: `lib/tasks/query.ts` `search` → OR over title,
+  description, job number, the job's address and customer, the lead's name
+  and address, ANDed with the role scope (tested). Note the default list
+  hides not-yet-active workflow steps, so a step like "Install ridge vent"
+  only matches with "Show not-active steps".
+- **Wording**: every "any person" option is "Anyone" (jobs Rep, tasks
+  Assignee, permits Coordinator); permits say "Jurisdiction" / "Any
+  jurisdiction" (DB column `municipality` unchanged); lead forms say
+  "Customer" (was "Contact Information"); violations CSV "Customer" (was
+  "Owner / lead"); the case page's Documents tab is "Files".
+- **Loading / empty / error**: `components/shared/list-skeleton.tsx` on
+  every daily-path page that said "Loading…" (tasks, permits, field logs,
+  prospects, crews, referrals, personnel, labor reports, payroll, daily
+  log, canvassing settings, settings pages, the four field pages, the
+  tasks widget and entity panel); `EmptyState` on tasks, crews, field
+  logs, referrals, personnel, the tasks widget, and the extracted job
+  panels. Route-level `app/(dashboard)/{loading,error,not-found}.tsx`,
+  `app/(field)/error.tsx` and a root `app/not-found.tsx` (unmatched URLs
+  resolve outside the group).
+- **Breadcrumbs**: `components/shared/breadcrumb.tsx` shared by
+  `EntityHeader` and a new `PageHeader.breadcrumb`; the "← Back" headers on
+  personnel, weekly payroll, the daily-log page, canvassing route /
+  prospects / properties and the violation intake now show where they are.
+- **Glossary**: `lib/ui/glossary.ts` + `<Term k>` (`abbr` with the
+  explanation on hover) on Retainage (collections, invoices) and SOV
+  (change-order approve button); the sidebar hints from Stage 2 cover
+  Nurture, Cost Reconciliation, Knock Scoring, Response Times.
+- **Phones**: jobs hides Service / Phase / Deposit / Permit / Next Action /
+  Rep and leads hides Phone / Source / Services / Created below `md`, so
+  the identifying columns read without page scroll (the table still
+  scrolls inside its box for the rest).
+
+Dev QA (headless Chromium, ADMIN): `/tasks` search writes `?q=`, and
+`/tasks?priority=HIGH&q=deposit` reproduces (2 rows, box pre-filled);
+`/permits?tab=list&status=APPLIED` selects List View; `/nope` shows the
+not-found page; breadcrumbs on payroll / prospects / new case; empty
+states on personnel, field logs, referrals; 390×844 `/jobs` and `/leads`
+have no page-level horizontal scroll. Known, pre-existing: a React
+hydration warning on `/tasks` from the header pills (the sidebar shares
+the summary query key, so the client has data the server render did
+not). 932 tests (+2), lint 6/22, build clean.
 
 See the plan file. Stage 2 (sidebar tree of 11 entries, `/leads` +
 `/jobs` with `?view=board`, `/pipeline` + `/production` redirects, ⌘K

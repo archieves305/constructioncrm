@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import type { QueryKey } from "@tanstack/react-query";
 import { format, isPast, isToday } from "date-fns";
 import { CheckSquare, MessageSquare, Plus } from "lucide-react";
@@ -110,7 +111,7 @@ export function EntityTaskPanel({
       </div>
 
       {isLoading ? (
-        <p className="px-4 py-6 text-center text-sm text-muted-foreground">Loading…</p>
+        <div className="px-4 py-3"><ListSkeleton rows={3} /></div>
       ) : open.length === 0 && (!showCompleted || done.length === 0) ? (
         <p className="px-4 py-6 text-center text-sm text-muted-foreground">{emptyText}</p>
       ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -140,7 +141,7 @@ export default function EditLeadPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <p className="text-muted-foreground">Loading lead...</p>
+        <ListSkeleton rows={4} className="w-full max-w-2xl" />
       </div>
     );
   }
@@ -174,7 +175,7 @@ export default function EditLeadPage() {
       >
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Contact Information</CardTitle>
+            <CardTitle className="text-base">Customer</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div>

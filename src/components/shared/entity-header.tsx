@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Breadcrumb, type Crumb } from "./breadcrumb";
 
 /**
  * The header for a record page: a breadcrumb instead of a "Back to" button,
@@ -16,7 +15,7 @@ export function EntityHeader({
   children,
   className,
 }: {
-  breadcrumb: { label: string; href?: string }[];
+  breadcrumb: Crumb[];
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   badges?: React.ReactNode;
@@ -26,20 +25,7 @@ export function EntityHeader({
 }) {
   return (
     <header className={cn("mb-6 space-y-3", className)}>
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted-foreground">
-        {breadcrumb.map((b, i) => (
-          <span key={i} className="flex items-center gap-1">
-            {i > 0 && <ChevronRight className="size-3" />}
-            {b.href ? (
-              <Link href={b.href} className="hover:text-foreground hover:underline">
-                {b.label}
-              </Link>
-            ) : (
-              <span className="text-foreground">{b.label}</span>
-            )}
-          </span>
-        ))}
-      </nav>
+      <Breadcrumb items={breadcrumb} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">

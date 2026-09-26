@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
 import { JobRef } from "@/components/shared/entity-label";
 import type { JobLabel } from "@/components/tasks/types";
 import { useState } from "react";
@@ -180,14 +182,14 @@ export default function ReferralsPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center">
-                    Loading…
+                  <TableCell colSpan={8} className="py-2">
+                    <ListSkeleton rows={4} />
                   </TableCell>
                 </TableRow>
               ) : referrals.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                    No referrals yet.
+                  <TableCell colSpan={8}>
+                    <EmptyState title="No referrals yet" description="Referrals are recorded on a job when a customer sends someone your way." />
                   </TableCell>
                 </TableRow>
               ) : (

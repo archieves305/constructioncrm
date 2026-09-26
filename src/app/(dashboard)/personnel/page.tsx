@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
@@ -30,7 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Users } from "lucide-react";
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   W2: "Employee (W-2)",
@@ -168,11 +170,9 @@ export default function PersonnelPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-muted-foreground py-12 text-center">Loading…</div>
+        <ListSkeleton rows={6} />
       ) : people.length === 0 ? (
-        <div className="text-muted-foreground rounded-md border py-12 text-center">
-          No personnel yet. Add crew members to start tracking daily labor.
-        </div>
+        <EmptyState icon={Users} title="No personnel yet" description="Add crew members to start tracking daily labor." />
       ) : (
         <div className="overflow-x-auto rounded-md border">
           <Table>

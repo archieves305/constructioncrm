@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { jobLabel } from "@/lib/labels/job";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -47,7 +48,7 @@ export default function FieldTasksPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-muted-foreground py-12 text-center">Loading…</div>
+        <ListSkeleton rows={4} />
       ) : tasks.length === 0 ? (
         <Card>
           <CardContent className="text-muted-foreground py-12 text-center">

@@ -1,8 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Breadcrumb } from "@/components/shared/breadcrumb";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { use, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ArrowLeft, Eye, EyeOff, FileText, Trash2, Upload } from "lucide-react";
+import { Eye, EyeOff, FileText, Trash2, Upload } from "lucide-react";
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   W2: "Employee (W-2)",
@@ -326,7 +327,7 @@ export default function PersonnelDetailPage({
   });
 
   if (isLoading) {
-    return <div className="text-muted-foreground p-6">Loading…</div>;
+    return <div className="p-6"><ListSkeleton rows={4} /></div>;
   }
   if (!person) {
     return <div className="text-muted-foreground p-6">Person not found.</div>;
@@ -338,12 +339,8 @@ export default function PersonnelDetailPage({
 
   return (
     <div className="space-y-6 p-6">
+      <Breadcrumb items={[{ label: "Field" }, { label: "Personnel", href: "/personnel" }, { label: `${person.firstName} ${person.lastName}` }]} />
       <div className="flex items-center gap-3">
-        <Link href="/personnel">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Personnel
-          </Button>
-        </Link>
         <h1 className="text-2xl font-bold">
           {person.firstName} {person.lastName}
         </h1>

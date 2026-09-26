@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { jobLabel } from "@/lib/labels/job";
 import type { JobLabel } from "@/components/tasks/types";
 import { useMemo, useState } from "react";
@@ -548,13 +550,13 @@ export default function CrewsPage() {
       </Dialog>
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+        <ListSkeleton rows={4} />
       ) : crews.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          {search || filterTrades.length > 0 || filterCounties.length > 0
-            ? "No crews match your filters."
-            : 'No crews yet. Click "Add Crew" to create one.'}
-        </p>
+        <EmptyState
+          icon={Hammer}
+          title={search || filterTrades.length > 0 || filterCounties.length > 0 ? "No crews match" : "No crews yet"}
+          description={search || filterTrades.length > 0 || filterCounties.length > 0 ? "Try clearing the search or a filter." : "Add a crew to assign it to jobs and log its days."}
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {crews.map((crew) => (

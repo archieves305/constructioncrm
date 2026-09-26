@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -215,7 +216,7 @@ export default function LaborReportsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-muted-foreground py-12 text-center">Loading…</div>
+        <ListSkeleton rows={5} />
       ) : data ? (
         <>
           <div className="grid gap-4 md:grid-cols-3">

@@ -181,6 +181,7 @@ export default function FindPropertiesPage() {
       </Link>
 
       <PageHeader
+        breadcrumb={[{ label: "Canvassing", href: "/canvassing" }, { label: "Find Properties" }]}
         title="Find Properties"
         description="Search an area, see properties on the map, and bulk-add as prospects or to a route"
       />

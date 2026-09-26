@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ArrowRight, CheckSquare } from "lucide-react";
@@ -51,9 +53,9 @@ export function MyTasksWidget({ className }: { className?: string }) {
       </CardHeader>
       <CardContent className="space-y-3">
         {isLoading ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+          <ListSkeleton rows={3} />
         ) : total === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Nothing assigned to you. Enjoy it.</p>
+          <EmptyState icon={CheckSquare} title="Nothing assigned to you" description="Enjoy it. New tasks show up here the moment someone assigns one." />
         ) : (
           sections.map((s) => {
             const rows = buckets[s.key];

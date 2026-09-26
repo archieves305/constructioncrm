@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { jobText } from "@/lib/labels/job";
 import type { JobLabel } from "@/components/tasks/types";
 import Link from "next/link";
@@ -160,7 +161,7 @@ export default function FieldLogsListPage({
       </Card>
 
       {isLoading ? (
-        <div className="text-muted-foreground py-12 text-center">Loading…</div>
+        <ListSkeleton rows={4} />
       ) : logs.length === 0 ? (
         <Card>
           <CardContent className="text-muted-foreground py-12 text-center">

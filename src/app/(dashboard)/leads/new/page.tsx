@@ -177,7 +177,7 @@ export default function NewLeadPage() {
       <form onSubmit={handleSubmit((data: CreateLeadInput) => createLead.mutate(data))} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Contact Information</CardTitle>
+            <CardTitle className="text-base">Customer</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {visibleMatches.length > 0 && (

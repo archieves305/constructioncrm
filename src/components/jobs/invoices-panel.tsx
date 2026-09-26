@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Term } from "@/components/shared/term";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -423,7 +424,7 @@ export function InvoicesPanel({
           </div>
           {isProgress && (
             <div>
-              <Label className="text-xs">Retainage %</Label>
+              <Label className="text-xs"><Term k="retainage">Retainage</Term> %</Label>
               {canManage ? (
                 <div className="flex items-center gap-1">
                   <Input

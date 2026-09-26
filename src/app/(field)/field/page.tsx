@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { jobLabel } from "@/lib/labels/job";
 import { useState } from "react";
 import Link from "next/link";
@@ -83,7 +84,7 @@ export default function FieldHomePage() {
       <h1 className="text-xl font-bold">My Jobs</h1>
 
       {isLoading ? (
-        <div className="text-muted-foreground py-12 text-center">Loading…</div>
+        <ListSkeleton rows={3} />
       ) : jobs.length === 0 ? (
         <Card>
           <CardContent className="text-muted-foreground py-12 text-center">

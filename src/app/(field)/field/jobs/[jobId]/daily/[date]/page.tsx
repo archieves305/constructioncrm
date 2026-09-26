@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useMemo, useState } from "react";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import Link from "next/link";
 import { useSession } from "@/lib/auth/session-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -345,7 +346,7 @@ export default function DailyLaborPage({
   const totals = log?.totals;
 
   if (sheet.isLoading) {
-    return <div className="text-muted-foreground p-6 text-center">Loading…</div>;
+    return <div className="p-6"><ListSkeleton rows={5} /></div>;
   }
 
   return (

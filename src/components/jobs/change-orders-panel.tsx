@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Term } from "@/components/shared/term";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth/session-client";
 import { format } from "date-fns";
@@ -615,7 +616,7 @@ export function ChangeOrdersPanel({
               onClick={() => recordDecision.mutate("APPROVE")}
               disabled={recordDecision.isPending}
             >
-              {isProgress ? "Approve & add to SOV" : "Approve & bill"}
+              {isProgress ? <>Approve &amp; add to <Term k="sov" /></> : "Approve & bill"}
             </Button>
           </DialogFooter>
         </DialogContent>

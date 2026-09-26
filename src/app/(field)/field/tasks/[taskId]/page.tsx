@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
 import type { JobLabel, LeadLabel } from "@/components/tasks/types";
 import { formatAddressLine } from "@/lib/labels/address";
 import { jobLabel } from "@/lib/labels/job";
@@ -119,7 +120,7 @@ export default function FieldTaskPage({
   });
 
   if (isLoading) {
-    return <p className="p-6 text-center text-muted-foreground">Loading…</p>;
+    return <div className="p-6"><ListSkeleton rows={3} /></div>;
   }
   if (isError || !task) {
     return (
