@@ -33,9 +33,9 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    2026-09-25 on `main`** as `fa52de5` (core: label module, shared
    selects, JobPicker, tasks / jobs / boards / field) + `3f462e7` (long
    tail, emails, new-job titles) — **not yet deployed**; no migration.
-   Stage 2 (sidebar 41 → 11 entries, Leads/Jobs Table|Board merge with
-   redirects, ⌘K search + recently viewed) is being built on branch
-   `ux-nav`. Stages 3 (job page contact card + Money next-step + panel
+   **Stage 2 (sidebar 41 → 11 entries, Leads/Jobs Table|Board merge with
+   redirects, ⌘K search + recently viewed) built + dev-QA'd 2026-09-25 on
+   branch `ux-nav`** — merge to `main` only after Stage 1 is on prod. Stages 3 (job page contact card + Money next-step + panel
    extraction, lead page tab-in-URL + fail-loud fetches) and 4 (shared
    list toolbar, URL filters, task search, empty/loading/error states,
    breadcrumbs, glossary, mobile columns) follow. Notes:
@@ -789,8 +789,9 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 > `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` (no
 > migration), then click through `/tasks` (chips + Job filter picker),
 > `/jobs`, a job page, the board, `/field`. Stage 2 (sidebar + Table|Board
-> + ⌘K) lives on branch `ux-nav`; merge and deploy it only after Stage 1
-> has been seen on prod. Then Stages 3 and 4 per
+> + ⌘K) is **built and dev-QA'd on branch `ux-nav`**; once Stage 1 is on
+> prod, `git merge ux-nav` from main, push, deploy (no migration), then
+> click the sidebar, `/pipeline` (redirects), the Table|Board toggle and ⌘K. Then Stages 3 and 4 per
 > `~/.claude/plans/spicy-drifting-shore.md`. Nurture operator items
 > (SPF → `NURTURE_ENABLED=1` → admin switch, `NURTURE_MAX_PER_RUN=10`)
 > still stand. Same rules: explicit role lists, tests + typecheck + build

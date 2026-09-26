@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { RecordRecent } from "@/components/shared/record-recent";
 import { formatAddressLine } from "@/lib/labels/address";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -161,6 +162,7 @@ export default function LeadDetailPage() {
 
   return (
     <div>
+      <RecordRecent item={{ type: "lead", id, primary: formatAddressLine(lead) || lead.fullName, secondary: formatAddressLine(lead) ? lead.fullName : null, code: null, href: `/leads/${id}` }} />
       <EntityHeader
         breadcrumb={[{ label: "Leads", href: "/leads" }, { label: lead.fullName }]}
         title={lead.fullName}

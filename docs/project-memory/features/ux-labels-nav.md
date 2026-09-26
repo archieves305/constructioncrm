@@ -84,7 +84,57 @@ table + board + schedule + dashboard + field pages, collections; `curl
 has no permits, change orders or violation cases, so those surfaces are
 covered by typecheck only. 916 tests (+28), lint 6/27, build clean.
 
-## Stages 2–4
+## Stage 2 — sidebar, Table | Board, ⌘K (branch `ux-nav`)
+
+**Sidebar** (`components/layout/sidebar.tsx`, data-only): 11 entries for an
+admin (32 links, was 41 flat) — Dashboard · Leads · Jobs · Tasks ·
+Schedule · Permits · Canvassing · **Code Violations** {Overview, Cases,
+Inspections, Hearings} · **Field** {Field Mode, Daily Logs, Crews,
+Personnel} · **Money** {Collections, Referrals, Reports, Labor Reports,
+Response Times} · **Admin** with sub-headings People / Templates /
+Automation / Canvassing / Finance ("Job Workflow Templates" vs "Violation
+Workflow Templates", "Knock Scoring"). The seven `?view=` links are gone
+(the Cases page has its own queue pills). `NavItem.heading` prints a
+sub-heading inside a group; `NavItem.hint` is a plain-English `title`.
+`navSections` is exported for the palette. A "Search… ⌘K" button sits
+under the logo. A sales rep sees 9 entries.
+
+**Table | Board**: `/pipeline` and `/production` are server pages that
+`redirect()` to `/leads?view=board` and `/jobs?view=board`, forwarding
+every param (`lib/lists/board-redirect.ts`, tested). The board bodies
+moved verbatim to `components/leads/leads-board.tsx` and
+`components/jobs/jobs-board.tsx`; the list pages own the header, a
+`SegmentedControl` (Table / Board) writes `?view`, and the table query is
+gated off while the board shows. Deep links like
+`/jobs/<id>?tab=money&sub=invoices` are untouched.
+
+**⌘K** (`components/layout/command-palette.tsx`, mounted in `AppShell`;
+⌘K / Ctrl+K anywhere outside an input, plus the sidebar button and a
+mobile-header icon): `GET /api/search?q=` (≥ 2 chars, 5 per kind) runs
+`lib/search/query.ts` `buildSearchWheres`, which **reuses the list
+builders** — `buildJobListWhere`, `buildLeadListWhere({includeClosed})`,
+`buildViolationListWhere` — so the rep floor and the case visibility
+filter apply unchanged; prospects use the rule lifted into
+`lib/prospects/access.ts` (also used by the prospects route).
+`lib/search/format.ts` `toSearchHits` labels hits with `jobLabel` /
+`caseLabel` / `formatAddressLine`. Empty palette: "Recently viewed" (last
+8, localStorage `recent:viewed`, written by `<RecordRecent>` on the job,
+lead and case pages) + "Go to" (role-filtered pages). While typing, pages
+still match by name ("hearings"). cmdk's filter is off and the
+highlighted row is **controlled** (first in render order) because rows
+mount after cmdk's own select-first pass — without that, Enter did
+nothing. `/canvassing/prospects` seeds its search box from `?search=`.
+
+Tests: `board-redirect.test.ts`, `search.test.ts` (ADMIN vs SALES_REP
+wheres, hit formatting), `nav-active.test.ts` gains the new tree. Dev QA
+(headless Chromium): admin 32 links / rep 13 links (× 2 sidebars in the
+DOM), `/pipeline?scope=all&assignee=x` → `/leads?scope=all&assignee=x&view=board`,
+toggle flips the URL, Money → Invoices deep link lands, ⌘K "equifirst" →
+2 jobs + 2 leads → Enter opens the job, recents listed, "hearings" jumps,
+rep search for "navarre" returns nothing. 926 tests, lint 6/27, build
+clean.
+
+## Stages 3–4
 
 See the plan file. Stage 2 (sidebar tree of 11 entries, `/leads` +
 `/jobs` with `?view=board`, `/pipeline` + `/production` redirects, ⌘K

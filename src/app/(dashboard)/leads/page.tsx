@@ -35,6 +35,8 @@ import { toCsv, downloadCsv } from "@/lib/csv";
 import { format } from "date-fns";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { useListScope } from "@/components/shared/use-list-scope";
+import { LeadsBoard } from "@/components/leads/leads-board";
+import { KanbanSquare, Table2 } from "lucide-react";
 import { useSearchParamState } from "@/components/shared/use-search-param-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { ListScope } from "@/lib/lists/scope";
@@ -73,6 +75,7 @@ export default function LeadsPage() {
   const queryClient = useQueryClient();
   const { scope, setScope, forced: scopeForced, ready: scopeReady } = useListScope();
   const { get: getUrl, setMany: setUrl } = useSearchParamState();
+  const view: "table" | "board" = getUrl("view") === "board" ? "board" : "table";
   const [search, setSearch] = useState(getUrl("search") ?? "");
   const [stageId, setStageId] = useState(getUrl("stageId") ?? "");
   const [sourceId, setSourceId] = useState(getUrl("sourceId") ?? "");
@@ -102,7 +105,7 @@ export default function LeadsPage() {
     queryKey: ["leads", scope, search, stageId, sourceId, assigneeFilter, includeClosed, page, "withCounts"],
     queryFn: () => fetchJson(`/api/leads?${params.toString()}`),
     retry: retryServerErrors,
-    enabled: scopeReady,
+    enabled: scopeReady && view === "table",
   });
 
   const { data: stages } = useQuery<{ id: string; name: string; stageOrder: number; isClosed?: boolean; isWon?: boolean; isLost?: boolean }[]>({
@@ -228,9 +231,23 @@ export default function LeadsPage() {
     <div>
       <PageHeader
         title="Leads"
-        description={`${data?.total || 0} ${scope === "mine" ? "leads you're on" : "leads"}`}
+        description={
+          view === "board"
+            ? `${scope === "mine" ? "Your leads" : "All open leads"} — drag a lead to move it to the next stage. Won and Lost leave the board.`
+            : `${data?.total || 0} ${scope === "mine" ? "leads you're on" : "leads"}`
+        }
         actions={
           <>
+            <SegmentedControl
+              ariaLabel="View"
+              value={view}
+              onValueChange={(v) => setUrl({ view: v === "board" ? "board" : null })}
+              options={[
+                { value: "table", label: "Table", icon: Table2 },
+                { value: "board", label: "Board", icon: KanbanSquare },
+              ]}
+            />
+            {view === "table" && (
             <Button
               variant="outline"
               onClick={async () => {
@@ -268,6 +285,7 @@ export default function LeadsPage() {
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
+            )}
             <Button onClick={() => router.push("/leads/new")}>
               <Plus className="mr-2 h-4 w-4" />
               New Lead
@@ -276,6 +294,10 @@ export default function LeadsPage() {
         }
       />
 
+      {view === "board" ? (
+        <LeadsBoard />
+      ) : (
+      <>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SegmentedControl<ListScope>
           ariaLabel="Scope"
@@ -645,6 +667,8 @@ export default function LeadsPage() {
           </div>
         </div>
       ) : null}
+      </>
+      )}
     </div>
   );
 }

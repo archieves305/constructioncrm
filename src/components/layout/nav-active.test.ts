@@ -33,3 +33,39 @@ describe("isNavActive", () => {
     expect(on("/violations/abc123")).toEqual([]);
   });
 });
+
+describe("isNavActive on the sidebar tree", () => {
+  const tree: NavMatchItem[] = [
+    { href: "/" },
+    { href: "/leads" },
+    { href: "/jobs" },
+    { href: "/tasks" },
+    { href: "/violations", match: "exact" },
+    { href: "/violations/list" },
+    { href: "/violations/inspections" },
+    { href: "/field" },
+    { href: "/field-logs" },
+    { href: "/reports" },
+    { href: "/reports/labor" },
+    { href: "/admin/workflow-templates" },
+    { href: "/violations/templates" },
+  ];
+  const lit = (pathname: string, search = "") => tree.filter((i) => isNavActive(pathname, new URLSearchParams(search), i, tree)).map((i) => i.href);
+
+  it("the board view lights the same entry as the table", () => {
+    expect(lit("/leads", "view=board&scope=all")).toEqual(["/leads"]);
+    expect(lit("/jobs", "view=board")).toEqual(["/jobs"]);
+  });
+  it("every saved violation view lights Cases now that the views left the sidebar", () => {
+    expect(lit("/violations/list", "view=overdue")).toEqual(["/violations/list"]);
+    expect(lit("/violations/list", "view=mine")).toEqual(["/violations/list"]);
+  });
+  it("neighbouring paths stay distinct", () => {
+    expect(lit("/field-logs")).toEqual(["/field-logs"]);
+    expect(lit("/field/tasks")).toEqual(["/field"]);
+    expect(lit("/reports/labor/payroll")).toEqual(["/reports/labor"]);
+    expect(lit("/violations/templates")).toEqual(["/violations/templates"]);
+    expect(lit("/admin/workflow-templates/abc")).toEqual(["/admin/workflow-templates"]);
+    expect(lit("/jobs/abc", "tab=money")).toEqual(["/jobs"]);
+  });
+});

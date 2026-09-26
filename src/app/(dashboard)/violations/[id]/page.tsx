@@ -1,6 +1,8 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import { RecordRecent } from "@/components/shared/record-recent";
+import { caseLabel } from "@/lib/labels/case";
 import { jobLabel } from "@/lib/labels/job";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -110,6 +112,7 @@ function CaseView({ data, tab, setTab, openItem, onOpenItem }: { data: CaseData;
 
   return (
     <div>
+      <RecordRecent item={{ type: "case", id: data.id, primary: caseLabel(data).primary, secondary: caseLabel(data).secondary, code: data.caseNumber, href: `/violations/${data.id}` }} />
       <EntityHeader
         breadcrumb={[{ label: "Code Violations", href: "/violations" }, { label: "All cases", href: "/violations/list" }, { label: data.caseNumber }]}
         title={
