@@ -27,6 +27,19 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+00000. 🔴 **Friendlier CRM: address-first labels + calmer navigation** —
+   four stages, plan approved 2026-09-25
+   (`~/.claude/plans/spicy-drifting-shore.md`). **Stage 1 built + dev-QA'd
+   2026-09-25 on `main`** as `fa52de5` (core: label module, shared
+   selects, JobPicker, tasks / jobs / boards / field) + `3f462e7` (long
+   tail, emails, new-job titles) — **not yet deployed**; no migration.
+   Stage 2 (sidebar 41 → 11 entries, Leads/Jobs Table|Board merge with
+   redirects, ⌘K search + recently viewed) is being built on branch
+   `ux-nav`. Stages 3 (job page contact card + Money next-step + panel
+   extraction, lead page tab-in-URL + fail-loud fetches) and 4 (shared
+   list toolbar, URL filters, task search, empty/loading/error states,
+   breadcrumbs, glossary, mobile columns) follow. Notes:
+   [features/ux-labels-nav.md](docs/project-memory/features/ux-labels-nav.md).
 0000. 🔴 **Quieter boards, "my jobs" by default, follow-up + nurture
    cadence** — two stages, plan approved 2026-09-25
    (`~/.claude/plans/when-a-lead-is-sprightly-scone.md`). **Stage 1
@@ -122,6 +135,24 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-25 — Address-first labels (UX Stage 1 of 4; built, dev-QA'd, on `main`, not deployed)
+
+Richard: task items say "JOB-00009" where users know the address; make the
+whole UI friendlier. Plan-mode (3 explore + 2 design agents); decisions:
+address first with customer under it and the number as a small mono hint,
+address in customer-facing mail too, merge Leads/Pipeline and
+Jobs/Production with a Table|Board toggle, order labels → nav + ⌘K → job
+page → polish. Prod check (read-only): 18 jobs / 32 leads / 508 tasks,
+every job has a street, 2 customers own >1 job. Built `src/lib/labels/*`
+(`formatAddressLine`, `jobLabel`/`jobText`, `caseLabel`, `subjectLabel`,
+`JOB_LABEL_SELECT`), `EntityLabel`/`JobRef`, a server-searched `JobPicker`
+on `ui/command.tsx`, job search over the lead's street/city/company/zip/
+phone, and swapped ~40 surfaces + 10 email/string sites; new jobs are
+titled "<trade> — <address>". Found and fixed: field task detail read a
+lead field that was never selected. Commits `fa52de5` + `3f462e7`. 916
+tests (+28), lint 6/27, build clean; headless-Chromium QA on dev.
+Details: [features/ux-labels-nav.md](docs/project-memory/features/ux-labels-nav.md).
 
 ### 2026-09-25 — Nurture + "my jobs" deployed (`6b42725`)
 
@@ -753,14 +784,14 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 ## 10. Next Prompt
 
-> "My jobs" by default + customer nurture are **deployed** (`6b42725`,
-> build `Rh7FTDIQPnuwxPK6C8LD2`); prod is seeded and the nurture cron is
-> installed but sending is off. Operator items (Richard): SPF for
-> `knuconstruction.com`, then `NURTURE_ENABLED=1` in `/etc/knuco/env` +
-> `systemctl restart knuco`, then the switch under Admin → Customer
-> Nurture, with `NURTURE_MAX_PER_RUN=10` for the first live day; read the
-> 8 nurture drafts in the Library tab first. Click-throughs: Mine/All on
-> the boards and lists, `/settings/lists`, the lead card, "Preview
-> today's run". Code Violations Stage 4 belongs to the sibling session.
-> Same rules: explicit role lists, tests + typecheck + build green, lint
-> ≤ 6/28, deploy with `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
+> UX Stage 1 (address-first labels, `fa52de5` + `3f462e7`) is on `main`,
+> tests/lint/build green, **not deployed**. Richard: `git push`, then
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` (no
+> migration), then click through `/tasks` (chips + Job filter picker),
+> `/jobs`, a job page, the board, `/field`. Stage 2 (sidebar + Table|Board
+> + ⌘K) lives on branch `ux-nav`; merge and deploy it only after Stage 1
+> has been seen on prod. Then Stages 3 and 4 per
+> `~/.claude/plans/spicy-drifting-shore.md`. Nurture operator items
+> (SPF → `NURTURE_ENABLED=1` → admin switch, `NURTURE_MAX_PER_RUN=10`)
+> still stand. Same rules: explicit role lists, tests + typecheck + build
+> green, lint ≤ 6/28, deploy with `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
