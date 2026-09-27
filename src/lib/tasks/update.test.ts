@@ -135,6 +135,7 @@ describe("updateTask", () => {
       taskId: "t1",
       actorUserId: "u-jo",
       reassigned: true,
+      batch: null,
     });
   });
 

@@ -2,31 +2,34 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { notifyTaskAssigned } from "@/lib/tasks/notify";
 import { runAfterResponse } from "@/lib/tasks/defer";
+import type { NotifyBatch } from "@/lib/notifications/notify";
 
 /**
  * Tell assignees their workflow steps just became Ready.
  *
- * Reuses the assignment mail — "this is now your work" is exactly the
- * message — and is gated by WORKFLOW_READY_EMAILS_ENABLED (default off for
- * the first week, like escalations were) because the morning digest already
- * lists every ready step with a date.
+ * Every step in one engine run (an apply, a completion's activation sweep,
+ * a reconcile) shares a batch key, so the digest says "5 steps became
+ * ready on 12 Elm St" instead of listing five mails' worth of lines. The
+ * legacy per-step mail stays behind WORKFLOW_READY_EMAILS_ENABLED (default
+ * off) and only runs while notifications v2 is not delivering.
  */
 export function isReadyEmailEnabled(): boolean {
   return env.WORKFLOW_READY_EMAILS_ENABLED === "1";
 }
 
-export function notifyTasksReady(taskIds: string[], actorUserId: string | null): void {
-  if (taskIds.length === 0 || !isReadyEmailEnabled()) return;
+export function notifyTasksReady(taskIds: string[], actorUserId: string | null, batchKey: string): void {
+  if (taskIds.length === 0) return;
+  const batch: NotifyBatch = { key: batchKey, size: taskIds.length };
   runAfterResponse(
     async () => {
       for (const taskId of taskIds) {
         try {
-          await notifyTaskAssigned({ taskId, actorUserId });
+          await notifyTaskAssigned({ taskId, actorUserId, batch, readyStep: true });
         } catch (err) {
           logger.exception(err, { where: "workflows.notifyTasksReady", taskId });
         }
       }
     },
-    { where: "workflows.notifyTasksReady", count: taskIds.length },
+    { where: "workflows.notifyTasksReady", count: taskIds.length, batchKey },
   );
 }

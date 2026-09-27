@@ -49,7 +49,7 @@ describe("createTask", () => {
       expect.objectContaining({ type: "ASSIGNED", toValue: "u-frank" }),
     ]);
     expect(db.task.create.mock.calls[0][0].data.assignedAt).toBeInstanceOf(Date);
-    expect(notifyTaskAssigned).toHaveBeenCalledWith({ taskId: "t1", actorUserId: "u-creator" });
+    expect(notifyTaskAssigned).toHaveBeenCalledWith({ taskId: "t1", actorUserId: "u-creator", batch: null });
   });
 
   it("records only CREATED and sends nothing when unassigned", async () => {
@@ -62,7 +62,7 @@ describe("createTask", () => {
 
   it("lets the actor be the system so a self-created lead still notifies", async () => {
     await createTask({ ...base, assignedUserId: "u-creator" }, { actorUserId: null });
-    expect(notifyTaskAssigned).toHaveBeenCalledWith({ taskId: "t1", actorUserId: null });
+    expect(notifyTaskAssigned).toHaveBeenCalledWith({ taskId: "t1", actorUserId: null, batch: null });
     expect(db.taskEvent.createMany.mock.calls[0][0].data[0].actorUserId).toBeNull();
   });
 

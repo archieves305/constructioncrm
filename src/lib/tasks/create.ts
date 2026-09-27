@@ -9,6 +9,7 @@ import type {
 import { TASK_LIST_INCLUDE, type TaskListRow } from "./include";
 import { notifyTaskAssigned } from "./notify";
 import { runAfterResponse } from "./defer";
+import type { NotifyBatch } from "@/lib/notifications/notify";
 
 /**
  * The one way a task comes into existence.
@@ -98,6 +99,12 @@ export type CreateTaskOptions = {
   actorUserId?: string | null;
   /** "after" defers mail past the response; "inline" awaits it; "none" skips. */
   notify?: "after" | "inline" | "none";
+  /**
+   * Notifications v2: the engine run this task was born in (a stage
+   * template spawn, a workflow apply), so the digest collapses the batch
+   * into one line. `size` is the number of tasks in the run.
+   */
+  notifyBatch?: NotifyBatch | null;
   /** Write a TASK_CREATED row to the lead's activity feed. Default true. */
   logLeadActivity?: boolean;
 };
@@ -265,7 +272,7 @@ export async function createTask(
   }
 
   if (assignedUserId && notify !== "none") {
-    const send = () => notifyTaskAssigned({ taskId: task.id, actorUserId });
+    const send = () => notifyTaskAssigned({ taskId: task.id, actorUserId, batch: opts.notifyBatch ?? null });
     if (notify === "inline") await send();
     else runAfterResponse(send, { where: "createTask", taskId: task.id });
   }

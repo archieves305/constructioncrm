@@ -158,4 +158,27 @@ describe("resolveRecipients channels", () => {
     });
     expect(recipients[0]?.reason).toBe("manager");
   });
+
+  it("includeMuted keeps muted and address-less people with the block noted, but still drops inactive ones", async () => {
+    findMany.mockResolvedValue([
+      user({ id: "muted", taskEmailsEnabled: false }),
+      user({ id: "noemail", email: "" }),
+      user({ id: "gone", isActive: false }),
+      { ...user({ id: "v2" }), notificationEmailMode: "IMMEDIATE", mutedCategories: ["REMINDERS"], digestWindows: ["08:00"] },
+    ]);
+    const { recipients, skipped } = await resolveRecipients({
+      candidates: ["muted", "noemail", "gone", "v2"].map((userId) => ({ userId, reason: "assignee" as const })),
+      includeMuted: true,
+    });
+    expect(recipients.map((r) => [r.userId, r.emailAllowed, r.emailBlock])).toEqual([
+      ["muted", true, "muted"],
+      ["noemail", false, "no-email"],
+      ["v2", true, null],
+    ]);
+    expect(skipped).toEqual([{ userId: "gone", reason: "inactive" }]);
+    const v2 = recipients.find((r) => r.userId === "v2")!;
+    expect(v2).toMatchObject({ emailMode: "IMMEDIATE", mutedCategories: ["REMINDERS"], digestWindows: ["08:00"] });
+    // Legacy rows without the v2 columns get the defaults.
+    expect(recipients[0]).toMatchObject({ emailMode: "DIGEST", mutedCategories: [], digestWindows: [] });
+  });
 });

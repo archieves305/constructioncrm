@@ -19,7 +19,7 @@ const { db, storage, render, pricing, autoTasks, tasks, email, audit, deferred }
   pricing: { recomputeJobBalance: vi.fn() },
   autoTasks: { closeAutoTask: vi.fn(), ensureAutoTask: vi.fn(), onEstimateTransition: vi.fn(), sourceKeyFor: vi.fn((s: { contractId: string }) => `customer-contract:SENT:${s.contractId}`) },
   tasks: { createTask: vi.fn() },
-  email: { sendContractEmail: vi.fn(), sendContractSignedCustomerEmail: vi.fn(), sendContractOutcomeInternalEmail: vi.fn(), signUrlFor: vi.fn((t: string) => `https://crm.test/sign/${t}`) },
+  email: { sendContractEmail: vi.fn(), sendContractSignedCustomerEmail: vi.fn(), notifyContractOutcome: vi.fn(), signUrlFor: vi.fn((t: string) => `https://crm.test/sign/${t}`) },
   audit: { recordAudit: vi.fn() },
 }));
 
@@ -128,7 +128,7 @@ describe("signContract", () => {
     expect(autoTasks.closeAutoTask).toHaveBeenCalledWith("customer-contract:SENT:c1", expect.objectContaining({ outcome: "COMPLETED" }));
     expect(autoTasks.onEstimateTransition).toHaveBeenCalledWith("e1", "SENT", "ACCEPTED", "u1");
     expect(email.sendContractSignedCustomerEmail).toHaveBeenCalled();
-    expect(email.sendContractOutcomeInternalEmail).toHaveBeenCalledWith(expect.anything(), "signed", ["rep@knu.test"], expect.anything());
+    expect(email.notifyContractOutcome).toHaveBeenCalledWith(expect.anything(), "signed", expect.objectContaining({ emails: ["rep@knu.test"] }), expect.anything());
     expect(tasks.createTask).not.toHaveBeenCalled();
   });
 
@@ -183,7 +183,7 @@ describe("declineContract", () => {
     expect(r).toEqual({ ok: true });
     expect(db.customerContract.updateMany.mock.calls[0][0]).toMatchObject({ where: { id: "c1", status: "SENT" }, data: { status: "DECLINED", declineReason: "Too expensive", token: null } });
     expect(autoTasks.closeAutoTask).toHaveBeenCalledWith("customer-contract:SENT:c1", expect.objectContaining({ outcome: "CANCELLED" }));
-    expect(email.sendContractOutcomeInternalEmail).toHaveBeenCalledWith(expect.anything(), "declined", ["rep@knu.test"]);
+    expect(email.notifyContractOutcome).toHaveBeenCalledWith(expect.anything(), "declined", expect.objectContaining({ emails: ["rep@knu.test"] }));
   });
 
   it("reports a decided contract", async () => {

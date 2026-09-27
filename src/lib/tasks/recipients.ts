@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import type { RoleName } from "@/generated/prisma/client";
+import type { NotificationCategory, NotificationEmailMode, RoleName } from "@/generated/prisma/client";
 
 /**
  * Who gets a task email, and — just as importantly — who deliberately does not.
@@ -16,7 +16,9 @@ export type RecipientReason =
   | "watcher"
   | "mentioned"
   | "manager" // escalation: ADMIN/MANAGER pulled in at the second threshold
-  | "reminder-setter"; // custom reminder: whoever asked for it, if not the assignee
+  | "reminder-setter" // custom reminder: whoever asked for it, if not the assignee
+  | "owner" // the job's PM or the case manager, told about engine work on their subject
+  | "actor"; // the person who did it — a bell receipt, never mail
 
 /**
  * Which per-user switch a mail is subject to. "task" is the master switch
@@ -32,6 +34,18 @@ export type TaskRecipient = {
   lastName: string;
   role: RoleName;
   reason: RecipientReason;
+  /**
+   * Notifications v2 delivery facts. `emailAllowed` is "has an address";
+   * what to do with it is the person's `emailMode` + muted categories.
+   * `emailBlock` is the legacy switch that would have stopped this mail,
+   * for the log. Always populated; only `includeMuted` callers see rows
+   * where `emailAllowed` is false.
+   */
+  emailAllowed: boolean;
+  emailBlock: SkipReason | null;
+  emailMode: NotificationEmailMode;
+  mutedCategories: NotificationCategory[];
+  digestWindows: string[];
 };
 
 export type SkipReason =
@@ -56,9 +70,11 @@ const REASON_RANK: Record<RecipientReason, number> = {
   assignee: 4,
   assignor: 3,
   manager: 3,
+  owner: 3,
   mentioned: 2,
   "reminder-setter": 2,
   watcher: 1,
+  actor: 0,
 };
 
 const CHANNEL_FIELD = {
@@ -80,6 +96,12 @@ export async function resolveRecipients(input: {
   candidates: Candidate[];
   suppressUserId?: string | null;
   channel?: NotifyChannel;
+  /**
+   * Notifications v2: return people the legacy switches would have muted
+   * (with `emailAllowed: false`) instead of dropping them, so the bell row
+   * still exists. Inactive users and the actor are skipped either way.
+   */
+  includeMuted?: boolean;
 }): Promise<{ recipients: TaskRecipient[]; skipped: SkippedRecipient[] }> {
   const skipped: SkippedRecipient[] = [];
   const channel = input.channel ?? "task";
@@ -115,6 +137,9 @@ export async function resolveRecipients(input: {
       escalationEmailsEnabled: true,
       reminderDigestEnabled: true,
       nudgeEmailsEnabled: true,
+      notificationEmailMode: true,
+      mutedCategories: true,
+      digestWindows: true,
       role: { select: { name: true } },
     },
   });
@@ -125,25 +150,30 @@ export async function resolveRecipients(input: {
       skipped.push({ userId: u.id, reason: "inactive" });
       continue;
     }
-    if (!u.email?.trim()) {
-      skipped.push({ userId: u.id, reason: "no-email" });
-      continue;
-    }
-    if (!u.taskEmailsEnabled) {
-      skipped.push({ userId: u.id, reason: "muted" });
-      continue;
-    }
-    if (channel !== "task" && !u[CHANNEL_FIELD[channel]]) {
-      skipped.push({ userId: u.id, reason: "channel-muted" });
+    const hasEmail = Boolean(u.email?.trim());
+    const block: SkipReason | null = !hasEmail
+      ? "no-email"
+      : !u.taskEmailsEnabled
+        ? "muted"
+        : channel !== "task" && !u[CHANNEL_FIELD[channel]]
+          ? "channel-muted"
+          : null;
+    if (block && !input.includeMuted) {
+      skipped.push({ userId: u.id, reason: block });
       continue;
     }
     recipients.push({
       userId: u.id,
-      email: u.email,
+      email: u.email ?? "",
       firstName: u.firstName,
       lastName: u.lastName,
       role: u.role.name,
       reason: best.get(u.id)!,
+      emailAllowed: hasEmail,
+      emailBlock: block,
+      emailMode: u.notificationEmailMode ?? "DIGEST",
+      mutedCategories: u.mutedCategories ?? [],
+      digestWindows: u.digestWindows ?? [],
     });
   }
 

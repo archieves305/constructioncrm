@@ -90,8 +90,12 @@ export async function loadRoleContext(
 /**
  * After a team, PM or case-manager change: give every open, unassigned
  * workflow task whose role now resolves to someone an owner. Through
- * `updateTask`, so the assignee gets the mail and the timeline shows who was
- * put on it.
+ * `updateTask`, so the timeline shows who was put on it.
+ *
+ * Only steps that are already active notify — a step still waiting on its
+ * predecessors tells its owner when it becomes Ready, like any other step.
+ * The active ones share one batch key so a PM set after apply gets "12
+ * steps assigned to you on 12 Elm St", not twelve mails.
  */
 export async function reassignUnresolved(instanceId: string, actorUserId: string): Promise<number> {
   const ctx = await loadRoleContext(prisma, { instanceId });
@@ -102,14 +106,23 @@ export async function reassignUnresolved(instanceId: string, actorUserId: string
       workflowRole: { not: null },
       status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] },
     },
-    select: { id: true, workflowRole: true },
+    select: { id: true, workflowRole: true, activatedAt: true },
   });
+  const resolved = open
+    .map((t) => ({ ...t, userId: resolveAssignee(t.workflowRole!, ctx) }))
+    .filter((t): t is typeof t & { userId: string } => Boolean(t.userId));
+  const activeCount = resolved.filter((t) => t.activatedAt).length;
+  const batch = { key: `wf-reassign:${instanceId}:${Date.now()}`, size: activeCount };
   let n = 0;
-  for (const t of open) {
-    const userId = resolveAssignee(t.workflowRole!, ctx);
-    if (!userId) continue;
+  for (const t of resolved) {
     try {
-      await updateTask({ id: t.id, input: { assignedUserId: userId }, actorUserId, notify: "after" });
+      await updateTask({
+        id: t.id,
+        input: { assignedUserId: t.userId },
+        actorUserId,
+        notify: t.activatedAt ? "after" : "none",
+        notifyBatch: batch,
+      });
       n++;
     } catch (err) {
       logger.exception(err, { where: "workflows.reassignUnresolved", taskId: t.id });

@@ -156,6 +156,7 @@ export async function onTaskClosed(input: { taskId: string; actorUserId: string 
   notifyTasksReady(
     [...toActivate.filter((t) => activated.includes(t.id) && t.assignedUserId).map((t) => t.id), ...reopened],
     input.actorUserId,
+    `wf-activate:${input.taskId}`,
   );
   await maybeCompleteInstance(task.workflowInstanceId);
   return { activated: [...activated, ...reopened] };
@@ -175,7 +176,11 @@ export async function sweepActivation(instanceId: string, actorUserId: string | 
   });
   const ready = waiting.filter((t) => isReady(t.dependencies.map((d) => ({ kind: d.kind, status: d.dependsOn.status }))));
   const activated = await activateTasks(prisma, ready, { reason: "dependencies", actorUserId, ctx, now });
-  notifyTasksReady(ready.filter((t) => activated.includes(t.id) && t.assignedUserId).map((t) => t.id), actorUserId);
+  notifyTasksReady(
+    ready.filter((t) => activated.includes(t.id) && t.assignedUserId).map((t) => t.id),
+    actorUserId,
+    `wf-sweep:${instanceId}:${now.getTime()}`,
+  );
   return activated;
 }
 

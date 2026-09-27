@@ -3,6 +3,7 @@ import { TwilioSmsProvider } from "./twilio-provider";
 import { createTrackedLinks } from "@/lib/services/tracking/tracked-links";
 import { env } from "@/lib/env";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
+import { notify } from "@/lib/notifications/notify";
 
 const twilio = new TwilioSmsProvider();
 
@@ -15,6 +16,18 @@ export async function sendLeadAlertSms(leadId: string, userId: string) {
     },
   });
   if (!lead) throw new Error("Lead not found");
+
+  // The bell row (notifications v2) exists whether or not the SMS goes out.
+  await notify({
+    kind: "lead.new",
+    candidates: [{ userId, reason: "assignee" }],
+    actorUserId: null,
+    subject: { type: "lead", id: leadId, leadId },
+    title: `New lead: ${lead.fullName}`,
+    body: `${lead.city || "—"} · ${lead.services.map((s) => s.serviceCategory.name).join(", ") || "General"}`,
+    href: `/leads/${leadId}`,
+    forceClass: "IN_APP_ONLY",
+  });
 
   // Get manager's alert settings or phone
   const alertSettings = await prisma.managerAlertSettings.findUnique({ where: { userId } });

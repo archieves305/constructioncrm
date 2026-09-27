@@ -395,6 +395,14 @@ model User {
   // pinned to their own rows server-side whatever this says.
   defaultListScope        ListScope    @default(MINE) @map("default_list_scope")
   boardDensity            BoardDensity @default(COMFORTABLE) @map("board_density")
+  // Notifications v2 (see docs/project-memory/features/notifications.md).
+  // DIGEST is the default for everyone; IMMEDIATE is the legacy one-mail-
+  // per-event behaviour as an explicit opt-in; IN_APP_ONLY keeps the bell.
+  notificationEmailMode   NotificationEmailMode  @default(DIGEST) @map("notification_email_mode")
+  // Which of the admin digest windows this person wants ("HH:MM"); empty = all.
+  digestWindows           String[]               @default([]) @map("digest_windows")
+  // Categories that never email this person (they still reach the bell).
+  mutedCategories         NotificationCategory[] @default([]) @map("muted_categories")
 
   role Role @relation(fields: [roleId], references: [id])
 
@@ -420,6 +428,8 @@ model User {
   inspections                       Inspection[]
   passwordResetTokens               PasswordResetToken[]
   notifications                     NotificationEvent[]
+  notificationRows                  Notification[]            @relation("NotificationRecipient")
+  notificationDigests               NotificationDigest[]      @relation("NotificationDigestRecipient")
   expensesCreated                   JobExpense[]
   expensesApproved                  JobExpense[]              @relation("ExpenseApprovedBy")
   expenseReconciliations            ExpenseReconciliation[]   @relation("ExpenseReconciledBy")
@@ -613,6 +623,7 @@ model Lead {
   customerContracts CustomerContract[]
   nurtureState      LeadNurtureState?
   nurtureSends      LeadNurtureSend[]
+  notificationRows  Notification[]
 
   @@index([primaryPhone])
   @@index([email])
@@ -781,6 +792,7 @@ model Task {
   dependencies     TaskDependency[]     @relation("TaskDependencyTask")
   dependents       TaskDependency[]     @relation("TaskDependencyOn")
   files            File[]
+  notificationRows Notification[]
 
   @@unique([workflowInstanceId, workflowTaskKey])
   @@index([workflowInstanceId, workflowPhaseKey])
@@ -841,6 +853,7 @@ enum TaskEventType {
   WATCHER_REMOVED
   EMAIL_SENT
   EMAIL_FAILED
+  NOTIFIED // notifications v2: toValue = recipient user id, body = "<kind> → <delivery class>"
   NUDGED // toValue = assignee id, body = optional message
   ESCALATED // fromValue = old level, toValue = new level, body = recipients
   REMINDER_SET // toValue = ISO remindAt, or null when cleared
@@ -1286,6 +1299,7 @@ model Job {
   workflow           JobWorkflowInstance?
   violationCases     CodeViolationCase[]
   customerContracts  CustomerContract[]
+  notificationRows   Notification[]
 
   @@index([leadId])
   @@index([currentStageId])
@@ -3605,6 +3619,7 @@ model CodeViolationCase {
   tasks          Task[]
   files          File[]
   communications Communication[]
+  notificationRows Notification[]
 
   @@index([leadId])
   @@index([jobId])
@@ -3985,6 +4000,176 @@ model NurtureSettings {
   updatedAt                DateTime @updatedAt @map("updated_at")
 
   @@map("nurture_settings")
+}
+
+// ─── Notifications v2 ───────────────────────────────────────────────────────
+// One row per recipient per event. The row IS the in-app notification; email
+// is a delivery decision made on top of it (immediate, folded into a digest,
+// or not at all). See docs/project-memory/features/notifications.md.
+
+/// Coarse category a person can mute. `kind` (a string validated by the
+/// registry in src/lib/notifications/kinds.ts) is the fine-grained event.
+enum NotificationCategory {
+  TASKS
+  MENTIONS
+  REMINDERS
+  ESCALATIONS
+  VIOLATIONS
+  JOB_ACTIVITY
+}
+
+enum NotificationEmailMode {
+  DIGEST
+  IMMEDIATE
+  IN_APP_ONLY
+}
+
+enum DeliveryClass {
+  IMMEDIATE
+  DIGEST
+  IN_APP_ONLY
+  NONE
+}
+
+enum NotificationState {
+  PENDING
+  CLAIMED
+  SENT
+  SUPPRESSED
+  FAILED
+}
+
+enum DigestStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SKIPPED_EMPTY
+  SKIPPED_MUTED
+}
+
+model Notification {
+  id                 String                @id @default(cuid())
+  recipientUserId    String                @map("recipient_user_id")
+  actorUserId        String?               @map("actor_user_id")
+  kind               String
+  category           NotificationCategory
+  // assignee | assignor | watcher | mentioned | manager | owner | actor | reminder-setter
+  recipientReason    String                @map("recipient_reason")
+  // The fine subject: task, job, lead, violation_case, violation_item,
+  // case_inspection, case_hearing, daily_log, contract, none.
+  subjectType        String                @map("subject_type")
+  subjectId          String?               @map("subject_id")
+  taskId             String?               @map("task_id")
+  jobId              String?               @map("job_id")
+  leadId             String?               @map("lead_id")
+  violationCaseId    String?               @map("violation_case_id")
+  title              String
+  body               String?               @db.Text
+  // Office path (no host). Role-specific links are resolved at render time.
+  href               String
+  priority           Priority              @default(MEDIUM)
+  actionRequired     Boolean               @default(false) @map("action_required")
+  // {blocking, emergency, severity, dueAt, taskPriority, inspectionResult, ...}
+  signals            Json?
+  // Rows born from one engine run (an apply, an activation sweep, a role
+  // back-fill) share a key so the digest can collapse them to one line.
+  batchKey           String?               @map("batch_key")
+  dedupeKey          String                @map("dedupe_key")
+  occurrences        Int                   @default(1)
+  lastOccurredAt     DateTime              @default(now()) @map("last_occurred_at")
+  deliveryClass      DeliveryClass         @map("delivery_class")
+  classifyReason     String                @map("classify_reason")
+  demotedFrom        DeliveryClass?        @map("demoted_from")
+  demotedReason      String?               @map("demoted_reason")
+  // "YYYY-MM-DD:HH:MM" in the company time zone; DIGEST rows only.
+  scheduledWindowKey String?               @map("scheduled_window_key")
+  state              NotificationState     @default(PENDING)
+  digestId           String?               @map("digest_id")
+  attempts           Int                   @default(0)
+  lastError          String?               @map("last_error")
+  emailedAt          DateTime?             @map("emailed_at")
+  providerMessageId  String?               @map("provider_message_id")
+  readAt             DateTime?             @map("read_at")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+
+  recipient     User                @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  task          Task?               @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  job           Job?                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  lead          Lead?               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  violationCase CodeViolationCase?  @relation(fields: [violationCaseId], references: [id], onDelete: Cascade)
+  digest        NotificationDigest? @relation(fields: [digestId], references: [id], onDelete: SetNull)
+
+  @@unique([recipientUserId, dedupeKey])
+  @@index([recipientUserId, createdAt])
+  @@index([recipientUserId, readAt])
+  @@index([state, scheduledWindowKey])
+  @@index([digestId])
+  @@index([batchKey])
+  @@index([createdAt])
+  @@index([taskId])
+  @@index([jobId])
+  @@index([leadId])
+  @@index([violationCaseId])
+  @@map("notifications")
+}
+
+/// The idempotency ledger for digest mail: one row per person per window.
+model NotificationDigest {
+  id                String       @id @default(cuid())
+  recipientUserId   String       @map("recipient_user_id")
+  windowKey         String       @map("window_key")
+  scheduledFor      DateTime     @map("scheduled_for")
+  status            DigestStatus @default(PENDING)
+  attempts          Int          @default(0)
+  lastError         String?      @map("last_error")
+  sentAt            DateTime?    @map("sent_at")
+  providerMessageId String?      @map("provider_message_id")
+  subject           String?
+  itemCount         Int          @default(0) @map("item_count")
+  collapsedCount    Int          @default(0) @map("collapsed_count")
+  hiddenCount       Int          @default(0) @map("hidden_count")
+  suppressedCount   Int          @default(0) @map("suppressed_count")
+  sectionCounts     Json?        @map("section_counts")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  recipient User           @relation("NotificationDigestRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  rows      Notification[]
+
+  @@unique([recipientUserId, windowKey])
+  @@index([status, scheduledFor])
+  @@index([recipientUserId, createdAt])
+  @@map("notification_digests")
+}
+
+/// Company-wide notification delivery settings (singleton, id "default").
+model NotificationSettings {
+  id                         String   @id @default("default")
+  // Operator switch; env NOTIFICATIONS_V2 is the deploy gate. Env on + this
+  // off = shadow mode (rows recorded, legacy mail unchanged).
+  enabled                    Boolean  @default(false)
+  timeZone                   String   @default("America/New_York") @map("time_zone")
+  digestWindows              String[] @default(["08:00", "12:00", "15:30", "18:00"]) @map("digest_windows")
+  weekdaysOnly               Boolean  @default(true) @map("weekdays_only")
+  catchUpGraceMinutes        Int      @default(90) @map("catch_up_grace_minutes")
+  // Admin overrides on the registry defaults, by kind.
+  immediateKinds             String[] @default([]) @map("immediate_kinds")
+  digestOnlyKinds            String[] @default([]) @map("digest_only_kinds")
+  maxImmediatePerUserPerHour Int      @default(6) @map("max_immediate_per_user_per_hour")
+  batchCollapseThreshold     Int      @default(3) @map("batch_collapse_threshold")
+  stormThresholdPer10Min     Int      @default(40) @map("storm_threshold_per_10_min")
+  digestMaxPerSection        Int      @default(12) @map("digest_max_per_section")
+  digestMaxPerSubject        Int      @default(6) @map("digest_max_per_subject")
+  retentionDays              Int      @default(90) @map("retention_days")
+  // Local date key of the last morning-producer run (overdue / due today /
+  // reminders / deadlines), so the tick runs them once per day.
+  lastMorningProducedOn      String?  @map("last_morning_produced_on")
+  updatedByUserId            String?  @map("updated_by_user_id")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
+
+  @@map("notification_settings")
 }
 
 model NurtureContent {

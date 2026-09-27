@@ -456,7 +456,7 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
       taskCount: out.taskCount,
     },
   });
-  notifyTasksReady(out.activated, input.actor.id);
+  notifyTasksReady(out.activated, input.actor.id, `wf-apply:${out.instanceId}:${Date.now()}`);
 
   return {
     instanceId: out.instanceId,

@@ -12,6 +12,7 @@ import { buildUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { TwilioSmsProvider } from "@/lib/services/notifications/twilio-provider";
 import { env } from "@/lib/env";
 import { logOutboundCommunication } from "@/lib/communications/log";
+import { notify } from "@/lib/notifications/notify";
 
 const ISO_DATE = (d: Date | null | undefined) =>
   d ? d.toISOString().slice(0, 10) : "";
@@ -211,10 +212,11 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
             externalMessageId: emailResult?.id ?? null,
           });
         } else if (template.channel === "IN_APP") {
+          const recipientUserId = exec.lead.assignedUserId || exec.lead.createdByUserId;
           await prisma.notificationEvent.create({
             data: {
               leadId: exec.leadId,
-              recipientUserId: exec.lead.assignedUserId || exec.lead.createdByUserId,
+              recipientUserId,
               channel: "IN_APP",
               provider: "internal",
               recipientAddress: "in-app",
@@ -222,6 +224,17 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
               status: "SENT",
               sentAt: new Date(),
             },
+          });
+          // The bell reads notifications v2; the row above stays as the rule's send log.
+          await notify({
+            kind: "lead.follow_up",
+            candidates: [{ userId: recipientUserId, reason: "assignee" }],
+            actorUserId: null,
+            subject: { type: "lead", id: exec.leadId, leadId: exec.leadId },
+            title: `Follow-up: ${exec.lead.fullName}`,
+            body: body.slice(0, 200),
+            href: `/leads/${exec.leadId}`,
+            forceClass: "IN_APP_ONLY",
           });
         }
       }

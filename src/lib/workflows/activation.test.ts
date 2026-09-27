@@ -70,7 +70,7 @@ describe("onTaskClosed", () => {
     expect(upd.data.dueAt.getHours()).toBe(17);
     const events = db.taskEvent.createMany.mock.calls[0][0].data.map((e: { type: string; toValue: string | null }) => [e.type, e.toValue]);
     expect(events).toEqual([["ACTIVATED", "dependencies"], ["DUE_CHANGED", upd.data.dueAt.toISOString()]]);
-    expect(notifyTasksReady).toHaveBeenCalledWith(["b"], "u-me");
+    expect(notifyTasksReady).toHaveBeenCalledWith(["b"], "u-me", "wf-activate:a");
   });
 
   it("leaves a dependent waiting when another blocking predecessor is still open", async () => {

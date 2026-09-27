@@ -8,6 +8,7 @@ import { escapeHtml } from "@/lib/email/escape";
 import { renderEmailLayout } from "@/lib/email/layout";
 import { sendEmail } from "@/lib/email/send";
 import { logger } from "@/lib/logger";
+import { notify } from "@/lib/notifications/notify";
 import { formatMoney } from "./merge";
 import type { CustomerContractSnapshot } from "./types";
 
@@ -118,13 +119,11 @@ Contract price: ${formatMoney(snap.price.total)}. The deposit of ${formatMoney(s
 }
 
 /** Heads-up to the office: signed or declined. */
-export async function sendContractOutcomeInternalEmail(
+/** The internal signed / declined notice, rendered once for every recipient. */
+export async function renderContractOutcomeEmail(
   c: ContractForEmail,
   outcome: "signed" | "declined",
-  to: string[],
-  signedPdf?: Buffer | null,
-): Promise<boolean> {
-  if (to.length === 0) return false;
+): Promise<{ headline: string; summary: string; html: string; text: string }> {
   const brand = await getEmailBrand();
   const snap = c.snapshot as CustomerContractSnapshot;
   const jobUrl = `${appBaseUrl()}/jobs/${c.jobId}?tab=money&sub=contract`;
@@ -134,8 +133,47 @@ export async function sendContractOutcomeInternalEmail(
       ? `<p>${escapeHtml(c.job.lead.fullName)} signed the agreement for <strong>${escapeHtml(jobText(c.job))}</strong> (${escapeHtml(formatMoney(snap.price.total))})${c.signedAt ? ` on ${escapeHtml(longDate(c.signedAt))}` : ""}. The job's contract amount and deposit are set from it.</p>`
       : `<p>${escapeHtml(c.job.lead.fullName)} declined the agreement for <strong>${escapeHtml(jobText(c.job))}</strong>.</p>${c.declineReason ? `<blockquote style="margin:12px 0;padding:10px 14px;border-left:3px solid #ef4444;background:#fef2f2">${escapeHtml(c.declineReason)}</blockquote>` : "<p><em>No reason given.</em></p>"}`;
   const bodyHtml = `<p><strong>${escapeHtml(headline)}</strong></p>${detail}${button(jobUrl, "Open job", brand.primaryColor)}`;
-  const bodyText = `${headline}\n\n${outcome === "signed" ? `${c.job.lead.fullName} signed ${jobText(c.job)} (${formatMoney(snap.price.total)}).` : `${c.job.lead.fullName} declined ${jobText(c.job)}.${c.declineReason ? `\nReason: ${c.declineReason}` : ""}`}\n\nOpen job: ${jobUrl}`;
+  const summary = outcome === "signed" ? `${c.job.lead.fullName} signed ${jobText(c.job)} (${formatMoney(snap.price.total)}).` : `${c.job.lead.fullName} declined ${jobText(c.job)}.${c.declineReason ? `\nReason: ${c.declineReason}` : ""}`;
+  const bodyText = `${headline}\n\n${summary}\n\nOpen job: ${jobUrl}`;
   const { html, text } = renderEmailLayout({ bodyHtml, bodyText, brand });
+  return { headline, summary, html, text };
+}
+
+/**
+ * Notifications v2 producer: the contract's sender and creator hear the
+ * outcome (an IMMEDIATE kind — money moved). Falls back to the legacy mail
+ * to the same people while v2 is not delivering.
+ */
+export async function notifyContractOutcome(
+  c: ContractForEmail & { leadId?: string | null },
+  outcome: "signed" | "declined",
+  to: { userIds: (string | null | undefined)[]; emails: string[] },
+  signedPdf?: Buffer | null,
+): Promise<void> {
+  const rendered = await renderContractOutcomeEmail(c, outcome);
+  const attachments = signedPdf ? [{ filename: `${c.contractNumber}-signed.pdf`, contentBase64: signedPdf.toString("base64") }] : undefined;
+  const v2 = await notify({
+    kind: "contract.outcome",
+    candidates: to.userIds.filter((id): id is string => Boolean(id)).map((userId) => ({ userId, reason: "assignor" as const })),
+    actorUserId: null,
+    subject: { type: "contract", id: c.id, jobId: c.jobId, leadId: c.leadId ?? null },
+    title: rendered.headline,
+    body: rendered.summary.split("\n")[0] ?? null,
+    href: `/jobs/${c.jobId}?tab=money&sub=contract`,
+    immediateRender: () => ({ subject: rendered.headline, html: rendered.html, text: rendered.text, attachments }),
+  });
+  if (!v2.legacy) return;
+  await sendContractOutcomeInternalEmail(c, outcome, to.emails, signedPdf);
+}
+
+export async function sendContractOutcomeInternalEmail(
+  c: ContractForEmail,
+  outcome: "signed" | "declined",
+  to: string[],
+  signedPdf?: Buffer | null,
+): Promise<boolean> {
+  if (to.length === 0) return false;
+  const { headline, html, text } = await renderContractOutcomeEmail(c, outcome);
   try {
     const result = await sendEmail({
       to,

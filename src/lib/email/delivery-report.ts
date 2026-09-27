@@ -48,6 +48,30 @@ export type DeliveryReport = {
 let reportingInProgress = false;
 
 /** Ops recipient: explicit env var, else the first active ADMIN. */
+/**
+ * A plain ops mail on the branded shell to OPS_ALERT_EMAIL (else the oldest
+ * active ADMIN). Never throws. Used for alarms that are not delivery
+ * failures — a notification storm, for one — so they share the recipient
+ * rule without going through the failure report.
+ */
+export async function sendOpsEmail(input: { subject: string; bodyHtml: string; bodyText: string }): Promise<boolean> {
+  try {
+    if (!isEmailConfigured()) return false;
+    const to = await resolveOpsRecipient();
+    if (!to) {
+      logger.warn("no ops alert recipient — set OPS_ALERT_EMAIL or keep an active ADMIN", { subject: input.subject });
+      return false;
+    }
+    const brand = await getEmailBrand();
+    const rendered = renderEmailLayout({ bodyHtml: input.bodyHtml, bodyText: input.bodyText, brand });
+    const result = await sendEmail({ to, subject: input.subject, html: rendered.html, text: rendered.text });
+    return result != null;
+  } catch (err) {
+    logger.exception(err, { where: "sendOpsEmail", subject: input.subject });
+    return false;
+  }
+}
+
 async function resolveOpsRecipient(): Promise<string | null> {
   if (env.OPS_ALERT_EMAIL) return env.OPS_ALERT_EMAIL;
   const admin = await prisma.user.findFirst({

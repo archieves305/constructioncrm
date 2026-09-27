@@ -10,7 +10,7 @@ export async function POST(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const result = await prisma.notificationEvent.updateMany({
+  const result = await prisma.notification.updateMany({
     where: { id, recipientUserId: session.user.id, readAt: null },
     data: { readAt: new Date() },
   });

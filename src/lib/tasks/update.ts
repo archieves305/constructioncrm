@@ -6,6 +6,7 @@ import { diffTask, recordTaskEvent, recordTaskEvents, type TaskSnapshot } from "
 import { TASK_DETAIL_INCLUDE, type TaskDetailRow } from "./include";
 import { notifyTaskAssigned, notifyTaskBlocked, notifyTaskCompleted } from "./notify";
 import { runAfterResponse } from "./defer";
+import type { NotifyBatch } from "@/lib/notifications/notify";
 import { parseDueAt } from "./dates";
 import { onTaskTransition } from "./transitions";
 import { checkEvidence, mergeChecklist, readChecklist } from "@/lib/workflows/evidence";
@@ -52,6 +53,8 @@ export type UpdateTaskArgs = {
   /** Return false to refuse. Receives the row as it is before the change. */
   authorize?: (existing: TaskOwnership) => boolean;
   notify?: "after" | "inline" | "none";
+  /** Notifications v2: the engine run this change is part of (a role back-fill), for digest collapse. */
+  notifyBatch?: NotifyBatch | null;
   /**
    * Engine-only: the workflow completing a step whose requirement it has
    * itself just satisfied (deciding the permit status IS the evidence for
@@ -332,6 +335,7 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
           taskId: id,
           actorUserId,
           reassigned: existing.assignedUserId !== null,
+          batch: args.notifyBatch ?? null,
         });
       }
     };

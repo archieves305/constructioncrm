@@ -76,6 +76,11 @@ const schema = z.object({
   // Off by default for the SPF reason above. MAX_PER_RUN is the throttle.
   NURTURE_ENABLED: z.string().default("0"),
   NURTURE_MAX_PER_RUN: z.string().regex(/^\d+$/).default("50"),
+  // Notifications v2 (src/lib/notifications). "1" records a Notification row
+  // for every staff-facing event (the bell reads them); delivery — digests +
+  // immediate mail — only moves over when NotificationSettings.enabled is
+  // on too. Env on, DB off = shadow mode: legacy mail unchanged.
+  NOTIFICATIONS_V2: z.string().default("0"),
 
   // Bearer token cc-allocator's worker presents on integration calls.
   // Optional at server-start so the app boots without it; the integration

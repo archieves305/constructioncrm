@@ -27,6 +27,21 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+000000. 🔴 **Notification digests: record → classify → deliver** — four
+   stages, plan approved 2026-09-27
+   (`~/.claude/plans/quirky-pondering-mccarthy.md`). **Stage 1 (schema
+   `20261006120000_notifications`, `src/lib/notifications/*` service layer,
+   every internal producer rewired through `notify()` with the legacy mail
+   as fallback, bell + `/notifications` on the new table, tick route with
+   `?dryRun=1`, preference mirroring) built + dev-QA'd 2026-09-27 on the
+   `notifications` branch** (worktree; a sibling session held the main
+   checkout). Not yet merged or deployed. Gates: env `NOTIFICATIONS_V2=1`
+   records rows (shadow — legacy mail unchanged); the DB switch
+   `NotificationSettings.enabled` hands delivery to v2 and **must stay off
+   on prod until Stage 2 ships the digest sender**. Stage 2 = digest
+   build/render/send + morning producers folded + crontab; Stage 3 =
+   settings + admin pages; Stage 4 = polish + legacy removal. Notes:
+   [features/notifications.md](docs/project-memory/features/notifications.md).
 00000. ✅ **Friendlier CRM: address-first labels + calmer navigation** —
    four stages, plan approved 2026-09-25
    (`~/.claude/plans/spicy-drifting-shore.md`). **Stage 1 built + dev-QA'd
@@ -149,6 +164,33 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-27 — Notifications v2, Stage 1: record + shadow (built, dev-QA'd, branch `notifications`)
+
+Richard: workflows now generate too many individual emails; consolidate
+routine activity into ~4 digests a business day without losing urgent
+mail. Plan-mode (3 explore + 2 design agents); the prod volume query was
+refused by the auto-mode classifier, so the diagnosis is from the code:
+step completions mailed assignee + applier (creator of every step) +
+watchers with the actor included, `onTaskClosed` mailed each newly Ready
+dependent, `reassignUnresolved` mailed once per step incl. inactive ones,
+nothing grouped, no bell rows for tasks. A sibling session was editing the
+main checkout (calendar columns in the dev DB), so Stage 1 was built in
+`.claude/worktrees/notifications`. Built: `Notification` /
+`NotificationDigest` / `NotificationSettings` + three `User` preference
+columns (backfilled from the legacy booleans) + `TaskEventType.NOTIFIED`;
+`kinds.ts` registry (string kinds), pure `classify()` (forced → NONE →
+actor receipt → admin overrides → default + upgrade → user mode / muted
+category → batch / cap / storm), `notify()` (upsert on the dedupe key,
+`legacy: true` on any failure), DST-safe `windows.ts`, `storm.ts` +
+`sendOpsEmail`, `deliverImmediate`, tick route (retry + dry run); producers:
+tasks (completion drops the applier of engine tasks, adds the PM / case
+manager as `owner`, actor = bell receipt), workflow Ready with batch keys,
+`reassignUnresolved` split active/inactive, stage templates, violations,
+contract outcome, follow-up / new-lead bell rows; bell + `/notifications`
++ API on the new table; `PATCH /api/me/preferences` mirrors the legacy
+switches. 989 tests (+57), lint 6/22, typecheck + build clean.
+Details: [features/notifications.md](docs/project-memory/features/notifications.md).
 
 ### 2026-09-25 — UX Stage 4 deployed (`f95b425`); the four-stage plan is on prod
 
@@ -737,6 +779,8 @@ ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd 
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-nurture.ts"'
 # Nurture dry run on prod (plans, writes nothing; works with the gates off)
 ssh knuco-droplet 'set -a; . /etc/knuco/env; set +a; curl -s -X POST -H "x-cron-secret: $CRON_SECRET" "http://127.0.0.1:4000/api/cron/nurture?dryRun=1"'
+# Notifications tick, dry run (per-person pending digest rows + due window; sends nothing)
+ssh knuco-droplet 'set -a; . /etc/knuco/env; set +a; curl -s -X POST -H "x-cron-secret: $CRON_SECRET" "http://127.0.0.1:4000/api/cron/notifications?dryRun=1"'
 ```
 
 Prod one-offs: run as user `knuco` on knuco-droplet with `/etc/knuco/env`
@@ -773,7 +817,10 @@ an assignee when a workflow step becomes Ready; default off, the digest
 covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`,
 `NURTURE_ENABLED` (default `0`; `1` after SPF — the DB switch under
 Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
-`50`; `10` on the first live day).
+`50`; `10` on the first live day), `NOTIFICATIONS_V2` (default `0`; `1`
+records a `Notification` row per staff-facing event and lights the bell —
+shadow mode, legacy mail unchanged; delivery only moves to v2 when
+`NotificationSettings.enabled` is on too, which waits for Stage 2).
 
 ## 9. Important Product / Business Rules
 
@@ -841,16 +888,20 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 ## 10. Next Prompt
 
-> The four-stage UX plan (address-first labels; sidebar + Table|Board + ⌘K;
-> job/lead page; polish) is **fully on prod** as of `f95b425` (build
-> `rNiggElI_oVOOMlbDSI2q`). Richard's click-through: `/tasks` (chips,
-> Job filter picker, search under Filters, filters survive reload),
-> `/jobs` + a job page (Customer card, Money next-step), the boards,
-> ⌘K, `/permits`, `/nope`, a phone-width `/jobs`. Anything he dislikes
-> is a follow-up on `main`. Nurture operator items (SPF →
-> `NURTURE_ENABLED=1` → admin switch, `NURTURE_MAX_PER_RUN=10`) and Code
-> Violations Stage 4 (dashboard breakdowns + reports) still stand. Known
-> pre-existing: `/api/permits?status=<bad>` 500s; a hydration warning on
-> `/tasks` from the header pills. Same rules: explicit role lists, tests +
+> Notifications v2 Stage 1 is built and dev-QA'd on the `notifications`
+> branch (worktree `.claude/worktrees/notifications`), not merged. Next:
+> Richard merges to `main` from the main checkout (regenerate the Prisma
+> client there first), deploys (`migrate deploy` applies
+> `20261006120000_notifications`), then sets `NOTIFICATIONS_V2=1` in
+> `/etc/knuco/env` + restart → shadow mode; check the bell and
+> `curl … /api/cron/notifications?dryRun=1`. **Leave
+> `NotificationSettings.enabled` off until Stage 2.** Then build Stage 2 on
+> the same plan (`~/.claude/plans/quirky-pondering-mccarthy.md` §I–§K):
+> `digest/{build,agenda,render}`, the claim transaction + `NotificationDigest`
+> ledger, permission re-check, morning producers folded into the first
+> window, `email/components.ts`, `notifications.sh` + `*/10` crontab line,
+> retire `WORKFLOW_READY_EMAILS_ENABLED`, and the admin Delivery tab so the
+> switch can be flipped from the UI. Nurture operator items and Code
+> Violations Stage 4 still stand. Same rules: explicit role lists, tests +
 > typecheck + build green, lint ≤ 6/28, deploy with
 > `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.

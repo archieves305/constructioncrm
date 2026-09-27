@@ -3,7 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
-import { preferencesSchema } from "@/lib/validators/preferences";
+import { mirrorLegacyPrefs, preferencesSchema } from "@/lib/validators/preferences";
 
 /**
  * Per-user preferences: notification switches plus what the lists and
@@ -62,6 +62,13 @@ export async function PATCH(request: NextRequest) {
   if (d.nudgeEmailsEnabled !== undefined) data.nudgeEmailsEnabled = d.nudgeEmailsEnabled;
   if (d.defaultListScope !== undefined) data.defaultListScope = d.defaultListScope;
   if (d.boardDensity !== undefined) data.boardDensity = d.boardDensity;
+
+  // Mirror the legacy switches onto the notifications-v2 preferences until
+  // the settings page writes those directly (Stage 3), so a mute set here
+  // holds under either delivery path.
+  const mirror = mirrorLegacyPrefs(d, await prisma.user.findUnique({ where: { id: session.user.id }, select: { notificationEmailMode: true, mutedCategories: true } }));
+  if (mirror.notificationEmailMode) data.notificationEmailMode = mirror.notificationEmailMode;
+  if (mirror.mutedCategories) data.mutedCategories = mirror.mutedCategories;
 
   const updated = await prisma.user.update({
     where: { id: session.user.id },

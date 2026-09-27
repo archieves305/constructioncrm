@@ -6,6 +6,9 @@ import { getEmailBrand } from "@/lib/email/brand";
 import { reportDelivery, type DeliveryFailure } from "@/lib/email/delivery-report";
 import { isEmailConfigured, sendEmail } from "@/lib/email/send";
 import { resolveRecipients, type Candidate, type TaskRecipient } from "@/lib/tasks/recipients";
+import { notify } from "@/lib/notifications/notify";
+import type { NotificationKind, Signals } from "@/lib/notifications/kinds";
+import { paths } from "@/lib/notifications/links";
 import { renderCaseNoticeEmail, type RenderedEmail } from "./email";
 
 /**
@@ -15,13 +18,15 @@ import { renderCaseNoticeEmail, type RenderedEmail } from "./email";
  * agency's confirmation, closure. Best-effort and never throws: the write
  * has already committed, and a mail outage must not turn it into a 500.
  *
- * Every send also drops an in-app bell row (`NotificationEvent`, lead-scoped
- * — a case always has a lead) so the notification exists even for someone
- * who has task mail muted.
+ * Notifications v2: each event goes through `notify()`, which creates the
+ * bell row and decides immediate / digest / in-app from the case's
+ * signals (emergency, severity, how close the deadline is). While v2 is
+ * not delivering, the legacy path below runs unchanged, including its
+ * lead-scoped `NotificationEvent` bell row.
  */
 
 const CASE_SELECT = {
-  id: true, caseNumber: true, title: true, leadId: true, jurisdiction: true, caseManagerId: true, createdByUserId: true, currentDeadline: true, agencyConfirmedAt: true, agencyConfirmedByName: true, officialComplianceDate: true, closedAt: true, closureOverrideReason: true,
+  id: true, caseNumber: true, title: true, leadId: true, jobId: true, jurisdiction: true, caseManagerId: true, createdByUserId: true, currentDeadline: true, agencyConfirmedAt: true, agencyConfirmedByName: true, officialComplianceDate: true, closedAt: true, closureOverrideReason: true, emergency: true, severity: true,
   lead: { select: { propertyAddress1: true, city: true } },
   job: { select: { jobNumber: true, projectManagerId: true } },
   caseManager: { select: { firstName: true, lastName: true } },
@@ -47,7 +52,18 @@ async function actorName(actorUserId: string | null): Promise<string> {
   return u ? `${u.firstName} ${u.lastName}`.trim() : "Someone";
 }
 
-/** The bell row. One per recipient; the body carries the case number so it is findable. */
+const DAY = 86_400_000;
+
+function caseSignals(c: CaseRow, extra: Partial<Signals> = {}): Signals {
+  return {
+    emergency: c.emergency,
+    severity: c.severity,
+    deadlineDays: c.currentDeadline ? Math.floor((c.currentDeadline.getTime() - Date.now()) / DAY) : null,
+    ...extra,
+  };
+}
+
+/** The legacy bell row. One per recipient; the body carries the case number so it is findable. */
 export async function recordCaseBell(input: { leadId: string; recipientUserId: string; recipientAddress: string; body: string }): Promise<void> {
   try {
     await prisma.notificationEvent.create({
@@ -58,10 +74,34 @@ export async function recordCaseBell(input: { leadId: string; recipientUserId: s
   }
 }
 
-async function dispatch(input: { kind: string; caseId: string; leadId: string; candidates: Candidate[]; actorUserId: string | null; bellBody: string; render: (r: TaskRecipient) => RenderedEmail }): Promise<{ sent: number; failed: number }> {
+async function dispatch(input: {
+  kind: NotificationKind;
+  legacyKind: string;
+  c: CaseRow;
+  candidates: Candidate[];
+  actorUserId: string | null;
+  title: string;
+  bellBody: string;
+  href: string;
+  signals?: Signals;
+  render: (r: TaskRecipient) => RenderedEmail;
+}): Promise<{ sent: number; failed: number }> {
+  const v2 = await notify({
+    kind: input.kind,
+    candidates: input.candidates,
+    actorUserId: input.actorUserId,
+    subject: { type: "violation_case", id: input.c.id, violationCaseId: input.c.id, leadId: input.c.leadId, jobId: input.c.jobId },
+    title: input.title,
+    body: input.bellBody,
+    href: input.href,
+    signals: input.signals ?? caseSignals(input.c),
+    immediateRender: (r) => input.render(r),
+  });
+  if (!v2.legacy) return { sent: v2.rows.length, failed: 0 };
+
   const { recipients } = await resolveRecipients({ candidates: input.candidates, suppressUserId: input.actorUserId, channel: "task" });
   if (recipients.length === 0) return { sent: 0, failed: 0 };
-  for (const r of recipients) await recordCaseBell({ leadId: input.leadId, recipientUserId: r.userId, recipientAddress: r.email, body: input.bellBody });
+  for (const r of recipients) await recordCaseBell({ leadId: input.c.leadId, recipientUserId: r.userId, recipientAddress: r.email, body: input.bellBody });
   if (!isEmailConfigured()) return { sent: 0, failed: 0 };
   let sent = 0;
   const failures: DeliveryFailure[] = [];
@@ -73,10 +113,10 @@ async function dispatch(input: { kind: string; caseId: string; leadId: string; c
       else failures.push({ recipient: r.email, reason: "email provider not configured" });
     } catch (err) {
       failures.push({ recipient: r.email, reason: err instanceof Error ? err.message : "unknown send error" });
-      logger.exception(err, { where: `violations.notify.${input.kind}`, to: r.email });
+      logger.exception(err, { where: `violations.notify.${input.legacyKind}`, to: r.email });
     }
   }
-  await reportDelivery({ source: `violations.${input.kind}`, attempted: recipients.length, sent, failures, context: { caseId: input.caseId } });
+  await reportDelivery({ source: `violations.${input.legacyKind}`, attempted: recipients.length, sent, failures, context: { caseId: input.c.id } });
   return { sent, failed: failures.length };
 }
 
@@ -94,9 +134,11 @@ export function notifyCaseAssigned(caseId: string, newManagerId: string, actorUs
     const brand = await getEmailBrand();
     const by = await actorName(actorUserId);
     await dispatch({
-      kind: "case_assigned", caseId, leadId: c.leadId, actorUserId,
+      kind: "case.assigned", legacyKind: "case_assigned", c, actorUserId,
       candidates: [{ userId: newManagerId, reason: "assignee" }],
-      bellBody: `${c.caseNumber} assigned to you — ${c.title}`,
+      title: `${c.caseNumber} · ${c.title}`,
+      bellBody: `Case assigned to you by ${by} · ${property(c)}`,
+      href: paths.violationCase(c.id),
       render: (r) =>
         renderCaseNoticeEmail({
           recipientFirstName: r.firstName, brand, eyebrow: "Code violation", title: "A case was assigned to you",
@@ -116,9 +158,11 @@ export function notifyItemAssigned(caseId: string, itemId: string, assigneeId: s
     const brand = await getEmailBrand();
     const by = await actorName(actorUserId);
     await dispatch({
-      kind: "item_assigned", caseId, leadId: c.leadId, actorUserId,
+      kind: "case.item_assigned", legacyKind: "item_assigned", c, actorUserId,
       candidates: [{ userId: assigneeId, reason: "assignee" }],
-      bellBody: `${c.caseNumber} · Item ${item.itemNumber} assigned to you — ${item.description.slice(0, 80)}`,
+      title: `${c.caseNumber} · Item ${item.itemNumber}: ${item.description.slice(0, 80)}`,
+      bellBody: `Item assigned to you by ${by} · ${property(c)}`,
+      href: `${paths.violationCase(c.id, "items")}&item=${itemId}`,
       render: (r) =>
         renderCaseNoticeEmail({
           recipientFirstName: r.firstName, brand, eyebrow: "Code violation item", title: `Item ${item.itemNumber} on ${c.caseNumber} is yours`,
@@ -140,9 +184,12 @@ export function notifyInspectionScheduled(caseId: string, inspectionId: string, 
     if (!attendee) return;
     const brand = await getEmailBrand();
     await dispatch({
-      kind: "inspection_scheduled", caseId, leadId: c.leadId, actorUserId,
+      kind: "case.inspection_scheduled", legacyKind: "inspection_scheduled", c, actorUserId,
       candidates: [{ userId: attendee, reason: "assignee" }],
-      bellBody: `${c.caseNumber} — agency ${i.kind.toLowerCase()} ${format(at, "EEE MMM d · h:mm a")}`,
+      title: `${c.caseNumber} · Agency ${i.kind.toLowerCase()} ${format(at, "EEE MMM d · h:mm a")}`,
+      bellBody: `${i.attendeeUserId === attendee ? "You are down to attend" : "No attendee set — you are the case manager"} · ${property(c)}`,
+      href: paths.violationCase(c.id, "inspections"),
+      signals: caseSignals(c, { scheduledFor: at.toISOString() }),
       render: (r) =>
         renderCaseNoticeEmail({
           recipientFirstName: r.firstName, brand, eyebrow: "Agency inspection", title: `Agency ${i.kind.toLowerCase()} scheduled on ${c.caseNumber}`,
@@ -161,9 +208,11 @@ export function notifyAgencyConfirmation(caseId: string, actorUserId: string | n
     if (!c) return;
     const brand = await getEmailBrand();
     await dispatch({
-      kind: "agency_confirmed", caseId, leadId: c.leadId, actorUserId,
-      candidates: [{ userId: c.caseManagerId, reason: "assignee" }, { userId: c.job?.projectManagerId, reason: "watcher" }, { userId: c.createdByUserId, reason: "assignor" }],
-      bellBody: `${c.caseNumber} — the agency confirmed compliance`,
+      kind: "case.agency_confirmed", legacyKind: "agency_confirmed", c, actorUserId,
+      candidates: [{ userId: c.caseManagerId, reason: "assignee" }, { userId: c.job?.projectManagerId, reason: "owner" }, { userId: c.createdByUserId, reason: "assignor" }],
+      title: `${c.caseNumber} · ${c.title}`,
+      bellBody: `The agency confirmed compliance · ${property(c)}`,
+      href: paths.violationCase(c.id),
       render: (r) =>
         renderCaseNoticeEmail({
           recipientFirstName: r.firstName, brand, eyebrow: "Compliance confirmed", title: `${c.caseNumber} is in compliance`,
@@ -182,9 +231,11 @@ export function notifyCaseClosed(caseId: string, actorUserId: string | null): Pr
     const brand = await getEmailBrand();
     const by = await actorName(actorUserId);
     await dispatch({
-      kind: "case_closed", caseId, leadId: c.leadId, actorUserId,
-      candidates: [{ userId: c.caseManagerId, reason: "assignee" }, { userId: c.job?.projectManagerId, reason: "watcher" }, { userId: c.createdByUserId, reason: "assignor" }],
-      bellBody: `${c.caseNumber} closed${c.closureOverrideReason ? " (with override)" : ""}`,
+      kind: "case.closed", legacyKind: "case_closed", c, actorUserId,
+      candidates: [{ userId: c.caseManagerId, reason: "assignee" }, { userId: c.job?.projectManagerId, reason: "owner" }, { userId: c.createdByUserId, reason: "assignor" }],
+      title: `${c.caseNumber} · ${c.title}`,
+      bellBody: `Closed by ${by}${c.closureOverrideReason ? " (with override)" : ""} · ${property(c)}`,
+      href: paths.violationCase(c.id),
       render: (r) =>
         renderCaseNoticeEmail({
           recipientFirstName: r.firstName, brand, eyebrow: "Case closed", title: `${c.caseNumber} was closed`,

@@ -14,7 +14,7 @@ import { recomputeJobBalance } from "@/lib/services/job-pricing";
 import { closeAutoTask, ensureAutoTask, onEstimateTransition, sourceKeyFor } from "@/lib/tasks/auto-tasks";
 import { createTask } from "@/lib/tasks/create";
 import { runAfterResponse } from "@/lib/tasks/defer";
-import { sendContractEmail, sendContractOutcomeInternalEmail, sendContractSignedCustomerEmail, signUrlFor } from "./email";
+import { notifyContractOutcome, sendContractEmail, sendContractSignedCustomerEmail, signUrlFor } from "./email";
 import { onContractSent } from "@/lib/nurture/hooks";
 import {
   ContractError,
@@ -309,7 +309,7 @@ export async function signContract(token: string, input: SignInput, meta: SignMe
         logger.exception(err, { where: "contracts.sign.customerEmail", contractId: c.id });
       }
     }
-    await sendContractOutcomeInternalEmail(fresh, "signed", [...new Set(notifyTo)], signedPdf);
+    await notifyContractOutcome(fresh, "signed", { userIds: [c.sentBy?.id, c.createdByUserId], emails: [...new Set(notifyTo)] }, signedPdf);
   }, { where: "contracts.sign.after", contractId: c.id });
 
   return { ok: true, contractId: c.id, contractNumber: c.contractNumber, signedAt: now };
@@ -334,7 +334,7 @@ export async function declineContract(token: string, input: { name: string; reas
   runAfterResponse(async () => {
     await closeAutoTask(sourceKeyFor({ kind: "contract.sent", contractId: c.id }), { actorUserId: null, outcome: "CANCELLED", because: `declined by ${name}` });
     const fresh = await getContract(c.id);
-    if (fresh) await sendContractOutcomeInternalEmail(fresh, "declined", [...new Set(notifyTo)]);
+    if (fresh) await notifyContractOutcome(fresh, "declined", { userIds: [c.sentBy?.id, c.createdByUserId], emails: [...new Set(notifyTo)] });
   }, { where: "contracts.decline.after", contractId: c.id });
   return { ok: true };
 }

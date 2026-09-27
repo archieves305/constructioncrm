@@ -188,6 +188,9 @@ async function spawnTasksFromTemplates(
   if (!job) return;
 
   const now = Date.now();
+  // One batch per stage change, so the digest says "4 tasks created for
+  // Production" instead of four lines.
+  const notifyBatch = { key: `stage:${jobId}:${stageId}:${now}`, size: templates.length };
   for (const t of templates) {
     const assignee =
       t.defaultAssignedUserId || job.projectManagerId || job.salesRepId || null;
@@ -211,7 +214,7 @@ async function spawnTasksFromTemplates(
         dueAt,
         source: "stage_template",
       },
-      { actorUserId: userId, logLeadActivity: false },
+      { actorUserId: userId, logLeadActivity: false, notifyBatch },
     );
   }
 }
