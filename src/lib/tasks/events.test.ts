@@ -93,3 +93,39 @@ describe("diffTask", () => {
     ]);
   });
 });
+
+describe("diffTask — calendar window", () => {
+  const win = (over: Partial<TaskSnapshot> = {}): TaskSnapshot =>
+    snap({ dueAt: new Date("2026-09-29T15:30:00.000Z"), scheduledStart: new Date("2026-09-29T13:00:00.000Z"), allDay: false, ...over });
+
+  it("records SCHEDULE_CHANGED when the start moves, alongside no DUE_CHANGED", () => {
+    const events = diffTask(win(), win({ scheduledStart: new Date("2026-09-29T14:00:00.000Z") }));
+    expect(events.map((e) => e.type)).toEqual(["SCHEDULE_CHANGED"]);
+    expect(JSON.parse(events[0].toValue!)).toEqual({
+      start: "2026-09-29T14:00:00.000Z",
+      end: "2026-09-29T15:30:00.000Z",
+      allDay: false,
+    });
+  });
+
+  it("records SCHEDULE_CHANGED when the all-day flag flips", () => {
+    const events = diffTask(
+      snap({ dueAt: new Date("2026-09-28T12:00:00.000Z"), scheduledStart: null, allDay: true }),
+      win({ dueAt: new Date("2026-09-28T14:00:00.000Z"), scheduledStart: new Date("2026-09-28T13:00:00.000Z") }),
+    );
+    expect(events.map((e) => e.type)).toEqual(["DUE_CHANGED", "SCHEDULE_CHANGED"]);
+  });
+
+  it("a plain day move of an all-day task is DUE_CHANGED only", () => {
+    const events = diffTask(
+      snap({ dueAt: new Date("2026-09-28T12:00:00.000Z"), scheduledStart: null, allDay: true }),
+      snap({ dueAt: new Date("2026-09-30T12:00:00.000Z"), scheduledStart: null, allDay: true }),
+    );
+    expect(events.map((e) => e.type)).toEqual(["DUE_CHANGED"]);
+  });
+
+  it("says nothing about the window when a caller does not know it", () => {
+    const events = diffTask(snap({ dueAt: new Date("2026-09-28T12:00:00.000Z") }), snap({ dueAt: new Date("2026-09-30T12:00:00.000Z") }));
+    expect(events.map((e) => e.type)).toEqual(["DUE_CHANGED"]);
+  });
+});

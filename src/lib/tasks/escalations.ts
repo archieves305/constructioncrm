@@ -1,4 +1,4 @@
-import { startOfDay } from "date-fns";
+import { startOfDayIn, todayKey } from "@/lib/time/zone";
 import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { jobTextWithCustomer } from "@/lib/labels/job";
 import { prisma } from "@/lib/db/prisma";
@@ -94,7 +94,8 @@ export async function runEscalations(now: Date = new Date()): Promise<Escalation
 
   const thresholds = parseThresholds(env.TASK_ESCALATION_DAYS);
   if (thresholds.length === 0) return zero;
-  const today = startOfDay(now);
+  // The office's midnight, not the server's (the droplet runs UTC).
+  const today = startOfDayIn(todayKey(now));
 
   const tasks = await prisma.task.findMany({
     where: {

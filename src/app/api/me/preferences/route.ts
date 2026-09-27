@@ -6,8 +6,8 @@ import { validateBody } from "@/lib/validation/body";
 import { preferencesSchema } from "@/lib/validators/preferences";
 
 /**
- * Per-user preferences: notification switches plus what the lists and
- * boards open on.
+ * Per-user preferences: notification switches plus what the lists, boards
+ * and the calendar open on.
  *
  * Task mail is internal work assignment rather than marketing, so it carries
  * no unsubscribe link — but it still needs a way off, or the first noisy week
@@ -22,6 +22,7 @@ const PREF_SELECT = {
   nudgeEmailsEnabled: true,
   defaultListScope: true,
   boardDensity: true,
+  defaultCalendarView: true,
 } as const;
 
 export async function GET() {
@@ -41,6 +42,7 @@ export async function GET() {
       nudgeEmailsEnabled: user?.nudgeEmailsEnabled ?? true,
       defaultListScope: user?.defaultListScope ?? "MINE",
       boardDensity: user?.boardDensity ?? "COMFORTABLE",
+      defaultCalendarView: user?.defaultCalendarView ?? "WEEK",
     },
     { headers: { "Cache-Control": "no-store" } },
   );
@@ -62,6 +64,7 @@ export async function PATCH(request: NextRequest) {
   if (d.nudgeEmailsEnabled !== undefined) data.nudgeEmailsEnabled = d.nudgeEmailsEnabled;
   if (d.defaultListScope !== undefined) data.defaultListScope = d.defaultListScope;
   if (d.boardDensity !== undefined) data.boardDensity = d.boardDensity;
+  if (d.defaultCalendarView !== undefined) data.defaultCalendarView = d.defaultCalendarView;
 
   const updated = await prisma.user.update({
     where: { id: session.user.id },

@@ -27,6 +27,25 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+000000. 🔴 **Operations Calendar / My Work** — four phases, plan approved
+   2026-09-27 (`~/.claude/plans/woolly-swinging-mist.md`). **Phase 1
+   (Foundation) built + dev-QA'd 2026-09-27 on `calendar-foundation`**:
+   one date axis (`dueAt` = the day and, for timed tasks, the end instant;
+   new `Task.scheduledStart` + `allDay`, migration
+   `20261006120000_task_scheduling` with a CHECK), pure `applySchedule`
+   inside `updateTask`/POST, `SCHEDULE_CHANGED` event, `APP_TIME_ZONE`
+   (`src/lib/time/zone.ts`) fixing the digest / escalation / card-date
+   boundaries, one `overdueWhere` rule (**dashboard Overdue tile stops
+   counting items due today**), `GET /api/calendar` + `/unscheduled`,
+   `/calendar` (Week / Day / Month, Viewing selector, filters, phone
+   agenda + day strip, bottom sheet), `ScheduleSection` + assignee +
+   Directions/Call in the task sheet, time row in the task dialog,
+   `User.defaultCalendarView`. `/schedule` redirects; its unguarded PUT
+   route is gone. **Not deployed yet** — merge to `main`, push, deploy,
+   Richard's click-through. Phases 2 (dispatch: People view, Unscheduled
+   rail, drag, conflicts), 3 (`/field/day`, Today widget), 4 (overlays,
+   digest line, ⌘K tasks) follow. Notes:
+   [features/calendar.md](docs/project-memory/features/calendar.md).
 00000. ✅ **Friendlier CRM: address-first labels + calmer navigation** —
    four stages, plan approved 2026-09-25
    (`~/.claude/plans/spicy-drifting-shore.md`). **Stage 1 built + dev-QA'd
@@ -149,6 +168,32 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-27 — Operations Calendar, Phase 1 (built, dev-QA'd, on branch `calendar-foundation`)
+
+Richard's brief: a first-class Calendar that is the field's daily organizer,
+the PM's weekly overview and the admin's dispatch board. Plan-mode (3 explore
++ 3 design agents) plus a read-only prod query: 7 users (5 ADMIN), 679 open
+tasks of which only **29 are activated** and 639 are inactive steps with no
+date; no task has a real time; the existing `/schedule` job-by-crew grid was
+used by 0 jobs and its API had no role check. Decisions: one date axis
+(`dueAt` stays the deadline and becomes a timed task's end; `scheduledStart`
++ `allDay` describe the window; no `scheduledEnd`), tasks only (no
+CalendarEvent, no crew field yet), no calendar library, dnd-kit later.
+Built: `src/lib/time/zone.ts` (app zone, DST-safe day math; nurture re-exports),
+`src/lib/calendar/{schedule,status,query,select,items,access,url-state,agenda}.ts`
+(all pure, tested), `applySchedule` wired into `updateTask` (escalation resets
+only on a day change; window edits lock workflow dates), `diffTask` →
+`SCHEDULE_CHANGED`, `/api/tasks` `dueFrom/dueTo/unscheduled/unassigned`,
+`overdueWhere` adopted in the list filter, field tiles and dashboard KPI,
+digest/escalation/card-date boundaries moved to the app zone, two routes,
+the `/calendar` page (`src/components/calendar/*`), sheet + dialog
+extensions, `defaultCalendarView` preference. Dev: migration applied via
+diff/execute/resolve; 1027 tests (+95 over the 932 the UX plan left), lint 6/22,
+typecheck + build clean; headless-Chromium QA 30/30 (API + Week/Day/Month/
+sheet at 1280 and 390, redirect, empty state) and the SALES_REP coercion
+check. Details:
+[features/calendar.md](docs/project-memory/features/calendar.md).
 
 ### 2026-09-25 — UX Stage 4 deployed (`f95b425`); the four-stage plan is on prod
 
@@ -835,22 +880,30 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
   `createdByUserId null`, and **never move `lastContactAt`**. Won, Lost
   and opt-out stop them; a personal touch restarts the follow-up clock.
   Every automated sender reports through `reportDelivery`.
+- **A task has one date axis.** `dueAt` is the deadline every list, digest
+  and escalation reads AND the day it sits on the calendar; for a timed task
+  it is the end instant. `scheduledStart` + `allDay` describe the window.
+  Every write goes through `applySchedule()` (a bare `yyyy-MM-dd` means
+  "move to this day" and carries the window along). "Unscheduled" = active,
+  open, no due date — never an inactive workflow step. Overdue = past the end
+  of its day in `APP_TIME_ZONE` (all-day) or past its end (timed).
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
 
-> The four-stage UX plan (address-first labels; sidebar + Table|Board + ⌘K;
-> job/lead page; polish) is **fully on prod** as of `f95b425` (build
-> `rNiggElI_oVOOMlbDSI2q`). Richard's click-through: `/tasks` (chips,
-> Job filter picker, search under Filters, filters survive reload),
-> `/jobs` + a job page (Customer card, Money next-step), the boards,
-> ⌘K, `/permits`, `/nope`, a phone-width `/jobs`. Anything he dislikes
-> is a follow-up on `main`. Nurture operator items (SPF →
-> `NURTURE_ENABLED=1` → admin switch, `NURTURE_MAX_PER_RUN=10`) and Code
-> Violations Stage 4 (dashboard breakdowns + reports) still stand. Known
+> **Operations Calendar Phase 1 is built and dev-QA'd on branch
+> `calendar-foundation` (not merged, not deployed).** Next: merge to
+> `main`, Richard pushes + deploys (`KNUCO_PUBLIC_URL=https://crm.careyos.com
+> ./deploy.sh --yes`; migration `20261006120000_task_scheduling` applies;
+> verify the CHECK exists and `/schedule` → `/calendar`), then his
+> click-through: sidebar Calendar shows his active tasks this week; open one,
+> set 2–3 pm, see the time on the card and the same due date on `/tasks`;
+> Viewing → Lisette / Everyone; Month → click a day; phone-width Day; the
+> dashboard Overdue tile now excludes items due today (announced). Then
+> Phase 2 (dispatch) on a new branch per the plan. UX plan follow-ups,
+> nurture operator items and Code Violations Stage 4 still stand. Known
 > pre-existing: `/api/permits?status=<bad>` 500s; a hydration warning on
 > `/tasks` from the header pills. Same rules: explicit role lists, tests +
-> typecheck + build green, lint ≤ 6/28, deploy with
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
+> typecheck + build green, lint ≤ 6/28, deploy with the env override.

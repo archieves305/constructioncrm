@@ -17,6 +17,11 @@ export const createTaskSchema = z.object({
   watcherUserIds: z.array(z.string().min(1)).max(20).optional(),
   /** yyyy-MM-dd. Delivered with the morning digest of that day. */
   remindAt: z.string().optional(),
+  // ── Calendar window (see lib/calendar/schedule.ts) ──
+  /** ISO instant when the work starts, or a yyyy-MM-dd for an all-day span. */
+  scheduledStart: z.string().trim().min(1).optional(),
+  /** false = a timed item; dueAt is then the end instant. */
+  allDay: z.boolean().optional(),
 });
 
 /**
@@ -49,6 +54,17 @@ export const updateTaskSchema = createTaskSchema.partial().extend({
   checklist: z.array(z.object({ key: z.string().min(1), done: z.boolean() })).max(100).optional(),
   /** ADMIN/MANAGER only: complete despite missing evidence, with a stated reason. */
   evidenceOverrideReason: z.string().trim().min(1).max(2000).optional(),
+  /** null clears the start (the task becomes a plain all-day item on its due day). */
+  scheduledStart: z.string().trim().min(1).nullable().optional(),
+}).superRefine((v, ctx) => {
+  // Cross-field rules a single patch can state without the row; everything
+  // that needs the existing task lives in applySchedule().
+  if (v.allDay === false && v.scheduledStart === null) {
+    ctx.addIssue({ code: "custom", path: ["scheduledStart"], message: "A timed task needs a start time" });
+  }
+  if (typeof v.scheduledStart === "string" && v.dueAt === null) {
+    ctx.addIssue({ code: "custom", path: ["dueAt"], message: "A scheduled task needs a due date" });
+  }
 });
 
 export const nudgeSchema = z.object({

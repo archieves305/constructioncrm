@@ -312,3 +312,71 @@ describe("updateTask — workflow steps", () => {
     expect(db.task.update.mock.calls[0][0].data.dueLocked).toBeUndefined();
   });
 });
+
+describe("updateTask — calendar window", () => {
+  // 9:00–11:30 ET on Tue 2026-09-29.
+  const timed = {
+    ...existing,
+    dueAt: new Date("2026-09-29T15:30:00.000Z"),
+    scheduledStart: new Date("2026-09-29T13:00:00.000Z"),
+    allDay: false,
+    escalationLevel: 1,
+  };
+
+  it("a day key moves a timed task keeping its clock times, and resets escalation (new day)", async () => {
+    db.task.findUnique.mockResolvedValue(timed);
+    await updateTask({ id: "t1", input: { dueAt: "2026-10-01" }, actorUserId: "u-jo", notify: "none" });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data.scheduledStart).toEqual(new Date("2026-10-01T13:00:00.000Z"));
+    expect(data.dueAt).toEqual(new Date("2026-10-01T15:30:00.000Z"));
+    expect(data.allDay).toBe(false);
+    expect(data.escalationLevel).toBe(0);
+  });
+
+  it("a same-day window edit does not reset escalation", async () => {
+    db.task.findUnique.mockResolvedValue(timed);
+    await updateTask({ id: "t1", input: { scheduledStart: "2026-09-29T14:00:00.000Z" }, actorUserId: "u-jo", notify: "none" });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data.scheduledStart).toEqual(new Date("2026-09-29T14:00:00.000Z"));
+    expect(data.dueAt).toEqual(timed.dueAt);
+    expect(data.escalationLevel).toBeUndefined();
+  });
+
+  it("records SCHEDULE_CHANGED on the timeline when the window moves", async () => {
+    db.task.findUnique.mockResolvedValue(timed);
+    await updateTask({ id: "t1", input: { allDay: true }, actorUserId: "u-jo", notify: "none" });
+    const events = recordTaskEvents.mock.calls[0][0].events as { type: string }[];
+    expect(events.map((e) => e.type)).toEqual(["DUE_CHANGED", "SCHEDULE_CHANGED"]);
+  });
+
+  it("400s with the offending field on an impossible window", async () => {
+    db.task.findUnique.mockResolvedValue(timed);
+    await expect(
+      updateTask({ id: "t1", input: { dueAt: "2026-09-29T12:00:00.000Z", scheduledStart: "2026-09-29T13:00:00.000Z" }, actorUserId: "u-jo" }),
+    ).rejects.toMatchObject({ status: 400, hint: "scheduledStart" });
+    expect(db.task.update).not.toHaveBeenCalled();
+  });
+
+  it("a window edit on a workflow step locks the date against the engine", async () => {
+    db.task.findUnique.mockResolvedValue({
+      ...timed,
+      workflowInstanceId: "w1",
+      workflowTaskKey: "roofing:mobilize",
+      workflowAnchor: "PREDECESSOR" as const,
+      dueOffsetBusinessDays: 2,
+      activatedAt: new Date("2026-09-28T12:00:00Z"),
+      dueLocked: false,
+    });
+    await updateTask({ id: "t1", input: { scheduledStart: "2026-09-29T14:00:00.000Z" }, actorUserId: "u-jo", notify: "none" });
+    expect(db.task.update.mock.calls[0][0].data.dueLocked).toBe(true);
+  });
+
+  it("leaves the schedule columns alone when the patch says nothing about them", async () => {
+    db.task.findUnique.mockResolvedValue(timed);
+    await updateTask({ id: "t1", input: { title: "Renamed" }, actorUserId: "u-jo", notify: "none" });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data.dueAt).toBeUndefined();
+    expect(data.scheduledStart).toBeUndefined();
+    expect(data.allDay).toBeUndefined();
+  });
+});

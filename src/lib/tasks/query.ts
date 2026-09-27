@@ -1,6 +1,8 @@
 import type { Prisma, RoleName } from "@/generated/prisma/client";
 import { taskVisibilityFilter, type VisibilityScope } from "./access";
 import { OPEN_TASK_STATUSES } from "./status";
+import { overdueWhere } from "@/lib/calendar/status";
+import { endOfDayIn, isDayKey, startOfDayIn } from "@/lib/time/zone";
 
 /**
  * Translate `GET /api/tasks` query params into a Prisma `where`.
@@ -21,6 +23,14 @@ export type TaskListParams = {
   priority?: string;
   overdue?: boolean;
   includeCompleted?: boolean;
+  // ── Calendar filters ──
+  /** yyyy-MM-dd, inclusive, in the office's zone: tasks due on or after / on or before. */
+  dueFrom?: string;
+  dueTo?: string;
+  /** Active, open, no due date — what the calendar's Unscheduled rail shows. */
+  unscheduled?: boolean;
+  /** Nobody assigned. */
+  unassigned?: boolean;
   // ── Workflow filters ──
   /** "manual" = hand-made tasks only; "workflow" = template-generated steps only. */
   source?: "manual" | "workflow";
@@ -46,6 +56,10 @@ export function readTaskListParams(searchParams: URLSearchParams): TaskListParam
     priority: searchParams.get("priority") || undefined,
     overdue: flag(searchParams, "overdue"),
     includeCompleted: searchParams.get("includeCompleted") === "true",
+    dueFrom: isDayKey(searchParams.get("dueFrom")) ? searchParams.get("dueFrom")! : undefined,
+    dueTo: isDayKey(searchParams.get("dueTo")) ? searchParams.get("dueTo")! : undefined,
+    unscheduled: flag(searchParams, "unscheduled"),
+    unassigned: flag(searchParams, "unassigned"),
     workflowInstanceId: searchParams.get("workflowInstanceId") || undefined,
     phaseKey: searchParams.get("phaseKey") || undefined,
     moduleKey: searchParams.get("moduleKey") || undefined,
@@ -71,8 +85,16 @@ export function buildTaskListWhere(
 ): Prisma.TaskWhereInput {
   const where: Prisma.TaskWhereInput = {};
 
-  if (params.assignedUserId) {
+  if (params.unassigned) where.assignedUserId = null;
+  else if (params.assignedUserId) {
     where.assignedUserId = params.assignedUserId === "me" ? user.id : params.assignedUserId;
+  }
+  if (params.unscheduled) where.dueAt = null;
+  else if (params.dueFrom || params.dueTo) {
+    where.dueAt = {
+      ...(params.dueFrom ? { gte: startOfDayIn(params.dueFrom) } : {}),
+      ...(params.dueTo ? { lte: endOfDayIn(params.dueTo) } : {}),
+    };
   }
   if (params.priority) where.priority = params.priority as Prisma.EnumPriorityFilter["equals"];
   for (const key of LINK_PARAMS) {
@@ -84,6 +106,8 @@ export function buildTaskListWhere(
   if (params.workflowInstanceId) where.workflowInstanceId = params.workflowInstanceId;
   if (params.phaseKey) where.workflowPhaseKey = params.phaseKey;
   if (params.moduleKey) where.workflowModuleKey = params.moduleKey;
+
+  const and: Prisma.TaskWhereInput[] = [where];
 
   // A Not-active workflow step is nobody's work yet, so the default list
   // hides it — the same rule ACTIVE_OPEN_WHERE applies to every count.
@@ -98,7 +122,9 @@ export function buildTaskListWhere(
   } else if (params.blocked) {
     where.status = "BLOCKED";
   } else if (params.overdue) {
-    where.dueAt = { lt: now };
+    // Late = past the end of its day (all-day) or past its end time (timed),
+    // not "dueAt < now" — which called a noon-UTC pin late at 8:01 that morning.
+    and.push(overdueWhere(now));
     where.status = { in: [...OPEN_TASK_STATUSES] };
     if (!showInactive) where.activatedAt = { not: null };
   } else if (params.status) {
@@ -111,22 +137,23 @@ export function buildTaskListWhere(
     where.activatedAt = { not: null };
   }
 
-  const and: Prisma.TaskWhereInput[] = [where];
-  if (params.search) {
-    const q = params.search;
-    const contains = { contains: q, mode: "insensitive" as const };
-    and.push({
-      OR: [
-        { title: contains },
-        { description: contains },
-        { job: { jobNumber: contains } },
-        { job: { lead: { propertyAddress1: contains } } },
-        { job: { lead: { fullName: contains } } },
-        { lead: { fullName: contains } },
-        { lead: { propertyAddress1: contains } },
-      ],
-    });
-  }
+  if (params.search) and.push(taskSearchWhere(params.search));
   and.push(taskVisibilityFilter(user, scope));
   return { AND: and };
+}
+
+/** Free text over the title, description, job number, address and customer — shared with the calendar. */
+export function taskSearchWhere(q: string): Prisma.TaskWhereInput {
+  const contains = { contains: q, mode: "insensitive" as const };
+  return {
+    OR: [
+      { title: contains },
+      { description: contains },
+      { job: { jobNumber: contains } },
+      { job: { lead: { propertyAddress1: contains } } },
+      { job: { lead: { fullName: contains } } },
+      { lead: { fullName: contains } },
+      { lead: { propertyAddress1: contains } },
+    ],
+  };
 }

@@ -15,6 +15,13 @@ export type TaskSnapshot = {
   dueAt: Date | null;
   assignedUserId: string | null;
   blockedReason: string | null;
+  /**
+   * The calendar window. Optional so the many callers that only know the
+   * five classic fields keep compiling; a differ that sees it on both sides
+   * records SCHEDULE_CHANGED when the start or the all-day flag moved.
+   */
+  scheduledStart?: Date | null;
+  allDay?: boolean;
 };
 
 export type PendingEvent = {
@@ -30,6 +37,15 @@ function sameDate(a: Date | null, b: Date | null): boolean {
 
 function isoOrNull(d: Date | null): string | null {
   return d ? d.toISOString() : null;
+}
+
+/** `{start, end, allDay}` — what the timeline needs to say "9:00–11:30 → 1:00–3:30". */
+export function windowJson(s: TaskSnapshot): string {
+  return JSON.stringify({
+    start: isoOrNull(s.scheduledStart ?? null),
+    end: isoOrNull(s.dueAt),
+    allDay: s.allDay ?? true,
+  });
 }
 
 /**
@@ -93,6 +109,22 @@ export function diffTask(before: TaskSnapshot, after: TaskSnapshot): PendingEven
       fromValue: isoOrNull(before.dueAt),
       toValue: isoOrNull(after.dueAt),
     });
+  }
+
+  // The window (start / all-day) is its own fact: "moved to Tuesday" and
+  // "now 9:00–11:30" are different things to read in the history. A plain
+  // day move of an all-day task changes neither, so it stays DUE_CHANGED only.
+  const knowsWindow = before.scheduledStart !== undefined && after.scheduledStart !== undefined;
+  if (knowsWindow) {
+    const startMoved = !sameDate(before.scheduledStart ?? null, after.scheduledStart ?? null);
+    const flagMoved = (before.allDay ?? true) !== (after.allDay ?? true);
+    if (startMoved || flagMoved) {
+      events.push({
+        type: "SCHEDULE_CHANGED",
+        fromValue: windowJson(before),
+        toValue: windowJson(after),
+      });
+    }
   }
 
   return events;

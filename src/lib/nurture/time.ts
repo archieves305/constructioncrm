@@ -6,12 +6,10 @@ import type { NurtureContentKind } from "@/generated/prisma/enums";
 
 export type SendWindow = { startHour: number; endHour: number; timeZone: string; weekdaysOnly: boolean };
 
-type Parts = { year: number; month: number; day: number; hour: number; weekday: number };
-
-export function localParts(d: Date, tz: string): Parts {
-  const z = new TZDate(d.getTime(), tz);
-  return { year: z.getFullYear(), month: z.getMonth(), day: z.getDate(), hour: z.getHours(), weekday: z.getDay() };
-}
+// The day/zone primitives moved to `@/lib/time/zone` when the calendar needed
+// them too; re-exported here so existing imports and tests keep working.
+export { localParts, addLocalDays, localDateKey } from "@/lib/time/zone";
+import { localParts, addLocalDays, localDateKey } from "@/lib/time/zone";
 
 export function isWeekdayIn(d: Date, tz: string): boolean {
   const w = localParts(d, tz).weekday;
@@ -41,18 +39,6 @@ export function nextSendSlot(earliest: Date, w: SendWindow): Date {
     while (!isWeekdayIn(candidate, w.timeZone) && guard++ < 7) candidate = windowStartOn(addLocalDays(candidate, 1, w.timeZone), w);
   }
   return candidate;
-}
-
-/** Calendar days in `tz`, keeping the local clock time (23h / 25h across DST, not 24). */
-export function addLocalDays(d: Date, n: number, tz: string): Date {
-  const z = new TZDate(d.getTime(), tz);
-  const next = new TZDate(z.getFullYear(), z.getMonth(), z.getDate() + n, z.getHours(), z.getMinutes(), z.getSeconds(), z.getMilliseconds(), tz);
-  return new Date(next.getTime());
-}
-
-export function localDateKey(d: Date, tz: string): string {
-  const p = localParts(d, tz);
-  return `${p.year}-${String(p.month + 1).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
 }
 
 /** One per lead / kind / local day. */

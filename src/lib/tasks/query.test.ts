@@ -30,12 +30,32 @@ describe("buildTaskListWhere", () => {
     expect(filters.status).toBe("COMPLETED");
   });
 
-  it("overdue means open and past due, and accepts 1 as well as true", () => {
+  it("overdue means open and past its day (all-day) or its end (timed), and accepts 1 as well as true", () => {
     for (const v of ["true", "1"]) {
-      const { filters } = whereOf(`overdue=${v}`);
-      expect(filters.status).toEqual({ in: ["PENDING", "IN_PROGRESS", "BLOCKED"] });
-      expect((filters.dueAt as { lt: Date }).lt).toBeInstanceOf(Date);
+      const w = buildTaskListWhere(readTaskListParams(new URLSearchParams(`overdue=${v}`)), admin, new Date("2026-09-28T14:00:00.000Z"));
+      const and = w.AND as Record<string, unknown>[];
+      expect(and[0].status).toEqual({ in: ["PENDING", "IN_PROGRESS", "BLOCKED"] });
+      expect(and[0].dueAt).toBeUndefined();
+      expect(and[1]).toEqual({
+        OR: [
+          { allDay: true, dueAt: { lt: new Date("2026-09-28T04:00:00.000Z") } },
+          { allDay: false, dueAt: { lt: new Date("2026-09-28T14:00:00.000Z") } },
+        ],
+      });
     }
+  });
+
+  it("dueFrom / dueTo bound the due date in the office's zone and keep the active-open default", () => {
+    const { filters } = whereOf("dueFrom=2026-09-28&dueTo=2026-10-04");
+    expect(filters.dueAt).toEqual({ gte: new Date("2026-09-28T04:00:00.000Z"), lte: new Date("2026-10-05T03:59:59.999Z") });
+    expect(filters.activatedAt).toEqual({ not: null });
+    expect(whereOf("dueFrom=garbage").filters.dueAt).toBeUndefined();
+  });
+
+  it("unscheduled = no due date; unassigned = nobody, overriding assignedUserId", () => {
+    expect(whereOf("unscheduled=1").filters.dueAt).toBeNull();
+    const { filters } = whereOf("unassigned=1&assignedUserId=me");
+    expect(filters.assignedUserId).toBeNull();
   });
 
   it("resolves assignedUserId=me to the caller", () => {

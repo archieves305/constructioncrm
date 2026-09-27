@@ -16,6 +16,7 @@ export type LeadLabel = {
   city: string;
   state?: string;
   zipCode?: string;
+  primaryPhone?: string | null;
 };
 
 /** The job fields a label needs — what `JOB_LABEL_SELECT` returns. */
@@ -35,6 +36,10 @@ export type TaskListItem = {
   status: TaskStatus;
   priority: Priority;
   dueAt: string | null;
+  /** Calendar window: when set, the task starts here and ends at dueAt (see lib/calendar/schedule.ts). */
+  scheduledStart?: string | null;
+  /** false = a timed item; dueAt is the end instant. */
+  allDay?: boolean;
   completedAt?: string | null;
   blockedReason: string | null;
   assignedUserId?: string | null;
@@ -112,6 +117,8 @@ export type UpdatePatch = Partial<{
   priority: Priority;
   assignedUserId: string | null;
   dueAt: string | null;
+  scheduledStart: string | null;
+  allDay: boolean;
   blockedReason: string | null;
   remindAt: string | null;
   // Workflow steps
@@ -126,6 +133,8 @@ export type CreateTaskPayload = {
   description?: string;
   priority?: Priority;
   dueAt?: string;
+  scheduledStart?: string;
+  allDay?: boolean;
   assignedUserId?: string;
   watcherUserIds?: string[];
   remindAt?: string;

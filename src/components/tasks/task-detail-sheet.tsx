@@ -26,11 +26,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { nudgeCooldownRemainingMs } from "@/lib/tasks/nudge-policy";
 import { Textarea } from "@/components/ui/textarea";
 import { PRIORITY_BADGE_CLASS, STATUS_BADGE_CLASS, STATUS_LABEL, TASK_STATUSES } from "./task-colors";
-import { taskKeys } from "./use-tasks";
+import { taskKeys, useInvalidateTasks } from "./use-tasks";
 import type { Person, TaskListItem, TaskStatus, UserOption } from "./types";
 import { fetchJson } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
-import { X, Plus, BellRing, AlarmClock, Pencil, Trash2 } from "lucide-react";
+import { X, Plus, BellRing, AlarmClock, Pencil, Trash2, MapPin, Phone, Briefcase } from "lucide-react";
+import Link from "next/link";
+import { AssigneePicker } from "./assignee-picker";
+import { ScheduleSection } from "./schedule-section";
+import { useIsPhone } from "@/components/shared/use-media-query";
+import { isDialable, mapsHref, telHref } from "@/components/shared/contact-card";
+import { formatAddressLine } from "@/lib/labels/address";
 import { TaskWorkflowBlock } from "@/components/workflows/task-workflow-block";
 import type { WorkflowTaskItem } from "@/components/workflows/types";
 
@@ -65,6 +71,8 @@ export function TaskDetailSheet({
 }) {
   const qc = useQueryClient();
   const { data: session } = useSession();
+  const isPhone = useIsPhone();
+  const invalidateTasks = useInvalidateTasks();
   const [blockedReason, setBlockedReason] = useState("");
   const [askingBlockReason, setAskingBlockReason] = useState(false);
   const [addingWatcher, setAddingWatcher] = useState(false);
@@ -86,25 +94,19 @@ export function TaskDetailSheet({
     [users],
   );
 
+  // Same fan-out as every other task mutation (lists, summary, dashboard,
+  // field tiles, calendar) — a due date changed here must move the card there.
   function refresh() {
-    if (taskId) qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) });
-    qc.invalidateQueries({ queryKey: taskKeys.all });
-    qc.invalidateQueries({ queryKey: taskKeys.summary });
+    invalidateTasks([], taskId ?? undefined);
   }
 
   const patch = useMutation({
-    mutationFn: async (body: Record<string, unknown>) => {
-      const r = await fetch(`/api/tasks/${taskId}`, {
+    mutationFn: (body: Record<string, unknown>) =>
+      fetchJson<TaskDetail>(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        throw new Error(err.error || "Update failed");
-      }
-      return r.json();
-    },
+      }),
     onSuccess: () => {
       refresh();
       setAskingBlockReason(false);
@@ -265,7 +267,10 @@ export function TaskDetailSheet({
 
   return (
     <Sheet open={Boolean(taskId)} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-2xl">
+      <SheetContent
+        side={isPhone ? "bottom" : "right"}
+        className={cn("flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-2xl", isPhone && "max-h-[92dvh] rounded-t-xl")}
+      >
         {isLoading || !task ? (
           <div className="p-6 text-sm text-muted-foreground">Loading…</div>
         ) : (
@@ -342,6 +347,7 @@ export function TaskDetailSheet({
                 <TaskEntityChip task={task} />
                 <AutoSourceChip sourceKey={task.sourceKey} />
               </div>
+              <QuickLinks task={task} />
             </SheetHeader>
 
             <div className="space-y-5 px-6 py-5">
@@ -379,12 +385,20 @@ export function TaskDetailSheet({
               )}
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <Field label="Assigned to" value={fullName(task.assignedTo) ?? "Unassigned"} />
+                {mayEdit ? (
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Assigned to</dt>
+                    <dd className="mt-1">
+                      <AssigneePicker value={task.assignedUserId} onChange={(id) => patch.mutate({ assignedUserId: id })} users={users.filter((u) => u.isActive || u.id === task.assignedUserId)} size="sm" className="w-full" />
+                    </dd>
+                  </div>
+                ) : (
+                  <Field label="Assigned to" value={fullName(task.assignedTo) ?? "Unassigned"} />
+                )}
                 <Field label="Raised by" value={fullName(task.createdBy) ?? "—"} />
-                <Field
-                  label="Due"
-                  value={task.dueAt ? format(new Date(task.dueAt), "EEE, MMM d, yyyy") : "No due date"}
-                />
+                {!mayEdit && (
+                  <ScheduleSection task={task} canEdit={false} onPatch={(p) => patch.mutate(p)} />
+                )}
                 <Field
                   label="Completed"
                   value={
@@ -394,6 +408,8 @@ export function TaskDetailSheet({
                   }
                 />
               </dl>
+
+              {mayEdit && <ScheduleSection task={task} canEdit onPatch={(p) => patch.mutate(p)} pending={patch.isPending} />}
 
               <div className="flex flex-wrap items-end gap-4">
                 <div>
@@ -614,6 +630,37 @@ export function TaskDetailSheet({
       </Dialog>
     </Sheet>
   );
+}
+
+/** Open job · Directions · Call — the three things people leave the sheet to do. */
+function QuickLinks({ task }: { task: TaskDetail }) {
+  const lead = task.job?.lead ?? task.lead ?? null;
+  const address = lead ? formatAddressLine(lead) : "";
+  const phone = lead?.primaryPhone ?? null;
+  const links: React.ReactNode[] = [];
+  if (task.job) {
+    links.push(
+      <Link key="job" href={`/jobs/${task.job.id}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-gray-50">
+        <Briefcase className="size-3.5" /> Open job
+      </Link>,
+    );
+  }
+  if (lead && address) {
+    links.push(
+      <a key="maps" href={mapsHref(lead)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-gray-50">
+        <MapPin className="size-3.5" /> Directions
+      </a>,
+    );
+  }
+  if (isDialable(phone)) {
+    links.push(
+      <a key="tel" href={telHref(phone)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-gray-50">
+        <Phone className="size-3.5" /> Call {lead?.fullName?.split(" ")[0] ?? ""}
+      </a>,
+    );
+  }
+  if (links.length === 0) return null;
+  return <div className="flex flex-wrap gap-1.5 pt-2">{links}</div>;
 }
 
 function fullName(p: Person | null | undefined): string | null {

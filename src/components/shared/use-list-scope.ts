@@ -9,6 +9,7 @@ import { isScopeForced, resolveClientScope, scopeToPref, type ListScope, type Li
 import { useSearchParamState } from "./use-search-param-state";
 
 export type BoardDensity = "COMFORTABLE" | "COMPACT";
+export type CalendarViewPref = "DAY" | "WEEK" | "MONTH";
 
 export type MePreferences = {
   taskEmailsEnabled: boolean;
@@ -17,6 +18,7 @@ export type MePreferences = {
   nudgeEmailsEnabled: boolean;
   defaultListScope: ListScopePref;
   boardDensity: BoardDensity;
+  defaultCalendarView: CalendarViewPref;
 };
 
 export const ME_PREFERENCES_KEY = ["me-preferences"] as const;

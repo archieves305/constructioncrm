@@ -1,6 +1,7 @@
 "use client";
 
 import { isPast, isToday } from "date-fns";
+import { dayKey } from "@/lib/time/zone";
 import { MessageSquare } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,7 +33,8 @@ export function TaskCard({
   const closed = task.status === "COMPLETED" || task.status === "CANCELLED";
   const overdue =
     Boolean(task.dueAt) && isPast(new Date(task.dueAt!)) && !isToday(new Date(task.dueAt!)) && !closed;
-  const dueValue = task.dueAt ? task.dueAt.slice(0, 10) : "";
+  // The office's day, not the UTC slice: a timed task ending 8pm ET is 00:00Z tomorrow.
+  const dueValue = task.dueAt ? dayKey(new Date(task.dueAt)) : "";
   const wfState = task.workflowTaskKey
     ? deriveTaskState({ status: task.status, activatedAt: task.activatedAt ?? null, skipReason: task.skipReason, inspectionResult: task.inspectionResult as "FAIL" | null })
     : null;

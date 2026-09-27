@@ -14,6 +14,12 @@ enum ListScope {
   ALL
 }
 
+enum CalendarView {
+  DAY
+  WEEK
+  MONTH
+}
+
 enum BoardDensity {
   COMFORTABLE
   COMPACT
@@ -395,6 +401,7 @@ model User {
   // pinned to their own rows server-side whatever this says.
   defaultListScope        ListScope    @default(MINE) @map("default_list_scope")
   boardDensity            BoardDensity @default(COMFORTABLE) @map("board_density")
+  defaultCalendarView     CalendarView @default(WEEK) @map("default_calendar_view")
 
   role Role @relation(fields: [roleId], references: [id])
 
@@ -697,6 +704,16 @@ model Task {
   assignedUserId  String?    @map("assigned_user_id")
   createdByUserId String     @map("created_by_user_id")
   dueAt           DateTime?  @map("due_at")
+  // ── Scheduling (Operations Calendar) ─────────────────────────────────
+  // dueAt is the item's END instant and the day it sits on the calendar.
+  // scheduledStart, when set, opens the window: an earlier day for an all-day
+  // span, or a clock time on the same day for a timed item. allDay=true (the
+  // default, and true for every pre-calendar row) means "no time of day":
+  // dueAt is a noon-UTC (manual) or 17:00 (engine) pin and only its calendar
+  // day in APP_TIME_ZONE is meaningful. Invariants live in
+  // lib/calendar/schedule.ts and a CHECK in the migration.
+  scheduledStart  DateTime?  @map("scheduled_start")
+  allDay          Boolean    @default(true) @map("all_day")
   priority        Priority   @default(MEDIUM)
   status          TaskStatus @default(PENDING)
   completedAt     DateTime?  @map("completed_at")
@@ -786,6 +803,7 @@ model Task {
   @@index([workflowInstanceId, workflowPhaseKey])
   @@index([activatedAt])
   @@index([assignedUserId])
+  @@index([assignedUserId, dueAt])
   @@index([dueAt])
   @@index([status])
   @@index([leadId])
@@ -855,6 +873,7 @@ enum TaskEventType {
   EVIDENCE_ATTACHED // toValue = file id
   INSPECTION_RESULT // toValue = PASS | FAIL | CONDITIONAL, body = notes
   RECONCILED // body = what changed
+  SCHEDULE_CHANGED // calendar window changed; from/to = JSON {start,end,allDay}. A plain due move is still DUE_CHANGED
 }
 
 /// Follow a task without owning it — a PM who wants the completion mail but

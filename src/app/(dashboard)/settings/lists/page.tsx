@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useSession } from "@/lib/auth/session-client";
 import { isScopeForced, type ListScopePref } from "@/lib/lists/scope";
-import { useMePreferences, usePatchPreferences, type BoardDensity } from "@/components/shared/use-list-scope";
+import { useMePreferences, usePatchPreferences, type BoardDensity, type CalendarViewPref } from "@/components/shared/use-list-scope";
 
 export default function ListSettingsPage() {
   const { data: session } = useSession();
@@ -16,7 +16,7 @@ export default function ListSettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Lists & boards" description="What the jobs and leads pages open on, and how dense the boards are." />
+      <PageHeader title="Lists & boards" description="What the jobs, leads and calendar pages open on, and how dense the boards are." />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Defaults</CardTitle>
@@ -59,6 +59,23 @@ export default function ListSettingsPage() {
                   options={[
                     { value: "COMFORTABLE", label: "Comfortable" },
                     { value: "COMPACT", label: "Compact" },
+                  ]}
+                />
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Calendar opens on</p>
+                  <p className="text-xs text-muted-foreground">The view the Calendar page shows first on a desktop. Phones always open on the day agenda.</p>
+                </div>
+                <SegmentedControl<CalendarViewPref>
+                  ariaLabel="Calendar opens on"
+                  size="sm"
+                  value={prefs.defaultCalendarView ?? "WEEK"}
+                  onValueChange={(v) => patch.mutate({ defaultCalendarView: v })}
+                  options={[
+                    { value: "DAY", label: "Day" },
+                    { value: "WEEK", label: "Week" },
+                    { value: "MONTH", label: "Month" },
                   ]}
                 />
               </div>

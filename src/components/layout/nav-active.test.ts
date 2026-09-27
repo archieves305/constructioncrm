@@ -40,6 +40,7 @@ describe("isNavActive on the sidebar tree", () => {
     { href: "/leads" },
     { href: "/jobs" },
     { href: "/tasks" },
+    { href: "/calendar" },
     { href: "/violations", match: "exact" },
     { href: "/violations/list" },
     { href: "/violations/inspections" },
@@ -52,6 +53,10 @@ describe("isNavActive on the sidebar tree", () => {
   ];
   const lit = (pathname: string, search = "") => tree.filter((i) => isNavActive(pathname, new URLSearchParams(search), i, tree)).map((i) => i.href);
 
+  it("the calendar lights its entry whatever view or day the URL carries", () => {
+    expect(lit("/calendar", "view=week&date=2026-09-28&users=all")).toEqual(["/calendar"]);
+    expect(lit("/calendar", "task=abc")).toEqual(["/calendar"]);
+  });
   it("the board view lights the same entry as the table", () => {
     expect(lit("/leads", "view=board&scope=all")).toEqual(["/leads"]);
     expect(lit("/jobs", "view=board")).toEqual(["/jobs"]);

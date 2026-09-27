@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { QueryKey } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import { ChevronDown, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,18 @@ export type AddTaskDialogProps = {
   context?: TaskEntityContext;
   /** Offer a job picker when there is no context (the /tasks page). */
   allowJobPicker?: boolean;
-  defaults?: { title?: string; description?: string; assignedUserId?: string; dueAt?: string; priority?: Priority };
+  defaults?: {
+    title?: string;
+    description?: string;
+    assignedUserId?: string;
+    /** yyyy-MM-dd */
+    dueAt?: string;
+    priority?: Priority;
+    /** ISO instant; implies a timed task on that day (the calendar's "+ at 9:00"). */
+    scheduledStart?: string;
+    allDay?: boolean;
+    jobId?: string;
+  };
   /** Parent entity keys to refresh after creating, e.g. [["job", id]]. */
   invalidateKeys?: QueryKey[];
   onCreated?: (task: TaskListItem) => void;
@@ -44,22 +56,43 @@ type FormState = {
   priority: Priority;
   assignedUserId: string | null;
   dueAt: string;
+  allDay: boolean;
+  /** HH:mm, browser-local */
+  startTime: string;
+  endTime: string;
   remindAt: string;
   jobId: string | null;
   watcherIds: string[];
 };
 
+const DEFAULT_START = "09:00";
+const DEFAULT_END = "10:00";
+
+function hhmm(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function initialForm(d: AddTaskDialogProps["defaults"]): FormState {
+  const start = d?.scheduledStart ? new Date(d.scheduledStart) : null;
+  const timed = d?.allDay === false || Boolean(start);
   return {
     title: d?.title ?? "",
     description: d?.description ?? "",
     priority: d?.priority ?? "MEDIUM",
     assignedUserId: d?.assignedUserId ?? null,
-    dueAt: d?.dueAt ?? "",
+    dueAt: d?.dueAt ?? (start ? format(start, "yyyy-MM-dd") : ""),
+    allDay: !timed,
+    startTime: start ? hhmm(start) : DEFAULT_START,
+    endTime: start ? hhmm(new Date(start.getTime() + 60 * 60_000)) : DEFAULT_END,
     remindAt: "",
-    jobId: null,
+    jobId: d?.jobId ?? null,
     watcherIds: [],
   };
+}
+
+/** A local day + HH:mm → the instant the server stores. */
+function localIso(day: string, time: string): string {
+  return new Date(`${day}T${time}:00`).toISOString();
 }
 
 /**
@@ -90,7 +123,7 @@ export function AddTaskDialog({
     if (open) setForm(initialForm(defaults));
     else setShowWatchers(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaults?.title, defaults?.assignedUserId, defaults?.dueAt, defaults?.priority]);
+  }, [open, defaults?.title, defaults?.assignedUserId, defaults?.dueAt, defaults?.priority, defaults?.scheduledStart, defaults?.allDay, defaults?.jobId]);
 
   const watcherCandidates = useMemo(
     () => users.filter((u) => u.id !== form.assignedUserId && u.id !== session?.user.id),
@@ -108,7 +141,18 @@ export function AddTaskDialog({
     };
     if (form.description.trim()) payload.description = form.description.trim();
     if (form.assignedUserId) payload.assignedUserId = form.assignedUserId;
-    if (form.dueAt) payload.dueAt = form.dueAt;
+    if (form.dueAt) {
+      if (form.allDay) payload.dueAt = form.dueAt;
+      else {
+        if (form.startTime >= form.endTime) {
+          toast.error("The start must be before the end");
+          return;
+        }
+        payload.allDay = false;
+        payload.scheduledStart = localIso(form.dueAt, form.startTime);
+        payload.dueAt = localIso(form.dueAt, form.endTime);
+      }
+    }
     if (form.remindAt) payload.remindAt = form.remindAt;
     if (form.watcherIds.length) payload.watcherUserIds = form.watcherIds;
     if (context) {
@@ -187,6 +231,21 @@ export function AddTaskDialog({
               <Label className="mb-1.5 block text-xs text-muted-foreground">Due</Label>
               <DueDatePresets value={form.dueAt} onChange={(d) => setForm({ ...form, dueAt: d })} />
             </div>
+            {form.dueAt && (
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <Checkbox checked={form.allDay} onCheckedChange={(c) => setForm({ ...form, allDay: Boolean(c) })} />
+                  All day
+                </label>
+                {!form.allDay && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Input type="time" step={900} className="h-7 w-[110px] text-xs" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} aria-label="Start time" />
+                    <span className="text-muted-foreground">to</span>
+                    <Input type="time" step={900} className="h-7 w-[110px] text-xs" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} aria-label="End time" />
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <Label className="text-xs text-muted-foreground">Remind me on</Label>
               <Input

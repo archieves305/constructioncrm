@@ -24,7 +24,7 @@ export const taskKeys = {
 };
 
 /** Keys that other pages own but that task changes make stale. */
-const RELATED_KEYS: QueryKey[] = [["field-today"], ["dashboard"], ["jobs"], ["leads"], ["prospects"]];
+const RELATED_KEYS: QueryKey[] = [["field-today"], ["dashboard"], ["jobs"], ["leads"], ["prospects"], ["calendar"]];
 
 export type TaskListFilters = {
   search?: string;

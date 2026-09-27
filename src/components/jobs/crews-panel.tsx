@@ -84,7 +84,7 @@ export function CrewsPanel({ jobId, crewAssignments }: { jobId: string; crewAssi
           </CardContent>
         </Card>
       ))}
-      {crewAssignments.length === 0 && <EmptyState icon={Hammer} title="No crews assigned" description="Pick a crew above; field mode and the schedule read from this." />}
+      {crewAssignments.length === 0 && <EmptyState icon={Hammer} title="No crews assigned" description="Pick a crew above; field mode reads from this." />}
       <JobPersonnelScopePanel jobId={jobId} />
     </div>
   );

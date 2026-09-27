@@ -1,4 +1,4 @@
-import { endOfDay, startOfDay } from "date-fns";
+import { endOfDayIn, startOfDayIn, todayKey } from "@/lib/time/zone";
 import type { CustomerInput, JobLabelInput } from "@/lib/labels/job";
 import { jobTextWithCustomer } from "@/lib/labels/job";
 import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
@@ -92,8 +92,11 @@ const TASK_SELECT = {
 } as const;
 
 export async function runMorningDigest(now: Date = new Date()): Promise<DigestRunResult> {
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
+  // The office's day, not the server's: the droplet runs UTC and 7:30am ET is
+  // 11:30Z, so a server-local midnight only worked by coincidence.
+  const today = todayKey(now);
+  const todayStart = startOfDayIn(today);
+  const todayEnd = endOfDayIn(today);
 
   const [dueTasks, reminderTasks] = await Promise.all([
     prisma.task.findMany({

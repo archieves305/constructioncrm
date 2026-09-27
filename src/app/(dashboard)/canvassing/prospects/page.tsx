@@ -357,7 +357,7 @@ export default function ProspectsPage() {
             const p = summaryProspect;
             setSummaryProspect(null);
             if (p?.leadId) router.push(`/leads/${p.leadId}`);
-            else router.push("/schedule");
+            else router.push("/calendar");
           },
         }}
       />
