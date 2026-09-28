@@ -114,11 +114,58 @@ URL owns `view=day|week|month`, `date`, `users`, `job`, `status`, `priority`,
 - Keyboard: ← → previous/next, `t` today, `n` new task. Prefetches the
   adjacent range; `keepPreviousData` on navigation.
 
+## Dispatch (Phase 2, built 2026-09-28 on `calendar-dispatch`)
+
+**Drag and drop.** One `DndContext` (`components/calendar/calendar-dnd.tsx`)
+wraps every view and the rail, on the kanban kit's sensors — extracted to
+`components/kanban/sensors.ts` (`useKitSensors`, `kitCollision`; the board
+consumes them, `KanbanCard` gained `disabled`). The calendar passes
+`enterOpens` so **Space picks up and Enter still opens**; arrows walk the
+droppables by geometry (`lib/calendar/grid-nav.ts`: `nearestInDirection`,
+`containerAt`), Space drops, Escape cancels, with announcements. The page's
+own ←/→/t/n hotkeys stand down while a card is `aria-pressed`.
+
+**Pure rules** (all tested):
+- `drop-target.ts` — `day:<key>`, `slot:<key>THH:mm`, `cell:<userId|unassigned>::<key>`,
+  `unscheduled`; `dropId` / `parseDropId` round-trip.
+- `move.ts` — `movePatch(item, target)`: day → `{dueAt: key}` (the server keeps
+  the window), slot → `{allDay:false, scheduledStart, dueAt}` keeping the old
+  length or 60 min, cell → day and/or `assignedUserId` (only what differs),
+  rail → `{dueAt:null}`; **null when nothing would change** (no PATCH, no toast,
+  no mail). `canMove` = closed tasks never; `canEditTask`; cross-person or
+  to-rail drops need dispatch (ADMIN / MANAGER / OFFICE_STAFF). `applyMove`
+  paints the optimistic item through the same `applySchedule` the route runs.
+  `describeMove` is the toast ("Assigned to Lisette · Tue, Sep 29").
+- `conflicts.ts` — same assignee, both timed, open, windows overlap, self and
+  duplicates excluded; all-day and unassigned never conflict.
+- `people.ts` — lanes = the Viewing selection (Everyone → Unassigned + every
+  active user; a picked set → those, + Unassigned when ticked; My calendar →
+  one lane), busiest first, ties by name; `workloadOf` → "9 tasks · 6.5 h timed".
+
+**Client.** `DropZone` (tint when it may take the card, hatching +
+`aria-disabled` when `canMove` says no), `DraggableCard` (decides `canDrag`
+once; a span's copies get `<id>@<day>` ids), `useMoveTask` (snapshots every
+`["calendar"]` query — range, prefetched neighbours, rail — repaints them with
+`applyMove`, restores all on failure with the server's message, invalidates
+tasks / summary / detail / field-today / dashboard on settle),
+`ConflictDialog` ("Schedule anyway?" over `ConfirmDialog`, warn-not-block),
+`PeopleView` (real `<table>`, sticky person column with the workload footer,
+4 compact cards per cell then "+N more", hover "+ Add" prefilled with the
+person and day), `UnscheduledPanel` (w-72 rail grouped by job, collapsible to
+a slim strip that is still a drop target; remembered in `localStorage`
+`calendar:rail` via `useSyncExternalStore`, default open in People and closed
+elsewhere). Week columns, Day bands (All day → the day; Morning / Afternoon /
+Evening → 8:00 / 13:00 / 17:00) and Month cells are drop zones. `?view=people`
+is dispatch-only and desktop-only (others fall back to Week / Day). Phones
+never drag; the sheet is the reschedule path.
+
+**Server.** `updateTask` refuses a new assignee who is inactive or unknown
+(400, hint `assignedUserId`) — one lookup, only when the assignee changes to
+someone.
+
 ## Not yet (later phases)
 
-Phase 2 dispatch (People view, Unscheduled rail, drag with the kanban
-sensors, conflicts warn-not-block, quick create per cell, inactive-assignee
-check). Phase 3 field (`/field/day`, quick actions, Today widget). Phase 4
+Phase 3 field (`/field/day`, quick actions, Today widget). Phase 4
 overlays (permit inspections, hearings, job starts as read-only
 `CalendarItem.kind`s), "schedule changed" digest line, ⌘K task search,
 timed-hours workload. Deferred with the seam documented: crews / personnel
@@ -132,3 +179,14 @@ user (no mail), checks the API (range, unscheduled, PATCH moves, 400s,
 timeline), screenshots Week/Day/Month/sheet/everyone/empty at 1280 and Day/
 Week-strip/sheet at 390, checks `/schedule` → `/calendar`, deletes the tasks.
 `qa-rep.js` with the server restarted as `john.rep` checks the coercion.
+
+Phase 2: `scratchpad/qa-dispatch.js` (same harness; `page.mouse` drags with a
+12 px lift and 20 steps) — rail → John/Tue (assigned + dated, toast), cell →
+Unassigned/Thu, cell → rail (day cleared), Week Tue → Thu, same-day drop sends
+no PATCH, keyboard Space → → → Space, Escape puts the card down, Enter opens
+the sheet, a 1.5 s-delayed mocked 500 paints then snaps back with the error
+toast, Day-band drop onto an overlapping window opens the conflict dialog
+(nothing saved until "Schedule anyway"; then 8:00–9:00 with `SCHEDULE_CHANGED`),
+Afternoon band keeps a 2 h length, cell "+ Add" prefills the person, phone
+hides People / rail and answers `?view=people` with the day, unknown assignee
+→ 400. 28/28 on 2026-09-28.

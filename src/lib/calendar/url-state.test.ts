@@ -4,7 +4,8 @@ import { activeFilterCount, rangeForView, rangeLabel, readFilters, resolveDate, 
 describe("resolveView", () => {
   it("URL wins, then a phone is a day, then the preference, then week", () => {
     expect(resolveView({ url: "month", pref: "DAY", isPhone: true })).toBe("month");
-    expect(resolveView({ url: "people", pref: "DAY", isPhone: false })).toBe("day");
+    expect(resolveView({ url: "people", pref: "DAY", isPhone: false })).toBe("people");
+    expect(resolveView({ url: "people", pref: "DAY", isPhone: true })).toBe("day");
     expect(resolveView({ url: null, pref: "MONTH", isPhone: true })).toBe("day");
     expect(resolveView({ url: null, pref: "MONTH", isPhone: false })).toBe("month");
     expect(resolveView({ url: null, pref: null, isPhone: false })).toBe("week");

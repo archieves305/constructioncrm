@@ -7,7 +7,8 @@ import { DEFAULT_COLUMN_LIMIT, nextShown, splitVisible } from "@/lib/kanban/limi
 import type { CalendarItem } from "@/lib/calendar/types";
 import { dayKeyToLocalDate, dayKeysBetween, type DayKey, type DayRange } from "@/lib/time/zone";
 import { cn } from "@/lib/utils";
-import { CalendarTaskCard } from "./calendar-task-card";
+import { DraggableCard } from "./draggable-card";
+import { DropZone } from "./drop-zone";
 
 /**
  * Seven equal columns of cards. Each day says how much is on it and how much
@@ -63,6 +64,7 @@ function DayColumn({
 
   return (
     <section role="listitem" aria-labelledby={headingId} className="group min-w-0">
+      <DropZone target={{ kind: "day", day }} label={format(d, "EEEE, MMMM d")} className="min-h-full">
       <header
         className={cn(
           "mb-2 flex items-baseline justify-between gap-1 rounded-md border px-2 py-1.5",
@@ -82,7 +84,7 @@ function DayColumn({
       <ul className="space-y-1.5" aria-label={`Tasks on ${format(d, "EEEE, MMMM d")}`}>
         {visible.map((item) => (
           <li key={item.id}>
-            <CalendarTaskCard item={item} onOpen={onOpen} showAssignee={showAssignee} />
+            <DraggableCard item={item} where={day} onOpen={onOpen} showAssignee={showAssignee} />
           </li>
         ))}
       </ul>
@@ -104,6 +106,7 @@ function DayColumn({
           <Plus className="size-3.5" /> Add
         </button>
       )}
+      </DropZone>
     </section>
   );
 }

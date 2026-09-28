@@ -20,6 +20,15 @@ export function CalendarSkeleton({ view }: { view: CalendarView }) {
       </div>
     );
   }
+  if (view === "people") {
+    return (
+      <div className="space-y-1" aria-busy aria-label="Loading calendar">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-md" />
+        ))}
+      </div>
+    );
+  }
   if (view === "day") {
     return (
       <div className="space-y-2" aria-busy aria-label="Loading calendar">
@@ -42,7 +51,7 @@ export function CalendarSkeleton({ view }: { view: CalendarView }) {
   );
 }
 
-const PERIOD: Record<CalendarView, string> = { day: "today", week: "this week", month: "this month" };
+const PERIOD: Record<CalendarView, string> = { day: "today", week: "this week", month: "this month", people: "this week" };
 
 export function CalendarEmpty({
   view,

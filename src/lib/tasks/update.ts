@@ -178,6 +178,14 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
 
   const assigneeChanged =
     input.assignedUserId !== undefined && input.assignedUserId !== existing.assignedUserId;
+  if (assigneeChanged && input.assignedUserId) {
+    // A dispatcher dragging a card onto a lane must land it on someone who
+    // still works here; a deactivated user's row would take the task and
+    // nobody would ever see it.
+    const target = await prisma.user.findUnique({ where: { id: input.assignedUserId }, select: { isActive: true } });
+    if (!target) throw new TaskUpdateError(400, "That person is not in the CRM", "assignedUserId");
+    if (!target.isActive) throw new TaskUpdateError(400, "That person is inactive and cannot be assigned work", "assignedUserId");
+  }
   if (input.assignedUserId !== undefined) {
     data.assignedTo = input.assignedUserId
       ? { connect: { id: input.assignedUserId } }

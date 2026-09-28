@@ -7,6 +7,8 @@ import type { CalendarItem } from "@/lib/calendar/types";
 import type { DayKey } from "@/lib/time/zone";
 import { cn } from "@/lib/utils";
 import { CalendarTaskCard } from "./calendar-task-card";
+import { DraggableCard } from "./draggable-card";
+import { DropZone } from "./drop-zone";
 
 /**
  * One day as an agenda: what is overdue (today only), then All day, Morning,
@@ -51,7 +53,7 @@ export function DayView({
       {BANDS.map((band) => {
         const list = bands[band];
         if (list.length === 0 && (nothing || !onAddAt)) return null;
-        return <BandSection key={band} band={band} items={list} onOpen={onOpen} onAdd={onAddAt ? () => onAddAt(day, band === "allDay" ? null : BAND_START_HOUR[band]) : undefined} showAssignee={showAssignee} />;
+        return <BandSection key={band} day={day} band={band} items={list} onOpen={onOpen} onAdd={onAddAt ? () => onAddAt(day, band === "allDay" ? null : BAND_START_HOUR[band]) : undefined} showAssignee={showAssignee} />;
       })}
 
       {onAddAt && (
@@ -71,10 +73,13 @@ export function DayView({
   );
 }
 
-function BandSection({ band, items, onOpen, onAdd, showAssignee }: { band: Band; items: CalendarItem[]; onOpen: (id: string) => void; onAdd?: () => void; showAssignee: boolean }) {
+function BandSection({ day, band, items, onOpen, onAdd, showAssignee }: { day: DayKey; band: Band; items: CalendarItem[]; onOpen: (id: string) => void; onAdd?: () => void; showAssignee: boolean }) {
   const headingId = `cal-band-${band}`;
+  // Dropping on "All day" puts the task on the day; on a timed band, at the band's start.
+  const target = band === "allDay" ? ({ kind: "day", day } as const) : ({ kind: "slot", day, hour: BAND_START_HOUR[band], minute: 0 } as const);
   return (
     <section aria-labelledby={headingId}>
+      <DropZone target={target} label={BAND_LABEL[band]} className="p-0.5 -m-0.5">
       <div className="mb-1.5 flex items-center justify-between">
         <h3 id={headingId} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {BAND_LABEL[band]}
@@ -96,12 +101,13 @@ function BandSection({ band, items, onOpen, onAdd, showAssignee }: { band: Band;
                 {item.allDay || !item.start ? "—" : formatTime(item.start)}
               </span>
               <div className="min-w-0 flex-1">
-                <CalendarTaskCard item={item} onOpen={onOpen} showAssignee={showAssignee} />
+                <DraggableCard item={item} where={`${day}:${band}`} onOpen={onOpen} showAssignee={showAssignee} />
               </div>
             </li>
           ))}
         </ul>
       )}
+      </DropZone>
     </section>
   );
 }
