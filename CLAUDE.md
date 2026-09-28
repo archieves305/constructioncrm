@@ -104,10 +104,20 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    off until Stage 2** (digest build / render / send + crontab + admin
    Delivery tab), which is the next build. Gates: env `NOTIFICATIONS_V2=1`
    records rows (shadow — legacy mail unchanged); the DB switch
-   `NotificationSettings.enabled` hands delivery to v2 and **must stay off
-   on prod until Stage 2 ships the digest sender**. Stage 2 = digest
-   build/render/send + morning producers folded + crontab; Stage 3 =
-   settings + admin pages; Stage 4 = polish + legacy removal. Notes:
+   `NotificationSettings.enabled` hands delivery to v2. **Stage 2 (digest
+   build / render / send, agenda with the morning task digest folded in,
+   claim ledger + permission re-check + stale recovery + prune, legacy
+   morning digest stands down, `WORKFLOW_READY_EMAILS_ENABLED` retired,
+   Admin → Notification Digests with the switch / Preview / Run / Immediate
+   rules / Log) built + dev-QA'd 2026-09-28 on the `notifications`
+   worktree, fast-forwarded to `main`.** No migration. Gate: typecheck
+   clean, lint 6/22, 1157 tests (+15), build clean; dev QA 16/16 with one
+   real digest to Richard. **Not pushed, not deployed.** After deploy:
+   install `crm-cron/notifications.sh` + the `*/10` crontab line, then
+   Richard flips the switch under Admin → Notification Digests when he is
+   ready for digests to replace per-event mail. Stage 3 = user settings
+   page + admin polish; Stage 4 = `/notifications` polish + legacy removal.
+   Notes:
    [features/notifications.md](docs/project-memory/features/notifications.md).
 00000. ✅ **Friendlier CRM: address-first labels + calmer navigation** —
    four stages, plan approved 2026-09-25
@@ -416,6 +426,27 @@ typecheck + build clean; headless-Chromium QA 30/30 (API + Week/Day/Month/
 sheet at 1280 and 390, redirect, empty state) and the SALES_REP coercion
 check. Details:
 [features/calendar.md](docs/project-memory/features/calendar.md).
+
+### 2026-09-28 — Notifications v2, Stage 2: digests (built, dev-QA'd, on `main`, not deployed)
+
+"continue". Built in the `notifications` worktree (ff'd to `main` first):
+`lib/email/components.ts`; pure `digest/build.ts` (dedupe → supersede →
+batch collapse → sections → subject groups → caps; CREW_LEAD variant),
+pure `digest/render.ts` (subject rules, agenda first, role links, View
+all activity), `digest/agenda.ts` (the calendar's own query incl.
+overlays via the new `lib/calendar/overlays-load.ts`, extracted from the
+route; morning adds overdue, due reminders, schedule changes and job
+starts through loaders now exported by `reminders.ts`), `permissions.ts`
+(≤ 5 queries per person), `digest/run.ts` (ledger → atomic claim →
+filter → build → render → send → mark; SKIPPED_EMPTY / SKIPPED_MUTED /
+FAILED-with-release / stale recovery / prune / dry run), `runMorningDigest`
+stands down under takeover, `WORKFLOW_READY_EMAILS_ENABLED` retired, admin
+settings / log / tick routes + `/admin/notifications` (Delivery ·
+Immediate rules · Log) + sidebar entry. Dev QA 16/16 on the worktree dev
+server with one real digest to Richard (details in the feature doc).
+Gate: typecheck clean, lint 6/22, 1157 tests (+15), build clean. No
+migration. Details:
+[features/notifications.md](docs/project-memory/features/notifications.md).
 
 ### 2026-09-28 — Notifications v2, Stage 1 merged + deployed (`4e9ee62`); shadow flag pending
 
@@ -1051,7 +1082,9 @@ ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd 
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-nurture.ts"'
 # Nurture dry run on prod (plans, writes nothing; works with the gates off)
 ssh knuco-droplet 'set -a; . /etc/knuco/env; set +a; curl -s -X POST -H "x-cron-secret: $CRON_SECRET" "http://127.0.0.1:4000/api/cron/nurture?dryRun=1"'
-# Notifications tick, dry run (per-person pending digest rows + due window; sends nothing)
+# Notifications cron wrapper, by hand (droplet; the tick is idempotent per person per window)
+ssh knuco-droplet '/home/knuco/crm-cron/notifications.sh; tail -1 /home/knuco/crm-cron/notifications.log'
+# Notifications tick, dry run (per-person planned digests + due window; sends nothing)
 ssh knuco-droplet 'set -a; . /etc/knuco/env; set +a; curl -s -X POST -H "x-cron-secret: $CRON_SECRET" "http://127.0.0.1:4000/api/cron/notifications?dryRun=1"'
 ```
 
@@ -1084,15 +1117,14 @@ off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
 `VIOLATION_ESCALATION_DAYS` (default `1,3,7`, days past the compliance
 deadline), `VIOLATION_ESCALATIONS_ENABLED` (default off; `1` after SPF),
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
-`ZYLOW_API_KEY`, `ZYLOW_API_BASE`, `WORKFLOW_READY_EMAILS_ENABLED` ("1" mails
-an assignee when a workflow step becomes Ready; default off, the digest
-covers it), `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`,
+`ZYLOW_API_KEY`, `ZYLOW_API_BASE`, `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`,
 `NURTURE_ENABLED` (default `0`; `1` after SPF — the DB switch under
 Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 `50`; `10` on the first live day), `NOTIFICATIONS_V2` (default `0`; `1`
 records a `Notification` row per staff-facing event and lights the bell —
 shadow mode, legacy mail unchanged; delivery only moves to v2 when
-`NotificationSettings.enabled` is on too, which waits for Stage 2).
+`NotificationSettings.enabled` is on too — the switch under Admin →
+Notification Digests).
 
 ## 9. Important Product / Business Rules
 
@@ -1196,14 +1228,15 @@ shadow mode, legacy mail unchanged; delivery only moves to v2 when
 > `/tasks` from the header pills. Same rules: explicit role lists, tests +
 > typecheck + build green, lint ≤ 6/28, deploy with the env override.
 >
-> **Notifications v2 Stage 1 is on prod in shadow mode (`4e9ee62`,
-> BUILD_ID `AJgI-9h4wEZJtyDX0DEfz`, `NOTIFICATIONS_V2=1`, dry run
-> `recording: true, takeover: false`).** Rows record beside legacy mail;
-> check the bell and `SELECT count(*) FROM notifications` after a day of
-> activity. **Leave `NotificationSettings.enabled` off until Stage 2.**
-> Next: Stage 2 per the plan §I–§K (`digest/{build,agenda,render}`,
-> claim transaction + ledger, permission re-check, morning producers folded
-> into the first window — including the calendar's "Schedule changed since
-> yesterday" and "Starting today" sections — `email/components.ts`,
-> `notifications.sh` + `*/10` crontab, retire `WORKFLOW_READY_EMAILS_ENABLED`,
-> admin Delivery tab).
+> **Notifications v2: Stage 1 is on prod in shadow mode (`NOTIFICATIONS_V2=1`,
+> switch off); Stage 2 (digests) is on `main`, not pushed, not deployed, no
+> migration.** Next: Richard pushes + deploys from `!`, then install the
+> cron wrapper + `*/10 * * * *` line as `knuco` (feature doc has the
+> script), run it once by hand (still shadow: `takeover: false`), check
+> Admin → Notification Digests renders and "Preview the next digest" lists
+> people. Then, when Richard wants digests to replace per-event mail, he
+> ticks "Digest delivery on" there — legacy task / step mail stops, the
+> 7:30 task digest stands down, and the four windows send. First day: watch
+> the Log tab and `cron.notifications` in the journal. Stage 3 = user
+> settings page + admin polish; Stage 4 = `/notifications` polish + legacy
+> removal (drop the four booleans, delete legacy senders, old crontab lines).

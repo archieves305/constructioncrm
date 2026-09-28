@@ -13,6 +13,7 @@ import { recordTaskEvent } from "./events";
 import { taskUrlForRole } from "./links";
 import { resolveRecipients, type Candidate } from "./recipients";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { isDeliveryTakenOver, loadNotificationSettings } from "@/lib/notifications/settings";
 import { renderTaskReminderEmail, type CustomReminderItem, type ReminderItem, type ScheduleChangeItem, type StartingItem } from "./task-email";
 
 /**
@@ -24,7 +25,7 @@ import { renderTaskReminderEmail, type CustomReminderItem, type ReminderItem, ty
  * separate mails is how a notification channel gets filtered into oblivion.
  */
 
-type DueTask = {
+export type DueTask = {
   id: string;
   title: string;
   priority: ReminderItem["priority"];
@@ -34,7 +35,7 @@ type DueTask = {
   lead: (CustomerInput & { id: string }) | null;
 };
 
-type ReminderTask = DueTask & {
+export type ReminderTask = DueTask & {
   createdByUserId: string;
   remindSetByUserId: string | null;
   remindSetBy: { firstName: string; lastName: string } | null;
@@ -113,6 +114,8 @@ export type DigestRunResult = {
   people: number;
   sent: number;
   failures: string[];
+  /** Set when the legacy run stood down (notifications v2 owns delivery). */
+  skipped?: string;
 };
 
 /** "Tue, Sep 29" for an all-day task, "Tue, Sep 29 · 9:00 – 11:00 AM" for a timed one. */
@@ -124,7 +127,7 @@ export function describeWhen(t: { dueAt: Date | null; scheduledStart: Date | nul
 }
 
 /** The "from" side of a change, read back from the event when it recorded one. */
-function describeFrom(c: ScheduleChange, tz: string = APP_TIME_ZONE): string {
+export function describeFrom(c: ScheduleChange, tz: string = APP_TIME_ZONE): string {
   if (!c.fromValue) return "Unscheduled";
   if (c.type === "DUE_CHANGED") {
     const d = new Date(c.fromValue);
@@ -149,7 +152,91 @@ const TASK_SELECT = {
   lead: { select: LEAD_LABEL_SELECT },
 } as const;
 
+/** Custom "remind me on…" rows that fell due, not yet delivered. */
+export async function loadDueReminders(todayEnd: Date): Promise<ReminderTask[]> {
+  return prisma.task.findMany({
+    where: {
+      ...ACTIVE_OPEN_WHERE,
+      remindAt: { not: null, lte: todayEnd },
+      remindedAt: null,
+    },
+    select: {
+      ...TASK_SELECT,
+      createdByUserId: true,
+      remindSetByUserId: true,
+      remindSetBy: { select: { firstName: true, lastName: true } },
+    },
+    orderBy: [{ remindAt: "asc" }],
+  });
+}
+
+/** DUE_CHANGED / SCHEDULE_CHANGED on active open assigned tasks since `since`. */
+export async function loadScheduleChanges(since: Date): Promise<ScheduleChange[]> {
+  const events = await prisma.taskEvent.findMany({
+    where: {
+      type: { in: ["DUE_CHANGED", "SCHEDULE_CHANGED"] },
+      createdAt: { gte: since },
+      task: { ...ACTIVE_OPEN_WHERE, assignedUserId: { not: null } },
+    },
+    select: {
+      taskId: true,
+      type: true,
+      fromValue: true,
+      toValue: true,
+      createdAt: true,
+      actor: { select: { firstName: true, lastName: true } },
+      task: { select: { ...TASK_SELECT, scheduledStart: true, allDay: true } },
+    },
+    orderBy: { createdAt: "asc" },
+    take: 500,
+  });
+  return events.map((e) => ({
+    taskId: e.taskId,
+    type: e.type as "DUE_CHANGED" | "SCHEDULE_CHANGED",
+    fromValue: e.fromValue,
+    toValue: e.toValue,
+    createdAt: e.createdAt,
+    actor: e.actor,
+    task: e.task,
+  }));
+}
+
+/** Open jobs whose target start falls in the window, with everyone who should hear it. */
+export async function loadJobStarts(from: Date, to: Date): Promise<JobStart[]> {
+  const jobs = await prisma.job.findMany({
+    where: { targetStartDate: { gte: from, lte: to }, currentStage: { isClosed: false } },
+    select: {
+      ...JOB_LABEL_SELECT,
+      projectManagerId: true,
+      salesRepId: true,
+      fieldAssignments: { select: { userId: true } },
+      workflow: { select: { team: { select: { userId: true } } } },
+    },
+  });
+  return jobs.map((j) => ({
+    id: j.id,
+    title: jobTextWithCustomer(j),
+    job: j,
+    userIds: [j.projectManagerId, j.salesRepId, ...j.fieldAssignments.map((f) => f.userId), ...(j.workflow?.team.map((t) => t.userId) ?? [])].filter((x): x is string => Boolean(x)),
+  }));
+}
+
+/** Mark custom reminders delivered (by the digest that carried them). */
+export async function retireReminders(taskIds: string[], now: Date, toValue: string): Promise<void> {
+  for (const id of taskIds) {
+    await prisma.task.update({ where: { id }, data: { remindedAt: now } });
+    await recordTaskEvent({ taskId: id, actorUserId: null, type: "REMINDER_SENT", toValue });
+  }
+}
+
 export async function runMorningDigest(now: Date = new Date()): Promise<DigestRunResult> {
+  // Notifications v2 folds this mail into the first digest window of the day
+  // (lib/notifications/digest/agenda.ts); with delivery taken over this run
+  // stands down so nobody hears the same morning twice.
+  if (isDeliveryTakenOver(await loadNotificationSettings())) {
+    return { tasks: 0, reminders: 0, changes: 0, starts: 0, people: 0, sent: 0, failures: [], skipped: "notifications v2 owns delivery" };
+  }
+
   // The office's day, not the server's: the droplet runs UTC and 7:30am ET is
   // 11:30Z, so a server-local midnight only worked by coincidence.
   const today = todayKey(now);
@@ -157,7 +244,7 @@ export async function runMorningDigest(now: Date = new Date()): Promise<DigestRu
   const todayEnd = endOfDayIn(today);
 
   const since = new Date(now.getTime() - 24 * 3_600_000);
-  const [dueTasks, reminderTasks, changeEvents, startingJobs] = await Promise.all([
+  const [dueTasks, reminderTasks, changes, starts] = await Promise.all([
     prisma.task.findMany({
       where: {
         ...ACTIVE_OPEN_WHERE,
@@ -167,65 +254,10 @@ export async function runMorningDigest(now: Date = new Date()): Promise<DigestRu
       select: TASK_SELECT,
       orderBy: [{ dueAt: "asc" }, { priority: "desc" }],
     }),
-    prisma.task.findMany({
-      where: {
-        ...ACTIVE_OPEN_WHERE,
-        remindAt: { not: null, lte: todayEnd },
-        remindedAt: null,
-      },
-      select: {
-        ...TASK_SELECT,
-        createdByUserId: true,
-        remindSetByUserId: true,
-        remindSetBy: { select: { firstName: true, lastName: true } },
-      },
-      orderBy: [{ remindAt: "asc" }],
-    }),
-    prisma.taskEvent.findMany({
-      where: {
-        type: { in: ["DUE_CHANGED", "SCHEDULE_CHANGED"] },
-        createdAt: { gte: since },
-        task: { ...ACTIVE_OPEN_WHERE, assignedUserId: { not: null } },
-      },
-      select: {
-        taskId: true,
-        type: true,
-        fromValue: true,
-        toValue: true,
-        createdAt: true,
-        actor: { select: { firstName: true, lastName: true } },
-        task: { select: { ...TASK_SELECT, scheduledStart: true, allDay: true } },
-      },
-      orderBy: { createdAt: "asc" },
-      take: 500,
-    }),
-    prisma.job.findMany({
-      where: { targetStartDate: { gte: todayStart, lte: todayEnd }, currentStage: { isClosed: false } },
-      select: {
-        ...JOB_LABEL_SELECT,
-        projectManagerId: true,
-        salesRepId: true,
-        fieldAssignments: { select: { userId: true } },
-        workflow: { select: { team: { select: { userId: true } } } },
-      },
-    }),
+    loadDueReminders(todayEnd),
+    loadScheduleChanges(since),
+    loadJobStarts(todayStart, todayEnd),
   ]);
-
-  const changes: ScheduleChange[] = changeEvents.map((e) => ({
-    taskId: e.taskId,
-    type: e.type as "DUE_CHANGED" | "SCHEDULE_CHANGED",
-    fromValue: e.fromValue,
-    toValue: e.toValue,
-    createdAt: e.createdAt,
-    actor: e.actor,
-    task: e.task,
-  }));
-  const starts: JobStart[] = startingJobs.map((j) => ({
-    id: j.id,
-    title: jobTextWithCustomer(j),
-    job: j,
-    userIds: [j.projectManagerId, j.salesRepId, ...j.fieldAssignments.map((f) => f.userId), ...(j.workflow?.team.map((t) => t.userId) ?? [])].filter((x): x is string => Boolean(x)),
-  }));
 
   const plan = planDigest(dueTasks, reminderTasks, todayStart, changes, starts);
   if (plan.size === 0) return { tasks: 0, reminders: 0, changes: 0, starts: 0, people: 0, sent: 0, failures: [] };

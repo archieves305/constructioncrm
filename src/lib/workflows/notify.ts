@@ -1,4 +1,3 @@
-import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { notifyTaskAssigned } from "@/lib/tasks/notify";
 import { runAfterResponse } from "@/lib/tasks/defer";
@@ -9,13 +8,10 @@ import type { NotifyBatch } from "@/lib/notifications/notify";
  *
  * Every step in one engine run (an apply, a completion's activation sweep,
  * a reconcile) shares a batch key, so the digest says "5 steps became
- * ready on 12 Elm St" instead of listing five mails' worth of lines. The
- * legacy per-step mail stays behind WORKFLOW_READY_EMAILS_ENABLED (default
- * off) and only runs while notifications v2 is not delivering.
+ * ready on 12 Elm St" instead of listing five mails' worth of lines. There
+ * is no per-step legacy mail: before v2 the morning digest covered Ready
+ * steps, and with v2 delivering they arrive in the next digest window.
  */
-export function isReadyEmailEnabled(): boolean {
-  return env.WORKFLOW_READY_EMAILS_ENABLED === "1";
-}
 
 export function notifyTasksReady(taskIds: string[], actorUserId: string | null, batchKey: string): void {
   if (taskIds.length === 0) return;

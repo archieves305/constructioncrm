@@ -8,36 +8,7 @@ import { cn } from "@/lib/utils";
 import type { RoleName } from "@/generated/prisma/client";
 import { NotificationBell } from "./notification-bell";
 import { isNavActive } from "./nav-active";
-import {
-  LayoutDashboard,
-  Users,
-  ClipboardList,
-  BarChart3,
-  Settings,
-  LogOut,
-  HardHat,
-  CheckSquare,
-  Briefcase,
-  DollarSign,
-  Zap,
-  Shield,
-  Calendar,
-  Hammer,
-  MessageSquare,
-  MapPin,
-  Gauge,
-  Route,
-  UsersRound,
-  Scale,
-  FileSignature,
-  Gavel,
-  ChevronDown,
-  ListChecks,
-  UserCheck,
-  ClipboardCheck,
-  Repeat,
-  Search,
-} from "lucide-react";
+import { BarChart3, BellRing, Briefcase, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, Gauge, Gavel, Hammer, HardHat, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Scale, Search, Settings, Shield, UserCheck, Users, UsersRound, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
 import { useViolationSummary } from "@/components/violations/use-violations";
@@ -137,6 +108,7 @@ export const navSections: NavSection[] = [
       { href: "/admin/job-task-templates", label: "Stage Task Templates", icon: CheckSquare, hint: "Tasks raised automatically when a job enters a stage" },
       { href: "/admin/follow-up-rules", label: "Follow-up Rules", icon: Zap, heading: "Automation" },
       { href: "/admin/nurture", label: "Customer Nurture", icon: Repeat, hint: "Automatic check-in emails to open leads that have gone quiet" },
+      { href: "/admin/notifications", label: "Notification Digests", icon: BellRing, hint: "When staff get email: the four daily digests, what goes out right away, and the delivery log" },
       { href: "/admin/workflow-role-defaults", label: "Workflow Role Defaults", icon: UserCheck, hint: "Who a workflow step is assigned to when the job has nobody in that role" },
       { href: "/admin/canvassing-settings", label: "Knock Scoring", icon: Gauge, heading: "Canvassing", hint: "How promising a canvassed door looks, from its history and neighbourhood" },
       { href: "/admin/job-cost-reconciliation", label: "Cost Reconciliation", icon: Scale, heading: "Finance", hint: "Matches card postings from cc-allocator against job expenses" },

@@ -65,7 +65,6 @@ const schema = z.object({
   TASK_AUTO_RULES_DISABLED: z.string().default("invoice.sent"),
   // "1" mails an assignee the moment a workflow step becomes Ready. Off for
   // the first week: the morning digest already lists ready steps with dates.
-  WORKFLOW_READY_EMAILS_ENABLED: z.string().default("0"),
   // Code-violation deadline escalation: calendar days past the compliance
   // deadline at which the case manager, then every MANAGER, then every
   // ADMIN is mailed. Off by default for the same SPF reason as tasks.

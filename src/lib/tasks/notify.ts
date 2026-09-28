@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
 import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { subjectText } from "@/lib/labels/subject";
 import { logger } from "@/lib/logger";
@@ -251,7 +250,8 @@ function logSkips(taskId: string, kind: string, skipped: { userId: string; reaso
 /**
  * New owner gets told. Self-assignment tells nobody. `readyStep` is a
  * workflow step that just became Ready (same message, its own kind, batched
- * per engine run); its legacy mail stays behind WORKFLOW_READY_EMAILS_ENABLED.
+ * per engine run); it has no legacy mail — the morning task digest always
+ * covered Ready steps, and notifications v2 folds them into its digests.
  */
 export async function notifyTaskAssigned(input: {
   taskId: string;
@@ -290,7 +290,7 @@ export async function notifyTaskAssigned(input: {
     immediateRender: render,
   });
   if (!v2.legacy) return;
-  if (input.readyStep && env.WORKFLOW_READY_EMAILS_ENABLED !== "1") return;
+  if (input.readyStep) return;
 
   const { recipients, skipped } = await resolveRecipients({
     candidates: [{ userId: task.assignedUserId, reason: "assignee" }],

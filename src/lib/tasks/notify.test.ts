@@ -14,7 +14,7 @@ const notify = vi.hoisted(() => vi.fn());
 const sendEmail = vi.hoisted(() => vi.fn());
 const resolveRecipients = vi.hoisted(() => vi.fn());
 const taskAudience = vi.hoisted(() => vi.fn());
-const envFlags = vi.hoisted(() => ({ WORKFLOW_READY_EMAILS_ENABLED: "0", APP_BASE_URL: "https://crm.test" }));
+const envFlags = vi.hoisted(() => ({ APP_BASE_URL: "https://crm.test" }));
 
 vi.mock("@/lib/db/prisma", () => ({ prisma: db }));
 vi.mock("@/lib/env", () => ({ env: envFlags }));
@@ -93,7 +93,6 @@ beforeEach(() => {
     { userId: "u-creator", reason: "assignor" },
     { userId: "u-w", reason: "watcher" },
   ]);
-  envFlags.WORKFLOW_READY_EMAILS_ENABLED = "0";
 });
 
 describe("notifyTaskAssigned", () => {
@@ -113,16 +112,12 @@ describe("notifyTaskAssigned", () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
-  it("a Ready workflow step is its own kind and, on the legacy path, stays behind the env flag", async () => {
+  it("a Ready workflow step is its own kind and never sends a per-step legacy mail", async () => {
     notify.mockResolvedValue({ legacy: true, takeover: false, rows: [], skipped: [], deduped: 0 });
     resolveRecipients.mockResolvedValue({ recipients: [{ userId: "u-a", email: "a@k.com", firstName: "Al", lastName: "A", role: "SALES_REP", reason: "assignee" }], skipped: [] });
     await mod.notifyTaskAssigned({ taskId: "t1", actorUserId: "u-actor", readyStep: true });
     expect(notify).toHaveBeenCalledWith(expect.objectContaining({ kind: "task.ready" }));
     expect(sendEmail).not.toHaveBeenCalled();
-
-    envFlags.WORKFLOW_READY_EMAILS_ENABLED = "1";
-    await mod.notifyTaskAssigned({ taskId: "t1", actorUserId: "u-actor", readyStep: true });
-    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
   it("the legacy mail goes when v2 is not delivering", async () => {

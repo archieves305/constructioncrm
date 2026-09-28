@@ -90,9 +90,80 @@ completion (the PM does, grouped); the completer gets a bell receipt, not a
 mail; role back-fill no longer mails inactive steps; `WORKFLOW_READY_EMAILS_ENABLED`
 only gates the legacy per-step mail.
 
-Still legacy in Stage 1 (folded in Stage 2): the morning task digest,
-escalations, violation deadline reminders/escalations, field-log digest and
-draft reminders.
+Stage 2 folded the morning task digest (overdue / due today / reminders /
+schedule changes / job starts) into the first window and retired
+`WORKFLOW_READY_EMAILS_ENABLED`. Still legacy (Stage 4): task escalations,
+violation deadline reminders / escalations, field-log digest and draft
+reminders — they keep their own crontab lines and mail.
+
+## Digests (Stage 2, built 2026-09-28)
+
+```
+tick (every 10 min) → dueWindow? → for each person with pending rows
+  (morning: everyone with email who is not in-app-only)
+  ledger NotificationDigest {person, window}   ← unique: one digest per window
+  → claim: updateMany PENDING rows ≤ window → CLAIMED + digestId   ← atomic
+  → permissions.ts re-check (SUPPRESSED rows never render)
+  → digest/build.ts (pure) → digest/agenda.ts → digest/render.ts (pure)
+  → sendEmail → SENT (+ rows SENT/emailedAt, EMAIL_SENT once per task,
+    reminders retired)   |   failure → FAILED, rows released (never lost)
+```
+
+- **`digest/build.ts`** (pure, tested): dedupe the same event on the same
+  subject (newest wins, occurrences summed); on one task `task.completed`
+  supersedes assigned / reassigned / ready / blocked and `task.reassigned`
+  supersedes assigned; rows of a collapsible kind sharing a `batchKey`, in
+  the same section and subject, ≥ `batchCollapseThreshold` (3) → one line
+  ("5 workflow steps became ready", first three titles, the subject's
+  link); ACTION REQUIRED when the row is `actionRequired` and the person is
+  assignee / mentioned / manager / owner, else the registry section; groups
+  by job → case → lead → none (busiest / most urgent first); caps
+  `digestMaxPerSubject` then `digestMaxPerSection` with "+N more" and the
+  hidden rows still counted as delivered; CREW_LEAD drops JOB_UPDATES and
+  COMPLETED; unknown kinds land in OTHER.
+- **`digest/agenda.ts`**: the person's calendar through the very query the
+  Day view and `/field/day` read (`users=me`, tasks + overlays via
+  `lib/calendar/overlays-load.ts`). Morning = today + overdue (30-day
+  look-back) + due custom reminders + "Schedule changed since yesterday" +
+  "Starting today"; midday / afternoon = the rest of today; evening =
+  tomorrow. Null when empty. Reminders it carries are retired
+  (`remindedAt`, `REMINDER_SENT`) after the send.
+- **`digest/render.ts`** (pure, tested): subject ≤ 78 chars — one action →
+  "Blocked: Permit gate at 7676 Peters Road — Midday digest"; several →
+  "3 to action · 12 updates — …"; updates only → "12 updates on your jobs";
+  agenda only → "Your morning: 3 scheduled"; never "new notifications".
+  Body: Starting today → agenda → sections in registry order → "N more in
+  the CRM" → **View all activity** (`/notifications?since=<last digest>`).
+  Links resolve per role (`hrefForRole`: CREW_LEAD → `/field/...`).
+- **`permissions.ts`**: `visibleSetsFor` — view-all roles pass; otherwise
+  one `visibilityScopeFor` + one query each for tasks (`canViewTask`),
+  cases (`violationVisibilityFilter`), jobs and leads (involvement); pure
+  `splitVisible` checks the finest subject set on the row.
+- **`digest/run.ts`**: shadow → report per person (PENDING + SUPPRESSED
+  rows ≤ window); takeover → `recoverStaleDigests` (SENDING > 15 min →
+  FAILED, rows released, audit `stale_recovery`), then per person: a
+  window the person's `digestWindows` skip → rows re-stamped to their
+  `nextWindow`, ledger SKIPPED_MUTED; ledger create (P2002 → SENT /
+  SKIPPED → "already"; FAILED < 3 attempts → retry; SENDING → another tick
+  has it); claim; filter; build; agenda; empty → SKIPPED_EMPTY with rows
+  SENT (bell only); else SENDING (attempts+1) → send → SENT with counts →
+  rows SENT + `providerMessageId` → receipts; failure → FAILED + rows
+  PENDING again. `lastMorningProducedOn` ledger on the first window;
+  `prune` on the last (rows SENT/SUPPRESSED and finished digests older than
+  `retentionDays`). `?dryRun=1` builds every model, claims nothing, and
+  reports subject / items / agenda / suppressed per person.
+- **Legacy stand-down**: `runMorningDigest` returns `skipped` under
+  takeover (the crontab line stays until Stage 4 and is a no-op).
+- **Admin → Notification Digests** (`/admin/notifications`, sidebar under
+  Automation; view ADMIN + MANAGER, manage ADMIN): status strip (off /
+  shadow / delivering, due + next window, 7-day counts); Delivery (the
+  switch, windows, zone, weekdays, grace, retention, the caps) with
+  **Preview the next digest** (dry run) and **Run the tick now**;
+  Immediate rules (always / never per kind, `neverDemote` kinds locked);
+  Log (digests with counts and errors, last immediate rows with their
+  classify reason). Routes: `GET/PUT /api/admin/notifications/settings`,
+  `GET …/log`, `POST …/tick?dryRun=1|0`. Validator
+  `lib/validators/notifications.ts`.
 
 ## Preferences
 
@@ -134,9 +205,41 @@ uncommitted calendar columns, and the enum change is a plain `ADD VALUE`.
   The crontab line (`*/10 * * * 1-5 /home/knuco/crm-cron/notifications.sh`)
   goes in with Stage 2.
 
+### Cron wrapper (droplet, user `knuco`)
+
+`/home/knuco/crm-cron/notifications.sh`, mirroring the other wrappers:
+
+```bash
+#!/usr/bin/env bash
+set -a; . /etc/knuco/env; set +a
+out=$(curl -s -m 120 -X POST -H "x-cron-secret: $CRON_SECRET" "http://127.0.0.1:4000/api/cron/notifications")
+echo "$(date -u +%FT%TZ) $out" >> /home/knuco/crm-cron/notifications.log
+```
+
+crontab line (every 10 minutes, every day — weekends are decided by the
+settings, not the schedule): `*/10 * * * * /home/knuco/crm-cron/notifications.sh`.
+
 ## Stage log
 
 - **Stage 1 (2026-09-27, `notifications` branch):** schema + migration,
   service layer, producers rewired with legacy fallback, bell + center on
   the new table, tick (retry + dry run), preference mirroring. 989 tests
   (+57), lint 6/22, typecheck + build clean.
+
+**Stage 2 — 2026-09-28.** Built on the `notifications` worktree after
+merging `main` (calendar phases). Dev QA `scratchpad/qa-digest.js` 16/16
+on the worktree dev server (port 4001, `NOTIFICATIONS_V2=1`): switch on +
+a window due now, five DIGEST rows (an assignment, a blocked gate, a
+three-step engine batch) → dry run plans "Blocked: QA digest: permit gate
+blocked — Midday digest", claims nothing → real run sends one digest (to
+Richard, labelled QA), ledger SENT with 3 items / 3 collapsed and a
+provider id, rows SENT with `emailedAt`, `EMAIL_SENT` once per task → a
+second tick sends nothing → `task-reminders` cron answers `skipped` →
+a digest left SENDING for 20 min is recovered (FAILED, rows PENDING) →
+a person whose windows exclude the due one gets rows re-stamped to
+tomorrow 08:00 and SKIPPED_MUTED → the admin log lists it → switch off
+returns to shadow. Settings restored, QA rows deleted. Gate: typecheck
+clean, lint 6/22, 1157 tests (+15), build clean. The QA fixture's first
+run put three "ready" rows on one task and saw them dedupe to one line
+before collapsing — correct behaviour, wrong fixture.
+
