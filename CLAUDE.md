@@ -245,7 +245,7 @@ clean, backup `postgres-2026-09-28-114633.dump`, `.deploy-sha` `e0380ba`.
 Details:
 [features/calendar.md](docs/project-memory/features/calendar.md).
 
-### 2026-09-28 — Workflow team PM now fills the job's PM (in `7be0e5c`, awaiting deploy + backfill)
+### 2026-09-28 — Workflow team PM now fills the job's PM (deployed `4a9a1b3`, prod backfilled)
 
 Richard: the Workflow tab's Team names a project manager but the job page's
 Team card says "PM: —". Two stores: the dialog wrote a
@@ -262,7 +262,11 @@ the job field. `scripts/backfill-workflow-team-to-jobs-2026-09-28.ts`
 JOB-00001's PM, wrote both rows, and a re-run changed 0. Gate: typecheck
 clean, lint 6/22, 1074 tests. The five files were swept into the sibling
 session's Phase 3 commit `7be0e5c` from the shared checkout, so they ship
-with it. **Run the backfill on prod after deploy.**
+with it. **Deployed `4a9a1b3`** (with Phase 3; BUILD_ID `sBabA8ralAO2_F-0aMUve`
+→ `2u4fVOc8Ife0Gb0ANSAjF`, no migration, smoke 307 ×2, journal clean,
+backup `postgres-2026-09-28-120539.dump`). **Prod backfill run**: dry run
+8 of 9, applied 8 (Lisette PM on 17/18/20/21/22/23 + sales rep on 20,
+Erica PM on 24/25), re-run 0, 8 audit + 8 activity rows.
 
 ### 2026-09-28 — Jobs table hides closed jobs by default (deployed `a067ac8`)
 
