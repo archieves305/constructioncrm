@@ -96,8 +96,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    **deployed 2026-09-28 as `4e9ee62`** (BUILD_ID `AJgI-9h4wEZJtyDX0DEfz`,
    migration `20261007120000_notifications` applied: 8 users default
    DIGEST, none IN_APP_ONLY, old bell rows marked read; smoke 307 ×2,
-   journal clean, backup `postgres-2026-09-28-125713.dump`). Shadow flag
-   `NOTIFICATIONS_V2=1` is the next operator step. Gates: env `NOTIFICATIONS_V2=1`
+   journal clean, backup `postgres-2026-09-28-125713.dump`). **Shadow mode
+   on since 2026-09-28** (`NOTIFICATIONS_V2=1` in `/etc/knuco/env`, dry-run
+   tick → `recording: true, takeover: false`, settings singleton created
+   with `enabled = false`, windows 08:00 / 12:00 / 15:30 / 18:00 weekdays).
+   Rows now record beside the unchanged legacy mail; **the DB switch stays
+   off until Stage 2** (digest build / render / send + crontab + admin
+   Delivery tab), which is the next build. Gates: env `NOTIFICATIONS_V2=1`
    records rows (shadow — legacy mail unchanged); the DB switch
    `NotificationSettings.enabled` hands delivery to v2 and **must stay off
    on prod until Stage 2 ships the digest sender**. Stage 2 = digest
@@ -425,8 +430,12 @@ pushed and deployed from `!`: BUILD_ID `Vb1KFWlyhrVkEEeBQMdzA` →
 `AJgI-9h4wEZJtyDX0DEfz`, migration applied, smoke 307 ×2, journal clean,
 backup `postgres-2026-09-28-125713.dump`. Prod after: 0 notification rows
 (flag off), 8 users DIGEST / 0 IN_APP_ONLY (nobody had muted mail), old
-IN_APP `notification_events` marked read. Next: `NOTIFICATIONS_V2=1` +
-restart → dry-run tick → shadow; Stage 2 build.
+IN_APP `notification_events` marked read. Richard then appended
+`NOTIFICATIONS_V2=1` to `/etc/knuco/env` and restarted (from `!`); the
+dry-run tick answered `recording: true, takeover: false, windowKey
+2026-09-28:08:00, nextWindowKey 2026-09-28:12:00`, no secret → 403, the
+`notification_settings` row was created lazily with `enabled = false`,
+journal clean. Shadow mode is live; Stage 2 is the next build.
 
 ### 2026-09-27 — Notifications v2, Stage 1: record + shadow (built, dev-QA'd, branch `notifications`)
 
@@ -1187,12 +1196,12 @@ shadow mode, legacy mail unchanged; delivery only moves to v2 when
 > `/tasks` from the header pills. Same rules: explicit role lists, tests +
 > typecheck + build green, lint ≤ 6/28, deploy with the env override.
 >
-> **Notifications v2 Stage 1 is on prod (`4e9ee62`, BUILD_ID
-> `AJgI-9h4wEZJtyDX0DEfz`, migration applied), flag off.** Next: shadow
-> mode: `NOTIFICATIONS_V2=1` in `/etc/knuco/env` + restart →
-> `curl … /api/cron/notifications?dryRun=1` → `recording: true, takeover:
-> false`; check the bell. **Leave `NotificationSettings.enabled` off until
-> Stage 2.** Then Stage 2 per the plan §I–§K (`digest/{build,agenda,render}`,
+> **Notifications v2 Stage 1 is on prod in shadow mode (`4e9ee62`,
+> BUILD_ID `AJgI-9h4wEZJtyDX0DEfz`, `NOTIFICATIONS_V2=1`, dry run
+> `recording: true, takeover: false`).** Rows record beside legacy mail;
+> check the bell and `SELECT count(*) FROM notifications` after a day of
+> activity. **Leave `NotificationSettings.enabled` off until Stage 2.**
+> Next: Stage 2 per the plan §I–§K (`digest/{build,agenda,render}`,
 > claim transaction + ledger, permission re-check, morning producers folded
 > into the first window — including the calendar's "Schedule changed since
 > yesterday" and "Starting today" sections — `email/components.ts`,
