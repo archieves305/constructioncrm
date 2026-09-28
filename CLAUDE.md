@@ -58,9 +58,16 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    Gate: typecheck clean, lint 6/22, 1063 tests, build clean; headless
    QA 28/28. **Deployed 2026-09-28 as `e0380ba`** (BUILD_ID
    `sBabA8ralAO2_F-0aMUve`, no migration, smoke 307 ×2, journal clean,
-   backup `postgres-2026-09-28-114633.dump`). Richard's prod click-through
-   is next. Phases 3 (`/field/day`, Today
-   widget) and 4 (overlays, digest line, ⌘K tasks) follow. Notes:
+   backup `postgres-2026-09-28-114633.dump`). **Phase 3 (field + today)
+   built + dev-QA'd 2026-09-28 on `calendar-field`, fast-forwarded to
+   `main`**: `/field/day` with the gloves-friendly action row (Start / Done /
+   Directions / Call / Photo / Checklist), Jobs · Today · Tasks bottom nav,
+   checklist block on the field task page, dashboard Today widget beside My
+   tasks; pure `fieldActions` / `splitFieldDay` tested. No migration. Gate:
+   typecheck clean, lint 6/22, 1069 tests (+6), build clean; headless QA
+   22/22. **Not pushed, not deployed.** Richard's Phase 2 click-through is
+   still pending too. Phase 4 (overlays, digest line, ⌘K tasks) follows.
+   Notes:
    [features/calendar.md](docs/project-memory/features/calendar.md).
 00000. ✅ **Friendlier CRM: address-first labels + calmer navigation** —
    four stages, plan approved 2026-09-25
@@ -184,6 +191,29 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-28 — Operations Calendar, Phase 3: field + today (built, dev-QA'd, on `main`, not deployed)
+
+"continue to phase 3". Built on `calendar-field`: pure
+`lib/calendar/field-day.ts` (`fieldActions` — Start unless started, Done
+while open, Directions only with a real address, Call only with a dialable
+number, the job's customer over the task's lead, Photo → the job's daily
+log for that day, Checklist when the step has one; `splitFieldDay`,
+`fieldDayLine`, `greeting`), `components/field/field-day-card.tsx` (time
+rail, address, title, badges, blocked reason, `h-11` action row; the
+evidence gate's 400 becomes a toast with an "Open task" action),
+`app/(field)/field/day/page.tsx` (greeting, `‹ Today ›`, overdue callout on
+today, agenda order, "Done · n" fold, collapsed Tomorrow, `+ Task` prefilled
+with the day and me — all off the same `GET /api/calendar` the office reads),
+bottom nav Jobs · Today · Tasks (Today badge = remaining, red when overdue;
+the nav shares the page's query), a Today link in the field header, a
+checklist block on `/field/tasks/[taskId]` (44 px rows, PATCH per tick) and
+a timed window in its due badge, and `components/calendar/today-widget.tsx`
+on the dashboard beside My tasks. Gate: typecheck clean, lint 6/22, 1069
+tests (+6), build clean; headless Chromium at 390×844 22/22
+(`qa-field.js`, recipe in the feature doc). No migration. Fast-forwarded to
+`main` as `7be0e5c`. Details:
+[features/calendar.md](docs/project-memory/features/calendar.md).
 
 ### 2026-09-28 — Operations Calendar, Phase 2: dispatch (deployed `e0380ba`)
 
@@ -993,8 +1023,15 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 > **Operations Calendar Phase 1 is on prod and clicked through; the Jobs
 > table hides closed jobs by default (`a067ac8`, BUILD_ID
 > `gCg4iE5s2vGZXzV50cr78`); Phase 2 (dispatch) is on prod (`e0380ba`,
-> BUILD_ID `sBabA8ralAO2_F-0aMUve`, no migration).** Next: Richard's
-> click-through on prod: Calendar → People; drag a card
+> BUILD_ID `sBabA8ralAO2_F-0aMUve`, no migration); Phase 3 (field + today)
+> is on `main` as `7be0e5c`, not pushed, not deployed (no migration).**
+> Next: Richard pushes + deploys from `!` (`git push origin main`, then
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`), then two
+> click-throughs on prod. Phase 3, on his phone: Field Mode → Today tab;
+> the greeting, today's tasks in order, Start / Done on one, Directions and
+> Call on a job task, Photo lands on the daily log, Checklist "n/m" opens
+> the task page's list and a tick saves; Tomorrow expands; the dashboard
+> Today card matches. Phase 2, on a desktop: Calendar → People; drag a card
 > from the Unscheduled rail onto Lisette / Tuesday (one assignment email,
 > timeline shows ASSIGNED + DUE_CHANGED); drag it to another day and back to
 > the rail; give two of his own tasks overlapping times on one day, drag one
