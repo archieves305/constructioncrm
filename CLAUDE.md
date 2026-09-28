@@ -41,8 +41,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    agenda + day strip, bottom sheet), `ScheduleSection` + assignee +
    Directions/Call in the task sheet, time row in the task dialog,
    `User.defaultCalendarView`. `/schedule` redirects; its unguarded PUT
-   route is gone. **Not deployed yet** — merge to `main`, push, deploy,
-   Richard's click-through. Phases 2 (dispatch: People view, Unscheduled
+   route is gone. **On `main` as `6f65efd` (fast-forward, 2026-09-28);
+   gate re-run on main: typecheck clean, lint 6/22, 1027 tests, build
+   clean. Not pushed, not deployed** — Richard pushes + deploys from `!`,
+   then his click-through. Phases 2 (dispatch: People view, Unscheduled
    rail, drag, conflicts), 3 (`/field/day`, Today widget), 4 (overlays,
    digest line, ⌘K tasks) follow. Notes:
    [features/calendar.md](docs/project-memory/features/calendar.md).
@@ -893,9 +895,9 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 ## 10. Next Prompt
 
-> **Operations Calendar Phase 1 is built and dev-QA'd on branch
-> `calendar-foundation` (not merged, not deployed).** Next: merge to
-> `main`, Richard pushes + deploys (`KNUCO_PUBLIC_URL=https://crm.careyos.com
+> **Operations Calendar Phase 1 is on `main` (`6f65efd`), gate green,
+> not pushed, not deployed.** Next: Richard pushes + deploys from `!`
+> (`git push origin main`, then `KNUCO_PUBLIC_URL=https://crm.careyos.com
 > ./deploy.sh --yes`; migration `20261006120000_task_scheduling` applies;
 > verify the CHECK exists and `/schedule` → `/calendar`), then his
 > click-through: sidebar Calendar shows his active tasks this week; open one,
