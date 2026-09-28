@@ -65,9 +65,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    checklist block on the field task page, dashboard Today widget beside My
    tasks; pure `fieldActions` / `splitFieldDay` tested. No migration. Gate:
    typecheck clean, lint 6/22, 1069 tests (+6), build clean; headless QA
-   22/22. **Not pushed, not deployed.** Richard's Phase 2 click-through is
-   still pending too. Phase 4 (overlays, digest line, ⌘K tasks) follows.
-   Notes:
+   22/22. **On prod since 2026-09-28 inside the sibling session's deploy
+   `4a9a1b3`** (BUILD_ID `2u4fVOc8Ife0Gb0ANSAjF`, no migration, smoke 307
+   ×2, journal clean, backup `postgres-2026-09-28-120539.dump`; that
+   session's workflow-team PM fix had been swept into `7be0e5c` from the
+   shared checkout, so the two shipped together). Richard's Phase 2 and
+   Phase 3 click-throughs are pending. Phase 4 (overlays, digest line, ⌘K
+   tasks) follows. Notes:
    [features/calendar.md](docs/project-memory/features/calendar.md).
 00000. ✅ **Friendlier CRM: address-first labels + calmer navigation** —
    four stages, plan approved 2026-09-25
@@ -212,7 +216,13 @@ a timed window in its due badge, and `components/calendar/today-widget.tsx`
 on the dashboard beside My tasks. Gate: typecheck clean, lint 6/22, 1069
 tests (+6), build clean; headless Chromium at 390×844 22/22
 (`qa-field.js`, recipe in the feature doc). No migration. Fast-forwarded to
-`main` as `7be0e5c`. Details:
+`main` as `7be0e5c` — and that commit was made with `git add -A` in the
+shared checkout, so it swept in the sibling session's five uncommitted
+workflow-team PM files (their entry below records it). The sibling pushed
+and deployed `4a9a1b3` with Phase 3 aboard: BUILD_ID `sBabA8ralAO2_F-0aMUve`
+→ `2u4fVOc8Ife0Gb0ANSAjF`, journal clean, `/field/day` answers. Lesson
+re-recorded in memory: stage explicit paths, never `-A`, when two sessions
+share a checkout. Details:
 [features/calendar.md](docs/project-memory/features/calendar.md).
 
 ### 2026-09-28 — Operations Calendar, Phase 2: dispatch (deployed `e0380ba`)
@@ -1047,10 +1057,8 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 > table hides closed jobs by default (`a067ac8`, BUILD_ID
 > `gCg4iE5s2vGZXzV50cr78`); Phase 2 (dispatch) is on prod (`e0380ba`,
 > BUILD_ID `sBabA8ralAO2_F-0aMUve`, no migration); Phase 3 (field + today)
-> is on `main` as `7be0e5c`, not pushed, not deployed (no migration).**
-> Next: Richard pushes + deploys from `!` (`git push origin main`, then
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`), then two
-> click-throughs on prod. Phase 3, on his phone: Field Mode → Today tab;
+> is on prod too, inside `4a9a1b3` (BUILD_ID `2u4fVOc8Ife0Gb0ANSAjF`, no
+> migration).** Next: two click-throughs on prod. Phase 3, on his phone: Field Mode → Today tab;
 > the greeting, today's tasks in order, Start / Done on one, Directions and
 > Call on a job task, Photo lands on the daily log, Checklist "n/m" opens
 > the task page's list and a tick saves; Tomorrow expands; the dashboard
