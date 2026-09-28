@@ -198,7 +198,7 @@ beside My tasks (both single-column now): time rail, priority dot, title +
 address, "All day" / window / Overdue; rows open the task on the calendar's
 Day view; "Open calendar" link.
 
-## Operational intelligence (Phase 4, built 2026-09-28 on `calendar-intel`)
+## Operational intelligence (Phase 4, built 2026-09-28 on `calendar-intel`; deployed `4d1be83`, BUILD_ID `Vb1KFWlyhrVkEEeBQMdzA`)
 
 **Overlays.** `CalendarItem.kind` is now `task | permit_inspection | hearing |
 case_inspection | job_start`, and non-task items carry `overlay: { label,

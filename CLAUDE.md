@@ -27,7 +27,7 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-000000. ✅ **Operations Calendar / My Work — Phase 1 on prod** — four phases, plan approved
+000000. ✅ **Operations Calendar / My Work — all four phases on prod** — four phases, plan approved
    2026-09-27 (`~/.claude/plans/woolly-swinging-mist.md`). **Phase 1
    (Foundation) built + dev-QA'd 2026-09-27 on `calendar-foundation`**:
    one date axis (`dueAt` = the day and, for timed tasks, the end instant;
@@ -77,8 +77,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    since yesterday" + "Starting today" digest sections, dependency warning
    on drop, ⌘K task search landing on the calendar day. No migration. Gate:
    typecheck clean, lint 6/22, 1085 tests (+16), build clean; headless QA
-   16/16. **Not pushed, not deployed.** Richard's Phase 2 and Phase 3
-   click-throughs are still pending; Phase 4 is the last phase of the plan.
+   16/16. **Deployed 2026-09-28 as `4d1be83`** (BUILD_ID
+   `Vb1KFWlyhrVkEEeBQMdzA`, no migration, smoke 307 ×2, journal clean,
+   backup `postgres-2026-09-28-123359.dump`). **All four phases are on
+   prod**; what remains is Richard's click-through of Phases 2, 3 and 4.
    Notes:
    [features/calendar.md](docs/project-memory/features/calendar.md).
 00000. ✅ **Friendlier CRM: address-first labels + calmer navigation** —
@@ -204,7 +206,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-28 — Operations Calendar, Phase 4: operational intelligence (built, dev-QA'd, on `main`, not deployed)
+### 2026-09-28 — Operations Calendar, Phase 4: operational intelligence (deployed `4d1be83`)
 
 "continue to Phase 4". Built on `calendar-intel`: `CalendarItem.kind` +
 `overlay`, pure `lib/calendar/overlays.ts` (`overlayWhen` — midnight-UTC
@@ -224,7 +226,10 @@ subject. `dependencyWarning` toast after a drop. ⌘K: `tasks` where,
 `taskHitHref`, route + palette group. Gate: typecheck clean, lint 6/22,
 1085 tests (+16), build clean; headless Chromium 16/16 (`qa-intel.js`,
 recipe in the feature doc). No migration. Staged by explicit path this
-time; no foreign files. Details:
+time; no foreign files. Richard pushed and deployed from `!`: BUILD_ID
+`2u4fVOc8Ife0Gb0ANSAjF` → `Vb1KFWlyhrVkEEeBQMdzA`, no pending migrations,
+smoke 307 ×2, journal clean, backup `postgres-2026-09-28-123359.dump`,
+`.deploy-sha` `4d1be83`. Details:
 [features/calendar.md](docs/project-memory/features/calendar.md).
 
 ### 2026-09-28 — Operations Calendar, Phase 3: field + today (built, dev-QA'd, on `main`, not deployed)
@@ -1090,9 +1095,8 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 > BUILD_ID `sBabA8ralAO2_F-0aMUve`, no migration); Phase 3 (field + today)
 > is on prod too, inside `4a9a1b3` (BUILD_ID `2u4fVOc8Ife0Gb0ANSAjF`, no
 > migration); Phase 4 (overlays, digest lines, dependency warning, ⌘K
-> tasks) is on `main`, not pushed, not deployed (no migration).** Next:
-> Richard pushes + deploys from `!` (`git push origin main`, then
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`), then three
+> tasks) is on prod as `4d1be83` (BUILD_ID `Vb1KFWlyhrVkEEeBQMdzA`, no
+> migration). All four phases of the plan are live.** Next: three
 > click-throughs on prod. Phase 4: an upcoming permit inspection or hearing
 > shows on the Week as a dashed card that opens the record and cannot be
 > dragged; Month says "n appointments"; ⌘K → type a task title → lands on
