@@ -174,7 +174,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-28 — Jobs table hides closed jobs by default (awaiting deploy)
+### 2026-09-28 — Jobs table hides closed jobs by default (deployed `a067ac8`)
 
 Richard: closed jobs should not show on the Jobs tab when it first opens.
 `JobListParams.excludeClosed` (`excludeClosed=1`) adds
@@ -185,7 +185,13 @@ search overrides it so a closed stage or an address search still finds the
 job. Header reads "N open jobs". Board unchanged (closed columns were
 already collapsed). Verified on dev by moving one job to Closed: all 5 /
 open 4 / closed stage picked 1 / search 1, then restored. Gate: typecheck
-clean, lint 6/22, query tests 14/14, full suite green.
+clean, lint 6/22, query tests 14/14, full suite green. A sibling session
+was building calendar Phase 2 in the checkout, so the commit was made on
+`main` through a temporary worktree and the deploy run from
+`/tmp/knuco-main`. **Deployed `a067ac8`** (BUILD_ID `b0-KfO1kETJzHU_uElpM5`
+→ `gCg4iE5s2vGZXzV50cr78`, no migration, smoke 307 ×2, journal clean,
+backup `postgres-2026-09-28-112808.dump`). Prod: 25 jobs, 6 Closed, so
+the table now opens with 19.
 
 ### 2026-09-28 — Calendar click-through fix: Viewing menu crashed on open (deployed `596fe14`)
 
@@ -945,7 +951,9 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 > **Operations Calendar Phase 1 is on prod (`08e9355`, BUILD_ID
 > `sMd5qs7fP1qWl0vxJLB14`, migration applied and verified) plus the Viewing
-> menu fix (`596fe14`, BUILD_ID `b0-KfO1kETJzHU_uElpM5`).** Next: Richard's
+> menu fix (`596fe14`, BUILD_ID `b0-KfO1kETJzHU_uElpM5`) and the Jobs table
+> hiding closed jobs by default (`a067ac8`, BUILD_ID
+> `gCg4iE5s2vGZXzV50cr78`).** Next: Richard's
 > click-through (signed in, also confirm `/schedule` →
 > `/calendar`): sidebar Calendar shows his active tasks this week; open one,
 > set 2–3 pm, see the time on the card and the same due date on `/tasks`;
