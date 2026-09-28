@@ -6,6 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -88,14 +89,17 @@ export function ViewingSelector({
           <DropdownMenuRadioItem value="all">Everyone</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>People</DropdownMenuLabel>
-        {active.map((u) => (
-          <DropdownMenuCheckboxItem key={u.id} checked={selectedIds.has(u.id)} onCheckedChange={(c) => toggleUser(u.id, Boolean(c))}>
-            <span className="flex items-center gap-2">
-              <UserAvatar user={u} size="xs" /> {fullName(u)}
-            </span>
-          </DropdownMenuCheckboxItem>
-        ))}
+        {/* Base UI requires a GroupLabel to sit inside a Group; a bare label throws on open. */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>People</DropdownMenuLabel>
+          {active.map((u) => (
+            <DropdownMenuCheckboxItem key={u.id} checked={selectedIds.has(u.id)} onCheckedChange={(c) => toggleUser(u.id, Boolean(c))}>
+              <span className="flex items-center gap-2">
+                <UserAvatar user={u} size="xs" /> {fullName(u)}
+              </span>
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuCheckboxItem checked={includeUnassigned} onCheckedChange={(c) => toggleUnassigned(Boolean(c))}>
           <span className="flex items-center gap-2">
