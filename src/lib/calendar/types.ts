@@ -38,8 +38,19 @@ export type CalendarJob = {
 
 export type CalendarCase = { id: string; caseNumber: string; agencyCaseNumber: string | null; leadId: string };
 
+/** A task, or a dated record drawn read-only beside the tasks. */
+export type CalendarKind = "task" | "permit_inspection" | "hearing" | "case_inspection" | "job_start";
+
+/** What a non-task item is and where it opens. Null on a task. */
+export type CalendarOverlay = {
+  label: string;
+  detail: string | null;
+  href: string;
+  state: "scheduled" | "done" | "moved";
+};
+
 export type CalendarItem = {
-  kind: "task";
+  kind: CalendarKind;
   id: string;
   title: string;
   description: string | null;
@@ -73,6 +84,7 @@ export type CalendarItem = {
   workflowPhaseKey: string | null;
   checklist: { done: number; total: number };
   counts: { notes: number; files: number; waitingOn: number };
+  overlay: CalendarOverlay | null;
 };
 
 export type CalendarRangeResponse = {

@@ -1,6 +1,8 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Clock, Link2, ListChecks, Lock, MessageSquare } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, CheckCircle2, ClipboardCheck, Clock, Flag, Gavel, Link2, ListChecks, Lock, MessageSquare, ShieldCheck } from "lucide-react";
+import type { CalendarKind } from "@/lib/calendar/types";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { PRIORITY_DOT_CLASS, PRIORITY_LABEL, STATUS_TONE } from "@/components/tasks/task-colors";
 import { shortName } from "@/components/tasks/types";
@@ -47,7 +49,53 @@ export type CalendarTaskCardProps = {
   overlay?: boolean;
 };
 
+/** The icon that says what kind of appointment an overlay is. */
+export const OVERLAY_ICON: Record<Exclude<CalendarKind, "task">, typeof Gavel> = {
+  permit_inspection: ClipboardCheck,
+  hearing: Gavel,
+  case_inspection: ShieldCheck,
+  job_start: Flag,
+};
+
+/**
+ * A read-only appointment: its own icon and label, and it opens its record
+ * (the job's Permits tab, the case's Hearings tab) instead of the task sheet.
+ * Never draggable — the agency picked the date, not us.
+ */
+function OverlayCard({ item, variant, className }: { item: CalendarItem; variant: "full" | "compact"; className?: string }) {
+  const o = item.overlay!;
+  const Icon = OVERLAY_ICON[item.kind as Exclude<CalendarKind, "task">] ?? Flag;
+  const compact = variant === "compact";
+  const done = o.state === "done";
+  return (
+    <Link
+      href={o.href}
+      aria-label={`${o.label}: ${item.title}, ${contextLine(item)}, ${whenLine(item)}. Opens the record.`}
+      className={cn(
+        "group relative block w-full rounded-md border border-dashed border-tone-info/50 bg-tone-info-soft/40 text-left transition-colors hover:border-tone-info hover:bg-tone-info-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50",
+        compact ? "px-2 py-1.5" : "px-3 py-2",
+        done && "opacity-60",
+        className,
+      )}
+    >
+      <p className={cn("flex items-center gap-1 truncate text-tone-info-fg", compact ? "text-[10px]" : "text-[11px]")}>
+        <Icon className="size-3 shrink-0" aria-hidden /> {o.label}
+        {o.state === "moved" && <span className="text-muted-foreground">· continued</span>}
+      </p>
+      <p className={cn("font-medium leading-snug text-gray-900", compact ? "line-clamp-1 text-xs" : "line-clamp-2 text-sm", done && "line-through")}>{item.title}</p>
+      {!compact && (
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          {contextLine(item)}
+          {o.detail ? ` · ${o.detail}` : ""}
+          {!item.allDay ? ` · ${whenLine(item)}` : ""}
+        </p>
+      )}
+    </Link>
+  );
+}
+
 export function CalendarTaskCard({ item, variant = "full", showAssignee = true, onOpen, className, dragProps, dragging = false, overlay = false }: CalendarTaskCardProps) {
+  if (item.overlay) return <OverlayCard item={item} variant={variant} className={className} />;
   const closed = item.status === "COMPLETED" || item.status === "CANCELLED";
   const overdue = item.derived === "overdue";
   const bar = overdue ? "bg-tone-danger" : STATUS_TONE[item.status].bar;

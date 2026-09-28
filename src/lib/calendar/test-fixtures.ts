@@ -36,6 +36,7 @@ export function makeItem(over: Partial<CalendarItem> = {}): CalendarItem {
     workflowPhaseKey: null,
     checklist: { done: 0, total: 0 },
     counts: { notes: 0, files: 0, waitingOn: 0 },
+    overlay: null,
     ...over,
   };
 }

@@ -69,9 +69,17 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `4a9a1b3`** (BUILD_ID `2u4fVOc8Ife0Gb0ANSAjF`, no migration, smoke 307
    ×2, journal clean, backup `postgres-2026-09-28-120539.dump`; that
    session's workflow-team PM fix had been swept into `7be0e5c` from the
-   shared checkout, so the two shipped together). Richard's Phase 2 and
-   Phase 3 click-throughs are pending. Phase 4 (overlays, digest line, ⌘K
-   tasks) follows. Notes:
+   shared checkout, so the two shipped together). **Phase 4 (operational
+   intelligence) built + dev-QA'd 2026-09-28 on `calendar-intel`,
+   fast-forwarded to `main`**: read-only overlays (permit inspections,
+   hearings, agency inspections, job starts as `CalendarItem.kind`s with
+   their own icon and link, never work, never draggable), "Schedule changed
+   since yesterday" + "Starting today" digest sections, dependency warning
+   on drop, ⌘K task search landing on the calendar day. No migration. Gate:
+   typecheck clean, lint 6/22, 1085 tests (+16), build clean; headless QA
+   16/16. **Not pushed, not deployed.** Richard's Phase 2 and Phase 3
+   click-throughs are still pending; Phase 4 is the last phase of the plan.
+   Notes:
    [features/calendar.md](docs/project-memory/features/calendar.md).
 00000. ✅ **Friendlier CRM: address-first labels + calmer navigation** —
    four stages, plan approved 2026-09-25
@@ -195,6 +203,29 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-28 — Operations Calendar, Phase 4: operational intelligence (built, dev-QA'd, on `main`, not deployed)
+
+"continue to Phase 4". Built on `calendar-intel`: `CalendarItem.kind` +
+`overlay`, pure `lib/calendar/overlays.ts` (`overlayWhen` — midnight-UTC
+date-picker values are all-day on the UTC date, anything else a one-hour
+window; `overlayItems` with prefixed ids and record links; `overlayScopes`
+— own-only roles keep their visibility scope, "My calendar" = jobs I have a
+role on + cases I manage / hold a slot on), `loadOverlays` in
+`GET /api/calendar` (four queries beside the task query, skipped under a
+task filter, window opened at UTC midnight then filtered on the mapped day
+— the ET-day window silently missed every date-picker value until QA
+caught it), overlays sorted first and excluded from summary / month tone /
+People lanes / field totals, `canDrag` / `canMove` refuse them; `OverlayCard`
+(dashed info link with the kind's icon), Month appointment marker, field
+day "Also today", Today widget rows. Digest: `planDigest` takes changes +
+starts, `describeWhen` / `describeFrom`, two new email sections and
+subject. `dependencyWarning` toast after a drop. ⌘K: `tasks` where,
+`taskHitHref`, route + palette group. Gate: typecheck clean, lint 6/22,
+1085 tests (+16), build clean; headless Chromium 16/16 (`qa-intel.js`,
+recipe in the feature doc). No migration. Staged by explicit path this
+time; no foreign files. Details:
+[features/calendar.md](docs/project-memory/features/calendar.md).
 
 ### 2026-09-28 — Operations Calendar, Phase 3: field + today (built, dev-QA'd, on `main`, not deployed)
 
@@ -1058,7 +1089,15 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 > `gCg4iE5s2vGZXzV50cr78`); Phase 2 (dispatch) is on prod (`e0380ba`,
 > BUILD_ID `sBabA8ralAO2_F-0aMUve`, no migration); Phase 3 (field + today)
 > is on prod too, inside `4a9a1b3` (BUILD_ID `2u4fVOc8Ife0Gb0ANSAjF`, no
-> migration).** Next: two click-throughs on prod. Phase 3, on his phone: Field Mode → Today tab;
+> migration); Phase 4 (overlays, digest lines, dependency warning, ⌘K
+> tasks) is on `main`, not pushed, not deployed (no migration).** Next:
+> Richard pushes + deploys from `!` (`git push origin main`, then
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`), then three
+> click-throughs on prod. Phase 4: an upcoming permit inspection or hearing
+> shows on the Week as a dashed card that opens the record and cannot be
+> dragged; Month says "n appointments"; ⌘K → type a task title → lands on
+> its day with the sheet; tomorrow's digest carries "Schedule changed since
+> yesterday" for anything moved today. Phase 3, on his phone: Field Mode → Today tab;
 > the greeting, today's tasks in order, Start / Done on one, Directions and
 > Call on a job task, Photo lands on the daily log, Checklist "n/m" opens
 > the task page's list and a tick saves; Tomorrow expands; the dashboard

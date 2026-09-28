@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyMove, canDrag, canMove, describeMove, describeTarget, movePatch } from "./move";
+import { applyMove, canDrag, canMove, dependencyWarning, describeMove, describeTarget, movePatch } from "./move";
 import { makeItem, PEOPLE } from "./test-fixtures";
 
 const admin = { id: "u-richard", role: "ADMIN" as const };
@@ -58,6 +58,11 @@ describe("canMove / canDrag", () => {
     expect(canMove(rep, item, { kind: "unscheduled" }, { dispatch: false })).toBe(false);
     expect(canMove(rep, makeItem({ assignedUserId: "u-frank" }), { kind: "day", day: "2026-10-01" }, { dispatch: false })).toBe(false);
   });
+  it("overlays (inspections, hearings, job starts) never move", () => {
+    const ov = makeItem({ kind: "hearing", overlay: { label: "Hearing", detail: null, href: "/violations/c1?tab=hearings", state: "scheduled" }, assignedUserId: null, assignedTo: null });
+    expect(canDrag(admin, ov)).toBe(false);
+    expect(canMove(admin, ov, { kind: "day", day: "2026-10-01" }, { dispatch: true })).toBe(false);
+  });
   it("dispatch roles do all of it", () => {
     expect(canMove(admin, item, { kind: "cell", day: "2026-10-01", userId: null }, { dispatch: true })).toBe(true);
     expect(canMove(admin, item, { kind: "unscheduled" }, { dispatch: true })).toBe(true);
@@ -95,6 +100,14 @@ describe("applyMove", () => {
     expect(next.dayKey).toBeNull();
     expect(next.start).toBeNull();
     expect(next.end).toBeNull();
+  });
+});
+
+describe("dependencyWarning", () => {
+  it("names how many earlier steps are still open, or says nothing", () => {
+    expect(dependencyWarning(makeItem())).toBeNull();
+    expect(dependencyWarning(makeItem({ counts: { notes: 0, files: 0, waitingOn: 1 } }))).toMatch(/waiting on an earlier step/);
+    expect(dependencyWarning(makeItem({ counts: { notes: 0, files: 0, waitingOn: 3 } }))).toMatch(/waiting on 3 earlier steps/);
   });
 });
 

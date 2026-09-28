@@ -21,6 +21,10 @@ export function compareDayItems(a: CalendarItem, b: CalendarItem): number {
   const ca = isClosed(a) ? 1 : 0;
   const cb = isClosed(b) ? 1 : 0;
   if (ca !== cb) return ca - cb;
+  // Fixed appointments (inspections, hearings, job starts) read before the work around them.
+  const oa = a.kind === "task" ? 1 : 0;
+  const ob = b.kind === "task" ? 1 : 0;
+  if (oa !== ob) return oa - ob;
   if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
   // A multi-day span is the background of the day; it reads first.
   const sa = a.allDay && a.startDayKey !== a.dayKey ? 0 : 1;
@@ -57,12 +61,12 @@ export function itemsByDay(items: CalendarItem[], range: DayRange): Map<DayKey, 
 
 export type CalendarSummary = { total: number; done: number; remaining: number; overdue: number; blocked: number };
 
-/** Counts over distinct items (a span is one task, however many days it shows on). */
+/** Counts over distinct tasks (a span is one task, however many days it shows on; overlays are not work). */
 export function summarizeCalendarItems(items: CalendarItem[]): CalendarSummary {
   const seen = new Set<string>();
   const out: CalendarSummary = { total: 0, done: 0, remaining: 0, overdue: 0, blocked: 0 };
   for (const i of items) {
-    if (seen.has(i.id)) continue;
+    if (i.kind !== "task" || seen.has(i.id)) continue;
     seen.add(i.id);
     out.total++;
     if (i.status === "COMPLETED") out.done++;
@@ -76,7 +80,8 @@ export function summarizeCalendarItems(items: CalendarItem[]): CalendarSummary {
 /** The worst thing on a day, for a month cell's tone. */
 export type DayTone = "empty" | "quiet" | "busy" | "blocked" | "overdue";
 
-export function dayTone(items: CalendarItem[]): DayTone {
+export function dayTone(all: CalendarItem[]): DayTone {
+  const items = all.filter((i) => i.kind === "task");
   if (items.length === 0) return "empty";
   if (items.some((i) => i.derived === "overdue")) return "overdue";
   if (items.some((i) => i.status === "BLOCKED")) return "blocked";

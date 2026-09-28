@@ -68,6 +68,7 @@ export function peopleRows(items: readonly CalendarItem[], users: readonly LaneU
 
   const byPerson = new Map<string | null, CalendarItem[]>();
   for (const i of items) {
+    if (i.kind !== "task") continue; // an inspection has no lane
     const key = i.assignedUserId;
     if (!byPerson.has(key)) byPerson.set(key, []);
     byPerson.get(key)!.push(i);

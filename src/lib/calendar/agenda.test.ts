@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bandOf, dayTone, formatTimeRange, groupByBand, itemsByDay, sortDayItems, summarizeCalendarItems } from "./agenda";
+import { makeItem } from "./test-fixtures";
 import type { CalendarItem } from "./types";
 
 function item(over: Partial<CalendarItem> & { id: string }): CalendarItem {
@@ -20,6 +21,7 @@ function item(over: Partial<CalendarItem> & { id: string }): CalendarItem {
     completedAt: null,
     assignedUserId: null,
     createdByUserId: "u9",
+    overlay: null,
     assignedTo: null,
     job: null,
     lead: null,
@@ -101,5 +103,15 @@ describe("formatTimeRange", () => {
     // Formatted in the test runner's local zone, so only the shape is asserted.
     const same = formatTimeRange("2026-09-30T13:00:00.000Z", "2026-09-30T15:30:00.000Z");
     expect(same).toMatch(/^\d{1,2}:\d{2} – \d{1,2}:\d{2} [AP]M$/);
+  });
+});
+
+describe("overlays", () => {
+  it("sort before the tasks around them and never count as work", () => {
+    const task = makeItem({ id: "t", priority: "URGENT" });
+    const ev = makeItem({ id: "e", kind: "permit_inspection", overlay: { label: "Permit inspection", detail: null, href: "/jobs/j1?tab=permits", state: "scheduled" } });
+    expect(sortDayItems([task, ev]).map((i) => i.id)).toEqual(["e", "t"]);
+    expect(summarizeCalendarItems([task, ev])).toEqual({ total: 1, done: 0, remaining: 1, overdue: 0, blocked: 0 });
+    expect(dayTone([ev])).toBe("empty");
   });
 });

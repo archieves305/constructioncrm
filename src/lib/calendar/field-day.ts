@@ -53,20 +53,24 @@ export type FieldDay = {
   /** Open work in time order: timed by start, then all-day by priority (agenda order). */
   remaining: CalendarItem[];
   done: CalendarItem[];
+  /** Inspections, hearings, job starts on the day — to know about, not to do. */
+  events: CalendarItem[];
   total: number;
 };
 
-/** Split a day's already-sorted items into what is left and what is finished. */
+/** Split a day's already-sorted items into what is left, what is finished, and what is merely happening. */
 export function splitFieldDay(items: readonly CalendarItem[]): FieldDay {
   const remaining: CalendarItem[] = [];
   const done: CalendarItem[] = [];
+  const events: CalendarItem[] = [];
   const seen = new Set<string>();
   for (const i of items) {
     if (seen.has(i.id)) continue;
     seen.add(i.id);
-    (isClosed(i) ? done : remaining).push(i);
+    if (i.kind !== "task") events.push(i);
+    else (isClosed(i) ? done : remaining).push(i);
   }
-  return { remaining, done, total: remaining.length + done.length };
+  return { remaining, done, events, total: remaining.length + done.length };
 }
 
 /** "6 tasks · 4 remaining" · "1 task · done" · "Nothing scheduled". */

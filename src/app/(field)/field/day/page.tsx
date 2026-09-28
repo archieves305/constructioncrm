@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Callout } from "@/components/shared/callout";
@@ -106,6 +106,25 @@ export default function FieldDayPage() {
             ))}
           </ul>
         </Callout>
+      )}
+
+      {plan.events.length > 0 && (
+        <section className="rounded-lg border border-dashed border-tone-info/50 bg-tone-info-soft/40 px-3 py-2" aria-label="Also on this day">
+          <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-tone-info-fg">
+            <CalendarClock className="size-3.5" /> Also {isToday ? "today" : "this day"}
+          </h2>
+          <ul className="mt-1 divide-y divide-tone-info/20">
+            {plan.events.map((e) => (
+              <li key={e.id} className="flex items-center gap-2 py-1.5 text-sm">
+                <span className="w-14 shrink-0 text-xs tabular-nums text-muted-foreground">{e.allDay || !e.start ? "All day" : format(new Date(e.start), "h:mm a")}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{e.title}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{e.overlay?.label}{e.overlay?.detail ? ` · ${e.overlay.detail}` : ""}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {query.isPending ? (

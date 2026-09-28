@@ -10,11 +10,12 @@ import {
   type DragStartEvent,
   type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
+import { toast } from "sonner";
 import { kitCollision, useKitSensors } from "@/components/kanban/sensors";
 import { findConflicts } from "@/lib/calendar/conflicts";
 import { parseDropId } from "@/lib/calendar/drop-target";
 import { containerAt, nearestInDirection, type Direction, type Rect } from "@/lib/calendar/grid-nav";
-import { applyMove, canMove, describeTarget, movePatch, type MoveActor } from "@/lib/calendar/move";
+import { applyMove, canMove, dependencyWarning, describeTarget, movePatch, type MoveActor } from "@/lib/calendar/move";
 import type { CalendarItem, CalendarPerson } from "@/lib/calendar/types";
 import { CalendarTaskCard } from "./calendar-task-card";
 import { ConflictDialog, type PendingMove } from "./conflict-dialog";
@@ -108,14 +109,21 @@ export function CalendarDnd({
       setPending({ item, next, target, conflicts });
       return;
     }
+    commit(item, target, patch);
+  }
+
+  /** Save, and say so if the step is still waiting on an earlier one (warn, never block). */
+  function commit(item: CalendarItem, target: NonNullable<ReturnType<typeof parseDropId>>, patch: NonNullable<ReturnType<typeof movePatch>>) {
     move.mutate({ item, target, patch });
+    const warning = target.kind === "unscheduled" ? null : dependencyWarning(item);
+    if (warning) toast.warning(warning, { duration: 6000 });
   }
 
   function confirmPending() {
     if (!pending) return;
     const patch = movePatch(pending.item, pending.target);
     setPending(null);
-    if (patch) move.mutate({ item: pending.item, target: pending.target, patch });
+    if (patch) commit(pending.item, pending.target, patch);
   }
 
   const announcements: Announcements = {

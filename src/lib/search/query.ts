@@ -2,7 +2,10 @@ import type { Prisma, RoleName } from "@/generated/prisma/client";
 import { buildJobListWhere } from "@/lib/jobs/query";
 import { buildLeadListWhere } from "@/lib/leads/query";
 import { prospectVisibilityWhere } from "@/lib/prospects/access";
+import { taskVisibilityFilter, type VisibilityScope } from "@/lib/tasks/access";
+import { taskSearchWhere } from "@/lib/tasks/query";
 import { buildViolationListWhere, parseViolationListParams } from "@/lib/violations/query";
+import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 
 /**
  * The ⌘K search reuses the list builders, so a search hit is exactly a row
@@ -10,13 +13,15 @@ import { buildViolationListWhere, parseViolationListParams } from "@/lib/violati
  * and leads, the visibility filter on cases, the assignment rule on
  * prospects. Nothing here decides access on its own.
  */
-export type SearchContext = { user: { id: string; role: RoleName }; now: Date };
+export type SearchContext = { user: { id: string; role: RoleName }; now: Date; /** Own-only roles' widened task view (jobs they PM etc.); undefined for view-all roles. */ scope?: VisibilityScope };
 
 export type SearchWheres = {
   jobs: Prisma.JobWhereInput;
   leads: Prisma.LeadWhereInput;
   cases: Prisma.CodeViolationCaseWhereInput;
   prospects: Prisma.ProspectWhereInput;
+  /** Active, open tasks by title / description / job / customer, under the task visibility rule. */
+  tasks: Prisma.TaskWhereInput;
 };
 
 export function buildSearchWheres(q: string, ctx: SearchContext): SearchWheres {
@@ -38,5 +43,6 @@ export function buildSearchWheres(q: string, ctx: SearchContext): SearchWheres {
         },
       ],
     },
+    tasks: { AND: [ACTIVE_OPEN_WHERE, taskSearchWhere(search), taskVisibilityFilter(ctx.user, ctx.scope)] },
   };
 }

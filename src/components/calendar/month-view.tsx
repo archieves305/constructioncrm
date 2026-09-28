@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { CalendarClock } from "lucide-react";
 import { dayTone } from "@/lib/calendar/agenda";
 import type { CalendarItem } from "@/lib/calendar/types";
 import { dayKeyToLocalDate, dayKeysBetween, type DayKey, type MonthGrid } from "@/lib/time/zone";
@@ -34,7 +35,9 @@ export function MonthView({ grid, byDay, today, onPickDay }: { grid: MonthGrid; 
         {weeks.map((week, wi) => (
           <tr key={wi}>
             {week.map((day) => {
-              const items = byDay.get(day) ?? [];
+              const all = byDay.get(day) ?? [];
+              const items = all.filter((i) => i.kind === "task");
+              const events = all.length - items.length;
               const inMonth = day >= grid.monthStart && day <= grid.monthEnd;
               const tone = dayTone(items);
               const overdue = items.filter((i) => i.derived === "overdue").length;
@@ -42,8 +45,8 @@ export function MonthView({ grid, byDay, today, onPickDay }: { grid: MonthGrid; 
               const d = dayKeyToLocalDate(day);
               const words =
                 items.length === 0
-                  ? "nothing scheduled"
-                  : `${items.length} ${items.length === 1 ? "task" : "tasks"}${overdue ? `, ${overdue} overdue` : ""}${blocked ? `, ${blocked} blocked` : ""}`;
+                  ? events ? `${events} ${events === 1 ? "appointment" : "appointments"}` : "nothing scheduled"
+                  : `${items.length} ${items.length === 1 ? "task" : "tasks"}${overdue ? `, ${overdue} overdue` : ""}${blocked ? `, ${blocked} blocked` : ""}${events ? `, ${events} ${events === 1 ? "appointment" : "appointments"}` : ""}`;
               return (
                 <td key={day} className="p-0 align-top">
                   <DropZone target={{ kind: "day", day }} label={format(d, "EEEE, MMMM d")}>
@@ -58,7 +61,15 @@ export function MonthView({ grid, byDay, today, onPickDay }: { grid: MonthGrid; 
                       !inMonth && "opacity-45",
                     )}
                   >
-                    <span className={cn("text-xs font-medium tabular-nums", day === today ? "text-brand-fg" : "text-gray-700")}>{format(d, "d")}</span>
+                    <span className="flex w-full items-center justify-between">
+                      <span className={cn("text-xs font-medium tabular-nums", day === today ? "text-brand-fg" : "text-gray-700")}>{format(d, "d")}</span>
+                      {events > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-tone-info-fg" title={`${events} ${events === 1 ? "appointment" : "appointments"}`}>
+                          <CalendarClock className="size-3" aria-hidden />
+                          {events > 1 ? events : ""}
+                        </span>
+                      )}
+                    </span>
                     {items.length > 0 && (
                       <span
                         className={cn(

@@ -198,13 +198,57 @@ beside My tasks (both single-column now): time rail, priority dot, title +
 address, "All day" / window / Overdue; rows open the task on the calendar's
 Day view; "Open calendar" link.
 
-## Not yet (later phases)
+## Operational intelligence (Phase 4, built 2026-09-28 on `calendar-intel`)
 
-Phase 4
-overlays (permit inspections, hearings, job starts as read-only
-`CalendarItem.kind`s), "schedule changed" digest line, ⌘K task search,
-timed-hours workload. Deferred with the seam documented: crews / personnel
-lanes, a `Task.kind` for appointments, recurrence, external sync columns.
+**Overlays.** `CalendarItem.kind` is now `task | permit_inspection | hearing |
+case_inspection | job_start`, and non-task items carry `overlay: { label,
+detail, href, state }`. `lib/calendar/overlays.ts` (pure, tested) maps
+`JobPermitInspection.scheduledFor`, `CodeViolationHearing.scheduledAt`
+(cancelled ones dropped, CONTINUED → "moved"), `CodeViolationInspection
+.scheduledFor` and `Job.targetStartDate` into items with prefixed ids
+(`pi:` `hr:` `ci:` `js:`), no assignee, `dueLocked`, and the record's own
+link (`/jobs/<id>?tab=permits`, `/violations/<id>?tab=hearings|inspections`,
+`/jobs/<id>`). **Date-picker rule:** those columns are saved as midnight UTC
+(`new Date("yyyy-MM-dd")`), which is the previous evening in ET — so
+`overlayWhen` treats 00:00Z and 12:00Z as all-day on the UTC date and
+anything else as a one-hour window, and the route opens its query at UTC
+midnight of the first day then filters on the mapped day key. **Scope:**
+own-only roles get their visibility scope; "My calendar" means jobs I have
+a role on (`jobsInvolvingUserWhere`) and cases I manage or hold a slot on;
+Everyone / a picked set means all. Skipped when a status / priority / search
+filter is on; a job filter keeps only that job's. Overlays sort before the
+tasks around them, never count in the summary, the month tone, the People
+lanes or the field-day totals, and `canDrag` / `canMove` refuse them. The
+card renders as a dashed info-toned link with the kind's icon
+(`OVERLAY_ICON`); Month cells show a clock marker and say "n appointments";
+`/field/day` shows an "Also today" strip; the Today widget lists them first.
+
+**Digest.** `runMorningDigest` also reads the last 24 h of `DUE_CHANGED` /
+`SCHEDULE_CHANGED` events on active open assigned tasks and today's job
+starts. `planDigest(due, reminders, todayStart, changes, starts)` keeps the
+latest move per task for its assignee and fans a start out to PM, sales rep,
+field assignments and team slots (once each). A move the recipient made
+themselves is dropped at render. `renderTaskReminderEmail` gains
+"Starting today" (top) and "Schedule changed since yesterday" (from → to,
+"moved by …") sections and a subject when those are all there is.
+
+**Dependency warning.** `dependencyWarning(item)` — a step with open
+BLOCKING predecessors dropped on a day saves and then toasts a warning
+(never on a drop to the rail; never blocks).
+
+**⌘K tasks.** `SearchHit.type` gains `task`; `buildSearchWheres` adds
+`tasks` = active open ∧ `taskSearchWhere` ∧ `taskVisibilityFilter` (the
+route passes `visibilityScopeFor`); `taskHitHref` sends a dated task to
+`/calendar?view=day&date=<day>&task=<id>` and an undated one to
+`/tasks?task=<id>`; the palette shows a "Tasks" group.
+
+## Not yet
+
+Deferred with the seam documented: Google / Outlook / ICS sync (external id
+columns or a `TaskExternalEvent` table once a provider is chosen),
+recurrence (must respect the engine's `dueAt` ownership), crew / personnel
+lanes (`Task.crewId` or `TaskPersonnel`), a nullable `Task.kind` if
+appointments must leave counts.
 
 ## QA recipe
 
@@ -235,3 +279,13 @@ badge, Start → IN_PROGRESS and the button disappears, Done → COMPLETED and
 page's checklist block on a real workflow step (4 rows), the dashboard Today
 widget at 1280 in time order with the done row struck, and the evidence
 gate's 400 message. 22/22 on 2026-09-28.
+
+Phase 4: `scratchpad/qa-intel.js` — makes the bypass user PM of a job and
+sets its target start to today (both restored): the `job_start` overlay in
+"My week" and "Everyone", dropped by a search filter, the Week card as a
+link with no draggable role, the summary counting tasks only, the Month
+cell saying "1 appointment", `/api/search` returning the task with a
+calendar href, the palette's Tasks group and landing on the day with the
+sheet open, the field day "Also today" strip, the Today widget row. The
+dependency warning is unit-tested (manual dependencies need workflow steps).
+16/16 on 2026-09-28.

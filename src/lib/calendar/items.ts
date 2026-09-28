@@ -46,5 +46,6 @@ export function toCalendarItem(row: CalendarRow, now: Date = new Date(), tz: str
     workflowPhaseKey: row.workflowPhaseKey,
     checklist: checklistCounts(row.checklist),
     counts: { notes: row._count.events, files: row._count.files, waitingOn: row._count.dependencies },
+    overlay: null,
   };
 }

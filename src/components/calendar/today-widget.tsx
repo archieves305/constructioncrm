@@ -31,7 +31,7 @@ export function TodayWidget({ className }: { className?: string }) {
   const query = useCalendarRange(params, { enabled: Boolean(session) });
   const items = useMemo(() => itemsByDay(query.data?.items ?? [], { from: today, to: today }).get(today) ?? [], [query.data, today]);
   const plan = useMemo(() => splitFieldDay(items), [items]);
-  const rows = [...plan.remaining, ...plan.done];
+  const rows = [...plan.events, ...plan.remaining, ...plan.done];
 
   return (
     <Card className={className}>
@@ -76,9 +76,9 @@ function Row({ item, today }: { item: CalendarItem; today: string }) {
     <li className={cn("flex items-center gap-2.5 px-3 py-2", closed && "opacity-60")}>
       <span className={cn("w-16 shrink-0 text-xs tabular-nums", item.allDay ? "text-muted-foreground/70" : "text-gray-700")}>{item.allDay || !item.start ? "All day" : format(new Date(item.start), "h:mm a")}</span>
       <span className={cn("size-2 shrink-0 rounded-full", PRIORITY_DOT_CLASS[item.priority])} />
-      <Link href={`/calendar?view=day&users=me&date=${today}&task=${item.id}`} className="min-w-0 flex-1">
+      <Link href={item.overlay ? item.overlay.href : `/calendar?view=day&users=me&date=${today}&task=${item.id}`} className="min-w-0 flex-1">
         <span className={cn("block truncate text-sm font-medium hover:underline", closed && "line-through")}>{item.title}</span>
-        <span className="block truncate text-xs text-muted-foreground">{contextLine(item)}</span>
+        <span className="block truncate text-xs text-muted-foreground">{item.overlay ? `${item.overlay.label} · ` : ""}{contextLine(item)}</span>
       </Link>
       <span className={cn("hidden shrink-0 items-center gap-1 text-xs sm:inline-flex", overdue ? "text-red-700" : "text-muted-foreground")}>
         <Clock className="size-3" /> {overdue ? "Overdue" : whenLine(item)}

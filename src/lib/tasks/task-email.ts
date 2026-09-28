@@ -541,6 +541,21 @@ export type ReminderItem = {
 /** A "remind me on…" that fell due today. `setByName` is null when the recipient set it. */
 export type CustomReminderItem = ReminderItem & { setByName: string | null };
 
+/** A task of the recipient's whose day or time moved since yesterday's digest. */
+export type ScheduleChangeItem = {
+  title: string;
+  context: string;
+  url: string;
+  /** "Tue, Sep 29" → "Thu, Oct 1", or "All day" → "9:00 – 11:00 AM". */
+  from: string;
+  to: string;
+  /** Who moved it; null when the system did. */
+  byName: string | null;
+};
+
+/** A job the recipient is on whose target start is today. */
+export type StartingItem = { title: string; context: string; url: string };
+
 /**
  * One mail per person per run, not one per task. Someone with nine overdue
  * items needs a list they can triage, not nine separate interruptions.
@@ -550,11 +565,54 @@ export function renderTaskReminderEmail(input: {
   dueToday: ReminderItem[];
   overdue: ReminderItem[];
   reminders?: CustomReminderItem[];
+  changed?: ScheduleChangeItem[];
+  starting?: StartingItem[];
   brand: EmailBrand;
 }): RenderedEmail {
   const { brand } = input;
   const reminders = input.reminders ?? [];
+  const changed = input.changed ?? [];
+  const starting = input.starting ?? [];
   const total = input.dueToday.length + input.overdue.length;
+
+  function changedSection(): string {
+    if (changed.length === 0) return "";
+    const rows = changed
+      .map(
+        (c) => `<tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top">
+          <a href="${escapeHtml(c.url)}" style="font-size:14px;font-weight:600;color:#111827;text-decoration:none">${escapeHtml(c.title)}</a>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">${escapeHtml(c.context)}${c.byName ? ` · moved by ${escapeHtml(c.byName)}` : ""}</div>
+        </td>
+        <td style="padding:10px 0 10px 12px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap;vertical-align:top;font-size:12px;color:#374151">
+          <span style="color:#9ca3af;text-decoration:line-through">${escapeHtml(c.from)}</span><br/>${escapeHtml(c.to)}
+        </td>
+      </tr>`,
+      )
+      .join("");
+    return `<div style="margin:20px 0 4px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#b45309;margin-bottom:6px">Schedule changed since yesterday (${changed.length})</div>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse">${rows}</table>
+    </div>`;
+  }
+
+  function startingSection(): string {
+    if (starting.length === 0) return "";
+    const rows = starting
+      .map(
+        (s) => `<tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top">
+          <a href="${escapeHtml(s.url)}" style="font-size:14px;font-weight:600;color:#111827;text-decoration:none">${escapeHtml(s.title)}</a>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">${escapeHtml(s.context)}</div>
+        </td>
+      </tr>`,
+      )
+      .join("");
+    return `<div style="margin:20px 0 4px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#047857;margin-bottom:6px">Starting today (${starting.length})</div>
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse">${rows}</table>
+    </div>`;
+  }
 
   function section(label: string, items: ReminderItem[], accent: string): string {
     if (items.length === 0) return "";
@@ -582,7 +640,11 @@ export function renderTaskReminderEmail(input: {
     total === 0
       ? reminders.length === 1
         ? "A reminder you asked for"
-        : `${reminders.length} reminders for today`
+        : reminders.length > 1
+          ? `${reminders.length} reminders for today`
+          : starting.length > 0
+            ? `${starting.length} ${starting.length === 1 ? "job starts" : "jobs start"} today`
+            : `${changed.length} schedule ${changed.length === 1 ? "change" : "changes"}`
       : input.overdue.length > 0
         ? `${input.overdue.length} overdue, ${input.dueToday.length} due today`
         : `${input.dueToday.length} task${input.dueToday.length === 1 ? "" : "s"} due today`;
@@ -591,14 +653,21 @@ export function renderTaskReminderEmail(input: {
 ${eyebrow("Your tasks", brand.primaryColor)}
 ${heading(headline)}
 <p style="margin:0 0 4px;font-size:15px;color:#374151">Morning ${escapeHtml(input.recipientFirstName)} — here is what is on you today.</p>
+${startingSection()}
 ${section("Overdue", input.overdue, "#b91c1c")}
 ${section("Due today", input.dueToday, "#1d4ed8")}
+${changedSection()}
 ${section("Reminders", reminders, "#6d28d9")}`;
 
   const textLines = [
     `Morning ${input.recipientFirstName} — here is what is on you today.`,
     "",
   ];
+  if (starting.length) {
+    textLines.push(`STARTING TODAY (${starting.length}):`);
+    for (const s of starting) textLines.push(`  - ${s.title} — ${s.context}`, `    ${s.url}`);
+    textLines.push("");
+  }
   for (const [label, items] of [
     ["OVERDUE", input.overdue],
     ["DUE TODAY", input.dueToday],
@@ -618,6 +687,11 @@ ${section("Reminders", reminders, "#6d28d9")}`;
     }
     textLines.push("");
   }
+  if (changed.length) {
+    textLines.push(`SCHEDULE CHANGED SINCE YESTERDAY (${changed.length}):`);
+    for (const c of changed) textLines.push(`  - ${c.title}: ${c.from} → ${c.to}${c.byName ? ` (moved by ${c.byName})` : ""} — ${c.context}`, `    ${c.url}`);
+    textLines.push("");
+  }
 
   const rendered = renderEmailLayout({ bodyHtml, bodyText: textLines.join("\n"), brand });
   const reminderSuffix = reminders.length
@@ -628,7 +702,11 @@ ${section("Reminders", reminders, "#6d28d9")}`;
       total === 0
         ? reminders.length === 1 && reminders[0]
           ? `Reminder: ${reminders[0].title}`
-          : `${reminders.length} reminders for today`
+          : reminders.length > 1
+            ? `${reminders.length} reminders for today`
+            : starting.length > 0
+              ? `${starting.length} ${starting.length === 1 ? "job starts" : "jobs start"} today`
+              : `${changed.length} schedule ${changed.length === 1 ? "change" : "changes"} since yesterday`
         : input.overdue.length > 0
           ? `${input.overdue.length} overdue task${input.overdue.length === 1 ? "" : "s"}${input.dueToday.length ? ` and ${input.dueToday.length} due today` : ""}${reminderSuffix}`
           : `${total} task${total === 1 ? "" : "s"} due today${reminderSuffix}`,

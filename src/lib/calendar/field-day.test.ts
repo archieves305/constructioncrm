@@ -39,9 +39,12 @@ describe("splitFieldDay / fieldDayLine", () => {
     const a = makeItem({ id: "a" });
     const b = makeItem({ id: "b", status: "COMPLETED" });
     const c = makeItem({ id: "c", status: "IN_PROGRESS" });
-    const d = splitFieldDay([a, b, c, a]);
+    const ev = makeItem({ id: "e", kind: "permit_inspection", overlay: { label: "Permit inspection", detail: null, href: "/jobs/j1?tab=permits", state: "scheduled" } });
+    const d = splitFieldDay([ev, a, b, c, a]);
     expect(d.remaining.map((i) => i.id)).toEqual(["a", "c"]);
     expect(d.done.map((i) => i.id)).toEqual(["b"]);
+    expect(d.events.map((i) => i.id)).toEqual(["e"]);
+    expect(d.total).toBe(3);
     expect(fieldDayLine(d)).toBe("3 tasks · 2 remaining");
     expect(fieldDayLine(splitFieldDay([b]))).toBe("1 task · all done");
     expect(fieldDayLine(splitFieldDay([]))).toBe("Nothing scheduled");

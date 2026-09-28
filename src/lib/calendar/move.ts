@@ -65,6 +65,7 @@ export type MoveActor = { id: string; role: RoleName };
  * calendar, is dispatch (ADMIN / MANAGER / OFFICE_STAFF). Closed tasks stay put.
  */
 export function canMove(actor: MoveActor, item: CalendarItem, target: DropTarget, opts: { dispatch: boolean }): boolean {
+  if (item.kind !== "task") return false; // an inspection is the agency's date, not ours
   if (isClosed(item)) return false;
   if (!canEditTask(actor, item)) return false;
   if (target.kind === "unscheduled") return opts.dispatch;
@@ -74,7 +75,18 @@ export function canMove(actor: MoveActor, item: CalendarItem, target: DropTarget
 
 /** Whether the card can be picked up at all (any target might accept it). */
 export function canDrag(actor: MoveActor, item: CalendarItem): boolean {
-  return !isClosed(item) && canEditTask(actor, item);
+  return item.kind === "task" && !isClosed(item) && canEditTask(actor, item);
+}
+
+/**
+ * A step still waiting on an open predecessor can be given a day — the
+ * dispatcher may know the predecessor is about to close — but they should
+ * hear about it. Null when there is nothing to say.
+ */
+export function dependencyWarning(item: CalendarItem): string | null {
+  const n = item.counts.waitingOn;
+  if (n === 0) return null;
+  return `“${item.title}” is still waiting on ${n === 1 ? "an earlier step" : `${n} earlier steps`}. It can't start until ${n === 1 ? "that closes" : "they close"}.`;
 }
 
 /**
