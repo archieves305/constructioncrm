@@ -36,6 +36,13 @@ export type JobListParams = {
   /** Jobs this person has a role on — the board's "Person" quick filter. */
   involvesUserId?: string;
   serviceType?: string;
+  /**
+   * Hide jobs whose stage is closed. Off by default because the pickers that
+   * call the list route need every job; the Jobs page sends it unless "Show
+   * closed" is ticked. Ignored when a stage is chosen or a search is typed —
+   * asking for a closed stage, or for an address, should find the job.
+   */
+  excludeClosed?: boolean;
 };
 
 export type JobListContext = {
@@ -63,6 +70,7 @@ export function parseJobListParams(searchParams: URLSearchParams): JobListParams
     scope: parseListScope(searchParams.get("scope")),
     involvesUserId: searchParams.get("involvesUserId") || undefined,
     serviceType: searchParams.get("serviceType") || undefined,
+    excludeClosed: flag(searchParams.get("excludeClosed")),
   };
 }
 
@@ -73,6 +81,7 @@ export function buildJobListWhere(params: JobListParams, ctx: JobListContext): P
 
   if (params.leadId) and.push({ leadId: params.leadId });
   if (params.stageId) and.push({ currentStageId: params.stageId });
+  else if (params.excludeClosed && !params.search) and.push({ currentStage: { isClosed: false } });
   if (params.salesRepId) and.push({ salesRepId: params.salesRepId });
   if (params.search) {
     and.push({

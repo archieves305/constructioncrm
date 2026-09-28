@@ -174,6 +174,19 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-09-28 — Jobs table hides closed jobs by default (awaiting deploy)
+
+Richard: closed jobs should not show on the Jobs tab when it first opens.
+`JobListParams.excludeClosed` (`excludeClosed=1`) adds
+`currentStage.isClosed = false`; the API default stays "all" because the
+pickers call the same route. The Jobs table sends it unless the new "Show
+closed" checkbox (URL `closed=1`) is ticked; picking a stage or typing a
+search overrides it so a closed stage or an address search still finds the
+job. Header reads "N open jobs". Board unchanged (closed columns were
+already collapsed). Verified on dev by moving one job to Closed: all 5 /
+open 4 / closed stage picked 1 / search 1, then restored. Gate: typecheck
+clean, lint 6/22, query tests 14/14, full suite green.
+
 ### 2026-09-28 — Calendar click-through fix: Viewing menu crashed on open (deployed `596fe14`)
 
 Richard: error when changing Viewing from Everyone to one person. Reproduced
