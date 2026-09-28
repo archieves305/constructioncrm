@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { signOut } from "@/lib/auth/session-client";
 import type { RoleName } from "@/generated/prisma/client";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, HardHat, LayoutDashboard, LogOut, WifiOff } from "lucide-react";
+import { CalendarDays, CheckSquare, HardHat, LayoutDashboard, LogOut, WifiOff } from "lucide-react";
 import { FieldBottomNav } from "./field-bottom-nav";
 
 interface FieldShellProps {
@@ -45,6 +45,12 @@ export function FieldShell({ user, children }: FieldShellProps) {
             <span className="text-base font-bold">Field Mode</span>
           </Link>
           <div className="flex-1" />
+          <Link href="/field/day" className="hidden sm:block">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <CalendarDays className="h-4 w-4" />
+              Today
+            </Button>
+          </Link>
           <Link href="/field/tasks" className="hidden sm:block">
             <Button variant="ghost" size="sm" className="gap-2">
               <CheckSquare className="h-4 w-4" />

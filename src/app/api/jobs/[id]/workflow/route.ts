@@ -9,6 +9,7 @@ import { jobScopeFor, visibilityScopeFor } from "@/lib/workflows/visibility";
 import { canApplyWorkflow, canCoordinateWorkflow, canSetPermitStatus } from "@/lib/workflows/access";
 import { determinePermit, reconcileScope, ReconcileError } from "@/lib/workflows/reconcile";
 import { reassignUnresolved } from "@/lib/workflows/roles";
+import { mirrorTeamToJob } from "@/lib/workflows/team-mirror";
 import type { WorkflowRole } from "@/generated/prisma/client";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -63,6 +64,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         }
       }
       const reassigned = await reassignUnresolved(instance.id, user.id);
+      // The PM / sales rep slots are the job's PM / sales rep — keep the job's own fields in step.
+      const job = await mirrorTeamToJob({ jobId: id, team: body.team, actorUserId: user.id });
       await recordAudit({
         actorUserId: user.id,
         entityType: "JobWorkflowInstance",
@@ -71,7 +74,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         before: before,
         after: body.team,
       });
-      result.team = { reassigned };
+      result.team = { reassigned, job };
     }
     if (body.permit !== undefined) {
       result.permit = await determinePermit({

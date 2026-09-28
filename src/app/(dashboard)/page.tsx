@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { MyTasksWidget } from "@/components/tasks/my-tasks-widget";
+import { TodayWidget } from "@/components/calendar/today-widget";
 import { WorkflowHealthWidget } from "@/components/dashboard/workflow-health-widget";
 import { fetchJson } from "@/lib/fetch-json";
 import { useListScope } from "@/components/shared/use-list-scope";
@@ -115,7 +116,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <MyTasksWidget className="lg:col-span-2" />
+        <TodayWidget />
+        <MyTasksWidget />
         <WorkflowHealthWidget className="lg:col-span-2" scope={scope} />
         <Card>
           <CardHeader>

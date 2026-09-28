@@ -163,9 +163,44 @@ never drag; the sheet is the reschedule path.
 (400, hint `assignedUserId`) — one lookup, only when the assignee changes to
 someone.
 
+## Field and Today (Phase 3, built 2026-09-28 on `calendar-field`)
+
+**`/field/day`** (`src/app/(field)/field/day/page.tsx`, inside the field
+shell; bottom nav is now Jobs · **Today** · Tasks with today's remaining
+count as the badge, red when something is overdue; the header gets a Today
+link). Greeting + date + "6 tasks · 4 remaining", `‹ Today ›` at `h-11`, the
+overdue callout (today only, same 30-day look-back as the office Day view),
+then the day's open work in agenda order with a time rail, the address line,
+title, status / priority badges, blocked reason; finished work folds under
+"Done · n"; a collapsed "Tomorrow" section lists titles only; `+ Task`
+pre-fills the day and the person. Reads the same `GET /api/calendar`
+(`users=me`, from = to = day, completed included) the office Day view and the
+dashboard widget read, so the three never disagree.
+
+**Action row** (`components/field/field-day-card.tsx`, buttons `h-11` for
+gloves) is decided by the pure, tested `fieldActions()` in
+`lib/calendar/field-day.ts`: **Start** (PATCH IN_PROGRESS, hidden once
+started) · **Done** (PATCH COMPLETED; the evidence gate's 400 becomes a toast
+with an "Open task" action) · **Directions** (`mapsHref`, only with a real
+address — placeholders like TBD hide it) · **Call** (`telHref`, only a
+dialable number; the job's customer wins over the task's own lead) ·
+**Photo** → the job's daily-log page for that day, where `PhotoSection`
+lives · **Checklist "2/5"** → the task page's `#checklist`. Tapping the card
+body opens `/field/tasks/[taskId]`.
+
+**`/field/tasks/[taskId]`** gains a checklist block (44 px rows, whole row
+is the target, PATCH `{checklist:[{key,done}]}`) and shows a timed task's
+window in the due badge. `/field/tasks` stays the bucketed backlog and the
+landing page for task emails.
+
+**Dashboard `TodayWidget`** (`components/calendar/today-widget.tsx`) sits
+beside My tasks (both single-column now): time rail, priority dot, title +
+address, "All day" / window / Overdue; rows open the task on the calendar's
+Day view; "Open calendar" link.
+
 ## Not yet (later phases)
 
-Phase 3 field (`/field/day`, quick actions, Today widget). Phase 4
+Phase 4
 overlays (permit inspections, hearings, job starts as read-only
 `CalendarItem.kind`s), "schedule changed" digest line, ⌘K task search,
 timed-hours workload. Deferred with the seam documented: crews / personnel
@@ -190,3 +225,13 @@ toast, Day-band drop onto an overlapping window opens the conflict dialog
 Afternoon band keeps a 2 h length, cell "+ Add" prefills the person, phone
 hides People / rail and answers `?view=people` with the day, unknown assignee
 → 400. 28/28 on 2026-09-28.
+
+Phase 3: `scratchpad/qa-field.js` (390×844, `isMobile`) — four QA tasks (a
+timed one on a job, an all-day one, yesterday's, tomorrow's): greeting + day
+line, overdue callout, time rail + range, action row (Start · Done ·
+Directions · Photo; Photo href = the job's daily log), bottom-nav Today
+badge, Start → IN_PROGRESS and the button disappears, Done → COMPLETED and
+"Done · 1" appears, Tomorrow expands, ‹ › and Today navigation, the task
+page's checklist block on a real workflow step (4 rows), the dashboard Today
+widget at 1280 in time order with the done row struck, and the evidence
+gate's 400 message. 22/22 on 2026-09-28.

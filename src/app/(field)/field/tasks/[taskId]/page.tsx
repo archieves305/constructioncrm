@@ -13,7 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft } from "lucide-react";
+import { formatTimeRange } from "@/lib/calendar/agenda";
 import { cn } from "@/lib/utils";
 import { fetchJson } from "@/lib/fetch-json";
 import { PRIORITY_BADGE_CLASS, STATUS_BADGE_CLASS, STATUS_LABEL } from "@/components/tasks/task-colors";
@@ -42,7 +44,11 @@ type FieldTask = {
   status: TaskStatus;
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   dueAt: string | null;
+  scheduledStart?: string | null;
+  allDay?: boolean;
   blockedReason: string | null;
+  /** Workflow steps carry a checklist the crew ticks from here (`#checklist`). */
+  checklist?: { key: string; label: string; done: boolean }[] | null;
   job: JobLabel | null;
   lead?: LeadLabel | null;
   violationCase?: { id: string; caseNumber: string; agencyCaseNumber: string | null } | null;
@@ -135,6 +141,7 @@ export default function FieldTaskPage({
 
   const notes = task.events.filter((e) => e.type === "NOTE");
   const done = task.status === "COMPLETED";
+  const checklist = task.checklist ?? [];
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
@@ -160,7 +167,9 @@ export default function FieldTaskPage({
             </Badge>
             {task.dueAt && (
               <Badge variant="outline">
-                Due {format(new Date(task.dueAt), "MMM d")}
+                {task.allDay === false && task.scheduledStart
+                  ? `${format(new Date(task.dueAt), "MMM d")} · ${formatTimeRange(task.scheduledStart, task.dueAt)}`
+                  : `Due ${format(new Date(task.dueAt), "MMM d")}`}
               </Badge>
             )}
           </div>
@@ -193,6 +202,25 @@ export default function FieldTaskPage({
           <p className="text-xs text-muted-foreground">
             Raised by {task.createdBy ? `${task.createdBy.firstName} ${task.createdBy.lastName}` : "—"}
           </p>
+
+          {checklist.length > 0 && (
+            <section id="checklist" className="rounded-md border p-3" aria-label="Checklist">
+              <h2 className="text-sm font-semibold">
+                Checklist <span className="font-normal text-muted-foreground">{checklist.filter((c) => c.done).length}/{checklist.length}</span>
+              </h2>
+              <ul className="mt-1 divide-y">
+                {checklist.map((c) => (
+                  <li key={c.key}>
+                    {/* The whole row is the target: a 44px label with the box inside it. */}
+                    <label className="flex min-h-11 items-center gap-3 py-1 text-base">
+                      <Checkbox className="size-5" checked={c.done} disabled={done || patch.isPending} onCheckedChange={(v) => patch.mutate({ checklist: [{ key: c.key, done: Boolean(v) }] })} aria-label={c.label} />
+                      <span className={cn(c.done && "text-muted-foreground line-through")}>{c.label}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* Big touch targets: these get tapped with gloves on. */}
           <div className="flex flex-wrap gap-2 pt-1">
