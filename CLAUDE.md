@@ -45,7 +45,9 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `sMd5qs7fP1qWl0vxJLB14`, migration `20261006120000_task_scheduling`
    applied, CHECK + index verified on prod, 1357 tasks all `all_day`, smoke
    307 ×2, journal clean, backup `postgres-2026-09-28-104554.dump`).
-   What remains is Richard's click-through. Phases 2 (dispatch: People view, Unscheduled
+   Click-through fix: the Viewing menu crashed on open (Base UI label
+   outside a group) — **deployed 2026-09-28 as `596fe14`**, BUILD_ID
+   `b0-KfO1kETJzHU_uElpM5`. What remains is Richard's click-through. Phases 2 (dispatch: People view, Unscheduled
    rail, drag, conflicts), 3 (`/field/day`, Today widget), 4 (overlays,
    digest line, ⌘K tasks) follow. Notes:
    [features/calendar.md](docs/project-memory/features/calendar.md).
@@ -172,7 +174,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-28 — Calendar click-through fix: Viewing menu crashed on open (`1578433`)
+### 2026-09-28 — Calendar click-through fix: Viewing menu crashed on open (deployed `596fe14`)
 
 Richard: error when changing Viewing from Everyone to one person. Reproduced
 in headless Chromium on dev: opening the menu threw Base UI's
@@ -183,7 +185,9 @@ label + person checkboxes in a group; both paths (Everyone → one person,
 My calendar → one person) now change the URL and the header label with no
 console errors. Note the checkboxes are additive: from "My calendar",
 ticking someone gives "2 people" until you untick yourself. Gate: typecheck
-clean, lint 6/22, 1027 tests. **Awaiting push + deploy** (no migration).
+clean, lint 6/22, 1027 tests. **Deployed `596fe14`** (BUILD_ID
+`sMd5qs7fP1qWl0vxJLB14` → `b0-KfO1kETJzHU_uElpM5`, no migration, smoke
+307 ×2, journal clean, backup `postgres-2026-09-28-110107.dump`).
 
 ### 2026-09-28 — Operations Calendar, Phase 1 deployed (`08e9355`)
 
@@ -927,9 +931,8 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 ## 10. Next Prompt
 
 > **Operations Calendar Phase 1 is on prod (`08e9355`, BUILD_ID
-> `sMd5qs7fP1qWl0vxJLB14`, migration applied and verified); the Viewing
-> menu fix `1578433` is committed on main, not yet pushed/deployed (no
-> migration).** Next: push + deploy the fix, then resume Richard's
+> `sMd5qs7fP1qWl0vxJLB14`, migration applied and verified) plus the Viewing
+> menu fix (`596fe14`, BUILD_ID `b0-KfO1kETJzHU_uElpM5`).** Next: Richard's
 > click-through (signed in, also confirm `/schedule` →
 > `/calendar`): sidebar Calendar shows his active tasks this week; open one,
 > set 2–3 pm, see the time on the card and the same due date on `/tasks`;
