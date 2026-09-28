@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, LayoutGrid, Plus } from "lucide-react";
+import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, LayoutGrid, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { rangeLabel, type CalendarView } from "@/lib/calendar/url-state";
@@ -22,6 +22,7 @@ export function CalendarHeader({
   isToday,
   viewing,
   onNewTask,
+  showPeople = false,
 }: {
   view: CalendarView;
   onViewChange: (v: CalendarView) => void;
@@ -33,8 +34,10 @@ export function CalendarHeader({
   isToday: boolean;
   viewing?: React.ReactNode;
   onNewTask?: () => void;
+  /** Dispatch roles on a desktop get the People board. */
+  showPeople?: boolean;
 }) {
-  const unit = view === "day" ? "day" : view === "week" ? "week" : "month";
+  const unit = view === "day" ? "day" : view === "month" ? "month" : "week";
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
       <div className="flex items-center gap-1">
@@ -59,6 +62,7 @@ export function CalendarHeader({
             { value: "day", label: "Day", icon: CalendarDays },
             { value: "week", label: "Week", icon: CalendarRange },
             { value: "month", label: "Month", icon: LayoutGrid },
+            ...(showPeople ? [{ value: "people" as const, label: "People", icon: Users }] : []),
           ]}
         />
         {viewing}

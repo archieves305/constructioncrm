@@ -22,13 +22,13 @@ import { canViewAllCalendars } from "./access";
  *   ?job= ?status= ?priority= ?q= ?completed=0 ?task=<id>
  */
 
-export type CalendarView = "day" | "week" | "month";
-export const CALENDAR_VIEWS: readonly CalendarView[] = ["day", "week", "month"];
+export type CalendarView = "day" | "week" | "month" | "people";
+export const CALENDAR_VIEWS: readonly CalendarView[] = ["day", "week", "month", "people"];
 
 export type CalendarViewPref = "DAY" | "WEEK" | "MONTH";
 
 export function parseCalendarView(v: string | null | undefined): CalendarView | undefined {
-  return v === "day" || v === "week" || v === "month" ? v : undefined;
+  return v === "day" || v === "week" || v === "month" || v === "people" ? v : undefined;
 }
 
 export function prefToView(pref: CalendarViewPref | null | undefined): CalendarView | undefined {
@@ -38,10 +38,10 @@ export function prefToView(pref: CalendarViewPref | null | undefined): CalendarV
   return undefined;
 }
 
-/** URL > (phone → day) > saved preference > week. */
+/** URL > (phone → day) > saved preference > week. People is a desktop dispatch board; a phone gets the day. */
 export function resolveView(input: { url?: string | null; pref?: CalendarViewPref | null; isPhone: boolean }): CalendarView {
   const fromUrl = parseCalendarView(input.url);
-  if (fromUrl) return fromUrl;
+  if (fromUrl) return fromUrl === "people" && input.isPhone ? "day" : fromUrl;
   if (input.isPhone) return "day";
   return prefToView(input.pref) ?? "week";
 }
@@ -63,7 +63,7 @@ export function resolveUsers(input: { url?: string | null; pref?: ListScopePref 
 
 export function rangeForView(view: CalendarView, anchor: DayKey): DayRange {
   if (view === "day") return { from: anchor, to: anchor };
-  if (view === "week") return weekRange(anchor);
+  if (view === "week" || view === "people") return weekRange(anchor);
   const g = monthRange(anchor);
   return { from: g.from, to: g.to };
 }
@@ -71,7 +71,7 @@ export function rangeForView(view: CalendarView, anchor: DayKey): DayRange {
 /** The anchor after pressing Previous / Next. */
 export function shiftAnchor(view: CalendarView, anchor: DayKey, dir: 1 | -1): DayKey {
   if (view === "day") return addDayKeys(anchor, dir);
-  if (view === "week") return addDayKeys(anchor, 7 * dir);
+  if (view === "week" || view === "people") return addDayKeys(anchor, 7 * dir);
   const p = parseDayKey(anchor);
   const d = new Date(Date.UTC(p.year, p.month + dir, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;

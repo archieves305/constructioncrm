@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { db, notify, recordTaskEvents, recordTaskEvent } = vi.hoisted(() => ({
   db: {
     task: { findUnique: vi.fn(), update: vi.fn() },
+    user: { findUnique: vi.fn() },
     activityLog: { create: vi.fn() },
     fieldIssue: { update: vi.fn() },
   },
@@ -59,6 +60,22 @@ beforeEach(() => {
   }));
   db.activityLog.create.mockResolvedValue({});
   db.fieldIssue.update.mockResolvedValue({});
+  db.user.findUnique.mockResolvedValue({ isActive: true });
+});
+
+describe("assignee must be active", () => {
+  it("refuses an inactive or unknown person with a 400 on the assignee field", async () => {
+    db.user.findUnique.mockResolvedValue({ isActive: false });
+    await expect(updateTask({ id: "t1", input: { assignedUserId: "u-gone" }, actorUserId: "u-jo" })).rejects.toMatchObject({ status: 400, hint: "assignedUserId" });
+    db.user.findUnique.mockResolvedValue(null);
+    await expect(updateTask({ id: "t1", input: { assignedUserId: "u-nobody" }, actorUserId: "u-jo" })).rejects.toMatchObject({ status: 400 });
+    expect(db.task.update).not.toHaveBeenCalled();
+  });
+  it("does not look the person up when the assignee is unchanged or cleared", async () => {
+    await updateTask({ id: "t1", input: { assignedUserId: "u-frank" }, actorUserId: "u-jo" });
+    await updateTask({ id: "t1", input: { assignedUserId: null }, actorUserId: "u-jo" });
+    expect(db.user.findUnique).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateTask", () => {

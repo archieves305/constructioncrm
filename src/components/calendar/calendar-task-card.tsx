@@ -30,33 +30,44 @@ export function whenLine(item: CalendarItem): string {
   return "All day";
 }
 
-export function CalendarTaskCard({
-  item,
-  variant = "full",
-  showAssignee = true,
-  onOpen,
-  className,
-}: {
+export type CalendarTaskCardProps = {
   item: CalendarItem;
   variant?: "full" | "compact";
   showAssignee?: boolean;
   onOpen: (id: string) => void;
   className?: string;
-}) {
+  /**
+   * dnd-kit's node ref, attributes and listeners, spread onto the button by
+   * `DraggableCard`. Absent = a plain card (phones, closed tasks, READ_ONLY).
+   */
+  dragProps?: React.ButtonHTMLAttributes<HTMLButtonElement> & { ref?: (el: HTMLElement | null) => void };
+  /** The card is being dragged: the original fades while the overlay moves. */
+  dragging?: boolean;
+  /** Rendered inside the DragOverlay: solid, lifted, never faded. */
+  overlay?: boolean;
+};
+
+export function CalendarTaskCard({ item, variant = "full", showAssignee = true, onOpen, className, dragProps, dragging = false, overlay = false }: CalendarTaskCardProps) {
   const closed = item.status === "COMPLETED" || item.status === "CANCELLED";
   const overdue = item.derived === "overdue";
   const bar = overdue ? "bg-tone-danger" : STATUS_TONE[item.status].bar;
   const compact = variant === "compact";
+  const { ref, ...dragRest } = dragProps ?? {};
 
   return (
     <button
       type="button"
+      ref={ref}
+      {...dragRest}
       onClick={() => onOpen(item.id)}
       aria-label={`${item.title}, ${contextLine(item)}, ${whenLine(item)}${item.assignedTo ? `, ${shortName(item.assignedTo)}` : ", unassigned"}`}
       className={cn(
         "group relative w-full rounded-md border bg-white text-left shadow-xs transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50",
         compact ? "px-2 py-1.5 pl-3" : "px-3 py-2 pl-3.5",
         closed && "opacity-60",
+        dragProps && "cursor-grab active:cursor-grabbing touch-manipulation",
+        dragging && "opacity-40",
+        overlay && "rotate-1 scale-[1.02] cursor-grabbing shadow-xl ring-2 ring-brand/40",
         className,
       )}
     >

@@ -5,6 +5,7 @@ import { dayTone } from "@/lib/calendar/agenda";
 import type { CalendarItem } from "@/lib/calendar/types";
 import { dayKeyToLocalDate, dayKeysBetween, type DayKey, type MonthGrid } from "@/lib/time/zone";
 import { cn } from "@/lib/utils";
+import { DropZone } from "./drop-zone";
 
 /**
  * Six weeks of counts. Each cell is a button that opens the day; the pill's
@@ -45,6 +46,7 @@ export function MonthView({ grid, byDay, today, onPickDay }: { grid: MonthGrid; 
                   : `${items.length} ${items.length === 1 ? "task" : "tasks"}${overdue ? `, ${overdue} overdue` : ""}${blocked ? `, ${blocked} blocked` : ""}`;
               return (
                 <td key={day} className="p-0 align-top">
+                  <DropZone target={{ kind: "day", day }} label={format(d, "EEEE, MMMM d")}>
                   <button
                     type="button"
                     onClick={() => onPickDay(day)}
@@ -74,6 +76,7 @@ export function MonthView({ grid, byDay, today, onPickDay }: { grid: MonthGrid; 
                       </span>
                     )}
                   </button>
+                  </DropZone>
                 </td>
               );
             })}
