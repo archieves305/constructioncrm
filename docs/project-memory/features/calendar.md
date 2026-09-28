@@ -114,7 +114,7 @@ URL owns `view=day|week|month`, `date`, `users`, `job`, `status`, `priority`,
 - Keyboard: ← → previous/next, `t` today, `n` new task. Prefetches the
   adjacent range; `keepPreviousData` on navigation.
 
-## Dispatch (Phase 2, built 2026-09-28 on `calendar-dispatch`)
+## Dispatch (Phase 2, built 2026-09-28 on `calendar-dispatch`; deployed `e0380ba`, BUILD_ID `sBabA8ralAO2_F-0aMUve`)
 
 **Drag and drop.** One `DndContext` (`components/calendar/calendar-dnd.tsx`)
 wraps every view and the rail, on the kanban kit's sensors — extracted to

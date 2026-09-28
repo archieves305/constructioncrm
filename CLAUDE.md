@@ -55,8 +55,11 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `useMoveTask` with multi-query rollback, conflict dialog (warn-not-block),
    People view with workload footers and per-cell quick-create, keyboard drag
    + announcements, `updateTask` refuses an inactive assignee. No migration.
-   Gate: typecheck clean, lint 6/22, 1062 tests (+35), build clean; headless
-   QA 28/28. **Not pushed, not deployed.** Phases 3 (`/field/day`, Today
+   Gate: typecheck clean, lint 6/22, 1063 tests, build clean; headless
+   QA 28/28. **Deployed 2026-09-28 as `e0380ba`** (BUILD_ID
+   `sBabA8ralAO2_F-0aMUve`, no migration, smoke 307 ×2, journal clean,
+   backup `postgres-2026-09-28-114633.dump`). Richard's prod click-through
+   is next. Phases 3 (`/field/day`, Today
    widget) and 4 (overlays, digest line, ⌘K tasks) follow. Notes:
    [features/calendar.md](docs/project-memory/features/calendar.md).
 00000. ✅ **Friendlier CRM: address-first labels + calmer navigation** —
@@ -182,7 +185,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-28 — Operations Calendar, Phase 2: dispatch (built, dev-QA'd, on `main`, not deployed)
+### 2026-09-28 — Operations Calendar, Phase 2: dispatch (deployed `e0380ba`)
 
 Richard's click-through of Phase 1 passed; "continue to next part". Built per
 the plan's Phase 2 on `calendar-dispatch`: `components/kanban/sensors.ts`
@@ -203,8 +206,13 @@ assignee must exist and be active (400, hint `assignedUserId`). Found in QA
 and fixed: the page's ←/→ hotkeys fired during a keyboard drag and paged the
 week away — they now yield while the focused card is `aria-pressed`. Gate:
 typecheck clean, lint 6/22, 1062 tests (+35), build clean; headless Chromium
-28/28 (`qa-dispatch.js`, recipe in the feature doc). No migration. Merged to
-`main` as a fast-forward. Details:
+28/28 (`qa-dispatch.js`, recipe in the feature doc). No migration. A sibling
+session had landed the Jobs closed-by-default change on `main` meanwhile, so
+this was a real merge (one CLAUDE.md conflict, both records kept). Richard
+pushed and deployed from `!`: BUILD_ID `gCg4iE5s2vGZXzV50cr78` →
+`sBabA8ralAO2_F-0aMUve`, no pending migrations, smoke 307 ×2, journal
+clean, backup `postgres-2026-09-28-114633.dump`, `.deploy-sha` `e0380ba`.
+Details:
 [features/calendar.md](docs/project-memory/features/calendar.md).
 
 ### 2026-09-28 — Jobs table hides closed jobs by default (deployed `a067ac8`)
@@ -984,10 +992,9 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 > **Operations Calendar Phase 1 is on prod and clicked through; the Jobs
 > table hides closed jobs by default (`a067ac8`, BUILD_ID
-> `gCg4iE5s2vGZXzV50cr78`, the current prod build); Phase 2 (dispatch) is
-> merged to `main`, not pushed, not deployed (no migration).** Next: Richard pushes + deploys from `!` (`git push
-> origin main`, then `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh
-> --yes`), then his click-through on prod: Calendar → People; drag a card
+> `gCg4iE5s2vGZXzV50cr78`); Phase 2 (dispatch) is on prod (`e0380ba`,
+> BUILD_ID `sBabA8ralAO2_F-0aMUve`, no migration).** Next: Richard's
+> click-through on prod: Calendar → People; drag a card
 > from the Unscheduled rail onto Lisette / Tuesday (one assignment email,
 > timeline shows ASSIGNED + DUE_CHANGED); drag it to another day and back to
 > the rail; give two of his own tasks overlapping times on one day, drag one
