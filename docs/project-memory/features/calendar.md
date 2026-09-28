@@ -2,7 +2,8 @@
 
 _Plan: `~/.claude/plans/woolly-swinging-mist.md` (approved 2026-09-27). Four
 phases, each deployed and click-through'd before the next. This page tracks
-what is built._
+what is built. **Phase 1 deployed 2026-09-28 as `08e9355`, BUILD_ID
+`sMd5qs7fP1qWl0vxJLB14`, migration applied and CHECK verified on prod.**_
 
 ## Purpose
 

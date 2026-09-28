@@ -27,7 +27,7 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
-000000. 🔴 **Operations Calendar / My Work** — four phases, plan approved
+000000. ✅ **Operations Calendar / My Work — Phase 1 on prod** — four phases, plan approved
    2026-09-27 (`~/.claude/plans/woolly-swinging-mist.md`). **Phase 1
    (Foundation) built + dev-QA'd 2026-09-27 on `calendar-foundation`**:
    one date axis (`dueAt` = the day and, for timed tasks, the end instant;
@@ -41,10 +41,11 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    agenda + day strip, bottom sheet), `ScheduleSection` + assignee +
    Directions/Call in the task sheet, time row in the task dialog,
    `User.defaultCalendarView`. `/schedule` redirects; its unguarded PUT
-   route is gone. **On `main` as `6f65efd` (fast-forward, 2026-09-28);
-   gate re-run on main: typecheck clean, lint 6/22, 1027 tests, build
-   clean. Not pushed, not deployed** — Richard pushes + deploys from `!`,
-   then his click-through. Phases 2 (dispatch: People view, Unscheduled
+   route is gone. **Deployed 2026-09-28 as `08e9355`** (BUILD_ID
+   `sMd5qs7fP1qWl0vxJLB14`, migration `20261006120000_task_scheduling`
+   applied, CHECK + index verified on prod, 1357 tasks all `all_day`, smoke
+   307 ×2, journal clean, backup `postgres-2026-09-28-104554.dump`).
+   What remains is Richard's click-through. Phases 2 (dispatch: People view, Unscheduled
    rail, drag, conflicts), 3 (`/field/day`, Today widget), 4 (overlays,
    digest line, ⌘K tasks) follow. Notes:
    [features/calendar.md](docs/project-memory/features/calendar.md).
@@ -170,6 +171,23 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-28 — Operations Calendar, Phase 1 deployed (`08e9355`)
+
+`calendar-foundation` was already fast-forwarded onto `main` as `6f65efd`;
+the gate re-run on main: typecheck clean, lint 6/22, 1027 tests, build
+clean. Richard pushed and deployed from `!` (the deploy ran past the shell's
+120 s timeout into the background and finished exit 0): BUILD_ID
+`rNiggElI_oVOOMlbDSI2q` → `sMd5qs7fP1qWl0vxJLB14`, migration
+`20261006120000_task_scheduling` applied (73/73), smoke 307 ×2, journal
+clean, backups `postgres-2026-09-28-104554.dump` +
+`pre-deploy-20260928-064548.tar.gz`. Prod verified by SQL:
+`tasks_schedule_window_chk` present with the hand-written definition,
+`all_day` default true / `scheduled_start` nullable, `default_calendar_view`
+default `WEEK`, `tasks_assigned_user_id_due_at_idx` present; 1357 tasks, all
+all-day, none with a start. `/calendar` and `/api/calendar` answer 307 to the
+portal unauthenticated; the `/schedule` → `/calendar` redirect sits behind
+the SSO middleware, so it is checked from a signed-in session.
 
 ### 2026-09-27 — Operations Calendar, Phase 1 (built, dev-QA'd, on branch `calendar-foundation`)
 
@@ -895,12 +913,10 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 
 ## 10. Next Prompt
 
-> **Operations Calendar Phase 1 is on `main` (`6f65efd`), gate green,
-> not pushed, not deployed.** Next: Richard pushes + deploys from `!`
-> (`git push origin main`, then `KNUCO_PUBLIC_URL=https://crm.careyos.com
-> ./deploy.sh --yes`; migration `20261006120000_task_scheduling` applies;
-> verify the CHECK exists and `/schedule` → `/calendar`), then his
-> click-through: sidebar Calendar shows his active tasks this week; open one,
+> **Operations Calendar Phase 1 is on prod (`08e9355`, BUILD_ID
+> `sMd5qs7fP1qWl0vxJLB14`, migration applied and verified).** Next:
+> Richard's click-through (signed in, also confirm `/schedule` →
+> `/calendar`): sidebar Calendar shows his active tasks this week; open one,
 > set 2–3 pm, see the time on the card and the same due date on `/tasks`;
 > Viewing → Lisette / Everyone; Month → click a day; phone-width Day; the
 > dashboard Overdue tile now excludes items due today (announced). Then
