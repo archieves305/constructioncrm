@@ -172,6 +172,19 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-09-28 — Calendar click-through fix: Viewing menu crashed on open (`1578433`)
+
+Richard: error when changing Viewing from Everyone to one person. Reproduced
+in headless Chromium on dev: opening the menu threw Base UI's
+"MenuGroupRootContext is missing" because the People `DropdownMenuLabel`
+(a `Menu.GroupLabel`) sat outside a `DropdownMenuGroup`; the earlier QA had
+driven `?users=` through the URL and never opened the menu. Wrapped the
+label + person checkboxes in a group; both paths (Everyone → one person,
+My calendar → one person) now change the URL and the header label with no
+console errors. Note the checkboxes are additive: from "My calendar",
+ticking someone gives "2 people" until you untick yourself. Gate: typecheck
+clean, lint 6/22, 1027 tests. **Awaiting push + deploy** (no migration).
+
 ### 2026-09-28 — Operations Calendar, Phase 1 deployed (`08e9355`)
 
 `calendar-foundation` was already fast-forwarded onto `main` as `6f65efd`;
@@ -914,8 +927,10 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 ## 10. Next Prompt
 
 > **Operations Calendar Phase 1 is on prod (`08e9355`, BUILD_ID
-> `sMd5qs7fP1qWl0vxJLB14`, migration applied and verified).** Next:
-> Richard's click-through (signed in, also confirm `/schedule` →
+> `sMd5qs7fP1qWl0vxJLB14`, migration applied and verified); the Viewing
+> menu fix `1578433` is committed on main, not yet pushed/deployed (no
+> migration).** Next: push + deploy the fix, then resume Richard's
+> click-through (signed in, also confirm `/schedule` →
 > `/calendar`): sidebar Calendar shows his active tasks this week; open one,
 > set 2–3 pm, see the time on the card and the same due date on `/tasks`;
 > Viewing → Lisette / Everyone; Month → click a day; phone-width Day; the
