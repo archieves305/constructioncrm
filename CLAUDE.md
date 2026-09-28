@@ -112,10 +112,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    rules / Log) built + dev-QA'd 2026-09-28 on the `notifications`
    worktree, fast-forwarded to `main`.** No migration. Gate: typecheck
    clean, lint 6/22, 1157 tests (+15), build clean; dev QA 16/16 with one
-   real digest to Richard. **Not pushed, not deployed.** After deploy:
-   install `crm-cron/notifications.sh` + the `*/10` crontab line, then
-   Richard flips the switch under Admin → Notification Digests when he is
-   ready for digests to replace per-event mail. Stage 3 = user settings
+   real digest to Richard. **Deployed 2026-09-28 as `b017ded`** (BUILD_ID
+   `T-gHoVihFeo4ZA4S_c1vx`, no migration, smoke 307 ×2, journal clean,
+   backup `postgres-2026-09-28-132409.dump`); `crm-cron/notifications.sh`
+   + the `*/10 * * * *` crontab line installed as `knuco` and run once
+   (`recording: true, takeover: false`, 0 pending — still shadow). **The
+   switch is Richard's**: Admin → Notification Digests → "Digest delivery
+   on" moves delivery to the digests; off again is instant. Stage 3 = user settings
    page + admin polish; Stage 4 = `/notifications` polish + legacy removal.
    Notes:
    [features/notifications.md](docs/project-memory/features/notifications.md).
@@ -427,7 +430,7 @@ sheet at 1280 and 390, redirect, empty state) and the SALES_REP coercion
 check. Details:
 [features/calendar.md](docs/project-memory/features/calendar.md).
 
-### 2026-09-28 — Notifications v2, Stage 2: digests (built, dev-QA'd, on `main`, not deployed)
+### 2026-09-28 — Notifications v2, Stage 2: digests (deployed `b017ded`, cron installed, switch off)
 
 "continue". Built in the `notifications` worktree (ff'd to `main` first):
 `lib/email/components.ts`; pure `digest/build.ts` (dedupe → supersede →
@@ -445,7 +448,14 @@ settings / log / tick routes + `/admin/notifications` (Delivery ·
 Immediate rules · Log) + sidebar entry. Dev QA 16/16 on the worktree dev
 server with one real digest to Richard (details in the feature doc).
 Gate: typecheck clean, lint 6/22, 1157 tests (+15), build clean. No
-migration. Details:
+migration. Richard pushed and deployed from `!`: BUILD_ID
+`AJgI-9h4wEZJtyDX0DEfz` → `T-gHoVihFeo4ZA4S_c1vx`, smoke 307 ×2, journal
+clean, backup `postgres-2026-09-28-132409.dump`. Then the wrapper
+`/home/knuco/crm-cron/notifications.sh` + `*/10 * * * *` were installed as
+`knuco` and run once: `recording: true, takeover: false`, window
+`2026-09-28:08:00`, 0 pending (shadow, 0 rows so far). The delivery switch
+stays off until Richard ticks it under Admin → Notification Digests.
+Details:
 [features/notifications.md](docs/project-memory/features/notifications.md).
 
 ### 2026-09-28 — Notifications v2, Stage 1 merged + deployed (`4e9ee62`); shadow flag pending
@@ -1229,12 +1239,11 @@ Notification Digests).
 > typecheck + build green, lint ≤ 6/28, deploy with the env override.
 >
 > **Notifications v2: Stage 1 is on prod in shadow mode (`NOTIFICATIONS_V2=1`,
-> switch off); Stage 2 (digests) is on `main`, not pushed, not deployed, no
-> migration.** Next: Richard pushes + deploys from `!`, then install the
-> cron wrapper + `*/10 * * * *` line as `knuco` (feature doc has the
-> script), run it once by hand (still shadow: `takeover: false`), check
-> Admin → Notification Digests renders and "Preview the next digest" lists
-> people. Then, when Richard wants digests to replace per-event mail, he
+> switch off); Stage 2 (digests) is on prod as `b017ded` (BUILD_ID
+> `T-gHoVihFeo4ZA4S_c1vx`, no migration) with the `*/10` cron wrapper
+> installed and ticking in shadow.** Next: Richard opens Admin →
+> Notification Digests, checks "Preview the next digest" lists people, and
+> when he wants digests to replace per-event mail, he
 > ticks "Digest delivery on" there — legacy task / step mail stops, the
 > 7:30 task digest stands down, and the four windows send. First day: watch
 > the Log tab and `cron.notifications` in the journal. Stage 3 = user
