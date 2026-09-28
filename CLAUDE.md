@@ -92,8 +92,12 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `?dryRun=1`, preference mirroring) built + dev-QA'd 2026-09-27 on the
    `notifications` branch** (worktree; a sibling session held the main
    checkout); **`main` merged into it 2026-09-28** (schema + CLAUDE.md
-   conflicts resolved, migration renamed after the calendar's). Not yet
-   deployed. Gates: env `NOTIFICATIONS_V2=1`
+   conflicts resolved, migration renamed after the calendar's) and
+   **deployed 2026-09-28 as `4e9ee62`** (BUILD_ID `AJgI-9h4wEZJtyDX0DEfz`,
+   migration `20261007120000_notifications` applied: 8 users default
+   DIGEST, none IN_APP_ONLY, old bell rows marked read; smoke 307 ×2,
+   journal clean, backup `postgres-2026-09-28-125713.dump`). Shadow flag
+   `NOTIFICATIONS_V2=1` is the next operator step. Gates: env `NOTIFICATIONS_V2=1`
    records rows (shadow — legacy mail unchanged); the DB switch
    `NotificationSettings.enabled` hands delivery to v2 and **must stay off
    on prod until Stage 2 ships the digest sender**. Stage 2 = digest
@@ -407,6 +411,22 @@ typecheck + build clean; headless-Chromium QA 30/30 (API + Week/Day/Month/
 sheet at 1280 and 390, redirect, empty state) and the SALES_REP coercion
 check. Details:
 [features/calendar.md](docs/project-memory/features/calendar.md).
+
+### 2026-09-28 — Notifications v2, Stage 1 merged + deployed (`4e9ee62`); shadow flag pending
+
+Richard: "lets do it". `main` (18 commits ahead) merged into `notifications`
+in the worktree: schema kept both sides' `User` columns, CLAUDE.md both
+sides' entries; the migration folder renamed `20261006120000_notifications`
+→ `20261007120000_notifications` (it shared the calendar migration's
+timestamp) and its dev `_prisma_migrations` row re-pointed by SQL. Gate on
+the merged tree: typecheck clean, lint 6/22, 1142 tests, build clean. `main`
+fast-forwarded, Prisma client regenerated in the main checkout. Richard
+pushed and deployed from `!`: BUILD_ID `Vb1KFWlyhrVkEEeBQMdzA` →
+`AJgI-9h4wEZJtyDX0DEfz`, migration applied, smoke 307 ×2, journal clean,
+backup `postgres-2026-09-28-125713.dump`. Prod after: 0 notification rows
+(flag off), 8 users DIGEST / 0 IN_APP_ONLY (nobody had muted mail), old
+IN_APP `notification_events` marked read. Next: `NOTIFICATIONS_V2=1` +
+restart → dry-run tick → shadow; Stage 2 build.
 
 ### 2026-09-27 — Notifications v2, Stage 1: record + shadow (built, dev-QA'd, branch `notifications`)
 
@@ -1167,10 +1187,9 @@ shadow mode, legacy mail unchanged; delivery only moves to v2 when
 > `/tasks` from the header pills. Same rules: explicit role lists, tests +
 > typecheck + build green, lint ≤ 6/28, deploy with the env override.
 >
-> **Notifications v2 Stage 1 is merged with `main` on the `notifications`
-> branch, not yet on `main` / prod.** Next: fast-forward `main`, Richard
-> pushes + deploys (`migrate deploy` applies `20261007120000_notifications`),
-> then shadow mode: `NOTIFICATIONS_V2=1` in `/etc/knuco/env` + restart →
+> **Notifications v2 Stage 1 is on prod (`4e9ee62`, BUILD_ID
+> `AJgI-9h4wEZJtyDX0DEfz`, migration applied), flag off.** Next: shadow
+> mode: `NOTIFICATIONS_V2=1` in `/etc/knuco/env` + restart →
 > `curl … /api/cron/notifications?dryRun=1` → `recording: true, takeover:
 > false`; check the bell. **Leave `NotificationSettings.enabled` off until
 > Stage 2.** Then Stage 2 per the plan §I–§K (`digest/{build,agenda,render}`,
