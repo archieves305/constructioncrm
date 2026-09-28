@@ -32,6 +32,8 @@ export type TaskListFilters = {
   status?: string;
   priority?: string;
   overdue?: boolean;
+  /** Active, open, no due date (the calendar's "needs a day"). */
+  unscheduled?: boolean;
   includeCompleted?: boolean;
   leadId?: string;
   jobId?: string;

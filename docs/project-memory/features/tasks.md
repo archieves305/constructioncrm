@@ -155,3 +155,19 @@ the window. Every write goes through `applySchedule()`
 day" and carries a timed window along. `SCHEDULE_CHANGED` joins the
 timeline. Overdue is `overdueWhere()` (end of the office day for all-day
 tasks). Full notes: [calendar.md](calendar.md).
+
+## Whose tasks the list opens on (2026-09-28)
+
+`/tasks` opens on the signed-in person's tasks. `resolveTaskScope` (URL
+`?scope=mine|all` > saved `defaultListScope` > Mine — the same preference the
+jobs / leads lists write, with no role floor because the task API is the
+floor) and `taskAssigneeFor` (an explicit `?assignedUserId=<id|me>` wins;
+Mine = the signed-in person; Everyone = no assignee filter) live in
+`lib/lists/scope.ts`. The Mine | Everyone toggle beside List | Board, the
+header "Mine" pill, the assignee picker's "Anyone" and the Mine empty state's
+"Show everyone" all write the URL and the preference. **Any link that means
+the team's tasks must say `scope=all`** (dashboard All-scope Overdue tile,
+case page task list, workflow-health, workflow report, calendar
+"View unscheduled"); a link with `assignedUserId=` needs nothing. The page
+also honours `unscheduled=1` ("No date yet").
+

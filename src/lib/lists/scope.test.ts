@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveTaskScope, taskAssigneeFor } from "./scope";
 import type { RoleName } from "@/generated/prisma/enums";
 import { effectiveListScope, isScopeForced, parseListScope, resolveClientScope, scopeToPref } from "./scope";
 
@@ -48,5 +49,21 @@ describe("resolveClientScope", () => {
   it("maps a scope back to the stored preference", () => {
     expect(scopeToPref("all")).toBe("ALL");
     expect(scopeToPref("mine")).toBe("MINE");
+  });
+});
+
+describe("resolveTaskScope / taskAssigneeFor", () => {
+  it("the Tasks page defaults to Mine, follows the URL then the preference, with no role floor", () => {
+    expect(resolveTaskScope({ url: null, pref: null })).toBe("mine");
+    expect(resolveTaskScope({ url: null, pref: "ALL" })).toBe("all");
+    expect(resolveTaskScope({ url: "all", pref: "MINE" })).toBe("all");
+    expect(resolveTaskScope({ url: "junk", pref: "ALL" })).toBe("all");
+  });
+  it("an explicit assignee wins; Mine is the signed-in person; Everyone is no filter", () => {
+    expect(taskAssigneeFor({ explicit: "u2", scope: "mine", userId: "u1" })).toBe("u2");
+    expect(taskAssigneeFor({ explicit: "me", scope: "all", userId: "u1" })).toBe("u1");
+    expect(taskAssigneeFor({ explicit: null, scope: "mine", userId: "u1" })).toBe("u1");
+    expect(taskAssigneeFor({ explicit: null, scope: "mine", userId: null })).toBe("me");
+    expect(taskAssigneeFor({ explicit: null, scope: "all", userId: "u1" })).toBe("");
   });
 });

@@ -76,7 +76,7 @@ export function CalendarEmpty({
           tone="warning"
           title={`${unscheduledCount} active ${unscheduledCount === 1 ? "task" : "tasks"} still ${unscheduledCount === 1 ? "needs" : "need"} a day`}
           action={
-            <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/tasks?unscheduled=1" />}>
+            <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/tasks?unscheduled=1&scope=all" />}>
               View unscheduled
             </Button>
           }

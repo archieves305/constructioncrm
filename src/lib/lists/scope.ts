@@ -42,3 +42,25 @@ export function resolveClientScope(input: { url?: string | null; pref?: ListScop
 export function scopeToPref(scope: ListScope): ListScopePref {
   return scope === "all" ? "ALL" : "MINE";
 }
+
+/**
+ * The Tasks page: URL > saved preference > Mine, with no role floor — the
+ * task API already limits an own-only role to what they may see, so their
+ * "Everyone" is the tasks on their own jobs.
+ */
+export function resolveTaskScope(input: { url?: string | null; pref?: ListScopePref | null }): ListScope {
+  const fromUrl = parseListScope(input.url);
+  if (fromUrl) return fromUrl;
+  return input.pref === "ALL" ? "all" : "mine";
+}
+
+/**
+ * Whose tasks the list asks for: an explicit `assignedUserId` in the URL
+ * (a person, or "me") wins; otherwise Mine means the signed-in person and
+ * Everyone means no assignee filter. "me" and an unknown session both
+ * resolve to "me", which the API accepts.
+ */
+export function taskAssigneeFor(input: { explicit: string | null | undefined; scope: ListScope; userId: string | null | undefined }): string {
+  if (input.explicit) return input.explicit === "me" ? (input.userId ?? "me") : input.explicit;
+  return input.scope === "mine" ? (input.userId ?? "me") : "";
+}

@@ -197,7 +197,7 @@ function CaseView({ data, tab, setTab, openItem, onOpenItem }: { data: CaseData;
                     <Unlink className="size-4" /> Unlink job {data.job.jobNumber}
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem render={<Link href={`/tasks?violationCaseId=${data.id}`} />}>
+                <DropdownMenuItem render={<Link href={`/tasks?violationCaseId=${data.id}&scope=all`} />}>
                   <ListChecks className="size-4" /> Open in Tasks
                 </DropdownMenuItem>
               </DropdownMenuContent>

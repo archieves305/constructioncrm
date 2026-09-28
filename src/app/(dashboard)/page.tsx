@@ -111,7 +111,7 @@ export default function DashboardPage() {
           title="Overdue Tasks"
           value={data?.overdueTasks || 0}
           icon={Clock}
-          href={scope === "mine" ? "/tasks?overdue=1&assignedUserId=me" : "/tasks?overdue=1"}
+          href={scope === "mine" ? "/tasks?overdue=1&assignedUserId=me" : "/tasks?overdue=1&scope=all"}
         />
       </div>
 

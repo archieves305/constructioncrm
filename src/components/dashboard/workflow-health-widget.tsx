@@ -30,7 +30,7 @@ export function WorkflowHealthWidget({ className, scope = "all" }: { className?:
   const tiles: { label: string; value: number; href: string; tone: Tone; alwaysNeutralWhenZero?: boolean }[] = data
     ? [
         { label: "Active workflows", value: data.active, href: `/jobs?${q}`, tone: "info" },
-        { label: "Ready steps", value: data.stepsReady, href: "/tasks?source=workflow&ready=1", tone: "info" },
+        { label: "Ready steps", value: data.stepsReady, href: "/tasks?source=workflow&ready=1&scope=all", tone: "info" },
         { label: "Overdue", value: data.stepsOverdue, href: `/jobs?workflowOverdue=1&${q}`, tone: "warning" },
         { label: "Blocked", value: data.stepsBlocked, href: `/jobs?workflowBlocked=1&${q}`, tone: "danger" },
         { label: "Unassigned", value: data.stepsUnassigned, href: `/jobs?workflowUnassigned=1&${q}`, tone: "neutral" },

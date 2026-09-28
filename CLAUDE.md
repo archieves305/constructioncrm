@@ -430,6 +430,30 @@ sheet at 1280 and 390, redirect, empty state) and the SALES_REP coercion
 check. Details:
 [features/calendar.md](docs/project-memory/features/calendar.md).
 
+### 2026-09-28 — Tasks page opens on "assigned to me" (built, dev-QA'd, on `main`, not deployed)
+
+Richard: "When you are on the Tasks tab it should default to showing the
+tasks that are assigned to the current user." `/tasks` now resolves whose
+tasks through pure `resolveTaskScope` (URL `?scope=` > the saved
+`defaultListScope` the jobs / leads lists already use > Mine; no role
+floor — the task API is the floor) and `taskAssigneeFor` (an explicit
+`?assignedUserId=` wins, else Mine = the signed-in person, Everyone = no
+filter), both in `lib/lists/scope.ts` with tests. A **Mine | Everyone**
+toggle sits beside List | Board and writes the URL + the preference; the
+header "Mine" pill, the assignee picker's "Anyone" and a Mine-specific
+empty state ("Nothing assigned to you" → Show everyone) all route through
+it; the list query waits for the preference so there is no Mine→All flash.
+Links that mean the team's tasks now say `scope=all` (dashboard All-scope
+Overdue tile, the case page's task list, the workflow-health "Ready steps",
+the workflow report, the calendar's "View unscheduled"), and the page
+gained the `unscheduled=1` filter ("No date yet") that the calendar link
+had been sending into the void. Also fixed the known hydration warning on
+`/tasks`: the header summary pills render only once mounted. Headless QA
+14/14 (bare `/tasks` = mine only; Everyone → all + pref ALL; reload follows
+the pref; Mine again; `?scope=all`, explicit assignee and `?unscheduled=1`
+links keep their meaning; no page errors). Gate: typecheck clean, lint
+6/22, 1159 tests (+2), build clean.
+
 ### 2026-09-28 — Notifications v2, Stage 2: digests (deployed `b017ded`, cron installed, switch off)
 
 "continue". Built in the `notifications` worktree (ff'd to `main` first):
@@ -1234,8 +1258,11 @@ Notification Digests).
 > pre-fills the person. Then Phase 3 (`/field/day`, Today widget) on a new
 > branch. UX plan follow-ups,
 > nurture operator items and Code Violations Stage 4 still stand. Known
-> pre-existing: `/api/permits?status=<bad>` 500s; a hydration warning on
-> `/tasks` from the header pills. Same rules: explicit role lists, tests +
+> pre-existing: `/api/permits?status=<bad>` 500s. **The Tasks page now
+> opens on "assigned to me" (Mine | Everyone toggle, shared list
+> preference) — on `main`, not deployed; push + deploy, then confirm the
+> sidebar Tasks tab opens on Richard's own tasks and Everyone shows the
+> team's.** Same rules: explicit role lists, tests +
 > typecheck + build green, lint ≤ 6/28, deploy with the env override.
 >
 > **Notifications v2: Stage 1 is on prod in shadow mode (`NOTIFICATIONS_V2=1`,

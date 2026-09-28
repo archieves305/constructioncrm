@@ -99,7 +99,7 @@ export function WorkflowReportSection({ report }: { report: WorkflowReport }) {
   const s = report.summary;
   const tiles = [
     { label: "Active workflows", value: s.active, href: "/jobs" },
-    { label: "Open steps", value: s.stepsOpen, href: "/tasks?source=workflow" },
+    { label: "Open steps", value: s.stepsOpen, href: "/tasks?source=workflow&scope=all" },
     { label: "Overdue", value: s.stepsOverdue, href: "/jobs?workflowOverdue=1", tone: "warning" as const },
     { label: "Blocked", value: s.stepsBlocked, href: "/jobs?workflowBlocked=1", tone: "danger" as const },
     { label: "Unassigned", value: s.stepsUnassigned, href: "/jobs?workflowUnassigned=1", tone: "neutral" as const },

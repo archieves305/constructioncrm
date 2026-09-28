@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { isToday, isThisWeek, isPast } from "date-fns";
@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, LayoutGrid, ListChecks, Bell, BellOff, SlidersHorizontal, Search, CheckSquare } from "lucide-react";
+import { Plus, LayoutGrid, ListChecks, Bell, BellOff, SlidersHorizontal, Search, CheckSquare, UserRound, Users } from "lucide-react";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import type { KanbanColumnDef } from "@/components/kanban/types";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -27,6 +27,8 @@ import { STATUS_LABEL, STATUS_TONE, TASK_PRIORITIES, TASK_STATUSES } from "@/com
 import { useAssignableUsers, useCreateTask, useTaskSummary, useTasks, useUpdateTask } from "@/components/tasks/use-tasks";
 import type { TaskListItem, TaskStatus, UpdatePatch, UserOption } from "@/components/tasks/types";
 import { useSearchParamState } from "@/components/shared/use-search-param-state";
+import { useMePreferences, usePatchPreferences } from "@/components/shared/use-list-scope";
+import { resolveTaskScope, taskAssigneeFor, type ListScope } from "@/lib/lists/scope";
 import { useDebouncedValue } from "@/components/shared/use-debounced-value";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -72,6 +74,19 @@ export default function TasksPage() {
   const flagOn = (k: string) => getUrl(k) === "1" || getUrl(k) === "true";
   const filterAssignee = getUrl("assignedUserId") ?? "";
   const setFilterAssignee = (v: string) => setUrl({ assignedUserId: v || null });
+  // Mine by default: the list opens on the signed-in person's tasks. The URL
+  // (`?scope=`) wins for this visit, the saved list preference otherwise —
+  // the same preference the jobs and leads lists use. An explicit assignee
+  // in the URL (a person, or the dashboard's "me") overrides both.
+  const { data: listPrefs, isLoading: prefsLoading } = useMePreferences();
+  const patchPrefs = usePatchPreferences();
+  const urlScope = getUrl("scope");
+  const scope = resolveTaskScope({ url: urlScope, pref: listPrefs?.defaultListScope ?? null });
+  const scopeReady = Boolean(urlScope) || Boolean(filterAssignee) || !prefsLoading;
+  function setWho(next: ListScope) {
+    setUrl({ assignedUserId: null, scope: next });
+    patchPrefs.mutate({ defaultListScope: next === "mine" ? "MINE" : "ALL" });
+  }
   const filterPriority = getUrl("priority") ?? "";
   const setFilterPriority = (v: string) => setUrl({ priority: v || null });
   const filterJob = getUrl("jobId") ?? "";
@@ -81,6 +96,8 @@ export default function TasksPage() {
   const [filterStage, setFilterStage] = useState("");
   const overdueOnly = flagOn("overdue");
   const setOverdueOnly = (v: boolean) => setUrl({ overdue: v ? "1" : null });
+  const unscheduledOnly = flagOn("unscheduled");
+  const setUnscheduledOnly = (v: boolean) => setUrl({ unscheduled: v ? "1" : null });
   const includeCompleted = flagOn("includeCompleted");
   const setIncludeCompleted = (v: boolean) => setUrl({ includeCompleted: v ? "1" : null });
   const sourceRaw = getUrl("source");
@@ -99,21 +116,27 @@ export default function TasksPage() {
   // A "me" filter from the URL resolves to the real id once the session is
   // known, so the assignee dropdown shows the right name. The API accepts
   // "me" too, so the list is correct even before that.
-  const effectiveAssignee = filterAssignee === "me" ? (session?.user.id ?? "me") : filterAssignee;
+  const effectiveAssignee = taskAssigneeFor({ explicit: filterAssignee, scope, userId: session?.user.id });
+  const mineActive = Boolean(session) && effectiveAssignee === session?.user.id;
 
-  const { data: tasks = [], isLoading } = useTasks({
-    search: q || undefined,
-    assignedUserId: effectiveAssignee || undefined,
-    priority: filterPriority || undefined,
-    jobId: filterJob || undefined,
-    violationCaseId: filterCase || undefined,
-    overdue: overdueOnly || undefined,
-    includeCompleted: includeCompleted || undefined,
-    source: filterSource || undefined,
-    ready: readyOnly || undefined,
-    blocked: blockedOnly || undefined,
-    includeInactive: showInactive || undefined,
-  });
+  const { data: tasks = [], isLoading } = useTasks(
+    {
+      search: q || undefined,
+      assignedUserId: effectiveAssignee || undefined,
+      priority: filterPriority || undefined,
+      jobId: filterJob || undefined,
+      violationCaseId: filterCase || undefined,
+      overdue: overdueOnly || undefined,
+      unscheduled: unscheduledOnly || undefined,
+      includeCompleted: includeCompleted || undefined,
+      source: filterSource || undefined,
+      ready: readyOnly || undefined,
+      blocked: blockedOnly || undefined,
+      includeInactive: showInactive || undefined,
+    },
+    // Don't fetch on a guessed scope while the preference loads (a Mine→All flash).
+    { enabled: scopeReady },
+  );
 
   const { data: users = [] } = useAssignableUsers();
 
@@ -216,14 +239,22 @@ export default function TasksPage() {
     (t) => t.status !== "COMPLETED" && t.status !== "CANCELLED",
   ).length;
   const emailsOn = prefs?.taskEmailsEnabled ?? true;
+  // The summary pills come from a query the sidebar has often already
+  // resolved, so on the client's first render they exist while the server's
+  // HTML had none — a hydration mismatch. Render them only once mounted.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const activeFilters =
     [q, filterAssignee, filterPriority, filterJob, filterCase, filterStage, filterSource].filter(Boolean).length +
-    (overdueOnly ? 1 : 0) + (readyOnly ? 1 : 0) + (blockedOnly ? 1 : 0) + (showInactive ? 1 : 0);
+    (overdueOnly ? 1 : 0) + (unscheduledOnly ? 1 : 0) + (readyOnly ? 1 : 0) + (blockedOnly ? 1 : 0) + (showInactive ? 1 : 0);
 
   function showMine(overdue: boolean) {
-    if (session?.user.id) setFilterAssignee(session.user.id);
-    setOverdueOnly(overdue);
-    setShowFilters(true);
+    setUrl({ assignedUserId: null, scope: "mine", overdue: overdue ? "1" : null });
+    patchPrefs.mutate({ defaultListScope: "MINE" });
+    if (overdue) setShowFilters(true);
   }
 
   return (
@@ -233,7 +264,7 @@ export default function TasksPage() {
         description={
           <span className="flex flex-wrap items-center gap-1.5">
             <span>{openCount} open{overdueOnly ? " · overdue only" : ""}</span>
-            {summary && (
+            {mounted && summary && (
               <>
                 <button
                   type="button"
@@ -273,6 +304,15 @@ export default function TasksPage() {
             >
               {emailsOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
             </Button>
+            <SegmentedControl<ListScope>
+              ariaLabel="Whose tasks"
+              value={mineActive ? "mine" : "all"}
+              onValueChange={setWho}
+              options={[
+                { value: "mine", label: "Mine", icon: UserRound },
+                { value: "all", label: "Everyone", icon: Users },
+              ]}
+            />
             <SegmentedControl
               ariaLabel="View"
               value={view}
@@ -321,7 +361,7 @@ export default function TasksPage() {
             <Label className="text-xs">Assignee</Label>
             <AssigneePicker
               value={effectiveAssignee && effectiveAssignee !== "me" ? effectiveAssignee : null}
-              onChange={(id) => setFilterAssignee(id ?? "")}
+              onChange={(id) => (id ? setFilterAssignee(id) : setWho("all"))}
               users={users}
               placeholder="Anyone"
               className="mt-1 w-full"
@@ -405,6 +445,10 @@ export default function TasksPage() {
             Blocked only
           </label>
           <label className="flex items-center gap-2 pb-2 text-sm text-muted-foreground">
+            <Checkbox checked={unscheduledOnly} onCheckedChange={(c) => setUnscheduledOnly(Boolean(c))} />
+            No date yet
+          </label>
+          <label className="flex items-center gap-2 pb-2 text-sm text-muted-foreground">
             <Checkbox checked={showInactive} onCheckedChange={(c) => setShowInactive(Boolean(c))} />
             Show not-active steps
           </label>
@@ -467,6 +511,8 @@ export default function TasksPage() {
           buckets={buckets}
           completed={stageFilteredTasks.filter((t) => t.status === "COMPLETED" || t.status === "CANCELLED")}
           showCompleted={includeCompleted}
+          mine={mineActive}
+          onShowEveryone={() => setWho("all")}
           users={users}
           onUpdate={(id, patch) => updateTask.mutate({ id, patch })}
           onOpen={setOpenTaskId}
@@ -531,13 +577,29 @@ function ListView({
   buckets,
   completed,
   showCompleted,
+  mine,
+  onShowEveryone,
   ...shared
-}: ViewProps & { buckets: Buckets; completed: TaskListItem[]; showCompleted: boolean }) {
+}: ViewProps & { buckets: Buckets; completed: TaskListItem[]; showCompleted: boolean; mine: boolean; onShowEveryone: () => void }) {
   const empty =
     Object.values(buckets).every((b) => b.length === 0) && (!showCompleted || completed.length === 0);
   return (
     <div className="space-y-4">
-      {empty && <EmptyState icon={CheckSquare} title="Nothing here. Nice." description="No open tasks match. Clear a filter, or press n to add one." />}
+      {empty &&
+        (mine ? (
+          <EmptyState
+            icon={CheckSquare}
+            title="Nothing assigned to you. Nice."
+            description="This list opens on your own tasks. Switch to Everyone for the team's, or press n to add one."
+            action={
+              <Button variant="outline" onClick={onShowEveryone}>
+                <Users className="h-4 w-4" /> Show everyone
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState icon={CheckSquare} title="Nothing here. Nice." description="No open tasks match. Clear a filter, or press n to add one." />
+        ))}
       <Section title="Overdue" tone="destructive" tasks={buckets.overdue} {...shared} />
       <Section title="Today" tone="primary" tasks={buckets.today} {...shared} />
       <Section title="This Week" tasks={buckets.week} {...shared} />
