@@ -245,6 +245,25 @@ clean, backup `postgres-2026-09-28-114633.dump`, `.deploy-sha` `e0380ba`.
 Details:
 [features/calendar.md](docs/project-memory/features/calendar.md).
 
+### 2026-09-28 — Workflow team PM now fills the job's PM (in `7be0e5c`, awaiting deploy + backfill)
+
+Richard: the Workflow tab's Team names a project manager but the job page's
+Team card says "PM: —". Two stores: the dialog wrote a
+`JobWorkflowTeamMember` slot; the card (and involvement, auto-tasks,
+contracts, field Today) read `Job.projectManagerId`, which no UI ever set —
+on prod all 25 jobs had it null while 8 carried a PM slot. Fix: pure
+`jobFieldsFromTeam` + `mirrorTeamToJob` (`src/lib/workflows/team-mirror.ts`)
+— a named PM / sales-rep slot becomes the job's field (activity
+`ASSIGNMENT_CHANGE` + audit `assign` with `source: workflow_team`); a
+cleared slot falls back and changes nothing. Wired into
+`PATCH /api/jobs/[id]/workflow`; the Team card reads the slot first, then
+the job field. `scripts/backfill-workflow-team-to-jobs-2026-09-28.ts`
+(dry run by default, `--yes` applies) copies existing slots; on dev it set
+JOB-00001's PM, wrote both rows, and a re-run changed 0. Gate: typecheck
+clean, lint 6/22, 1074 tests. The five files were swept into the sibling
+session's Phase 3 commit `7be0e5c` from the shared checkout, so they ship
+with it. **Run the backfill on prod after deploy.**
+
 ### 2026-09-28 — Jobs table hides closed jobs by default (deployed `a067ac8`)
 
 Richard: closed jobs should not show on the Jobs tab when it first opens.
