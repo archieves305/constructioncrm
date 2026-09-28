@@ -1,4 +1,5 @@
-import { addBusinessDays, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
+import { addBusinessDays, addDays } from "date-fns";
+import { dayKey, diffDayKeys } from "@/lib/time/zone";
 
 /**
  * Due-date arithmetic for automation. Business days for office follow-ups
@@ -18,7 +19,7 @@ export function dueTomorrow(from: Date = new Date()): Date {
   return d;
 }
 
-/** Whole calendar days a due date lies before the start of `today`. */
+/** Whole calendar days (in the office's zone) a due date lies before `today`. */
 export function daysOverdue(dueAt: Date, today: Date = new Date()): number {
-  return differenceInCalendarDays(startOfDay(today), startOfDay(dueAt));
+  return diffDayKeys(dayKey(dueAt), dayKey(today));
 }

@@ -20,7 +20,9 @@ describe("parseJobListParams", () => {
       workflowBlocked: true,
       workflowOverdue: true,
       workflowUnassigned: false,
+      excludeClosed: false,
     });
+    expect(parseJobListParams(new URLSearchParams("excludeClosed=1")).excludeClosed).toBe(true);
     expect(parseJobListParams(new URLSearchParams("permitStatus=bogus")).permitStatus).toBeUndefined();
     expect(parseJobListParams(new URLSearchParams("permitStatus=NONE")).permitStatus).toBe("NONE");
   });
@@ -131,6 +133,14 @@ describe("buildJobListWhere", () => {
         },
       ],
     });
+  });
+
+  it("excludeClosed hides closed stages unless a stage or a search says otherwise", () => {
+    expect(buildJobListWhere({ excludeClosed: true }, admin)).toEqual({ currentStage: { isClosed: false } });
+    expect(buildJobListWhere({ excludeClosed: true, stageId: "s-closed" }, admin)).toEqual({ currentStageId: "s-closed" });
+    expect(buildJobListWhere({ excludeClosed: true, search: "main st" }, admin)).not.toHaveProperty("currentStage");
+    expect(JSON.stringify(buildJobListWhere({ excludeClosed: true, search: "main st" }, admin))).not.toContain("isClosed");
+    expect(buildJobListWhere({ excludeClosed: false }, admin)).toEqual({});
   });
 
   it("false flags add nothing", () => {

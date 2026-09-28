@@ -1,26 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
-  closestCenter,
-  pointerWithin,
-  rectIntersection,
-  useSensor,
-  useSensors,
-  type CollisionDetection,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
+import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KanbanCard } from "./kanban-card";
 import { KanbanColumn } from "./kanban-column";
 import { EmptyColumn } from "./kanban-empty";
 import { columnKeyboardCoordinates } from "./keyboard-coordinates";
+import { kitCollision, useKitSensors } from "./sensors";
 import { useCollapsedColumns } from "./use-collapsed-columns";
 import { DEFAULT_COLUMN_LIMIT, nextShown, splitVisible } from "@/lib/kanban/limit";
 import type { KanbanBoardProps } from "./types";
@@ -30,16 +17,9 @@ import type { KanbanBoardProps } from "./types";
  * items, a card renderer and an `onMove`; the board owns sensors, collision,
  * the drag ghost, collapsing and the empty state.
  *
- * Mouse + Touch sensors instead of a single Pointer sensor: one distance
- * constraint fights horizontal touch-scrolling on a phone. Keyboard drags
- * hop columns (see keyboard-coordinates.ts).
+ * Sensors and collision live in sensors.ts (shared with the calendar);
+ * keyboard drags hop columns (see keyboard-coordinates.ts).
  */
-const collision: CollisionDetection = (args) => {
-  const within = pointerWithin(args);
-  if (within.length > 0) return within;
-  const rects = rectIntersection(args);
-  return rects.length > 0 ? rects : closestCenter(args);
-};
 
 export function KanbanBoard<T extends { id: string }>({
   boardId,
@@ -70,11 +50,7 @@ export function KanbanBoard<T extends { id: string }>({
     columns.filter((c) => c.defaultCollapsed).map((c) => c.id),
   );
 
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: columnKeyboardCoordinates }),
-  );
+  const sensors = useKitSensors(columnKeyboardCoordinates);
 
   const byColumn = useMemo(() => {
     const m = new Map<string, T[]>();
@@ -119,7 +95,7 @@ export function KanbanBoard<T extends { id: string }>({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={collision}
+      collisionDetection={kitCollision}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}

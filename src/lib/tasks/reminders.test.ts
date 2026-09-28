@@ -6,7 +6,7 @@ vi.mock("@/lib/email/send", () => ({ sendEmail: vi.fn() }));
 vi.mock("@/lib/email/brand", () => ({ getEmailBrand: vi.fn() }));
 vi.mock("@/lib/email/delivery-report", () => ({ reportDelivery: vi.fn() }));
 
-const { planDigest } = await import("./reminders");
+const { planDigest, describeWhen } = await import("./reminders");
 
 const todayStart = new Date(2026, 8, 24);
 const base = { title: "x", priority: "MEDIUM" as const, job: null, lead: null };
@@ -82,5 +82,27 @@ describe("planDigest", () => {
       todayStart,
     );
     expect([...plan.keys()]).toEqual(["jo"]);
+  });
+});
+
+describe("planDigest — schedule changes and job starts", () => {
+  const task = { ...base, id: "t1", dueAt: new Date(2026, 8, 30, 12), assignedUserId: "u1", scheduledStart: null, allDay: true };
+  const change = (createdAt: Date, toValue: string) => ({ taskId: "t1", type: "DUE_CHANGED" as const, fromValue: null, toValue, createdAt, actor: null, task });
+  it("keeps only the latest move per task and hands it to the assignee", () => {
+    const plan = planDigest([], [], todayStart, [change(new Date(2026, 8, 27, 9), "a"), change(new Date(2026, 8, 27, 15), "b")]);
+    expect(plan.get("u1")?.changed.map((c) => c.toValue)).toEqual(["b"]);
+  });
+  it("a job start reaches each involved person once", () => {
+    const plan = planDigest([], [], todayStart, [], [{ id: "j1", title: "Roof — 12 Palm Ct", job: { id: "j1", jobNumber: "JOB-1", title: "Roof", lead: null }, userIds: ["u1", "u2", "u1"] }]);
+    expect(plan.get("u1")?.starting).toHaveLength(1);
+    expect(plan.get("u2")?.starting).toHaveLength(1);
+  });
+});
+
+describe("describeWhen", () => {
+  it("names the day, and the window for a timed task", () => {
+    expect(describeWhen({ dueAt: new Date("2026-09-29T12:00:00.000Z"), scheduledStart: null, allDay: true })).toBe("Tue, Sep 29");
+    expect(describeWhen({ dueAt: new Date("2026-09-29T15:00:00.000Z"), scheduledStart: new Date("2026-09-29T13:00:00.000Z"), allDay: false })).toMatch(/^Tue, Sep 29 · /);
+    expect(describeWhen({ dueAt: null, scheduledStart: null, allDay: true })).toBe("No date");
   });
 });

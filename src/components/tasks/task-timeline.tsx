@@ -72,6 +72,8 @@ function describe(e: TimelineEvent, users: UserLookup): string | null {
       return e.toValue
         ? `${who} set the due date to ${prettyDate(e.toValue)}`
         : `${who} cleared the due date`;
+    case "SCHEDULE_CHANGED":
+      return `${who} ${describeWindow(e.toValue)}`;
     case "BLOCKED":
       return `${who} marked this blocked${e.toValue ? ` — ${e.toValue}` : ""}`;
     case "UNBLOCKED":
@@ -121,6 +123,25 @@ function describe(e: TimelineEvent, users: UserLookup): string | null {
   }
 }
 
+/** `{start,end,allDay}` JSON from the differ → "scheduled this 9:00 AM–11:30 AM" / "made this all-day". */
+function describeWindow(json: string | null): string {
+  if (!json) return "changed the schedule";
+  try {
+    const w = JSON.parse(json) as { start: string | null; end: string | null; allDay: boolean };
+    if (w.allDay) {
+      return w.start ? `made this span ${prettyDate(w.start)} to ${prettyDate(w.end ?? w.start)}` : "made this an all-day task";
+    }
+    if (w.start && w.end) return `scheduled this ${prettyTime(w.start)}–${prettyTime(w.end)} on ${prettyDate(w.end)}`;
+    return "changed the schedule";
+  } catch {
+    return "changed the schedule";
+  }
+}
+
+function prettyTime(iso: string): string {
+  return format(new Date(iso), "h:mm a");
+}
+
 const DOT_TONE: Record<string, string> = {
   BLOCKED: "bg-amber-500",
   UNBLOCKED: "bg-blue-500",
@@ -137,6 +158,7 @@ const DOT_TONE: Record<string, string> = {
   EVIDENCE_ATTACHED: "bg-gray-400",
   INSPECTION_RESULT: "bg-tone-warning",
   RECONCILED: "bg-tone-info",
+  SCHEDULE_CHANGED: "bg-tone-info",
 };
 
 export function TaskTimeline({

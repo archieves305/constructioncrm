@@ -8,6 +8,7 @@ import { visibilityScopeFor } from "@/lib/workflows/visibility";
 import { TASK_LIST_INCLUDE } from "@/lib/tasks/include";
 import { createTask, TaskLinkError } from "@/lib/tasks/create";
 import { parseDueAt } from "@/lib/tasks/dates";
+import { applySchedule, EMPTY_SCHEDULE } from "@/lib/calendar/schedule";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -34,13 +35,19 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return parsed.response;
   const input = parsed.data;
 
+  // Same rules as PATCH: a bare day pins to noon, a time needs a start, etc.
+  const sched = applySchedule(EMPTY_SCHEDULE, { dueAt: input.dueAt, scheduledStart: input.scheduledStart, allDay: input.allDay });
+  if (!sched.ok) return badRequest(sched.error);
+
   try {
     const task = await createTask(
       {
         title: input.title,
         description: input.description,
         priority: input.priority,
-        dueAt: input.dueAt ? parseDueAt(input.dueAt) : null,
+        dueAt: sched.next.dueAt,
+        scheduledStart: sched.next.scheduledStart,
+        allDay: sched.next.allDay,
         assignedUserId: input.assignedUserId,
         createdByUserId: session.user.id,
         leadId: input.leadId,

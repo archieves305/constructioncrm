@@ -2,27 +2,44 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CheckSquare, HardHat } from "lucide-react";
+import { useMemo } from "react";
+import { CalendarDays, CheckSquare, HardHat } from "lucide-react";
+import { rangeParams, useCalendarRange } from "@/components/calendar/use-calendar";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
+import { itemsByDay } from "@/lib/calendar/agenda";
+import { splitFieldDay } from "@/lib/calendar/field-day";
+import { todayKey } from "@/lib/time/zone";
 import { cn } from "@/lib/utils";
 
 /**
- * Thumb-reach navigation for field mode: Jobs and Tasks.
+ * Thumb-reach navigation for field mode: Jobs, Today and Tasks.
  *
  * Rendered only on the home and task screens. The daily-log page owns a fixed
  * bottom action bar of its own, and two bars fighting for the same strip is
  * worse than none — so this hides itself anywhere else.
  */
-const SHOW_ON = [/^\/field$/, /^\/field\/tasks(\/.*)?$/];
+const SHOW_ON = [/^\/field$/, /^\/field\/day$/, /^\/field\/tasks(\/.*)?$/];
 
 export function FieldBottomNav() {
   const pathname = usePathname();
   const visible = SHOW_ON.some((re) => re.test(pathname));
   const { data } = useTaskSummary({ enabled: visible });
+  // Today's remaining count, from the same query /field/day runs (shared cache).
+  const today = todayKey();
+  const todayQuery = useCalendarRange(rangeParams({ from: today, to: today }, "me", { hideCompleted: false }), { enabled: visible });
+  const remaining = useMemo(() => splitFieldDay(itemsByDay(todayQuery.data?.items ?? [], { from: today, to: today }).get(today) ?? []).remaining, [todayQuery.data, today]);
   if (!visible) return null;
 
   const items = [
     { href: "/field", label: "Jobs", icon: HardHat, active: pathname === "/field", count: 0, alert: false },
+    {
+      href: "/field/day",
+      label: "Today",
+      icon: CalendarDays,
+      active: pathname === "/field/day",
+      count: remaining.length,
+      alert: remaining.some((i) => i.derived === "overdue"),
+    },
     {
       href: "/field/tasks",
       label: "Tasks",
@@ -38,7 +55,7 @@ export function FieldBottomNav() {
       aria-label="Field navigation"
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
     >
-      <div className="mx-auto grid max-w-3xl grid-cols-2">
+      <div className="mx-auto grid max-w-3xl grid-cols-3">
         {items.map((it) => {
           const Icon = it.icon;
           return (

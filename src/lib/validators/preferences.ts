@@ -9,6 +9,7 @@ export const preferencesSchema = z.object({
   nudgeEmailsEnabled: z.boolean().optional(),
   defaultListScope: z.enum(["MINE", "ALL"]).optional(),
   boardDensity: z.enum(["COMFORTABLE", "COMPACT"]).optional(),
+  defaultCalendarView: z.enum(["DAY", "WEEK", "MONTH"]).optional(),
 });
 
 export type PreferencesPatch = z.infer<typeof preferencesSchema>;

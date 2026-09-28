@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { jobsInvolvingUserWhere, leadsInvolvingUserWhere } from "@/lib/jobs/involvement";
-import { toSearchHits } from "./format";
+import { taskHitHref, toSearchHits } from "./format";
 import { buildSearchWheres } from "./query";
 
 const now = new Date("2026-09-25T12:00:00Z");
@@ -50,5 +50,21 @@ describe("toSearchHits", () => {
   });
   it("a lead with a placeholder street falls back to the name", () => {
     expect(toSearchHits({ jobs: [], leads: [{ id: "l", fullName: "Pat Doe", propertyAddress1: "TBD", city: "Miami" }], cases: [], prospects: [] })[0]).toMatchObject({ primary: "Pat Doe", secondary: null });
+  });
+});
+
+describe("tasks in ⌘K", () => {
+  it("searches active open tasks under the task visibility rule", () => {
+    const a = buildSearchWheres("shingle", admin);
+    expect(JSON.stringify(a.tasks)).toContain('"activatedAt"');
+    expect((a.tasks as { AND: unknown[] }).AND[2]).toEqual({});
+    const r = buildSearchWheres("shingle", { ...rep, scope: { jobIds: ["j9"] } });
+    expect((r.tasks as { AND: unknown[] }).AND[2]).toEqual({ OR: expect.arrayContaining([{ assignedUserId: "rep" }, { jobId: { in: ["j9"] } }]) });
+  });
+  it("a dated task opens on the calendar's day with the sheet; an undated one on the tasks page", () => {
+    expect(taskHitHref({ id: "t1", dueAt: new Date("2026-09-29T12:00:00.000Z") })).toBe("/calendar?view=day&date=2026-09-29&task=t1");
+    expect(taskHitHref({ id: "t2", dueAt: null })).toBe("/tasks?task=t2");
+    const hits = toSearchHits({ jobs: [], leads: [], cases: [], prospects: [], tasks: [{ id: "t1", title: "Order shingles", dueAt: "2026-09-29T12:00:00.000Z", status: "PENDING", job: { jobNumber: "JOB-00005", title: "t", serviceType: "Roofing", lead: { fullName: "Sarah Smith", propertyAddress1: "12 Palm Ct", propertyAddress2: null, city: "Miami" } }, lead: null, violationCase: null }] });
+    expect(hits[0]).toMatchObject({ type: "task", primary: "Order shingles", secondary: "12 Palm Ct, Miami · Tue, Sep 29" });
   });
 });

@@ -4,6 +4,7 @@ import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { fromDbDate, isIsoDate, toDbDate, addDays } from "@/lib/labor/dates";
 import { taskVisibilityFilter } from "@/lib/tasks/access";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { overdueWhere } from "@/lib/calendar/status";
 
 // Jobs the signed-in user works with in field mode, with today's and
 // yesterday's log status for the home-screen tiles. Office roles see all
@@ -74,7 +75,8 @@ export async function GET(request: NextRequest) {
           by: ["jobId"],
           where: {
             AND: [
-              { jobId: { in: jobIds }, ...ACTIVE_OPEN_WHERE, dueAt: { lt: new Date() } },
+              { jobId: { in: jobIds }, ...ACTIVE_OPEN_WHERE },
+              overdueWhere(new Date()),
               scope,
             ],
           },

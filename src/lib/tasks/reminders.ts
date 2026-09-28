@@ -1,6 +1,8 @@
-import { endOfDay, startOfDay } from "date-fns";
+import { format } from "date-fns";
+import { APP_TIME_ZONE, dayKey, dayKeyToLocalDate, endOfDayIn, startOfDayIn, todayKey } from "@/lib/time/zone";
 import type { CustomerInput, JobLabelInput } from "@/lib/labels/job";
 import { jobTextWithCustomer } from "@/lib/labels/job";
+import { formatTimeRange } from "@/lib/calendar/agenda";
 import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
@@ -11,7 +13,7 @@ import { recordTaskEvent } from "./events";
 import { taskUrlForRole } from "./links";
 import { resolveRecipients, type Candidate } from "./recipients";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
-import { renderTaskReminderEmail, type CustomReminderItem, type ReminderItem } from "./task-email";
+import { renderTaskReminderEmail, type CustomReminderItem, type ReminderItem, type ScheduleChangeItem, type StartingItem } from "./task-email";
 
 /**
  * The morning digest: one email per person with everything overdue,
@@ -38,11 +40,28 @@ type ReminderTask = DueTask & {
   remindSetBy: { firstName: string; lastName: string } | null;
 };
 
+/** A DUE_CHANGED / SCHEDULE_CHANGED event since the last digest, with the task it moved. */
+export type ScheduleChange = {
+  taskId: string;
+  type: "DUE_CHANGED" | "SCHEDULE_CHANGED";
+  fromValue: string | null;
+  toValue: string | null;
+  createdAt: Date;
+  actor: { firstName: string; lastName: string } | null;
+  task: DueTask & { scheduledStart: Date | null; allDay: boolean };
+};
+
+/** A job whose target start is today, with the people who should hear it. */
+export type JobStart = { id: string; title: string; job: JobLabelInput & { id: string }; userIds: string[] };
+
 export type PersonDigest = {
   overdue: DueTask[];
   dueToday: DueTask[];
   /** `primary` = the assignee (or creator when unassigned); `setter` = whoever asked. */
   reminders: { task: ReminderTask; role: "primary" | "setter" }[];
+  /** The latest move per task since yesterday's digest, for the task's assignee. */
+  changed: ScheduleChange[];
+  starting: JobStart[];
 };
 
 /** Pure: who gets which items. */
@@ -50,13 +69,26 @@ export function planDigest(
   dueTasks: DueTask[],
   reminderTasks: ReminderTask[],
   todayStart: Date,
+  changes: ScheduleChange[] = [],
+  starts: JobStart[] = [],
 ): Map<string, PersonDigest> {
   const out = new Map<string, PersonDigest>();
   const bucket = (userId: string) => {
-    const b = out.get(userId) ?? { overdue: [], dueToday: [], reminders: [] };
+    const b = out.get(userId) ?? { overdue: [], dueToday: [], reminders: [], changed: [], starting: [] };
     out.set(userId, b);
     return b;
   };
+  // One line per task: the latest move wins; the assignee hears it unless they made it themselves.
+  const latest = new Map<string, ScheduleChange>();
+  for (const c of changes) {
+    const prev = latest.get(c.taskId);
+    if (!prev || c.createdAt > prev.createdAt) latest.set(c.taskId, c);
+  }
+  for (const c of latest.values()) {
+    if (!c.task.assignedUserId) continue;
+    bucket(c.task.assignedUserId).changed.push(c);
+  }
+  for (const s of starts) for (const userId of new Set(s.userIds)) bucket(userId).starting.push(s);
   for (const t of dueTasks) {
     if (!t.assignedUserId) continue;
     const b = bucket(t.assignedUserId);
@@ -76,10 +108,36 @@ export function planDigest(
 export type DigestRunResult = {
   tasks: number;
   reminders: number;
+  changes: number;
+  starts: number;
   people: number;
   sent: number;
   failures: string[];
 };
+
+/** "Tue, Sep 29" for an all-day task, "Tue, Sep 29 · 9:00 – 11:00 AM" for a timed one. */
+export function describeWhen(t: { dueAt: Date | null; scheduledStart: Date | null; allDay: boolean }, tz: string = APP_TIME_ZONE): string {
+  if (!t.dueAt) return "No date";
+  const day = format(dayKeyToLocalDate(dayKey(t.dueAt, tz)), "EEE, MMM d");
+  if (t.allDay || !t.scheduledStart) return day;
+  return `${day} · ${formatTimeRange(t.scheduledStart.toISOString(), t.dueAt.toISOString())}`;
+}
+
+/** The "from" side of a change, read back from the event when it recorded one. */
+function describeFrom(c: ScheduleChange, tz: string = APP_TIME_ZONE): string {
+  if (!c.fromValue) return "Unscheduled";
+  if (c.type === "DUE_CHANGED") {
+    const d = new Date(c.fromValue);
+    return Number.isNaN(d.getTime()) ? c.fromValue : format(dayKeyToLocalDate(dayKey(d, tz)), "EEE, MMM d");
+  }
+  try {
+    const w = JSON.parse(c.fromValue) as { start?: string | null; end?: string | null; allDay?: boolean };
+    if (w.end) return describeWhen({ dueAt: new Date(w.end), scheduledStart: w.start ? new Date(w.start) : null, allDay: w.allDay ?? true }, tz);
+  } catch {
+    /* not JSON */
+  }
+  return "Earlier";
+}
 
 const TASK_SELECT = {
   id: true,
@@ -92,10 +150,14 @@ const TASK_SELECT = {
 } as const;
 
 export async function runMorningDigest(now: Date = new Date()): Promise<DigestRunResult> {
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
+  // The office's day, not the server's: the droplet runs UTC and 7:30am ET is
+  // 11:30Z, so a server-local midnight only worked by coincidence.
+  const today = todayKey(now);
+  const todayStart = startOfDayIn(today);
+  const todayEnd = endOfDayIn(today);
 
-  const [dueTasks, reminderTasks] = await Promise.all([
+  const since = new Date(now.getTime() - 24 * 3_600_000);
+  const [dueTasks, reminderTasks, changeEvents, startingJobs] = await Promise.all([
     prisma.task.findMany({
       where: {
         ...ACTIVE_OPEN_WHERE,
@@ -119,16 +181,60 @@ export async function runMorningDigest(now: Date = new Date()): Promise<DigestRu
       },
       orderBy: [{ remindAt: "asc" }],
     }),
+    prisma.taskEvent.findMany({
+      where: {
+        type: { in: ["DUE_CHANGED", "SCHEDULE_CHANGED"] },
+        createdAt: { gte: since },
+        task: { ...ACTIVE_OPEN_WHERE, assignedUserId: { not: null } },
+      },
+      select: {
+        taskId: true,
+        type: true,
+        fromValue: true,
+        toValue: true,
+        createdAt: true,
+        actor: { select: { firstName: true, lastName: true } },
+        task: { select: { ...TASK_SELECT, scheduledStart: true, allDay: true } },
+      },
+      orderBy: { createdAt: "asc" },
+      take: 500,
+    }),
+    prisma.job.findMany({
+      where: { targetStartDate: { gte: todayStart, lte: todayEnd }, currentStage: { isClosed: false } },
+      select: {
+        ...JOB_LABEL_SELECT,
+        projectManagerId: true,
+        salesRepId: true,
+        fieldAssignments: { select: { userId: true } },
+        workflow: { select: { team: { select: { userId: true } } } },
+      },
+    }),
   ]);
 
-  const plan = planDigest(dueTasks, reminderTasks, todayStart);
-  if (plan.size === 0) return { tasks: 0, reminders: 0, people: 0, sent: 0, failures: [] };
+  const changes: ScheduleChange[] = changeEvents.map((e) => ({
+    taskId: e.taskId,
+    type: e.type as "DUE_CHANGED" | "SCHEDULE_CHANGED",
+    fromValue: e.fromValue,
+    toValue: e.toValue,
+    createdAt: e.createdAt,
+    actor: e.actor,
+    task: e.task,
+  }));
+  const starts: JobStart[] = startingJobs.map((j) => ({
+    id: j.id,
+    title: jobTextWithCustomer(j),
+    job: j,
+    userIds: [j.projectManagerId, j.salesRepId, ...j.fieldAssignments.map((f) => f.userId), ...(j.workflow?.team.map((t) => t.userId) ?? [])].filter((x): x is string => Boolean(x)),
+  }));
+
+  const plan = planDigest(dueTasks, reminderTasks, todayStart, changes, starts);
+  if (plan.size === 0) return { tasks: 0, reminders: 0, changes: 0, starts: 0, people: 0, sent: 0, failures: [] };
 
   // Same suppression rules as interactive mail, on the reminder channel, so a
   // muted user does not start hearing from the cron at 7am.
   const candidates: Candidate[] = [...plan.entries()].map(([userId, d]) => ({
     userId,
-    reason: d.overdue.length + d.dueToday.length > 0 || d.reminders.some((r) => r.role === "primary")
+    reason: d.overdue.length + d.dueToday.length + d.changed.length + d.starting.length > 0 || d.reminders.some((r) => r.role === "primary")
       ? ("assignee" as const)
       : ("reminder-setter" as const),
   }));
@@ -160,11 +266,27 @@ export async function runMorningDigest(now: Date = new Date()): Promise<DigestRu
           : null,
     }));
 
+    // A move the recipient made themselves is not news to them.
+    const changed: ScheduleChangeItem[] = d.changed
+      .filter((c) => !(c.actor && r.firstName === c.actor.firstName && r.lastName === c.actor.lastName))
+      .map((c) => ({
+        title: c.task.title,
+        context: context(c.task),
+        url: taskUrlForRole(c.task.id, r.role),
+        from: describeFrom(c),
+        to: describeWhen(c.task),
+        byName: c.actor ? `${c.actor.firstName} ${c.actor.lastName}`.trim() : null,
+      }));
+    const starting: StartingItem[] = d.starting.map((s) => ({ title: s.title, context: "Target start date is today", url: `${process.env.APP_BASE_URL ?? process.env.NEXTAUTH_URL ?? ""}/jobs/${s.id}` }));
+    if (d.overdue.length + d.dueToday.length + d.reminders.length + changed.length + starting.length === 0) continue;
+
     const email = renderTaskReminderEmail({
       recipientFirstName: r.firstName,
       overdue: d.overdue.map((t) => toItem(t, true)),
       dueToday: d.dueToday.map((t) => toItem(t, false)),
       reminders,
+      changed,
+      starting,
       brand,
     });
 
@@ -193,12 +315,14 @@ export async function runMorningDigest(now: Date = new Date()): Promise<DigestRu
     attempted: recipients.length,
     sent,
     failures,
-    context: { tasks: dueTasks.length, reminders: reminderTasks.length },
+    context: { tasks: dueTasks.length, reminders: reminderTasks.length, changes: changes.length, starts: starts.length },
   });
 
   return {
     tasks: dueTasks.length,
     reminders: reminderTasks.length,
+    changes: changes.length,
+    starts: starts.length,
     people: recipients.length,
     sent,
     failures: failures.map((f) => f.recipient),

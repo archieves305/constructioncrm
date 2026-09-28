@@ -81,7 +81,7 @@ export const navSections: NavSection[] = [
       { href: "/leads", label: "Leads", icon: Users, hint: "Inquiries, from first call to Won — table or board" },
       { href: "/jobs", label: "Jobs", icon: Briefcase, hint: "Won work, from deposit to close — table or board" },
       { href: "/tasks", label: "Tasks", icon: CheckSquare, badge: "tasks" },
-      { href: "/schedule", label: "Schedule", icon: Calendar },
+      { href: "/calendar", label: "Calendar", icon: Calendar, hint: "What is on today, this week and this month — yours, or anyone's" },
       { href: "/permits", label: "Permits", icon: Shield },
       { href: "/canvassing", label: "Canvassing", icon: MapPin, hint: "Door-knocking routes and the properties knocked; a prospect becomes a lead when it converts" },
     ],

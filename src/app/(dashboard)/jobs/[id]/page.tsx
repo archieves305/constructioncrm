@@ -162,6 +162,13 @@ export default function JobDetailPage() {
     );
   }
 
+  // The workflow team's PM / sales rep slots are the job's PM / sales rep
+  // (the route mirrors them into the job's fields); read the slot first so a
+  // save on the Workflow tab shows here before the job refetches.
+  const teamSlot = (role: "PROJECT_MANAGER" | "SALES_REP") => workflow?.team?.find((t) => t.role === role)?.user ?? null;
+  const teamPm = teamSlot("PROJECT_MANAGER") ?? job.projectManager ?? null;
+  const teamSales = teamSlot("SALES_REP") ?? job.salesRep ?? null;
+
   const depositPct = Number(job.depositRequired) > 0
     ? Math.round((Number(job.depositReceived) / Number(job.depositRequired)) * 100) : 0;
   const totalPaid = (job.payments || [])
@@ -345,11 +352,11 @@ export default function JobDetailPage() {
             <CardContent className="text-sm space-y-2">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span>Sales: {job.salesRep ? `${job.salesRep.firstName} ${job.salesRep.lastName}` : "—"}</span>
+                <span>Sales: {teamSales ? `${teamSales.firstName} ${teamSales.lastName}` : "—"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Hammer className="h-4 w-4 text-muted-foreground" />
-                <span>PM: {job.projectManager ? `${job.projectManager.firstName} ${job.projectManager.lastName}` : "—"}</span>
+                <span>PM: {teamPm ? `${teamPm.firstName} ${teamPm.lastName}` : "—"}</span>
               </div>
               {(workflow?.team ?? []).filter((t) => t.role !== "PROJECT_MANAGER" && t.role !== "SALES_REP").map((t) => (
                 <div key={t.role} className="flex items-center gap-2">

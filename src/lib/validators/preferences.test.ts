@@ -10,6 +10,10 @@ describe("preferencesSchema", () => {
   it("rejects unknown enum values", () => {
     expect(preferencesSchema.safeParse({ defaultListScope: "mine" }).success).toBe(false);
     expect(preferencesSchema.safeParse({ boardDensity: "DENSE" }).success).toBe(false);
+    expect(preferencesSchema.safeParse({ defaultCalendarView: "people" }).success).toBe(false);
+  });
+  it("accepts the calendar's default view", () => {
+    expect(preferencesSchema.parse({ defaultCalendarView: "DAY" })).toEqual({ defaultCalendarView: "DAY" });
   });
   it("accepts an empty patch", () => {
     expect(preferencesSchema.safeParse({}).success).toBe(true);

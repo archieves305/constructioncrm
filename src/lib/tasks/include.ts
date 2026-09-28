@@ -9,9 +9,12 @@ import { JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/labels/select";
  * loaded — a panel that renders `task.invoice.invoiceNumber` must never be
  * fed a row that was created through a path that forgot to include it.
  */
+/** The label fields plus the number to call from the task sheet. */
+const LEAD_WITH_PHONE = { ...LEAD_LABEL_SELECT, primaryPhone: true } satisfies Prisma.LeadSelect;
+
 export const TASK_LIST_INCLUDE = {
-  lead: { select: LEAD_LABEL_SELECT },
-  job: { select: JOB_LABEL_SELECT },
+  lead: { select: LEAD_WITH_PHONE },
+  job: { select: { ...JOB_LABEL_SELECT, lead: { select: LEAD_WITH_PHONE } } },
   estimate: { select: { id: true, estimateNumber: true, name: true, leadId: true } },
   invoice: { select: { id: true, invoiceNumber: true, jobId: true } },
   prospect: { select: { id: true, propertyAddress1: true, city: true } },

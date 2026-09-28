@@ -27,15 +27,73 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+000000. ✅ **Operations Calendar / My Work — all four phases on prod** — four phases, plan approved
+   2026-09-27 (`~/.claude/plans/woolly-swinging-mist.md`). **Phase 1
+   (Foundation) built + dev-QA'd 2026-09-27 on `calendar-foundation`**:
+   one date axis (`dueAt` = the day and, for timed tasks, the end instant;
+   new `Task.scheduledStart` + `allDay`, migration
+   `20261006120000_task_scheduling` with a CHECK), pure `applySchedule`
+   inside `updateTask`/POST, `SCHEDULE_CHANGED` event, `APP_TIME_ZONE`
+   (`src/lib/time/zone.ts`) fixing the digest / escalation / card-date
+   boundaries, one `overdueWhere` rule (**dashboard Overdue tile stops
+   counting items due today**), `GET /api/calendar` + `/unscheduled`,
+   `/calendar` (Week / Day / Month, Viewing selector, filters, phone
+   agenda + day strip, bottom sheet), `ScheduleSection` + assignee +
+   Directions/Call in the task sheet, time row in the task dialog,
+   `User.defaultCalendarView`. `/schedule` redirects; its unguarded PUT
+   route is gone. **Deployed 2026-09-28 as `08e9355`** (BUILD_ID
+   `sMd5qs7fP1qWl0vxJLB14`, migration `20261006120000_task_scheduling`
+   applied, CHECK + index verified on prod, 1357 tasks all `all_day`, smoke
+   307 ×2, journal clean, backup `postgres-2026-09-28-104554.dump`).
+   Click-through fix: the Viewing menu crashed on open (Base UI label
+   outside a group) — **deployed 2026-09-28 as `596fe14`**, BUILD_ID
+   `b0-KfO1kETJzHU_uElpM5`; **Richard's click-through passed 2026-09-28.**
+   **Phase 2 (dispatch) built + dev-QA'd 2026-09-28 on `calendar-dispatch`,
+   fast-forwarded onto `main`**: kanban sensors extracted, one `DndContext`
+   over Week / Day / Month / People + the Unscheduled rail, pure
+   `drop-target` / `move` / `conflicts` / `people` / `grid-nav`, optimistic
+   `useMoveTask` with multi-query rollback, conflict dialog (warn-not-block),
+   People view with workload footers and per-cell quick-create, keyboard drag
+   + announcements, `updateTask` refuses an inactive assignee. No migration.
+   Gate: typecheck clean, lint 6/22, 1063 tests, build clean; headless
+   QA 28/28. **Deployed 2026-09-28 as `e0380ba`** (BUILD_ID
+   `sBabA8ralAO2_F-0aMUve`, no migration, smoke 307 ×2, journal clean,
+   backup `postgres-2026-09-28-114633.dump`). **Phase 3 (field + today)
+   built + dev-QA'd 2026-09-28 on `calendar-field`, fast-forwarded to
+   `main`**: `/field/day` with the gloves-friendly action row (Start / Done /
+   Directions / Call / Photo / Checklist), Jobs · Today · Tasks bottom nav,
+   checklist block on the field task page, dashboard Today widget beside My
+   tasks; pure `fieldActions` / `splitFieldDay` tested. No migration. Gate:
+   typecheck clean, lint 6/22, 1069 tests (+6), build clean; headless QA
+   22/22. **On prod since 2026-09-28 inside the sibling session's deploy
+   `4a9a1b3`** (BUILD_ID `2u4fVOc8Ife0Gb0ANSAjF`, no migration, smoke 307
+   ×2, journal clean, backup `postgres-2026-09-28-120539.dump`; that
+   session's workflow-team PM fix had been swept into `7be0e5c` from the
+   shared checkout, so the two shipped together). **Phase 4 (operational
+   intelligence) built + dev-QA'd 2026-09-28 on `calendar-intel`,
+   fast-forwarded to `main`**: read-only overlays (permit inspections,
+   hearings, agency inspections, job starts as `CalendarItem.kind`s with
+   their own icon and link, never work, never draggable), "Schedule changed
+   since yesterday" + "Starting today" digest sections, dependency warning
+   on drop, ⌘K task search landing on the calendar day. No migration. Gate:
+   typecheck clean, lint 6/22, 1085 tests (+16), build clean; headless QA
+   16/16. **Deployed 2026-09-28 as `4d1be83`** (BUILD_ID
+   `Vb1KFWlyhrVkEEeBQMdzA`, no migration, smoke 307 ×2, journal clean,
+   backup `postgres-2026-09-28-123359.dump`). **All four phases are on
+   prod**; what remains is Richard's click-through of Phases 2, 3 and 4.
+   Notes:
+   [features/calendar.md](docs/project-memory/features/calendar.md).
 000000. 🔴 **Notification digests: record → classify → deliver** — four
    stages, plan approved 2026-09-27
    (`~/.claude/plans/quirky-pondering-mccarthy.md`). **Stage 1 (schema
-   `20261006120000_notifications`, `src/lib/notifications/*` service layer,
+   `20261007120000_notifications`, `src/lib/notifications/*` service layer,
    every internal producer rewired through `notify()` with the legacy mail
    as fallback, bell + `/notifications` on the new table, tick route with
    `?dryRun=1`, preference mirroring) built + dev-QA'd 2026-09-27 on the
    `notifications` branch** (worktree; a sibling session held the main
-   checkout). Not yet merged or deployed. Gates: env `NOTIFICATIONS_V2=1`
+   checkout); **`main` merged into it 2026-09-28** (schema + CLAUDE.md
+   conflicts resolved, migration renamed after the calendar's). Not yet
+   deployed. Gates: env `NOTIFICATIONS_V2=1`
    records rows (shadow — legacy mail unchanged); the DB switch
    `NotificationSettings.enabled` hands delivery to v2 and **must stay off
    on prod until Stage 2 ships the digest sender**. Stage 2 = digest
@@ -164,6 +222,191 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-28 — Operations Calendar, Phase 4: operational intelligence (deployed `4d1be83`)
+
+"continue to Phase 4". Built on `calendar-intel`: `CalendarItem.kind` +
+`overlay`, pure `lib/calendar/overlays.ts` (`overlayWhen` — midnight-UTC
+date-picker values are all-day on the UTC date, anything else a one-hour
+window; `overlayItems` with prefixed ids and record links; `overlayScopes`
+— own-only roles keep their visibility scope, "My calendar" = jobs I have a
+role on + cases I manage / hold a slot on), `loadOverlays` in
+`GET /api/calendar` (four queries beside the task query, skipped under a
+task filter, window opened at UTC midnight then filtered on the mapped day
+— the ET-day window silently missed every date-picker value until QA
+caught it), overlays sorted first and excluded from summary / month tone /
+People lanes / field totals, `canDrag` / `canMove` refuse them; `OverlayCard`
+(dashed info link with the kind's icon), Month appointment marker, field
+day "Also today", Today widget rows. Digest: `planDigest` takes changes +
+starts, `describeWhen` / `describeFrom`, two new email sections and
+subject. `dependencyWarning` toast after a drop. ⌘K: `tasks` where,
+`taskHitHref`, route + palette group. Gate: typecheck clean, lint 6/22,
+1085 tests (+16), build clean; headless Chromium 16/16 (`qa-intel.js`,
+recipe in the feature doc). No migration. Staged by explicit path this
+time; no foreign files. Richard pushed and deployed from `!`: BUILD_ID
+`2u4fVOc8Ife0Gb0ANSAjF` → `Vb1KFWlyhrVkEEeBQMdzA`, no pending migrations,
+smoke 307 ×2, journal clean, backup `postgres-2026-09-28-123359.dump`,
+`.deploy-sha` `4d1be83`. Details:
+[features/calendar.md](docs/project-memory/features/calendar.md).
+
+### 2026-09-28 — Operations Calendar, Phase 3: field + today (built, dev-QA'd, on `main`, not deployed)
+
+"continue to phase 3". Built on `calendar-field`: pure
+`lib/calendar/field-day.ts` (`fieldActions` — Start unless started, Done
+while open, Directions only with a real address, Call only with a dialable
+number, the job's customer over the task's lead, Photo → the job's daily
+log for that day, Checklist when the step has one; `splitFieldDay`,
+`fieldDayLine`, `greeting`), `components/field/field-day-card.tsx` (time
+rail, address, title, badges, blocked reason, `h-11` action row; the
+evidence gate's 400 becomes a toast with an "Open task" action),
+`app/(field)/field/day/page.tsx` (greeting, `‹ Today ›`, overdue callout on
+today, agenda order, "Done · n" fold, collapsed Tomorrow, `+ Task` prefilled
+with the day and me — all off the same `GET /api/calendar` the office reads),
+bottom nav Jobs · Today · Tasks (Today badge = remaining, red when overdue;
+the nav shares the page's query), a Today link in the field header, a
+checklist block on `/field/tasks/[taskId]` (44 px rows, PATCH per tick) and
+a timed window in its due badge, and `components/calendar/today-widget.tsx`
+on the dashboard beside My tasks. Gate: typecheck clean, lint 6/22, 1069
+tests (+6), build clean; headless Chromium at 390×844 22/22
+(`qa-field.js`, recipe in the feature doc). No migration. Fast-forwarded to
+`main` as `7be0e5c` — and that commit was made with `git add -A` in the
+shared checkout, so it swept in the sibling session's five uncommitted
+workflow-team PM files (their entry below records it). The sibling pushed
+and deployed `4a9a1b3` with Phase 3 aboard: BUILD_ID `sBabA8ralAO2_F-0aMUve`
+→ `2u4fVOc8Ife0Gb0ANSAjF`, journal clean, `/field/day` answers. Lesson
+re-recorded in memory: stage explicit paths, never `-A`, when two sessions
+share a checkout. Details:
+[features/calendar.md](docs/project-memory/features/calendar.md).
+
+### 2026-09-28 — Operations Calendar, Phase 2: dispatch (deployed `e0380ba`)
+
+Richard's click-through of Phase 1 passed; "continue to next part". Built per
+the plan's Phase 2 on `calendar-dispatch`: `components/kanban/sensors.ts`
+(`useKitSensors` with an `enterOpens` option so Space picks up and Enter
+opens; `kitCollision`) with `KanbanBoard` consuming it and
+`KanbanCard.disabled`; pure `lib/calendar/{drop-target,move,conflicts,people,
+grid-nav}.ts` (+ a shared `test-fixtures.ts`); `CalendarDnd` (one
+`DndContext`, keyboard coordinate getter over `nearestInDirection`,
+announcements, conflict gate), `DropZone` / `DraggableCard` (`<id>@<day>` ids
+so a span's copies do not collide), `useMoveTask` (snapshots every
+`["calendar"]` query, repaints with `applyMove`, restores all on error),
+`ConflictDialog`, `PeopleView`, `UnscheduledPanel` (rail remembered through
+`useSyncExternalStore` — the effect + setState version tripped the lint
+rule), droppable Week columns / Day bands / Month cells, People in the header
+for dispatch roles on desktop, `?view=people` falling back for everyone else,
+quick-create from a People cell carrying the person. `updateTask`: a new
+assignee must exist and be active (400, hint `assignedUserId`). Found in QA
+and fixed: the page's ←/→ hotkeys fired during a keyboard drag and paged the
+week away — they now yield while the focused card is `aria-pressed`. Gate:
+typecheck clean, lint 6/22, 1062 tests (+35), build clean; headless Chromium
+28/28 (`qa-dispatch.js`, recipe in the feature doc). No migration. A sibling
+session had landed the Jobs closed-by-default change on `main` meanwhile, so
+this was a real merge (one CLAUDE.md conflict, both records kept). Richard
+pushed and deployed from `!`: BUILD_ID `gCg4iE5s2vGZXzV50cr78` →
+`sBabA8ralAO2_F-0aMUve`, no pending migrations, smoke 307 ×2, journal
+clean, backup `postgres-2026-09-28-114633.dump`, `.deploy-sha` `e0380ba`.
+Details:
+[features/calendar.md](docs/project-memory/features/calendar.md).
+
+### 2026-09-28 — Workflow team PM now fills the job's PM (deployed `4a9a1b3`, prod backfilled)
+
+Richard: the Workflow tab's Team names a project manager but the job page's
+Team card says "PM: —". Two stores: the dialog wrote a
+`JobWorkflowTeamMember` slot; the card (and involvement, auto-tasks,
+contracts, field Today) read `Job.projectManagerId`, which no UI ever set —
+on prod all 25 jobs had it null while 8 carried a PM slot. Fix: pure
+`jobFieldsFromTeam` + `mirrorTeamToJob` (`src/lib/workflows/team-mirror.ts`)
+— a named PM / sales-rep slot becomes the job's field (activity
+`ASSIGNMENT_CHANGE` + audit `assign` with `source: workflow_team`); a
+cleared slot falls back and changes nothing. Wired into
+`PATCH /api/jobs/[id]/workflow`; the Team card reads the slot first, then
+the job field. `scripts/backfill-workflow-team-to-jobs-2026-09-28.ts`
+(dry run by default, `--yes` applies) copies existing slots; on dev it set
+JOB-00001's PM, wrote both rows, and a re-run changed 0. Gate: typecheck
+clean, lint 6/22, 1074 tests. The five files were swept into the sibling
+session's Phase 3 commit `7be0e5c` from the shared checkout, so they ship
+with it. **Deployed `4a9a1b3`** (with Phase 3; BUILD_ID `sBabA8ralAO2_F-0aMUve`
+→ `2u4fVOc8Ife0Gb0ANSAjF`, no migration, smoke 307 ×2, journal clean,
+backup `postgres-2026-09-28-120539.dump`). **Prod backfill run**: dry run
+8 of 9, applied 8 (Lisette PM on 17/18/20/21/22/23 + sales rep on 20,
+Erica PM on 24/25), re-run 0, 8 audit + 8 activity rows.
+
+### 2026-09-28 — Jobs table hides closed jobs by default (deployed `a067ac8`)
+
+Richard: closed jobs should not show on the Jobs tab when it first opens.
+`JobListParams.excludeClosed` (`excludeClosed=1`) adds
+`currentStage.isClosed = false`; the API default stays "all" because the
+pickers call the same route. The Jobs table sends it unless the new "Show
+closed" checkbox (URL `closed=1`) is ticked; picking a stage or typing a
+search overrides it so a closed stage or an address search still finds the
+job. Header reads "N open jobs". Board unchanged (closed columns were
+already collapsed). Verified on dev by moving one job to Closed: all 5 /
+open 4 / closed stage picked 1 / search 1, then restored. Gate: typecheck
+clean, lint 6/22, query tests 14/14, full suite green. A sibling session
+was building calendar Phase 2 in the checkout, so the commit was made on
+`main` through a temporary worktree and the deploy run from
+`/tmp/knuco-main`. **Deployed `a067ac8`** (BUILD_ID `b0-KfO1kETJzHU_uElpM5`
+→ `gCg4iE5s2vGZXzV50cr78`, no migration, smoke 307 ×2, journal clean,
+backup `postgres-2026-09-28-112808.dump`). Prod: 25 jobs, 6 Closed, so
+the table now opens with 19.
+
+### 2026-09-28 — Calendar click-through fix: Viewing menu crashed on open (deployed `596fe14`)
+
+Richard: error when changing Viewing from Everyone to one person. Reproduced
+in headless Chromium on dev: opening the menu threw Base UI's
+"MenuGroupRootContext is missing" because the People `DropdownMenuLabel`
+(a `Menu.GroupLabel`) sat outside a `DropdownMenuGroup`; the earlier QA had
+driven `?users=` through the URL and never opened the menu. Wrapped the
+label + person checkboxes in a group; both paths (Everyone → one person,
+My calendar → one person) now change the URL and the header label with no
+console errors. Note the checkboxes are additive: from "My calendar",
+ticking someone gives "2 people" until you untick yourself. Gate: typecheck
+clean, lint 6/22, 1027 tests. **Deployed `596fe14`** (BUILD_ID
+`sMd5qs7fP1qWl0vxJLB14` → `b0-KfO1kETJzHU_uElpM5`, no migration, smoke
+307 ×2, journal clean, backup `postgres-2026-09-28-110107.dump`).
+
+### 2026-09-28 — Operations Calendar, Phase 1 deployed (`08e9355`)
+
+`calendar-foundation` was already fast-forwarded onto `main` as `6f65efd`;
+the gate re-run on main: typecheck clean, lint 6/22, 1027 tests, build
+clean. Richard pushed and deployed from `!` (the deploy ran past the shell's
+120 s timeout into the background and finished exit 0): BUILD_ID
+`rNiggElI_oVOOMlbDSI2q` → `sMd5qs7fP1qWl0vxJLB14`, migration
+`20261006120000_task_scheduling` applied (73/73), smoke 307 ×2, journal
+clean, backups `postgres-2026-09-28-104554.dump` +
+`pre-deploy-20260928-064548.tar.gz`. Prod verified by SQL:
+`tasks_schedule_window_chk` present with the hand-written definition,
+`all_day` default true / `scheduled_start` nullable, `default_calendar_view`
+default `WEEK`, `tasks_assigned_user_id_due_at_idx` present; 1357 tasks, all
+all-day, none with a start. `/calendar` and `/api/calendar` answer 307 to the
+portal unauthenticated; the `/schedule` → `/calendar` redirect sits behind
+the SSO middleware, so it is checked from a signed-in session.
+
+### 2026-09-27 — Operations Calendar, Phase 1 (built, dev-QA'd, on branch `calendar-foundation`)
+
+Richard's brief: a first-class Calendar that is the field's daily organizer,
+the PM's weekly overview and the admin's dispatch board. Plan-mode (3 explore
++ 3 design agents) plus a read-only prod query: 7 users (5 ADMIN), 679 open
+tasks of which only **29 are activated** and 639 are inactive steps with no
+date; no task has a real time; the existing `/schedule` job-by-crew grid was
+used by 0 jobs and its API had no role check. Decisions: one date axis
+(`dueAt` stays the deadline and becomes a timed task's end; `scheduledStart`
++ `allDay` describe the window; no `scheduledEnd`), tasks only (no
+CalendarEvent, no crew field yet), no calendar library, dnd-kit later.
+Built: `src/lib/time/zone.ts` (app zone, DST-safe day math; nurture re-exports),
+`src/lib/calendar/{schedule,status,query,select,items,access,url-state,agenda}.ts`
+(all pure, tested), `applySchedule` wired into `updateTask` (escalation resets
+only on a day change; window edits lock workflow dates), `diffTask` →
+`SCHEDULE_CHANGED`, `/api/tasks` `dueFrom/dueTo/unscheduled/unassigned`,
+`overdueWhere` adopted in the list filter, field tiles and dashboard KPI,
+digest/escalation/card-date boundaries moved to the app zone, two routes,
+the `/calendar` page (`src/components/calendar/*`), sheet + dialog
+extensions, `defaultCalendarView` preference. Dev: migration applied via
+diff/execute/resolve; 1027 tests (+95 over the 932 the UX plan left), lint 6/22,
+typecheck + build clean; headless-Chromium QA 30/30 (API + Week/Day/Month/
+sheet at 1280 and 390, redirect, empty state) and the SALES_REP coercion
+check. Details:
+[features/calendar.md](docs/project-memory/features/calendar.md).
 
 ### 2026-09-27 — Notifications v2, Stage 1: record + shadow (built, dev-QA'd, branch `notifications`)
 
@@ -882,26 +1125,57 @@ shadow mode, legacy mail unchanged; delivery only moves to v2 when
   `createdByUserId null`, and **never move `lastContactAt`**. Won, Lost
   and opt-out stop them; a personal touch restarts the follow-up clock.
   Every automated sender reports through `reportDelivery`.
+- **A task has one date axis.** `dueAt` is the deadline every list, digest
+  and escalation reads AND the day it sits on the calendar; for a timed task
+  it is the end instant. `scheduledStart` + `allDay` describe the window.
+  Every write goes through `applySchedule()` (a bare `yyyy-MM-dd` means
+  "move to this day" and carries the window along). "Unscheduled" = active,
+  open, no due date — never an inactive workflow step. Overdue = past the end
+  of its day in `APP_TIME_ZONE` (all-day) or past its end (timed).
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
 
-> Notifications v2 Stage 1 is built and dev-QA'd on the `notifications`
-> branch (worktree `.claude/worktrees/notifications`), not merged. Next:
-> Richard merges to `main` from the main checkout (regenerate the Prisma
-> client there first), deploys (`migrate deploy` applies
-> `20261006120000_notifications`), then sets `NOTIFICATIONS_V2=1` in
-> `/etc/knuco/env` + restart → shadow mode; check the bell and
-> `curl … /api/cron/notifications?dryRun=1`. **Leave
-> `NotificationSettings.enabled` off until Stage 2.** Then build Stage 2 on
-> the same plan (`~/.claude/plans/quirky-pondering-mccarthy.md` §I–§K):
-> `digest/{build,agenda,render}`, the claim transaction + `NotificationDigest`
-> ledger, permission re-check, morning producers folded into the first
-> window, `email/components.ts`, `notifications.sh` + `*/10` crontab line,
-> retire `WORKFLOW_READY_EMAILS_ENABLED`, and the admin Delivery tab so the
-> switch can be flipped from the UI. Nurture operator items and Code
-> Violations Stage 4 still stand. Same rules: explicit role lists, tests +
-> typecheck + build green, lint ≤ 6/28, deploy with
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes`.
+> **Operations Calendar Phase 1 is on prod and clicked through; the Jobs
+> table hides closed jobs by default (`a067ac8`, BUILD_ID
+> `gCg4iE5s2vGZXzV50cr78`); Phase 2 (dispatch) is on prod (`e0380ba`,
+> BUILD_ID `sBabA8ralAO2_F-0aMUve`, no migration); Phase 3 (field + today)
+> is on prod too, inside `4a9a1b3` (BUILD_ID `2u4fVOc8Ife0Gb0ANSAjF`, no
+> migration); Phase 4 (overlays, digest lines, dependency warning, ⌘K
+> tasks) is on prod as `4d1be83` (BUILD_ID `Vb1KFWlyhrVkEEeBQMdzA`, no
+> migration). All four phases of the plan are live.** Next: three
+> click-throughs on prod. Phase 4: an upcoming permit inspection or hearing
+> shows on the Week as a dashed card that opens the record and cannot be
+> dragged; Month says "n appointments"; ⌘K → type a task title → lands on
+> its day with the sheet; tomorrow's digest carries "Schedule changed since
+> yesterday" for anything moved today. Phase 3, on his phone: Field Mode → Today tab;
+> the greeting, today's tasks in order, Start / Done on one, Directions and
+> Call on a job task, Photo lands on the daily log, Checklist "n/m" opens
+> the task page's list and a tick saves; Tomorrow expands; the dashboard
+> Today card matches. Phase 2, on a desktop: Calendar → People; drag a card
+> from the Unscheduled rail onto Lisette / Tuesday (one assignment email,
+> timeline shows ASSIGNED + DUE_CHANGED); drag it to another day and back to
+> the rail; give two of his own tasks overlapping times on one day, drag one
+> onto the other's band in Day view → "Schedule anyway?"; Tab to a card,
+> Space, →, Space; Escape puts it down; hover a People cell → "+ Add"
+> pre-fills the person. Then Phase 3 (`/field/day`, Today widget) on a new
+> branch. UX plan follow-ups,
+> nurture operator items and Code Violations Stage 4 still stand. Known
+> pre-existing: `/api/permits?status=<bad>` 500s; a hydration warning on
+> `/tasks` from the header pills. Same rules: explicit role lists, tests +
+> typecheck + build green, lint ≤ 6/28, deploy with the env override.
+>
+> **Notifications v2 Stage 1 is merged with `main` on the `notifications`
+> branch, not yet on `main` / prod.** Next: fast-forward `main`, Richard
+> pushes + deploys (`migrate deploy` applies `20261007120000_notifications`),
+> then shadow mode: `NOTIFICATIONS_V2=1` in `/etc/knuco/env` + restart →
+> `curl … /api/cron/notifications?dryRun=1` → `recording: true, takeover:
+> false`; check the bell. **Leave `NotificationSettings.enabled` off until
+> Stage 2.** Then Stage 2 per the plan §I–§K (`digest/{build,agenda,render}`,
+> claim transaction + ledger, permission re-check, morning producers folded
+> into the first window — including the calendar's "Schedule changed since
+> yesterday" and "Starting today" sections — `email/components.ts`,
+> `notifications.sh` + `*/10` crontab, retire `WORKFLOW_READY_EMAILS_ENABLED`,
+> admin Delivery tab).

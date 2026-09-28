@@ -145,3 +145,13 @@ Stage 3 (kanban kit, stage colours, job detail header/stepper/tab groups,
 list polish) is next. `RoofEstimate` has no status and is not linkable.
 The FollowUpRule engine still exists alongside auto-tasks; nothing was
 migrated off it.
+
+## Scheduling (2026-09-27)
+
+A task has one date axis: `dueAt` is the deadline and the calendar day, and
+for a timed task the **end** instant; `scheduledStart` + `allDay` describe
+the window. Every write goes through `applySchedule()`
+(`src/lib/calendar/schedule.ts`); a bare `yyyy-MM-dd` means "move to this
+day" and carries a timed window along. `SCHEDULE_CHANGED` joins the
+timeline. Overdue is `overdueWhere()` (end of the office day for all-day
+tasks). Full notes: [calendar.md](calendar.md).

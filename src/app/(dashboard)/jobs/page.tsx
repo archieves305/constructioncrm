@@ -99,6 +99,8 @@ export default function JobsPage() {
   const view: "table" | "board" = getUrl("view") === "board" ? "board" : "table";
   const [search, setSearch] = useState(initial.get("search") ?? "");
   const [stageId, setStageId] = useState(initial.get("stageId") ?? "");
+  // Closed jobs stay out of the table until asked for (URL `closed=1`).
+  const [showClosed, setShowClosed] = useState(initial.get("closed") === "1");
   const [salesRepFilter, setSalesRepFilter] = useState(initial.get("salesRepId") ?? "");
   const [workflowTrade, setWorkflowTrade] = useState(initial.get("workflowTrade") ?? "");
   const [permitFilter, setPermitFilter] = useState(initial.get("permitStatus") ?? "");
@@ -117,6 +119,7 @@ export default function JobsPage() {
   params.set("scope", scope);
   if (search) params.set("search", search);
   if (stageId) params.set("stageId", stageId);
+  if (!showClosed) params.set("excludeClosed", "1");
   if (salesRepFilter) params.set("salesRepId", salesRepFilter);
   if (workflowTrade) params.set("workflowTrade", workflowTrade);
   if (permitFilter) params.set("permitStatus", permitFilter);
@@ -140,7 +143,7 @@ export default function JobsPage() {
     page: number;
     totalPages: number;
   }>({
-    queryKey: ["jobs", scope, search, stageId, salesRepFilter, workflowTrade, permitFilter, phaseKey, toggles, page],
+    queryKey: ["jobs", scope, search, stageId, showClosed, salesRepFilter, workflowTrade, permitFilter, phaseKey, toggles, page],
     queryFn: () => fetchJson(`/api/jobs?${params.toString()}`),
     retry: retryServerErrors,
     enabled: scopeReady && view === "table",
@@ -281,7 +284,7 @@ export default function JobsPage() {
             ? `${scope === "mine" ? "Your jobs" : "All jobs"} — drag a job to move it to the next stage. Space picks a card up from the keyboard.`
             : jobsError
               ? "Jobs unavailable"
-              : `${data?.total ?? 0} ${scope === "mine" ? "jobs you're on" : "active jobs"}`
+              : `${data?.total ?? 0} ${showClosed ? "" : "open "}${scope === "mine" ? "jobs you're on" : "jobs"}`
         }
         actions={
           <>
@@ -423,6 +426,18 @@ export default function JobsPage() {
             ))}
           </SelectContent>
         </Select>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground" title="Closed jobs are hidden unless you tick this, pick a closed stage, or search.">
+          <Checkbox
+            checked={showClosed}
+            onCheckedChange={(c) => {
+              const next = Boolean(c);
+              setShowClosed(next);
+              setUrl({ closed: next ? "1" : null });
+              setPage(1);
+            }}
+          />
+          Show closed
+        </label>
         <Select
           value={salesRepFilter}
           onValueChange={(v: string | null) => {

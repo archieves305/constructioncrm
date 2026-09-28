@@ -16,6 +16,7 @@ export function KanbanCard({
   children,
   className,
   compact = false,
+  disabled = false,
 }: {
   id: string;
   onOpen?: () => void;
@@ -24,8 +25,10 @@ export function KanbanCard({
   className?: string;
   /** Tighter padding for the board's compact density. */
   compact?: boolean;
+  /** Renders without drag listeners (closed items, read-only roles); Enter still opens. */
+  disabled?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, disabled });
   const base = cn(
     "group/card relative rounded-lg bg-white text-sm ring-1 ring-gray-200 shadow-xs transition",
     "hover:ring-gray-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60",
@@ -68,7 +71,8 @@ export function KanbanCard({
           onOpen();
         }
       }}
-      className={cn(base, "cursor-grab active:cursor-grabbing", compact ? "p-2" : "p-3")}
+      aria-disabled={disabled || undefined}
+      className={cn(base, disabled ? "cursor-pointer" : "cursor-grab active:cursor-grabbing", compact ? "p-2" : "p-3")}
     >
       {children}
     </div>

@@ -9,6 +9,7 @@ import { runAfterResponse } from "./defer";
 import type { NotifyBatch } from "@/lib/notifications/notify";
 import { parseDueAt } from "./dates";
 import { onTaskTransition } from "./transitions";
+import { applySchedule } from "@/lib/calendar/schedule";
 import { checkEvidence, mergeChecklist, readChecklist } from "@/lib/workflows/evidence";
 import { activationDueAt, initialDueAt } from "@/lib/workflows/schedule";
 import { loadScheduleContext } from "@/lib/workflows/activation";
@@ -81,6 +82,8 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
       status: true,
       priority: true,
       dueAt: true,
+      scheduledStart: true,
+      allDay: true,
       assignedUserId: true,
       createdByUserId: true,
       blockedReason: true,
@@ -121,26 +124,40 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
   if (input.description !== undefined) data.description = input.description;
   if (input.priority !== undefined) data.priority = input.priority;
 
-  // `undefined` means "not mentioned"; `null` means "clear it".
-  if (input.dueAt !== undefined) {
-    const next = input.dueAt === null ? null : parseDueAt(input.dueAt);
-    data.dueAt = next;
-    // A new due date is a new clock: overdue escalations start over.
-    if ((existing.dueAt?.getTime() ?? null) !== (next?.getTime() ?? null)) {
+  // `undefined` means "not mentioned"; `null` means "clear it". The day and
+  // the time window are one decision (lib/calendar/schedule.ts): a bare
+  // yyyy-MM-dd moves the task to that day with its times intact, an ISO
+  // instant ends it exactly then, and the flag / start rules live in one place.
+  const sched = applySchedule(
+    { dueAt: existing.dueAt, scheduledStart: existing.scheduledStart, allDay: existing.allDay },
+    { dueAt: input.dueAt, scheduledStart: input.scheduledStart, allDay: input.allDay },
+  );
+  if (!sched.ok) throw new TaskUpdateError(400, sched.error, sched.field);
+  if (sched.dueChanged || sched.windowChanged) {
+    data.dueAt = sched.next.dueAt;
+    data.scheduledStart = sched.next.scheduledStart;
+    data.allDay = sched.next.allDay;
+    // A new day is a new clock: overdue escalations start over. Moving the
+    // hours within the same day is not a new deadline.
+    if (sched.dayChanged) {
       data.escalationLevel = 0;
       data.lastEscalatedAt = null;
-      // A person chose this date; the engine stops moving it.
-      if (inWorkflow && input.dueLocked !== false) data.dueLocked = true;
     }
+    // A person chose this date or time; the engine stops moving it (and can
+    // never slide dueAt out from under a window).
+    if (inWorkflow && input.dueLocked !== false) data.dueLocked = true;
   }
 
-  // Unlock: hand the date back to the engine and recompute it now.
+  // Unlock: hand the date back to the engine and recompute it now. The window
+  // goes with it — an engine-owned date is a plain all-day pin.
   if (input.dueLocked === false && existing.dueLocked && inWorkflow && input.dueAt === undefined) {
     data.dueLocked = false;
     const ctx = existing.workflowInstanceId ? await loadScheduleContext(prisma, existing.workflowInstanceId) : null;
     if (ctx && existing.workflowAnchor) {
       const step = { anchor: existing.workflowAnchor, dueOffsetBusinessDays: existing.dueOffsetBusinessDays ?? 0 };
       data.dueAt = existing.activatedAt ? activationDueAt(step, existing.activatedAt, ctx) : initialDueAt(step, ctx);
+      data.scheduledStart = null;
+      data.allDay = true;
       data.escalationLevel = 0;
       data.lastEscalatedAt = null;
     }
@@ -164,6 +181,14 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
 
   const assigneeChanged =
     input.assignedUserId !== undefined && input.assignedUserId !== existing.assignedUserId;
+  if (assigneeChanged && input.assignedUserId) {
+    // A dispatcher dragging a card onto a lane must land it on someone who
+    // still works here; a deactivated user's row would take the task and
+    // nobody would ever see it.
+    const target = await prisma.user.findUnique({ where: { id: input.assignedUserId }, select: { isActive: true } });
+    if (!target) throw new TaskUpdateError(400, "That person is not in the CRM", "assignedUserId");
+    if (!target.isActive) throw new TaskUpdateError(400, "That person is inactive and cannot be assigned work", "assignedUserId");
+  }
   if (input.assignedUserId !== undefined) {
     data.assignedTo = input.assignedUserId
       ? { connect: { id: input.assignedUserId } }
@@ -264,6 +289,8 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
     status: existing.status,
     priority: existing.priority,
     dueAt: existing.dueAt,
+    scheduledStart: existing.scheduledStart,
+    allDay: existing.allDay,
     assignedUserId: existing.assignedUserId,
     blockedReason: existing.blockedReason,
   };
@@ -271,6 +298,8 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
     status: task.status,
     priority: task.priority,
     dueAt: task.dueAt,
+    scheduledStart: task.scheduledStart,
+    allDay: task.allDay,
     assignedUserId: task.assignedUserId,
     blockedReason: task.blockedReason,
   };

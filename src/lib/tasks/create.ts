@@ -61,6 +61,9 @@ export type CreateTaskInput = {
   description?: string | null;
   priority?: Priority;
   dueAt?: Date | null;
+  /** Calendar window — already normalized by applySchedule() (lib/calendar/schedule.ts). */
+  scheduledStart?: Date | null;
+  allDay?: boolean;
   assignedUserId?: string | null;
   createdByUserId: string;
   leadId?: string | null;
@@ -194,6 +197,8 @@ export async function createTask(
       description: input.description ?? null,
       priority: input.priority ?? "MEDIUM",
       dueAt: input.dueAt ?? null,
+      scheduledStart: input.scheduledStart ?? null,
+      allDay: input.allDay ?? true,
       assignedUserId,
       assignedAt: assignedUserId ? now : null,
       createdByUserId: input.createdByUserId,
