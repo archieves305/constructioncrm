@@ -53,8 +53,12 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (`migrate.ts`), engine-only `updateTask` options (`quiet`, `completion`,
    `definition`), quiet `sweepActivation`,
    `scripts/migrate-workflows-slim-2026-10.ts` (`--inventory`, dry run,
-   `--only`, `--yes`). No migration. **Not deployed; the prod run is
-   Richard's call after he reads the dry-run report.** Stage 3 = completion
+   `--only`, `--yes`). No migration. **Deployed 2026-09-30 as `0ad0f99`**
+   (BUILD_ID `_uoyVpElQCqjPaNXDQhtw`, no migration, smoke 307 ×2, journal
+   clean, backup `postgres-2026-09-30-130450.dump`). Prod inventory + dry
+   run done (wrote nothing): 8 jobs + 3 cases would migrate, none blocked,
+   nothing in flight, JOB-00026 already streamlined; no company role
+   default is set. **The real run is Richard's call.** Stage 3 = completion
    UX; Stage 4 = "Complete this phase". Notes:
    [features/workflows.md](docs/project-memory/features/workflows.md).
 000000. ✅ **Operations Calendar / My Work — all four phases on prod** — four phases, plan approved
@@ -275,7 +279,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-30 — Streamlined workflows, Stage 2: moving existing workflows (built, dev-QA'd, on `main`, not deployed)
+### 2026-09-30 — Streamlined workflows, Stage 2: moving existing workflows (deployed `0ad0f99`; prod dry run done, migration not run)
 
 "everything looks good. continue". Built on `workflows-migrate`:
 `plan-membership.ts` (`isLegacyStep` — module still on the job, key not in
@@ -300,7 +304,15 @@ in) — position is now compared only on a first migration. Gate: typecheck
 clean, lint 6/22, 1237 tests (+28), build clean. Dev QA: DB dumped, JOB-00001 +
 a staged v1 case migrated and checked by SQL and headless Chromium
 (`qa-migrate-ui.js` 9/9), second run unchanged, DB restored and JOB-00001
-migrated for good. No migration. Details:
+migrated for good. No migration. Richard pushed and deployed from `!`:
+BUILD_ID `c2QPO63nhZnwCjo8nwLAb` → `_uoyVpElQCqjPaNXDQhtw`, smoke 307 ×2,
+journal clean, backup `postgres-2026-09-30-130450.dump`. Prod `--inventory`
+and dry run (nothing written): JOB-00017 86 → 21 steps, 00018 229 → 39,
+00020 92 → 24, 00021 101 → 23, 00022 242 → 41, 00023 92 → 24, 00024 229 →
+39, 00025 86 → 21, CV-00001 62 → 27, CV-00002 57 → 25, CV-00003 53 → 20;
+no step born done, no blockers, no in-progress / blocked / manual rows,
+one dropped scope option (JOB-00022 interior doors); every role default
+is empty. Details:
 [features/workflows.md](docs/project-memory/features/workflows.md).
 
 ### 2026-09-30 — Streamlined workflows, Stage 1: slim templates for new jobs (deployed `81589ff`, seeded on prod)
@@ -1364,14 +1376,12 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Streamlined workflows: Stage 1 is on prod and seeded; Stage 2 (the
-> migration) is on `main`, not deployed.** Next: Richard pushes and deploys
-> (no migration), then on prod `migrate-workflows-slim-2026-10.ts
-> --inventory` and the plain dry run (§7) — both write nothing. Richard
-> reads the per-job report (what is born done, what is retired, any
-> "blocked" job with a failed inspection in flight) and sets Admin →
-> Workflow Roles if the inventory shows roles resolving to nobody. Then, in
-> a quiet window: note the deploy's DB backup (or take a fresh one), `--only
+> **Streamlined workflows: Stages 1 and 2 are on prod (`0ad0f99`, BUILD_ID
+> `_uoyVpElQCqjPaNXDQhtw`); the migration itself has NOT run.** The prod
+> dry run is clean (11 workflows would migrate, none blocked). Next:
+> Richard sets Admin → Workflow Roles first (every default is empty, and
+> saving a default does not back-fill existing steps until Stage 3), then
+> gives the go. Then, in a quiet window: note the deploy's DB backup (or take a fresh one), `--only
 > <one job> --yes`, check that job's Workflow tab (progress on the
 > streamlined steps, one collapsed "Earlier version" group), then `--yes`
 > for the rest. The migration is not reversible in place — the undo is the
