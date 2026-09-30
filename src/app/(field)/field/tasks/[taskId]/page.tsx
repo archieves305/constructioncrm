@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useRef, useState } from "react";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import type { JobLabel, LeadLabel } from "@/components/tasks/types";
 import { formatAddressLine } from "@/lib/labels/address";
@@ -14,12 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Camera, Paperclip } from "lucide-react";
 import { formatTimeRange } from "@/lib/calendar/agenda";
 import { cn } from "@/lib/utils";
 import { fetchJson } from "@/lib/fetch-json";
 import { PRIORITY_BADGE_CLASS, STATUS_BADGE_CLASS, STATUS_LABEL } from "@/components/tasks/task-colors";
 import { taskKeys } from "@/components/tasks/use-tasks";
+import { useTaskFileUpload } from "@/components/workflows/use-task-file-upload";
 
 /**
  * Field-mode task view.
@@ -54,6 +55,8 @@ type FieldTask = {
   violationCase?: { id: string; caseNumber: string; agencyCaseNumber: string | null } | null;
   assignedTo: Person | null;
   createdBy: Person | null;
+  /** Photos and documents attached to the task. */
+  files?: { id: string; fileName: string; fileType: string }[];
   events: {
     id: string;
     type: string;
@@ -73,6 +76,10 @@ export default function FieldTaskPage({
   const [note, setNote] = useState("");
   const [blockReason, setBlockReason] = useState("");
   const [showBlock, setShowBlock] = useState(false);
+  // Why the last "Mark done" was refused, shown where the thumb already is.
+  const [refused, setRefused] = useState<string | null>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const { data: task, isLoading, isError } = useQuery<FieldTask>({
     queryKey: ["field-task", taskId],
@@ -102,10 +109,26 @@ export default function FieldTaskPage({
       refresh();
       setShowBlock(false);
       setBlockReason("");
+      setRefused(null);
       toast.success("Task updated");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, body) => {
+      if (body.status === "COMPLETED") setRefused(e.message);
+      toast.error(e.message);
+    },
   });
+
+  const upload = useTaskFileUpload(taskId, {
+    onDone: () => {
+      refresh();
+      setRefused(null);
+    },
+  });
+  const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) upload.mutate(f);
+    e.target.value = "";
+  };
 
   const addNote = useMutation({
     mutationFn: async (body: string) => {
@@ -142,6 +165,7 @@ export default function FieldTaskPage({
   const notes = task.events.filter((e) => e.type === "NOTE");
   const done = task.status === "COMPLETED";
   const checklist = task.checklist ?? [];
+  const files = task.files ?? [];
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
@@ -220,6 +244,43 @@ export default function FieldTaskPage({
                 ))}
               </ul>
             </section>
+          )}
+
+          {/* Photos and files: taken where the work is, attached to the task itself. */}
+          <section className="rounded-md border p-3" aria-label="Photos and files">
+            <h2 className="text-sm font-semibold">
+              Photos and files <span className="font-normal text-muted-foreground">{files.length}</span>
+            </h2>
+            {files.length > 0 && (
+              <ul className="mt-1 divide-y text-sm">
+                {files.map((f) => (
+                  <li key={f.id}>
+                    <a href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 text-blue-700">
+                      {f.fileType.startsWith("image/") ? <Camera className="size-4 shrink-0" /> : <Paperclip className="size-4 shrink-0" />}
+                      <span className="truncate">{f.fileName}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!done && (
+              <div className="mt-2 flex gap-2">
+                <input ref={photoInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={pick} />
+                <input ref={fileInput} type="file" className="hidden" onChange={pick} />
+                <Button variant="outline" className="h-11 flex-1" disabled={upload.isPending} onClick={() => photoInput.current?.click()}>
+                  <Camera className="size-4" /> {upload.isPending ? "Uploading…" : "Take photo"}
+                </Button>
+                <Button variant="outline" className="h-11 flex-1" disabled={upload.isPending} onClick={() => fileInput.current?.click()}>
+                  <Paperclip className="size-4" /> Attach file
+                </Button>
+              </div>
+            )}
+          </section>
+
+          {refused && !done && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+              <strong>Not done yet:</strong> {refused}
+            </p>
           )}
 
           {/* Big touch targets: these get tapped with gloves on. */}

@@ -1,3 +1,4 @@
+import { settleJobGates } from "@/lib/workflows/gates";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
@@ -47,6 +48,8 @@ export async function POST(
 
   // Fire automation: PERMIT_CREATED for any active rule.
   await emitPermitEvent("PERMIT_CREATED", permit.id);
+  // A permit number on file completes the step that waits on it (the job's, and a linked violation case's).
+  await settleJobGates(permit.jobId, session.user.id);
 
   return NextResponse.json(permit, { status: 201 });
 }

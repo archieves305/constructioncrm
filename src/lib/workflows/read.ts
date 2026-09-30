@@ -78,7 +78,8 @@ function tally(p: PhaseProgress, t: WorkflowTaskRow, now: Date) {
   else if (t.activatedAt) p.ready++;
   else p.notActive++;
   if (open && t.activatedAt && t.dueAt && t.dueAt < now) p.overdue++;
-  if (open && !t.assignedUserId && t.workflowTaskKey) p.unassigned++;
+  // Needs an owner NOW: a step still waiting on its predecessors is nobody's yet (matches summary.ts).
+  if (open && t.activatedAt && !t.assignedUserId && t.workflowTaskKey) p.unassigned++;
 }
 
 type Viewer = { id: string; role: RoleName };

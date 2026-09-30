@@ -33,6 +33,7 @@ export function WorkflowTaskRow({
   onUpdate,
   onSkip,
   onComplete,
+  onQuickComplete,
 }: {
   task: WorkflowTaskItem;
   index: number;
@@ -42,7 +43,10 @@ export function WorkflowTaskRow({
   onOpen: () => void;
   onUpdate: (patch: UpdatePatch & { dueLocked?: boolean }) => void;
   onSkip: () => void;
+  /** Opens the Complete dialog (checklist, attach, gates). */
   onComplete: () => void;
+  /** Completes in one click; only offered when the step has nothing left to tick and no gate. */
+  onQuickComplete?: () => void;
 }) {
   const state = deriveTaskState(task);
   const open = isOpenState(state);
@@ -54,13 +58,17 @@ export function WorkflowTaskRow({
   const checklist = task.checklist ?? [];
   const ticked = checklist.filter((c) => c.done).length;
   const isStep = task.workflowTaskKey !== null;
+  // An active step a person may finish. One click when nothing stands in the
+  // way; otherwise the same button opens the dialog that shows what does.
+  const canComplete = open && canEdit && !notActive && state !== "BLOCKED" && state !== "FAILED_INSPECTION";
+  const oneClick = canComplete && Boolean(onQuickComplete) && !task.requiredEvidence && ticked === checklist.length;
 
   return (
     <li
       id={`task-${task.id}`}
       className={cn(
-        "group flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 sm:flex-nowrap",
-        notActive && "opacity-60",
+        "group flex flex-wrap items-center gap-x-3 gap-y-1 px-3 sm:flex-nowrap",
+        notActive ? "py-1.5 opacity-60" : "py-2",
         state === "COMPLETED" || state === "SKIPPED" ? "bg-gray-50/60" : "bg-white",
       )}
     >
@@ -122,6 +130,24 @@ export function WorkflowTaskRow({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        {canComplete && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 px-2 text-[11px]"
+            title={oneClick ? "Mark this step complete" : "Complete — shows the checklist and what the step needs"}
+            onClick={oneClick ? onQuickComplete : onComplete}
+          >
+            <Check className="size-3.5" /> {oneClick ? "Done" : "Complete…"}
+          </Button>
+        )}
+        {notActive ? (
+          // A waiting step is not anyone's to schedule yet: say who it goes to, nothing to edit.
+          <span className="w-[140px] truncate text-right text-[11px] text-muted-foreground">
+            {task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : "No owner yet"}
+          </span>
+        ) : (
+        <>
         <div className="relative">
           <input
             type="date"
@@ -155,6 +181,8 @@ export function WorkflowTaskRow({
           users={users}
           onChange={(id) => canEdit && onUpdate({ assignedUserId: id })}
         />
+        </>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label={`Actions for ${task.title}`} />}>
             <MoreHorizontal className="size-4" />

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest, forbidden } from "@/lib/auth/helpers";
-import { canEditTask } from "@/lib/tasks/access";
 import { recordTaskEvent } from "@/lib/tasks/events";
 import { FileCategory } from "@/generated/prisma/client";
 import { saveFile, MAX_UPLOAD_BYTES, ALLOWED_MIME } from "@/lib/files/storage";
+import { taskRightsFor } from "@/lib/workflows/visibility";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -66,10 +66,10 @@ export async function POST(request: NextRequest) {
   if (taskId) {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { id: true, leadId: true, assignedUserId: true, createdByUserId: true },
+      select: { id: true, leadId: true, assignedUserId: true, createdByUserId: true, jobId: true, violationCaseId: true, workflowInstanceId: true },
     });
     if (!task) return badRequest("task not found");
-    if (!canEditTask(session.user, task)) return forbidden();
+    if (!(await taskRightsFor(session.user, task)).canEdit) return forbidden();
     if (!task.leadId) return badRequest("this task is not linked to a lead, so a file cannot be stored against it");
     leadId = task.leadId;
   }

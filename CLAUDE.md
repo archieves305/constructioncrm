@@ -66,7 +66,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    ✓ on each, second run `already-migrated 12`, 0 open steps outside their
    pins, 0 instances on v1, 0 notifications, 11 audit rows, journal clean.
    Prod workflow steps now: 60 active + 256 waiting open, 25 completed,
-   1,204 retired. **Stage 2 is complete.** Stage 3 = completion
+   1,204 retired. **Stage 2 is complete. Stage 3 (completion UX) built +
+   dev-QA'd 2026-09-30 on `workflows-completion`, fast-forwarded to
+   `main`**: `taskRightsFor` (a job's PM / a case manager may work any step
+   of it), Complete dialog with upload + tick-all + one PATCH, one-click
+   "Done" with Undo, panel opening on what is actionable, lists opening a
+   gated step instead of a refused tick, field-mode photo attach, record
+   gates that complete themselves (`gates.ts`), role-default back-fill,
+   scope change refreshing open checklists. No migration. Not deployed. Stage 3 = completion
    UX; Stage 4 = "Complete this phase". Notes:
    [features/workflows.md](docs/project-memory/features/workflows.md).
 000000. ✅ **Operations Calendar / My Work — all four phases on prod** — four phases, plan approved
@@ -286,6 +293,29 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-30 — Streamlined workflows, Stage 3: making a step easy to finish (built, dev-QA'd, on `main`, not deployed)
+
+"continue". Built on `workflows-completion`: `visibility.taskRightsFor`
+(ownership OR coordinating the job / case; READ_ONLY never) in
+`PATCH /api/tasks/[id]`, `POST /api/files` and as `viewer` on the task GET;
+`useTaskFileUpload`; the Complete dialog rewritten (local ticks sent with
+the completion, saved on close, Tick all, attach inside);
+`WorkflowTaskRow` "Done" / "Complete…" button and compact waiting rows;
+panel headline and phases folded unless actionable; owner banner on active
+steps; `stepHasOpenRequirement` in the `/tasks` card, My tasks widget and
+entity panel; field task page photo / file attach + refusal on the page;
+`gates.ts` (`completeSatisfiedGates`, `settleJobGates`, `settleCaseGates`)
+hooked after payments, permit saves, ten case write routes, apply and
+reconcile; role-default save back-fills unowned steps; `reconcile` scope /
+permit changes refresh open checklists keeping ticks. Deliberate limits:
+"Corrective work complete" and "Close case" never complete themselves, and a
+gate with a checklist waits for its lines. Gate: typecheck clean, lint 6/22,
+1252 tests (+15), build clean (the first build after killing `next dev`
+fails on `.next` contention; the re-run is clean). Dev QA in headless
+Chromium + API as ADMIN and as a SALES_REP PM; dev DB restored after. No
+migration. Details:
+[features/workflows.md](docs/project-memory/features/workflows.md).
 
 ### 2026-09-30 — Streamlined workflows, Stage 2: moving existing workflows (deployed `0ad0f99`; all 11 prod workflows migrated)
 
@@ -1346,6 +1376,12 @@ Notification Digests).
   references it — bump the version. Own-only roles see tasks on jobs where
   they are PM, field-assigned or hold a team slot. Every open count uses
   `ACTIVE_OPEN_WHERE` (open **and** activated).
+- **Who may work a workflow step**: its owner or raiser, an office role, or
+  whoever coordinates its job or case (`taskRightsFor` — the job's PM, the
+  case manager). Skipping a blocking gate and overriding evidence stay
+  ADMIN/MANAGER. A record gate (deposit, final payment, permit closed, fines)
+  completes itself once the record is on file; "Corrective work complete"
+  and "Close case" never do.
 - **Workflow templates come in generations and never mix on a job.** `v1/`
   specs are frozen (hash-pinned); a content change is a new generation in
   `prisma/seeds/workflows`, never an edit. An in-place upgrade only follows

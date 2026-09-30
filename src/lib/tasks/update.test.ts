@@ -388,6 +388,27 @@ describe("updateTask — workflow steps", () => {
     ]);
   });
 
+  it("a re-plan within one version keeps the ticks of the lines that stay", async () => {
+    db.task.findUnique.mockResolvedValue({
+      ...step,
+      checklist: [
+        { key: "item_1", label: "Crew assigned", done: true, doneAt: "2026-10-01T12:00:00.000Z", doneByUserId: "u-sup" },
+        { key: "item_4", label: "Dumpster scheduled", done: true, doneAt: "2026-10-01T12:00:00.000Z", doneByUserId: "u-sup" },
+      ],
+    });
+    await updateTask({
+      id: "t1",
+      input: {},
+      actorUserId: "u-richard",
+      notify: "none",
+      internal: { quiet: true, definition: { keepTicks: true, checklist: [{ key: "item_1", label: "Crew assigned" }, { key: "item_5", label: "Crane scheduled" }] } },
+    });
+    expect(db.task.update.mock.calls[0][0].data.checklist).toEqual([
+      { key: "item_1", label: "Crew assigned", done: true, doneAt: "2026-10-01T12:00:00.000Z", doneByUserId: "u-sup" },
+      { key: "item_5", label: "Crane scheduled", done: false, doneAt: null, doneByUserId: null },
+    ]);
+  });
+
   it("ordinary tasks are untouched by the workflow rules", async () => {
     db.task.findUnique.mockResolvedValue({ ...existing, workflowTaskKey: null, workflowInstanceId: null });
     await updateTask({ id: "t1", input: { status: "CANCELLED" }, actorUserId: "u-jo", actorRole: "SALES_REP", notify: "none" });

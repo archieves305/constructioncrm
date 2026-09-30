@@ -1,3 +1,4 @@
+import { settleJobGates } from "@/lib/workflows/gates";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
@@ -73,6 +74,8 @@ export async function PATCH(
     const event = statusEventName(body.status);
     if (event) await emitPermitEvent(event, permit.id);
   }
+  // A permit number, an issue date or a final on file completes the step that waits on it.
+  await settleJobGates(permit.jobId, session.user.id);
 
   return NextResponse.json(permit);
 }

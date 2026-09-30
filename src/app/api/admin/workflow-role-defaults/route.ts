@@ -5,7 +5,7 @@ import { validateBody } from "@/lib/validation/body";
 import { recordAudit } from "@/lib/audit/record";
 import { roleDefaultsSchema } from "@/lib/validators/workflow";
 import { canEditRoleDefaults, canViewRoleDefaults } from "@/lib/workflows/access";
-import { WORKFLOW_ROLE_LABEL, WORKFLOW_ROLES } from "@/lib/workflows/roles";
+import { reassignUnresolved, WORKFLOW_ROLE_LABEL, WORKFLOW_ROLES } from "@/lib/workflows/roles";
 import type { WorkflowRole } from "@/generated/prisma/client";
 
 async function list() {
@@ -48,6 +48,14 @@ export async function PUT(request: NextRequest) {
       await prisma.workflowRoleDefault.deleteMany({ where: { role } });
     }
   }
+  // A new default is no use to steps that were born with nobody: give every
+  // open, unowned step on a running workflow its owner now (one batched
+  // notice per workflow for the steps that are already active).
+  let assigned = 0;
+  if (Object.values(parsed.data.defaults).some(Boolean)) {
+    const running = await prisma.jobWorkflowInstance.findMany({ where: { status: "ACTIVE" }, select: { id: true } });
+    for (const inst of running) assigned += await reassignUnresolved(inst.id, session.user.id);
+  }
   const after = await list();
   await recordAudit({
     actorUserId: session.user.id,
@@ -57,5 +65,5 @@ export async function PUT(request: NextRequest) {
     before: before.map((b) => ({ role: b.role, userId: b.user?.id ?? null })),
     after: after.map((a) => ({ role: a.role, userId: a.user?.id ?? null })),
   });
-  return NextResponse.json(after);
+  return NextResponse.json(after, { headers: { "x-steps-assigned": String(assigned) } });
 }

@@ -1,3 +1,4 @@
+import { settleCaseGates } from "@/lib/workflows/gates";
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
@@ -17,6 +18,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if ("response" in gate) return gate.response;
   try {
     await recordLien(id, parsed.data, session.user);
+    await settleCaseGates(id, session.user.id);
     return NextResponse.json(await readCase(id, session.user));
   } catch (err) {
     return violationErrorResponse(err) ?? Promise.reject(err);
@@ -33,6 +35,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if ("response" in gate) return gate.response;
   try {
     await releaseLien(id, parsed.data, session.user);
+    await settleCaseGates(id, session.user.id);
     return NextResponse.json(await readCase(id, session.user));
   } catch (err) {
     return violationErrorResponse(err) ?? Promise.reject(err);

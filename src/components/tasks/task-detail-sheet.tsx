@@ -52,6 +52,8 @@ type TaskDetail = TaskListItem &
     events: TimelineEvent[];
     dependencies?: WorkflowTaskItem["dependencies"];
     files?: { id: string; fileName: string; fileType: string; fileSize: number; createdAt: string; uploadedBy: { firstName: string; lastName: string } }[];
+    /** What this viewer may do, decided by the server (ownership, or coordinating the task's job or case). */
+    viewer?: { canEdit: boolean };
   };
 
 export type { UserOption };
@@ -261,7 +263,7 @@ export function TaskDetailSheet({
     canNudgeTask(session!.user, { assignedUserId: task!.assignedUserId, createdByUserId: task!.createdByUserId });
   const cooldownMs = task ? nudgeCooldownRemainingMs(task.events) : 0;
   const ownership = task ? { assignedUserId: task.assignedUserId, createdByUserId: task.createdByUserId } : null;
-  const mayEdit = Boolean(task && session?.user && ownership && canEditTask(session.user, ownership));
+  const mayEdit = Boolean(task && session?.user && ownership && (task.viewer?.canEdit ?? canEditTask(session.user, ownership)));
   const mayDelete = Boolean(task && session?.user && ownership && canDeleteTask(session.user, ownership));
   const remindValue = task?.remindAt ? task.remindAt.slice(0, 10) : "";
 

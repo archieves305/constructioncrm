@@ -3,11 +3,11 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { updateTaskSchema } from "@/lib/validators/task";
-import { canDeleteTask, canEditTask, canViewTask } from "@/lib/tasks/access";
+import { canDeleteTask, canViewTask } from "@/lib/tasks/access";
 import { recordAudit } from "@/lib/audit/record";
 import { TASK_DETAIL_INCLUDE } from "@/lib/tasks/include";
 import { updateTask, TaskUpdateError } from "@/lib/tasks/update";
-import { visibilityScopeFor } from "@/lib/workflows/visibility";
+import { taskRightsFor, visibilityScopeFor } from "@/lib/workflows/visibility";
 
 export async function GET(
   _request: NextRequest,
@@ -21,7 +21,8 @@ export async function GET(
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
   if (!canViewTask(session.user, task, await visibilityScopeFor(session.user))) return forbidden();
 
-  return NextResponse.json(task);
+  // What this viewer may do, so the sheet does not have to guess from ownership alone.
+  return NextResponse.json({ ...task, viewer: await taskRightsFor(session.user, task) });
 }
 
 export async function PATCH(
@@ -36,13 +37,19 @@ export async function PATCH(
   if (!parsed.ok) return parsed.response;
 
   const user = session.user;
+  const row = await prisma.task.findUnique({
+    where: { id },
+    select: { assignedUserId: true, createdByUserId: true, jobId: true, violationCaseId: true, workflowInstanceId: true },
+  });
+  if (!row) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  const rights = await taskRightsFor(user, row);
   try {
     const { task } = await updateTask({
       id,
       input: parsed.data,
       actorUserId: user.id,
       actorRole: user.role,
-      authorize: (existing) => canEditTask(user, existing),
+      authorize: () => rights.canEdit,
     });
     return NextResponse.json(task);
   } catch (err) {

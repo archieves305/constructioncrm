@@ -1,5 +1,6 @@
 "use client";
 
+import { stepHasOpenRequirement } from "@/lib/workflows/step-requirements";
 import { useMemo, useState } from "react";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import type { QueryKey } from "@tanstack/react-query";
@@ -121,7 +122,9 @@ export function EntityTaskPanel({
               key={t.id}
               task={t}
               compact={compact}
-              onToggle={(checked) => update.mutate({ id: t.id, patch: { status: checked ? "COMPLETED" : "PENDING" } })}
+              onToggle={(checked) =>
+                checked && stepHasOpenRequirement(t) ? setOpenTaskId(t.id) : update.mutate({ id: t.id, patch: { status: checked ? "COMPLETED" : "PENDING" } })
+              }
               onOpen={() => setOpenTaskId(t.id)}
             />
           ))}

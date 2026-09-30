@@ -1,4 +1,5 @@
 import { jobHasActiveWorkflow } from "@/lib/workflows/duplicates";
+import { settleJobGates } from "@/lib/workflows/gates";
 import { prisma } from "@/lib/db/prisma";
 import { createTask } from "@/lib/tasks/create";
 import { formatAddressLine } from "@/lib/labels/address";
@@ -363,6 +364,9 @@ export async function recordPayment(
       createdByUserId: userId,
     },
   });
+
+  // The deposit or the final payment is on record: the workflow step that waits on it is done.
+  await settleJobGates(jobId, userId);
 
   return payment;
 }

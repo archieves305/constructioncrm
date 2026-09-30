@@ -68,6 +68,8 @@ export type TaskListItem = {
   dueLocked?: boolean;
   skipReason?: string | null;
   inspectionResult?: string | null;
+  requiredEvidence?: string | null;
+  checklist?: { key: string; label: string; done: boolean }[] | null;
 };
 
 /**

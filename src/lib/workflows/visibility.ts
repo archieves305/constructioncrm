@@ -1,7 +1,7 @@
 import type { RoleName } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { seesAllTasks, type VisibilityScope } from "@/lib/tasks/access";
-import type { JobScope } from "./access";
+import { canEditTask, seesAllTasks, type TaskOwnership, type VisibilityScope } from "@/lib/tasks/access";
+import { canCoordinateWorkflow, type JobScope } from "./access";
 
 /**
  * Relationships that widen an own-only role's view: a sales rep who is a
@@ -67,4 +67,27 @@ export async function jobScopeFor(jobId: string): Promise<JobScope | null> {
     teamUserIds: job.workflow?.team.map((t) => t.userId) ?? [],
     fieldUserIds: job.fieldAssignments.map((f) => f.userId),
   };
+}
+
+/**
+ * What this person may do to one task. `canEditTask` is about ownership —
+ * office roles, the assignee, the raiser. A workflow adds a relationship on
+ * top: whoever coordinates the job or case (its project manager or case
+ * manager, whatever their login role) may work any step of it, not only the
+ * ones assigned to them. The Workflow tab has always offered them Complete
+ * and Skip; the task API used to refuse, because it asked only about
+ * ownership. Both now ask this.
+ *
+ * Who may skip a BLOCKING gate or override evidence is a separate, stricter
+ * rule and stays inside `updateTask`.
+ */
+export async function taskRightsFor(
+  user: { id: string; role: RoleName },
+  task: TaskOwnership & { jobId: string | null; violationCaseId: string | null; workflowInstanceId: string | null },
+): Promise<{ canEdit: boolean }> {
+  if (canEditTask(user, task)) return { canEdit: true };
+  // Read-only is read-only, whatever the person's relationship to the job.
+  if (user.role === "READ_ONLY" || !task.workflowInstanceId) return { canEdit: false };
+  const scope = await subjectScopeForTask(task);
+  return { canEdit: Boolean(scope && canCoordinateWorkflow(user, scope)) };
 }

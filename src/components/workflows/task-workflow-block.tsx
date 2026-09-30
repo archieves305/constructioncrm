@@ -2,15 +2,12 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { ArrowUpRight, Lock, Paperclip, SkipForward, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Callout } from "@/components/shared/callout";
-import { taskKeys } from "@/components/tasks/use-tasks";
 import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
 import { cn } from "@/lib/utils";
 import { EvidenceLine } from "./evidence-line";
@@ -18,6 +15,7 @@ import { deriveTaskState, WORKFLOW_STATE_LABEL, WORKFLOW_STATE_PILL } from "./st
 import { SkipTaskDialog } from "./skip-task-dialog";
 import { InspectionResultForm } from "./inspection-result-form";
 import { DependencyEditor } from "./dependency-editor";
+import { useTaskFileUpload } from "./use-task-file-upload";
 import { subjectHref, subjectOfTask, type WorkflowTaskItem } from "./types";
 
 type FileRow = { id: string; fileName: string; fileType: string; fileSize: number; createdAt: string; uploadedBy: { firstName: string; lastName: string } };
@@ -44,31 +42,9 @@ export function TaskWorkflowBlock({
   canRecordInspection?: boolean;
   onPatch: (body: Record<string, unknown>) => void;
 }) {
-  const qc = useQueryClient();
   const [skipOpen, setSkipOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-
-  const upload = useMutation({
-    mutationFn: async (file: File) => {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("taskId", task.id);
-      form.append("category", task.requiredEvidence === "PHOTO" ? "PHOTOS" : "OTHER");
-      const r = await fetch("/api/files", { method: "POST", body: form });
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        throw new Error(err.error || "Upload failed");
-      }
-      return r.json();
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: taskKeys.detail(task.id) });
-      qc.invalidateQueries({ queryKey: ["job-workflow"] });
-      qc.invalidateQueries({ queryKey: ["case-workflow"] });
-      toast.success("File attached");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const upload = useTaskFileUpload(task.id, { photo: task.requiredEvidence === "PHOTO" });
 
   if (!task.workflowInstanceId) return null;
   const state = deriveTaskState(task);

@@ -1,5 +1,6 @@
 "use client";
 
+import { stepHasOpenRequirement } from "@/lib/workflows/step-requirements";
 import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
@@ -71,7 +72,7 @@ export function MyTasksWidget({ className }: { className?: string }) {
                       key={t.id}
                       task={t}
                       onOpen={() => setOpenTaskId(t.id)}
-                      onDone={() => update.mutate({ id: t.id, patch: { status: "COMPLETED" } })}
+                      onDone={() => (stepHasOpenRequirement(t) ? setOpenTaskId(t.id) : update.mutate({ id: t.id, patch: { status: "COMPLETED" } }))}
                     />
                   ))}
                 </ul>

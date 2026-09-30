@@ -157,7 +157,7 @@ export function useSaveRoleDefaults() {
     mutationFn: (defaults: Record<string, string | null>) => post<RoleDefaultRow[]>("/api/admin/workflow-role-defaults", { defaults }, "PUT"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: workflowKeys.roleDefaults });
-      toast.success("Role defaults saved");
+      toast.success("Role defaults saved — open steps with no owner now go to these people");
     },
     onError: (e: Error) => toast.error(e.message || "Could not save"),
   });

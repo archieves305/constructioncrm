@@ -16,6 +16,7 @@ import { useAssignableUsers, useUpdateTask } from "@/components/tasks/use-tasks"
 import type { UpdatePatch } from "@/components/tasks/types";
 import { useSession } from "@/lib/auth/session-client";
 import { canEditTask } from "@/lib/tasks/access";
+import { toast } from "sonner";
 import { fetchJson } from "@/lib/fetch-json";
 import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
 import { toneClasses } from "@/lib/ui/tones";
@@ -175,6 +176,10 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
   const closed = progress.done + progress.skipped;
   const pct = progress.total > 0 ? Math.round((closed / progress.total) * 100) : 0;
   const permitTone = toneClasses(PERMIT_STATUS_TONE[inst.permitStatus]);
+  // The headline is about phases and what is actionable, not a count of every step.
+  const livePhases = (data.phases ?? []).filter((p) => !p.legacy);
+  const phasesDone = livePhases.filter((p) => p.progress.total > 0 && p.progress.done + p.progress.skipped === p.progress.total).length;
+  const workingOn = livePhases.filter((p) => p.progress.ready + p.progress.inProgress + p.progress.blocked > 0);
   const team = data.team ?? [];
   const unassigned = data.unassignedRoles ?? [];
   const isBase = (kind: string) => kind === "CORE" || kind === "VIOLATION";
@@ -199,6 +204,18 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
     }
     update.mutate({ id: t.id, patch: patch as UpdatePatch });
   };
+
+  // A step with nothing left to tick and no gate is one click; Undo puts it back.
+  const quickComplete = (t: WorkflowTaskItem) =>
+    update.mutate(
+      { id: t.id, patch: { status: "COMPLETED" } as UpdatePatch },
+      {
+        onSuccess: () =>
+          toast.success(`Done: ${t.title}`, {
+            action: { label: "Undo", onClick: () => update.mutate({ id: t.id, patch: { status: "PENDING" } as UpdatePatch }) },
+          }),
+      },
+    );
 
   const mayEditRow = (t: WorkflowTaskItem) =>
     Boolean(user && canEditTask(user, { assignedUserId: t.assignedUserId, createdByUserId: t.createdByUserId })) || data.permissions.canCoordinate;
@@ -251,9 +268,24 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
             <div className="flex items-center gap-3">
               <Progress value={closed} max={progress.total} className="h-2 w-56" indicatorClassName={pct === 100 ? "bg-tone-success" : undefined} label={`Workflow ${pct}% complete`} />
               <span className="text-xs tabular-nums text-muted-foreground">
-                {closed}/{progress.total} steps · {pct}%
+                {phasesDone}/{livePhases.length} phases · {closed}/{progress.total} steps
               </span>
             </div>
+            <p className="text-sm">
+              {inst.status === "COMPLETED" ? (
+                <span className="text-muted-foreground">Every step is closed.</span>
+              ) : workingOn.length > 0 ? (
+                <>
+                  <span className="font-medium">
+                    {progress.ready + progress.inProgress} to do now
+                    {progress.blocked > 0 ? ` · ${progress.blocked} blocked` : ""}
+                  </span>
+                  <span className="text-muted-foreground"> in {workingOn.map((p) => p.name).join(", ")}</span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">Nothing is ready yet — the next steps are waiting on the ones before them.</span>
+              )}
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {chips.map((c) => (
                 <button
@@ -343,7 +375,11 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
             tone="warning"
             className="mt-3"
             icon={ShieldAlert}
-            title={`${progress.unassigned} step${progress.unassigned === 1 ? "" : "s"} need an owner`}
+            title={
+              progress.unassigned > 0
+                ? `${progress.unassigned} step${progress.unassigned === 1 ? " needs" : "s need"} an owner now`
+                : "Some later steps have no owner yet"
+            }
             action={
               data.permissions.canCoordinate ? (
                 <Button size="sm" variant="outline" className="h-7 bg-white text-xs" onClick={() => setTeamOpen(true)}>
@@ -364,14 +400,15 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
           const visible = rows.filter(matches);
           // The chips count the current workflow; the earlier version's rows stay out of a filtered view.
           if (chip && (visible.length === 0 || phase.legacy)) return null;
-          const allClosed = phase.progress.done + phase.progress.skipped === phase.progress.total;
+          // Open what someone can act on; a phase that is finished, or still waiting, stays folded.
+          const actionable = phase.progress.ready + phase.progress.inProgress + phase.progress.blocked > 0;
           let n = 0;
           return (
             <PhaseSection
               key={phase.key}
               phase={phase}
               visibleCount={visible.length}
-              defaultOpen={!allClosed && !phase.legacy}
+              defaultOpen={actionable && !phase.legacy}
               forceOpen={Boolean(chip)}
               onAddTask={data.permissions.canCoordinate && !phase.legacy ? () => setAddPhaseKey(phase.key) : undefined}
             >
@@ -387,6 +424,7 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
                   onUpdate={(patch) => rowUpdate(t, patch)}
                   onSkip={() => setSkipTarget(t)}
                   onComplete={() => setCompleteTarget(t)}
+                  onQuickComplete={() => quickComplete(t)}
                 />
               ))}
               {visible.length === 0 && <li className="px-3 py-3 text-xs text-muted-foreground">Nothing here yet.</li>}
@@ -426,9 +464,10 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
         onOpenTask={() => {
           if (completeTarget) setOpenTaskId(completeTarget.id);
         }}
-        onTick={(key, done) => completeTarget && update.mutate({ id: completeTarget.id, patch: { checklist: [{ key, done }] } as UpdatePatch })}
+        onSaveTicks={(ticks) => completeTarget && update.mutate({ id: completeTarget.id, patch: { checklist: ticks } as UpdatePatch })}
         onComplete={async (extra) => {
           if (!completeTarget) return;
+          // Ticks and the completion travel together: the server merges the ticks before it checks the step.
           await fetchJson(`/api/tasks/${completeTarget.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },

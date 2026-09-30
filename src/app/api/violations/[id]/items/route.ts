@@ -1,3 +1,4 @@
+import { settleCaseGates } from "@/lib/workflows/gates";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
@@ -25,7 +26,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const gate = await requireCase(id, session.user, (p) => p.canEdit);
   if ("response" in gate) return gate.response;
   try {
-    return NextResponse.json(await addItem(id, parsed.data, session.user), { status: 201 });
+    const result = await addItem(id, parsed.data, session.user);
+    await settleCaseGates(id, session.user.id);
+    return NextResponse.json(result, { status: 201 });
   } catch (err) {
     return violationErrorResponse(err) ?? Promise.reject(err);
   }

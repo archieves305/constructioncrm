@@ -1,3 +1,4 @@
+import { settleCaseGates } from "@/lib/workflows/gates";
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
@@ -14,7 +15,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const gate = await requireCase(id, session.user, (p) => p.canRecordHearing);
   if ("response" in gate) return gate.response;
   try {
-    return NextResponse.json(await updateHearing(id, hearingId, parsed.data, session.user));
+    const result = await updateHearing(id, hearingId, parsed.data, session.user);
+    await settleCaseGates(id, session.user.id);
+    return NextResponse.json(result);
   } catch (err) {
     return violationErrorResponse(err) ?? Promise.reject(err);
   }

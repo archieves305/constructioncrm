@@ -421,7 +421,59 @@ unchanged. `qa-migrate-ui.js` 9/9 (tab progress 3/32, jobs-list 9%, one
 Earlier version group of 175 rows, no "Removed:" buckets). Dev is left with
 JOB-00001 migrated and no QA rows.
 
-Next: Stage 3 completion UX, Stage 4 "Complete this phase".
+Stage 2 deployed 2026-09-30 as `0ad0f99`; all 11 prod workflows migrated the
+same day (JOB-00025 first, then the other 7 jobs + 3 cases; 0 open steps
+outside their pins, 0 on v1, 0 notifications, nothing deleted).
+
+### Stage 3 — making a step easy to finish (built 2026-09-30)
+
+- **Who may work a step** (`visibility.taskRightsFor`): `canEditTask`
+  (ownership) OR coordinating the task's job / case (`canCoordinateWorkflow`:
+  office roles, the job's PM, the case manager) for workflow tasks; never
+  READ_ONLY. Used by `PATCH /api/tasks/[id]` and `POST /api/files`;
+  `GET /api/tasks/[id]` returns `viewer.canEdit` and the sheet uses it. The
+  Workflow tab had always offered a PM Complete / Skip on any step; the API
+  refused a PM whose login role was SALES_REP. Blocking-gate and
+  evidence-override rules stay in `updateTask`.
+- **Complete dialog**: ticks are local and travel with the completion in
+  one PATCH (saved on their own if the dialog is closed first), "Tick all",
+  "Attach a photo or file" inside the dialog (`useTaskFileUpload`, shared
+  with the task sheet and the field page).
+- **Row**: a visible button on every active step — "Done" (one click, Undo
+  toast) when nothing is left to tick and there is no gate, else
+  "Complete…" opens the dialog. A Not-active row is compact and read-only
+  (owner as text, no date / assignee inputs; the menu stays).
+- **Panel**: a phase opens only when it holds Ready / In-progress / Blocked
+  rows; headline "n/m phases · n/m steps" + "n to do now in <phases>"; the
+  owner banner counts active unowned steps only (`read.ts` `tally`, same rule
+  as `summary.ts`) and still names every role with nobody.
+- **Lists** (`step-requirements.stepHasOpenRequirement`): the `/tasks` card,
+  My tasks widget and entity task panel open the step instead of sending a
+  tick the server would refuse.
+- **Field task page**: Take photo (`capture="environment"`) / Attach file,
+  the task's files listed, and a refused "Mark done" explained on the page.
+- **Record gates complete themselves** (`gates.ts`): after a payment, a
+  permit save, a case write (agency confirm, fines, lien, hearings, items,
+  link-job), an apply or a reconcile, every ACTIVE open step whose evidence
+  is in `SELF_COMPLETING_GATES` and whose checklist has nothing open is
+  completed (AUTO_CLOSED event). Never INSPECTION_RESULT, never LINKED_JOB
+  ("corrective work complete" stays a person's call), never `:close_case`.
+  A gate that carries a checklist (Confirm permit issued) still waits for
+  its lines.
+- **Role defaults back-fill**: saving Admin → Workflow Roles runs
+  `reassignUnresolved` over every ACTIVE workflow (header
+  `x-steps-assigned`).
+- **Scope change refreshes open checklists** (`refreshOpenChecklists` in
+  `reconcile`): lines are keyed `item_N`, so a line that stays keeps its tick
+  (`internal.definition.keepTicks`).
+
+Dev QA 2026-09-30 (DB dumped, restored after): `qa-complete.js` 17/18 + the
+corrected `/tasks` check (the first run's selector ticked an ordinary task —
+the page's search key is `q`), and as a SALES_REP who is a job's PM: PATCH a
+step on his job 200 (`viewer.canEdit` true), on another job 403, skipping a
+blocking gate still 403.
+
+Next: Stage 4 "Complete this phase".
 
 ## Not yet
 

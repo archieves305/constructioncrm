@@ -89,6 +89,8 @@ export type StepDefinitionPatch = {
   requiredEvidence?: WorkflowEvidenceType | null;
   requiredEvidenceParam?: string | null;
   checklist?: { key: string; label: string }[];
+  /** With `checklist`: a line that was already there (same key) keeps its tick. For a re-plan within one template version. */
+  keepTicks?: boolean;
   /** Back to Not active; the caller's sweep decides whether it is Ready. */
   deactivate?: boolean;
 };
@@ -240,7 +242,11 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
     if (def.requiredEvidenceParam !== undefined) data.requiredEvidenceParam = def.requiredEvidenceParam;
     if (def.deactivate) data.activatedAt = null;
     if (def.checklist !== undefined) {
-      checklist = def.checklist.map((c) => ({ key: c.key, label: c.label, done: false, doneAt: null, doneByUserId: null }));
+      const had = new Map(def.keepTicks ? checklist.map((c) => [c.key, c]) : []);
+      checklist = def.checklist.map((c) => {
+        const prev = had.get(c.key);
+        return { key: c.key, label: c.label, done: prev?.done ?? false, doneAt: prev?.doneAt ?? null, doneByUserId: prev?.doneByUserId ?? null };
+      });
       data.checklist = checklist as unknown as Prisma.InputJsonValue;
     }
   }

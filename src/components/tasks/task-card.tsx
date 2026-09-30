@@ -10,6 +10,7 @@ import { AssigneePicker } from "./assignee-picker";
 import { TaskEntityChip } from "./task-entity-chip";
 import { PRIORITY_OUTLINE_CLASS, STATUS_LABEL, TASK_PRIORITIES, TASK_STATUSES } from "./task-colors";
 import { deriveTaskState, WORKFLOW_STATE_LABEL, WORKFLOW_STATE_PILL } from "@/components/workflows/status";
+import { stepHasOpenRequirement } from "@/lib/workflows/step-requirements";
 import type { Priority, TaskListItem, TaskStatus, UpdatePatch, UserOption } from "./types";
 
 /**
@@ -46,7 +47,9 @@ export function TaskCard({
         checked={task.status === "COMPLETED"}
         aria-label={task.status === "COMPLETED" ? "Reopen task" : "Mark task complete"}
         onCheckedChange={(checked) =>
-          onUpdate(task.id, { status: checked ? "COMPLETED" : "PENDING" })
+          // A step with a checklist to finish or a gate opens instead: the
+          // sheet shows what it needs, where a bare tick would only be refused.
+          checked && stepHasOpenRequirement(task) ? onOpen(task.id) : onUpdate(task.id, { status: checked ? "COMPLETED" : "PENDING" })
         }
       />
       <div className="min-w-0 flex-1">

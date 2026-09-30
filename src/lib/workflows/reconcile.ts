@@ -8,6 +8,8 @@ import { compose, type ComposedPlan, type ComposeModule } from "./compose";
 import { loadInstanceModules, loadPublishedVersion, loadVersionById, readScopeToggles, toComposeModule } from "./load";
 import { CORE_MODULE_KEY, isBaseKind, type ScopeToggleState } from "./keys";
 import { diffEdges, materializePlan, type EdgeRow } from "./apply";
+import { readChecklist } from "./evidence";
+import { completeSatisfiedGates } from "./gates";
 import { loadRoleContext } from "./roles";
 import { loadScheduleContext, sweepActivation } from "./activation";
 import { isCorrectionKey } from "./inspections";
@@ -383,7 +385,13 @@ export async function reconcile(instanceId: string, change: ReconcileChange, act
       await updateTask({ id: gate.id, input: { status: "COMPLETED" }, actorUserId: actor.id, actorRole: actor.role, notify: "after", internal: { bypassEvidence: true, tickChecklist: true } });
     }
   }
+  // A scope option also switches checklist LINES inside steps that stay: an
+  // open step takes the lines its options now call for, keeping its ticks.
+  if (change.kind === "scope" || change.kind === "permit") await refreshOpenChecklists(inst.id, built.plan, actor.id);
+
   const activated = await sweepActivation(inst.id, actor.id, now);
+  // A newly active gate whose record is already on file (a permit number entered before the branch existed) is done.
+  await completeSatisfiedGates(inst.id, actor.id);
 
   await recordAudit({
     actorUserId: actor.id,
@@ -408,6 +416,31 @@ export async function reconcile(instanceId: string, change: ReconcileChange, act
   });
 
   return { plan, created: mat.created.length, reinstated: plan.toReinstate.length, skipped: plan.toSkip.length, activated: activated.length };
+}
+
+/**
+ * Bring the checklists of open steps in line with the plan. Lines are keyed
+ * by their position in the template (`item_N`), so within one version the
+ * same key is the same line: a line that stays keeps its tick, a line whose
+ * scope option went off leaves, a line whose option came on arrives unticked.
+ * Completed and skipped steps are history and are not touched.
+ */
+async function refreshOpenChecklists(instanceId: string, plan: ComposedPlan, actorUserId: string): Promise<number> {
+  const rows = await prisma.task.findMany({
+    where: { workflowInstanceId: instanceId, workflowTaskKey: { in: plan.tasks.map((t) => t.key) }, status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] } },
+    select: { id: true, workflowTaskKey: true, checklist: true },
+  });
+  const planned = new Map(plan.tasks.map((t) => [t.key, t]));
+  let n = 0;
+  for (const r of rows) {
+    const want = planned.get(r.workflowTaskKey!)!.checklist;
+    const have = readChecklist(r.checklist).map((c) => c.key);
+    if (have.length === want.length && have.every((k, i) => k === want[i]!.key)) continue;
+    await updateTask({ id: r.id, input: {}, actorUserId, notify: "none", internal: { quiet: true, definition: { checklist: want, keepTicks: true } } });
+    await recordTaskEvent({ taskId: r.id, actorUserId, type: "RECONCILED", body: "checklist updated — scope changed" });
+    n += 1;
+  }
+  return n;
 }
 
 // ── Stage 1 entry points, kept as thin wrappers ─────────────────────────────
