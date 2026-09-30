@@ -64,6 +64,8 @@ export type WorkflowPhaseItem = {
   sortOrder: number;
   progress: PhaseProgress;
   taskIds: string[];
+  /** Steps of an earlier template version: history, outside the workflow's progress. */
+  legacy?: boolean;
 };
 
 export type ScopeToggleDef = { key: string; label: string; description?: string; default: boolean };

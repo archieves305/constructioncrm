@@ -342,7 +342,7 @@ flagged in the log). A seeded generation has **no `sourceVersionId`**.
   stage tasks; source read from the CREATED event) and "Close N existing
   tasks the workflow replaces" is ticked by default (`closeSuperseded`).
 
-Dev QA 2026-09-30: `qa-slim-api.js` 19/19 (v1 job: no upgrade offer, 409 on
+Stage 1 dev QA 2026-09-30: `qa-slim-api.js` 19/19 (v1 job: no upgrade offer, 409 on
 add-trade and upgrade; new job 18 → permit 24 → + D&W 32; re-apply 0; five
 Ready; stage change raises only the unmarked stage task) and `qa-slim-ui.js`
 7/7 (dialog closes the two replaced tasks; Attach file on an ungated step;
@@ -350,8 +350,78 @@ Ready; stage change raises only the unmarked stage task) and `qa-slim-ui.js`
 (Core only) now run the streamlined workflow; JOB-00001 stays v1 for the
 Stage 2 migration test.
 
-Next: Stage 2 migration (`migrate.ts`, legacy folding in `read.ts` /
-`summary.ts`), Stage 3 completion UX, Stage 4 "Complete this phase".
+Stage 1 deployed 2026-09-30 as `81589ff` and seeded on prod (v2 of every
+template; v1 superseded).
+
+### Stage 2 — moving existing workflows (built 2026-09-30)
+
+**Legacy steps, derived on read** (`plan-membership.ts`, no schema): a step
+row is *legacy* when its module is still on the job but its key is not a
+step of the pinned version (a correction follows the step it corrects; a
+manual task never is; a removed trade's rows are not). `read.ts` folds them
+into one collapsed "Earlier version of this workflow" group
+(`LEGACY_PHASE_KEY`, `phase.legacy`), outside `progress`; rows there are
+read-only in the panel and hidden from chip-filtered views. `summary.ts`
+counts open and closed steps against the pinned versions' keys (one extra
+query), so the jobs list, board and health widget agree with the tab.
+`reports.mostSkipped` ignores `MIGRATION_SKIP_REASON`.
+
+**`migrate.ts`** — `planMigration` (pure, `migrate.test.ts`) is the whole
+decision; `migrateInstance` loads, plans and applies. Not `reconcile`.
+- A row whose key lives on (`absorbs[key]` lists itself) is the same row:
+  done or skipped-by-a-person stays as it is (only re-filed under the
+  streamlined phase / order); open takes the new title, description, role,
+  checklist, gate (`internal.definition`), and is offered to the new role's
+  person when it changed hands or had no owner; an engine-skipped one that
+  the plan now includes is reinstated.
+- A new step is **born done** when every earlier step it replaces that
+  existed on the job (engine-skipped ones did not) is completed or skipped
+  by a person, with at least one completed — it keeps the latest date and
+  that person (`internal.completion`). Otherwise an open new step gets a
+  RECONCILED line "already done on the earlier workflow: …" (no checklist
+  lines are pre-ticked — the mapping is step-level), and inherits a single
+  shared owner, IN_PROGRESS / BLOCKED (+ reason) and a hand-locked date.
+- Every other open earlier step is retired: `CANCELLED` +
+  `MIGRATION_SKIP_REASON` ("Workflow: replaced by the streamlined
+  workflow"). Completed, people-skipped and already-retired rows are never
+  touched. Manual tasks move to the streamlined phase their old phase became
+  (`SLIM_PHASE_MAP`). Steps added in the editor are retired and reported.
+- Scope toggles map through `SLIM_TOGGLE_MAP` (OR); permit status and
+  decision are never written.
+- A failed inspection waiting on corrections, or an open correction task,
+  **blocks** the instance: a person settles it, then the script is re-run.
+- Apply: one transaction re-pins every module and `materializePlan`s;
+  then idempotent `updateTask` calls with `internal.quiet` (no transition
+  cascade, no lead-activity row), one `sweepActivation(…, {notify:false})`,
+  a due floor of now + 5 business days on active open steps (not on
+  COMPLIANCE_DEADLINE / HEARING_DATE anchors, not on locked dates),
+  `maybeCompleteInstance`, one lead activity line, audit
+  `workflow_migrate_slim` with the previous pins and toggles. A repeated
+  run changes nothing (`upToDate` keeps a ticked checklist from being
+  reset).
+
+**Script** `scripts/migrate-workflows-slim-2026-10.ts`: `--inventory`
+(versions + generation, every workflow's pins / rows / in-flight work, role
+defaults; writes nothing), dry run by default, `--yes`, `--only <JOB-n |
+CV-n>`, `--include-closed`, `--grace-days`, `--force`. Refuses when the
+published versions are not the streamlined generation. Prints per instance
+what is born done / partly done / inherited and the two invariants
+(nothing deleted, completed count = before + born done).
+
+Dev QA 2026-09-30 (dev DB dumped first, restored after): JOB-00001 (Core +
+Roofing editor-v2 + D&W, 180 rows) → 32 streamlined steps, 27 created, 164
+retired, dry-in inspection born done, editor step reported; with a staged
+state (5 more completed, one people-skip, one IN_PROGRESS with a locked
+date, a manual task in `core:preconstruction`, and a v1 case CV-00001 made
+by temporarily re-publishing v1) everything landed as designed: partly-done
+note on Preconstruction plan, roof scope IN_PROGRESS on 10/20 locked, manual
+task under Job Setup, the case 57 → 24 steps with "Review the notice" born
+done, 0 open steps outside their pins, 0 notifications, second run
+unchanged. `qa-migrate-ui.js` 9/9 (tab progress 3/32, jobs-list 9%, one
+Earlier version group of 175 rows, no "Removed:" buckets). Dev is left with
+JOB-00001 migrated and no QA rows.
+
+Next: Stage 3 completion UX, Stage 4 "Complete this phase".
 
 ## Not yet
 

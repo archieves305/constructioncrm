@@ -362,7 +362,8 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
         {(data.phases ?? []).map((phase) => {
           const rows = phase.taskIds.map((id) => tasksById.get(id)).filter((t): t is WorkflowTaskItem => Boolean(t));
           const visible = rows.filter(matches);
-          if (chip && visible.length === 0) return null;
+          // The chips count the current workflow; the earlier version's rows stay out of a filtered view.
+          if (chip && (visible.length === 0 || phase.legacy)) return null;
           const allClosed = phase.progress.done + phase.progress.skipped === phase.progress.total;
           let n = 0;
           return (
@@ -370,9 +371,9 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
               key={phase.key}
               phase={phase}
               visibleCount={visible.length}
-              defaultOpen={!allClosed}
+              defaultOpen={!allClosed && !phase.legacy}
               forceOpen={Boolean(chip)}
-              onAddTask={data.permissions.canCoordinate ? () => setAddPhaseKey(phase.key) : undefined}
+              onAddTask={data.permissions.canCoordinate && !phase.legacy ? () => setAddPhaseKey(phase.key) : undefined}
             >
               {visible.map((t) => (
                 <WorkflowTaskRow
@@ -380,8 +381,8 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
                   task={t}
                   index={(n += 1)}
                   users={users}
-                  canEdit={mayEditRow(t)}
-                  canCoordinate={data.permissions.canCoordinate}
+                  canEdit={!phase.legacy && mayEditRow(t)}
+                  canCoordinate={!phase.legacy && data.permissions.canCoordinate}
                   onOpen={() => setOpenTaskId(t.id)}
                   onUpdate={(patch) => rowUpdate(t, patch)}
                   onSkip={() => setSkipTarget(t)}

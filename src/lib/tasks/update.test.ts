@@ -323,6 +323,71 @@ describe("updateTask — workflow steps", () => {
     expect(recordTaskEvent.mock.calls.some((c) => (c[0] as { type: string; toValue?: string }).type === "ACTIVATED" && (c[0] as { toValue?: string }).toValue === "out_of_order")).toBe(true);
   });
 
+  it("a quiet engine run completes a step with its carried date and person, no cascade and no activity row", async () => {
+    const { onTaskTransition } = await import("./transitions");
+    vi.mocked(onTaskTransition).mockClear();
+    db.task.findUnique.mockResolvedValue({ ...step, requiredEvidence: "ATTACHMENT", checklist: [{ key: "item_1", label: "Signed", done: false }] });
+    const at = new Date("2026-09-10T15:00:00Z");
+    await updateTask({
+      id: "t1",
+      input: { status: "COMPLETED" },
+      actorUserId: "u-richard",
+      notify: "none",
+      internal: { quiet: true, bypassEvidence: true, tickChecklist: true, completion: { at, byUserId: "u-pm" } },
+    });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data.completedAt).toBe(at);
+    expect(data.completedBy).toEqual({ connect: { id: "u-pm" } });
+    expect(data.checklist[0].done).toBe(true);
+    expect(db.activityLog.create).not.toHaveBeenCalled();
+    expect(onTaskTransition).not.toHaveBeenCalled();
+    // The same completion without `quiet` does both.
+    await updateTask({ id: "t1", input: { status: "COMPLETED" }, actorUserId: "u-richard", notify: "none", internal: { bypassEvidence: true, tickChecklist: true } });
+    expect(db.activityLog.create).toHaveBeenCalledTimes(1);
+    expect(onTaskTransition).toHaveBeenCalledTimes(1);
+  });
+
+  it("an engine definition patch replaces the step's template fields and its checklist, unticked", async () => {
+    db.task.findUnique.mockResolvedValue({ ...step, requiredEvidence: "ATTACHMENT", checklist: [{ key: "item_1", label: "Old line", done: true }] });
+    await updateTask({
+      id: "t1",
+      input: { title: "Confirm roof system and scope" },
+      actorUserId: "u-richard",
+      notify: "none",
+      internal: {
+        quiet: true,
+        definition: {
+          phaseKey: "roofing:scope_review",
+          sortOrder: 60,
+          role: "PROJECT_MANAGER",
+          anchor: "JOB_CREATED",
+          dueOffsetBusinessDays: 3,
+          blocking: true,
+          requiredEvidence: null,
+          requiredEvidenceParam: null,
+          checklist: [{ key: "item_1", label: "Measurements verified" }, { key: "item_2", label: "System matches the contract" }],
+          deactivate: true,
+        },
+      },
+    });
+    const data = db.task.update.mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      title: "Confirm roof system and scope",
+      workflowPhaseKey: "roofing:scope_review",
+      workflowSortOrder: 60,
+      workflowRole: "PROJECT_MANAGER",
+      workflowAnchor: "JOB_CREATED",
+      dueOffsetBusinessDays: 3,
+      blocking: true,
+      requiredEvidence: null,
+      activatedAt: null,
+    });
+    expect(data.checklist).toEqual([
+      { key: "item_1", label: "Measurements verified", done: false, doneAt: null, doneByUserId: null },
+      { key: "item_2", label: "System matches the contract", done: false, doneAt: null, doneByUserId: null },
+    ]);
+  });
+
   it("ordinary tasks are untouched by the workflow rules", async () => {
     db.task.findUnique.mockResolvedValue({ ...existing, workflowTaskKey: null, workflowInstanceId: null });
     await updateTask({ id: "t1", input: { status: "CANCELLED" }, actorUserId: "u-jo", actorRole: "SALES_REP", notify: "none" });

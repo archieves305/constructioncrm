@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import type { Prisma, RoleName } from "@/generated/prisma/client";
+import type { Prisma, RoleName, WorkflowAnchor, WorkflowEvidenceType, WorkflowRole } from "@/generated/prisma/client";
 import type { UpdateTaskInput } from "@/lib/validators/task";
 import type { TaskOwnership } from "./access";
 import { diffTask, recordTaskEvent, recordTaskEvents, type TaskSnapshot } from "./events";
@@ -61,7 +61,36 @@ export type UpdateTaskArgs = {
    * itself just satisfied (deciding the permit status IS the evidence for
    * "Determine permit requirement"). Never reachable from the API.
    */
-  internal?: { bypassEvidence?: boolean; tickChecklist?: boolean; bypassGate?: boolean };
+  internal?: {
+    bypassEvidence?: boolean;
+    tickChecklist?: boolean;
+    bypassGate?: boolean;
+    /**
+     * A batch run that re-plans a whole workflow (the generation migration):
+     * no transition cascade and no lead-activity row per step. The caller
+     * sweeps activation once when it is done.
+     */
+    quiet?: boolean;
+    /** A completion carried over from an earlier version of the step keeps its date and its person. */
+    completion?: { at: Date; byUserId: string | null };
+    /** Replace the template-derived definition of a step whose key lives on in a new generation. */
+    definition?: StepDefinitionPatch;
+  };
+};
+
+/** The fields a step takes from its template. `checklist` replaces the list, unticked. */
+export type StepDefinitionPatch = {
+  phaseKey?: string;
+  sortOrder?: number;
+  role?: WorkflowRole;
+  anchor?: WorkflowAnchor;
+  dueOffsetBusinessDays?: number;
+  blocking?: boolean;
+  requiredEvidence?: WorkflowEvidenceType | null;
+  requiredEvidenceParam?: string | null;
+  checklist?: { key: string; label: string }[];
+  /** Back to Not active; the caller's sweep decides whether it is Ready. */
+  deactivate?: boolean;
 };
 
 export type UpdateTaskResult = {
@@ -199,6 +228,22 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
   // Checklist ticks, merged by key. Applied before the completion gate so
   // "tick the last box and complete" works in one save.
   let checklist = readChecklist(existing.checklist);
+  const def = args.internal?.definition;
+  if (def) {
+    if (def.phaseKey !== undefined) data.workflowPhaseKey = def.phaseKey;
+    if (def.sortOrder !== undefined) data.workflowSortOrder = def.sortOrder;
+    if (def.role !== undefined) data.workflowRole = def.role;
+    if (def.anchor !== undefined) data.workflowAnchor = def.anchor;
+    if (def.dueOffsetBusinessDays !== undefined) data.dueOffsetBusinessDays = def.dueOffsetBusinessDays;
+    if (def.blocking !== undefined) data.blocking = def.blocking;
+    if (def.requiredEvidence !== undefined) data.requiredEvidence = def.requiredEvidence;
+    if (def.requiredEvidenceParam !== undefined) data.requiredEvidenceParam = def.requiredEvidenceParam;
+    if (def.deactivate) data.activatedAt = null;
+    if (def.checklist !== undefined) {
+      checklist = def.checklist.map((c) => ({ key: c.key, label: c.label, done: false, doneAt: null, doneByUserId: null }));
+      data.checklist = checklist as unknown as Prisma.InputJsonValue;
+    }
+  }
   const ticks = args.internal?.tickChecklist ? checklist.map((c) => ({ key: c.key, done: true })) : input.checklist;
   if (ticks?.length && checklist.length > 0) {
     const merged = mergeChecklist(checklist, ticks, { userId: actorUserId, now });
@@ -250,8 +295,8 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
     data.status = input.status;
 
     if (input.status === "COMPLETED") {
-      data.completedAt = now;
-      data.completedBy = { connect: { id: actorUserId } };
+      data.completedAt = args.internal?.completion?.at ?? now;
+      data.completedBy = { connect: { id: args.internal?.completion?.byUserId ?? actorUserId } };
     } else if (existing.status === "COMPLETED") {
       // Reopening. Both must be cleared: `undefined` means "leave alone" in
       // Prisma, so the old code left a stale completion on an open task.
@@ -316,7 +361,7 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
     });
   }
 
-  if (statusChanged && task.status === "COMPLETED" && task.leadId) {
+  if (statusChanged && task.status === "COMPLETED" && task.leadId && !args.internal?.quiet) {
     await prisma.activityLog.create({
       data: {
         leadId: task.leadId,
@@ -345,7 +390,7 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
 
   // Wake up whatever was waiting on this step. Inline, so the next task
   // exists by the time the response goes back; never throws.
-  if (statusChanged && inWorkflow) {
+  if (statusChanged && inWorkflow && !args.internal?.quiet) {
     await onTaskTransition({ taskId: id, from: existing.status, to: task.status, actorUserId, actorRole: args.actorRole ?? null });
   }
 

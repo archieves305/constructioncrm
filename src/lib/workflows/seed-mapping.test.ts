@@ -44,6 +44,17 @@ describe("v1 → streamlined mapping", () => {
     expect(Object.values(SLIM_ABSORBS).every((from) => from.length > 0)).toBe(true);
   });
 
+  it("a step whose key exists in both generations lists itself — the row lives on and answers for itself", () => {
+    const v1 = new Set(stepKeys(V1));
+    for (const key of stepKeys(SLIM).filter((k) => v1.has(k))) {
+      expect(SLIM_ABSORBS[key], key).toContain(key);
+    }
+    // …and only such a step may list its own key.
+    for (const [key, from] of Object.entries(SLIM_ABSORBS)) {
+      if (from.includes(key)) expect(v1.has(key), key).toBe(true);
+    }
+  });
+
   it("never carries a step across the permit branches", () => {
     const branch = (defs: TemplateDefinition[]) => new Map<string, string | null>(defs.flatMap((d) => d.tasks.map((t) => [`${d.key}:${t.key}`, t.conditionPermit] as const)));
     const from = branch(V1);

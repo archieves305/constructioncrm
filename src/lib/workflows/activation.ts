@@ -167,7 +167,12 @@ export async function onTaskClosed(input: { taskId: string; actorUserId: string 
  * are already satisfied. Used after the graph changes shape (permit decided,
  * trade added) — a plain "wake up whatever is ready now".
  */
-export async function sweepActivation(instanceId: string, actorUserId: string | null, now: Date = new Date()): Promise<string[]> {
+export async function sweepActivation(
+  instanceId: string,
+  actorUserId: string | null,
+  now: Date = new Date(),
+  opts: { notify?: boolean } = {},
+): Promise<string[]> {
   const ctx = await loadScheduleContext(prisma, instanceId);
   if (!ctx) return [];
   const waiting = await prisma.task.findMany({
@@ -176,11 +181,14 @@ export async function sweepActivation(instanceId: string, actorUserId: string | 
   });
   const ready = waiting.filter((t) => isReady(t.dependencies.map((d) => ({ kind: d.kind, status: d.dependsOn.status }))));
   const activated = await activateTasks(prisma, ready, { reason: "dependencies", actorUserId, ctx, now });
-  notifyTasksReady(
-    ready.filter((t) => activated.includes(t.id) && t.assignedUserId).map((t) => t.id),
-    actorUserId,
-    `wf-sweep:${instanceId}:${now.getTime()}`,
-  );
+  // A batch run that re-plans a whole job (the generation migration) stays quiet.
+  if (opts.notify !== false) {
+    notifyTasksReady(
+      ready.filter((t) => activated.includes(t.id) && t.assignedUserId).map((t) => t.id),
+      actorUserId,
+      `wf-sweep:${instanceId}:${now.getTime()}`,
+    );
+  }
   return activated;
 }
 

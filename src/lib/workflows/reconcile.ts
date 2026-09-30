@@ -39,6 +39,8 @@ export class ReconcileError extends Error {
 /** Engine-made skips carry this prefix so a re-plan can tell them from a person's. */
 export const ENGINE_SKIP_PREFIX = "Workflow: ";
 export const SCOPE_SKIP_REASON = `${ENGINE_SKIP_PREFIX}scope changed — this step is no longer included`;
+/** The skip a step of the earlier template generation carries after its job was migrated. */
+export const MIGRATION_SKIP_REASON = `${ENGINE_SKIP_PREFIX}replaced by the streamlined workflow`;
 
 export type ReconcileChange =
   | {

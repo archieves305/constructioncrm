@@ -180,6 +180,15 @@ describe("leadTimes", () => {
 });
 
 describe("mostSkipped", () => {
+  it("ignores steps retired when a job moved to the streamlined templates", () => {
+    expect(
+      R.mostSkipped([
+        task({ status: "CANCELLED", skipReason: "Workflow: replaced by the streamlined workflow", workflowTaskKey: "roofing:mobilize", title: "Mobilize" }),
+        task({ status: "CANCELLED", skipReason: "Workflow: replaced by the streamlined workflow", workflowTaskKey: "roofing:verify_drainage", title: "Verify drainage" }),
+      ]),
+    ).toEqual([]);
+  });
+
   it("separates people's skips from engine skips and ranks by people's", () => {
     const rows = R.mostSkipped([
       task({ status: "CANCELLED", skipReason: "Customer supplied", workflowTaskKey: "roofing:order_materials", title: "Order materials" }),

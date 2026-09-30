@@ -12,7 +12,7 @@ import { formatAddressLine } from "@/lib/labels/address";
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 import { DETERMINE_PERMIT_FULL_KEY, fullKey, splitFullKey } from "./keys";
-import { ENGINE_SKIP_PREFIX } from "./reconcile";
+import { ENGINE_SKIP_PREFIX, MIGRATION_SKIP_REASON } from "./reconcile";
 import { WORKFLOW_ROLE_LABEL } from "./role-labels";
 import { PHASE_BANDS } from "./templates/types";
 import { loadJobWorkflowSummaries, type JobWorkflowSummary, type SummaryModule, type SummaryPhase } from "./summary";
@@ -371,6 +371,8 @@ export function mostSkipped(tasks: ReportTask[], limit = 15): SkippedStepRow[] {
   const rows = new Map<string, SkippedStepRow>();
   for (const t of tasks) {
     if (!t.workflowTaskKey || t.status !== "CANCELLED" || !t.skipReason) continue;
+    // A job moved to the streamlined templates retires its old steps; that says nothing about the step.
+    if (t.skipReason === MIGRATION_SKIP_REASON) continue;
     const r = rows.get(t.workflowTaskKey) ?? { key: t.workflowTaskKey, title: t.title, count: 0, userSkips: 0, engineSkips: 0, lastReason: null };
     r.count++;
     if (t.skipReason.startsWith(ENGINE_SKIP_PREFIX)) r.engineSkips++;

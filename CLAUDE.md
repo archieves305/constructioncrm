@@ -45,10 +45,17 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `postgres-2026-09-30-123514.dump`) **and seeded on prod**: dry run clean
    (no editor-made versions), every template's streamlined generation
    created as v2, v1 superseded, second run unchanged ×10. New jobs and
-   cases now get the streamlined workflow; the 8 jobs + 3 cases on v1 stay
-   there until Stage 2. Stage 2 =
-   migrate the open v1 jobs and cases; Stage 3 = completion UX; Stage 4 =
-   "Complete this phase". Notes:
+   cases now get the streamlined workflow. **Stage 2 (move the open v1 jobs
+   and cases) built + dev-QA'd 2026-09-30 on `workflows-migrate`,
+   fast-forwarded to `main`**: legacy steps derived on read and folded into
+   an "Earlier version" group outside the progress (`plan-membership.ts`,
+   `read.ts`, `summary.ts`), pure `planMigration` + `migrateInstance`
+   (`migrate.ts`), engine-only `updateTask` options (`quiet`, `completion`,
+   `definition`), quiet `sweepActivation`,
+   `scripts/migrate-workflows-slim-2026-10.ts` (`--inventory`, dry run,
+   `--only`, `--yes`). No migration. **Not deployed; the prod run is
+   Richard's call after he reads the dry-run report.** Stage 3 = completion
+   UX; Stage 4 = "Complete this phase". Notes:
    [features/workflows.md](docs/project-memory/features/workflows.md).
 000000. ✅ **Operations Calendar / My Work — all four phases on prod** — four phases, plan approved
    2026-09-27 (`~/.claude/plans/woolly-swinging-mist.md`). **Phase 1
@@ -267,6 +274,34 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-30 — Streamlined workflows, Stage 2: moving existing workflows (built, dev-QA'd, on `main`, not deployed)
+
+"everything looks good. continue". Built on `workflows-migrate`:
+`plan-membership.ts` (`isLegacyStep` — module still on the job, key not in
+the pinned version), `read.ts` "Earlier version of this workflow" group
+(`phase.legacy`, outside `progress`; manual tasks under a vanished phase go
+to Other), `summary.ts` counting against pinned step keys,
+`MIGRATION_SKIP_REASON` (ignored by `mostSkipped`), `updateTask`
+`internal.quiet` / `completion` / `definition`, `sweepActivation(…,
+{notify})`, `migrate.ts` (`planMigration` pure: refresh rows that live on,
+born-done and partly-done new steps, inherited owner / status / locked
+date, retire the rest, blockers for a failed inspection in flight, toggle
+map, resume-safe; `migrateInstance`: one transaction to re-pin + create,
+then quiet idempotent writes, sweep, due floor, audit
+`workflow_migrate_slim`), panel rendering of the legacy group, and the
+script. Two choices narrower than the plan: a partly-done merged step gets
+a timeline line naming what was done instead of pre-ticked checklist lines
+(the mapping is step-level), and manual-task dependency edges are left
+alone (a closed predecessor already satisfies them). Found in dev QA and
+fixed: a job applied on the streamlined templates and later given a second
+trade read as "needs refreshing" (its rows keep the order they were created
+in) — position is now compared only on a first migration. Gate: typecheck
+clean, lint 6/22, 1237 tests (+28), build clean. Dev QA: DB dumped, JOB-00001 +
+a staged v1 case migrated and checked by SQL and headless Chromium
+(`qa-migrate-ui.js` 9/9), second run unchanged, DB restored and JOB-00001
+migrated for good. No migration. Details:
+[features/workflows.md](docs/project-memory/features/workflows.md).
 
 ### 2026-09-30 — Streamlined workflows, Stage 1: slim templates for new jobs (deployed `81589ff`, seeded on prod)
 
@@ -1189,6 +1224,9 @@ KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --dry-run
 # Workflow templates (idempotent; seeds by generation; run on prod after any spec change — dry run first)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-workflows.ts --dry-run"'
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-workflows.ts"'
+# Streamlined-workflow migration (one-off; --inventory and the default dry run write nothing; --yes applies; --only JOB-000nn)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/migrate-workflows-slim-2026-10.ts --inventory"'
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/migrate-workflows-slim-2026-10.ts"'
 # Code-violation categories (idempotent; upsert by key, never overwrites a rename)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-violations.ts"'
 # Code-violation deadline cron, by hand (droplet; idempotent per day)
@@ -1287,6 +1325,10 @@ Notification Digests).
   a version's lineage (`sourceVersionId`); a job on the earlier generation
   moves by migration. Streamlined steps require evidence only where the CRM
   reads the fact from its own records — never a photo, attachment or note.
+  A migrated job keeps every earlier row: they are **legacy** (derived on
+  read, `isLegacyStep`), shown as "Earlier version" and left out of every
+  progress count — any new code that counts workflow steps must exclude
+  them the same way.
 - **A workflow's subject is a Job or a CodeViolationCase, never both**
   (DB CHECK). A case runs one `VIOLATION` template alone — never Core —
   and its tasks carry `violationCaseId + leadId`, never `jobId`.
@@ -1322,17 +1364,19 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Streamlined workflows, Stage 1 is on prod (`81589ff`, BUILD_ID
-> `c2QPO63nhZnwCjo8nwLAb`) and the streamlined templates are seeded (v2 of
-> every template).** Next: Richard applies a workflow to a new job (expect
-> ~18–24 steps, five Ready) and checks Admin → Stage task templates for the
-> "Skipped with a workflow" ticks (15 on dev; prod count unverified).
-> Then Stage 2: `plan-membership.ts` + legacy folding in `read.ts` /
-> `summary.ts`, `migrate.ts` (pure planner + applier, engine-only
-> `internal` options on `updateTask`), `scripts/migrate-workflows-slim-2026-10.ts`
-> (`--inventory`, dry run, `--only`, `--yes`). Before it runs Richard sets
-> Admin → Workflow Roles (Permit coordinator, Accounting, Office admin,
-> Superintendent). Until then a v1 job cannot add a trade.
+> **Streamlined workflows: Stage 1 is on prod and seeded; Stage 2 (the
+> migration) is on `main`, not deployed.** Next: Richard pushes and deploys
+> (no migration), then on prod `migrate-workflows-slim-2026-10.ts
+> --inventory` and the plain dry run (§7) — both write nothing. Richard
+> reads the per-job report (what is born done, what is retired, any
+> "blocked" job with a failed inspection in flight) and sets Admin →
+> Workflow Roles if the inventory shows roles resolving to nobody. Then, in
+> a quiet window: note the deploy's DB backup (or take a fresh one), `--only
+> <one job> --yes`, check that job's Workflow tab (progress on the
+> streamlined steps, one collapsed "Earlier version" group), then `--yes`
+> for the rest. The migration is not reversible in place — the undo is the
+> backup. Until it runs, a v1 job cannot add a trade. After it: Stage 3
+> (completion UX) and Stage 4 ("Complete this phase").
 
 > **Operations Calendar Phase 1 is on prod and clicked through; the Jobs
 > table hides closed jobs by default (`a067ac8`, BUILD_ID

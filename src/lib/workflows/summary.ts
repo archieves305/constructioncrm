@@ -2,6 +2,7 @@ import type { JobWorkflowStatus, PermitInspectionResult, Prisma, TaskStatus, Wor
 import { prisma } from "@/lib/db/prisma";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 import { fullKey, splitFullKey } from "./keys";
+import { isLegacyStep, pinnedStepsOf } from "./plan-membership";
 
 /**
  * One line per job about its workflow — what the jobs list, the production
@@ -146,9 +147,11 @@ export function summarizeInstance(
 }
 
 /**
- * Summaries for a page of jobs, keyed by job id. Three queries whatever the
- * page size: instances with modules, open step rows, and a status groupBy for
- * the closed tallies. Jobs without a workflow are simply absent.
+ * Summaries for a page of jobs, keyed by job id. A fixed number of queries
+ * whatever the page size: instances with modules, open step rows, the closed
+ * step rows (key + status only) and the pinned versions' phases and step
+ * keys. Steps of an earlier template version are history, not progress, and
+ * are left out of every count. Jobs without a workflow are simply absent.
  */
 export async function loadJobWorkflowSummaries(jobIds: string[], now = new Date()): Promise<Map<string, JobWorkflowSummary>> {
   const out = new Map<string, JobWorkflowSummary>();
@@ -185,7 +188,7 @@ async function loadWorkflowSummariesWhere(where: Prisma.JobWorkflowInstanceWhere
 
   const instanceIds = instances.map((i) => i.id);
   const versionIds = Array.from(new Set(instances.flatMap((i) => i.modules.map((m) => m.templateVersionId))));
-  const [openTasks, grouped, phaseRows] = await Promise.all([
+  const [openTasks, closedSteps, phaseRows, stepRows] = await Promise.all([
     prisma.task.findMany({
       where: { workflowInstanceId: { in: instanceIds }, status: { in: [...OPEN_TASK_STATUSES] } },
       select: {
@@ -199,32 +202,49 @@ async function loadWorkflowSummariesWhere(where: Prisma.JobWorkflowInstanceWhere
         inspectionResult: true,
       },
     }),
-    prisma.task.groupBy({
-      by: ["workflowInstanceId", "status"],
-      where: { workflowInstanceId: { in: instanceIds }, workflowTaskKey: { not: null } },
-      _count: { _all: true },
+    prisma.task.findMany({
+      where: { workflowInstanceId: { in: instanceIds }, workflowTaskKey: { not: null }, status: { notIn: [...OPEN_TASK_STATUSES] } },
+      select: { workflowInstanceId: true, status: true, workflowTaskKey: true },
     }),
     prisma.workflowPhase.findMany({
       where: { versionId: { in: versionIds } },
       select: { versionId: true, key: true, name: true, band: true, sortOrder: true },
     }),
+    prisma.workflowTaskTemplate.findMany({ where: { versionId: { in: versionIds } }, select: { versionId: true, key: true } }),
   ]);
 
+  const pinnedByInstance = new Map(
+    instances.map((inst) => [
+      inst.id,
+      pinnedStepsOf(
+        inst.modules.flatMap((m) => stepRows.filter((s) => s.versionId === m.templateVersionId).map((s) => ({ moduleKey: m.templateKey, stepKey: s.key }))),
+        inst.modules.map((m) => m.templateKey),
+      ),
+    ]),
+  );
+
   const tasksByInstance = new Map<string, SummaryTask[]>();
+  const countsByInstance = new Map<string, { total: number; done: number; skipped: number }>();
+  const countsFor = (instanceId: string) => {
+    const c = countsByInstance.get(instanceId) ?? { total: 0, done: 0, skipped: 0 };
+    countsByInstance.set(instanceId, c);
+    return c;
+  };
   for (const t of openTasks) {
     if (!t.workflowInstanceId) continue;
+    if (isLegacyStep(t.workflowTaskKey, pinnedByInstance.get(t.workflowInstanceId)!)) continue;
     const list = tasksByInstance.get(t.workflowInstanceId) ?? [];
     list.push(t);
     tasksByInstance.set(t.workflowInstanceId, list);
+    if (t.workflowTaskKey) countsFor(t.workflowInstanceId).total += 1;
   }
-  const countsByInstance = new Map<string, { total: number; done: number; skipped: number }>();
-  for (const g of grouped) {
-    if (!g.workflowInstanceId) continue;
-    const c = countsByInstance.get(g.workflowInstanceId) ?? { total: 0, done: 0, skipped: 0 };
-    c.total += g._count._all;
-    if (g.status === "COMPLETED") c.done += g._count._all;
-    if (g.status === "CANCELLED") c.skipped += g._count._all;
-    countsByInstance.set(g.workflowInstanceId, c);
+  for (const t of closedSteps) {
+    if (!t.workflowInstanceId) continue;
+    if (isLegacyStep(t.workflowTaskKey, pinnedByInstance.get(t.workflowInstanceId)!)) continue;
+    const c = countsFor(t.workflowInstanceId);
+    c.total += 1;
+    if (t.status === "COMPLETED") c.done += 1;
+    if (t.status === "CANCELLED") c.skipped += 1;
   }
 
   for (const inst of instances) {

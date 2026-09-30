@@ -37,7 +37,7 @@ export function PhaseSection({
   forceOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const tone = STAGE_TONES[phaseToneKey(phase.band)];
+  const tone = STAGE_TONES[phase.legacy ? "done" : phaseToneKey(phase.band)];
   const p = phase.progress;
   const closed = p.done + p.skipped;
   const isOpen = forceOpen || open;
@@ -49,12 +49,18 @@ export function PhaseSection({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold">{phase.name}</span>
-            {phase.moduleKey !== "core" && <span className={cn("rounded-full px-1.5 text-[10px] font-medium", tone.pill)}>{phase.moduleName}</span>}
+            {phase.moduleKey !== "core" && !phase.legacy && <span className={cn("rounded-full px-1.5 text-[10px] font-medium", tone.pill)}>{phase.moduleName}</span>}
+            {phase.legacy && <span className="rounded-full bg-tone-neutral-soft px-1.5 text-[10px] text-tone-neutral-fg">history</span>}
             {phase.conditionPermit === "REQUIRED" && <span className="rounded-full bg-tone-info-soft px-1.5 text-[10px] text-tone-info-fg">permit branch</span>}
             {phase.conditionPermit === "NOT_REQUIRED" && <span className="rounded-full bg-tone-neutral-soft px-1.5 text-[10px] text-tone-neutral-fg">no-permit branch</span>}
             {p.overdue > 0 && <span className="rounded-full bg-tone-danger-soft px-1.5 text-[10px] font-medium text-tone-danger-fg">{p.overdue} overdue</span>}
             {p.blocked > 0 && <span className="rounded-full bg-tone-warning-soft px-1.5 text-[10px] font-medium text-tone-warning-fg">{p.blocked} blocked</span>}
           </div>
+          {phase.legacy ? (
+            <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+              {p.done} completed · {p.skipped} retired or skipped · not part of the progress above
+            </p>
+          ) : (
           <div className="mt-1 flex items-center gap-2">
             <Progress value={closed} max={p.total} className="h-1 w-32" indicatorClassName={closed === p.total ? "bg-tone-success" : tone.bar} label={`${phase.name} ${closed} of ${p.total}`} />
             <span className="text-[11px] tabular-nums text-muted-foreground">
@@ -64,6 +70,7 @@ export function PhaseSection({
               {visibleCount !== p.total && ` · showing ${visibleCount}`}
             </span>
           </div>
+          )}
         </div>
         <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
       </CollapsibleTrigger>
@@ -73,6 +80,7 @@ export function PhaseSection({
             <Callout tone={phase.conditionPermit === "NOT_REQUIRED" ? "warning" : "info"}>{phase.note}</Callout>
           </div>
         )}
+        {phase.legacy && phase.description && <p className="px-3 pb-2 text-xs text-muted-foreground">{phase.description}</p>}
         <ul className="divide-y border-t">{children}</ul>
         {onAddTask && (
           <div className="border-t px-3 py-1.5">

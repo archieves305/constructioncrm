@@ -6,6 +6,7 @@ import { taskVisibilityFilter, type VisibilityScope } from "@/lib/tasks/access";
 import { loadInstanceModules } from "./load";
 import { resolveToggles } from "./compose";
 import { fullKey, splitFullKey, type ScopeToggleState } from "./keys";
+import { isLegacyStep, pinnedSteps } from "./plan-membership";
 import { unassignedRoles, loadRoleContext } from "./roles";
 import { canApplyWorkflow, canCoordinateWorkflow, canOverrideBlockingGate, canSetPermitStatus, type JobScope } from "./access";
 import { availableUpgrades } from "./versioning";
@@ -82,6 +83,8 @@ function tally(p: PhaseProgress, t: WorkflowTaskRow, now: Date) {
 
 type Viewer = { id: string; role: RoleName };
 
+export const LEGACY_PHASE_KEY = "legacy:earlier_version";
+
 function permissionsFor(user: Viewer, subjectScope: JobScope) {
   return {
     canApply: canApplyWorkflow(user.role),
@@ -118,8 +121,11 @@ export async function readInstanceWorkflow(workflow: InstanceRow, subject: Workf
     sortOrder: number;
     progress: PhaseProgress;
     taskIds: string[];
+    /** Steps of an earlier template version: on record, not part of the workflow's progress. */
+    legacy?: boolean;
   };
   const phases = new Map<string, PhaseOut>();
+  const pinned = pinnedSteps(modules);
   for (const m of modules) {
     for (const p of m.definition.phases) {
       phases.set(fullKey(m.moduleKey, p.key), {
@@ -141,10 +147,39 @@ export async function readInstanceWorkflow(workflow: InstanceRow, subject: Workf
   const overall = emptyProgress();
   const openUnassignedRoles = new Set<WorkflowRole>();
   for (const t of tasks) {
+    // A step the pinned version no longer has (the job moved to a newer
+    // generation): kept as history in one group, outside the progress.
+    if (isLegacyStep(t.workflowTaskKey, pinned)) {
+      let legacy = phases.get(LEGACY_PHASE_KEY);
+      if (!legacy) {
+        legacy = {
+          key: LEGACY_PHASE_KEY,
+          moduleKey: "legacy",
+          moduleName: "Earlier version",
+          shortKey: "earlier_version",
+          name: "Earlier version of this workflow",
+          band: 9998,
+          note: null,
+          description: "Steps from the workflow this job started on. Completed work stays on record; the steps that were still open were replaced by the current workflow.",
+          conditionPermit: null,
+          sortOrder: 0,
+          progress: emptyProgress(),
+          taskIds: [],
+          legacy: true,
+        };
+        phases.set(LEGACY_PHASE_KEY, legacy);
+      }
+      tally(legacy.progress, t, now);
+      legacy.taskIds.push(t.id);
+      continue;
+    }
     tally(overall, t, now);
     const open = t.status === "PENDING" || t.status === "IN_PROGRESS" || t.status === "BLOCKED";
     if (open && !t.assignedUserId && t.workflowRole) openUnassignedRoles.add(t.workflowRole);
-    const pk = t.workflowPhaseKey ?? "other:other";
+    // A manual task filed under a phase the pinned version no longer has
+    // belongs with the other manual tasks, not under a "Removed" heading.
+    const filed = t.workflowPhaseKey ?? "other:other";
+    const pk = !phases.has(filed) && !t.workflowTaskKey && pinned.modules.has(splitFullKey(filed).moduleKey) ? "other:other" : filed;
     let phase = phases.get(pk);
     if (!phase) {
       const { moduleKey, shortKey } = splitFullKey(pk);
