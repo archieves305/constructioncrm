@@ -60,8 +60,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    nothing in flight, JOB-00026 already streamlined; no company role
    default is set. **JOB-00025 migrated on prod 2026-09-30** (fresh backup
    `postgres-2026-09-30-131751.dump` first; 86 → 21 steps, 16 created, 5
-   refreshed, 81 retired, nothing deleted, journal clean); the other 7 jobs
-   and 3 cases wait for Richard's look at that job and his go. Stage 3 = completion
+   refreshed, 81 retired, nothing deleted, journal clean); Richard checked
+   it, then **the other 7 jobs and 3 cases were migrated the same day**
+   (backup `postgres-2026-09-30-132154.dump` first): 10 migrated, invariants
+   ✓ on each, second run `already-migrated 12`, 0 open steps outside their
+   pins, 0 instances on v1, 0 notifications, 11 audit rows, journal clean.
+   Prod workflow steps now: 60 active + 256 waiting open, 25 completed,
+   1,204 retired. **Stage 2 is complete.** Stage 3 = completion
    UX; Stage 4 = "Complete this phase". Notes:
    [features/workflows.md](docs/project-memory/features/workflows.md).
 000000. ✅ **Operations Calendar / My Work — all four phases on prod** — four phases, plan approved
@@ -282,7 +287,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-30 — Streamlined workflows, Stage 2: moving existing workflows (deployed `0ad0f99`; prod dry run done, migration not run)
+### 2026-09-30 — Streamlined workflows, Stage 2: moving existing workflows (deployed `0ad0f99`; all 11 prod workflows migrated)
 
 "everything looks good. continue". Built on `workflows-migrate`:
 `plan-membership.ts` (`isLegacyStep` — module still on the job, key not in
@@ -315,7 +320,14 @@ and dry run (nothing written): JOB-00017 86 → 21 steps, 00018 229 → 39,
 39, 00025 86 → 21, CV-00001 62 → 27, CV-00002 57 → 25, CV-00003 53 → 20;
 no step born done, no blockers, no in-progress / blocked / manual rows,
 one dropped scope option (JOB-00022 interior doors); every role default
-is empty. Details:
+is empty. "please start with job": fresh backup
+`postgres-2026-09-30-131751.dump`, `--only JOB-00025 --yes` (16 created, 5
+refreshed, 81 retired); Richard: "everything looks right"; backup
+`postgres-2026-09-30-132154.dump`, `--yes` → 10 migrated, every invariant
+✓. Verified by SQL: 0 open steps outside their pinned version, 0 instances
+on a superseded version, 0 notification rows in the window, 11
+`workflow_migrate_slim` audit rows, journal clean. 9 active steps have no
+owner (no role defaults were set). Details:
 [features/workflows.md](docs/project-memory/features/workflows.md).
 
 ### 2026-09-30 — Streamlined workflows, Stage 1: slim templates for new jobs (deployed `81589ff`, seeded on prod)
@@ -1379,10 +1391,19 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Streamlined workflows: Stages 1 and 2 are on prod (`0ad0f99`, BUILD_ID
-> `_uoyVpElQCqjPaNXDQhtw`); JOB-00025 is migrated (backup
-> `postgres-2026-09-30-131751.dump`), the other 7 jobs and 3 cases are
-> not.** The prod dry run is clean (none blocked). Next:
+> **Streamlined workflows: Stages 1 and 2 are done — every prod workflow
+> (8 jobs migrated + JOB-00026 applied streamlined, 3 cases) is on the
+> streamlined templates (`0ad0f99`, BUILD_ID `_uoyVpElQCqjPaNXDQhtw`).**
+> Next is Stage 3 (completion UX) on a new branch: upload + tick-all in the
+> Complete dialog, one-click complete on ungated rows, `/tasks` checkbox
+> opening the sheet on a gated step, field-mode photo attach,
+> `taskRightsFor` (coordinator PATCH mismatch), panel opening on what is
+> actionable + owner banner counting active steps only,
+> `completeSatisfiedGates`, role-default back-fill
+> (`PUT /api/admin/workflow-role-defaults` → `reassignUnresolved`; 9 active
+> prod steps have no owner and every default is empty), scope change
+> refreshing open checklists. Then Stage 4 ("Complete this phase"). The
+> paragraph below is the pre-migration runbook, kept for the record. Next:
 > Richard sets Admin → Workflow Roles first (every default is empty, and
 > saving a default does not back-fill existing steps until Stage 3), then
 > gives the go. Then, in a quiet window: note the deploy's DB backup (or take a fresh one), `--only
