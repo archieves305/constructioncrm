@@ -473,7 +473,37 @@ the page's search key is `q`), and as a SALES_REP who is a job's PM: PATCH a
 step on his job 200 (`viewer.canEdit` true), on another job 403, skipping a
 blocking gate still 403.
 
-Next: Stage 4 "Complete this phase".
+### Stage 4 — "Complete this phase" (built 2026-09-30)
+
+For work done away from the CRM. `catch-up.ts`: pure `planCatchUp(rows,
+edges, phaseKey, selected?)` + `runCatchUp`; `POST
+/api/{jobs,violations}/[id]/workflow/catch-up` (`phaseKey`, `taskIds?`,
+`dryRun?`); `canCatchUpWorkflow` = ADMIN / MANAGER / OFFICE_STAFF or the
+job's PM / case manager (`permissions.canCatchUp`); `CatchUpDialog` opened
+from "Complete this phase…" in each phase's footer.
+- Only the open steps of one phase, in dependency order; legacy rows,
+  manual tasks and correction tasks are not candidates.
+- Blocking gates arrive **unticked**; a step whose blocking predecessor is
+  open and not in the run is **held** ("Waits on: …").
+- Completion goes through the ordinary `updateTask` path with every
+  checklist line ticked and **no evidence bypass**: a record gate with no
+  record is held with the server's own message (checked in the preview too).
+  An inspection step and `:close_case` are always held.
+- Quiet per step (`internal.quiet`), then one `sweepActivation` (the owners
+  of newly Ready steps are told once), `completeSatisfiedGates`,
+  `maybeCompleteInstance` (+ the corrective-job bridge), one lead activity
+  line, audit `workflow_catch_up`.
+
+Dev QA 2026-09-30 (`qa-catchup.js`, DB restored after): preview on Job Setup
+lists 4 open steps with the two gates unticked; all ticked → "Verify deposit
+received" held with "Record the deposit…"; apply completes 3 with checklists
+ticked and leaves the deposit gate open; unknown phase 400; dialog on Roofing
+Scope shows the gate unticked and its dependent held, ticking the gate
+completes both.
+
+The four stages of the slim-workflow plan are built. Follow-ups if asked:
+archive the v1 template versions nothing pins (closed jobs may still), a
+per-step "what changed" on migrated jobs.
 
 ## Not yet
 

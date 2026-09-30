@@ -73,7 +73,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    "Done" with Undo, panel opening on what is actionable, lists opening a
    gated step instead of a refused tick, field-mode photo attach, record
    gates that complete themselves (`gates.ts`), role-default back-fill,
-   scope change refreshing open checklists. No migration. Not deployed. Stage 3 = completion
+   scope change refreshing open checklists. **Stage 4 ("Complete this
+   phase") built + dev-QA'd 2026-09-30 on `workflows-catch-up`,
+   fast-forwarded to `main`**: `catch-up.ts` (pure planner + runner),
+   catch-up routes for jobs and cases with a dry-run preview,
+   `canCatchUpWorkflow` (office roles + the job's PM / case manager),
+   `CatchUpDialog`; gates arrive unticked, a record gate with no record is
+   held, nothing is bypassed. No migration in either stage. **Stages 3 and
+   4 are on `main`, not deployed.** All four stages of the plan are built. Stage 3 = completion
    UX; Stage 4 = "Complete this phase". Notes:
    [features/workflows.md](docs/project-memory/features/workflows.md).
 000000. ✅ **Operations Calendar / My Work — all four phases on prod** — four phases, plan approved
@@ -293,6 +300,24 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-30 — Streamlined workflows, Stage 4: "Complete this phase" (built, dev-QA'd, on `main`, not deployed)
+
+Built on `workflows-catch-up` straight after Stage 3: `catch-up.ts`
+(`planCatchUp` — open steps of one phase in dependency order, blocking gates
+unticked by default, held when a blocking predecessor is open and outside
+the run, inspection and `:close_case` always held; `runCatchUp` — evidence
+checked in the preview and enforced by the ordinary `updateTask` path with
+checklists ticked, quiet per step, one sweep, `completeSatisfiedGates`,
+instance completion + the corrective-job bridge, activity line, audit
+`workflow_catch_up`), `canCatchUpWorkflow`, `catchUpSchema`, the two routes,
+`useCatchUp`, `CatchUpDialog`, "Complete this phase…" in the phase footer.
+One change from the plan: blocking steps are unticked by default but anyone
+allowed to catch up may tick them — completing a gate one at a time was
+never restricted, only skipping one. Gate: typecheck clean, lint 6/22, 1259
+tests (+7), build clean. Dev QA `qa-catchup.js` 7/7 + dialog 4/4, DB
+restored. No migration. Details:
+[features/workflows.md](docs/project-memory/features/workflows.md).
 
 ### 2026-09-30 — Streamlined workflows, Stage 3: making a step easy to finish (built, dev-QA'd, on `main`, not deployed)
 
@@ -1430,16 +1455,17 @@ Notification Digests).
 > **Streamlined workflows: Stages 1 and 2 are done — every prod workflow
 > (8 jobs migrated + JOB-00026 applied streamlined, 3 cases) is on the
 > streamlined templates (`0ad0f99`, BUILD_ID `_uoyVpElQCqjPaNXDQhtw`).**
-> Next is Stage 3 (completion UX) on a new branch: upload + tick-all in the
-> Complete dialog, one-click complete on ungated rows, `/tasks` checkbox
-> opening the sheet on a gated step, field-mode photo attach,
-> `taskRightsFor` (coordinator PATCH mismatch), panel opening on what is
-> actionable + owner banner counting active steps only,
-> `completeSatisfiedGates`, role-default back-fill
-> (`PUT /api/admin/workflow-role-defaults` → `reassignUnresolved`; 9 active
-> prod steps have no owner and every default is empty), scope change
-> refreshing open checklists. Then Stage 4 ("Complete this phase"). The
-> paragraph below is the pre-migration runbook, kept for the record. Next:
+> **Stages 3 (completion UX) and 4 ("Complete this phase") are built on
+> `main`, not deployed** — no migration in either. Next: Richard pushes and
+> deploys, then clicks through on prod: a job's Workflow tab opens on what is
+> ready ("n to do now in …"), "Complete…" on a step shows Tick all and
+> Attach inside the dialog, "Done" appears once nothing is left to tick
+> (Undo in the toast), recording a deposit completes "Verify deposit
+> received" by itself, "Complete this phase…" at the foot of a phase lists
+> its steps with gates unticked, and on a phone Field → a task offers Take
+> photo. Then he sets Admin → Workflow Roles — saving now assigns the open
+> steps that have no owner (9 active on prod). The paragraph below is the
+> pre-migration runbook, kept for the record. Next:
 > Richard sets Admin → Workflow Roles first (every default is empty, and
 > saving a default does not back-fill existing steps until Stage 3), then
 > gives the go. Then, in a quiet window: note the deploy's DB backup (or take a fresh one), `--only

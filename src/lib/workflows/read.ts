@@ -8,7 +8,7 @@ import { resolveToggles } from "./compose";
 import { fullKey, splitFullKey, type ScopeToggleState } from "./keys";
 import { isLegacyStep, pinnedSteps } from "./plan-membership";
 import { unassignedRoles, loadRoleContext } from "./roles";
-import { canApplyWorkflow, canCoordinateWorkflow, canOverrideBlockingGate, canSetPermitStatus, type JobScope } from "./access";
+import { canApplyWorkflow, canCatchUpWorkflow, canCoordinateWorkflow, canOverrideBlockingGate, canSetPermitStatus, type JobScope } from "./access";
 import { availableUpgrades } from "./versioning";
 import { loadSubject, type WorkflowSubject } from "./subject";
 
@@ -92,6 +92,7 @@ function permissionsFor(user: Viewer, subjectScope: JobScope) {
     canSetPermit: canSetPermitStatus(user, subjectScope),
     canCoordinate: canCoordinateWorkflow(user, subjectScope),
     canOverrideGate: canOverrideBlockingGate(user.role),
+    canCatchUp: canCatchUpWorkflow(user, subjectScope),
   };
 }
 

@@ -25,7 +25,7 @@ import type {
   WorkflowSubjectRef,
   WorkflowTemplateOption,
 } from "./types";
-import { toSubjectRef } from "./types";
+import { toSubjectRef, type CatchUpBody, type CatchUpData } from "./types";
 
 /**
  * Data access for the Workflow tab. Every mutation fans out to the task
@@ -160,6 +160,21 @@ export function useSaveRoleDefaults() {
       toast.success("Role defaults saved — open steps with no owner now go to these people");
     },
     onError: (e: Error) => toast.error(e.message || "Could not save"),
+  });
+}
+
+/** "Complete this phase". `silent` is the preview: no toast, nothing to refresh. */
+export function useCatchUp(subject: SubjectLike, opts: { silent?: boolean } = {}) {
+  const invalidate = useInvalidateWorkflow(subject);
+  return useMutation({
+    mutationFn: (body: CatchUpBody) => post<CatchUpData>(`${workflowBase(subject)}/catch-up`, body),
+    onSuccess: (r) => {
+      if (opts.silent) return;
+      invalidate();
+      const held = r.steps.filter((s) => s.state === "held").length;
+      toast.success(`${r.completed ?? 0} step${r.completed === 1 ? "" : "s"} completed${held > 0 ? ` · ${held} held` : ""}`);
+    },
+    onError: (e: Error) => toast.error(e.message || "Could not complete the phase"),
   });
 }
 

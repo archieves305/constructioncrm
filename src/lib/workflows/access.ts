@@ -48,6 +48,16 @@ export function canCoordinateWorkflow(user: WorkflowActor, job: JobScope): boole
   return OFFICE.has(user.role) || isPm(user, job);
 }
 
+/**
+ * "Complete this phase": close out a phase's open steps in one action when
+ * the work was done away from the CRM. Office roles and whoever runs the job
+ * or case. It completes through the ordinary path, so it cannot put a step
+ * past a record gate — that still needs the record.
+ */
+export function canCatchUpWorkflow(user: WorkflowActor, job: JobScope): boolean {
+  return OFFICE.has(user.role) || isPm(user, job);
+}
+
 /** Skip or override a BLOCKING gate, or complete past missing evidence. Never the PM by relationship. */
 export function canOverrideBlockingGate(role: RoleName | null): boolean {
   return role !== null && ADMIN_MANAGER.has(role);

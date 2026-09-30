@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canApplyWorkflow,
+  canCatchUpWorkflow,
   canCoordinateWorkflow,
   canManageTemplates,
   canOverrideBlockingGate,
@@ -35,6 +36,14 @@ describe("workflow permissions", () => {
     expect(canCoordinateWorkflow(other, job)).toBe(false);
     // A PM never gets to skip a blocking gate on the strength of being PM.
     expect(canOverrideBlockingGate(pm.role)).toBe(false);
+  });
+
+  it("catching a phase up: office roles and whoever runs the job, nobody else", () => {
+    expect(ALL.filter((role) => canCatchUpWorkflow({ id: "x", role }, job))).toEqual(["ADMIN", "MANAGER", "OFFICE_STAFF"]);
+    expect(canCatchUpWorkflow({ id: "pm", role: "SALES_REP" }, job)).toBe(true);
+    // Holding a team slot or being on site is not running the job.
+    expect(canCatchUpWorkflow({ id: "sup", role: "CREW_LEAD" }, job)).toBe(false);
+    expect(canCatchUpWorkflow({ id: "frank", role: "CREW_LEAD" }, job)).toBe(false);
   });
 
   it("team membership covers PM, team slots and field assignment", () => {

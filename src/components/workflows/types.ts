@@ -143,7 +143,7 @@ export type JobWorkflowData = {
     createdAt: string;
     lead?: LeadLabel | null;
   };
-  permissions: { canApply: boolean; canSetPermit: boolean; canCoordinate: boolean; canOverrideGate: boolean };
+  permissions: { canApply: boolean; canSetPermit: boolean; canCoordinate: boolean; canOverrideGate: boolean; canCatchUp?: boolean };
   instance: {
     id: string;
     status: JobWorkflowStatus;
@@ -375,3 +375,15 @@ export type PatchWorkflowBody = {
 export type RoleDefaultRow = { role: WorkflowRole; label: string; user: (Person & { isActive: boolean }) | null; updatedAt: string | null };
 
 export type { Priority, TaskStatus };
+
+export type CatchUpStepData = {
+  id: string;
+  title: string;
+  blocking: boolean;
+  gate: string | null;
+  selected: boolean;
+  state: "ok" | "held" | "unselected";
+  reason: string | null;
+};
+export type CatchUpData = { phaseKey: string; phaseName: string; steps: CatchUpStepData[]; completed?: number; activated?: number };
+export type CatchUpBody = { phaseKey: string; taskIds?: string[]; dryRun?: boolean };

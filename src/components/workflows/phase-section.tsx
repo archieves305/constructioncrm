@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Plus } from "lucide-react";
+import { CheckCheck, ChevronDown, Plus } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ export function PhaseSection({
   visibleCount,
   defaultOpen,
   onAddTask,
+  onCatchUp,
   forceOpen,
 }: {
   phase: WorkflowPhaseItem;
@@ -34,6 +35,8 @@ export function PhaseSection({
   visibleCount: number;
   defaultOpen: boolean;
   onAddTask?: () => void;
+  /** "Complete this phase": offered while the phase has open steps. */
+  onCatchUp?: () => void;
   forceOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -82,11 +85,20 @@ export function PhaseSection({
         )}
         {phase.legacy && phase.description && <p className="px-3 pb-2 text-xs text-muted-foreground">{phase.description}</p>}
         <ul className="divide-y border-t">{children}</ul>
-        {onAddTask && (
-          <div className="border-t px-3 py-1.5">
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={onAddTask}>
-              <Plus className="size-3.5" /> Add task to this phase
-            </Button>
+        {(onAddTask || onCatchUp) && (
+          <div className="flex items-center justify-between border-t px-3 py-1.5">
+            {onAddTask ? (
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={onAddTask}>
+                <Plus className="size-3.5" /> Add task to this phase
+              </Button>
+            ) : (
+              <span />
+            )}
+            {onCatchUp && closed < p.total && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={onCatchUp} title="The work is done — mark the phase's open steps complete in one go">
+                <CheckCheck className="size-3.5" /> Complete this phase…
+              </Button>
+            )}
           </div>
         )}
       </CollapsibleContent>

@@ -90,6 +90,13 @@ export const reconcileChangeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("upgrade-module"), templateKey: key, versionId: z.string().min(1).optional() }),
 ]);
 
+export const catchUpSchema = z.object({
+  phaseKey: z.string().regex(/^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$/, "invalid phase"),
+  /** The steps to complete; omitted = every step that is not a blocking gate. */
+  taskIds: z.array(z.string().min(1)).max(200).optional(),
+  dryRun: z.boolean().optional(),
+});
+
 export const inspectionResultSchema = z.object({
   result: z.enum(["PASS", "FAIL", "CONDITIONAL"]),
   notes: z.string().trim().max(4000).nullable().optional(),

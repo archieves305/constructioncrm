@@ -22,6 +22,7 @@ import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
 import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 import { ApplyWorkflowDialog } from "./apply-workflow-dialog";
+import { CatchUpDialog } from "./catch-up-dialog";
 import { ReconcileDialog, type ReconcileMode } from "./reconcile-dialog";
 import {
   DropdownMenu,
@@ -37,7 +38,7 @@ import { deriveTaskState, PERMIT_STATUS_LABEL, PERMIT_STATUS_TONE, type Workflow
 import { useAddWorkflowTask, useInvalidateWorkflow, usePatchWorkflow, useSubjectWorkflow, workflowKeys } from "./use-workflow";
 import { WorkflowTaskRow } from "./workflow-task-row";
 import { WorkflowTeamDialog } from "./workflow-team-dialog";
-import { subjectInfoOf, type WorkflowSubjectRef, type WorkflowTaskItem } from "./types";
+import { subjectInfoOf, type WorkflowPhaseItem, type WorkflowSubjectRef, type WorkflowTaskItem } from "./types";
 
 type Chip = "ready" | "inProgress" | "blocked" | "overdue" | "notActive" | "skipped" | null;
 
@@ -75,6 +76,7 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
   const [completeTarget, setCompleteTarget] = useState<WorkflowTaskItem | null>(null);
   const [addPhaseKey, setAddPhaseKey] = useState<string | null>(null);
   const [reconcile, setReconcile] = useState<ReconcileMode | null>(null);
+  const [catchUpPhase, setCatchUpPhase] = useState<WorkflowPhaseItem | null>(null);
 
   // `?apply=1` (from the post-Won toast) opens the dialog once, then clears itself.
   const wantsApply = searchParams.get("apply") === "1";
@@ -411,6 +413,7 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
               defaultOpen={actionable && !phase.legacy}
               forceOpen={Boolean(chip)}
               onAddTask={data.permissions.canCoordinate && !phase.legacy ? () => setAddPhaseKey(phase.key) : undefined}
+              onCatchUp={data.permissions.canCatchUp && !phase.legacy && phase.moduleKey !== "other" ? () => setCatchUpPhase(phase) : undefined}
             >
               {visible.map((t) => (
                 <WorkflowTaskRow
@@ -455,6 +458,7 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
           skipTarget && update.mutate({ id: skipTarget.id, patch: { status: "CANCELLED", skipReason: reason } as UpdatePatch }, { onSuccess: () => setSkipTarget(null) })
         }
       />
+      <CatchUpDialog subject={subject} phase={catchUpPhase} open={Boolean(catchUpPhase)} onOpenChange={(o) => !o && setCatchUpPhase(null)} />
       <CompleteTaskDialog
         task={completeTarget ? (tasksById.get(completeTarget.id) ?? completeTarget) : null}
         subject={subject}
