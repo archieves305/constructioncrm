@@ -39,8 +39,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    mix on a job (`compat.ts`), attach on every open step, evidence on record
    gates only, `JobTaskTemplate.skipWhenWorkflow` (migration
    `20261008120000_task_template_skip_when_workflow`), two permit rule tasks
-   stand down, Apply closes the tasks the workflow replaces. **Not deployed;
-   after the deploy the prod seed must run** (dry run first). Stage 2 =
+   stand down, Apply closes the tasks the workflow replaces. **Deployed
+   2026-09-30 as `81589ff`** (BUILD_ID `c2QPO63nhZnwCjo8nwLAb`, migration
+   applied, smoke 307 ×2, journal clean, backup
+   `postgres-2026-09-30-123514.dump`) **and seeded on prod**: dry run clean
+   (no editor-made versions), every template's streamlined generation
+   created as v2, v1 superseded, second run unchanged ×10. New jobs and
+   cases now get the streamlined workflow; the 8 jobs + 3 cases on v1 stay
+   there until Stage 2. Stage 2 =
    migrate the open v1 jobs and cases; Stage 3 = completion UX; Stage 4 =
    "Complete this phase". Notes:
    [features/workflows.md](docs/project-memory/features/workflows.md).
@@ -262,7 +268,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-30 — Streamlined workflows, Stage 1: slim templates for new jobs (built, dev-QA'd, on `main`, not deployed)
+### 2026-09-30 — Streamlined workflows, Stage 1: slim templates for new jobs (deployed `81589ff`, seeded on prod)
 
 Richard: "too many tasks for each workflow… pair them down so that the
 users will actually take the time to do the workflow." Plan-mode (3 explore
@@ -290,6 +296,13 @@ Gate: typecheck clean, lint 6/22, 1209 tests (+50), build clean; dev seed
 (roofing landed at v4 past the editor's v2/v3), `qa-slim-api.js` 19/19,
 `qa-slim-ui.js` 7/7. Migration `20261008120000_task_template_skip_when_workflow`.
 Until Stage 2 runs, a v1 job cannot add a trade (409 with the reason).
+Richard pushed and deployed from `!`: BUILD_ID `gVj4IZE3Efq2TEHiJ0ile` →
+`c2QPO63nhZnwCjo8nwLAb`, migration applied (75), smoke 307 ×2, journal
+clean, backup `postgres-2026-09-30-123514.dump`. Prod seed: dry run showed
+v1 unchanged ×5 and v2 to create ×5 with nothing flagged; the real seed
+created them and superseded v1; a second run changed nothing. Not verified
+on prod: how many stage task templates the migration pre-ticked (matched by
+title) — Richard checks Admin → Stage task templates.
 Details: [features/workflows.md](docs/project-memory/features/workflows.md).
 
 ### 2026-09-30 — Job target start date editable on the job page (deployed `e92a606`)
@@ -1309,12 +1322,11 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Streamlined workflows, Stage 1 is on `main`, not deployed.** Next:
-> Richard pushes and deploys (migration `20261008120000_task_template_skip_when_workflow`),
-> then the prod seed: `seed-workflows.ts --dry-run`, read it (an
-> editor-made version would be flagged), then the real seed. Richard applies
-> a workflow to a new job (expect ~18–24 steps, five Ready) and checks
-> Admin → Stage task templates for the 15 "Skipped with a workflow" ticks.
+> **Streamlined workflows, Stage 1 is on prod (`81589ff`, BUILD_ID
+> `c2QPO63nhZnwCjo8nwLAb`) and the streamlined templates are seeded (v2 of
+> every template).** Next: Richard applies a workflow to a new job (expect
+> ~18–24 steps, five Ready) and checks Admin → Stage task templates for the
+> "Skipped with a workflow" ticks (15 on dev; prod count unverified).
 > Then Stage 2: `plan-membership.ts` + legacy folding in `read.ts` /
 > `summary.ts`, `migrate.ts` (pure planner + applier, engine-only
 > `internal` options on `updateTask`), `scripts/migrate-workflows-slim-2026-10.ts`
