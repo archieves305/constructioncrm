@@ -46,6 +46,7 @@ type Template = {
   relativeDueInDays: number | null;
   defaultAssignedUserId: string | null;
   isActive: boolean;
+  skipWhenWorkflow: boolean;
   stage: Stage;
   defaultAssignee: { firstName: string; lastName: string } | null;
 };
@@ -58,6 +59,7 @@ type Form = {
   relativeDueInDays: string;
   defaultAssignedUserId: string;
   isActive: boolean;
+  skipWhenWorkflow: boolean;
 };
 
 const emptyForm: Form = {
@@ -68,6 +70,7 @@ const emptyForm: Form = {
   relativeDueInDays: "",
   defaultAssignedUserId: "",
   isActive: true,
+  skipWhenWorkflow: false,
 };
 
 export default function JobTaskTemplatesPage() {
@@ -104,6 +107,7 @@ export default function JobTaskTemplatesPage() {
           : null,
         defaultAssignedUserId: form.defaultAssignedUserId || null,
         isActive: form.isActive,
+        skipWhenWorkflow: form.skipWhenWorkflow,
       };
       const url = editingId
         ? `/api/admin/job-task-templates/${editingId}`
@@ -157,6 +161,7 @@ export default function JobTaskTemplatesPage() {
         t.relativeDueInDays !== null ? String(t.relativeDueInDays) : "",
       defaultAssignedUserId: t.defaultAssignedUserId ?? "",
       isActive: t.isActive,
+      skipWhenWorkflow: t.skipWhenWorkflow,
     });
     setOpen(true);
   }
@@ -309,6 +314,21 @@ export default function JobTaskTemplatesPage() {
                 Active
               </Label>
             </div>
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="tt-skip-workflow"
+                className="mt-1"
+                checked={form.skipWhenWorkflow}
+                onChange={(e) => setForm({ ...form, skipWhenWorkflow: e.target.checked })}
+              />
+              <Label htmlFor="tt-skip-workflow" className="cursor-pointer font-normal">
+                Skip on jobs that have a workflow
+                <span className="block text-xs text-muted-foreground">
+                  Tick when the workflow already has this step, so it is not raised twice.
+                </span>
+              </Label>
+            </div>
             <Button
               className="w-full"
               disabled={!canSave || save.isPending}
@@ -385,6 +405,11 @@ export default function JobTaskTemplatesPage() {
                       >
                         {t.isActive ? "Active" : "Inactive"}
                       </Badge>
+                      {t.skipWhenWorkflow && (
+                        <Badge variant="outline" className="ml-1 text-xs" title="Not raised on jobs that have a workflow — the workflow has this step">
+                          Skipped with a workflow
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="flex gap-1">
                       <Button

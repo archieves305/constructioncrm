@@ -3,10 +3,12 @@ import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
 import { recordAudit } from "@/lib/audit/record";
 import { createTask } from "@/lib/tasks/create";
+import { incompatibleTrades, MIXED_GENERATION_MESSAGE } from "./compat";
 import { compose, type ComposedPlan, type ComposedTask, type ComposeModule } from "./compose";
 import { criticalPathBusinessDays } from "./dependencies";
+import { closeSupersededTasks, findSupersededTasks, type SupersededTask } from "./duplicates";
 import { CORE_MODULE_KEY, sourceKeyFor, type ScopeToggleState } from "./keys";
-import { loadPublishedVersion, toComposeModule } from "./load";
+import { loadInstanceModules, loadPublishedVersion, toComposeModule } from "./load";
 import { notifyTasksReady } from "./notify";
 import { loadRoleContext, resolveAssignee, unassignedRoles, type RoleContext } from "./roles";
 import { activationDueAt, initialDueAt, type ScheduleContext } from "./schedule";
@@ -63,6 +65,8 @@ export type ApplyInput = {
   targetStartDate?: Date | null;
   jurisdiction?: string | null;
   permit?: { notes?: string | null; documentFileId?: string | null };
+  /** Cancel the open automation tasks the workflow replaces (the deposit task, marked stage tasks). Jobs only. */
+  closeSuperseded?: boolean;
   actor: { id: string; role: RoleName };
 };
 
@@ -87,6 +91,8 @@ export type WorkflowPreview = {
   rolesUsed: WorkflowRole[];
   unassignedRoles: WorkflowRole[];
   potentialDuplicates: { taskId: string; title: string; matchesKey: string }[];
+  /** Open automation tasks the workflow's steps replace; closed on apply unless the user unticks it. */
+  supersededTasks: SupersededTask[];
   warnings: string[];
 };
 
@@ -102,9 +108,13 @@ export function subjectRefOf(input: Pick<ApplyInput, "subject" | "jobId">): Work
  * The modules a subject composes. A job always gets Core plus the trades
  * asked for; a violation case gets exactly one VIOLATION template and never
  * Core. Applying the wrong kind is refused up front rather than composing
- * 34 construction steps onto a code case.
+ * construction steps onto a code case.
+ *
+ * A module the subject already has stays at the version it pins — a
+ * re-apply never swaps a template out from under its tasks — and a trade
+ * being added must fit that Core (compat.ts).
  */
-async function loadModules(db: Db, kind: WorkflowSubjectKind, templateKeys: string[]): Promise<ComposeModule[]> {
+async function loadModules(db: Db, kind: WorkflowSubjectKind, templateKeys: string[], pinned: ComposeModule[] = []): Promise<ComposeModule[]> {
   const keys = requiresCore(kind)
     ? Array.from(new Set([CORE_MODULE_KEY, ...templateKeys.filter((k) => k !== CORE_MODULE_KEY)]))
     : Array.from(new Set(templateKeys));
@@ -114,6 +124,11 @@ async function loadModules(db: Db, kind: WorkflowSubjectKind, templateKeys: stri
   const allowed = allowedTemplateKinds(kind);
   const out: ComposeModule[] = [];
   for (const key of keys) {
+    const pin = pinned.find((m) => m.moduleKey === key);
+    if (pin) {
+      out.push(pin);
+      continue;
+    }
     const v = await loadPublishedVersion(db, key);
     if (!v) {
       throw new WorkflowApplyError(
@@ -129,7 +144,13 @@ async function loadModules(db: Db, kind: WorkflowSubjectKind, templateKeys: stri
     }
     out.push(m);
   }
+  if (incompatibleTrades(out).length > 0) throw new WorkflowApplyError(409, MIXED_GENERATION_MESSAGE);
   return out;
+}
+
+/** The versions an existing workflow pins; empty for a first apply. */
+async function pinnedModules(db: Db, subject: WorkflowSubject): Promise<ComposeModule[]> {
+  return subject.instance ? loadInstanceModules(db, subject.instance.id) : [];
 }
 
 async function loadSubjectOrThrow(db: Db, ref: WorkflowSubjectRef): Promise<WorkflowSubject> {
@@ -147,7 +168,7 @@ export async function previewWorkflow(input: ApplyInput): Promise<WorkflowPrevie
   const now = new Date();
   const ref = subjectRefOf(input);
   const subject = await loadSubjectOrThrow(prisma, ref);
-  const modules = await loadModules(prisma, subject.kind, input.templateKeys);
+  const modules = await loadModules(prisma, subject.kind, input.templateKeys, await pinnedModules(prisma, subject));
   const plan = compose({ modules, permitStatus: input.permitStatus, scopeToggles: input.scopeToggles });
   const roleCtx = await loadRoleContext(prisma, { subject, instanceId: subject.instance?.id, teamOverride: input.team });
   const ctx: ScheduleContext = scheduleContextFor(subject, subject.instance?.appliedAt ?? now, { targetStartDate: input.targetStartDate });
@@ -201,6 +222,7 @@ export async function previewWorkflow(input: ApplyInput): Promise<WorkflowPrevie
     rolesUsed,
     unassignedRoles: unassignedRoles(rolesUsed, roleCtx),
     potentialDuplicates,
+    supersededTasks: ref.kind === "job" ? await findSupersededTasks(ref.jobId) : [],
     warnings: plan.warnings,
   };
 }
@@ -328,14 +350,16 @@ export type ApplyResult = {
   modules: string[];
   unassignedRoles: WorkflowRole[];
   warnings: string[];
+  /** Automation tasks cancelled because the workflow replaces them. */
+  closedSuperseded: number;
 };
 
 export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
   const ref = subjectRefOf(input);
-  const run = async (): Promise<ApplyResult & { activated: string[]; taskCount: number }> => {
+  const run = async (): Promise<Omit<ApplyResult, "closedSuperseded"> & { activated: string[]; taskCount: number }> => {
     const now = new Date();
     const subject = await loadSubjectOrThrow(prisma, ref);
-    const modules = await loadModules(prisma, subject.kind, input.templateKeys);
+    const modules = await loadModules(prisma, subject.kind, input.templateKeys, await pinnedModules(prisma, subject));
 
     if (subject.instance) {
       // Re-apply: only the identical configuration (idempotent) or new trades.
@@ -389,7 +413,7 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
               templateVersionId: m.versionId,
               addedByUserId: input.actor.id,
             },
-            update: { removedAt: null, removedByUserId: null, removeReason: null },
+            update: { templateVersionId: m.versionId, removedAt: null, removedByUserId: null, removeReason: null },
           });
         }
         const ctx: ScheduleContext = scheduleContextFor(subject, instance.appliedAt, { targetStartDate: input.targetStartDate });
@@ -457,6 +481,7 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
     },
   });
   notifyTasksReady(out.activated, input.actor.id, `wf-apply:${out.instanceId}:${Date.now()}`);
+  const closedSuperseded = input.closeSuperseded && ref.kind === "job" ? await closeSupersededTasks(ref.jobId, input.actor.id) : 0;
 
   return {
     instanceId: out.instanceId,
@@ -465,5 +490,6 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
     modules: out.modules,
     unassignedRoles: out.unassignedRoles,
     warnings: out.warnings,
+    closedSuperseded,
   };
 }

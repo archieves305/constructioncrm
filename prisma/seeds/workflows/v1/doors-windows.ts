@@ -1,5 +1,5 @@
-import { defineTemplate } from "../../../src/lib/workflows/templates/define";
-import { LEGAL_NO_PERMIT_WARNING, PHASE_BANDS as B } from "../../../src/lib/workflows/templates/types";
+import { defineTemplate } from "../../../../src/lib/workflows/templates/define";
+import { LEGAL_NO_PERMIT_WARNING, PHASE_BANDS as B } from "../../../../src/lib/workflows/templates/types";
 import { ACC, EST, NO_PERMIT_TASKS, OA, PC, PM, PUR, QC, REQ, SR, SUP, any, task, when } from "./_shorthand";
 
 /** Exterior openings of any kind. */

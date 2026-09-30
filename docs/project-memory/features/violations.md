@@ -93,7 +93,7 @@ each deployed and QA'd before the next.
 - `GET /api/workflow-templates?kind=`; admin version route loads Core keys
   for TRADE only.
 
-**Template** `prisma/seeds/workflows/code-violation.ts` (`code_violation`,
+**Template (v1, frozen — the streamlined 32-step generation is in `v2/`, see workflows.md)** `prisma/seeds/workflows/v1/code-violation.ts` (`code_violation`,
 kind VIOLATION, 8 phases + the no-permit branch, 75 steps, 6 toggles
 `construction_required hearing_required fines_accruing lien_recorded
 emergency appeal`). Composed: 43 undetermined / 53 required / 47 not

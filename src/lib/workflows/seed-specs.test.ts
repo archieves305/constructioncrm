@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { WORKFLOW_TEMPLATE_SPECS } from "../../../prisma/seeds/workflows";
-import { CORE } from "../../../prisma/seeds/workflows/core";
-import { ROOFING } from "../../../prisma/seeds/workflows/roofing";
-import { INTERIOR_RENOVATION } from "../../../prisma/seeds/workflows/interior-renovation";
-import { DOORS_WINDOWS } from "../../../prisma/seeds/workflows/doors-windows";
-import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/code-violation";
+import { WORKFLOW_V1_SPECS } from "../../../prisma/seeds/workflows";
+import { CORE } from "../../../prisma/seeds/workflows/v1/core";
+import { ROOFING } from "../../../prisma/seeds/workflows/v1/roofing";
+import { INTERIOR_RENOVATION } from "../../../prisma/seeds/workflows/v1/interior-renovation";
+import { DOORS_WINDOWS } from "../../../prisma/seeds/workflows/v1/doors-windows";
+import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/v1/code-violation";
 import { LEGAL_NO_PERMIT_WARNING, PHASE_BANDS } from "./templates/types";
 import { compose, type ComposeModule } from "./compose";
 import { contentHash } from "./seed";
@@ -26,9 +26,9 @@ const mod = (def: typeof CORE): ComposeModule => ({
   definition: def,
 });
 
-describe("seeded workflow templates", () => {
+describe("v1 workflow templates (frozen)", () => {
   it("all five load with the spec's task counts", () => {
-    expect(WORKFLOW_TEMPLATE_SPECS.map((s) => [s.key, s.tasks.length])).toEqual([
+    expect(WORKFLOW_V1_SPECS.map((s) => [s.key, s.tasks.length])).toEqual([
       ["core", 34],
       ["roofing", 74],
       ["interior_renovation", 85],
@@ -144,7 +144,8 @@ describe("seeded workflow templates", () => {
     expect(contentHash(ROOFING)).not.toBe(contentHash({ ...ROOFING, name: "Roofing v2" }));
   });
 
-  // The four v1 templates are pinned by every job that applied them. Their
+  // The v1 templates are pinned by every job and case that applied them; their
+  // files now live under prisma/seeds/workflows/v1 and must not change. Their
   // content hash is what the seeder compares, so ANY drift — a renamed enum
   // value, a new field on TaskDef, an edited spec — makes prod's seed throw
   // SeedVersionInUseError. These literals were captured on 2026-09-25 before
@@ -155,6 +156,8 @@ describe("seeded workflow templates", () => {
     expect(contentHash(ROOFING)).toBe("48bb6378c9d5ce25c9bc15f53d54c3e25337f909e0f6e31110746d87ea8ada8f");
     expect(contentHash(INTERIOR_RENOVATION)).toBe("bfdf0234bbf07b9f2211feff5d7a6050c9d1c08583aa669793881817547b1975");
     expect(contentHash(DOORS_WINDOWS)).toBe("92d95a6d99ca3abc671135b076f6f59bfd61f36fa4afaa3a4d5ade7431e0f8d5");
+    // The violation template is pinned by open cases too (captured 2026-09-30 from the seeded v1).
+    expect(contentHash(CODE_VIOLATION)).toBe("ea08df8f3ab7fb20a59021e557aa47fb84086fa7b0ce87514d752ff4681f2d4b");
   });
 });
 
@@ -164,7 +167,7 @@ describe("seeded workflow templates", () => {
  * work runs on the linked job; the closure step needs the agency's
  * confirmation. Counts pinned from the first compose run.
  */
-describe("code_violation template", () => {
+describe("v1 code_violation template (frozen)", () => {
   const cv = (permitStatus: "UNDETERMINED" | "REQUIRED" | "NOT_REQUIRED", toggles: Record<string, boolean> = {}) =>
     compose({ modules: [mod(CODE_VIOLATION as typeof CORE)], permitStatus, scopeToggles: { code_violation: toggles } });
   const keys = (p: ReturnType<typeof compose>) => new Set(p.tasks.map((t) => t.shortKey));

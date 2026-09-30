@@ -35,6 +35,7 @@ export const applyWorkflowSchema = z.object({
       documentFileId: z.string().min(1).nullable().optional(),
     })
     .optional(),
+  closeSuperseded: z.boolean().optional(),
 });
 
 export const patchWorkflowSchema = z

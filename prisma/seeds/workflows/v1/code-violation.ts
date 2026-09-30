@@ -1,5 +1,5 @@
-import { defineTemplate } from "../../../src/lib/workflows/templates/define";
-import { LEGAL_NO_PERMIT_WARNING } from "../../../src/lib/workflows/templates/types";
+import { defineTemplate } from "../../../../src/lib/workflows/templates/define";
+import { LEGAL_NO_PERMIT_WARNING } from "../../../../src/lib/workflows/templates/types";
 import { ACC, CM, EST, NO_PERMIT_TASKS, OA, PC, PM, REQ, SUP, VIOLATION_BANDS as B, all, any, task, when } from "./_shorthand";
 
 /**

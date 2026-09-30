@@ -1229,6 +1229,9 @@ model JobTaskTemplate {
   relativeDueInDays     Int?     @map("relative_due_in_days")
   defaultAssignedUserId String?  @map("default_assigned_user_id")
   isActive              Boolean  @default(true) @map("is_active")
+  // The job's workflow already carries this step: on a job with an active
+  // workflow the stage change does not raise it a second time.
+  skipWhenWorkflow      Boolean  @default(false) @map("skip_when_workflow")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 

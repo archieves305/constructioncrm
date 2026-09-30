@@ -210,6 +210,8 @@ function ApplyWorkflowBody({
   const [previewData, setPreviewData] = useState<WorkflowPreviewData | null>(
     null,
   );
+  // The workflow's own steps replace these; closing them is the default.
+  const [closeSuperseded, setCloseSuperseded] = useState(true);
 
   const defaultFor = (role: WorkflowRole): string | null => {
     if (role === "PROJECT_MANAGER" && info.projectManagerId) return info.projectManagerId;
@@ -240,7 +242,7 @@ function ApplyWorkflowBody({
   }
 
   async function confirmApply() {
-    await apply.mutateAsync(body());
+    await apply.mutateAsync({ ...body(), closeSuperseded });
     onOpenChange(false);
   }
 
@@ -587,6 +589,21 @@ function ApplyWorkflowBody({
 
       {step === "review" && previewData && (
         <WorkflowPreviewPanel preview={previewData} users={users} />
+      )}
+      {step === "review" && previewData && previewData.supersededTasks.length > 0 && (
+        <label className="flex items-start gap-2 rounded-md border bg-tone-info-soft/40 p-3 text-sm">
+          <Checkbox className="mt-0.5" checked={closeSuperseded} onCheckedChange={(v) => setCloseSuperseded(Boolean(v))} />
+          <span>
+            Close {previewData.supersededTasks.length} existing task{previewData.supersededTasks.length === 1 ? "" : "s"} the workflow replaces
+            <span className="block text-xs text-muted-foreground">
+              {previewData.supersededTasks
+                .slice(0, 4)
+                .map((t) => `“${t.title}”`)
+                .join(", ")}
+              {previewData.supersededTasks.length > 4 ? ` and ${previewData.supersededTasks.length - 4} more` : ""}. The workflow has a step for each.
+            </span>
+          </span>
+        </label>
       )}
 
       <div className="flex items-center justify-between gap-2 pt-2">

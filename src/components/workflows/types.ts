@@ -326,6 +326,7 @@ export type ApplyBody = {
   targetStartDate?: string | null;
   jurisdiction?: string | null;
   permit?: { notes?: string | null; documentFileId?: string | null };
+  closeSuperseded?: boolean;
 };
 
 export type PreviewTask = {
@@ -349,6 +350,7 @@ export type WorkflowPreviewData = {
   rolesUsed: WorkflowRole[];
   unassignedRoles: WorkflowRole[];
   potentialDuplicates: { taskId: string; title: string; matchesKey: string }[];
+  supersededTasks: { taskId: string; title: string }[];
   warnings: string[];
 };
 
@@ -359,6 +361,7 @@ export type ApplyResultData = {
   modules: string[];
   unassignedRoles: WorkflowRole[];
   warnings: string[];
+  closedSuperseded?: number;
 };
 
 export type PatchWorkflowBody = {

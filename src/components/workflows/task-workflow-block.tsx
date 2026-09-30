@@ -129,7 +129,7 @@ export function TaskWorkflowBlock({
         </div>
       )}
 
-      {(task.requiredEvidence || files.length > 0) && (
+      {(task.requiredEvidence || files.length > 0 || (canEdit && open)) && (
         <div>
           {task.requiredEvidence && subject && <EvidenceLine task={{ ...task, _count: { ...(task._count ?? { events: 0 }), files: files.length } }} subject={subject} />}
           {files.length > 0 && (

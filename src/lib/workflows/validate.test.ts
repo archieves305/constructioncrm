@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { CORE } from "../../../prisma/seeds/workflows/core";
-import { ROOFING } from "../../../prisma/seeds/workflows/roofing";
-import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/code-violation";
+import { CORE } from "../../../prisma/seeds/workflows/v1/core";
+import { ROOFING } from "../../../prisma/seeds/workflows/v1/roofing";
+import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/v1/code-violation";
 import { fakeTree } from "./test-helpers";
 
 vi.mock("@/lib/db/prisma", () => ({ prisma: {} }));

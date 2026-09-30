@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit/record";
 import { updateTask } from "@/lib/tasks/update";
 import { recordTaskEvent } from "@/lib/tasks/events";
+import { descendsFrom, incompatibleTrades, MIXED_GENERATION_MESSAGE } from "./compat";
 import { compose, type ComposedPlan, type ComposeModule } from "./compose";
 import { loadInstanceModules, loadPublishedVersion, loadVersionById, readScopeToggles, toComposeModule } from "./load";
 import { CORE_MODULE_KEY, isBaseKind, type ScopeToggleState } from "./keys";
@@ -180,6 +181,8 @@ async function build(inst: Instance, change: ReconcileChange): Promise<Built> {
       if (!next) throw new ReconcileError(404, "No published version to upgrade to");
       if (next.template.key !== change.templateKey) throw new ReconcileError(400, "That version belongs to a different template");
       if (next.id === cur.versionId) throw new ReconcileError(409, `${cur.name} is already on v${cur.version}`);
+      const lineage = await prisma.workflowTemplateVersion.findMany({ where: { templateId: next.templateId }, select: { id: true, sourceVersionId: true } });
+      if (!descendsFrom(lineage, next.id, cur.versionId)) throw new ReconcileError(409, MIXED_GENERATION_MESSAGE);
       const nm = toComposeModule(next);
       // Report content drift on steps that exist in both versions; the
       // existing task rows keep their titles — we never rewrite a person's task.
@@ -195,6 +198,11 @@ async function build(inst: Instance, change: ReconcileChange): Promise<Built> {
       label = `${nm.name} upgraded v${cur.version} → v${nm.version}`;
       break;
     }
+  }
+
+  // A trade from one generation never sits on the other generation's Core.
+  if (moduleWrites.add.length > 0 || moduleWrites.repin.length > 0) {
+    if (incompatibleTrades(modules).length > 0) throw new ReconcileError(409, MIXED_GENERATION_MESSAGE);
   }
 
   const plan = compose({ modules, permitStatus, scopeToggles });

@@ -27,6 +27,23 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+0000000. 🔴 **Streamlined ("slim") workflows** — four stages, plan approved
+   2026-09-30 (`~/.claude/plans/please-look-at-the-structured-seal.md`);
+   Richard signed off the step lists the same day. Why: nobody worked the
+   90–170-step workflows (prod: ~1,320 steps, 25 completed). **Stage 1
+   (streamlined templates for new jobs) built + dev-QA'd 2026-09-30 on
+   `workflows-slim`, fast-forwarded to `main`**: v1 specs frozen under `prisma/seeds/workflows/v1/`,
+   streamlined `v2/` (Core 18 · Roofing 10 · Interior 10 · D&W 8 ·
+   code_violation 32; Core + one trade with a permit = 21–24 steps),
+   `v2/mapping.ts`, seeding by generation (`--dry-run`), generations never
+   mix on a job (`compat.ts`), attach on every open step, evidence on record
+   gates only, `JobTaskTemplate.skipWhenWorkflow` (migration
+   `20261008120000_task_template_skip_when_workflow`), two permit rule tasks
+   stand down, Apply closes the tasks the workflow replaces. **Not deployed;
+   after the deploy the prod seed must run** (dry run first). Stage 2 =
+   migrate the open v1 jobs and cases; Stage 3 = completion UX; Stage 4 =
+   "Complete this phase". Notes:
+   [features/workflows.md](docs/project-memory/features/workflows.md).
 000000. ✅ **Operations Calendar / My Work — all four phases on prod** — four phases, plan approved
    2026-09-27 (`~/.claude/plans/woolly-swinging-mist.md`). **Phase 1
    (Foundation) built + dev-QA'd 2026-09-27 on `calendar-foundation`**:
@@ -244,6 +261,36 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-09-30 — Streamlined workflows, Stage 1: slim templates for new jobs (built, dev-QA'd, on `main`, not deployed)
+
+Richard: "too many tasks for each workflow… pair them down so that the
+users will actually take the time to do the workflow." Plan-mode (3 explore
++ 2 design agents) plus one read-only prod query: ~1,320 workflow steps on 8
+jobs + 3 cases, 25 completed, none in a trade phase. Decisions: milestones
+(~25 steps for Core + one trade), evidence on record gates only, move open
+jobs by a one-time migration, slim the violation template too, templates
+before completion UX, one final inspection per job, a "Complete this phase"
+action for office roles + the job's PM, closed jobs stay on v1. Step lists
+reviewed in the doc "Slim workflow step lists — for review"
+(https://claude.ai/code/artifact/29300f98-4b6d-4d97-a11f-1f076f5a7845) and
+approved as written. Built: `git mv` of the five specs + shorthand into
+`v1/` (hashes unchanged), `v2/` specs + `mapping.ts`, `planGenerations` /
+`seedTemplateGenerations` (generation found by hash, created at the next
+free number, supersedes the rest; `--dry-run`), `compat.ts` (`descendsFrom`
+lineage for upgrades, `incompatibleTrades` for add-trade / re-apply),
+re-apply composes present modules from their pins, upload control on every
+open step, correction tasks without the PHOTO gate, `duplicates.ts`
+(`skipWhenWorkflow` stage templates, two permit rule tasks, superseded
+tasks closed on apply). Two departures from the plan, both narrower: the
+stage-template stand-down is per template (a blanket one would have dropped
+eleven customer-care tasks), and the inspection-failed rule tasks keep
+running. `dependsOnDateOnly` and the `diffEdges` kind fix were not needed.
+Gate: typecheck clean, lint 6/22, 1209 tests (+50), build clean; dev seed
+(roofing landed at v4 past the editor's v2/v3), `qa-slim-api.js` 19/19,
+`qa-slim-ui.js` 7/7. Migration `20261008120000_task_template_skip_when_workflow`.
+Until Stage 2 runs, a v1 job cannot add a trade (409 with the reason).
+Details: [features/workflows.md](docs/project-memory/features/workflows.md).
 
 ### 2026-09-30 — Job target start date editable on the job page (deployed `e92a606`)
 
@@ -1126,7 +1173,8 @@ npm run build
 KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes
 KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --dry-run
 
-# Workflow templates (idempotent; run on prod after any spec change)
+# Workflow templates (idempotent; seeds by generation; run on prod after any spec change — dry run first)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-workflows.ts --dry-run"'
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-workflows.ts"'
 # Code-violation categories (idempotent; upsert by key, never overwrites a rename)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-violations.ts"'
@@ -1220,6 +1268,12 @@ Notification Digests).
   references it — bump the version. Own-only roles see tasks on jobs where
   they are PM, field-assigned or hold a team slot. Every open count uses
   `ACTIVE_OPEN_WHERE` (open **and** activated).
+- **Workflow templates come in generations and never mix on a job.** `v1/`
+  specs are frozen (hash-pinned); a content change is a new generation in
+  `prisma/seeds/workflows`, never an edit. An in-place upgrade only follows
+  a version's lineage (`sourceVersionId`); a job on the earlier generation
+  moves by migration. Streamlined steps require evidence only where the CRM
+  reads the fact from its own records — never a photo, attachment or note.
 - **A workflow's subject is a Job or a CodeViolationCase, never both**
   (DB CHECK). A case runs one `VIOLATION` template alone — never Core —
   and its tasks carry `violationCaseId + leadId`, never `jobId`.
@@ -1254,6 +1308,19 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **Streamlined workflows, Stage 1 is on `main`, not deployed.** Next:
+> Richard pushes and deploys (migration `20261008120000_task_template_skip_when_workflow`),
+> then the prod seed: `seed-workflows.ts --dry-run`, read it (an
+> editor-made version would be flagged), then the real seed. Richard applies
+> a workflow to a new job (expect ~18–24 steps, five Ready) and checks
+> Admin → Stage task templates for the 15 "Skipped with a workflow" ticks.
+> Then Stage 2: `plan-membership.ts` + legacy folding in `read.ts` /
+> `summary.ts`, `migrate.ts` (pure planner + applier, engine-only
+> `internal` options on `updateTask`), `scripts/migrate-workflows-slim-2026-10.ts`
+> (`--inventory`, dry run, `--only`, `--yes`). Before it runs Richard sets
+> Admin → Workflow Roles (Permit coordinator, Accounting, Office admin,
+> Superintendent). Until then a v1 job cannot add a trade.
 
 > **Operations Calendar Phase 1 is on prod and clicked through; the Jobs
 > table hides closed jobs by default (`a067ac8`, BUILD_ID

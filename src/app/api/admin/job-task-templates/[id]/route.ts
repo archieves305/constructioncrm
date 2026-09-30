@@ -11,6 +11,7 @@ const updateSchema = z.object({
   relativeDueInDays: z.number().int().min(0).max(365).nullable().optional(),
   defaultAssignedUserId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
+  skipWhenWorkflow: z.boolean().optional(),
 });
 
 export async function PATCH(
@@ -38,6 +39,7 @@ export async function PATCH(
   if (parsed.data.defaultAssignedUserId !== undefined)
     data.defaultAssignedUserId = parsed.data.defaultAssignedUserId || null;
   if (parsed.data.isActive !== undefined) data.isActive = parsed.data.isActive;
+  if (parsed.data.skipWhenWorkflow !== undefined) data.skipWhenWorkflow = parsed.data.skipWhenWorkflow;
 
   const record = await prisma.jobTaskTemplate
     .update({ where: { id }, data })

@@ -26,6 +26,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       targetStartDate: b.targetStartDate === undefined ? undefined : b.targetStartDate ? parseDueAt(b.targetStartDate) : null,
       jurisdiction: b.jurisdiction,
       permit: b.permit,
+      closeSuperseded: b.closeSuperseded,
       actor: session.user,
     });
     return NextResponse.json(result, { status: 201 });

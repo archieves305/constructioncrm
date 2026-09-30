@@ -99,6 +99,7 @@ export async function previewTemplateForIntake(input: { templateKey: string; per
     rolesUsed,
     unassignedRoles: unassignedRoles(rolesUsed, roleCtx),
     potentialDuplicates: [] as { taskId: string; title: string; matchesKey: string }[],
+    supersededTasks: [] as { taskId: string; title: string }[],
     warnings: plan.warnings,
   };
 }

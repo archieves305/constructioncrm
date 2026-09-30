@@ -1,6 +1,7 @@
 import type { Prisma, RoleName, WorkflowAnchor, WorkflowEvidenceType, WorkflowRole } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit/record";
+import { descendsFrom } from "./compat";
 import { isValidKey } from "./keys";
 import { slugKey } from "./slug";
 import { VERSION_TREE_INCLUDE, toComposeModule, type VersionTree } from "./load";
@@ -461,16 +462,23 @@ export async function setScopeToggles(versionId: string, toggles: { key: string;
   return prisma.workflowTemplateVersion.update({ where: { id: versionId }, data: { scopeToggles: toggles as unknown as Prisma.InputJsonValue } });
 }
 
-/** Modules on a job with a newer published version available. */
+/**
+ * Modules on a job with a newer published version available — only one
+ * derived from the version the job pins (see compat.ts). A seeded
+ * generation is a new lineage, never an in-place upgrade.
+ */
 export async function availableUpgrades(modules: { templateKey: string; versionId: string; version: number }[]) {
   const out: { templateKey: string; from: number; to: number; versionId: string }[] = [];
   for (const m of modules) {
-    const latest = await prisma.workflowTemplateVersion.findFirst({
-      where: { template: { key: m.templateKey }, status: "PUBLISHED" },
+    const versions = await prisma.workflowTemplateVersion.findMany({
+      where: { template: { key: m.templateKey } },
       orderBy: { version: "desc" },
-      select: { id: true, version: true },
+      select: { id: true, version: true, status: true, sourceVersionId: true },
     });
-    if (latest && latest.id !== m.versionId && latest.version > m.version) out.push({ templateKey: m.templateKey, from: m.version, to: latest.version, versionId: latest.id });
+    const latest = versions.find((v) => v.status === "PUBLISHED");
+    if (latest && latest.id !== m.versionId && latest.version > m.version && descendsFrom(versions, latest.id, m.versionId)) {
+      out.push({ templateKey: m.templateKey, from: m.version, to: latest.version, versionId: latest.id });
+    }
   }
   return out;
 }

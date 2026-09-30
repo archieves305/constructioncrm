@@ -11,6 +11,7 @@ const createSchema = z.object({
   relativeDueInDays: z.number().int().min(0).max(365).nullable().optional(),
   defaultAssignedUserId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
+  skipWhenWorkflow: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
       relativeDueInDays: parsed.data.relativeDueInDays ?? null,
       defaultAssignedUserId: parsed.data.defaultAssignedUserId || null,
       isActive: parsed.data.isActive ?? true,
+      skipWhenWorkflow: parsed.data.skipWhenWorkflow ?? false,
     },
   });
   return NextResponse.json(record, { status: 201 });

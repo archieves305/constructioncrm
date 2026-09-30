@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { compose } from "./compose";
-import { CORE } from "../../../prisma/seeds/workflows/core";
-import { ROOFING } from "../../../prisma/seeds/workflows/roofing";
-import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/code-violation";
+import { CORE } from "../../../prisma/seeds/workflows/v1/core";
+import { ROOFING } from "../../../prisma/seeds/workflows/v1/roofing";
+import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/v1/code-violation";
 
 /**
  * materializePlan against an in-memory "database": proves the two rules the

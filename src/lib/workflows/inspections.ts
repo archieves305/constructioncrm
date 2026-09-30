@@ -125,7 +125,6 @@ export async function recordInspectionResult(input: InspectionResultInput): Prom
           sortOrder: (task.workflowSortOrder ?? 0) + 1,
           anchor: "PREDECESSOR",
           dueOffsetBusinessDays: 2,
-          requiredEvidence: "PHOTO",
         },
       },
       { actorUserId: input.actor.id },

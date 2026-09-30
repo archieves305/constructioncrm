@@ -51,9 +51,10 @@ count moved.
 
 ## The DSL (`src/lib/workflows/templates/`)
 
-Seed files are `defineTemplate({...})` specs in `prisma/seeds/workflows/`
+Seed files are `defineTemplate({...})` specs in `prisma/seeds/workflows/v1/`
 (`core`, `roofing`, `interior-renovation`, `doors-windows`; 34/74/85/81
-steps — every task from Richard's spec, in order). Conveniences:
+steps — the original long-form generation, frozen) and `v2/` (streamlined,
+18/10/10/8; see "Streamlined generation"). Conveniences:
 `^` = previous task in the phase; `startsAfter` on a phase adds a blocking
 dep to every task without an in-phase dep; `permit: "NOT_REQUIRED"` on a
 phase must carry the legal warning as `note`; `condition: {permit, anyOf,
@@ -146,9 +147,11 @@ npx tsx prisma/seed-workflows.ts        # dev; also part of prisma/seed.ts and s
 # prod (after deploy):
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-workflows.ts"'
 ```
-Idempotent on `(templateKey, version)` + content hash: unchanged → no-op;
-changed + unreferenced → rebuilt; changed + referenced by a job → **throws**
-(bump `WORKFLOW_TEMPLATE_VERSION` / the spec instead).
+Seeding is by **generation** (see "Streamlined generation" below): a
+generation is found by content hash → no-op; never seeded → created at the
+next free version number and published; seeded before + changed +
+unpinned → rebuilt; seeded before + changed + pinned → **throws** (add a
+generation instead). `--dry-run` reports and writes nothing.
 
 ## API
 
@@ -276,6 +279,79 @@ the export gains nine CSV sections.
 MANAGER, OFFICE_STAFF, READ_ONLY (403 otherwise; the section hides
 itself). `workflowHealthScope`: the same roles see the company, everyone
 else sees the jobs they sell or manage.
+
+## Streamlined generation (2026-09-30; Stage 1 of the slim-workflow plan)
+
+Richard: too many tasks per workflow, so nobody works them (prod: ~1,320
+steps on 8 jobs + 3 cases, 25 completed, none in a trade phase). Plan
+`~/.claude/plans/please-look-at-the-structured-seal.md`; he signed off the
+step lists in the doc "Slim workflow step lists — for review".
+
+**Content.** `prisma/seeds/workflows/v1/` is the original long-form
+generation, frozen (files moved, hashes still pinned in
+`seed-specs.test.ts`, now incl. code_violation). `v2/` is the streamlined
+one: Core 18 · Roofing 10 · Interior 10 · Doors & Windows 8 ·
+code_violation 32. Composed (undetermined / permit / no permit): Core only
+12/16/14, + Roofing 18/24/20, + D&W 17/22/19, + Interior 17/21/19, Roofing +
+D&W 24/32/26, all three 30/39/32, a case 17/20/19 (27/30/29 everything on,
+15/18/17 everything off) — pinned in `seed-specs.v2.test.ts` with the v2
+hashes.
+- The permit branch and the closeout live **once, in Core**. A trade plugs
+  in by overriding two Core placeholders: `prepare_permit_documents` (so the
+  single "Submit the permit application" waits on every trade's documents)
+  and `complete_work` (so closeout waits on every trade's last step).
+- `requiredEvidence` only on record gates (PERMIT_NUMBER, INSPECTION_RESULT,
+  PAYMENT_STATUS and the case-side types). No PHOTO / ATTACHMENT / NOTE;
+  correction tasks lost their PHOTO gate too. The task sheet offers "Attach
+  file" on every open step.
+- Blocking edges only into and out of real gates; five steps are Ready on
+  day one of a roofing job. No `dependsOnDateOnly` was needed.
+- Roles: PM, Superintendent, Permit coordinator, Accounting (+ Office admin,
+  Sales rep once each); cases on Case manager.
+- `v2/mapping.ts`: v1 step → streamlined step (or dropped + why), toggle
+  and phase maps. `seed-mapping.test.ts` holds it to the specs. It drives the
+  Stage 2 migration.
+
+**Seeder** (`seed.ts`): `planGenerations` (pure, `seed.test.ts`) +
+`seedTemplateGenerations`; `WORKFLOW_SEED_GENERATIONS` in
+`prisma/seeds/workflows/index.ts` replaces `WORKFLOW_TEMPLATE_VERSION`. A new
+generation supersedes every other published version (an editor-made one is
+flagged in the log). A seeded generation has **no `sourceVersionId`**.
+
+**Generations never mix on a job** (`compat.ts`, tested):
+- an in-place upgrade only follows a lineage (`descendsFrom` over
+  `sourceVersionId`) — `availableUpgrades` does not offer the streamlined
+  version to a v1 job and `reconcile` `upgrade-module` answers 409;
+- a trade must fit the job's Core (`incompatibleTrades`) — add-trade and
+  re-apply answer 409 on a v1 job;
+- `applyWorkflow` on an existing workflow composes present modules from
+  their pins. v1 jobs move by the Stage 2 migration, not by upgrade.
+
+**Duplicate task sources** (`duplicates.ts`):
+- `JobTaskTemplate.skipWhenWorkflow` (migration
+  `20261008120000_task_template_skip_when_workflow`, 15 rows pre-ticked by
+  title; editable under Admin → Stage task templates) — a marked stage task
+  is not spawned on a job with an ACTIVE workflow. The blanket stand-down in
+  the plan was wrong: eleven stage tasks (welcome call, review request,
+  prep checklist…) are customer care the workflow does not carry.
+- Follow-up rule tasks "Permit Issued: Schedule Install Task" and "Permit
+  Final: Office Close-Out Task" are not created on a workflow job (their
+  emails still send). The inspection-failed rule tasks stay: the workflow's
+  correction task only exists when the result is recorded on the step.
+- Apply preview lists `supersededTasks` (open `job_deposit` task + marked
+  stage tasks; source read from the CREATED event) and "Close N existing
+  tasks the workflow replaces" is ticked by default (`closeSuperseded`).
+
+Dev QA 2026-09-30: `qa-slim-api.js` 19/19 (v1 job: no upgrade offer, 409 on
+add-trade and upgrade; new job 18 → permit 24 → + D&W 32; re-apply 0; five
+Ready; stage change raises only the unmarked stage task) and `qa-slim-ui.js`
+7/7 (dialog closes the two replaced tasks; Attach file on an ungated step;
+15 marked templates). Dev: JOB-00003 (Core + Roofing v4 + D&W) and JOB-00004
+(Core only) now run the streamlined workflow; JOB-00001 stays v1 for the
+Stage 2 migration test.
+
+Next: Stage 2 migration (`migrate.ts`, legacy folding in `read.ts` /
+`summary.ts`), Stage 3 completion UX, Stage 4 "Complete this phase".
 
 ## Not yet
 

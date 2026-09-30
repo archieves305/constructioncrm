@@ -1,3 +1,4 @@
+import { jobHasActiveWorkflow } from "@/lib/workflows/duplicates";
 import { prisma } from "@/lib/db/prisma";
 import { createTask } from "@/lib/tasks/create";
 import { formatAddressLine } from "@/lib/labels/address";
@@ -176,8 +177,11 @@ async function spawnTasksFromTemplates(
   stageId: string,
   userId: string,
 ): Promise<void> {
+  // A template marked "the workflow has this step" is not raised a second
+  // time on a job that has a workflow.
+  const hasWorkflow = await jobHasActiveWorkflow(jobId);
   const templates = await prisma.jobTaskTemplate.findMany({
-    where: { stageId, isActive: true },
+    where: { stageId, isActive: true, ...(hasWorkflow ? { skipWhenWorkflow: false } : {}) },
   });
   if (templates.length === 0) return;
 

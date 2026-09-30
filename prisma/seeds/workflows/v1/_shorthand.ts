@@ -1,5 +1,5 @@
-import type { WorkflowRole } from "../../../src/generated/prisma/client";
-import type { TaskSpec } from "../../../src/lib/workflows/templates/types";
+import type { WorkflowRole } from "../../../../src/generated/prisma/client";
+import type { TaskSpec } from "../../../../src/lib/workflows/templates/types";
 
 /**
  * Authoring shorthand for the seed files. Each template file reads as a

@@ -13,6 +13,7 @@ import { TwilioSmsProvider } from "@/lib/services/notifications/twilio-provider"
 import { env } from "@/lib/env";
 import { logOutboundCommunication } from "@/lib/communications/log";
 import { notify } from "@/lib/notifications/notify";
+import { workflowCoversRuleTask } from "@/lib/workflows/duplicates";
 
 const ISO_DATE = (d: Date | null | undefined) =>
   d ? d.toISOString().slice(0, 10) : "";
@@ -242,7 +243,9 @@ export async function processPendingFollowUps(limit = 50): Promise<ProcessResult
       const taskTemplate = exec.rule.taskTemplateJson as
         | { title?: string; description?: string; dueInDays?: number; priority?: string }
         | null;
-      if (taskTemplate?.title) {
+      // The job's workflow already carries this step; the rule's email / SMS above still went.
+      const coveredByWorkflow = taskTemplate?.title ? await workflowCoversRuleTask(exec.rule.name, exec.permit?.jobId) : false;
+      if (taskTemplate?.title && !coveredByWorkflow) {
         const due = taskTemplate.dueInDays
           ? new Date(Date.now() + taskTemplate.dueInDays * 86400000)
           : null;

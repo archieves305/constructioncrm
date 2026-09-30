@@ -1,5 +1,5 @@
-import { defineTemplate } from "../../../src/lib/workflows/templates/define";
-import { PHASE_BANDS as B } from "../../../src/lib/workflows/templates/types";
+import { defineTemplate } from "../../../../src/lib/workflows/templates/define";
+import { PHASE_BANDS as B } from "../../../../src/lib/workflows/templates/types";
 import { ACC, OA, PC, PM, PUR, QC, SUP, task, REQ } from "./_shorthand";
 
 /**

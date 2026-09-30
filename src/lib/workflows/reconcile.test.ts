@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CORE } from "../../../prisma/seeds/workflows/core";
-import { ROOFING } from "../../../prisma/seeds/workflows/roofing";
-import { DOORS_WINDOWS } from "../../../prisma/seeds/workflows/doors-windows";
-import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/code-violation";
+import { CORE } from "../../../prisma/seeds/workflows/v1/core";
+import { ROOFING } from "../../../prisma/seeds/workflows/v1/roofing";
+import { DOORS_WINDOWS } from "../../../prisma/seeds/workflows/v1/doors-windows";
+import { CODE_VIOLATION } from "../../../prisma/seeds/workflows/v1/code-violation";
+import { CORE as SLIM_CORE } from "../../../prisma/seeds/workflows/v2/core";
+import { ROOFING as SLIM_ROOFING } from "../../../prisma/seeds/workflows/v2/roofing";
+import { DOORS_WINDOWS as SLIM_DOORS_WINDOWS } from "../../../prisma/seeds/workflows/v2/doors-windows";
 import { fakeTree } from "./test-helpers";
 import type { TemplateDefinition } from "./templates/types";
 
@@ -16,7 +19,7 @@ const { db } = vi.hoisted(() => ({
   db: {
     jobWorkflowInstance: { findUnique: vi.fn() },
     jobWorkflowModule: { findMany: vi.fn() },
-    workflowTemplateVersion: { findFirst: vi.fn(), findUnique: vi.fn() },
+    workflowTemplateVersion: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn() },
     task: { findMany: vi.fn() },
     taskDependency: { findMany: vi.fn() },
   },
@@ -156,11 +159,55 @@ describe("previewReconcile — modules", () => {
       ],
     };
     db.workflowTemplateVersion.findFirst.mockResolvedValue(fakeTree(v2, { version: 2 }));
+    // v2 was drafted in the editor from the version the job pins.
+    db.workflowTemplateVersion.findMany.mockResolvedValue([
+      { id: "v-roofing-1", sourceVersionId: null },
+      { id: "v-roofing-2", sourceVersionId: "v-roofing-1" },
+    ]);
     const plan = await previewReconcile("w1", { kind: "upgrade-module", templateKey: "roofing" });
     expect(plan.drift).toContainEqual({ key: "roofing:mobilize", field: "title", from: "Mobilize", to: "Mobilize crew and equipment" });
     expect(plan.toCreate.map((t) => t.key)).toEqual(["roofing:brand_new_step"]);
     expect(plan.toSkip).toEqual([]);
     expect(plan.modules.find((m) => m.moduleKey === "roofing")?.version).toBe(2);
+  });
+
+  it("refuses to 'upgrade' a job onto a seeded generation — that is a migration, not an upgrade", async () => {
+    setup({ modules: [CORE, ROOFING], permitStatus: "REQUIRED" });
+    db.workflowTemplateVersion.findFirst.mockResolvedValue(fakeTree(SLIM_ROOFING, { version: 2 }));
+    // The streamlined version starts its own lineage: no source version.
+    db.workflowTemplateVersion.findMany.mockResolvedValue([
+      { id: "v-roofing-1", sourceVersionId: null },
+      { id: "v-roofing-2", sourceVersionId: null },
+    ]);
+    await expect(previewReconcile("w1", { kind: "upgrade-module", templateKey: "roofing" })).rejects.toMatchObject({ status: 409, message: expect.stringContaining("one-time migration") });
+    db.workflowTemplateVersion.findFirst.mockResolvedValue(fakeTree(SLIM_CORE, { version: 2 }));
+    db.workflowTemplateVersion.findMany.mockResolvedValue([
+      { id: "v-core-1", sourceVersionId: null },
+      { id: "v-core-2", sourceVersionId: null },
+    ]);
+    await expect(previewReconcile("w1", { kind: "upgrade-module", templateKey: "core" })).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("refuses to add a streamlined trade to a job on the earlier Core, and adds it to a streamlined one", async () => {
+    setup({ modules: [CORE, ROOFING], permitStatus: "REQUIRED" });
+    db.workflowTemplateVersion.findFirst.mockResolvedValue(fakeTree(SLIM_DOORS_WINDOWS, { version: 2 }));
+    await expect(previewReconcile("w1", { kind: "add-module", templateKeys: ["doors_windows"] })).rejects.toMatchObject({ status: 409, message: expect.stringContaining("one-time migration") });
+
+    setup({ modules: [SLIM_CORE, SLIM_ROOFING], permitStatus: "REQUIRED", versions: { core: 2, roofing: 2 } });
+    db.workflowTemplateVersion.findFirst.mockResolvedValue(fakeTree(SLIM_DOORS_WINDOWS, { version: 2 }));
+    const plan = await previewReconcile("w1", { kind: "add-module", templateKeys: ["doors_windows"] });
+    expect(plan.toCreate.map((t) => t.key).sort()).toEqual([
+      "doors_windows:confirm_openings_and_specs",
+      "doors_windows:dw_permit_documents",
+      "doors_windows:finish_and_test",
+      "doors_windows:in_progress_inspection",
+      "doors_windows:install_units",
+      "doors_windows:order_windows_doors",
+      "doors_windows:owner_signoff_order_specs",
+      "doors_windows:receive_delivery_and_prepare",
+    ]);
+    expect(plan.toSkip).toEqual([]);
+    expect(plan.warnings).toEqual([]);
   });
 });
 
