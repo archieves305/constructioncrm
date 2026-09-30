@@ -245,7 +245,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-30 — Job target start date editable on the job page (built, dev-QA'd, uncommitted on `main`)
+### 2026-09-30 — Job target start date editable on the job page (deployed `e92a606`)
 
 Richard: "where can I modify the job start date?" — only in the Apply
 workflow dialog, unreachable once a workflow exists. Added
@@ -260,7 +260,11 @@ noon UTC, as the apply route does; `new Date("yyyy-MM-dd")` was midnight UTC
 = the evening before in ET) and a bad value is a 400. Gate: typecheck clean,
 lint 6/22, 1159 tests, build clean; headless Chromium 11/11 on dev (set /
 clear / workflow job / calendar overlay on the day / 400), dev restored. No
-migration. Not committed, not deployed.
+migration. **Deployed `e92a606`** (Richard ran the deploy from `!`; it also
+carried `0085892`, the Tasks page opening on "assigned to me"): BUILD_ID
+`T-gHoVihFeo4ZA4S_c1vx` → `gVj4IZE3Efq2TEHiJ0ile`, 74 migrations / none
+pending, smoke 307 ×2, journal clean, backup
+`postgres-2026-09-30-112155.dump`.
 
 ### 2026-09-28 — Operations Calendar, Phase 4: operational intelligence (deployed `4d1be83`)
 
@@ -447,7 +451,7 @@ sheet at 1280 and 390, redirect, empty state) and the SALES_REP coercion
 check. Details:
 [features/calendar.md](docs/project-memory/features/calendar.md).
 
-### 2026-09-28 — Tasks page opens on "assigned to me" (built, dev-QA'd, on `main`, not deployed)
+### 2026-09-28 — Tasks page opens on "assigned to me" (deployed 2026-09-30 inside `e92a606`)
 
 Richard: "When you are on the Tasks tab it should default to showing the
 tasks that are assigned to the current user." `/tasks` now resolves whose
@@ -469,7 +473,8 @@ had been sending into the void. Also fixed the known hydration warning on
 14/14 (bare `/tasks` = mine only; Everyone → all + pref ALL; reload follows
 the pref; Mine again; `?scope=all`, explicit assignee and `?unscheduled=1`
 links keep their meaning; no page errors). Gate: typecheck clean, lint
-6/22, 1159 tests (+2), build clean.
+6/22, 1159 tests (+2), build clean. On prod since 2026-09-30 (BUILD_ID
+`gVj4IZE3Efq2TEHiJ0ile`), shipped with the job start-date field.
 
 ### 2026-09-28 — Notifications v2, Stage 2: digests (deployed `b017ded`, cron installed, switch off)
 
@@ -1277,9 +1282,11 @@ Notification Digests).
 > nurture operator items and Code Violations Stage 4 still stand. Known
 > pre-existing: `/api/permits?status=<bad>` 500s. **The Tasks page now
 > opens on "assigned to me" (Mine | Everyone toggle, shared list
-> preference) — on `main`, not deployed; push + deploy, then confirm the
-> sidebar Tasks tab opens on Richard's own tasks and Everyone shows the
-> team's.** Same rules: explicit role lists, tests +
+> preference) — on prod since 2026-09-30 inside `e92a606` (BUILD_ID
+> `gVj4IZE3Efq2TEHiJ0ile`); confirm the sidebar Tasks tab opens on
+> Richard's own tasks and Everyone shows the team's. The job page header
+> now edits the target start date (same deploy): set one on a job with a
+> workflow and check the "Starts …" label and the calendar marker.** Same rules: explicit role lists, tests +
 > typecheck + build green, lint ≤ 6/28, deploy with the env override.
 >
 > **Notifications v2: Stage 1 is on prod in shadow mode (`NOTIFICATIONS_V2=1`,
