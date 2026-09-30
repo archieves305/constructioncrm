@@ -58,7 +58,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    clean, backup `postgres-2026-09-30-130450.dump`). Prod inventory + dry
    run done (wrote nothing): 8 jobs + 3 cases would migrate, none blocked,
    nothing in flight, JOB-00026 already streamlined; no company role
-   default is set. **The real run is Richard's call.** Stage 3 = completion
+   default is set. **JOB-00025 migrated on prod 2026-09-30** (fresh backup
+   `postgres-2026-09-30-131751.dump` first; 86 → 21 steps, 16 created, 5
+   refreshed, 81 retired, nothing deleted, journal clean); the other 7 jobs
+   and 3 cases wait for Richard's look at that job and his go. Stage 3 = completion
    UX; Stage 4 = "Complete this phase". Notes:
    [features/workflows.md](docs/project-memory/features/workflows.md).
 000000. ✅ **Operations Calendar / My Work — all four phases on prod** — four phases, plan approved
@@ -1377,8 +1380,9 @@ Notification Digests).
 ## 10. Next Prompt
 
 > **Streamlined workflows: Stages 1 and 2 are on prod (`0ad0f99`, BUILD_ID
-> `_uoyVpElQCqjPaNXDQhtw`); the migration itself has NOT run.** The prod
-> dry run is clean (11 workflows would migrate, none blocked). Next:
+> `_uoyVpElQCqjPaNXDQhtw`); JOB-00025 is migrated (backup
+> `postgres-2026-09-30-131751.dump`), the other 7 jobs and 3 cases are
+> not.** The prod dry run is clean (none blocked). Next:
 > Richard sets Admin → Workflow Roles first (every default is empty, and
 > saving a default does not back-fill existing steps until Stage 3), then
 > gives the go. Then, in a quiet window: note the deploy's DB backup (or take a fresh one), `--only
