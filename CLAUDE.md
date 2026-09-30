@@ -80,7 +80,11 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `canCatchUpWorkflow` (office roles + the job's PM / case manager),
    `CatchUpDialog`; gates arrive unticked, a record gate with no record is
    held, nothing is bypassed. No migration in either stage. **Stages 3 and
-   4 are on `main`, not deployed.** All four stages of the plan are built. Stage 3 = completion
+   4 deployed 2026-09-30 as `49c590a`** (BUILD_ID `ZaL55YMVgRTZc9b5mi5NP`,
+   no migration, smoke 307 ×2, journal clean, backup
+   `postgres-2026-09-30-135558.dump`). **All four stages of the plan are on
+   prod**; what remains is Richard's click-through and setting Admin →
+   Workflow Roles (saving assigns the 9 active steps that have no owner). Stage 3 = completion
    UX; Stage 4 = "Complete this phase". Notes:
    [features/workflows.md](docs/project-memory/features/workflows.md).
 000000. ✅ **Operations Calendar / My Work — all four phases on prod** — four phases, plan approved
@@ -301,7 +305,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-09-30 — Streamlined workflows, Stage 4: "Complete this phase" (built, dev-QA'd, on `main`, not deployed)
+### 2026-09-30 — Streamlined workflows, Stage 4: "Complete this phase" (deployed `49c590a` with Stage 3)
 
 Built on `workflows-catch-up` straight after Stage 3: `catch-up.ts`
 (`planCatchUp` — open steps of one phase in dependency order, blocking gates
@@ -316,10 +320,13 @@ One change from the plan: blocking steps are unticked by default but anyone
 allowed to catch up may tick them — completing a gate one at a time was
 never restricted, only skipping one. Gate: typecheck clean, lint 6/22, 1259
 tests (+7), build clean. Dev QA `qa-catchup.js` 7/7 + dialog 4/4, DB
-restored. No migration. Details:
+restored. No migration. Richard pushed and deployed Stages 3 + 4 from `!`:
+BUILD_ID `_uoyVpElQCqjPaNXDQhtw` → `ZaL55YMVgRTZc9b5mi5NP`, no pending
+migrations, smoke 307 ×2, journal clean, backup
+`postgres-2026-09-30-135558.dump`. Details:
 [features/workflows.md](docs/project-memory/features/workflows.md).
 
-### 2026-09-30 — Streamlined workflows, Stage 3: making a step easy to finish (built, dev-QA'd, on `main`, not deployed)
+### 2026-09-30 — Streamlined workflows, Stage 3: making a step easy to finish (deployed `49c590a`)
 
 "continue". Built on `workflows-completion`: `visibility.taskRightsFor`
 (ownership OR coordinating the job / case; READ_ONLY never) in
@@ -1455,9 +1462,9 @@ Notification Digests).
 > **Streamlined workflows: Stages 1 and 2 are done — every prod workflow
 > (8 jobs migrated + JOB-00026 applied streamlined, 3 cases) is on the
 > streamlined templates (`0ad0f99`, BUILD_ID `_uoyVpElQCqjPaNXDQhtw`).**
-> **Stages 3 (completion UX) and 4 ("Complete this phase") are built on
-> `main`, not deployed** — no migration in either. Next: Richard pushes and
-> deploys, then clicks through on prod: a job's Workflow tab opens on what is
+> **Stages 3 (completion UX) and 4 ("Complete this phase") are on prod
+> (`49c590a`, BUILD_ID `ZaL55YMVgRTZc9b5mi5NP`); the slim-workflow plan is
+> fully shipped.** Next: Richard clicks through on prod: a job's Workflow tab opens on what is
 > ready ("n to do now in …"), "Complete…" on a step shows Tick all and
 > Attach inside the dialog, "Done" appears once nothing is left to tick
 > (Undo in the toast), recording a deposit completes "Verify deposit
