@@ -245,6 +245,23 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-09-30 — Job target start date editable on the job page (built, dev-QA'd, uncommitted on `main`)
+
+Richard: "where can I modify the job start date?" — only in the Apply
+workflow dialog, unreachable once a workflow exists. Added
+`components/jobs/target-start-field.tsx` to the job header subtitle
+("Starts Oct 12, 2026" / "Set start date" → popover with a date input and
+Save; shown to `workflow.permissions.canCoordinate`, read-only text for
+everyone else). It calls the existing `PATCH /api/jobs/[id]`, which already
+reschedules `TARGET_START`-anchored steps. Clear is offered only on a job
+with no workflow — clearing would null the due date of every open anchored
+step. Route fix: `targetStartDate` now goes through `parseDueAt` (bare day →
+noon UTC, as the apply route does; `new Date("yyyy-MM-dd")` was midnight UTC
+= the evening before in ET) and a bad value is a 400. Gate: typecheck clean,
+lint 6/22, 1159 tests, build clean; headless Chromium 11/11 on dev (set /
+clear / workflow job / calendar overlay on the day / 400), dev restored. No
+migration. Not committed, not deployed.
+
 ### 2026-09-28 — Operations Calendar, Phase 4: operational intelligence (deployed `4d1be83`)
 
 "continue to Phase 4". Built on `calendar-intel`: `CalendarItem.kind` +

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { rescheduleTargetStart } from "@/lib/workflows/reschedule";
 import { reassignUnresolved } from "@/lib/workflows/roles";
+import { parseDueAt } from "@/lib/tasks/dates";
 import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/helpers";
 import {
   recomputeCostPlusJob,
@@ -94,7 +95,13 @@ export async function PATCH(
   const updateData: Record<string, unknown> = {};
   for (const field of allowedFields) {
     if (body[field] !== undefined) {
-      if ((field.endsWith("Date") || field.endsWith("At")) && body[field]) {
+      if (field === "targetStartDate" && body[field]) {
+        // A day, not an instant: a bare yyyy-MM-dd is pinned to noon UTC, as
+        // the workflow apply route does, so it stays on its day in every zone.
+        const start = parseDueAt(String(body[field]));
+        if (Number.isNaN(start.getTime())) return badRequest("targetStartDate must be a date");
+        updateData[field] = start;
+      } else if ((field.endsWith("Date") || field.endsWith("At")) && body[field]) {
         updateData[field] = new Date(body[field]);
       } else {
         updateData[field] = body[field];

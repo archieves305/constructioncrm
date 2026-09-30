@@ -53,6 +53,7 @@ import { ContractPanel } from "@/components/jobs/contract-panel";
 import { useJobContracts } from "@/components/customer-contracts/use-customer-contracts";
 import { Callout } from "@/components/shared/callout";
 import { RentalTurnoverPanel } from "@/components/jobs/rental-turnover-panel";
+import { TargetStartField } from "@/components/jobs/target-start-field";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 import { CaseListMini } from "@/components/violations/case-list-mini";
 import { useTasks } from "@/components/tasks/use-tasks";
@@ -190,6 +191,13 @@ export default function JobDetailPage() {
             <Link href={`/leads/${job.lead.id}`} className="text-brand-fg hover:underline">
               {job.lead.fullName}
             </Link>
+            {(job.targetStartDate || workflow?.permissions.canCoordinate) && " · "}
+            <TargetStartField
+              jobId={id}
+              value={job.targetStartDate ?? null}
+              canEdit={Boolean(workflow?.permissions.canCoordinate)}
+              hasWorkflow={Boolean(workflow?.instance)}
+            />
           </>
         }
         badges={
