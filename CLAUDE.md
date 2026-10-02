@@ -305,7 +305,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-02 — Audit initiative 3: one progress system (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-02 — Audit initiative 3: one progress system (deployed `4558cbd`)
 
 "continue". (1) **A new job starts with its workflow**:
 `lib/workflows/auto-apply.ts` (`autoApplyWorkflowForNewJob`, pure
@@ -340,6 +340,10 @@ built** (deferred from the plan): generating a contract on the lead before
 Won — `CustomerContract.jobId` is required, so it needs its own design.
 Completing "Close the job" now closes the job, which sends the review-request
 email as a manual move to Closed always did.
+Richard pushed and deployed from `!`: BUILD_ID `NrwssgzE8M0lgWvTt5zOn` →
+`3S1UF2Qayh1oZ828e8Am-`, no migration, smoke 307 ×2, zero journal errors since
+the restart, uploads intact (8 of 8), backup
+`postgres-2026-10-02-155021.dump`.
 
 ### 2026-10-02 — Audit initiative 2: job cost summary (deployed `389a124`)
 
