@@ -305,7 +305,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-02 — Foundation: upload store by env + guards on lead, job, permit and change-order routes (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-02 — Foundation: upload store moved out of the app folder + guards on lead, job, permit and change-order routes (deployed `45d5604`)
 
 "continue". **Uploads:** `src/lib/files/storage.ts` reads `UPLOADS_DIR`
 (absolute path; unset = `./uploads`), declared in `env.ts`. After this is
@@ -330,6 +330,19 @@ SALES_REP (own lead / job 200, others 404, bulk stage 403, bad permit status
 400) and ADMIN (all reads and pages 200). No migration. **Still session-only:**
 prospects, referrals, both estimate route families, lead create, daily-log
 and field routes with their own guards untouched.
+Richard pushed and deployed from `!`: BUILD_ID `ClLUJA-KTPisCzUOy_FFC` →
+`rol5mL5vu49ynynjCUQ1E`, no migration, smoke 307 ×2, backup
+`postgres-2026-10-02-144826.dump`. **Then the store was moved on the
+droplet:** `rsync -a /opt/knuco/uploads/ /var/lib/knuco/uploads/` (21 files,
+owner `knuco`), `UPLOADS_DIR=/var/lib/knuco/uploads` appended to
+`/etc/knuco/env` (copy kept as `env.bak-20261002`), `knuco` restarted (active,
+the process carries the variable, 307 ×2, all 8 referenced files present at
+the new path, `knuco` can write there). `/usr/local/bin/knuco-backup.sh`
+(run by `knuco-backup.timer`, daily 06:31 UTC, and before every deploy) now
+also writes `uploads-<ts>.tar.gz` with the same 14-day retention (copy kept
+as `.bak-20261002`); run once by hand: success, 21 files in the archive. The
+old `/opt/knuco/uploads` is left in place, unused. The backup is on the same
+droplet as the files.
 
 ### 2026-10-02 — Foundation (b): role checks + audit on money and file routes (deployed `9daf99e`)
 
@@ -1394,6 +1407,9 @@ Full list: [known-issues.md](docs/project-memory/known-issues.md).
   itself is what is broken. Optional `OPS_ALERT_EMAIL`, else oldest active
   ADMIN.
 - `PHONE_ROUTING_API_KEY` unset → that endpoint 503s.
+- **Uploads live in `/var/lib/knuco/uploads`** (`UPLOADS_DIR`), backed up
+  nightly beside the DB dump — on the same droplet, so not protection against
+  losing the box. 190 older files are missing on disk (see known-issues).
 - Old domain still 302, not 301 — deliberate, and **still deliberate after
   SSO was proven**. Promote when the old host goes quiet. It is an nginx
   vhost edit on the droplet, not a code deploy; must preserve path + query
