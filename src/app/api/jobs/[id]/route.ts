@@ -16,6 +16,7 @@ import {
 } from "@/lib/services/progress-billing";
 import { canEditJobRecord, canManageJobMoney, JOB_MONEY_FIELDS, MONEY_DENIED_MESSAGE, touchesJobMoney } from "@/lib/money/access";
 import { recordAudit } from "@/lib/audit/record";
+import { settleJobGates } from "@/lib/workflows/gates";
 import { guardJob } from "@/lib/access/records";
 
 export async function GET(
@@ -177,9 +178,33 @@ export async function PATCH(
   // The workflow follows the job: a moved target start shifts the steps
   // anchored on it; a new PM picks up the unassigned PM steps.
   if (updateData.targetStartDate !== undefined) await rescheduleTargetStart(id, session.user.id);
-  if (updateData.projectManagerId !== undefined) {
+  if (updateData.projectManagerId !== undefined || updateData.salesRepId !== undefined) {
     const wf = await prisma.jobWorkflowInstance.findUnique({ where: { jobId: id }, select: { id: true } });
-    if (wf) await reassignUnresolved(wf.id, session.user.id);
+    if (wf) {
+      // The PM / sales-rep slots on the workflow team are the same fact as the
+      // job's own fields (team-mirror.ts covers the other direction).
+      const slots = [
+        ["PROJECT_MANAGER", updateData.projectManagerId],
+        ["SALES_REP", updateData.salesRepId],
+      ] as const;
+      for (const [role, userId] of slots) {
+        if (userId === undefined) continue;
+        if (typeof userId === "string" && userId) {
+          await prisma.jobWorkflowTeamMember.upsert({
+            where: { instanceId_role: { instanceId: wf.id, role } },
+            create: { instanceId: wf.id, role, userId },
+            update: { userId },
+          });
+        } else {
+          await prisma.jobWorkflowTeamMember.deleteMany({ where: { instanceId: wf.id, role } });
+        }
+      }
+      await reassignUnresolved(wf.id, session.user.id);
+    }
+  }
+  // A PM or a start date now on the job may be a checklist line some step was waiting to have ticked.
+  if (updateData.projectManagerId !== undefined || updateData.targetStartDate !== undefined) {
+    await settleJobGates(id, session.user.id);
   }
 
   // A progress job bills against its schedule of values; start it with one

@@ -43,6 +43,11 @@ async function afterClose(input: { taskId: string; to: TaskStatus; actorUserId: 
     select: { workflowTaskKey: true, violationCaseId: true, workflowInstance: { select: { id: true, status: true, jobId: true } } },
   });
   if (!t?.workflowInstance) return;
+  // The job stage follows the workflow's milestones (forward only).
+  if (t.workflowInstance.jobId) {
+    const { syncJobStageFromWorkflow } = await import("@/lib/workflows/stage-sync");
+    await syncJobStageFromWorkflow(t.workflowInstance.jobId, input.actorUserId);
+  }
   // A corrective job's workflow just completed → its violation cases may proceed.
   if (t.workflowInstance.status === "COMPLETED" && t.workflowInstance.jobId) {
     const { onJobCompleted } = await import("@/lib/violations/job-sync");

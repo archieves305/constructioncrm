@@ -71,8 +71,22 @@ export async function createJobFromLead(leadId: string, userId: string) {
     },
   });
 
+  // The job starts with its workflow: Core plus the trades the lead's
+  // services point at. Its "Verify deposit received" step replaces the
+  // stand-alone deposit task, which is only raised when no workflow could be applied.
+  const actor = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: { select: { name: true } } } });
+  const { autoApplyWorkflowForNewJob } = await import("@/lib/workflows/auto-apply");
+  const applied = actor
+    ? await autoApplyWorkflowForNewJob({
+        jobId: job.id,
+        serviceNames: lead.services.map((s) => s.serviceCategory.name),
+        salesRepId: lead.assignedUserId,
+        actor: { id: actor.id, role: actor.role.name },
+      })
+    : null;
+
   // Create deposit task
-  await createTask(
+  if (!applied) await createTask(
     {
       jobId: job.id,
       leadId,
@@ -93,7 +107,7 @@ export async function createJobFromLead(leadId: string, userId: string) {
       leadId,
       activityType: "JOB_CREATED",
       title: `Job ${job.jobNumber} created`,
-      description: `Contract: $${Number(contractAmount).toLocaleString()} | Service: ${serviceType}`,
+      description: `Contract: $${Number(contractAmount).toLocaleString()} | Service: ${serviceType}${applied ? ` | Workflow applied (${["Core", ...applied.trades].join(", ")})` : ""}`,
       createdByUserId: userId,
     },
   });

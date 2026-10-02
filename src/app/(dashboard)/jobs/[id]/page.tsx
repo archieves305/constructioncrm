@@ -61,7 +61,8 @@ import { JobWorkflowPanel } from "@/components/workflows/job-workflow-panel";
 import { useSession } from "@/lib/auth/session-client";
 import { JobOverview } from "@/components/jobs/job-overview";
 import { CostSummaryCard, useJobCostSummary } from "@/components/jobs/cost-summary-card";
-import { canManageJobMoney } from "@/lib/money/access";
+import { canEditJobRecord, canManageJobMoney } from "@/lib/money/access";
+import { TeamPersonField } from "@/components/jobs/team-person-field";
 import { useJobWorkflow } from "@/components/workflows/use-workflow";
 import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
 import { isPastDue } from "@/lib/calendar/status";
@@ -71,6 +72,7 @@ export default function JobDetailPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const { data: costSummary } = useJobCostSummary(id);
+  const canEditRecord = canEditJobRecord(session?.user.role);
   const moneyViewOnly = Boolean(session?.user) && !canManageJobMoney(session?.user.role);
   const qc = useQueryClient();
   const searchParams = useSearchParams();
@@ -368,11 +370,11 @@ export default function JobDetailPage() {
             <CardContent className="text-sm space-y-2">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span>Sales: {teamSales ? `${teamSales.firstName} ${teamSales.lastName}` : "—"}</span>
+                <TeamPersonField jobId={id} field="salesRepId" label="Sales" value={teamSales} canEdit={canEditRecord} />
               </div>
               <div className="flex items-center gap-2">
                 <Hammer className="h-4 w-4 text-muted-foreground" />
-                <span>PM: {teamPm ? `${teamPm.firstName} ${teamPm.lastName}` : "—"}</span>
+                <TeamPersonField jobId={id} field="projectManagerId" label="PM" value={teamPm} canEdit={canEditRecord} />
               </div>
               {(workflow?.team ?? []).filter((t) => t.role !== "PROJECT_MANAGER" && t.role !== "SALES_REP").map((t) => (
                 <div key={t.role} className="flex items-center gap-2">

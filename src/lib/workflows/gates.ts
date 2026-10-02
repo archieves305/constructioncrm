@@ -39,6 +39,75 @@ export const SELF_COMPLETING_GATES: ReadonlySet<WorkflowEvidenceType> = new Set<
   "LINKED_JOB_PERMIT",
 ]);
 
+/**
+ * Checklist lines that restate a fact the CRM already holds. They tick
+ * themselves, so nobody is asked to confirm by hand what the job record
+ * already says. Matched on the line's wording, so a template that rewords a
+ * line simply goes back to a manual tick. Pure.
+ */
+export type HeldFacts = {
+  projectManagerSet: boolean;
+  /** A superintendent is named on the workflow team. */
+  superintendentSet: boolean;
+  targetStartSet: boolean;
+  /** A permit is on the job with its application date. */
+  permitOnFile: boolean;
+  /** Every permit has passed final, or the job needs no permit. */
+  permitsClosed: boolean;
+};
+
+const FACT_LINES: { test: RegExp; holds: (f: HeldFacts) => boolean }[] = [
+  { test: /^Project manager set on the job/i, holds: (f) => f.projectManagerSet },
+  { test: /^Superintendent \/ field lead set on the Workflow team/i, holds: (f) => f.superintendentSet },
+  { test: /^Target start date set on the job/i, holds: (f) => f.targetStartSet },
+  { test: /^Permit added on the Permits tab/i, holds: (f) => f.permitOnFile },
+  { test: /^Permit closed on the Permits tab/i, holds: (f) => f.permitsClosed },
+  // Completing "Close the job" moves the stage itself (stage-sync.ts), so there is nothing left to confirm.
+  { test: /^Job moved to the Closed stage/i, holds: () => true },
+];
+
+/** Keys of the unticked lines whose fact is now true. */
+export function linesToTick(checklist: { key: string; label: string; done: boolean }[], facts: HeldFacts): string[] {
+  return checklist.filter((c) => !c.done && FACT_LINES.some((l) => l.test.test(c.label) && l.holds(facts))).map((c) => c.key);
+}
+
+/** Tick the held-fact lines on a job's active steps. Best-effort; returns how many lines were ticked. */
+export async function tickHeldFacts(jobId: string, actorUserId: string): Promise<number> {
+  let ticked = 0;
+  try {
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      select: {
+        projectManagerId: true,
+        targetStartDate: true,
+        permits: { select: { status: true, submittedDate: true } },
+        workflow: { select: { id: true, status: true, permitStatus: true, team: { select: { role: true } } } },
+      },
+    });
+    if (!job?.workflow || job.workflow.status !== "ACTIVE") return 0;
+    const facts: HeldFacts = {
+      projectManagerSet: job.projectManagerId !== null,
+      superintendentSet: job.workflow.team.some((t) => t.role === "SUPERINTENDENT"),
+      targetStartSet: job.targetStartDate !== null,
+      permitOnFile: job.permits.some((p) => p.submittedDate !== null),
+      permitsClosed: job.workflow.permitStatus === "NOT_REQUIRED" || (job.permits.length > 0 && job.permits.every((p) => p.status === "FINAL")),
+    };
+    const steps = await prisma.task.findMany({
+      where: { workflowInstanceId: job.workflow.id, workflowTaskKey: { not: null }, status: { in: ["PENDING", "IN_PROGRESS"] }, activatedAt: { not: null } },
+      select: { id: true, checklist: true },
+    });
+    for (const s of steps) {
+      const keys = linesToTick(readChecklist(s.checklist), facts);
+      if (keys.length === 0) continue;
+      await updateTask({ id: s.id, input: { checklist: keys.map((key) => ({ key, done: true })) }, actorUserId, notify: "none" });
+      ticked += keys.length;
+    }
+  } catch (err) {
+    logger.exception(err, { where: "workflows.tickHeldFacts", jobId });
+  }
+  return ticked;
+}
+
 const NOTE = "completed automatically — the record this step waits on is now on file";
 
 export async function completeSatisfiedGates(instanceId: string, actorUserId: string): Promise<string[]> {
@@ -78,6 +147,8 @@ export async function completeSatisfiedGates(instanceId: string, actorUserId: st
 
 /** After something was recorded on a job: its own gates, and those of any violation case the job is the corrective job for. */
 export async function settleJobGates(jobId: string, actorUserId: string): Promise<number> {
+  // Lines first: a record gate with a checklist waits for its lines.
+  await tickHeldFacts(jobId, actorUserId);
   try {
     const instances = await prisma.jobWorkflowInstance.findMany({
       where: { status: "ACTIVE", OR: [{ jobId }, { violationCase: { jobId } }] },

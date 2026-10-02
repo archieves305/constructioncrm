@@ -11,6 +11,7 @@ import { determinePermit, reconcileScope, ReconcileError } from "@/lib/workflows
 import { reassignUnresolved } from "@/lib/workflows/roles";
 import { mirrorTeamToJob } from "@/lib/workflows/team-mirror";
 import type { WorkflowRole } from "@/generated/prisma/client";
+import { tickHeldFacts } from "@/lib/workflows/gates";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -66,6 +67,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const reassigned = await reassignUnresolved(instance.id, user.id);
       // The PM / sales rep slots are the job's PM / sales rep — keep the job's own fields in step.
       const job = await mirrorTeamToJob({ jobId: id, team: body.team, actorUserId: user.id });
+      // A PM named on the team ticks "Project manager set on the job" wherever a step lists it.
+      await tickHeldFacts(id, user.id);
       await recordAudit({
         actorUserId: user.id,
         entityType: "JobWorkflowInstance",

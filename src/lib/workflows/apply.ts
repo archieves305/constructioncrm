@@ -7,7 +7,7 @@ import { incompatibleTrades, MIXED_GENERATION_MESSAGE } from "./compat";
 import { compose, type ComposedPlan, type ComposedTask, type ComposeModule } from "./compose";
 import { criticalPathBusinessDays } from "./dependencies";
 import { closeSupersededTasks, findSupersededTasks, type SupersededTask } from "./duplicates";
-import { completeSatisfiedGates } from "./gates";
+import { completeSatisfiedGates, tickHeldFacts } from "./gates";
 import { CORE_MODULE_KEY, sourceKeyFor, type ScopeToggleState } from "./keys";
 import { loadInstanceModules, loadPublishedVersion, toComposeModule } from "./load";
 import { notifyTasksReady } from "./notify";
@@ -484,6 +484,7 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
   notifyTasksReady(out.activated, input.actor.id, `wf-apply:${out.instanceId}:${Date.now()}`);
   const closedSuperseded = input.closeSuperseded && ref.kind === "job" ? await closeSupersededTasks(ref.jobId, input.actor.id) : 0;
   // A deposit already recorded, violation items already entered: the gate that waits on them is done from the start.
+  if (ref.kind === "job") await tickHeldFacts(ref.jobId, input.actor.id);
   await completeSatisfiedGates(out.instanceId, input.actor.id);
 
   return {

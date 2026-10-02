@@ -305,6 +305,42 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — Audit initiative 3: one progress system (built, dev-QA'd, on `main`, not deployed)
+
+"continue". (1) **A new job starts with its workflow**:
+`lib/workflows/auto-apply.ts` (`autoApplyWorkflowForNewJob`, pure
+`suggestTradeKeys`) — `createJobFromLead` applies Core plus the trades the
+lead's services point at, permit UNDETERMINED, the lead's rep in the SALES_REP
+slot; the stand-alone "Collect deposit" task is raised only when no workflow
+could be applied. Applies to the single and the bulk Won routes. (2) **The
+stage follows the workflow**: `lib/workflows/stage-sync.ts` — pure
+`stageNameForWorkflow` (verify_deposit → Financing Cleared, precon_plan →
+Scope Finalized, submit_permit_application → Permit Submitted,
+confirm_permit_issued → Permit Approved, confirm_production_start → In
+Progress, punch list reached → Punch List, punch done + inspection open →
+Final Inspection, final invoice done → Final Payment Due, close_job → Closed;
+COMPLETED only, a skipped step proves nothing) and `syncJobStageFromWorkflow`
+called from `onTaskTransition`; forward only, through `changeJobStage`
+(reason "Moved by the workflow"), a hand-set later stage is left alone, jobs
+without a workflow are untouched. (3) **Held facts tick themselves**:
+`gates.ts` `linesToTick` / `tickHeldFacts` — "Project manager set on the
+job", "Superintendent / field lead set on the Workflow team", "Target start
+date set on the job", "Permit added / closed on the Permits tab", "Job moved
+to the Closed stage" — run inside `settleJobGates`, on apply, on a team save
+and on a job PATCH. (4) **PM and sales rep on the Team card**:
+`components/jobs/team-person-field.tsx`; `PATCH /api/jobs/[id]` now upserts /
+clears the matching workflow team slot and settles the gates. No migration.
+Gate: typecheck clean, lint 6/22, 1322 tests (+14), build clean (first build
+after killing dev failed on `.next` contention; the re-run was clean). Dev QA
+end to end on a throw-away lead: Won → JOB with core + roofing +
+doors_windows, 24 steps, no deposit task → PM set (slot written, line ticked)
+→ deposit recorded (gate completed, stage Deposit Needed → Financing
+Cleared); Team card viewed in headless Chromium; QA rows deleted. **Not
+built** (deferred from the plan): generating a contract on the lead before
+Won — `CustomerContract.jobId` is required, so it needs its own design.
+Completing "Close the job" now closes the job, which sends the review-request
+email as a manual move to Closed always did.
+
 ### 2026-10-02 — Audit initiative 2: job cost summary (deployed `389a124`)
 
 "continue and follow recommendation regarding labor count": crew labor counts
@@ -1633,6 +1669,11 @@ Notification Digests).
   amount = completed-to-date × (1 − retainage) − previous certificates. Only
   the latest application may be edited or voided. Same explicit role list
   as expense approval.
+- **The job stage follows the workflow** (`lib/workflows/stage-sync.ts`):
+  forward only, COMPLETED milestones only, never on a job without a workflow.
+  A new job is created with its workflow (`auto-apply.ts`). Do not add code
+  that moves a stage back or that requires a person to restate a fact the
+  job record holds — extend `linesToTick` in `gates.ts` instead.
 - **Workflow steps are ordinary tasks** written only through
   `createTask`/`updateTask`; a job has no workflow until someone applies
   one, and Core is never removable. Permit branches are exclusive; "No

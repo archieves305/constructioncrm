@@ -510,3 +510,20 @@ per-step "what changed" on migrated jobs.
 Nothing scheduled. Candidates if asked: business-day durations in the
 report, a per-user "my steps" view of the health widget, phase gantt on
 the job.
+
+## One progress system (audit initiative 3, 2026-10-02)
+
+- **Auto-apply** (`auto-apply.ts`): `createJobFromLead` applies Core + the
+  trades matched from the lead's service categories (the same match the Apply
+  dialog marks "suggested"), permit UNDETERMINED. Best-effort — on failure
+  the job is created as before with its deposit task.
+- **Stage sync** (`stage-sync.ts`): the Core milestone → stage map lives in
+  `stageNameForWorkflow`; `syncJobStageFromWorkflow` runs after every closed
+  step (`tasks/transitions.ts`). Forward only. Stage names are matched by
+  name, like `changeJobStage`'s own map.
+- **Held facts** (`gates.ts` `linesToTick`): checklist lines matched by their
+  wording; a reworded line falls back to a manual tick.
+- **Team card**: PM / sales rep pickers write the job field and the workflow
+  team slot together (job PATCH); `team-mirror.ts` covers the other direction.
+- Deferred: contract before Won.
+
