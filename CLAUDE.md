@@ -305,6 +305,46 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — Foundation (b): role checks + audit on money and file routes (built, dev-QA'd, on `main`, not deployed)
+
+First build from the approved audit roadmap. Richard approved the role list
+(ADMIN / MANAGER / OFFICE_STAFF for money writes). New pure
+`src/lib/money/access.ts` (`canManageJobMoney`, `canViewCompanyFinancials` =
+money roles + READ_ONLY, `canEditJobRecord` = money roles + SALES_REP,
+`touchesJobMoney`) guards every write handler under `api/payments`,
+`api/jobs/[id]/payments`, `api/jobs/[id]/invoices`, `api/invoices/[id]`,
+`api/labor-contracts/**`, `api/labor-change-orders/**`,
+`api/labor-contract-tasks`, `api/labor-payments`, `api/budget-lines`,
+`api/jobs/[id]/budget/{lines,import}`, `api/expenses/[id]/budget-allocations`
+and the QBO export; `PATCH /api/jobs/[id]` needs `canEditJobRecord`, and its
+pricing fields need the money roles (audit `pricing_update` with before /
+after); `GET /api/reports/financials` needs `canViewCompanyFinancials`.
+Payment create / edit / delete and labor-payment delete now write
+`AuditEvent`s; payment POST validates type and amount. `src/lib/files/access.ts`:
+`fileReadWhere` (SALES_REP / CREW_LEAD read their uploads, files on leads
+and jobs they are involved with, their tasks and their cases; outside that a
+file is 404) on `GET /api/files` and `GET|DELETE /api/files/[id]`;
+`canDeleteFile` (office roles any ordinary file, others only their own
+upload, READ_ONLY none, `CUSTOMER_CONTRACT` never); file delete audited and
+row-before-disk; READ_ONLY cannot upload. **Deposit drift fixed in the same
+pass**: `recomputeJobBalance` now derives `depositReceived` /
+`depositReceivedDate` from RECEIVED deposit payments (prod had no mismatch
+on the day, checked read-only), and `recordPayment` no longer increments.
+UI: Collections nav entry and page limited to the financial-report roles
+(the page crashed on a 403 before); a "View only" note on the job's Money /
+Field tabs for non-money roles. Reads of a job's payments, invoices and
+budget are unchanged. Gate: typecheck clean, lint 6/22, 1276 tests (+12),
+build clean. Dev QA by API as ADMIN (deposit 500 → edit 300 → delete moves
+the deposit figure 8000 → 8500 → 8300 → 8000; three audit rows) and as
+SALES_REP (403 on payment, contract, invoice, budget, labor contract, QBO
+export, financial report; 200 on next-action edit and payment read; 404 on
+another person's file; 403 deleting a contract document). No migration.
+**Not yet guarded** (next): lead and job stage routes, lead by-id, permits
+and inspections, change-order create / send (still `hasMinRole` on
+decision), prospects, estimates. Server check for the 190 missing uploads:
+the nightly backup is DB-only and the attached volume holds only Postgres —
+no copy on the droplet; DigitalOcean panel backups are the last place to look.
+
 ### 2026-10-02 — Deploys were deleting prod uploads: script fixed, 7 files restored (not yet deployed)
 
 Found during the product audit (doc: https://claude.ai/code/artifact/c50661ee-92a5-47aa-a581-f15fbcf4b25b).

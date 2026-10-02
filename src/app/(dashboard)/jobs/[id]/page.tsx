@@ -58,12 +58,16 @@ import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 import { CaseListMini } from "@/components/violations/case-list-mini";
 import { useTasks } from "@/components/tasks/use-tasks";
 import { JobWorkflowPanel } from "@/components/workflows/job-workflow-panel";
+import { useSession } from "@/lib/auth/session-client";
+import { canManageJobMoney } from "@/lib/money/access";
 import { useJobWorkflow } from "@/components/workflows/use-workflow";
 import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
+  const moneyViewOnly = Boolean(session?.user) && !canManageJobMoney(session?.user.role);
   const qc = useQueryClient();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -408,6 +412,11 @@ export default function JobDetailPage() {
 
         {/* Right column: tabs */}
         <div className="lg:col-span-2">
+          {moneyViewOnly && (tab === "money" || tab === "field") && (
+            <Callout tone="neutral" className="mb-4" title="View only">
+              Payments, invoices, labor contracts, budgets and pricing are changed by an admin, a manager or office staff. You can still add job expenses if you have that permission.
+            </Callout>
+          )}
           {contractsLoaded && moneyNext.title && (
             <Callout
               tone="info"

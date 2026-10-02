@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { recomputeJobLabor } from "@/lib/services/job-pricing";
 import { nextLaborChangeNumber } from "@/lib/services/change-orders";
+import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 
 const createSchema = z.object({
   // Signed: positive = additional work, negative = credit. Non-zero.
@@ -26,6 +27,7 @@ export async function POST(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  if (!canManageJobMoney(session.user.role)) return NextResponse.json({ error: MONEY_DENIED_MESSAGE }, { status: 403 });
 
   const { id } = await context.params;
   const body = await request.json().catch(() => null);

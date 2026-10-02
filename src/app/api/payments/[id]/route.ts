@@ -6,6 +6,8 @@ import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { recomputeJobBalance } from "@/lib/services/job-pricing";
 import { syncInvoiceStatus } from "@/lib/services/invoices";
+import { recordAudit } from "@/lib/audit/record";
+import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 
 const METHODS = [
   "CHECK",
@@ -34,16 +36,14 @@ export async function PATCH(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  if (!canManageJobMoney(session.user.role)) return NextResponse.json({ error: MONEY_DENIED_MESSAGE }, { status: 403 });
 
   const { id } = await context.params;
   const v = await validateBody(request, updateSchema);
   if (!v.ok) return v.response;
   const d = v.data;
 
-  const existing = await prisma.payment.findUnique({
-    where: { id },
-    select: { id: true, jobId: true, invoiceId: true },
-  });
+  const existing = await prisma.payment.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Validate any newly-applied invoice belongs to the same job.
@@ -79,6 +79,7 @@ export async function PATCH(
   }
 
   const record = await prisma.payment.findUnique({ where: { id } });
+  await recordAudit({ actorUserId: session.user.id, entityType: "Payment", entityId: id, action: "update", before: existing, after: record });
   return NextResponse.json(record);
 }
 
@@ -88,15 +89,14 @@ export async function DELETE(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  if (!canManageJobMoney(session.user.role)) return NextResponse.json({ error: MONEY_DENIED_MESSAGE }, { status: 403 });
 
   const { id } = await context.params;
-  const existing = await prisma.payment.findUnique({
-    where: { id },
-    select: { id: true, jobId: true, invoiceId: true },
-  });
+  const existing = await prisma.payment.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await prisma.payment.delete({ where: { id } });
+  await recordAudit({ actorUserId: session.user.id, entityType: "Payment", entityId: id, action: "delete", before: existing });
 
   await recomputeJobBalance(existing.jobId);
   if (existing.invoiceId) {

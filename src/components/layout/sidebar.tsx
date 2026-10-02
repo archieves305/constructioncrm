@@ -86,7 +86,7 @@ export const navSections: NavSection[] = [
     label: "Money",
     icon: DollarSign,
     items: [
-      { href: "/collections", label: "Collections", icon: DollarSign, hint: "Deposits missing, balances due and unpaid invoices" },
+      { href: "/collections", label: "Collections", icon: DollarSign, roles: ["ADMIN", "MANAGER", "OFFICE_STAFF", "READ_ONLY"], hint: "Deposits missing, balances due and unpaid invoices" },
       { href: "/referrals", label: "Referrals", icon: Repeat, roles: ["ADMIN", "MANAGER"] },
       { href: "/reports", label: "Reports", icon: BarChart3 },
       { href: "/reports/labor", label: "Labor Reports", icon: HardHat, roles: OFFICE },

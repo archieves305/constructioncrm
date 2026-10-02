@@ -4,6 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Term } from "@/components/shared/term";
 import { JobRef } from "@/components/shared/entity-label";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth/session-client";
+import { canViewCompanyFinancials } from "@/lib/money/access";
+import { EmptyState } from "@/components/shared/empty-state";
+import { fetchJson } from "@/lib/fetch-json";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,14 +103,19 @@ function money(n: number) {
 export default function CollectionsPage() {
   const router = useRouter();
 
+  const { data: session } = useSession();
+  const allowed = canViewCompanyFinancials(session?.user.role);
+
   const { data: jobsData, isLoading } = useQuery({
     queryKey: ["jobs", "collections"],
-    queryFn: () => fetch("/api/jobs?pageSize=500").then((r) => r.json()),
+    queryFn: () => fetchJson<{ data: CollectionJob[] }>("/api/jobs?pageSize=500"),
+    enabled: allowed,
   });
 
   const { data: financials } = useQuery<FinancialsResponse>({
     queryKey: ["reports", "financials"],
-    queryFn: () => fetch("/api/reports/financials").then((r) => r.json()),
+    queryFn: () => fetchJson<FinancialsResponse>("/api/reports/financials"),
+    enabled: allowed,
   });
 
   const jobs: CollectionJob[] = jobsData?.data || [];
@@ -129,6 +138,16 @@ export default function CollectionsPage() {
   const totalContracted = jobs.reduce((s, j) => s + Number(j.contractAmount), 0);
   const totalCollected = jobs.reduce((s, j) => s + (Number(j.contractAmount) - Number(j.balanceDue)), 0);
   const totalOutstanding = jobs.reduce((s, j) => s + Number(j.balanceDue), 0);
+
+  if (session?.user && !allowed) {
+    return (
+      <EmptyState
+        icon={DollarSign}
+        title="Collections is for the office"
+        description="Company balances and job profitability are visible to admins, managers, office staff and read-only users."
+      />
+    );
+  }
 
   return (
     <div>

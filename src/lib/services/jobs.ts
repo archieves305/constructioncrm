@@ -313,7 +313,7 @@ export async function recordPayment(
   },
   userId: string
 ) {
-  const job = await prisma.job.findUnique({ where: { id: jobId }, select: { leadId: true, depositReceived: true } });
+  const job = await prisma.job.findUnique({ where: { id: jobId }, select: { leadId: true } });
   if (!job) throw new Error("Job not found");
 
   // Validate any applied invoice belongs to this job.
@@ -338,18 +338,8 @@ export async function recordPayment(
     },
   });
 
-  // Deposit accumulation is separate from balanceDue (which is derived).
-  if (data.paymentType === "DEPOSIT") {
-    await prisma.job.update({
-      where: { id: jobId },
-      data: {
-        depositReceived: Number(job.depositReceived) + data.amount,
-        depositReceivedDate: new Date(),
-      },
-    });
-  }
-
-  // Single balance writer + invoice status reconciliation.
+  // Single writer for the balance and the deposit figures, then invoice
+  // status reconciliation.
   await recomputeJobBalance(jobId);
   if (invoiceId) {
     const transition = await syncInvoiceStatus(invoiceId);

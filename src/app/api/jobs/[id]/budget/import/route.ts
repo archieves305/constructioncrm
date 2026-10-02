@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { parseBudget } from "@/lib/budget/parse";
+import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
@@ -14,6 +15,7 @@ export async function POST(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  if (!canManageJobMoney(session.user.role)) return NextResponse.json({ error: MONEY_DENIED_MESSAGE }, { status: 403 });
 
   const { id } = await context.params;
 

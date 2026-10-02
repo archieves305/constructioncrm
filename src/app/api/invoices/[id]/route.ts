@@ -8,6 +8,7 @@ import {
   canVoidApplication,
   updateApplication,
 } from "@/lib/services/progress-billing";
+import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 
 const updateSchema = z.object({
   retainagePercent: z.number().min(0).max(100).optional(),
@@ -30,6 +31,7 @@ export async function PATCH(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  if (!canManageJobMoney(session.user.role)) return NextResponse.json({ error: MONEY_DENIED_MESSAGE }, { status: 403 });
 
   const { id } = await context.params;
   const body = await request.json().catch(() => null);

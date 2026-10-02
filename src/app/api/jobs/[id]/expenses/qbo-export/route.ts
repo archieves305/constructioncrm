@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { toQboCsv, type QboExpenseRow } from "@/lib/qbo/export";
+import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 
 export async function GET(
   _request: NextRequest,
@@ -9,6 +10,7 @@ export async function GET(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  if (!canManageJobMoney(session.user.role)) return NextResponse.json({ error: MONEY_DENIED_MESSAGE }, { status: 403 });
 
   const { id } = await context.params;
 

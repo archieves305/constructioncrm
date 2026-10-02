@@ -14,6 +14,8 @@ import {
   defaultRetainagePercent,
   seedSovIfEmpty,
 } from "@/lib/services/progress-billing";
+import { canEditJobRecord, canManageJobMoney, JOB_MONEY_FIELDS, MONEY_DENIED_MESSAGE, touchesJobMoney } from "@/lib/money/access";
+import { recordAudit } from "@/lib/audit/record";
 
 export async function GET(
   _request: NextRequest,
@@ -81,6 +83,13 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
+  // The job record is the office's and the rep's to edit; its pricing fields
+  // move what the customer owes, so they take the money roles.
+  if (!canEditJobRecord(session.user.role)) return forbidden();
+  if (touchesJobMoney(body) && !canManageJobMoney(session.user.role)) {
+    return NextResponse.json({ error: MONEY_DENIED_MESSAGE }, { status: 403 });
+  }
+
   const allowedFields = [
     "title", "contractAmount", "depositRequired", "financingRequired",
     "financingProvider", "financingStatus", "financingApprovedDate",
@@ -115,6 +124,11 @@ export async function PATCH(
       jobType: true,
       depositReceived: true,
       billingMethod: true,
+      contractAmount: true,
+      depositRequired: true,
+      laborCost: true,
+      marginType: true,
+      marginValue: true,
       lead: { select: { propertyType: true } },
     },
   });
@@ -176,5 +190,9 @@ export async function PATCH(
     where: { id },
     include: { currentStage: true },
   });
+  if (refreshed && touchesJobMoney(body)) {
+    const pick = (j: Record<string, unknown>) => Object.fromEntries(JOB_MONEY_FIELDS.map((f) => [f, j[f] == null ? null : String(j[f])]));
+    await recordAudit({ actorUserId: session.user.id, entityType: "Job", entityId: id, action: "pricing_update", before: pick(existing), after: pick(refreshed) });
+  }
   return NextResponse.json(refreshed);
 }

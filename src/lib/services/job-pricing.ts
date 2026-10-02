@@ -63,9 +63,19 @@ export async function recomputeJobBalance(jobId: string, tx = prisma) {
 
   const payments = await tx.payment.findMany({
     where: { jobId, status: "RECEIVED" },
-    select: { amount: true },
+    select: { amount: true, paymentType: true, receivedDate: true },
   });
   const received = payments.reduce((s, p) => s + Number(p.amount), 0);
+
+  // The deposit figures are derived here too. They used to be a counter that
+  // was added to when a deposit was recorded and never reduced when one was
+  // edited or deleted, so the deposit bar and "Deposits Missing" drifted.
+  const deposits = payments.filter((p) => p.paymentType === "DEPOSIT");
+  const depositReceived = deposits.reduce((s, p) => s + Number(p.amount), 0);
+  const depositReceivedDate = deposits.reduce<Date | null>(
+    (latest, p) => (p.receivedDate && (!latest || p.receivedDate > latest) ? p.receivedDate : latest),
+    null,
+  );
 
   // Owned-rehab jobs are never billed to a client.
   const balanceDue = isOwnedRehab ? 0 : Math.max(0, contract - received);
@@ -79,7 +89,7 @@ export async function recomputeJobBalance(jobId: string, tx = prisma) {
 
   await tx.job.update({
     where: { id: jobId },
-    data: { balanceDue, finalPaymentReceived, finalPaymentDate },
+    data: { balanceDue, finalPaymentReceived, finalPaymentDate, depositReceived, depositReceivedDate },
   });
 }
 

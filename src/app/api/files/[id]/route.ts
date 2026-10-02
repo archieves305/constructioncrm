@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { readFile, deleteFile } from "@/lib/files/storage";
+import { canDeleteFile, fileReadWhere } from "@/lib/files/access";
+import { recordAudit } from "@/lib/audit/record";
 
 export async function GET(
   _request: NextRequest,
@@ -11,7 +13,8 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const file = await prisma.file.findUnique({ where: { id } });
+  // Outside the viewer's scope reads as "not found", so ids cannot be probed.
+  const file = await prisma.file.findFirst({ where: { AND: [{ id }, fileReadWhere(session.user)] } });
   if (!file) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const data = await readFile(file.storageKey).catch(() => null);
@@ -38,11 +41,17 @@ export async function DELETE(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const file = await prisma.file.findUnique({ where: { id } });
+  const file = await prisma.file.findFirst({ where: { AND: [{ id }, fileReadWhere(session.user)] } });
   if (!file) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await deleteFile(file.storageKey);
+  const verdict = canDeleteFile(session.user, file);
+  if (!verdict.ok) return NextResponse.json({ error: verdict.reason }, { status: 403 });
+
+  // Row first: a failed unlink leaves an orphan on disk, never a row that
+  // points at nothing.
   await prisma.file.delete({ where: { id } });
+  await deleteFile(file.storageKey);
+  await recordAudit({ actorUserId: session.user.id, entityType: "File", entityId: id, action: "delete", before: { fileName: file.fileName, category: file.category, leadId: file.leadId, taskId: file.taskId, violationCaseId: file.violationCaseId, uploadedByUserId: file.uploadedByUserId, storageKey: file.storageKey } });
 
   return NextResponse.json({ ok: true });
 }

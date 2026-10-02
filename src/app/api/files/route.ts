@@ -5,6 +5,7 @@ import { recordTaskEvent } from "@/lib/tasks/events";
 import { FileCategory } from "@/generated/prisma/client";
 import { saveFile, MAX_UPLOAD_BYTES, ALLOWED_MIME } from "@/lib/files/storage";
 import { taskRightsFor } from "@/lib/workflows/visibility";
+import { fileReadWhere } from "@/lib/files/access";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -17,7 +18,12 @@ export async function GET(request: NextRequest) {
   if (!leadId && !taskId && !violationCaseId && !violationItemId) return badRequest("leadId, taskId, violationCaseId or violationItemId is required");
 
   const files = await prisma.file.findMany({
-    where: taskId ? { taskId } : violationItemId ? { violationItemId } : violationCaseId ? { violationCaseId } : { leadId: leadId! },
+    where: {
+      AND: [
+        taskId ? { taskId } : violationItemId ? { violationItemId } : violationCaseId ? { violationCaseId } : { leadId: leadId! },
+        fileReadWhere(session.user),
+      ],
+    },
     orderBy: { createdAt: "desc" },
     include: {
       uploadedBy: { select: { id: true, firstName: true, lastName: true } },
@@ -29,6 +35,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+
+  if (session.user.role === "READ_ONLY") return forbidden();
 
   const form = await request.formData();
   const file = form.get("file");
