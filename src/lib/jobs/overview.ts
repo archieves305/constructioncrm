@@ -77,6 +77,7 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
     taskEvents,
     contractRows,
     costSummary,
+    laborPaymentRows,
   ] = await Promise.all([
     loadJobWorkflowSummaries([jobId], now),
     prisma.task.findMany({
@@ -147,6 +148,10 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
       select: { id: true, contractNumber: true, status: true, sentAt: true, signedAt: true, declinedAt: true, signerName: true },
     }),
     getJobCostSummary(jobId),
+    prisma.laborPayment.findMany({
+      where: { laborContract: { jobId } }, orderBy: { paidDate: "desc" }, take: 15,
+      select: { id: true, amount: true, paidDate: true, createdBy: PERSON, laborContract: { select: { label: true, crew: { select: { name: true } } } } },
+    }),
   ]);
 
   // ── Tasks ────────────────────────────────────────────────────────────────
@@ -216,6 +221,12 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
       id: `expense:${e.id}`, kind: "expense", at: e.createdAt,
       title: `${num(e.amount) < 0 ? "Credit" : "Expense"} of ${money0(Math.abs(num(e.amount)))} ${e.externalId ? "posted from the bank feed" : "added"}`,
       actor: e.externalId ? null : person(e.createdBy), tab: "money", sub: "expenses",
+    })),
+    // Payments to crews live on the labor contract (Field → Labor), not with the customer's payments.
+    laborPaymentRows.map((p) => ({
+      id: `labor-payment:${p.id}`, kind: "labor_payment", at: p.paidDate,
+      title: `Paid ${money0(num(p.amount))} to ${p.laborContract.crew?.name ?? p.laborContract.label ?? "the crew"} on their labor contract`,
+      actor: person(p.createdBy), tab: "field", sub: "labor",
     })),
     invoiceRows.map((i) => ({
       id: `invoice:${i.id}`, kind: "invoice", at: i.issueDate,

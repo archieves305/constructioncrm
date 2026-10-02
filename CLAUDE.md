@@ -305,6 +305,18 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — Labor payments: nothing lost, made easier to find (built, on `main`, not deployed)
+
+Richard: "I also do not see payments made on labor contracts anymore" (3001
+SW 23 Ter, 3411 Sleepy Hill Road). Checked on prod, read-only: all 27
+`labor_payments` rows are intact (JOB-00002: 6 payments, $17,380; JOB-00014:
+4 + 2), none deleted, and Job → Field → Labor lists them as before — no code
+touched that panel. What changed today is that the job opens on Overview, and
+neither it nor the Money tab mentioned crew payments. Added: labor payments in
+the Overview's Recent activity (`labor_payment` events linking to Field →
+Labor) and a "View labor contracts and payments" link under Spent on the Cost
+summary card. Gate: typecheck clean, lint 6/22, tests green, build clean.
+
 ### 2026-10-02 — "My jobs" includes jobs where you own a workflow step (built, dev-QA'd, on `main`, not deployed)
 
 Richard: "When the accountant role is selected for that user that job should

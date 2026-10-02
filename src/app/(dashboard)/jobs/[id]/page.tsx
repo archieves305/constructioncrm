@@ -519,7 +519,7 @@ export default function JobDetailPage() {
               ))}
             </TabsList>
 
-            {group === "money" && <CostSummaryCard jobId={id} onOpenBudget={() => setTab("money", "budget")} />}
+            {group === "money" && <CostSummaryCard jobId={id} onOpenBudget={() => setTab("money", "budget")} onOpenLabor={() => setTab("field", "labor")} />}
 
             <TabsContent value="overview">
               <JobOverview jobId={id} onNavigate={setTab} />

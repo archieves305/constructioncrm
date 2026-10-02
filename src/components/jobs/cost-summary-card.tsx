@@ -24,7 +24,7 @@ export function useJobCostSummary(jobId: string) {
  * cost, what has gone out, what is promised, and what is left. The same
  * figures Collections shows, from the same calculation.
  */
-export function CostSummaryCard({ jobId, onOpenBudget }: { jobId: string; onOpenBudget?: () => void }) {
+export function CostSummaryCard({ jobId, onOpenBudget, onOpenLabor }: { jobId: string; onOpenBudget?: () => void; onOpenLabor?: () => void }) {
   const { data: s, isLoading, error } = useJobCostSummary(jobId);
 
   if (isLoading) return <Skeleton className="mb-4 h-44 w-full" />;
@@ -57,7 +57,12 @@ export function CostSummaryCard({ jobId, onOpenBudget }: { jobId: string; onOpen
               }
               action={s.estimatedCostSource !== "budget" && onOpenBudget ? { label: "Add a budget", onClick: onOpenBudget } : undefined}
             />
-            <Line label="Spent" value={money(s.spent)} sub="Labor paid, field labor and approved expenses" />
+            <Line
+              label="Spent"
+              value={money(s.spent)}
+              sub="Labor paid, field labor and approved expenses"
+              action={onOpenLabor ? { label: "View labor contracts and payments", onClick: onOpenLabor } : undefined}
+            />
             <Line
               label="Committed"
               value={money(s.committed)}

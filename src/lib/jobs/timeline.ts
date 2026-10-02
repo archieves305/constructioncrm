@@ -13,6 +13,7 @@ export type JobEventKind =
   | "inspection"
   | "payment"
   | "expense"
+  | "labor_payment"
   | "invoice"
   | "change_order"
   | "permit"

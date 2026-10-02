@@ -37,6 +37,7 @@ const EVENT_ICON: Record<JobEventKind, LucideIcon> = {
   inspection: ClipboardCheck,
   payment: Wallet,
   expense: Receipt,
+  labor_payment: HardHat,
   invoice: FileText,
   change_order: CircleDollarSign,
   permit: ShieldCheck,
