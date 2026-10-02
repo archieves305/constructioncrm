@@ -305,7 +305,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-02 — Audit initiative 1: Job Overview tab (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-02 — Audit initiative 1: Job Overview tab (deployed `9bbb34c`)
 
 The job page now opens on **Overview** (`?tab=overview` is the default; every
 existing `?tab=` link is unchanged). Pure `lib/jobs/health.ts`
@@ -321,8 +321,14 @@ migration. Gate: typecheck clean, lint 6/22, 1298 tests (+11), build clean.
 Dev QA in headless Chromium at 1280 and 400 px on JOB-00001 (no console
 errors; "Open money" navigates; the Workflow tab still loads). Details:
 [features/job-overview.md](docs/project-memory/features/job-overview.md).
+Richard pushed and deployed from `!` (with Foundation (c)): BUILD_ID
+`rol5mL5vu49ynynjCUQ1E` → `dEhUKikVuIWutnVYetsDj`, no migration, smoke 307
+×2, journal clean, backup `postgres-2026-10-02-151219.dump`; the process
+still carries `UPLOADS_DIR`, and all 8 referenced files are in the store.
+**Foundation is complete.** Richard's click-through pending: open any job
+(lands on Overview), Reports funnel ≤ 100%, Collections deposits list.
 
-### 2026-10-02 — Foundation (c): number fixes + the last open routes (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-02 — Foundation (c): number fixes + the last open routes (deployed inside `9bbb34c`)
 
 "continue". **Numbers:** (1) the conversion funnel is counted per lead —
 pure `src/lib/reports/funnel.ts` `computeFunnel`: a lead reached a step when
