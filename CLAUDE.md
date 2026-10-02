@@ -305,6 +305,33 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — Crew payment requests + assignable labor-contract lines (built, dev-QA'd, on `main`, not deployed)
+
+Richard, plan mode: under Field, tasks should be assignable to a person with
+an email, or go automatically to the accountant. He chose labor-contract
+tasks and crew payment requests, defaulting to the job's accountant. Built:
+`LaborPaymentRequest` + four columns on `LaborContractTask` (migration
+`20261011120000_labor_payment_requests`); `lib/labor/payment-requests.ts`,
+`schedule-task-link.ts`, `payment-math.ts`; `userForJobRole` in
+`workflows/roles.ts`; routes for requests and `requestId` on recording a
+payment; `components/jobs/labor-payment-requests.tsx` on each contract card;
+owner + due date + "Request this payment" in the schedule dialog; a link from
+the task sheet to Field → Labor; Overview row and timeline events. A request
+is an ordinary HIGH task for the accountant that closes when the payment is
+recorded against it. Found in dev QA and fixed: the task-closed hooks were
+first placed in `onTaskTransition`, which only runs for workflow tasks — they
+now sit in `updateTask` beside the field-issue sync. Gate: typecheck clean,
+lint 6/22, 1333 tests (+11), build clean (a stale `.next` from the dev server
+failed the prerender of `/leads/new` until the folder was cleared). Dev QA by
+API on a throw-away contract: request → accountant's task (HIGH, due on the
+needed-by day) → payment recorded → request PAID, task done, Spent +$500;
+withdraw; task closed by hand → "closed, no payment recorded"; line owner →
+task, both directions of completion; a covered line cannot be requested twice
+(409); card and both dialogs viewed in headless Chromium. Not observed: the
+email itself (dev's accountant is a muted seed user). **Deploy carries a
+migration.** Details:
+[features/labor-payment-requests.md](docs/project-memory/features/labor-payment-requests.md).
+
 ### 2026-10-02 — Labor payments: nothing lost, made easier to find (deployed `c4e7c05`)
 
 Richard: "I also do not see payments made on labor contracts anymore" (3001

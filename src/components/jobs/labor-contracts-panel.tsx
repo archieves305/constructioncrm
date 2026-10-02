@@ -36,6 +36,10 @@ import {
   Home,
 } from "lucide-react";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
+import { LaborPaymentRequests, paymentRequestKeys, type PaymentRequestRow } from "./labor-payment-requests";
+import { useInvalidateTasks } from "@/components/tasks/use-tasks";
+import { useSession } from "@/lib/auth/session-client";
+import { canManageJobMoney } from "@/lib/money/access";
 
 const METHODS = [
   "CHECK",
@@ -317,13 +321,20 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
   const [payMethod, setPayMethod] = useState<(typeof METHODS)[number] | "">("");
   const [payReference, setPayReference] = useState("");
   const [payNotes, setPayNotes] = useState("");
+  // The payment request being answered, when the dialog was opened from one.
+  const [payRequest, setPayRequest] = useState<PaymentRequestRow | null>(null);
+  const invalidateTasks = useInvalidateTasks();
+  // Recording a payment is the office's; anyone on the job may request one.
+  const { data: session } = useSession();
+  const canRecord = canManageJobMoney(session?.user.role);
 
-  const openPay = (c: LaborContract) => {
-    setPayAmount("");
+  const openPay = (c: LaborContract, request: PaymentRequestRow | null = null) => {
+    setPayAmount(request ? String(Number(request.amount)) : "");
     setPayDate(new Date().toISOString().slice(0, 10));
     setPayMethod("");
     setPayReference("");
-    setPayNotes("");
+    setPayNotes(request?.note ?? "");
+    setPayRequest(request);
     setPayingContract(c);
   };
 
@@ -341,6 +352,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
             method: payMethod || null,
             reference: payReference || null,
             notes: payNotes || null,
+            requestId: payRequest?.id ?? null,
           }),
         },
       );
@@ -352,8 +364,12 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+      if (payingContract) qc.invalidateQueries({ queryKey: paymentRequestKeys.contract(payingContract.id) });
+      // The job's cost summary and overview read crew payments; a settled request also closes its task.
+      invalidateTasks([["job", jobId]]);
+      toast.success(payRequest ? "Payment recorded — the request and its task are closed" : "Payment recorded");
       setPayingContract(null);
-      toast.success("Payment recorded");
+      setPayRequest(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -744,13 +760,15 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                       >
                         Change order
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openPay(c)}
-                      >
-                        Record payment
-                      </Button>
+                      {canRecord && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openPay(c)}
+                        >
+                          Record payment
+                        </Button>
+                      )}
                       <button
                         type="button"
                         className="rounded p-2 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
@@ -977,6 +995,14 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                     </div>
                   )}
 
+                  <LaborPaymentRequests
+                    jobId={jobId}
+                    contractId={c.id}
+                    crewName={c.crew?.name ?? c.label ?? "Labor"}
+                    outstanding={Math.max(0, revisedFor(c) - paidFor(c))}
+                    onRecord={(r) => openPay(c, r)}
+                  />
+
                   {c.payments.length > 0 && (
                     <div className="space-y-1 border-t pt-2">
                       {c.payments.map((p) => (
@@ -1175,7 +1201,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Record payment
+              {payRequest ? "Record the requested payment" : "Record payment"}
               {payingContract
                 ? ` — ${payingContract.crew?.name ?? payingContract.label ?? ""}`
                 : ""}

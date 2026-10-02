@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
+import { settleRequestOnPayment } from "@/lib/labor/payment-requests";
+import { recordAudit } from "@/lib/audit/record";
 
 const METHODS = [
   "CHECK",
@@ -20,6 +22,8 @@ const createSchema = z.object({
   method: z.enum(METHODS).nullable().optional(),
   reference: z.string().max(120).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
+  /** The payment request this payment answers; recording it closes the request and its task. */
+  requestId: z.string().nullable().optional(),
 });
 
 // POST /api/labor-contracts/[id]/payments — record a payment made to the crew.
@@ -69,6 +73,12 @@ export async function POST(
       createdByUserId: session.user.id,
     },
   });
+
+  if (parsed.data.requestId) {
+    const req = await prisma.laborPaymentRequest.findUnique({ where: { id: parsed.data.requestId }, select: { laborContractId: true } });
+    if (req?.laborContractId === id) await settleRequestOnPayment(parsed.data.requestId, payment.id, session.user.id);
+  }
+  await recordAudit({ actorUserId: session.user.id, entityType: "LaborPayment", entityId: payment.id, action: "create", after: { laborContractId: id, amount: parsed.data.amount, requestId: parsed.data.requestId ?? null } });
 
   return NextResponse.json(payment, { status: 201 });
 }

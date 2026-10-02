@@ -88,6 +88,25 @@ export async function loadRoleContext(
 }
 
 /**
+ * Who fills a role on a job, whether or not the job has a workflow: the
+ * job's team slot, then the job's own PM / sales rep, then the company
+ * default (Admin → Workflow Roles). Null when nobody does — callers ask for a
+ * person rather than guess.
+ */
+export async function userForJobRole(jobId: string, role: WorkflowRole, db: Db = prisma): Promise<string | null> {
+  const instance = await db.jobWorkflowInstance.findUnique({ where: { jobId }, select: { id: true } });
+  if (instance) return resolveAssignee(role, await loadRoleContext(db, { instanceId: instance.id }));
+  // No workflow, so no team: the job's own fields and the company defaults.
+  const [job, def] = await Promise.all([
+    db.job.findUnique({ where: { id: jobId }, select: { projectManagerId: true, salesRepId: true } }),
+    db.workflowRoleDefault.findUnique({ where: { role }, select: { userId: true } }),
+  ]);
+  if (role === "PROJECT_MANAGER" && job?.projectManagerId) return job.projectManagerId;
+  if (role === "SALES_REP" && job?.salesRepId) return job.salesRepId;
+  return def?.userId ?? null;
+}
+
+/**
  * After a team, PM or case-manager change: give every open, unassigned
  * workflow task whose role now resolves to someone an owner. Through
  * `updateTask`, so the timeline shows who was put on it.

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
+import { cancelScheduleTask, syncScheduleTask } from "@/lib/labor/schedule-task-link";
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
@@ -16,6 +17,10 @@ const updateSchema = z.object({
   approvedBy: z.string().max(200).nullable().optional(),
   approvedDate: z.string().nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
+  // Naming a person raises a CRM task for them (lib/labor/schedule-task-link.ts).
+  assignedUserId: z.string().nullable().optional(),
+  /** yyyy-MM-dd */
+  dueDate: z.string().nullable().optional(),
 });
 
 export async function PATCH(
@@ -56,8 +61,14 @@ export async function PATCH(
   if (d.approvedDate !== undefined)
     data.approvedDate = d.approvedDate ? new Date(d.approvedDate) : null;
   if (d.notes !== undefined) data.notes = d.notes?.trim() || null;
+  if (d.assignedUserId !== undefined) data.assignedUserId = d.assignedUserId || null;
+  if (d.dueDate !== undefined) data.dueDate = d.dueDate ? new Date(`${d.dueDate.slice(0, 10)}T12:00:00.000Z`) : null;
 
   const task = await prisma.laborContractTask.update({ where: { id }, data });
+  // Owner, date or completion changed: keep the line's CRM task in step.
+  if (d.assignedUserId !== undefined || d.dueDate !== undefined || d.status !== undefined || d.name !== undefined) {
+    await syncScheduleTask(id, session.user.id);
+  }
   return NextResponse.json(task);
 }
 
@@ -77,6 +88,7 @@ export async function DELETE(
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  await cancelScheduleTask(id, session.user.id);
   await prisma.laborContractTask.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

@@ -78,6 +78,7 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
     contractRows,
     costSummary,
     laborPaymentRows,
+    paymentRequestRows,
   ] = await Promise.all([
     loadJobWorkflowSummaries([jobId], now),
     prisma.task.findMany({
@@ -151,6 +152,10 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
     prisma.laborPayment.findMany({
       where: { laborContract: { jobId } }, orderBy: { paidDate: "desc" }, take: 15,
       select: { id: true, amount: true, paidDate: true, createdBy: PERSON, laborContract: { select: { label: true, crew: { select: { name: true } } } } },
+    }),
+    prisma.laborPaymentRequest.findMany({
+      where: { laborContract: { jobId } }, orderBy: { createdAt: "desc" }, take: 15,
+      select: { id: true, amount: true, status: true, createdAt: true, requestedBy: PERSON, laborContract: { select: { label: true, crew: { select: { name: true } } } } },
     }),
   ]);
 
@@ -227,6 +232,11 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
       id: `labor-payment:${p.id}`, kind: "labor_payment", at: p.paidDate,
       title: `Paid ${money0(num(p.amount))} to ${p.laborContract.crew?.name ?? p.laborContract.label ?? "the crew"} on their labor contract`,
       actor: person(p.createdBy), tab: "field", sub: "labor",
+    })),
+    paymentRequestRows.map((r) => ({
+      id: `labor-request:${r.id}`, kind: "labor_payment", at: r.createdAt,
+      title: `Payment of ${money0(num(r.amount))} to ${r.laborContract.crew?.name ?? r.laborContract.label ?? "the crew"} requested`,
+      actor: person(r.requestedBy), tab: "field", sub: "labor",
     })),
     invoiceRows.map((i) => ({
       id: `invoice:${i.id}`, kind: "invoice", at: i.issueDate,
@@ -345,7 +355,13 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
       projectedMargin: costSummary?.estimatedCost != null ? costSummary.projectedMargin : null,
       overBudgetBy: costSummary?.overBudget ? costSummary.committed - (costSummary.estimatedCost ?? 0) : 0,
     },
-    field: { dailyLogsAwaitingApproval: logsAwaiting },
+    field: {
+      dailyLogsAwaitingApproval: logsAwaiting,
+      crewPaymentRequests: (() => {
+        const open = paymentRequestRows.filter((r) => r.status === "REQUESTED");
+        return { count: open.length, total: open.reduce((s, r) => s + num(r.amount), 0) };
+      })(),
+    },
     timeline: mergeTimeline(events, 20),
   };
 }

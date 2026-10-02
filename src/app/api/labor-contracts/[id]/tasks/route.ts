@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
+import { syncScheduleTask } from "@/lib/labor/schedule-task-link";
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -16,6 +17,10 @@ const createSchema = z.object({
   approvedBy: z.string().max(200).nullable().optional(),
   approvedDate: z.string().nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
+  // Naming a person raises a CRM task for them (lib/labor/schedule-task-link.ts).
+  assignedUserId: z.string().nullable().optional(),
+  /** yyyy-MM-dd */
+  dueDate: z.string().nullable().optional(),
 });
 
 export async function GET(
@@ -29,6 +34,10 @@ export async function GET(
   const tasks = await prisma.laborContractTask.findMany({
     where: { laborContractId: id },
     orderBy: { sortOrder: "asc" },
+    include: {
+      assignedTo: { select: { id: true, firstName: true, lastName: true } },
+      paymentRequest: { select: { id: true, status: true } },
+    },
   });
   return NextResponse.json(tasks);
 }
@@ -74,7 +83,10 @@ export async function POST(
       approvedBy: d.approvedBy?.trim() || null,
       approvedDate: d.approvedDate ? new Date(d.approvedDate) : null,
       notes: d.notes?.trim() || null,
+      assignedUserId: d.assignedUserId || null,
+      dueDate: d.dueDate ? new Date(`${d.dueDate.slice(0, 10)}T12:00:00.000Z`) : null,
     },
   });
+  await syncScheduleTask(task.id, session.user.id);
   return NextResponse.json(task, { status: 201 });
 }

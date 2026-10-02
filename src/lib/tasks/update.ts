@@ -124,6 +124,7 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
       title: true,
       remindAt: true,
       fieldIssue: { select: { id: true, status: true } },
+      sourceKey: true,
       // Workflow
       workflowInstanceId: true,
       workflowTaskKey: true,
@@ -392,6 +393,19 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
       where: { id: existing.fieldIssue.id },
       data: { status: "COMPLETED", resolvedAt: now, resolvedByUserId: actorUserId },
     });
+  }
+
+  // A crew payment request or a labor-contract schedule line carried by this
+  // task (lib/labor) follows it when it is closed from the task side. Both
+  // hooks are best-effort and loaded lazily — lib/labor imports this module.
+  if (statusChanged && (task.status === "COMPLETED" || task.status === "CANCELLED") && existing.sourceKey) {
+    if (existing.sourceKey.startsWith("labor-payment-request:")) {
+      const { onRequestTaskClosed } = await import("@/lib/labor/payment-requests");
+      await onRequestTaskClosed(id, task.status);
+    } else if (existing.sourceKey.startsWith("labor-contract-task:")) {
+      const { onScheduleTaskClosed } = await import("@/lib/labor/schedule-task-link");
+      await onScheduleTaskClosed(id, task.status);
+    }
   }
 
   // Wake up whatever was waiting on this step. Inline, so the next task

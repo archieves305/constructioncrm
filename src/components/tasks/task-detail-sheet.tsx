@@ -644,7 +644,15 @@ function QuickLinks({ task }: { task: TaskDetail }) {
   const address = lead ? formatAddressLine(lead) : "";
   const phone = lead?.primaryPhone ?? null;
   const links: React.ReactNode[] = [];
-  if (task.job) {
+  // A crew payment request or a labor-contract line: straight to where it is paid or updated.
+  const laborTask = task.sourceKey?.startsWith("labor-payment-request:") || task.sourceKey?.startsWith("labor-contract-task:");
+  if (task.job && laborTask) {
+    links.push(
+      <Link key="labor" href={`/jobs/${task.job.id}?tab=field&sub=labor`} className="inline-flex items-center gap-1 rounded-md border border-brand/40 bg-brand/5 px-2 py-1 text-xs font-medium hover:bg-brand/10">
+        <Briefcase className="size-3.5" /> {task.sourceKey?.startsWith("labor-payment-request:") ? "Open labor contract to record the payment" : "Open labor contract"}
+      </Link>,
+    );
+  } else if (task.job) {
     links.push(
       <Link key="job" href={`/jobs/${task.job.id}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-gray-50">
         <Briefcase className="size-3.5" /> Open job

@@ -20,7 +20,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, HandCoins } from "lucide-react";
+import { AssigneePicker } from "@/components/tasks/assignee-picker";
+import { useAssignableUsers, useInvalidateTasks } from "@/components/tasks/use-tasks";
+import { netDueForLines, requestableLines } from "@/lib/labor/payment-math";
+import { useRequestPayment } from "./labor-payment-requests";
 
 export type ContractTask = {
   id: string;
@@ -36,6 +40,11 @@ export type ContractTask = {
   approvedBy: string | null;
   approvedDate: string | null;
   notes: string | null;
+  /** Who sees the line through; naming someone raises a CRM task for them. */
+  assignedUserId?: string | null;
+  dueDate?: string | null;
+  /** The payment request that already covers this line. */
+  paymentRequest?: { id: string; status: "REQUESTED" | "PAID" | "CANCELLED" | "CLOSED_UNPAID" } | null;
 };
 
 const STATUS_OPTIONS = ["NOT_STARTED", "IN_PROGRESS", "COMPLETE"] as const;
@@ -98,9 +107,15 @@ export function TaskScheduleDialog({
     enabled: open,
   });
 
+  const { data: users = [] } = useAssignableUsers();
+  const invalidateTasks = useInvalidateTasks();
+  const requestPayment = useRequestPayment(jobId, contractId);
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["labor-contract-tasks", contractId] });
     qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+    // An owner or a completed line changes that line's CRM task.
+    invalidateTasks([["job", jobId]]);
   };
 
   const [newName, setNewName] = useState("");
@@ -175,6 +190,22 @@ export function TaskScheduleDialog({
     const dp = Number(directPayments) || 0;
     const net = gross - retainage - bc - dp;
     return { gross, retainage, bc, dp, net };
+  }, [tasks, retainagePercent, backcharges, directPayments]);
+
+  // What can still be asked for: approved lines with an amount that no request covers yet.
+  const toRequest = useMemo(() => {
+    const lines = requestableLines(
+      tasks.map((t) => ({
+        id: t.id,
+        name: t.name,
+        status: t.status,
+        inspectionRequired: t.inspectionRequired,
+        inspectionStatus: t.inspectionStatus,
+        paymentAmount: t.paymentAmount != null ? Number(t.paymentAmount) : null,
+        paymentRequestId: t.paymentRequest && t.paymentRequest.status !== "CANCELLED" ? t.paymentRequest.id : null,
+      })),
+    );
+    return { lines, due: netDueForLines(lines, retainagePercent, { backcharges: Number(backcharges) || 0, directPayments: Number(directPayments) || 0 }) };
   }, [tasks, retainagePercent, backcharges, directPayments]);
 
   return (
@@ -383,6 +414,42 @@ export function TaskScheduleDialog({
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="col-span-2">
+                      <Label className="text-[10px]">Assigned to</Label>
+                      <AssigneePicker
+                        value={t.assignedUserId ?? null}
+                        onChange={(id) => save(t.id, "assignedUserId", id)}
+                        users={users.filter((u) => u.isActive || u.id === t.assignedUserId)}
+                        size="sm"
+                        className="w-full"
+                        placeholder="Nobody — no task raised"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px]">Due</Label>
+                      <Input
+                        type="date"
+                        defaultValue={t.dueDate?.slice(0, 10) ?? ""}
+                        onBlur={(e) => {
+                          const v = e.target.value || null;
+                          if (v !== (t.dueDate?.slice(0, 10) ?? null)) save(t.id, "dueDate", v);
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-end pb-1.5 text-[11px] text-muted-foreground">
+                      {t.paymentRequest?.status === "PAID"
+                        ? "Paid"
+                        : t.paymentRequest?.status === "REQUESTED"
+                          ? "Payment requested"
+                          : t.paymentRequest?.status === "CLOSED_UNPAID"
+                            ? "Request closed, no payment recorded"
+                            : t.assignedUserId && t.status !== "COMPLETE"
+                              ? "The assignee has this as a task"
+                              : ""}
+                    </div>
+                  </div>
+
                   <div>
                     <Label className="text-[10px]">Description / notes</Label>
                     <Input
@@ -441,6 +508,30 @@ export function TaskScheduleDialog({
               >
                 {money(summary.net)}
               </span>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-2">
+              <p className="text-[11px] text-muted-foreground">
+                {toRequest.lines.length === 0
+                  ? "No approved lines are waiting to be requested."
+                  : `${toRequest.lines.length} approved line${toRequest.lines.length === 1 ? "" : "s"} not yet requested: ${money(toRequest.due.net)} after retainage and the deductions above. The request goes to the job's accountant as a task.`}
+              </p>
+              <Button
+                size="sm"
+                disabled={toRequest.lines.length === 0 || toRequest.due.net <= 0 || requestPayment.isPending}
+                onClick={() =>
+                  requestPayment.mutate({
+                    amount: toRequest.due.net,
+                    lineIds: toRequest.due.lineIds,
+                    note: [
+                      `Gross ${money(toRequest.due.gross)}, less ${retainagePercent}% retainage ${money(toRequest.due.retainage)}`,
+                      toRequest.due.deductions > 0 ? `less ${money(toRequest.due.deductions)} backcharges and direct payments` : null,
+                    ].filter(Boolean).join(", ") + ".",
+                  })
+                }
+              >
+                <HandCoins className="mr-1 h-4 w-4" />
+                {requestPayment.isPending ? "Sending…" : `Request this payment${toRequest.due.net > 0 ? ` (${money(toRequest.due.net)})` : ""}`}
+              </Button>
             </div>
           </CardContent>
         </Card>

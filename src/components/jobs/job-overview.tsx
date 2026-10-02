@@ -336,6 +336,17 @@ function attentionRows(d: Overview): AttentionRow[] {
       sub: "expenses",
     });
   }
+  if (d.field.crewPaymentRequests.count > 0) {
+    const n = d.field.crewPaymentRequests.count;
+    rows.push({
+      key: "crew-requests",
+      tone: "warning",
+      title: `${n} crew payment request${n === 1 ? "" : "s"} waiting to be paid`,
+      detail: money(d.field.crewPaymentRequests.total),
+      tab: "field",
+      sub: "labor",
+    });
+  }
   if (d.field.dailyLogsAwaitingApproval > 0) {
     rows.push({
       key: "logs",
