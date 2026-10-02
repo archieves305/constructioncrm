@@ -305,6 +305,23 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — "My jobs" includes jobs where you own a workflow step (built, dev-QA'd, on `main`, not deployed)
+
+Richard: "When the accountant role is selected for that user that job should
+be on their job list." A workflow team slot already put a job in "My jobs"
+(prod: Elizabeth holds the ACCOUNTING slot on all 9 workflow jobs). The gap
+was a role filled from the company defaults (Admin → Workflow Roles): the
+person is handed that role's steps on every job but holds no slot, so none of
+those jobs were "theirs" — and jobs created at Won since `4558cbd` carry no
+slots but the sales rep's. `jobsInvolvingUserWhere` now also counts an open
+workflow step assigned to the user. It flows to every reader of the rule: the
+Jobs list and board, leads Mine, dashboard Mine, the calendar's My calendar
+overlays, by-id access for SALES_REP / CREW_LEAD, files and notification
+permissions. Field mode's "My Jobs" is unchanged (PM or field-assigned).
+Gate: typecheck clean, lint 6/22, 1322 tests, build clean. Dev: a manager
+with accounting steps on JOB-00004 through the role default and no slot now
+gets it under `scope=mine` (was absent before the change). No migration.
+
 ### 2026-10-02 — Audit initiative 3: one progress system (deployed `4558cbd`)
 
 "continue". (1) **A new job starts with its workflow**:
