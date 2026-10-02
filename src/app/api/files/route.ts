@@ -38,9 +38,10 @@ export async function POST(request: NextRequest) {
 
   if (!(file instanceof File)) return badRequest("file is required");
 
-  // Evidence for a workflow step: the file hangs off the task AND the task's
-  // lead, so the lead's Files tab still lists it. Anyone who may edit the
-  // task may attach to it.
+  // A file on a task: it hangs off the task AND, when the task has one, the
+  // task's lead, so the lead's Files tab still lists it. A task raised with no
+  // job has no lead and the file lives on the task alone. Anyone who may edit
+  // the task may attach to it.
   const taskId = typeof taskIdRaw === "string" && taskIdRaw ? taskIdRaw : null;
   let leadId = typeof leadIdRaw === "string" && leadIdRaw ? leadIdRaw : null;
   // A document or photo on a code-violation case (or one of its items): the
@@ -70,10 +71,9 @@ export async function POST(request: NextRequest) {
     });
     if (!task) return badRequest("task not found");
     if (!(await taskRightsFor(session.user, task)).canEdit) return forbidden();
-    if (!task.leadId) return badRequest("this task is not linked to a lead, so a file cannot be stored against it");
     leadId = task.leadId;
   }
-  if (!leadId) return badRequest("leadId is required");
+  if (!leadId && !taskId) return badRequest("leadId is required");
 
   if (file.size === 0) return badRequest("file is empty");
   if (file.size > MAX_UPLOAD_BYTES) {
@@ -88,8 +88,10 @@ export async function POST(request: NextRequest) {
       ? (categoryRaw as FileCategory)
       : FileCategory.OTHER;
 
-  const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { id: true } });
-  if (!lead) return badRequest("lead not found");
+  if (leadId) {
+    const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { id: true } });
+    if (!lead) return badRequest("lead not found");
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const stored = await saveFile(buffer, file.name);

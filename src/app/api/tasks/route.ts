@@ -56,6 +56,8 @@ export async function POST(request: NextRequest) {
         invoiceId: input.invoiceId,
         prospectId: input.prospectId,
         dailyLogId: input.dailyLogId,
+        violationCaseId: input.violationCaseId,
+        violationItemId: input.violationItemId,
         watcherUserIds: input.watcherUserIds,
         remindAt: input.remindAt ? parseDueAt(input.remindAt) : null,
         source: "manual",

@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import type { QueryKey } from "@tanstack/react-query";
 import { format, isPast, isToday } from "date-fns";
-import { CheckSquare, MessageSquare, Plus } from "lucide-react";
+import { CheckSquare, MessageSquare, Paperclip, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -193,6 +193,12 @@ function TaskRow({
         <span className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground">
           <MessageSquare className="size-3" />
           {task._count!.events}
+        </span>
+      )}
+      {(task._count?.files ?? 0) > 0 && (
+        <span className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground" title="Files attached">
+          <Paperclip className="size-3" />
+          {task._count!.files}
         </span>
       )}
       {due && (

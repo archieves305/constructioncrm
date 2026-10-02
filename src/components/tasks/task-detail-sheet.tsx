@@ -38,6 +38,7 @@ import { useIsPhone } from "@/components/shared/use-media-query";
 import { isDialable, mapsHref, telHref } from "@/components/shared/contact-card";
 import { formatAddressLine } from "@/lib/labels/address";
 import { TaskWorkflowBlock } from "@/components/workflows/task-workflow-block";
+import { TaskAttachments } from "./task-attachments";
 import type { WorkflowTaskItem } from "@/components/workflows/types";
 
 type TaskDetail = TaskListItem &
@@ -385,6 +386,9 @@ export function TaskDetailSheet({
                   onPatch={(body) => patch.mutate(body)}
                 />
               )}
+
+              {/* A workflow step lists its files in the block above. */}
+              {!task.workflowInstanceId && <TaskAttachments taskId={task.id} files={task.files ?? []} canEdit={mayEdit} />}
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 {mayEdit ? (

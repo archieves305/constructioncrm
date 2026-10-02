@@ -2,7 +2,7 @@
 
 import { isPast, isToday } from "date-fns";
 import { dayKey } from "@/lib/time/zone";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Paperclip } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -76,6 +76,15 @@ export function TaskCard({
             >
               <MessageSquare className="size-3" />
               {task._count!.events}
+            </span>
+          )}
+          {(task._count?.files ?? 0) > 0 && (
+            <span
+              className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground"
+              title={`${task._count!.files} file${task._count!.files === 1 ? "" : "s"} attached`}
+            >
+              <Paperclip className="size-3" />
+              {task._count!.files}
             </span>
           )}
         </div>

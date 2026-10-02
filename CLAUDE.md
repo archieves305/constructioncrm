@@ -305,6 +305,31 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — Attach files when creating a task (built, dev-QA'd, on branch `task-attachments`, not deployed)
+
+Richard: "When I create a task I would like to be able to attach a file to
+the task." `AddTaskDialog` gained "Attach files" (multiple; chips with size
+and remove; a file the server would refuse is refused at pick time through
+the client-safe `lib/files/limits.ts`). The task is created as before, then
+each file goes to the existing `POST /api/files` (`uploadTaskFile`, extracted
+from `useTaskFileUpload`); a failed file never undoes the task — the toast
+names it. Richard chose "any task": `File.leadId` is now optional (migration
+`20261009120000_file_lead_optional`, one `DROP NOT NULL`), so a task with no
+job takes a file that lives on the task alone; a task on a job still copies
+the lead and shows on the lead's Files tab. The task sheet lists
+**Attachments** (with "Attach file") on ordinary tasks — before, files showed
+only inside the workflow block — and task rows show a paperclip count
+(`_count.files` in `TASK_LIST_INCLUDE`). The Workflow tab's "add task"
+attaches too (`submitOverride` may resolve with the created task). Fixed in
+passing: `POST /api/tasks` dropped `violationCaseId` / `violationItemId`.
+Not done: the assignment email does not mention attachments. Gate: typecheck
+clean, lint 6/22, 1264 tests (+5), build clean. Dev QA: headless Chromium
+12/12 on `/tasks` (no-job task, two files + a refused .zip, sheet list,
+attach from the sheet) + API checks (job task → lead's Files tab, workflow
+route returns the task); dev had no violation case, so that fix is unproven
+at runtime; SALES_REP and phone width not run. QA rows deleted.
+**Deploy carries a migration.**
+
 ### 2026-09-30 — Streamlined workflows, Stage 4: "Complete this phase" (deployed `49c590a` with Stage 3)
 
 Built on `workflows-catch-up` straight after Stage 3: `catch-up.ts`

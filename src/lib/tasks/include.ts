@@ -23,7 +23,7 @@ export const TASK_LIST_INCLUDE = {
   violationItem: { select: { id: true, itemNumber: true, caseId: true } },
   assignedTo: { select: { id: true, firstName: true, lastName: true } },
   createdBy: { select: { id: true, firstName: true, lastName: true } },
-  _count: { select: { events: { where: { type: "NOTE" } } } },
+  _count: { select: { events: { where: { type: "NOTE" } }, files: true } },
 } satisfies Prisma.TaskInclude;
 
 export const TASK_DETAIL_INCLUDE = {

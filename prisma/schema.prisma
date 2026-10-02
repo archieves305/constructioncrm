@@ -1008,7 +1008,8 @@ model PermitLookupRun {
 
 model File {
   id               String       @id @default(cuid())
-  leadId           String       @map("lead_id")
+  // Null only for a file on a task that has no lead (a task raised with no job).
+  leadId           String?      @map("lead_id")
   fileName         String       @map("file_name")
   fileType         String       @map("file_type")
   storageKey       String       @map("storage_key")
@@ -1016,16 +1017,16 @@ model File {
   category         FileCategory @default(OTHER)
   uploadedByUserId String       @map("uploaded_by_user_id")
   doorKnockId      String?      @map("door_knock_id")
-  // Evidence for a workflow step. leadId stays required and is copied from
-  // the task, so the lead's Files tab still lists it.
+  // A file on a task (workflow evidence or an ordinary attachment). leadId is
+  // copied from the task when it has one, so the lead's Files tab lists it.
   taskId           String?      @map("task_id")
-  // Documents and photos on a code-violation case / item. leadId stays
-  // required and is copied from the case, so the lead's Files tab lists them.
+  // Documents and photos on a code-violation case / item. leadId is copied
+  // from the case, so the lead's Files tab lists them.
   violationCaseId  String?      @map("violation_case_id")
   violationItemId  String?      @map("violation_item_id")
   createdAt        DateTime     @default(now()) @map("created_at")
 
-  lead               Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead               Lead?               @relation(fields: [leadId], references: [id], onDelete: Cascade)
   uploadedBy         User                @relation(fields: [uploadedByUserId], references: [id])
   doorKnock          PropertyDoorKnock?  @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
   task               Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)

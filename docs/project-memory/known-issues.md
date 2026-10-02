@@ -216,3 +216,8 @@ All five were live in production and all are now regression-tested in
   predecessor counts as satisfied, so nothing is held up).
 - Stage 3 is still open: jobs-list workflow filters, dashboard widget,
   reporting.
+
+- **`GET` / `DELETE /api/files/[id]` check only that someone is signed in**
+  (noted 2026-10-02) — no per-record scope, so any CRM user who has a file's
+  id can read or delete it. Pre-existing; now also true of files on tasks
+  with no job.

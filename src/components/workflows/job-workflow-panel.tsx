@@ -491,16 +491,15 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
         defaults={{ assignedUserId: info.projectManagerId ?? info.caseManagerId ?? undefined }}
         submitOverride={
           addPhaseKey
-            ? async (payload) => {
-                await addTask.mutateAsync({
+            ? (payload) =>
+                addTask.mutateAsync({
                   phaseKey: addPhaseKey,
                   title: payload.title,
                   description: payload.description,
                   assignedUserId: payload.assignedUserId ?? null,
                   dueAt: payload.dueAt,
                   priority: payload.priority,
-                });
-              }
+                })
             : undefined
         }
       />

@@ -4,25 +4,7 @@ import { randomBytes } from "node:crypto";
 
 const UPLOAD_ROOT = path.resolve(process.cwd(), "uploads");
 
-export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
-
-export const ALLOWED_MIME = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-  "image/heic-sequence",
-  "image/heif-sequence",
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/plain",
-  "text/csv",
-]);
+export { MAX_UPLOAD_BYTES, ALLOWED_MIME } from "./limits";
 
 export type StoredFile = {
   storageKey: string;

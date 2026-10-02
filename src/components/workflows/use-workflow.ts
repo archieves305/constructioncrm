@@ -133,7 +133,7 @@ export function useAddWorkflowTask(subject: SubjectLike) {
   const invalidate = useInvalidateWorkflow(subject);
   return useMutation({
     mutationFn: (body: { phaseKey: string; title: string; description?: string; assignedUserId?: string | null; dueAt?: string; priority?: string; dependsOnTaskIds?: string[] }) =>
-      post(`${workflowBase(subject)}/tasks`, body),
+      post<{ id: string }>(`${workflowBase(subject)}/tasks`, body),
     onSuccess: () => {
       invalidate();
       toast.success("Task added to the phase");

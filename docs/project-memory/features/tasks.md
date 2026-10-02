@@ -171,3 +171,19 @@ case page task list, workflow-health, workflow report, calendar
 "View unscheduled"); a link with `assignedUserId=` needs nothing. The page
 also honours `unscheduled=1` ("No date yet").
 
+
+## Attachments at creation (2026-10-02)
+
+`AddTaskDialog` holds picked `File`s in state, creates the task, then stores
+each through `POST /api/files` with `taskId` (`uploadTaskFile` in
+`components/workflows/use-task-file-upload.ts`), one at a time. Pick-time
+rules live in the client-safe `lib/files/limits.ts` (`uploadProblem`), the
+same constants the route enforces. A failed upload leaves the task in place
+and names the file. `File.leadId` is optional: a task with a lead copies it
+(lead's Files tab lists the file), a task without one keeps the file on the
+task alone. Ordinary tasks list files under **Attachments** in the sheet
+(`task-attachments.tsx`); workflow steps keep theirs in the workflow block.
+Rows show a paperclip count from `_count.files`. `submitOverride` may resolve
+with `{ id }` so the Workflow tab's add-task attaches too. The assignment
+email does not mention attachments (it is sent after the response, before
+the uploads finish).
