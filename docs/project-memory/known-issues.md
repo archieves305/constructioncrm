@@ -221,3 +221,9 @@ All five were live in production and all are now regression-tested in
   (noted 2026-10-02) — no per-record scope, so any CRM user who has a file's
   id can read or delete it. Pre-existing; now also true of files on tasks
   with no job.
+
+- **190 prod uploads are missing on disk** (found 2026-10-02). `deploy.sh`
+  synced with `--delete` and did not exclude `uploads/`; fixed the same day,
+  7 files restored from pre-deploy tarballs. The rows remain in `files` /
+  `field_photos`; opening one returns 410 "Missing on disk". Recovery needs a
+  droplet-level backup. The store still lives inside `/opt/knuco`.

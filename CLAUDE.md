@@ -305,6 +305,23 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — Deploys were deleting prod uploads: script fixed, 7 files restored (not yet deployed)
+
+Found during the product audit (doc: https://claude.ai/code/artifact/c50661ee-92a5-47aa-a581-f15fbcf4b25b).
+`deploy.sh` ran `rsync --delete` with no exclude for `uploads/`, and the app
+stores every upload in `/opt/knuco/uploads` (`src/lib/files/storage.ts`), so
+each deploy replaced prod's uploads with the laptop's dev files. Measured on
+prod: 198 stored files referenced (92 `files`, 106 `field_photos`), 1 on
+disk. **Fix:** `--exclude=/uploads/` in the rsync step; a dry run of the same
+sync now lists nothing under `uploads/`. **Restored** the 7 files the seven
+retained pre-deploy tarballs still held (all `2026-09/*.pdf`; sizes match the
+`files` rows; owner `knuco`, mode 600). **190 files remain missing** — the
+only route is a droplet-level backup, not yet checked. 13 dev files are still
+in prod's `uploads/` (unreferenced, harmless). Follow-ups in the audit's
+Foundation block: move the store outside the app folder
+(`/var/lib/knuco/uploads` exists, empty), add it to the nightly backup, show
+a clear "missing on disk" state. Richard approved the whole MVP roadmap.
+
 ### 2026-10-02 — Attach files when creating a task (deployed `eb017b4`)
 
 Richard: "When I create a task I would like to be able to attach a file to

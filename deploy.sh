@@ -449,7 +449,13 @@ ssh -n "$DROPLET" "ls -1t $REMOTE_BACKUP_DIR/pre-deploy-*.tar.gz 2>/dev/null | t
 PHASE="rsync"
 echo ""
 echo "[DEPLOY] rsync $LOCAL_REPO → $DROPLET:$REMOTE_APP ..."
+# /uploads/ is the app's file store on the droplet (src/lib/files/storage.ts).
+# It MUST stay excluded: with --delete, an unexcluded uploads/ is replaced by
+# the laptop's dev uploads and every file users uploaded since the last deploy
+# is removed (found 2026-10-02: 197 of 198 stored files gone). Excluded paths
+# are never deleted on the receiver.
 rsync -az --delete \
+    --exclude=/uploads/ \
     --exclude=.git/ --exclude=node_modules/ --exclude=.next/ \
     --exclude=dist/ --exclude=build/ '--exclude=.env*' \
     --exclude=.DS_Store '--exclude=*.log' \
