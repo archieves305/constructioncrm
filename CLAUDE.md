@@ -305,7 +305,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-02 — Attach files when creating a task (built, dev-QA'd, on branch `task-attachments`, not deployed)
+### 2026-10-02 — Attach files when creating a task (deployed `eb017b4`)
 
 Richard: "When I create a task I would like to be able to attach a file to
 the task." `AddTaskDialog` gained "Attach files" (multiple; chips with size
@@ -328,7 +328,12 @@ clean, lint 6/22, 1264 tests (+5), build clean. Dev QA: headless Chromium
 attach from the sheet) + API checks (job task → lead's Files tab, workflow
 route returns the task); dev had no violation case, so that fix is unproven
 at runtime; SALES_REP and phone width not run. QA rows deleted.
-**Deploy carries a migration.**
+Richard merged, pushed and deployed from `!`: BUILD_ID
+`ZaL55YMVgRTZc9b5mi5NP` → `7b496oPUA25tYbcyDW1wY`, migration
+`20261009120000_file_lead_optional` applied (76, up to date; `files.lead_id`
+nullable verified on prod), smoke 307 ×2, journal clean, backup
+`postgres-2026-10-02-132818.dump`. Richard's click-through pending: New task
+→ Attach files → the task sheet's Attachments list.
 
 ### 2026-09-30 — Streamlined workflows, Stage 4: "Complete this phase" (deployed `49c590a` with Stage 3)
 
