@@ -59,6 +59,7 @@ import { CaseListMini } from "@/components/violations/case-list-mini";
 import { useTasks } from "@/components/tasks/use-tasks";
 import { JobWorkflowPanel } from "@/components/workflows/job-workflow-panel";
 import { useSession } from "@/lib/auth/session-client";
+import { JobOverview } from "@/components/jobs/job-overview";
 import { canManageJobMoney } from "@/lib/money/access";
 import { useJobWorkflow } from "@/components/workflows/use-workflow";
 import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
@@ -74,7 +75,7 @@ export default function JobDetailPage() {
   const pathname = usePathname();
   // Fourteen tabs in one strip never fit; they are grouped, and the URL owns
   // which group + sub-panel is open so links from email keep landing.
-  const tab = searchParams.get("tab") ?? "workflow";
+  const tab = searchParams.get("tab") ?? "overview";
   const sub = searchParams.get("sub") ?? "";
   function setTab(nextTab: string, nextSub?: string) {
     const next = new URLSearchParams(searchParams.toString());
@@ -317,7 +318,7 @@ export default function JobDetailPage() {
           )}
         </div>
       ) : (
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 mb-6">
         <KpiCard
           title={job.jobType === "COST_PLUS" ? "Contract (cost-plus)" : "Contract"}
           value={`$${Number(job.contractAmount).toLocaleString()}`}
@@ -347,7 +348,7 @@ export default function JobDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column */}
-        <div className="space-y-4">
+        <div className="order-2 space-y-4 lg:order-1">
           <ContactCard
             name={job.lead.fullName}
             nameHref={`/leads/${job.lead.id}`}
@@ -412,7 +413,7 @@ export default function JobDetailPage() {
         </div>
 
         {/* Right column: tabs */}
-        <div className="lg:col-span-2">
+        <div className="order-1 min-w-0 lg:order-2 lg:col-span-2">
           {moneyViewOnly && (tab === "money" || tab === "field") && (
             <Callout tone="neutral" className="mb-4" title="View only">
               Payments, invoices, labor contracts, budgets and pricing are changed by an admin, a manager or office staff. You can still add job expenses if you have that permission.
@@ -465,6 +466,7 @@ export default function JobDetailPage() {
             <div className="mb-4 space-y-3">
               <div className="flex flex-wrap items-center gap-1 border-b">
                 {[
+                  { value: "overview", label: "Overview" },
                   {
                     value: "workflow",
                     label: (
@@ -508,10 +510,14 @@ export default function JobDetailPage() {
               )}
             </div>
             <TabsList className="hidden">
-              {[...MONEY, ...FIELD, { value: "workflow" }, { value: "permits" }, { value: "tasks" }, { value: "files" }, { value: "violations" }, { value: "history" }].map((t) => (
+              {[...MONEY, ...FIELD, { value: "overview" }, { value: "workflow" }, { value: "permits" }, { value: "tasks" }, { value: "files" }, { value: "violations" }, { value: "history" }].map((t) => (
                 <TabsTrigger key={t.value} value={t.value}>{t.value}</TabsTrigger>
               ))}
             </TabsList>
+
+            <TabsContent value="overview">
+              <JobOverview jobId={id} onNavigate={setTab} />
+            </TabsContent>
 
             <TabsContent value="workflow">
               <JobWorkflowPanel jobId={id} />

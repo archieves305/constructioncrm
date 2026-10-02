@@ -305,6 +305,23 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — Audit initiative 1: Job Overview tab (built, dev-QA'd, on `main`, not deployed)
+
+The job page now opens on **Overview** (`?tab=overview` is the default; every
+existing `?tab=` link is unchanged). Pure `lib/jobs/health.ts`
+(`deriveJobHealth`: On track / At risk / Delayed / Not started / Closed with
+reasons, derived on read) and `lib/jobs/timeline.ts` (`mergeTimeline`);
+`lib/jobs/overview.ts` `loadJobOverview` gathers workflow summary, open
+tasks, permits and next inspection, money (cost in the same three streams as
+Collections), awaiting items and a 20-row activity timeline from the tables
+that carry the job; `GET /api/jobs/[id]/overview`;
+`components/jobs/job-overview.tsx`. On phones the tabs now come before the
+customer / team / pricing cards and the four money cards sit two across. No
+migration. Gate: typecheck clean, lint 6/22, 1298 tests (+11), build clean.
+Dev QA in headless Chromium at 1280 and 400 px on JOB-00001 (no console
+errors; "Open money" navigates; the Workflow tab still loads). Details:
+[features/job-overview.md](docs/project-memory/features/job-overview.md).
+
 ### 2026-10-02 — Foundation (c): number fixes + the last open routes (built, dev-QA'd, on `main`, not deployed)
 
 "continue". **Numbers:** (1) the conversion funnel is counted per lead —
