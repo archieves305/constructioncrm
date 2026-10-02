@@ -305,7 +305,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-02 — Labor payments: nothing lost, made easier to find (built, on `main`, not deployed)
+### 2026-10-02 — Labor payments: nothing lost, made easier to find (deployed `c4e7c05`)
 
 Richard: "I also do not see payments made on labor contracts anymore" (3001
 SW 23 Ter, 3411 Sleepy Hill Road). Checked on prod, read-only: all 27
@@ -316,8 +316,12 @@ neither it nor the Money tab mentioned crew payments. Added: labor payments in
 the Overview's Recent activity (`labor_payment` events linking to Field →
 Labor) and a "View labor contracts and payments" link under Spent on the Cost
 summary card. Gate: typecheck clean, lint 6/22, tests green, build clean.
+Richard pushed and deployed from `!` (with the My-jobs change): BUILD_ID
+`9jussQ-th_vyn1X9ELMek`, no migration, smoke 307 ×2, zero journal errors
+since the restart, uploads intact (8 of 8), backup
+`postgres-2026-10-02-160454.dump`.
 
-### 2026-10-02 — "My jobs" includes jobs where you own a workflow step (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-02 — "My jobs" includes jobs where you own a workflow step (deployed inside `c4e7c05`)
 
 Richard: "When the accountant role is selected for that user that job should
 be on their job list." A workflow team slot already put a job in "My jobs"
