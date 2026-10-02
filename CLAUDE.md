@@ -305,7 +305,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-02 — Crew payment requests + assignable labor-contract lines (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-02 — Crew payment requests + assignable labor-contract lines (deployed `7b1b3a7`)
 
 Richard, plan mode: under Field, tasks should be assignable to a person with
 an email, or go automatically to the accountant. He chose labor-contract
@@ -331,6 +331,13 @@ task, both directions of completion; a covered line cannot be requested twice
 email itself (dev's accountant is a muted seed user). **Deploy carries a
 migration.** Details:
 [features/labor-payment-requests.md](docs/project-memory/features/labor-payment-requests.md).
+Richard pushed and deployed from `!`: BUILD_ID `1GuzX67ZxlMMr8L2VKeV-`,
+migration `20261011120000_labor_payment_requests` applied (schema up to date;
+table and the four columns verified), smoke 307 ×2, zero journal errors since
+the restart, uploads intact (8 of 8), backup
+`postgres-2026-10-02-183410.dump`. Prod still has no Accounting default under
+Workflow Roles, so on jobs without a workflow the request dialog asks for a
+person.
 
 ### 2026-10-02 — Labor payments: nothing lost, made easier to find (deployed `c4e7c05`)
 
