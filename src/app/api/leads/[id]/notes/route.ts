@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { guardLead } from "@/lib/access/records";
 
 export async function POST(
   request: NextRequest,
@@ -10,6 +11,8 @@ export async function POST(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardLead(session.user, id, "write");
+  if (denied) return denied;
   const { content } = await request.json();
 
   if (!content?.trim()) return badRequest("Note content is required");

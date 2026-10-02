@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { recomputeJobLabor } from "@/lib/services/job-pricing";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
+import { guardJob } from "@/lib/access/records";
 
 const createSchema = z
   .object({
@@ -24,6 +25,8 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
+  const denied = await guardJob(session.user, id, "read");
+  if (denied) return denied;
   const contracts = await prisma.laborContract.findMany({
     where: { jobId: id },
     orderBy: { createdAt: "asc" },

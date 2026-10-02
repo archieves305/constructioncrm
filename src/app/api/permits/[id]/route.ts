@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { emitPermitEvent, statusEventName } from "@/lib/follow-ups/permit-events";
+import { guardProductionWrite } from "@/lib/access/records";
+import { PermitStatus } from "@/generated/prisma/client";
 
 export async function PATCH(
   request: NextRequest,
@@ -12,12 +14,19 @@ export async function PATCH(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = guardProductionWrite(session.user);
+  if (denied) return denied;
   const body = await request.json();
 
   const previous = await prisma.jobPermit.findUnique({
     where: { id },
     select: { status: true },
   });
+
+  if (!previous) return NextResponse.json({ error: "Permit not found" }, { status: 404 });
+  if (body.status && !(body.status in PermitStatus)) {
+    return NextResponse.json({ error: `status must be one of ${Object.keys(PermitStatus).join(", ")}` }, { status: 400 });
+  }
 
   const updateData: Record<string, unknown> = {};
   if (body.status) updateData.status = body.status;

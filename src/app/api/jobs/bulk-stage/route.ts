@@ -6,6 +6,7 @@ import { validateBody } from "@/lib/validation/body";
 import { recordAudit } from "@/lib/audit/record";
 import { changeJobStage } from "@/lib/services/jobs";
 import { logger } from "@/lib/logger";
+import { guardJobs } from "@/lib/access/records";
 
 const schema = z.object({
   jobIds: z.array(z.string().min(1)).min(1).max(200),
@@ -20,6 +21,8 @@ export async function POST(request: NextRequest) {
   const v = await validateBody(request, schema);
   if (!v.ok) return v.response;
   const { jobIds, stageId, reason } = v.data;
+  const denied = await guardJobs(session.user, jobIds);
+  if (denied) return denied;
 
   const stage = await prisma.jobStage.findUnique({ where: { id: stageId } });
   if (!stage) return NextResponse.json({ error: "Stage not found" }, { status: 400 });

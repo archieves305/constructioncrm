@@ -9,6 +9,7 @@ import {
   sendChangeOrderEmail,
 } from "@/lib/services/change-orders";
 import { logger } from "@/lib/logger";
+import { guardProductionWrite } from "@/lib/access/records";
 
 // POST /api/change-orders/[id]/send — email the customer the change-order bill.
 export async function POST(
@@ -19,6 +20,8 @@ export async function POST(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
+  const denied = guardProductionWrite(session.user);
+  if (denied) return denied;
   const co = await prisma.changeOrder.findUnique({
     where: { id },
     select: {

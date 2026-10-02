@@ -52,6 +52,10 @@ const schema = z.object({
 
   CRON_SECRET: z.string().optional(),
 
+  // Absolute path of the upload store (src/lib/files/storage.ts). Set on the
+  // droplet so uploads live outside the app folder; unset = ./uploads.
+  UPLOADS_DIR: z.string().startsWith("/").optional(),
+
   // Task follow-up automation. Escalation days are calendar days overdue at
   // which the assignor (first threshold) and then managers (second) are
   // mailed. Escalations default OFF so a deploy never starts mailing

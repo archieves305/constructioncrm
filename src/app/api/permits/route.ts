@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { PermitStatus } from "@/generated/prisma/client";
+import { jobAccessWhere } from "@/lib/access/records";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -12,7 +14,11 @@ export async function GET(request: NextRequest) {
   const assignedUserId = searchParams.get("assignedUserId") || undefined;
   const aging = searchParams.get("aging") === "true";
 
-  const where: Record<string, unknown> = {};
+  // An unknown status used to reach Prisma and come back as a 500.
+  if (status && !(status in PermitStatus)) return badRequest(`status must be one of ${Object.keys(PermitStatus).join(", ")}`);
+
+  // A sales rep or crew lead sees the permits on their own jobs.
+  const where: Record<string, unknown> = { job: jobAccessWhere(session.user) };
   if (status) where.status = status;
   if (municipality) where.municipality = { contains: municipality, mode: "insensitive" };
   if (assignedUserId === "unassigned") {

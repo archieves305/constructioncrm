@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { onPersonalTouch } from "@/lib/nurture/hooks";
+import { guardLead } from "@/lib/access/records";
 
 export async function GET(
   _request: NextRequest,
@@ -11,6 +12,8 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardLead(session.user, id, "read");
+  if (denied) return denied;
 
   const communications = await prisma.communication.findMany({
     where: { leadId: id },
@@ -28,6 +31,8 @@ export async function POST(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardLead(session.user, id, "write");
+  if (denied) return denied;
   const body = await request.json();
 
   if (!body.communicationType || !body.body?.trim()) {

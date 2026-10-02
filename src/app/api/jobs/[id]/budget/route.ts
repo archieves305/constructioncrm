@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { guardJob } from "@/lib/access/records";
 
 // GET /api/jobs/[id]/budget — budget lines with their linked spend.
 export async function GET(
@@ -11,6 +12,8 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
+  const denied = await guardJob(session.user, id, "read");
+  if (denied) return denied;
   const lines = await prisma.budgetLine.findMany({
     where: { jobId: id },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],

@@ -7,6 +7,7 @@ import { emitLeadEvent } from "@/lib/follow-ups/events";
 import { onLeadStageChanged } from "@/lib/nurture/hooks";
 import { recordAudit } from "@/lib/audit/record";
 import { logger } from "@/lib/logger";
+import { guardLeads } from "@/lib/access/records";
 
 const schema = z.object({
   leadIds: z.array(z.string().min(1)).min(1).max(200),
@@ -21,6 +22,8 @@ export async function POST(request: NextRequest) {
   const v = await validateBody(request, schema);
   if (!v.ok) return v.response;
   const { leadIds, stageId, reason } = v.data;
+  const denied = await guardLeads(session.user, leadIds);
+  if (denied) return denied;
 
   const stage = await prisma.leadStage.findUnique({ where: { id: stageId } });
   if (!stage) return NextResponse.json({ error: "Stage not found" }, { status: 400 });

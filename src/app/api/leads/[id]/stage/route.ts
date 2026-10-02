@@ -6,6 +6,7 @@ import { emitLeadEvent } from "@/lib/follow-ups/events";
 import { onLeadStageChanged } from "@/lib/nurture/hooks";
 import { recordAudit } from "@/lib/audit/record";
 import { logger } from "@/lib/logger";
+import { guardLead } from "@/lib/access/records";
 
 export async function POST(
   request: NextRequest,
@@ -15,6 +16,8 @@ export async function POST(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardLead(session.user, id, "write");
+  if (denied) return denied;
   const { stageId, reason } = await request.json();
 
   if (!stageId) return badRequest("stageId is required");

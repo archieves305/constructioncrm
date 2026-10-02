@@ -6,10 +6,11 @@ import {
   unauthorized,
   forbidden,
   badRequest,
-  hasMinRole,
 } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { deleteChangeOrder } from "@/lib/services/change-orders";
+import { guardProductionWrite } from "@/lib/access/records";
+import { canDecideChangeOrder } from "@/lib/access/roles";
 
 const updateSchema = z.object({
   title: z.string().trim().max(200).nullable().optional(),
@@ -27,6 +28,8 @@ export async function PATCH(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
+  const denied = guardProductionWrite(session.user);
+  if (denied) return denied;
   const v = await validateBody(request, updateSchema);
   if (!v.ok) return v.response;
   const d = v.data;
@@ -68,6 +71,8 @@ export async function DELETE(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
+  const denied = guardProductionWrite(session.user);
+  if (denied) return denied;
   const existing = await prisma.changeOrder.findUnique({
     where: { id },
     select: { status: true },
@@ -76,7 +81,7 @@ export async function DELETE(
 
   // Deleting an APPROVED change order reverses billing (removes its invoice,
   // backs out the contract change) — restrict that to Admin/Manager.
-  if (existing.status === "APPROVED" && !hasMinRole(session.user.role, "MANAGER"))
+  if (existing.status === "APPROVED" && !canDecideChangeOrder(session.user.role))
     return forbidden();
 
   if (

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { emitInspectionEvent } from "@/lib/follow-ups/permit-events";
+import { guardProductionWrite } from "@/lib/access/records";
 
 const INSPECTION_TYPES = [
   "ROUGH",
@@ -38,6 +39,8 @@ export async function POST(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = guardProductionWrite(session.user);
+  if (denied) return denied;
   const body = await req.json();
 
   const type = body.type && INSPECTION_TYPES.includes(body.type) ? body.type : "OTHER";

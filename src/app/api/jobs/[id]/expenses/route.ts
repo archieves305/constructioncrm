@@ -13,6 +13,7 @@ import {
   recomputeJobBalance,
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
+import { guardJob } from "@/lib/access/records";
 
 const TYPES = [
   "MATERIAL",
@@ -53,6 +54,8 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
+  const denied = await guardJob(session.user, id, "read");
+  if (denied) return denied;
   const expenses = await prisma.jobExpense.findMany({
     where: { jobId: id },
     orderBy: { incurredDate: "desc" },

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
-import { hasMinRole } from "@/lib/auth/helpers";
+import { canDecideChangeOrder } from "@/lib/access/roles";
 import { validateBody } from "@/lib/validation/body";
 import { decideChangeOrderById } from "@/lib/services/change-orders";
 
@@ -21,7 +21,7 @@ export async function POST(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (!hasMinRole(session.user.role, "MANAGER")) return forbidden();
+  if (!canDecideChangeOrder(session.user.role)) return forbidden();
 
   const { id } = await context.params;
   const v = await validateBody(request, schema);

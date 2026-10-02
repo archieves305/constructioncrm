@@ -5,6 +5,7 @@ import {
   emitInspectionEvent,
   resultEventName,
 } from "@/lib/follow-ups/permit-events";
+import { guardProductionWrite } from "@/lib/access/records";
 
 export async function PATCH(
   req: NextRequest,
@@ -14,6 +15,8 @@ export async function PATCH(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = guardProductionWrite(session.user);
+  if (denied) return denied;
   const body = await req.json();
 
   const previous = await prisma.jobPermitInspection.findUnique({
@@ -83,6 +86,8 @@ export async function DELETE(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = guardProductionWrite(session.user);
+  if (denied) return denied;
   await prisma.jobPermitInspection.delete({ where: { id } }).catch(() => null);
   return NextResponse.json({ ok: true });
 }

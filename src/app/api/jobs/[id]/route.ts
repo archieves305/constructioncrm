@@ -16,6 +16,7 @@ import {
 } from "@/lib/services/progress-billing";
 import { canEditJobRecord, canManageJobMoney, JOB_MONEY_FIELDS, MONEY_DENIED_MESSAGE, touchesJobMoney } from "@/lib/money/access";
 import { recordAudit } from "@/lib/audit/record";
+import { guardJob } from "@/lib/access/records";
 
 export async function GET(
   _request: NextRequest,
@@ -25,6 +26,8 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardJob(session.user, id, "read");
+  if (denied) return denied;
 
   const job = await prisma.job.findUnique({
     where: { id },
@@ -81,6 +84,8 @@ export async function PATCH(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardJob(session.user, id, "write");
+  if (denied) return denied;
   const body = await request.json();
 
   // The job record is the office's and the rep's to edit; its pricing fields

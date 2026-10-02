@@ -305,6 +305,32 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — Foundation: upload store by env + guards on lead, job, permit and change-order routes (built, dev-QA'd, on `main`, not deployed)
+
+"continue". **Uploads:** `src/lib/files/storage.ts` reads `UPLOADS_DIR`
+(absolute path; unset = `./uploads`), declared in `env.ts`. After this is
+deployed the droplet's store moves to `/var/lib/knuco/uploads` and joins the
+nightly backup. **Guards:** pure `src/lib/access/roles.ts` (`canWriteLeads` =
+ADMIN / MANAGER / OFFICE_STAFF / SALES_REP / MARKETING; `canWriteProduction`
+= the first four; `canDecideChangeOrder` = ADMIN / MANAGER, replacing the
+last `hasMinRole` on change orders; `isOwnOnlyRole` = SALES_REP, CREW_LEAD)
+and `src/lib/access/records.ts` (`guardLead`, `guardLeads`, `guardJob`,
+`guardJobs`, `guardProductionWrite`, `leadAccessWhere`, `jobAccessWhere`).
+An own-only role now opens by id only what its lists show — leads assigned
+to it, raised by it, or the customer of one of its jobs; jobs it has a role
+on — and anything else answers 404. Applied to `api/leads/[id]` (+ stage,
+notes, communications, bulk-stage), `api/jobs/[id]` (+ stage, bulk-stage,
+crews, permits, change-orders, and the GETs for payments, invoices, budget,
+labor contracts, expenses), `api/permits/[id]` (+ inspections),
+`api/inspections/[id]`, `api/change-orders/[id]` (+ send). `GET /api/permits`
+is scoped to the viewer's jobs and an unknown `status` is a 400 (was a 500);
+`PATCH /api/permits/[id]` validates status and 404s a missing permit. Gate:
+typecheck clean, lint 6/22, 1280 tests (+4), build clean. Dev QA by API as
+SALES_REP (own lead / job 200, others 404, bulk stage 403, bad permit status
+400) and ADMIN (all reads and pages 200). No migration. **Still session-only:**
+prospects, referrals, both estimate route families, lead create, daily-log
+and field routes with their own guards untouched.
+
 ### 2026-10-02 — Foundation (b): role checks + audit on money and file routes (deployed `9daf99e`)
 
 First build from the approved audit roadmap. Richard approved the role list
@@ -1452,6 +1478,8 @@ off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
 `invoice.sent`; empty string enables everything),
 `VIOLATION_ESCALATION_DAYS` (default `1,3,7`, days past the compliance
 deadline), `VIOLATION_ESCALATIONS_ENABLED` (default off; `1` after SPF),
+`UPLOADS_DIR` (absolute path of the upload store; set on the droplet so it
+lives outside the app folder; unset = `./uploads`),
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
 `ZYLOW_API_KEY`, `ZYLOW_API_BASE`, `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`,
 `NURTURE_ENABLED` (default `0`; `1` after SPF — the DB switch under

@@ -2,7 +2,15 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 
-const UPLOAD_ROOT = path.resolve(process.cwd(), "uploads");
+/**
+ * Where uploads live. On the droplet `UPLOADS_DIR` points outside the app
+ * folder (`/var/lib/knuco/uploads`): the app folder is replaced by every
+ * deploy, and a store inside it was being wiped (2026-10-02). Unset, it falls
+ * back to `./uploads` for local dev.
+ */
+const UPLOAD_ROOT = process.env.UPLOADS_DIR
+  ? path.resolve(process.env.UPLOADS_DIR)
+  : path.resolve(process.cwd(), "uploads");
 
 export { MAX_UPLOAD_BYTES, ALLOWED_MIME } from "./limits";
 
