@@ -45,7 +45,7 @@ const EVENT_ICON: Record<JobEventKind, LucideIcon> = {
   contract: Signature,
 };
 
-const money = (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(Math.round(n)).toLocaleString("en-US")}`;
+const money = (n: number) => { const r = Math.round(n); return `${r < 0 ? "-" : ""}$${Math.abs(r).toLocaleString("en-US")}`; };
 const day = (iso: string) => format(new Date(iso), "MMM d");
 /** A date-picker value (midnight UTC) is a day, not an instant: read it in UTC so it does not slip back a day. */
 const utcDay = (iso: string) => format(new Date(`${iso.slice(0, 10)}T12:00:00`), "MMM d, yyyy");
@@ -190,13 +190,26 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
               {money(m.cost)}
               <span className="block text-xs text-muted-foreground">
                 {[
-                  m.costBreakdown.contractLabor ? `${money(m.costBreakdown.contractLabor)} labor contracts` : null,
+                  m.costBreakdown.contractLabor ? `${money(m.costBreakdown.contractLabor)} labor contracts${m.committedOpen > 0 ? ` (${money(m.committedOpen)} not yet paid)` : ""}` : null,
                   m.costBreakdown.fieldLabor ? `${money(m.costBreakdown.fieldLabor)} field labor` : null,
                   m.costBreakdown.expenses ? `${money(m.costBreakdown.expenses)} expenses` : null,
                 ].filter(Boolean).join(" · ") || "No costs recorded yet"}
               </span>
             </Row>
-            {m.profit !== null && (
+            {m.estimatedCost !== null && (
+              <Row label="Estimated cost">
+                <span className={m.overBudgetBy > 0 ? "text-tone-danger-fg" : undefined}>{money(m.estimatedCost)}</span>
+                {m.overBudgetBy > 0 && <span className="block text-xs text-tone-danger-fg">Costs are {money(m.overBudgetBy)} over it</span>}
+              </Row>
+            )}
+            {m.projectedProfit !== null && (
+              <Row label="Projected profit">
+                <span className={m.projectedProfit < 0 ? "text-tone-danger-fg" : undefined}>
+                  {money(m.projectedProfit)}{m.projectedMargin !== null ? ` · ${Math.round(m.projectedMargin * 100)}%` : ""}
+                </span>
+              </Row>
+            )}
+            {m.projectedProfit === null && m.profit !== null && (
               <Row label="Profit so far">
                 <span className={m.profit < 0 ? "text-tone-danger-fg" : undefined}>
                   {money(m.profit)}{m.margin !== null ? ` · ${Math.round(m.margin * 100)}%` : ""}
@@ -299,6 +312,9 @@ function attentionRows(d: Overview): AttentionRow[] {
     rows.push({ key: "no-pm", tone: "warning", title: "No project manager on this job", detail: "Set one under Edit team on the Workflow tab", tab: "workflow" });
   }
   const m = d.money;
+  if (m.overBudgetBy > 0) {
+    rows.push({ key: "over-budget", tone: "danger", title: `Costs are ${money(m.overBudgetBy)} over the estimated cost`, detail: `${money(m.cost)} against ${money(m.estimatedCost ?? 0)}`, tab: "money", sub: "budget" });
+  }
   if (m.changeOrdersAwaiting.count > 0) {
     rows.push({
       key: "co",

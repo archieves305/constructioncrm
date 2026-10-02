@@ -8,6 +8,7 @@ import { useSession } from "@/lib/auth/session-client";
 import { canViewCompanyFinancials } from "@/lib/money/access";
 import { EmptyState } from "@/components/shared/empty-state";
 import { fetchJson } from "@/lib/fetch-json";
+import type { CostSummary } from "@/lib/jobs/cost-summary";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,7 @@ type CollectionJob = {
 type AgingBucket = "current" | "d1_30" | "d31_60" | "d61_90" | "d90plus";
 
 type FinancialsResponse = {
+  jobCosts: { jobId: string; jobNumber: string; title: string; address: string; closed: boolean; summary: CostSummary }[];
   aging: {
     rows: {
       invoiceId: string;
@@ -97,7 +99,8 @@ const BUCKET_LABELS: Record<AgingBucket, string> = {
 };
 
 function money(n: number) {
-  return `$${Math.round(n).toLocaleString()}`;
+  const r = Math.round(n);
+  return `${r < 0 ? "-" : ""}$${Math.abs(r).toLocaleString()}`;
 }
 
 export default function CollectionsPage() {
@@ -121,7 +124,11 @@ export default function CollectionsPage() {
   const jobs: CollectionJob[] = jobsData?.data || [];
   const aging = financials?.aging;
   const progress = financials?.progress;
-  const profitability = financials?.summary.jobs ?? [];
+  // One row per open billable job from the shared cost calculation, worst projected margin first.
+  const costRows = (financials?.jobCosts ?? [])
+    .filter((r) => !r.closed && r.summary.billable)
+    // Jobs with nothing to measure yet (no budget, no cost) go last.
+    .sort((a, b) => (a.summary.projectedMargin ?? Infinity) - (b.summary.projectedMargin ?? Infinity));
   const overdueRows = (aging?.rows ?? []).filter((r) => r.ageDays > 0);
 
   // A closed job is past asking for a deposit; a balance on one is still
@@ -354,43 +361,58 @@ export default function CollectionsPage() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-base">Job Profitability</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Job costs and projected profit</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Open jobs, lowest projected margin first. Committed is spent plus labor contracts not yet paid. Projected profit uses the
+              budget (or the signed estimate&apos;s cost) once there is one; without it, it is the contract less costs so far.
+            </p>
+          </CardHeader>
           <CardContent>
-            {profitability.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">No billable jobs yet</p>
+            {costRows.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">No open billable jobs</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Job</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                    <TableHead className="text-right">Cost</TableHead>
-                    <TableHead className="text-right">Profit</TableHead>
-                    <TableHead className="text-right">Margin</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {profitability.map((j) => (
-                    <TableRow key={j.jobId} className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => router.push(`/jobs/${j.jobId}`)}>
-                      <TableCell className="max-w-56">
-                        <span className="block truncate text-sm font-medium">{j.address || j.jobNumber}</span>
-                        {j.address && <span className="font-mono text-[11px] text-muted-foreground">{j.jobNumber}</span>}
-                      </TableCell>
-                      <TableCell className="text-sm">{j.title}</TableCell>
-                      <TableCell className="text-right">{money(j.revenue)}</TableCell>
-                      <TableCell className="text-right">{money(j.cost)}</TableCell>
-                      <TableCell className={`text-right font-medium ${j.profit < 0 ? "text-red-600" : "text-emerald-700"}`}>
-                        {money(j.profit)}
-                      </TableCell>
-                      <TableCell className={`text-right ${j.margin < 0 ? "text-red-600" : ""}`}>
-                        {(j.margin * 100).toFixed(0)}%
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Job</TableHead>
+                      <TableHead className="text-right">Contract</TableHead>
+                      <TableHead className="text-right">Est. cost</TableHead>
+                      <TableHead className="text-right">Spent</TableHead>
+                      <TableHead className="text-right">Committed</TableHead>
+                      <TableHead className="text-right">Projected profit</TableHead>
+                      <TableHead className="text-right">Margin</TableHead>
+                      <TableHead className="text-right">Billed</TableHead>
+                      <TableHead className="text-right">Over / under billed</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {costRows.map(({ jobId, jobNumber, address, summary: c }) => (
+                      <TableRow key={jobId} className="cursor-pointer hover:bg-gray-50" onClick={() => router.push(`/jobs/${jobId}?tab=money`)}>
+                        <TableCell className="max-w-56">
+                          <span className="block truncate text-sm font-medium">{address || jobNumber}</span>
+                          {address && <span className="font-mono text-[11px] text-muted-foreground">{jobNumber}</span>}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{money(c.revisedContract)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">{c.estimatedCost === null ? "—" : money(c.estimatedCost)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{money(c.spent)}</TableCell>
+                        <TableCell className={`text-right tabular-nums ${c.overBudget ? "text-red-600" : ""}`}>{money(c.committed)}</TableCell>
+                        <TableCell className={`text-right font-medium tabular-nums ${Math.round(c.projectedProfit ?? 0) < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                          {c.projectedProfit === null ? "—" : money(c.projectedProfit)}
+                        </TableCell>
+                        <TableCell className={`text-right tabular-nums ${Math.round((c.projectedMargin ?? 0) * 100) < 0 ? "text-red-600" : ""}`}>
+                          {c.projectedMargin === null ? "—" : `${Math.round(c.projectedMargin * 100) || 0}%`}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{money(c.billedToDate)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {c.overUnderBilled === null ? "—" : Math.round(c.overUnderBilled) === 0 ? "$0" : `${c.overUnderBilled > 0 ? "+" : "−"}${money(Math.abs(c.overUnderBilled))}`}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>

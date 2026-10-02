@@ -238,7 +238,8 @@ export async function signContract(token: string, input: SignInput, meta: SignMe
     });
     await tx.job.update({
       where: { id: c.jobId },
-      data: { depositRequired: effect.depositRequired, ...(effect.contractAmount != null ? { contractAmount: effect.contractAmount } : {}) },
+      // The signed price is the job's original contract: change orders and billable add-ons sit on top of it.
+      data: { depositRequired: effect.depositRequired, ...(effect.contractAmount != null ? { contractAmount: effect.contractAmount, originalContractAmount: Number(c.contractAmount) } : {}) },
     });
     if (effect.sov.action === "create") {
       await tx.sovLine.create({ data: { jobId: c.jobId, itemNo: effect.sov.itemNo, description: effect.sov.description, scheduledValue: effect.sov.scheduledValue, sortOrder: effect.sov.itemNo - 1 } });

@@ -438,7 +438,7 @@ export async function voidContract(id: string, userId: string, reason: string): 
   await prisma.$transaction(async (tx) => {
     await tx.customerContract.update({ where: { id }, data: { status: "VOID", voidedAt: new Date(), voidedByUserId: userId, voidReason: reason, token: null, tokenExpiresAt: null } });
     if (reversedMoney) {
-      await tx.job.update({ where: { id: c.jobId }, data: { contractAmount: { decrement: Number(c.contractAmount) } } });
+      await tx.job.update({ where: { id: c.jobId }, data: { contractAmount: { decrement: Number(c.contractAmount) }, originalContractAmount: null } });
     }
     await tx.activityLog.create({
       data: {

@@ -121,7 +121,7 @@ describe("signContract", () => {
     expect(db.file.create.mock.calls[0][0].data).toMatchObject({ category: "SIGNED_DOC", uploadedByUserId: "u1" });
     expect(db.generatedDocument.create.mock.calls[0][0].data).toMatchObject({ documentType: "CUSTOMER_CONTRACT_SIGNED", customerContractId: "c1" });
     // Fixed price: signed base + approved change orders; deposit from the schedule.
-    expect(db.job.update.mock.calls[0][0]).toEqual({ where: { id: "j1" }, data: { depositRequired: 10000, contractAmount: 25500 } });
+    expect(db.job.update.mock.calls[0][0]).toEqual({ where: { id: "j1" }, data: { depositRequired: 10000, contractAmount: 25500, originalContractAmount: 25000 } });
     expect(db.customerContract.update.mock.calls[0][0].data.moneyAppliedAt).toBeInstanceOf(Date);
     expect(db.estimate.update).toHaveBeenCalledWith({ where: { id: "e1" }, data: { status: "ACCEPTED" } });
     expect(pricing.recomputeJobBalance).toHaveBeenCalledWith("j1");

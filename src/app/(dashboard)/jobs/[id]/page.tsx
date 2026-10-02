@@ -60,6 +60,7 @@ import { useTasks } from "@/components/tasks/use-tasks";
 import { JobWorkflowPanel } from "@/components/workflows/job-workflow-panel";
 import { useSession } from "@/lib/auth/session-client";
 import { JobOverview } from "@/components/jobs/job-overview";
+import { CostSummaryCard, useJobCostSummary } from "@/components/jobs/cost-summary-card";
 import { canManageJobMoney } from "@/lib/money/access";
 import { useJobWorkflow } from "@/components/workflows/use-workflow";
 import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
@@ -69,6 +70,7 @@ export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: session } = useSession();
+  const { data: costSummary } = useJobCostSummary(id);
   const moneyViewOnly = Boolean(session?.user) && !canManageJobMoney(session?.user.role);
   const qc = useQueryClient();
   const searchParams = useSearchParams();
@@ -115,7 +117,7 @@ export default function JobDetailPage() {
   const { data: budgetLines = [] } = useQuery<{ amount: string }[]>({
     queryKey: ["budget", id],
     queryFn: () => fetchJson(`/api/jobs/${id}/budget`),
-    enabled: job?.jobType === "OWNED_REHAB",
+    enabled: Boolean(job),
   });
   const totalBudget = budgetLines.reduce((s, l) => s + Number(l.amount), 0);
 
@@ -441,7 +443,7 @@ export default function JobDetailPage() {
               { value: "expenses", label: "Expenses" },
               { value: "change-orders", label: "Change orders" },
               { value: "contract", label: awaitingSignature > 0 ? `Contract (${awaitingSignature})` : "Contract" },
-              ...(job.jobType === "OWNED_REHAB" ? [{ value: "budget", label: "Budget" }] : []),
+              { value: "budget", label: "Budget" },
             ];
             const FIELD = [
               { value: "labor", label: "Labor" },
@@ -514,6 +516,8 @@ export default function JobDetailPage() {
                 <TabsTrigger key={t.value} value={t.value}>{t.value}</TabsTrigger>
               ))}
             </TabsList>
+
+            {group === "money" && <CostSummaryCard jobId={id} onOpenBudget={() => setTab("money", "budget")} />}
 
             <TabsContent value="overview">
               <JobOverview jobId={id} onNavigate={setTab} />
@@ -613,9 +617,9 @@ export default function JobDetailPage() {
               <FilesPanel leadId={job.leadId} />
             </TabsContent>
 
-            {job.jobType === "OWNED_REHAB" && (
+            {(
               <TabsContent value="budget">
-                <BudgetPanel jobId={id} totalJobCost={Number(job.contractAmount)} />
+                <BudgetPanel jobId={id} totalJobCost={job.jobType === "OWNED_REHAB" ? Number(job.contractAmount) : (costSummary?.committed ?? 0)} />
               </TabsContent>
             )}
 

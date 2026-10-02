@@ -3,6 +3,7 @@ import { isPastDue } from "@/lib/calendar/status";
 import { APP_TIME_ZONE, dayKey, diffDayKeys, addDayKeys, endOfDayIn } from "@/lib/time/zone";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { loadJobWorkflowSummaries } from "@/lib/workflows/summary";
+import { getJobCostSummary } from "@/lib/services/job-cost";
 import { deriveJobHealth, type JobHealth } from "./health";
 import { mergeTimeline, money0, type JobEvent } from "./timeline";
 
@@ -75,6 +76,7 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
     logRows,
     taskEvents,
     contractRows,
+    costSummary,
   ] = await Promise.all([
     loadJobWorkflowSummaries([jobId], now),
     prisma.task.findMany({
@@ -144,6 +146,7 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
       where: { jobId },
       select: { id: true, contractNumber: true, status: true, sentAt: true, signedAt: true, declinedAt: true, signerName: true },
     }),
+    getJobCostSummary(jobId),
   ]);
 
   // ── Tasks ────────────────────────────────────────────────────────────────
@@ -324,6 +327,12 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
       margin: billable && cost !== 0 && contract > 0 ? (contract - cost) / contract : null,
       changeOrdersAwaiting: { count: sentCos.length, total: sentCos.reduce((s, c) => s + num(c.customerPrice), 0) },
       pendingExpenses: { count: pendingExpenses._count, total: num(pendingExpenses._sum.amount) },
+      // The projection, from the one cost calculation (lib/jobs/cost-summary.ts).
+      estimatedCost: costSummary?.estimatedCost ?? null,
+      committedOpen: costSummary?.committedOpen ?? 0,
+      projectedProfit: costSummary?.estimatedCost != null ? costSummary.projectedProfit : null,
+      projectedMargin: costSummary?.estimatedCost != null ? costSummary.projectedMargin : null,
+      overBudgetBy: costSummary?.overBudget ? costSummary.committed - (costSummary.estimatedCost ?? 0) : 0,
     },
     field: { dailyLogsAwaitingApproval: logsAwaiting },
     timeline: mergeTimeline(events, 20),

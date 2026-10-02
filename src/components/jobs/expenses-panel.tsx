@@ -710,7 +710,7 @@ export function ExpensesPanel({
           <Card>
             <CardContent className="p-3">
               <div className="text-[10px] uppercase text-muted-foreground">
-                Est. profit
+                Contract less costs so far
               </div>
               <div
                 className={`text-lg font-semibold ${

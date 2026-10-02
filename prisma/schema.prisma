@@ -1254,6 +1254,9 @@ model Job {
   marginType            MarginType?     @map("margin_type")
   marginValue           Decimal?        @map("margin_value") @db.Decimal(12, 2)
   contractAmount        Decimal         @map("contract_amount") @db.Decimal(12, 2)
+  // The signed base, before change orders and billable add-ons. Set when a
+  // customer contract is signed; null until then (the cost summary derives it).
+  originalContractAmount Decimal?       @map("original_contract_amount") @db.Decimal(12, 2)
   depositRequired       Decimal         @default(0) @map("deposit_required") @db.Decimal(12, 2)
   depositReceived       Decimal         @default(0) @map("deposit_received") @db.Decimal(12, 2)
   depositReceivedDate   DateTime?       @map("deposit_received_date")

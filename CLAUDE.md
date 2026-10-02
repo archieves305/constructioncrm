@@ -305,6 +305,27 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — Audit initiative 2: job cost summary (built, dev-QA'd, on `main`, not deployed)
+
+"continue and follow recommendation regarding labor count": crew labor counts
+when the labor contract is signed; the unpaid part is shown as committed.
+Pure `lib/jobs/cost-summary.ts` (`computeCostSummary`: original / revised
+contract, estimated cost from the budget or the signed estimate, spent,
+committed, remaining, projected profit and margin, over / under billed);
+`lib/services/job-cost.ts` (`getJobCostRows`, `getJobCostSummary`);
+`Job.originalContractAmount` (migration `20261010120000_job_original_contract`
+with a backfill from signed contracts; set at signing, cleared on void);
+`GET /api/jobs/[id]/cost-summary`; the financial report returns `jobCosts`.
+UI: a Cost summary card on the job's Money tab, the Budget sub-tab on every
+job type, the Overview's projection and over-budget row, and "Job costs and
+projected profit" on Collections in place of the profitability table. A job
+with neither a budget nor a cost shows no profit rather than 100%. Gate:
+typecheck clean, lint 6/22, 1308 tests (+10), build clean. Dev QA: the new
+committed figure equals the old Collections cost on all 5 dev jobs; card,
+Budget tab and Collections table viewed in headless Chromium, no console
+errors. **Deploy carries a migration.** Details:
+[features/job-cost-summary.md](docs/project-memory/features/job-cost-summary.md).
+
 ### 2026-10-02 — Audit initiative 1: Job Overview tab (deployed `9bbb34c`)
 
 The job page now opens on **Overview** (`?tab=overview` is the default; every
@@ -1590,6 +1611,10 @@ Notification Digests).
   ADMIN/MANAGER/OFFICE_STAFF implicitly, anyone else by explicit grant. Use
   **explicit role lists, never `hasMinRole`**, for anything financial:
   `ROLE_HIERARCHY` ranks SALES_REP above OFFICE_STAFF (Accounting).
+- **A job's cost and profit come from one calculation**
+  (`lib/jobs/cost-summary.ts` via `lib/services/job-cost.ts`). Crew labor
+  counts when the labor contract is signed; the unpaid part is "committed".
+  New screens read `getJobCostRows` / `getJobCostSummary` — never their own sum.
 - **Only an APPROVED `JobExpense` moves money.** PENDING and REJECTED
   contribute nothing to `contractAmount`, `balanceDue`, the cost-plus rollup,
   job profit, the QBO export or budget allocations. Any new code that sums
