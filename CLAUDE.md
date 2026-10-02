@@ -305,7 +305,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-02 — Audit initiative 2: job cost summary (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-02 — Audit initiative 2: job cost summary (deployed `389a124`)
 
 "continue and follow recommendation regarding labor count": crew labor counts
 when the labor contract is signed; the unpaid part is shown as committed.
@@ -325,6 +325,14 @@ committed figure equals the old Collections cost on all 5 dev jobs; card,
 Budget tab and Collections table viewed in headless Chromium, no console
 errors. **Deploy carries a migration.** Details:
 [features/job-cost-summary.md](docs/project-memory/features/job-cost-summary.md).
+Richard pushed and deployed from `!`: BUILD_ID `dEhUKikVuIWutnVYetsDj` →
+`NrwssgzE8M0lgWvTt5zOn`, migration `20261010120000_job_original_contract`
+applied (schema up to date; column nullable; backfill touched 0 jobs — prod
+has no signed customer contract yet), smoke 307 ×2, zero journal errors
+since the restart (the old process logged module-not-found errors while the
+build rewrote the app under it, as on every in-place deploy), uploads intact
+(8 of 8), backup `postgres-2026-10-02-153533.dump`. On prod 3 of 17 open
+billable jobs have a budget; 2 carry labor equal to the whole contract.
 
 ### 2026-10-02 — Audit initiative 1: Job Overview tab (deployed `9bbb34c`)
 
