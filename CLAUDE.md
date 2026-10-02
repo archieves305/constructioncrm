@@ -305,7 +305,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-02 — Foundation (b): role checks + audit on money and file routes (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-02 — Foundation (b): role checks + audit on money and file routes (deployed `9daf99e`)
 
 First build from the approved audit roadmap. Richard approved the role list
 (ADMIN / MANAGER / OFFICE_STAFF for money writes). New pure
@@ -344,6 +344,11 @@ and inspections, change-order create / send (still `hasMinRole` on
 decision), prospects, estimates. Server check for the 190 missing uploads:
 the nightly backup is DB-only and the attached volume holds only Postgres —
 no copy on the droplet; DigitalOcean panel backups are the last place to look.
+Richard pushed and deployed from `!`: BUILD_ID `7b496oPUA25tYbcyDW1wY` →
+`ClLUJA-KTPisCzUOy_FFC`, no migration, smoke 307 ×2, journal clean, backup
+`postgres-2026-10-02-143823.dump`. **First deploy with the uploads exclude:
+all 8 referenced files on prod survived it** (21 on disk = 8 real + 13 dev
+leftovers).
 
 ### 2026-10-02 — Deploys were deleting prod uploads: script fixed, 7 files restored (not yet deployed)
 
