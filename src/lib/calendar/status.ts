@@ -17,12 +17,20 @@ function asDate(d: Date | string): Date {
   return d instanceof Date ? d : new Date(d);
 }
 
-export function isOverdue(t: Dated, now: Date = new Date(), tz: string = APP_TIME_ZONE): boolean {
-  if (!t.dueAt) return false;
-  if (t.status === "COMPLETED" || t.status === "CANCELLED") return false;
-  const due = asDate(t.dueAt);
-  if (t.allDay ?? true) return now > endOfDayIn(dayKey(due, tz), tz);
+/**
+ * The date half of the rule, for callers that have already established the
+ * task is open. `allDay` unknown reads as all-day — workflow steps are.
+ */
+export function isPastDue(dueAt: Date | string | null | undefined, allDay?: boolean | null, now: Date = new Date(), tz: string = APP_TIME_ZONE): boolean {
+  if (!dueAt) return false;
+  const due = asDate(dueAt);
+  if (allDay ?? true) return now > endOfDayIn(dayKey(due, tz), tz);
   return now > due;
+}
+
+export function isOverdue(t: Dated, now: Date = new Date(), tz: string = APP_TIME_ZONE): boolean {
+  if (t.status === "COMPLETED" || t.status === "CANCELLED") return false;
+  return isPastDue(t.dueAt, t.allDay, now, tz);
 }
 
 /** Precedence: closed states, then late, then the working states. */

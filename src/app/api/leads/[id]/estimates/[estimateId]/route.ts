@@ -4,6 +4,7 @@ import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { estimateInputSchema } from "@/lib/estimates/schema";
 import { calculateEstimate } from "@/lib/estimates/calc";
+import { guardLead } from "@/lib/access/records";
 
 export async function GET(
   _request: NextRequest,
@@ -12,6 +13,8 @@ export async function GET(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id, estimateId } = await params;
+  const denied = await guardLead(session.user, id, "read");
+  if (denied) return denied;
 
   const estimate = await prisma.roofEstimate.findFirst({
     where: { id: estimateId, leadId: id },
@@ -32,6 +35,8 @@ export async function PUT(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id, estimateId } = await params;
+  const denied = await guardLead(session.user, id, "write");
+  if (denied) return denied;
 
   const existing = await prisma.roofEstimate.findFirst({
     where: { id: estimateId, leadId: id },
@@ -95,6 +100,8 @@ export async function DELETE(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id, estimateId } = await params;
+  const denied = await guardLead(session.user, id, "write");
+  if (denied) return denied;
 
   const existing = await prisma.roofEstimate.findFirst({
     where: { id: estimateId, leadId: id },

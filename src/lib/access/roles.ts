@@ -33,3 +33,10 @@ const CHANGE_ORDER_DECISION_ROLES: readonly RoleName[] = ["ADMIN", "MANAGER"];
 export function canDecideChangeOrder(role: RoleName): boolean {
   return CHANGE_ORDER_DECISION_ROLES.includes(role);
 }
+
+/** Referral records and their commissions. */
+const REFERRAL_ROLES: readonly RoleName[] = ["ADMIN", "MANAGER"];
+
+export function canManageReferrals(role: RoleName): boolean {
+  return REFERRAL_ROLES.includes(role);
+}

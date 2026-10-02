@@ -39,6 +39,7 @@ import { useAddWorkflowTask, useInvalidateWorkflow, usePatchWorkflow, useSubject
 import { WorkflowTaskRow } from "./workflow-task-row";
 import { WorkflowTeamDialog } from "./workflow-team-dialog";
 import { subjectInfoOf, type WorkflowPhaseItem, type WorkflowSubjectRef, type WorkflowTaskItem } from "./types";
+import { isPastDue } from "@/lib/calendar/status";
 
 type Chip = "ready" | "inProgress" | "blocked" | "overdue" | "notActive" | "skipped" | null;
 
@@ -121,7 +122,7 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
       case "skipped":
         return s === "SKIPPED";
       case "overdue":
-        return Boolean(t.dueAt) && new Date(t.dueAt!).getTime() < now && t.activatedAt !== null && s !== "COMPLETED" && s !== "SKIPPED" && s !== "CANCELLED";
+        return isPastDue(t.dueAt, t.allDay, new Date(now)) && t.activatedAt !== null && s !== "COMPLETED" && s !== "SKIPPED" && s !== "CANCELLED";
     }
   };
 

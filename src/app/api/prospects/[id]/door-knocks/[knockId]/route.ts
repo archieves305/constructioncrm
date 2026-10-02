@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { guardProspect } from "@/lib/access/records";
 
 export async function DELETE(
   request: NextRequest,
@@ -10,6 +11,8 @@ export async function DELETE(
   if (!session?.user) return unauthorized();
 
   const { id: prospectId, knockId } = await params;
+  const denied = await guardProspect(session.user, prospectId, "write");
+  if (denied) return denied;
 
   // Soft delete, scoped to the prospect so a knockId from elsewhere can't be hit.
   const { count } = await prisma.propertyDoorKnock.updateMany({

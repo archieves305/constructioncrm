@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { guardReferrals } from "@/lib/access/records";
 
 const updateSchema = z.object({
   status: z.enum(["NEW", "CONTACTED", "CONVERTED", "DECLINED"]).optional(),
@@ -17,6 +18,8 @@ export async function PATCH(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardReferrals(session.user);
+  if (denied) return denied;
 
   const { id } = await context.params;
   const body = await request.json().catch(() => null);

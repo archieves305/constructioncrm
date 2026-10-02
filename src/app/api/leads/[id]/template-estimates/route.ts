@@ -7,6 +7,7 @@ import {
   buildSectionsCreate,
   generateEstimateNumber,
 } from "@/lib/estimates/persist";
+import { guardLead } from "@/lib/access/records";
 
 export async function GET(
   _request: NextRequest,
@@ -15,6 +16,8 @@ export async function GET(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id } = await params;
+  const denied = await guardLead(session.user, id, "read");
+  if (denied) return denied;
 
   const estimates = await prisma.estimate.findMany({
     where: { leadId: id },
@@ -33,6 +36,8 @@ export async function POST(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id } = await params;
+  const denied = await guardLead(session.user, id, "write");
+  if (denied) return denied;
 
   const lead = await prisma.lead.findUnique({
     where: { id },

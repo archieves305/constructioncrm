@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { isToday, isThisWeek, isPast } from "date-fns";
+import { isToday, isThisWeek } from "date-fns";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ import { useDebouncedValue } from "@/components/shared/use-debounced-value";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { JobPicker } from "@/components/shared/job-picker";
+import { isPastDue } from "@/lib/calendar/status";
 
 type JobOption = {
   id: string;
@@ -227,7 +228,7 @@ export default function TasksPage() {
         continue;
       }
       const d = new Date(t.dueAt);
-      if (isPast(d) && !isToday(d)) overdue.push(t);
+      if (isPastDue(t.dueAt, t.allDay)) overdue.push(t);
       else if (isToday(d)) today.push(t);
       else if (isThisWeek(d, { weekStartsOn: 1 })) week.push(t);
       else later.push(t);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { jobsInvolvingUserWhere } from "./involvement";
 import { buildJobListWhere, hasWorkflowFilter, parseJobListParams } from "./query";
+import { overdueWhere } from "@/lib/calendar/status";
 
 const now = new Date("2026-09-24T12:00:00Z");
 const admin = { user: { id: "u-admin", role: "ADMIN" as const }, now };
@@ -114,10 +115,15 @@ describe("buildJobListWhere", () => {
         {
           tasks: {
             some: {
-              workflowTaskKey: { not: null },
-              status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] },
-              activatedAt: { not: null },
-              dueAt: { lt: now },
+              AND: [
+                {
+                  workflowTaskKey: { not: null },
+                  status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] },
+                  activatedAt: { not: null },
+                },
+                // The one overdue rule: past the end of its day (all-day) or past its end (timed).
+                overdueWhere(now),
+              ],
             },
           },
         },

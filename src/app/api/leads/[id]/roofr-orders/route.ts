@@ -5,6 +5,7 @@ import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { validateBody } from "@/lib/validation/body";
+import { guardLead } from "@/lib/access/records";
 
 const createSchema = z.object({
   notes: z.string().max(2000).optional(),
@@ -18,6 +19,8 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardLead(session.user, id, "read");
+  if (denied) return denied;
   const orders = await prisma.roofrOrder.findMany({
     where: { leadId: id },
     orderBy: { requestedAt: "desc" },
@@ -44,6 +47,8 @@ export async function POST(
   }
 
   const { id } = await params;
+  const denied = await guardLead(session.user, id, "write");
+  if (denied) return denied;
 
   const validated = await validateBody(request, createSchema);
   if (!validated.ok) return validated.response;

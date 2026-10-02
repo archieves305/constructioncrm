@@ -5,6 +5,7 @@ import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { buildJobListWhere, hasWorkflowFilter, parseJobListParams } from "@/lib/jobs/query";
 import { loadJobWorkflowSummaries } from "@/lib/workflows/summary";
+import { overdueWhere } from "@/lib/calendar/status";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -54,9 +55,7 @@ export async function GET(request: NextRequest) {
       prisma.task.groupBy({
         by: ["jobId"],
         where: {
-          jobId: { in: jobIds },
-          ...ACTIVE_OPEN_WHERE,
-          dueAt: { lt: now },
+          AND: [{ jobId: { in: jobIds }, ...ACTIVE_OPEN_WHERE }, overdueWhere(now)],
         },
         _count: { _all: true },
       }),

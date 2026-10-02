@@ -1,6 +1,6 @@
 "use client";
 
-import { format, isPast, isToday } from "date-fns";
+import { format, isToday } from "date-fns";
 import { CheckSquare, Lock, MessageSquare, MoreHorizontal, Paperclip, ShieldAlert, Play, RotateCcw, SkipForward, Eye, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
 import { cn } from "@/lib/utils";
 import { deriveTaskState, isOpenState, WORKFLOW_STATE_LABEL, WORKFLOW_STATE_PILL } from "./status";
 import type { WorkflowTaskItem } from "./types";
+import { isPastDue } from "@/lib/calendar/status";
 
 /**
  * One step in a phase. Everything a coordinator needs at a glance — state,
@@ -52,7 +53,7 @@ export function WorkflowTaskRow({
   const open = isOpenState(state);
   const notActive = state === "NOT_ACTIVE";
   const due = task.dueAt ? new Date(task.dueAt) : null;
-  const overdue = due && open && !notActive && isPast(due) && !isToday(due);
+  const overdue = due && open && !notActive && isPastDue(task.dueAt, task.allDay);
   const dueToday = due && open && !notActive && isToday(due);
   const waitingOn = task.dependencies.filter((d) => d.kind === "BLOCKING" && d.dependsOn.status !== "COMPLETED" && d.dependsOn.status !== "CANCELLED");
   const checklist = task.checklist ?? [];

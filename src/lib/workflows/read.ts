@@ -11,6 +11,7 @@ import { unassignedRoles, loadRoleContext } from "./roles";
 import { canApplyWorkflow, canCatchUpWorkflow, canCoordinateWorkflow, canOverrideBlockingGate, canSetPermitStatus, type JobScope } from "./access";
 import { availableUpgrades } from "./versioning";
 import { loadSubject, type WorkflowSubject } from "./subject";
+import { isPastDue } from "@/lib/calendar/status";
 
 /**
  * Everything the Workflow tab needs in one read: the instance, its modules
@@ -77,7 +78,7 @@ function tally(p: PhaseProgress, t: WorkflowTaskRow, now: Date) {
   else if (t.status === "BLOCKED") p.blocked++;
   else if (t.activatedAt) p.ready++;
   else p.notActive++;
-  if (open && t.activatedAt && t.dueAt && t.dueAt < now) p.overdue++;
+  if (open && t.activatedAt && isPastDue(t.dueAt, null, now)) p.overdue++;
   // Needs an owner NOW: a step still waiting on its predecessors is nobody's yet (matches summary.ts).
   if (open && t.activatedAt && !t.assignedUserId && t.workflowTaskKey) p.unassigned++;
 }

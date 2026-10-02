@@ -8,6 +8,7 @@ import { loadWorkflowHealth, loadWorkflowReport } from "@/lib/workflows/reports"
 import { jobsInvolvingUserWhere, leadsInvolvingUserWhere as jobsInvolvingLeadWhere } from "@/lib/jobs/involvement";
 import { effectiveListScope, parseListScope } from "@/lib/lists/scope";
 import { dashboardLeadWhere, dashboardTaskWhere } from "@/lib/reports/dashboard-scope";
+import { computeFunnel } from "@/lib/reports/funnel";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -111,28 +112,18 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    const getCount = (name: string) =>
-      stageCounts.find((s) => s.stageName === name)?.count || 0;
-
-    const total = await prisma.lead.count({
+    // The funnel is counted per lead (see lib/reports/funnel.ts); the stage
+    // distribution above stays a count of moves into each stage.
+    const cohort = await prisma.lead.findMany({
       where: hasDateFilter ? { createdAt: dateFilter } : undefined,
+      select: { currentStageId: true, stageHistory: { select: { toStageId: true } } },
     });
+    const { metrics } = computeFunnel(
+      allStages,
+      cohort.map((l) => ({ currentStageId: l.currentStageId, visitedStageIds: l.stageHistory.map((h) => h.toStageId) })),
+    );
 
-    const contacted = getCount("Contacted");
-    const appointed = getCount("Appointment Scheduled");
-    const estimated = getCount("Estimate Sent");
-    const won = getCount("Won");
-
-    return NextResponse.json({
-      stageCounts,
-      funnelMetrics: {
-        leadToContact: total > 0 ? ((contacted / total) * 100).toFixed(1) : "0",
-        contactToAppointment: contacted > 0 ? ((appointed / contacted) * 100).toFixed(1) : "0",
-        appointmentToEstimate: appointed > 0 ? ((estimated / appointed) * 100).toFixed(1) : "0",
-        estimateToWon: estimated > 0 ? ((won / estimated) * 100).toFixed(1) : "0",
-        leadToWon: total > 0 ? ((won / total) * 100).toFixed(1) : "0",
-      },
-    });
+    return NextResponse.json({ stageCounts, funnelMetrics: metrics });
   }
 
   // Workflow reporting — explicit role list, never hasMinRole.

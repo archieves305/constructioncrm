@@ -1,6 +1,5 @@
 "use client";
 
-import { isPast, isToday } from "date-fns";
 import { dayKey } from "@/lib/time/zone";
 import { MessageSquare, Paperclip } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +11,7 @@ import { PRIORITY_OUTLINE_CLASS, STATUS_LABEL, TASK_PRIORITIES, TASK_STATUSES } 
 import { deriveTaskState, WORKFLOW_STATE_LABEL, WORKFLOW_STATE_PILL } from "@/components/workflows/status";
 import { stepHasOpenRequirement } from "@/lib/workflows/step-requirements";
 import type { Priority, TaskListItem, TaskStatus, UpdatePatch, UserOption } from "./types";
+import { isPastDue } from "@/lib/calendar/status";
 
 /**
  * One task as an editable row: tick it done, retitle via the sheet, and change
@@ -33,7 +33,7 @@ export function TaskCard({
 }) {
   const closed = task.status === "COMPLETED" || task.status === "CANCELLED";
   const overdue =
-    Boolean(task.dueAt) && isPast(new Date(task.dueAt!)) && !isToday(new Date(task.dueAt!)) && !closed;
+    isPastDue(task.dueAt, task.allDay) && !closed;
   // The office's day, not the UTC slice: a timed task ending 8pm ET is 00:00Z tomorrow.
   const dueValue = task.dueAt ? dayKey(new Date(task.dueAt)) : "";
   const wfState = task.workflowTaskKey

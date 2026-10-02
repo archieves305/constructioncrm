@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { bulkCreateProspectSchema } from "@/lib/validators/prospect";
 import { Prisma } from "@/generated/prisma/client";
+import { guardLeadCreate } from "@/lib/access/records";
 
 // Save many properties as prospects at once (from the property map/list).
 // Deduped by reapiId so re-saving the same property is a no-op. Returns the
@@ -11,6 +12,8 @@ import { Prisma } from "@/generated/prisma/client";
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardLeadCreate(session.user);
+  if (denied) return denied;
 
   const body = await request.json();
   const parsed = bulkCreateProspectSchema.safeParse(body);

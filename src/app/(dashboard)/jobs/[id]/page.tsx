@@ -62,6 +62,7 @@ import { useSession } from "@/lib/auth/session-client";
 import { canManageJobMoney } from "@/lib/money/access";
 import { useJobWorkflow } from "@/components/workflows/use-workflow";
 import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
+import { isPastDue } from "@/lib/calendar/status";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -449,7 +450,7 @@ export default function JobDetailPage() {
               { value: "inspections", label: "Inspections" },
             ];
             const overdueTasks = jobTasks.filter(
-              (t) => t.dueAt && new Date(t.dueAt) < new Date() && t.status !== "COMPLETED" && t.status !== "CANCELLED",
+              (t) => isPastDue(t.dueAt, t.allDay) && t.status !== "COMPLETED" && t.status !== "CANCELLED",
             ).length;
             const group = tab;
             const panel =

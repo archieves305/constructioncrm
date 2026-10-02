@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { updateProspectSchema } from "@/lib/validators/prospect";
+import { guardProspect } from "@/lib/access/records";
 
 export async function GET(
   request: NextRequest,
@@ -11,6 +12,8 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardProspect(session.user, id, "read");
+  if (denied) return denied;
 
   const prospect = await prisma.prospect.findUnique({
     where: { id },
@@ -42,6 +45,8 @@ export async function PATCH(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardProspect(session.user, id, "write");
+  if (denied) return denied;
   const body = await request.json();
   const parsed = updateProspectSchema.safeParse(body);
   if (!parsed.success) {
@@ -67,6 +72,8 @@ export async function DELETE(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardProspect(session.user, id, "write");
+  if (denied) return denied;
   // Cascades to the prospect's knocks and route stops.
   await prisma.prospect.delete({ where: { id } });
 

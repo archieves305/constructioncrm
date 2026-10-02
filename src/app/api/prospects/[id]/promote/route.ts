@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { promoteProspectSchema } from "@/lib/validators/prospect";
 import { emitLeadEvent } from "@/lib/follow-ups/events";
+import { guardProspect } from "@/lib/access/records";
 
 // Promote a prospect into a CRM lead: create the lead (address carried over
 // from the prospect, contact details supplied in the body), link it back, and
@@ -16,6 +17,8 @@ export async function POST(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardProspect(session.user, id, "write");
+  if (denied) return denied;
   const body = await request.json();
   const parsed = promoteProspectSchema.safeParse(body);
   if (!parsed.success) {

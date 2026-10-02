@@ -16,6 +16,7 @@ import {
 } from "@/lib/pdf/estimate";
 import { saveFile, readFile } from "@/lib/files/storage";
 import { FileCategory } from "@/generated/prisma/client";
+import { guardLead } from "@/lib/access/records";
 
 async function loadBrand(): Promise<EstimateBrand> {
   let brand = await prisma.roofingBrand.findUnique({ where: { id: "default" } });
@@ -76,6 +77,8 @@ export async function POST(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id, estimateId } = await params;
+  const denied = await guardLead(session.user, id, "read");
+  if (denied) return denied;
 
   const result = await validateBody(request, estimatePdfKindSchema);
   if (!result.ok) return result.response;

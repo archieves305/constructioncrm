@@ -7,6 +7,7 @@ import { validateBody } from "@/lib/validation/body";
 import { z } from "zod";
 import { ESTIMATE_STATUSES, genericEstimateInputSchema } from "@/lib/estimates/generic-schema";
 import { buildSectionsCreate } from "@/lib/estimates/persist";
+import { guardLead } from "@/lib/access/records";
 
 export async function GET(
   _request: NextRequest,
@@ -15,6 +16,8 @@ export async function GET(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id, estimateId } = await params;
+  const denied = await guardLead(session.user, id, "read");
+  if (denied) return denied;
 
   const estimate = await prisma.estimate.findFirst({
     where: { id: estimateId, leadId: id },
@@ -39,6 +42,8 @@ export async function PUT(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id, estimateId } = await params;
+  const denied = await guardLead(session.user, id, "write");
+  if (denied) return denied;
 
   const existing = await prisma.estimate.findFirst({
     where: { id: estimateId, leadId: id },
@@ -108,6 +113,8 @@ export async function PATCH(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id, estimateId } = await params;
+  const denied = await guardLead(session.user, id, "write");
+  if (denied) return denied;
 
   const existing = await prisma.estimate.findFirst({
     where: { id: estimateId, leadId: id },
@@ -148,6 +155,8 @@ export async function DELETE(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id, estimateId } = await params;
+  const denied = await guardLead(session.user, id, "write");
+  if (denied) return denied;
 
   const existing = await prisma.estimate.findFirst({
     where: { id: estimateId, leadId: id },

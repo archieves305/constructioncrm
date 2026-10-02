@@ -12,6 +12,7 @@ import {
 import { loadEstimateBrand, safeSlug } from "@/lib/pdf/brand";
 import { saveFile } from "@/lib/files/storage";
 import { FileCategory } from "@/generated/prisma/client";
+import { guardLead } from "@/lib/access/records";
 
 export async function POST(
   request: NextRequest,
@@ -20,6 +21,8 @@ export async function POST(
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id, estimateId } = await params;
+  const denied = await guardLead(session.user, id, "read");
+  if (denied) return denied;
 
   const result = await validateBody(request, genericEstimatePdfKindSchema);
   if (!result.ok) return result.response;

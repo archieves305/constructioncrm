@@ -2,6 +2,7 @@ import type { Prisma, RoleName, WorkflowPermitStatus } from "@/generated/prisma/
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { jobsInvolvingUserWhere } from "./involvement";
 import { effectiveListScope, parseListScope, type ListScope } from "@/lib/lists/scope";
+import { overdueWhere } from "@/lib/calendar/status";
 
 /**
  * The jobs-list `where`, built from query params in one pure function so the
@@ -125,7 +126,7 @@ export function buildJobListWhere(params: JobListParams, ctx: JobListContext): P
     and.push({ tasks: { some: { ...WORKFLOW_STEP, status: "BLOCKED" } } });
   }
   if (params.workflowOverdue) {
-    and.push({ tasks: { some: { ...WORKFLOW_STEP, ...ACTIVE_OPEN_WHERE, dueAt: { lt: ctx.now } } } });
+    and.push({ tasks: { some: { AND: [{ ...WORKFLOW_STEP, ...ACTIVE_OPEN_WHERE }, overdueWhere(ctx.now)] } } });
   }
   if (params.workflowUnassigned) {
     and.push({ tasks: { some: { ...WORKFLOW_STEP, ...ACTIVE_OPEN_WHERE, assignedUserId: null } } });

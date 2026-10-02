@@ -219,8 +219,9 @@ export async function signContract(token: string, input: SignInput, meta: SignMe
     // Money.
     const job = await tx.job.findUniqueOrThrow({ where: { id: c.jobId }, select: { jobType: true, billingMethod: true, title: true, projectManagerId: true, salesRepId: true } });
     jobMeta = { projectManagerId: job.projectManagerId, salesRepId: job.salesRepId };
-    const [coAgg, sovLines, issued] = await Promise.all([
+    const [coAgg, billableAgg, sovLines, issued] = await Promise.all([
       tx.changeOrder.aggregate({ _sum: { customerPrice: true }, where: { jobId: c.jobId, status: "APPROVED" } }),
+      tx.jobExpense.aggregate({ _sum: { amount: true }, where: { jobId: c.jobId, status: "APPROVED", billable: true } }),
       tx.sovLine.findMany({ where: { jobId: c.jobId }, select: { id: true, itemNo: true, changeOrderId: true, scheduledValue: true } }),
       issuedApplicationCount(c.jobId, tx),
     ]);
@@ -231,6 +232,7 @@ export async function signContract(token: string, input: SignInput, meta: SignMe
       contractTotal: Number(c.contractAmount),
       depositAmount: Number(c.depositAmount),
       approvedChangeOrderTotal: Number(coAgg._sum.customerPrice ?? 0),
+      approvedBillableExpenseTotal: Number(billableAgg._sum.amount ?? 0),
       sovLines: sovLines.map((l) => ({ ...l, scheduledValue: Number(l.scheduledValue) })),
       issuedApplicationCount: issued,
     });

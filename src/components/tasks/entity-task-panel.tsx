@@ -4,7 +4,7 @@ import { stepHasOpenRequirement } from "@/lib/workflows/step-requirements";
 import { useMemo, useState } from "react";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import type { QueryKey } from "@tanstack/react-query";
-import { format, isPast, isToday } from "date-fns";
+import { format, isToday } from "date-fns";
 import { CheckSquare, MessageSquare, Paperclip, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,6 +18,7 @@ import { TaskDetailSheet } from "./task-detail-sheet";
 import { PRIORITY_DOT_CLASS, PRIORITY_LABEL } from "./task-colors";
 import { primaryLink, type TaskEntityContext, type TaskListItem } from "./types";
 import { useAssignableUsers, useTasks, useUpdateTask } from "./use-tasks";
+import { isPastDue } from "@/lib/calendar/status";
 
 /**
  * The tasks that belong to one record — a lead, a job, an invoice, a daily
@@ -65,7 +66,7 @@ export function EntityTaskPanel({
 
   const open = tasks.filter((t) => t.status !== "COMPLETED" && t.status !== "CANCELLED");
   const done = tasks.filter((t) => t.status === "COMPLETED" || t.status === "CANCELLED");
-  const overdue = open.filter((t) => t.dueAt && isPast(new Date(t.dueAt)) && !isToday(new Date(t.dueAt))).length;
+  const overdue = open.filter((t) => isPastDue(t.dueAt, t.allDay)).length;
   const canAdd = session?.user.role !== "READ_ONLY";
 
   const defaults = useMemo(
@@ -162,7 +163,7 @@ function TaskRow({
 }) {
   const closed = task.status === "COMPLETED" || task.status === "CANCELLED";
   const due = task.dueAt ? new Date(task.dueAt) : null;
-  const overdue = due && !closed && isPast(due) && !isToday(due);
+  const overdue = due && !closed && isPastDue(task.dueAt, task.allDay);
   const dueToday = due && !closed && isToday(due);
 
   return (

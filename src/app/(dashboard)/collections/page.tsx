@@ -26,7 +26,7 @@ type CollectionJob = {
   depositReceived: string;
   balanceDue: string;
   finalPaymentReceived: boolean;
-  currentStage: { name: string };
+  currentStage: { name: string; isClosed?: boolean };
   lead: { fullName: string; primaryPhone: string; propertyAddress1?: string | null; propertyAddress2?: string | null; city: string };
   salesRep: { firstName: string; lastName: string } | null;
 };
@@ -124,12 +124,17 @@ export default function CollectionsPage() {
   const profitability = financials?.summary.jobs ?? [];
   const overdueRows = (aging?.rows ?? []).filter((r) => r.ageDays > 0);
 
+  // A closed job is past asking for a deposit; a balance on one is still
+  // owed (or a record to correct), so it stays listed — after the open jobs.
   const depositsMissing = jobs.filter(
-    (j) => Number(j.depositReceived) < Number(j.depositRequired)
+    (j) => !j.currentStage.isClosed && Number(j.depositReceived) < Number(j.depositRequired)
   );
-  const balancesDue = jobs.filter(
-    (j) => Number(j.balanceDue) > 0 && !j.finalPaymentReceived
-  );
+  const balancesDue = jobs
+    .filter((j) => Number(j.balanceDue) > 0 && !j.finalPaymentReceived)
+    .sort((a, b) => Number(Boolean(a.currentStage.isClosed)) - Number(Boolean(b.currentStage.isClosed)));
+  const closedOutstanding = balancesDue
+    .filter((j) => j.currentStage.isClosed)
+    .reduce((s, j) => s + Number(j.balanceDue), 0);
   const finalPaymentDue = jobs.filter(
     (j) => j.currentStage.name === "Final Payment Due"
   );
@@ -161,9 +166,12 @@ export default function CollectionsPage() {
           value={`$${totalOutstanding.toLocaleString()}`}
           icon={Clock}
           description={
-            progress && progress.rows.length > 0
-              ? `incl. ${money(progress.totals.retainageHeld)} retainage held and ${money(progress.totals.balanceToFinish)} unbilled work on progress-billed jobs`
-              : undefined
+            [
+              progress && progress.rows.length > 0
+                ? `incl. ${money(progress.totals.retainageHeld)} retainage held and ${money(progress.totals.balanceToFinish)} unbilled work on progress-billed jobs`
+                : null,
+              closedOutstanding > 0 ? `${money(closedOutstanding)} of it is on closed jobs` : null,
+            ].filter(Boolean).join(" · ") || undefined
           }
         />
         <KpiCard title="Overdue A/R" value={money(aging?.totalOverdue ?? 0)} icon={AlertTriangle} />

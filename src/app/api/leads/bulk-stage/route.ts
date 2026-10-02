@@ -8,6 +8,7 @@ import { onLeadStageChanged } from "@/lib/nurture/hooks";
 import { recordAudit } from "@/lib/audit/record";
 import { logger } from "@/lib/logger";
 import { guardLeads } from "@/lib/access/records";
+import { createJobFromLead } from "@/lib/services/jobs";
 
 const schema = z.object({
   leadIds: z.array(z.string().min(1)).min(1).max(200),
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
   if (!stage) return NextResponse.json({ error: "Stage not found" }, { status: 400 });
 
   let updated = 0;
+  let jobsCreated = 0;
   for (const leadId of leadIds) {
     try {
       const lead = await prisma.lead.findUnique({
@@ -74,11 +76,21 @@ export async function POST(request: NextRequest) {
       await emitLeadEvent("LEAD_STAGE_CHANGED", leadId, { targetStageId: stageId }).catch((e) =>
         logger.exception(e, { where: "bulk-stage.emitLeadEvent", leadId }),
       );
+      // Won means a job, exactly as the single-lead route does it. This path
+      // used to skip it and leave Won leads with no job.
+      if (stage.isWon) {
+        try {
+          await createJobFromLead(leadId, session.user.id);
+          jobsCreated++;
+        } catch (err) {
+          logger.exception(err, { where: "bulk-stage.createJobFromLead", leadId });
+        }
+      }
       updated++;
     } catch (err) {
       logger.exception(err, { where: "bulk-stage", leadId });
     }
   }
 
-  return NextResponse.json({ updated, requested: leadIds.length });
+  return NextResponse.json({ updated, jobsCreated, requested: leadIds.length });
 }

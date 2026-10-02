@@ -1,4 +1,5 @@
-import { isPast, isToday } from "date-fns";
+import { isPastDue } from "@/lib/calendar/status";
+import { dayKey } from "@/lib/time/zone";
 import type { TaskStatus } from "@/generated/prisma/client";
 import { isOpenStatus } from "./status";
 
@@ -30,8 +31,9 @@ function asDate(d: Date | string): Date {
 export function dueBucket(dueAt: Date | string | null): DueBucket {
   if (!dueAt) return "noDate";
   const d = asDate(dueAt);
-  if (isToday(d)) return "today";
-  if (isPast(d)) return "overdue";
+  // The office's day, not the server's or the browser's (lib/calendar/status).
+  if (dayKey(d) === dayKey(new Date())) return "today";
+  if (isPastDue(d)) return "overdue";
   return "upcoming";
 }
 

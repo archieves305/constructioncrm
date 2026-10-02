@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { guardReferrals } from "@/lib/access/records";
 
 export async function GET() {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardReferrals(session.user);
+  if (denied) return denied;
 
   const referrals = await prisma.referral.findMany({
     include: {
@@ -21,6 +24,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardReferrals(session.user);
+  if (denied) return denied;
 
   const body = await request.json();
   if (!body.jobId || !body.referredByLeadId || !body.referredName) {

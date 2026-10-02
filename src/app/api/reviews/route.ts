@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { guardLeadCreate } from "@/lib/access/records";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -25,6 +26,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardLeadCreate(session.user);
+  if (denied) return denied;
 
   const body = await request.json();
   if (!body.jobId || !body.leadId) return badRequest("jobId and leadId required");

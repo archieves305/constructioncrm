@@ -4,6 +4,7 @@ import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createProspectSchema } from "@/lib/validators/prospect";
 import { Prisma } from "@/generated/prisma/client";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { guardLeadCreate } from "@/lib/access/records";
 
 // Shape returned for prospect lists/cards: core fields + knock count + latest
 // knock outcome, so the canvassing UI can render status at a glance.
@@ -88,6 +89,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardLeadCreate(session.user);
+  if (denied) return denied;
 
   const body = await request.json();
   const parsed = createProspectSchema.safeParse(body);

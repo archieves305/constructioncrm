@@ -48,6 +48,7 @@ describe("computeMoneyEffects", () => {
     contractTotal: 25000,
     depositAmount: 10000,
     approvedChangeOrderTotal: 0,
+    approvedBillableExpenseTotal: 0,
     sovLines: [],
     issuedApplicationCount: 0,
   };
@@ -64,6 +65,12 @@ describe("computeMoneyEffects", () => {
     const e = computeMoneyEffects({ ...base, approvedChangeOrderTotal: 1500.5 });
     expect(e.contractAmount).toBe(26500.5);
     expect(e.notes[0]).toMatch(/approved change orders/);
+  });
+
+  it("keeps approved billable add-ons on top of the signed price as well", () => {
+    const e = computeMoneyEffects({ ...base, approvedChangeOrderTotal: 1000, approvedBillableExpenseTotal: 250.25 });
+    expect(e.contractAmount).toBe(base.contractTotal + 1000 + 250.25);
+    expect(e.notes.join(" ")).toMatch(/billable add-ons/);
   });
 
   it("rollup job types leave the contract sum alone", () => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createDoorKnockSchema } from "@/lib/validators/door-knock";
+import { guardProspect } from "@/lib/access/records";
 
 export async function GET(
   request: NextRequest,
@@ -11,6 +12,8 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id: prospectId } = await params;
+  const denied = await guardProspect(session.user, prospectId, "read");
+  if (denied) return denied;
 
   const knocks = await prisma.propertyDoorKnock.findMany({
     where: { prospectId, isDeleted: false },
@@ -39,6 +42,8 @@ export async function POST(
   if (!session?.user) return unauthorized();
 
   const { id: prospectId } = await params;
+  const denied = await guardProspect(session.user, prospectId, "write");
+  if (denied) return denied;
   const body = await request.json();
   const parsed = createDoorKnockSchema.safeParse(body);
   if (!parsed.success) {

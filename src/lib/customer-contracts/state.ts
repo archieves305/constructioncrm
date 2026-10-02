@@ -70,6 +70,8 @@ export type MoneyEffectInput = {
   depositAmount: number;
   /** Σ ChangeOrder.customerPrice where status = APPROVED. */
   approvedChangeOrderTotal: number;
+  /** Σ JobExpense.amount where status = APPROVED and billable — each already raised the job's contract. */
+  approvedBillableExpenseTotal: number;
   sovLines: { id: string; itemNo: number; changeOrderId: string | null; scheduledValue: number }[];
   /** Invoices with an applicationNumber that were issued (SENT / PAID / PARTIAL). */
   issuedApplicationCount: number;
@@ -100,7 +102,11 @@ export function computeMoneyEffects(i: MoneyEffectInput): MoneyEffect {
   const notes: string[] = [];
   let contractAmount: number | null;
   if (i.jobType === "FIXED_PRICE") {
-    contractAmount = round2(i.contractTotal + i.approvedChangeOrderTotal);
+    // Everything that already sits on top of the base stays on top of it:
+    // signing used to write base + change orders and silently drop billable
+    // add-ons that had been approved before the customer signed.
+    contractAmount = round2(i.contractTotal + i.approvedChangeOrderTotal + i.approvedBillableExpenseTotal);
+    if (i.approvedBillableExpenseTotal !== 0) notes.push(`Contract sum includes ${money(i.approvedBillableExpenseTotal)} of approved billable add-ons on top of the signed ${money(i.contractTotal)}.`);
     if (i.approvedChangeOrderTotal !== 0) notes.push(`Contract sum includes ${money(i.approvedChangeOrderTotal)} of approved change orders on top of the signed ${money(i.contractTotal)}.`);
   } else {
     contractAmount = null;

@@ -305,6 +305,38 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-02 — Foundation (c): number fixes + the last open routes (built, dev-QA'd, on `main`, not deployed)
+
+"continue". **Numbers:** (1) the conversion funnel is counted per lead —
+pure `src/lib/reports/funnel.ts` `computeFunnel`: a lead reached a step when
+it ever stood at that stage or a later progress stage (Lost and On Hold are
+not progress), so no ratio passes 100% (was 400% on prod); the stage
+distribution chart is unchanged. (2) Collections: "Deposits Missing" skips
+closed jobs; "All Balances Due" lists open jobs first and the Outstanding
+tile says how much sits on closed jobs. (3) One overdue rule: new
+`isPastDue(dueAt, allDay)` beside `isOverdue` in `lib/calendar/status.ts`,
+now used by the tasks page buckets, task card, entity task panel, workflow
+row and panel chip, the job page Tasks badge, `lib/tasks/summary.ts`
+(`dueBucket` on the office day), `lib/workflows/{summary,read,reports}.ts`,
+and as `overdueWhere` in `jobs/query.ts` (`workflowOverdue`) and the
+`/api/jobs` task counts — an all-day task due today is no longer overdue
+anywhere. (4) Bulk "Move to stage: Won" now calls `createJobFromLead` like
+the single route and returns `jobsCreated`. (5) Contract signing keeps
+approved billable add-ons: `computeMoneyEffects` takes
+`approvedBillableExpenseTotal` (base + approved change orders + approved
+billable expenses). **Routes:** `guardLead` on the lead's activity, both
+estimate families (PDF generation counts as a read), permits and Roofr
+orders; `guardProspect` (lead-writing roles; a sales rep only their own) on
+prospects by id, promote and door-knocks; `guardLeadCreate` on lead /
+prospect create, prospect bulk and review create; `guardReferrals`
+(ADMIN / MANAGER) on referrals. Gate: typecheck clean, lint 6/22, 1287 tests
+(+7), build clean. Dev QA by API: funnel max 100%, overdue filters and the
+pages load as ADMIN; as SALES_REP own lead's estimates and activity 200,
+another lead's 404, referrals 403. No migration. Not exercised on dev: bulk
+Won (would create jobs) and a signing with a billable add-on (unit-tested).
+**Foundation is complete once this is deployed**; next is initiative 1, the
+job Overview tab.
+
 ### 2026-10-02 — Foundation: upload store moved out of the app folder + guards on lead, job, permit and change-order routes (deployed `45d5604`)
 
 "continue". **Uploads:** `src/lib/files/storage.ts` reads `UPLOADS_DIR`
@@ -1521,6 +1553,16 @@ Notification Digests).
 - Integration convention: **503** when a server key is unset (operator
   error), **401** for a bad caller.
 - CREW_LEADs are confined to `/field`; the office shell is not for them.
+- **Every route answers to an explicit role list** (2026-10-02). Money
+  writes (payments, lump-sum invoices, labor contracts and payments, budgets,
+  a job's pricing): ADMIN / MANAGER / OFFICE_STAFF (`lib/money/access.ts`).
+  Production records (job record and stage, crews, permits, inspections,
+  change orders): those plus SALES_REP; leads and prospects add MARKETING
+  (`lib/access/roles.ts`). SALES_REP and CREW_LEAD open by id only what their
+  lists show (`lib/access/records.ts` — outside that is a 404). Files follow
+  the same scope; contract documents are never deleted through the file
+  route. New routes take a guard from these modules, never a bare session
+  check and never `hasMinRole`.
 - **Job costs are gated by role + the `canEnterJobCosts` grant** —
   ADMIN/MANAGER/OFFICE_STAFF implicitly, anyone else by explicit grant. Use
   **explicit role lists, never `hasMinRole`**, for anything financial:

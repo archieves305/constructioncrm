@@ -8,6 +8,7 @@ const { db, storage, render, pricing, autoTasks, tasks, email, audit, deferred }
     generatedDocument: { create: vi.fn() },
     job: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
     changeOrder: { aggregate: vi.fn() },
+    jobExpense: { aggregate: vi.fn() },
     sovLine: { findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
     invoice: { count: vi.fn() },
     estimate: { update: vi.fn() },
@@ -92,6 +93,7 @@ beforeEach(() => {
   db.file.create.mockResolvedValue({ id: "f1" });
   db.job.findUniqueOrThrow.mockResolvedValue({ jobType: "FIXED_PRICE", billingMethod: "LUMP_SUM", title: "Roof", projectManagerId: null, salesRepId: "u1" });
   db.changeOrder.aggregate.mockResolvedValue({ _sum: { customerPrice: 500 } });
+  db.jobExpense.aggregate.mockResolvedValue({ _sum: { amount: null } });
   db.sovLine.findMany.mockResolvedValue([]);
   db.invoice.count.mockResolvedValue(0);
   db.customerContract.updateMany.mockResolvedValue({ count: 1 });

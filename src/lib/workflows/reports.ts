@@ -16,6 +16,7 @@ import { ENGINE_SKIP_PREFIX, MIGRATION_SKIP_REASON } from "./reconcile";
 import { WORKFLOW_ROLE_LABEL } from "./role-labels";
 import { PHASE_BANDS } from "./templates/types";
 import { loadJobWorkflowSummaries, type JobWorkflowSummary, type SummaryModule, type SummaryPhase } from "./summary";
+import { isPastDue } from "@/lib/calendar/status";
 
 /**
  * Workflow reporting, computed in pure functions over a flat projection of
@@ -275,7 +276,7 @@ export function stalledSteps(tasks: ReportTask[], instances: Map<string, ReportI
   const items: StalledItem[] = [];
   for (const t of tasks) {
     if (!t.workflowTaskKey || !isOpen(t.status) || !t.activatedAt) continue;
-    const overdue = Boolean(t.dueAt && t.dueAt < now);
+    const overdue = isPastDue(t.dueAt, null, now);
     const blocked = t.status === "BLOCKED";
     if (!overdue && !blocked) continue;
     const inst = t.workflowInstanceId ? instances.get(t.workflowInstanceId) : undefined;
@@ -431,7 +432,7 @@ export function buildWorkflowReport(
     if (t.status === "PENDING") ready++;
     if (t.status === "BLOCKED") blocked++;
     if (t.inspectionResult === "FAIL") failed++;
-    if (t.dueAt && t.dueAt < now) overdue++;
+    if (isPastDue(t.dueAt, null, now)) overdue++;
     if (!t.assignedUserId) unassigned++;
   }
   const all = Array.from(instances.values());

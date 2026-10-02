@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canDecideChangeOrder, canWriteLeads, canWriteProduction, isOwnOnlyRole } from "./roles";
+import { canDecideChangeOrder, canManageReferrals, canWriteLeads, canWriteProduction, isOwnOnlyRole } from "./roles";
 
 const ALL = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "READ_ONLY", "CREW_LEAD"] as const;
 const allowed = (fn: (r: never) => boolean) => ALL.filter((r) => fn(r as never));
@@ -19,5 +19,9 @@ describe("role lists", () => {
 
   it("change-order decisions stay with admin and manager — the set hasMinRole(MANAGER) used to give", () => {
     expect(allowed(canDecideChangeOrder)).toEqual(["ADMIN", "MANAGER"]);
+  });
+
+  it("referrals and their commissions are admin and manager only", () => {
+    expect(allowed(canManageReferrals)).toEqual(["ADMIN", "MANAGER"]);
   });
 });

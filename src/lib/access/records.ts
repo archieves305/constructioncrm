@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import type { Prisma, RoleName } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jobsInvolvingUserWhere, leadsInvolvingUserWhere } from "@/lib/jobs/involvement";
-import { canWriteLeads, canWriteProduction, isOwnOnlyRole } from "./roles";
+import { prospectVisibilityWhere } from "@/lib/prospects/access";
+import { canManageReferrals, canWriteLeads, canWriteProduction, isOwnOnlyRole } from "./roles";
 
 /**
  * By-id guards for leads and jobs.
@@ -67,4 +68,23 @@ export async function guardJobs(viewer: Viewer, jobIds: string[]): Promise<NextR
 /** Role-only guard for production records addressed by their own id (a permit, an inspection, a change order). */
 export function guardProductionWrite(viewer: Viewer): NextResponse | null {
   return canWriteProduction(viewer.role) ? null : forbidden(PRODUCTION_WRITE_DENIED);
+}
+
+/** A canvassing prospect: lead-writing roles change it; a sales rep only the ones assigned to them (as their list shows). */
+export async function guardProspect(viewer: Viewer, prospectId: string, mode: Mode): Promise<NextResponse | null> {
+  if (mode === "write" && !canWriteLeads(viewer.role)) return forbidden("Your role cannot change prospects.");
+  const scope = prospectVisibilityWhere(viewer);
+  if (Object.keys(scope).length === 0) return null;
+  const hit = await prisma.prospect.findFirst({ where: { AND: [{ id: prospectId }, scope] }, select: { id: true } });
+  return hit ? null : notFound("Prospect");
+}
+
+/** Role-only guard for creating leads and prospects. */
+export function guardLeadCreate(viewer: Viewer): NextResponse | null {
+  return canWriteLeads(viewer.role) ? null : forbidden(LEAD_WRITE_DENIED);
+}
+
+/** Referrals carry commissions; the page is ADMIN / MANAGER and so is the API. */
+export function guardReferrals(viewer: Viewer): NextResponse | null {
+  return canManageReferrals(viewer.role) ? null : forbidden("Referrals are managed by an admin or a manager.");
 }

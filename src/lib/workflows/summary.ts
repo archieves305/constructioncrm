@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 import { fullKey, splitFullKey } from "./keys";
 import { isLegacyStep, pinnedStepsOf } from "./plan-membership";
+import { isPastDue } from "@/lib/calendar/status";
 
 /**
  * One line per job about its workflow — what the jobs list, the production
@@ -110,7 +111,7 @@ export function summarizeInstance(
         blocked++;
         if (t.inspectionResult === "FAIL") failed++;
       } else if (t.status === "PENDING" && active) ready++;
-      if (active && t.dueAt && t.dueAt < now) overdue++;
+      if (active && isPastDue(t.dueAt, null, now)) overdue++;
       if (active && !t.assignedUserId) unassigned++;
     }
     if (t.workflowPhaseKey) {

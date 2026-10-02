@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { guardLead } from "@/lib/access/records";
 
 export async function GET(
   request: NextRequest,
@@ -10,6 +11,8 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
+  const denied = await guardLead(session.user, id, "read");
+  if (denied) return denied;
   const { searchParams } = request.nextUrl;
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "50");

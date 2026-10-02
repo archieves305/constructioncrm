@@ -6,6 +6,7 @@ import { unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createLeadSchema } from "@/lib/validators/lead";
 import { emitLeadEvent } from "@/lib/follow-ups/events";
 import { buildLeadListWhere, parseLeadListParams } from "@/lib/leads/query";
+import { guardLeadCreate } from "@/lib/access/records";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -86,6 +87,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardLeadCreate(session.user);
+  if (denied) return denied;
 
   const body = await request.json();
   const parsed = createLeadSchema.safeParse(body);
