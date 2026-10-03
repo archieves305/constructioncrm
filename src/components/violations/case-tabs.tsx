@@ -1,5 +1,6 @@
 "use client";
 
+import { FileLink } from "@/components/files/file-link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -104,15 +105,15 @@ export function PhotosPanel({ data }: { data: CaseData }) {
           <EmptyState icon={Camera} title="No photos on the case yet" description="Upload before/after photos on the Files tab (category Photos), or on an item." />
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {photos.map((f) => (
-              <a key={f.id} href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" className="group relative aspect-square overflow-hidden rounded-md border bg-gray-50">
+            {photos.map((f, i) => (
+              <FileLink key={f.id} fileId={f.id} files={photos} index={i} className="group relative aspect-square overflow-hidden rounded-md border bg-gray-50">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/api/files/${f.id}`} alt={f.fileName} className="size-full object-cover transition-transform group-hover:scale-105" loading="lazy" />
                 <span className="absolute inset-x-0 bottom-0 truncate bg-black/50 px-1.5 py-0.5 text-[10px] text-white">
                   {f.violationItem ? `Item ${f.violationItem.itemNumber} · ` : ""}
                   {format(new Date(f.createdAt), "MMM d")}
                 </span>
-              </a>
+              </FileLink>
             ))}
           </div>
         )}

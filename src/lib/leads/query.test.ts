@@ -25,9 +25,15 @@ describe("buildLeadListWhere", () => {
     expect(buildLeadListWhere({ includeClosed: true }, admin)).toEqual({});
   });
 
-  it("searches across name, phone, email, address and company", () => {
+  it("finds a lead by the number on one of its estimates, from either builder", () => {
+    const w = JSON.stringify(buildLeadListWhere({ search: "EST-2026", includeClosed: true }, admin));
+    expect(w).toContain('"estimates":{"some":{"estimateNumber"');
+    expect(w).toContain('"roofEstimates":{"some":{"estimateNumber"');
+  });
+
+  it("searches across name, phone, email, address, company and estimate numbers", () => {
     const w = buildLeadListWhere({ search: "smith", includeClosed: true }, admin);
-    expect(w.OR).toHaveLength(5);
+    expect(w.OR).toHaveLength(7);
   });
 
   it("ANDs every filter", () => {

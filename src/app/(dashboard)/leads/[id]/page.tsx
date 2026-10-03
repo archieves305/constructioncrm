@@ -6,6 +6,7 @@ import { formatAddressLine } from "@/lib/labels/address";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
+import Link from "next/link";
 import { EntityHeader } from "@/components/shared/entity-header";
 import { StageBadge } from "@/components/shared/stage-badge";
 import { StageStepper } from "@/components/shared/stage-stepper";
@@ -206,6 +207,14 @@ export default function LeadDetailPage() {
           <>
             Created {format(new Date(lead.createdAt), "MMM d, yyyy 'at' h:mm a")}
             {lead.createdBy && ` by ${lead.createdBy.firstName} ${lead.createdBy.lastName}`}
+            {(lead.jobs ?? []).map((j: { id: string; jobNumber: string; currentStage?: { name: string } | null }) => (
+              <span key={j.id}>
+                {" · "}
+                <Link href={`/jobs/${j.id}`} className="font-medium text-blue-700 hover:underline" title={j.currentStage?.name ?? undefined}>
+                  Job <span className="font-mono text-xs">{j.jobNumber}</span>
+                </Link>
+              </span>
+            ))}
           </>
         }
         badges={
@@ -228,7 +237,7 @@ export default function LeadDetailPage() {
             entityLabel={lead.fullName}
             disabled={changeStage.isPending}
             onChange={(stageId) => changeStage.mutate(stageId)}
-            confirmNote={(_from, to) => (to.isWon ? "Marking a lead Won creates its job and the deposit task." : null)}
+            confirmNote={(_from, to) => (to.isWon ? "Marking a lead Won creates its job, with its workflow." : null)}
           />
         )}
       </EntityHeader>

@@ -169,6 +169,17 @@ and 400 px (add with a receipt, count on the row, preview, attach to a
 bank-fed row, edit dialog, Files tab), no console errors. SALES_REP without
 the cost grant 403 on attach; on the job, reads the receipts. Dev DB restored.
 
+## Tidy-up (2026-10-03, after the three stages)
+
+- `components/files/file-link.tsx` — `FileLink`: a button that opens one file
+  (or a list) in `FilePreviewDialog`. Used for the violation inspection
+  report, hearing order, fine entry file and case photo grid, and for a labor
+  contract's generated document.
+- The field daily-log screen's photo grid shows a "Photo missing" placeholder
+  when an image fails to load, and does not open a broken tab.
+- Still opening a new tab on purpose: the estimate "open PDF" buttons, which
+  open a PDF generated a moment before.
+
 ## Rules
 
 - A file belongs to a job when it has `jobId`; a lead's file with none is a

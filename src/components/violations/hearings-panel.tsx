@@ -1,5 +1,6 @@
 "use client";
 
+import { FileLink } from "@/components/files/file-link";
 import { useState } from "react";
 import { format } from "date-fns";
 import { Gavel, Plus } from "lucide-react";
@@ -72,9 +73,9 @@ export function HearingsPanel({ data }: { data: CaseData }) {
               {h.outcomeNotes && <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{h.outcomeNotes}</p>}
               {h.notes && !h.outcomeNotes && <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{h.notes}</p>}
               {h.orderFileId && (
-                <a className="mt-1 inline-block text-xs underline" href={`/api/files/${h.orderFileId}`} target="_blank" rel="noreferrer">
+                <FileLink fileId={h.orderFileId} fileName="Hearing order" className="mt-1 inline-block text-xs underline">
                   Hearing order
-                </a>
+                </FileLink>
               )}
             </li>
           ))}

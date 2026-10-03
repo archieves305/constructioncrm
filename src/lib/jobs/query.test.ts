@@ -44,6 +44,7 @@ describe("buildJobListWhere", () => {
             { jobNumber: { contains: "smith", mode: "insensitive" } },
             { title: { contains: "smith", mode: "insensitive" } },
             { permits: { some: { permitNumber: { contains: "smith", mode: "insensitive" } } } },
+            { invoices: { some: { invoiceNumber: { contains: "smith", mode: "insensitive" } } } },
             {
               lead: {
                 OR: [
@@ -61,6 +62,12 @@ describe("buildJobListWhere", () => {
         jobsInvolvingUserWhere("rep"),
       ],
     });
+  });
+
+  it("finds a job by an invoice number or a permit number", () => {
+    const w = JSON.stringify(buildJobListWhere({ search: "INV-00006" }, { user: { id: "a", role: "ADMIN" }, now }));
+    expect(w).toContain('"invoices":{"some":{"invoiceNumber"');
+    expect(w).toContain('"permits":{"some":{"permitNumber"');
   });
 
   it("search reaches the property: address, city, zip and phone live on the lead", () => {

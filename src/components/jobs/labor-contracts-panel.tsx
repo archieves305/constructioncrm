@@ -1,5 +1,6 @@
 "use client";
 
+import { FileLink } from "@/components/files/file-link";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -155,15 +156,14 @@ function DocRow({ doc, showType }: { doc: GeneratedDoc; showType?: boolean }) {
         <span className="truncate text-muted-foreground">{doc.fileName}</span>
       </div>
       {doc.fileId ? (
-        <a
-          href={`/api/files/${doc.fileId}`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <FileLink
+          fileId={doc.fileId}
+          fileName={doc.fileName}
           className="shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
           title="View / download PDF"
         >
           <Download className="h-3.5 w-3.5" />
-        </a>
+        </FileLink>
       ) : null}
     </div>
   );
@@ -1040,6 +1040,8 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                     contractId={c.id}
                     crewName={c.crew?.name ?? c.label ?? "Labor"}
                     outstanding={Math.max(0, revisedFor(c) - paidFor(c))}
+                    vendorName={vendorOf(c)?.name}
+                    vendorCompliance={c.vendorCompliance}
                     onRecord={(r) => openPay(c, r)}
                   />
 
@@ -1254,6 +1256,10 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {/* The warning sits where the money goes out. It never blocks the payment. */}
+            {payingContract && vendorOf(payingContract) && (
+              <ComplianceCallout compliance={payingContract.vendorCompliance} vendorName={vendorOf(payingContract)!.name} />
+            )}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs">Amount ($)</Label>

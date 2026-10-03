@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { HandCoins, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ComplianceCallout, type ComplianceSummary } from "@/components/vendors/compliance-badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +81,8 @@ export function LaborPaymentRequests({
   contractId,
   crewName,
   outstanding,
+  vendorName,
+  vendorCompliance,
   onRecord,
 }: {
   jobId: string;
@@ -87,6 +90,9 @@ export function LaborPaymentRequests({
   crewName: string;
   /** What is still unpaid on the contract, to pre-fill the amount. */
   outstanding: number;
+  /** The contractor's vendor and its document status; a gap is shown in the request dialog and never blocks. */
+  vendorName?: string;
+  vendorCompliance?: ComplianceSummary | null;
   /** Open the Record payment dialog for this request. */
   onRecord: (request: PaymentRequestRow) => void;
 }) {
@@ -201,6 +207,7 @@ export function LaborPaymentRequests({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {vendorName && <ComplianceCallout compliance={vendorCompliance} vendorName={vendorName} />}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs">Amount ($)</Label>

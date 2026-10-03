@@ -195,11 +195,14 @@ export default function LeadsPage() {
         }),
       }).then((r) => {
         if (!r.ok) throw new Error("Bulk stage change failed");
-        return r.json() as Promise<{ updated: number; requested: number }>;
+        return r.json() as Promise<{ updated: number; requested: number; jobsCreated?: number }>;
       }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
-      toast.success(`Updated ${result.updated} of ${result.requested} leads`);
+      // Moving leads to Won creates their jobs; say so, or the jobs look like they came from nowhere.
+      const jobs = result.jobsCreated ?? 0;
+      toast.success(`Updated ${result.updated} of ${result.requested} leads`, jobs > 0 ? { description: `${jobs} job${jobs === 1 ? "" : "s"} created — find ${jobs === 1 ? "it" : "them"} under Jobs.` } : undefined);
+      if (jobs > 0) queryClient.invalidateQueries({ queryKey: ["jobs"] });
       setSelected(new Set());
       setBulkStage("");
     },

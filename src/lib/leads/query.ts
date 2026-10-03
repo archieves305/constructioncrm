@@ -57,6 +57,9 @@ export function buildLeadListWhere(params: LeadListParams, ctx: LeadListContext)
         { email: { contains: params.search, mode: "insensitive" } },
         { propertyAddress1: { contains: params.search, mode: "insensitive" } },
         { companyName: { contains: params.search, mode: "insensitive" } },
+        // The number printed on an estimate, from either estimate builder.
+        { estimates: { some: { estimateNumber: { contains: params.search, mode: "insensitive" } } } },
+        { roofEstimates: { some: { estimateNumber: { contains: params.search, mode: "insensitive" } } } },
       ],
     });
   }

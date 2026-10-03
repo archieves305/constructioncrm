@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Camera, CloudUpload, ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { Camera, CloudUpload, ImageOff, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { newEntryId } from "@/lib/labor/ids";
 import { downscalePhoto } from "@/lib/photo-utils";
@@ -76,6 +76,8 @@ export function PhotoSection({
   const draining = useRef(false);
 
   const [pending, setPending] = useState<PendingState[]>([]);
+  // Photos whose image failed to load (the stored file is gone).
+  const [broken, setBroken] = useState<Set<string>>(new Set());
   const [tagOpen, setTagOpen] = useState(false);
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [tagCategory, setTagCategory] = useState(defaultCategory);
@@ -336,14 +338,25 @@ export function PhotoSection({
               target="_blank"
               rel="noreferrer"
               className="group relative aspect-square"
+              // A photo whose image is gone has nothing to open; the job's
+              // gallery is where it can be uploaded again.
+              onClick={(ev) => broken.has(photo.id) && ev.preventDefault()}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`/api/photos/${photo.id}/raw`}
-                alt={photo.caption ?? photo.fileName}
-                loading="lazy"
-                className="h-full w-full rounded-md object-cover"
-              />
+              {broken.has(photo.id) ? (
+                <span className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-amber-300 bg-amber-50 text-amber-800">
+                  <ImageOff className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Photo missing</span>
+                </span>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/api/photos/${photo.id}/raw`}
+                  alt={photo.caption ?? photo.fileName}
+                  loading="lazy"
+                  className="h-full w-full rounded-md object-cover"
+                  onError={() => setBroken((b) => new Set(b).add(photo.id))}
+                />
+              )}
               <span className="absolute right-1 bottom-1 rounded bg-black/60 px-1 py-0.5 text-[10px] text-white">
                 {categoryLabel(photo.category)}
               </span>

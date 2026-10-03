@@ -381,6 +381,30 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-03 — Tidy-up pass after the MVP roadmap (built, dev-QA'd, on `main`, not deployed)
+
+"continue" with nothing queued: offered the audit's Phase 2 list, Richard chose
+a tidy-up pass. Checked the audit's 14 quick wins against the code: 9 were
+already done, 1 is superseded (the "failed inspections" tile — the attention
+row "Inspections to correct" covers it), 2 were open and are now done, 2 need
+a ruling (below). Built on `tidy-up`: `FileLink` (violation inspection report,
+hearing order, fine file, case photo grid and labor-contract documents open in
+the preview); "Photo missing" placeholder on the field daily-log grid; the
+vendor compliance warning inside the Record payment and Request a payment
+dialogs; ⌘K and the lists find a job by **invoice number** and a lead by
+**estimate number** (both estimate builders); the bulk "Move to stage: Won"
+toast says how many jobs were created; the lead page links to its jobs; the
+Won confirmation no longer mentions a deposit task. No migration. Gate:
+typecheck clean, lint 5/22, 1439 tests (+2), build clean. Dev QA: search by
+invoice and estimate number by API; headless Chromium — lead → job link,
+labor-contract document in the preview, the warning in both payment dialogs,
+the field placeholder; dev DB restored. Not exercised: the violation file
+links (dev has no case) and the bulk-Won toast (it would create jobs).
+**Left for Richard's ruling:** (1) should logging a contact on a lead move its
+next follow-up date, and to when? (2) `/api/messaging` (inbound Twilio texts)
+is behind the SSO gate and Twilio is not configured on prod — make it public
+or remove the handler.
+
 ### 2026-10-03 — Audit initiative 7, Stages 2 and 3 deployed (`a03c698`); the MVP roadmap is complete
 
 Richard pushed and deployed from `!` (background, 253 s, exit 0): BUILD_ID
@@ -2244,6 +2268,14 @@ Notification Digests).
 > morning at 11:50 UTC); the "Expiry tasks go to …" control on Vendors
 > (automatic falls to Richard on prod — no Accounting role default is set).
 >
+> **A tidy-up pass is on `main`, not deployed; no migration.** After Richard
+> pushes and deploys: verify BUILD_ID, smoke, journal, uploads intact.
+> Click-through: ⌘K with an invoice number or an estimate number; a lead that
+> became a job shows "Job JOB-…" under its name; Record payment on a labor
+> contract whose vendor lacks documents shows the warning. Two rulings are
+> open (see the session log): the follow-up date after a logged contact, and
+> the inbound-text webhook.
+
 > **The audit's MVP roadmap is complete on prod (`a03c698`, BUILD_ID
 > `SBnOF_n7Dfa0xpp-w6tyi`): Foundation + initiatives 1–7.** No build is
 > queued. What remains is Richard's:

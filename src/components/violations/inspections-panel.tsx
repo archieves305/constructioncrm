@@ -1,5 +1,6 @@
 "use client";
 
+import { FileLink } from "@/components/files/file-link";
 import { useState } from "react";
 import { format } from "date-fns";
 import { ClipboardCheck, Plus } from "lucide-react";
@@ -73,9 +74,9 @@ export function InspectionsPanel({ data }: { data: CaseData }) {
               {i.notes && <p className="mt-1.5 whitespace-pre-wrap text-xs text-muted-foreground">{i.notes}</p>}
               {i.failedItemIds.length > 0 && <p className="mt-1 text-xs text-tone-danger-fg">Re-cited items: {i.failedItemIds.map((id) => data.items.find((it) => it.id === id)?.itemNumber ?? "?").join(", ")}</p>}
               {i.reportFileId && (
-                <a className="mt-1 inline-block text-xs underline" href={`/api/files/${i.reportFileId}`} target="_blank" rel="noreferrer">
+                <FileLink fileId={i.reportFileId} fileName="Inspection report" className="mt-1 inline-block text-xs underline">
                   Inspection report
-                </a>
+                </FileLink>
               )}
             </li>
           ))}

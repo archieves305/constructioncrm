@@ -1,5 +1,6 @@
 "use client";
 
+import { FileLink } from "@/components/files/file-link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -132,9 +133,9 @@ export function FinesPanel({ data }: { data: CaseData }) {
                   <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">
                     {e.notes ?? ""}
                     {e.fileId && (
-                      <a href={`/api/files/${e.fileId}`} target="_blank" rel="noreferrer" className="ml-1 underline">
+                      <FileLink fileId={e.fileId} className="ml-1 underline">
                         file
-                      </a>
+                      </FileLink>
                     )}
                   </TableCell>
                 </TableRow>

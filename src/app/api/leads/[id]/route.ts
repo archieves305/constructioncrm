@@ -22,6 +22,8 @@ export async function GET(
       source: true,
       assignedUser: { select: { id: true, firstName: true, lastName: true, email: true } },
       createdBy: { select: { id: true, firstName: true, lastName: true } },
+      // The jobs this lead became, so the lead page can link to them.
+      jobs: { orderBy: { createdAt: "asc" }, select: { id: true, jobNumber: true, currentStage: { select: { name: true } } } },
       services: { include: { serviceCategory: true } },
       stageHistory: {
         include: {
