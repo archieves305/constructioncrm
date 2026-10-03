@@ -381,7 +381,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-03 — Tidy-up pass after the MVP roadmap (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-03 — Tidy-up pass after the MVP roadmap (deployed `b28e94e`)
 
 "continue" with nothing queued: offered the audit's Phase 2 list, Richard chose
 a tidy-up pass. Checked the audit's 14 quick wins against the code: 9 were
@@ -404,6 +404,13 @@ links (dev has no case) and the bulk-Won toast (it would create jobs).
 next follow-up date, and to when? (2) `/api/messaging` (inbound Twilio texts)
 is behind the SSO gate and Twilio is not configured on prod — make it public
 or remove the handler.
+Richard pushed and deployed from `!` (background, 269 s, exit 0): BUILD_ID
+`SBnOF_n7Dfa0xpp-w6tyi` → `9llN2MQ3E4W4TUZGOSNH5`, no migration, smoke 307 ×2,
+zero journal errors since the restart, `UPLOADS_DIR` carried, 21 files in the
+store, backup `postgres-2026-10-03-205754.dump`. Two of the session's SSH
+checks right after the deploy were refused (`kex_exchange_identification:
+Connection reset by peer`) and succeeded on a retry 20 s later — the droplet's
+sshd throttling a burst of connections, not an app fault.
 
 ### 2026-10-03 — Audit initiative 7, Stages 2 and 3 deployed (`a03c698`); the MVP roadmap is complete
 
@@ -2268,13 +2275,16 @@ Notification Digests).
 > morning at 11:50 UTC); the "Expiry tasks go to …" control on Vendors
 > (automatic falls to Richard on prod — no Accounting role default is set).
 >
-> **A tidy-up pass is on `main`, not deployed; no migration.** After Richard
-> pushes and deploys: verify BUILD_ID, smoke, journal, uploads intact.
-> Click-through: ⌘K with an invoice number or an estimate number; a lead that
-> became a job shows "Job JOB-…" under its name; Record payment on a labor
-> contract whose vendor lacks documents shows the warning. Two rulings are
-> open (see the session log): the follow-up date after a logged contact, and
-> the inbound-text webhook.
+> **The tidy-up pass is on prod (`b28e94e`, BUILD_ID
+> `9llN2MQ3E4W4TUZGOSNH5`, no migration).** Click-through: ⌘K with an
+> invoice number or an estimate number; a lead that became a job shows "Job
+> JOB-…" under its name; Record payment on a labor contract whose vendor lacks
+> documents shows the warning. **Two rulings are open**: should logging a
+> contact move a lead's next follow-up date (and to when), and should
+> `/api/messaging` be made public or removed (Twilio is not configured on
+> prod). Phase 2 candidates if asked to continue: violations reports (Code
+> Violations Stage 4), sending estimates and invoices from the CRM, the job
+> timeline.
 
 > **The audit's MVP roadmap is complete on prod (`a03c698`, BUILD_ID
 > `SBnOF_n7Dfa0xpp-w6tyi`): Foundation + initiatives 1–7.** No build is
