@@ -104,6 +104,12 @@ export function matchInspectionStep(type: PermitInspectionType, candidates: Step
   return sorted.length === 1 ? sorted[0] : null;
 }
 
+/** A step that waits on more than one inspection ("Rough inspections", "Final inspection passed"): one pass does not finish it by itself. */
+export function stepCoversSeveral(taskKey: string): boolean {
+  const kind = stepKind(taskKey);
+  return kind === "rough" || kind === "final";
+}
+
 /** Permit inspection types that belong to a workflow step; empty for a step of no particular kind. */
 export function typesForStep(taskKey: string): PermitInspectionType[] {
   const kind = stepKind(taskKey);

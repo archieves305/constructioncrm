@@ -61,10 +61,6 @@ export async function GET(
         include: { crew: true },
         orderBy: { assignedDate: "desc" },
       },
-      inspections: {
-        include: { inspector: { select: { firstName: true, lastName: true } } },
-        orderBy: { scheduledDate: "desc" },
-      },
       tasks: {
         include: { assignedTo: { select: { firstName: true, lastName: true } } },
         orderBy: { createdAt: "desc" },

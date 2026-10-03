@@ -11,7 +11,6 @@ import { JobPageSkeleton } from "@/components/jobs/job-page-skeleton";
 import { PaymentsPanel } from "@/components/jobs/payments-panel";
 import { JobPermitsPanel } from "@/components/jobs/job-permits-panel";
 import { CrewsPanel } from "@/components/jobs/crews-panel";
-import { InspectionsList } from "@/components/jobs/inspections-list";
 import { StageHistoryList } from "@/components/jobs/stage-history-list";
 import { moneyStep } from "@/lib/jobs/money-step";
 import { StageStepper } from "@/components/shared/stage-stepper";
@@ -79,8 +78,9 @@ export default function JobDetailPage() {
   const pathname = usePathname();
   // Fourteen tabs in one strip never fit; they are grouped, and the URL owns
   // which group + sub-panel is open so links from email keep landing.
-  const tab = searchParams.get("tab") ?? "overview";
   const sub = searchParams.get("sub") ?? "";
+  // Inspections moved from Field to the permit they belong to; old links follow them.
+  const tab = searchParams.get("tab") === "field" && sub === "inspections" ? "permits" : (searchParams.get("tab") ?? "overview");
   function setTab(nextTab: string, nextSub?: string) {
     const next = new URLSearchParams(searchParams.toString());
     next.set("tab", nextTab);
@@ -452,7 +452,6 @@ export default function JobDetailPage() {
               { value: "crews", label: "Crews" },
               { value: "daily-logs", label: "Daily logs" },
               { value: "photos", label: "Photos" },
-              { value: "inspections", label: "Inspections" },
             ];
             const overdueTasks = jobTasks.filter(
               (t) => isPastDue(t.dueAt, t.allDay) && t.status !== "COMPLETED" && t.status !== "CANCELLED",
@@ -581,7 +580,7 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="permits">
-              <JobPermitsPanel jobId={id} permits={job.permits ?? []} />
+              <JobPermitsPanel jobId={id} />
             </TabsContent>
 
             <TabsContent value="crews">
@@ -596,10 +595,6 @@ export default function JobDetailPage() {
 
             <TabsContent value="photos">
               <JobPhotoGallery jobId={id} />
-            </TabsContent>
-
-            <TabsContent value="inspections">
-              <InspectionsList inspections={job.inspections ?? []} />
             </TabsContent>
 
             <TabsContent value="tasks">

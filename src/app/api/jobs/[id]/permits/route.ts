@@ -4,7 +4,30 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { emitPermitEvent } from "@/lib/follow-ups/permit-events";
 import { guardJob } from "@/lib/access/records";
+import { canWriteProduction } from "@/lib/access/roles";
 import { isPermitStatus, statusStamps } from "@/lib/permits/rules";
+import { inspectionStepsForJob } from "@/lib/permits/service";
+
+/** The job's permits with their inspections, and the open workflow inspection steps a result could belong to. */
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session?.user) return unauthorized();
+  const { id } = await params;
+  const denied = await guardJob(session.user, id, "read");
+  if (denied) return denied;
+  const [permits, steps] = await Promise.all([
+    prisma.jobPermit.findMany({
+      where: { jobId: id },
+      include: {
+        assignedTo: { select: { id: true, firstName: true, lastName: true } },
+        inspections: { orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }], include: { task: { select: { id: true, title: true, status: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    inspectionStepsForJob(id),
+  ]);
+  return NextResponse.json({ permits, steps, canEdit: canWriteProduction(session.user.role) });
+}
 
 export async function POST(
   request: NextRequest,

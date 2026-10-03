@@ -271,6 +271,12 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `TASK_ESCALATIONS_ENABLED=1`, then `TASK_AUTO_RULES_DISABLED=`) and
    Richard's own click-through. Notes:
    [features/tasks.md](docs/project-memory/features/tasks.md).
+0. 🔴 **Audit initiative 4: permits and inspections as one record** —
+   Stages 1–2 (one entry per permit fact; job Permits tab rebuilt) built +
+   dev-QA'd 2026-10-03 on `permits-one-record`, **not merged, not deployed**
+   (migration `20261012120000_permit_inspection_task_link`). Stage 3
+   (calendar overlays, EXPIRED by cron, crons on the droplet, fee → expense)
+   follows. Notes: [features/permits.md](docs/project-memory/features/permits.md).
 1. ✅ **Progress billing — complete.** Stage 1 deployed + JOB-00009
    backfilled 2026-08-27; Stage 2 (change orders → SOV line) `6b3868b` and
    Stage 3 (retainage release + Collections split) `4833ea3`, both
@@ -304,6 +310,39 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Audit initiative 4, Stages 1–2: permits and inspections as one record (built, dev-QA'd, on branch `permits-one-record`, not deployed)
+
+"start initiative 4". **Stage 1 (backend):** pure `lib/permits/rules.ts`,
+`effects.ts`, `service.ts`; `JobPermitInspection.taskId` (migration
+`20261012120000_permit_inspection_task_link`). A status change stamps the
+issue / final-passed dates; a permit inspection result runs the workflow path
+on the matching active inspection step (fail → BLOCKED + correction task; a
+pass completes single-inspection steps, "Rough inspections" only on a tick,
+"Final inspection passed" once every permit is Final), or raises a plain HIGH
+correction task on the job when there is no step; a result recorded on a
+workflow step is filed on the permit (booked inspection of that kind, else a
+new row on the job's one live permit); a passed final closes the permit and
+settles the gates. Permit and inspection routes validate type / result /
+status / dates / fee and use `guardJob` on the permit's job. **Stage 2 (UI):**
+shared `components/permits/*` (editor + inspections panel with a result
+dialog that names the step and says what will happen) on the job's Permits
+tab and in the Permit Center drawer; Permit Center gets an Expired column, an
+Inspections tab (`GET /api/inspections`), names instead of raw ids, and a
+real error toast; Field → Inspections (dead `Inspection` table) and its route
+are retired, old links land on Permits. Gate: typecheck clean, lint 5/22 (one
+old error went with the old page), 1364 tests (+31), build clean. Dev QA by
+API (both directions, validation 400s / 404, re-inspection after a
+correction, standalone correction, final closes the permit) and in headless
+Chromium (`qa-permits-ui.js` 17/19 — the two misses were the script reading
+before the refetch; both confirmed on the screenshots); dev DB restored from
+a dump afterwards. Not exercised: a SALES_REP session against another job's
+permit (the guard is `guardJob`, tested in Foundation). **Deploy carries a
+migration.** **Stage 3 is not built**: calendar overlays for expiry /
+expected approval, the aging cron setting EXPIRED, the two crons on the
+droplet, permit fee → expense — two of them need Richard's ruling (which
+notifier; how a fee expense meets the bank feed). Details:
+[features/permits.md](docs/project-memory/features/permits.md).
 
 ### 2026-10-02 — Crew payment requests + assignable labor-contract lines (deployed `7b1b3a7`)
 

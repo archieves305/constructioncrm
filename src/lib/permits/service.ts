@@ -112,6 +112,11 @@ export async function updatePermit(id: string, body: Record<string, unknown>, ac
 
 // ─── Inspections ────────────────────────────────────────────────────────────
 
+/** Which workflow step a result belongs to, as the request body says it. */
+function stepChoice(body: Record<string, unknown>): { taskId: string | null | undefined; completesStep: boolean } {
+  return { taskId: body.taskId === undefined ? undefined : body.taskId === null ? null : String(body.taskId), completesStep: body.completesStep === true };
+}
+
 export async function createPermitInspection(permitId: string, body: Record<string, unknown>, actor: Actor) {
   const permit = await prisma.jobPermit.findUnique({ where: { id: permitId }, select: { id: true, job: { select: { leadId: true } } } });
   if (!permit) throw new PermitError(404, "Permit not found");
@@ -145,7 +150,7 @@ export async function createPermitInspection(permitId: string, body: Record<stri
   // Only with a date: rules like the 24-hour reminder have nothing else to anchor to.
   if (created.scheduledFor && created.result === "SCHEDULED" && !recorded) await emitInspectionEvent("INSPECTION_SCHEDULED", created.id);
   if (!recorded) return { inspection: created, workflow: null as WorkflowOutcome | null, permitClosed: false };
-  return recordPermitInspectionResult({ inspectionId: created.id, result, notes: created.notes, completedAt: readDate(body.completedAt, "completedAt") ?? null, actor });
+  return recordPermitInspectionResult({ inspectionId: created.id, result, notes: created.notes, completedAt: readDate(body.completedAt, "completedAt") ?? null, ...stepChoice(body), actor });
 }
 
 export type WorkflowOutcome = {
@@ -185,7 +190,8 @@ export async function inspectionStepsForJob(jobId: string): Promise<(StepCandida
  * inspection never sits without one. A passed final closes the permit.
  *
  * `taskId`: a step id names the step, `null` says "no step", undefined lets
- * the match decide.
+ * the match decide. `completesStep`: the person confirms this pass is the
+ * last one a step that covers several inspections was waiting for.
  */
 export async function recordPermitInspectionResult(input: {
   inspectionId: string;
@@ -194,6 +200,7 @@ export async function recordPermitInspectionResult(input: {
   completedAt?: Date | null;
   inspectorName?: string | null;
   taskId?: string | null;
+  completesStep?: boolean;
   actor: Actor;
 }) {
   const before = await prisma.jobPermitInspection.findUnique({
@@ -236,7 +243,7 @@ export async function recordPermitInspectionResult(input: {
   const outcome: WorkflowOutcome = { taskId: step?.id ?? null, applied: false, stepStatus: step?.status ?? null, correctionTaskId: null };
   if (step) {
     const open = await prisma.jobPermit.count({ where: { jobId, status: { notIn: ["FINAL", "DENIED"] } } });
-    if (resultAppliesToStep({ result: input.result, step, explicit: Boolean(input.taskId), allPermitsFinal: open === 0 })) {
+    if (resultAppliesToStep({ result: input.result, step, explicit: input.completesStep === true, allPermitsFinal: open === 0 })) {
       try {
         const r = await recordInspectionResult({ taskId: step.id, result: input.result, notes, inspectedAt: at, jobPermitInspectionId: before.id, actor });
         outcome.applied = true;
@@ -322,7 +329,7 @@ export async function updatePermitInspection(id: string, body: Record<string, un
     result,
     notes: updated.notes,
     completedAt: completedAt ?? null,
-    taskId: body.taskId === undefined ? undefined : body.taskId === null ? null : String(body.taskId),
+    ...stepChoice(body),
     actor,
   });
 }
