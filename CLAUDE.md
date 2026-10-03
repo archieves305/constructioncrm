@@ -272,8 +272,9 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    Richard's own click-through. Notes:
    [features/tasks.md](docs/project-memory/features/tasks.md).
 0. 🔴 **Audit initiative 5: attention dashboard** — built + dev-QA'd
-   2026-10-03 on `attention-dashboard`, fast-forwarded to `main`, **not
-   deployed**. The dashboard opens on "Needs attention" (12 rows by role, each
+   2026-10-03 on `attention-dashboard`, fast-forwarded to `main`, **deployed
+   2026-10-03 as `9b75536`** (BUILD_ID `PmFnvrNoVx2_HApQwqCDx`, no migration,
+   smoke 307 ×2, journal clean, backup `postgres-2026-10-03-151438.dump`). The dashboard opens on "Needs attention" (12 rows by role, each
    opening the list it was counted from: `/attention/[key]`); sales tiles and
    charts moved to the bottom. No migration. Digest delivery stays off — SPF
    is still deferred (§5). Notes:
@@ -323,7 +324,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-03 — Audit initiative 5: attention dashboard (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-03 — Audit initiative 5: attention dashboard (deployed `9b75536`)
 
 "continue". Built on `attention-dashboard`: pure `lib/attention/rows.ts` (12
 rows with explicit role lists, thresholds, `visibleAttention`), `load.ts` (one
@@ -340,6 +341,14 @@ runtime: the list rows for contracts, violation cases, inspections to correct
 and quiet jobs (no dev data). No migration. Digests were not switched on: SPF
 is still deferred. Details:
 [features/attention-dashboard.md](docs/project-memory/features/attention-dashboard.md).
+Richard pushed; the deploy was run from the session at his request, in the
+background (248 s): BUILD_ID `Jz-SkZNZkAW6myqxzsKMy` → `PmFnvrNoVx2_HApQwqCDx`,
+no migration, smoke 307 ×2, journal clean, uploads intact (21 files), backup
+`postgres-2026-10-03-151438.dump`. Prod check with a temporary read-only
+script (removed): count = list on every row, both scopes. Prod as ADMIN / All:
+12 overdue tasks, 1 permit not issued (JOB-00002's, 397 days), 19 overdue
+follow-ups, 10 daily logs to review (oldest Aug 11), 15 deposits missing, 0
+quiet jobs, 0 on the other six.
 
 ### 2026-10-03 — Initiative 4 deployed (`9cd2aba`); the deploy's build was cut off and finished by hand
 
@@ -1942,16 +1951,14 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Initiative 5 (attention dashboard) is built and on `main`, not deployed**
-> (no migration). Next: Richard pushes and deploys from `!`
-> (`git push origin main`, then
-> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` — if the build
-> is cut off, finish it detached on the droplet as on 2026-10-03), then
-> verify BUILD_ID, smoke, journal and compare `/api/attention` counts with
-> their lists on prod. Click-through: the dashboard's Needs attention rows
-> each open a list of the same length. Digests stay off until the duplicate
-> SPF record is removed. After that: initiative 6 (vendors, compliance,
-> commitments) — plan it first, it is the only wholly new module.
+> **Initiative 5 (attention dashboard) is on prod (`9b75536`, BUILD_ID
+> `PmFnvrNoVx2_HApQwqCDx`).** Click-through for Richard: the dashboard's
+> Needs attention rows each open a list of the same length; 10 daily logs
+> wait for review and 15 open jobs show a missing deposit — check whether
+> those deposit figures are real or stale `depositRequired` values. Digests
+> stay off until the duplicate SPF record is removed. Next build: initiative
+> 6 (vendors, compliance, commitments) — plan it first, it is the only wholly
+> new module.
 
 > **Initiative 4 (permits) is on prod (`9cd2aba`, BUILD_ID
 > `Jz-SkZNZkAW6myqxzsKMy`), crons installed, old rules retired.**
