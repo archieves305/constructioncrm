@@ -5,7 +5,8 @@ Three stages, plan approved 2026-10-03
 (`ec88e96`, BUILD_ID `5x6HE43-USWkCl1cgP0Zn`, deployed 2026-10-03);
 Stage 2 (compliance documents + expiry alerts) is on prod (`45899b2`,
 BUILD_ID `DcJXs_PTMUJdAIU9AJO2p`, cron installed 2026-10-03); Stage 3
-(commitments feeding committed cost) is built.
+(commitments feeding committed cost) is on prod (`78bdc4c`, BUILD_ID
+`xqCVJVDrq3De9dtsbMCfy`). All three stages are live.
 
 Richard's rulings (2026-10-03): crews, typed contractors and suppliers are
 **one directory**; a subcontractor needs a general liability COI, workers'

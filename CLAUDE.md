@@ -294,12 +294,15 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    /api/cron/vendor-compliance`, Compliance card on the vendor page, warning
    on labor contracts, dashboard row, calendar overlay. **Stage 3
    (commitments) built + dev-QA'd 2026-10-03 on `commitments`, fast-forwarded
-   to `main`, not deployed**: `Commitment` + `job_expenses.commitment_id`
+   to `main`, deployed 2026-10-03 as `78bdc4c`** (BUILD_ID
+   `xqCVJVDrq3De9dtsbMCfy`, migration applied, smoke 307 ×2, journal clean,
+   backup `postgres-2026-10-03-194329.dump`): `Commitment` + `job_expenses.commitment_id`
    (migration `20261015120000_commitments`), pure `commitments.ts`,
    `commitment-service.ts`, `commitmentsOpen` in the one cost calculation,
    Job → Money → Commitments, auto-link on expense write, budget line and
-   vendor page. **Deploy carries a migration.** With it all three stages of
-   initiative 6 are built.
+   vendor page. **All three stages of initiative 6 are on prod**; what
+   remains is Richard building the directory under Vendors → Unmatched and
+   his click-through.
    Notes: [features/vendors.md](docs/project-memory/features/vendors.md).
 0. 🔴 **Audit initiative 5: attention dashboard** — built + dev-QA'd
    2026-10-03 on `attention-dashboard`, fast-forwarded to `main`, **deployed
@@ -354,7 +357,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-03 — Audit initiative 6, Stage 3: commitments (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-03 — Audit initiative 6, Stage 3: commitments (deployed `78bdc4c`)
 
 "continue". Built on `commitments`: migration `20261015120000_commitments`;
 pure `lib/vendors/commitments.ts` (`openAmount`, `receivedAmount`,
@@ -376,6 +379,20 @@ headless Chromium 20/20 at 1280 and 400 px, SALES_REP read-only / 404 / 403;
 fixed in QA: the panel's tiles counted a closed commitment. Dev DB restored.
 **Deploy carries a migration.** Details:
 [features/vendors.md](docs/project-memory/features/vendors.md).
+Richard pushed and deployed from `!` (background, 256 s, exit 0): BUILD_ID
+`DcJXs_PTMUJdAIU9AJO2p` → `xqCVJVDrq3De9dtsbMCfy`, migration
+`20261015120000_commitments` applied (82; `commitments` with its unique
+`(job_id, number)` index, `job_expenses.commitment_id` nullable), smoke 307
+×2, zero journal errors since the restart, `UPLOADS_DIR` carried, 21 files in
+the store, backup `postgres-2026-10-03-194329.dump`. Cost inputs identical
+before and after (26 jobs, labor $1,521,951.31, approved expenses
+$798,991.29, unposted field labor $8,944.00); the cost loader run read-only
+on prod: 0 open commitments, committed $2,332,236.60 = spent $1,144,189.60 +
+labor not yet paid $1,188,047.00. One figure moved, as expected: JOB-00002's
+Overview "Cost to date" rose $2,350 because its crew has been paid $17,380
+against labor contracts of $15,030 and the Overview now counts what was paid
+— worth Richard's look (a missing labor change order, or a payment on the
+wrong contract).
 
 ### 2026-10-03 — Audit initiative 6, Stage 2: compliance documents + expiry alerts (deployed `45899b2`)
 
@@ -2107,14 +2124,14 @@ Notification Digests).
 > morning at 11:50 UTC); the "Expiry tasks go to …" control on Vendors
 > (automatic falls to Richard on prod — no Accounting role default is set).
 >
-> **Stage 3 (commitments) is on `main`, not deployed; the deploy carries
-> migration `20261015120000_commitments`.** After Richard pushes and deploys:
-> verify BUILD_ID, smoke, journal, the migration (`commitments`,
-> `job_expenses.commitment_id`), uploads intact, and that every job's cost
-> summary is unchanged (no commitments exist yet). Click-through: a job →
-> Money → Commitments → Add commitment (needs a vendor), then an expense to
-> that vendor shows C-1 and the Open figure drops. With this, initiative 6 is
-> complete; next is initiative 7 (job documents and photos, `File.jobId`).
+> **Stage 3 (commitments) is on prod (`78bdc4c`, BUILD_ID
+> `xqCVJVDrq3De9dtsbMCfy`); initiative 6 is complete.** Click-through for
+> Richard, in order: Vendors → Unmatched (build the directory); a
+> subcontractor's Compliance card; a job → Money → Commitments → Add
+> commitment, then an expense to that vendor shows C-1 and the Open figure
+> drops. Also check JOB-00002: crew paid $17,380 against $15,030 of labor
+> contracts. Next build: initiative 7 (job documents and photos:
+> `File.jobId`, preview, receipts on expenses) — plan it first.
 
 > **Initiative 5 (attention dashboard) is on prod (`9b75536`, BUILD_ID
 > `PmFnvrNoVx2_HApQwqCDx`).** Click-through for Richard: the dashboard's
