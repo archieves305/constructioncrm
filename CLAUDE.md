@@ -274,12 +274,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 0. 🔴 **Audit initiative 7: job documents and photos** — three stages, plan
    approved 2026-10-03 (`~/.claude/plans/encapsulated-frolicking-possum.md`).
    **Stage 1 (files belong to the job, preview, missing state) built +
-   dev-QA'd 2026-10-03 on `job-files`, fast-forwarded to `main`, not
-   deployed**: `files.job_id` + backfill (migration
+   dev-QA'd 2026-10-03 on `job-files`, fast-forwarded to `main`, deployed
+   2026-10-03 as `d18d054`** (BUILD_ID `16_91QFu9eTLm0-ZEhAiC`, migration
+   applied, backfill 37 of 92 files given a job, smoke 307 ×2, journal clean,
+   backup `postgres-2026-10-03-201622.dump`): `files.job_id` + backfill (migration
    `20261016120000_file_job_link`), `lib/files/scope.ts` / `list.ts`,
    job-scoped list, rename / move / "Upload again" routes, `FilePreviewDialog`,
-   Files panel rebuilt, generated documents undeletable. **Deploy carries a
-   migration.** Stage 2 = one photo gallery; Stage 3 = receipts on expenses.
+   Files panel rebuilt, generated documents undeletable. Stage 2 = one photo gallery; Stage 3 = receipts on expenses.
    Notes: [features/job-files.md](docs/project-memory/features/job-files.md).
 0. 🔴 **Audit initiative 6: vendors, compliance, commitments** — three
    stages, plan approved 2026-10-03
@@ -367,7 +368,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-03 — Audit initiative 7, Stage 1: files belong to the job (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-03 — Audit initiative 7, Stage 1: files belong to the job (deployed `d18d054`)
 
 "continue". Planned first (one explore agent + a read-only prod check: 92 file
 rows, 106 daily-log photos, 21 files on disk; no lead with files has two
@@ -392,6 +393,15 @@ customer contract end to end. **Deploy carries a migration**; expected prod
 backfill: 37 files on single-job leads gain a job (less any on a case), 2 task
 files take their task's job, 54 stay lead documents. Details:
 [features/job-files.md](docs/project-memory/features/job-files.md).
+Richard pushed and deployed from `!` (background, 261 s, exit 0): BUILD_ID
+`xqCVJVDrq3De9dtsbMCfy` → `16_91QFu9eTLm0-ZEhAiC`, migration
+`20261016120000_file_job_link` applied (83), smoke 307 ×2, zero journal errors
+since the restart, `UPLOADS_DIR` carried, 21 files in the store, backup
+`postgres-2026-10-03-201622.dump`. Backfill predicted read-only before the
+deploy and matched after it: 92 files → 37 with a job (2 through their task,
+35 on single-job leads, across 10 jobs; JOB-00009 has 13), 55 lead documents
+(5 of them on code-violation cases, left with the case), 0 files whose job
+belongs to a different lead.
 
 ### 2026-10-03 — Audit initiative 6, Stage 3: commitments (deployed `78bdc4c`)
 
@@ -2168,13 +2178,11 @@ Notification Digests).
 > morning at 11:50 UTC); the "Expiry tasks go to …" control on Vendors
 > (automatic falls to Richard on prod — no Accounting role default is set).
 >
-> **Initiative 7, Stage 1 (files belong to the job) is on `main`, not
-> deployed; the deploy carries migration `20261016120000_file_job_link` with
-> a backfill.** After Richard pushes and deploys: verify BUILD_ID, smoke,
-> journal, uploads intact, and the backfill by SQL (files with a job, by
-> rule). Click-through: a job → Files (groups, Missing chip, open a PDF,
-> "Upload again" on a missing one). Next build: Stage 2 (one photo gallery),
-> then Stage 3 (receipts on expenses).
+> **Initiative 7, Stage 1 (files belong to the job) is on prod (`d18d054`,
+> BUILD_ID `16_91QFu9eTLm0-ZEhAiC`).** Click-through for Richard: a job →
+> Files (JOB-00009 has 13): category groups, the Missing chip, open a PDF in
+> place, "Upload again" on a missing one, rename from the row menu. Next
+> build: Stage 2 (one photo gallery), then Stage 3 (receipts on expenses).
 
 > **Stage 3 (commitments) is on prod (`78bdc4c`, BUILD_ID
 > `xqCVJVDrq3De9dtsbMCfy`); initiative 6 is complete.** Click-through for
