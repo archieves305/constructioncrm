@@ -271,6 +271,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `TASK_ESCALATIONS_ENABLED=1`, then `TASK_AUTO_RULES_DISABLED=`) and
    Richard's own click-through. Notes:
    [features/tasks.md](docs/project-memory/features/tasks.md).
+0. 🔴 **Audit initiative 5: attention dashboard** — built + dev-QA'd
+   2026-10-03 on `attention-dashboard`, fast-forwarded to `main`, **not
+   deployed**. The dashboard opens on "Needs attention" (12 rows by role, each
+   opening the list it was counted from: `/attention/[key]`); sales tiles and
+   charts moved to the bottom. No migration. Digest delivery stays off — SPF
+   is still deferred (§5). Notes:
+   [features/attention-dashboard.md](docs/project-memory/features/attention-dashboard.md).
 0. 🔴 **Audit initiative 4: permits and inspections as one record** —
    Stages 1–3 built + dev-QA'd 2026-10-03 on `permits-one-record`,
    fast-forwarded to `main`, **deployed 2026-10-03 as `9cd2aba`** (BUILD_ID
@@ -315,6 +322,24 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Audit initiative 5: attention dashboard (built, dev-QA'd, on `main`, not deployed)
+
+"continue". Built on `attention-dashboard`: pure `lib/attention/rows.ts` (12
+rows with explicit role lists, thresholds, `visibleAttention`), `load.ts` (one
+`where` per row, read by both its count and its list), `GET /api/attention`
+and `/api/attention/[key]`, `NeedsAttention` at the top of the dashboard, the
+list page `/attention/[key]` (Mine | All), and the dashboard reordered:
+attention → Today / My tasks → Workflow health → Sales (four tiles + charts,
+with an error state instead of zeros). The two overdue tiles became rows.
+Gate: typecheck clean, lint 5/22, 1387 tests (+7), build clean. Dev QA by API
+with staged rows (count = list for every row that had data, both scopes;
+SALES_REP forced to Mine, 403 on the office-only lists) and headless Chromium
+at 1280 and 400 px, no console errors; QA rows removed. Not exercised at
+runtime: the list rows for contracts, violation cases, inspections to correct
+and quiet jobs (no dev data). No migration. Digests were not switched on: SPF
+is still deferred. Details:
+[features/attention-dashboard.md](docs/project-memory/features/attention-dashboard.md).
 
 ### 2026-10-03 — Initiative 4 deployed (`9cd2aba`); the deploy's build was cut off and finished by hand
 
@@ -1686,10 +1711,12 @@ portal deploy.
 
 Full list: [known-issues.md](docs/project-memory/known-issues.md).
 
-- **SPF is unset on `knuconstruction.com` in MailerSend** (`dkim: true`,
-  `spf: false`). Delivering fine today, but strict receivers may spam-folder
-  it. Next most likely cause of "never arrived" reports now that the
-  recipient cap is resolved.
+- **`knuconstruction.com` has two SPF records** (seen in DNS 2026-10-03):
+  `v=spf1 include:_spf.mailersend.net include:secureserver.net -all` and
+  `v=spf1 include:secureserver.net -all`. Two records are an SPF error to
+  receivers, so this counts as "SPF not set" until the second one is deleted
+  at the DNS host. Richard deferred it 2026-10-03; the nurture and escalation
+  switches keep waiting on it.
 - Delivery failures now escalate through `lib/email/delivery-report.ts`
   (ERROR log with marker `EMAIL_DELIVERY_FAILURE`, an `EmailDelivery` audit
   row, and a best-effort ops email). Read history at
@@ -1906,11 +1933,25 @@ Notification Digests).
   in `lib/permits/alerts.ts` (once per source key, closed by the record). The
   fee typed on a permit is a quote — it never becomes an expense; what was
   paid is read from the job's `PERMIT_FEE` costs.
+- **A dashboard attention row's count and its list share one `where`**
+  (`lib/attention/load.ts`). A new row gets a role list in `rows.ts` and both
+  a counter and a lister over the same builder — never two queries.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **Initiative 5 (attention dashboard) is built and on `main`, not deployed**
+> (no migration). Next: Richard pushes and deploys from `!`
+> (`git push origin main`, then
+> `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` — if the build
+> is cut off, finish it detached on the droplet as on 2026-10-03), then
+> verify BUILD_ID, smoke, journal and compare `/api/attention` counts with
+> their lists on prod. Click-through: the dashboard's Needs attention rows
+> each open a list of the same length. Digests stay off until the duplicate
+> SPF record is removed. After that: initiative 6 (vendors, compliance,
+> commitments) — plan it first, it is the only wholly new module.
 
 > **Initiative 4 (permits) is on prod (`9cd2aba`, BUILD_ID
 > `Jz-SkZNZkAW6myqxzsKMy`), crons installed, old rules retired.**
