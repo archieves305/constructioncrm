@@ -4,7 +4,7 @@ Three stages, plan approved 2026-10-03
 (`~/.claude/plans/encapsulated-frolicking-possum.md`). Stage 1 (files belong
 to the job, preview, missing state) is on prod (`d18d054`, BUILD_ID
 `16_91QFu9eTLm0-ZEhAiC`; backfill gave 37 of 92 files a job); Stage 2 (one photo gallery from
-two sources) and Stage 3 (receipts on expenses) follow.
+two sources) is built; Stage 3 (receipts on expenses) follows.
 
 Richard's rulings (2026-10-03): a record whose file is gone stays, **marked
 missing, with "Upload again"** onto the same record; **any expense** (typed or
@@ -92,6 +92,46 @@ link styled with the Button primitive raised a Base UI console error; a file
 with no preview showed two Download buttons. Dev DB restored. Not exercised:
 signing a customer contract end to end (the rule is unit-tested and was
 exercised on a generated contract re-labelled SIGNED_DOC).
+
+## Stage 2 — one photo gallery, two sources
+
+No migration. Nothing is moved or copied: a daily-log photo stays a
+`FieldPhoto`, a task photo stays a `File`.
+
+- `src/lib/photos/gallery.ts` — pure, client-safe, tested: `mergeGallery`
+  (newest day first, then newest within the day), `logPhotoItem` /
+  `filePhotoItem` (each item carries `origin` — "Daily log · Sep 3", "Task ·
+  Final walkthrough", "Uploaded" — and `href`), `filterGallery` (source,
+  daily-log category, missing; a category leaves files out, they have none).
+- `GET /api/jobs/[id]/gallery` (`requireJobFieldAccess` read; `from` / `to`):
+  the job's `FieldPhoto`s and its image `File`s (`jobId` = the job, type
+  `image/*`, within `fileReadWhere`), `missing` per item, `canWrite`.
+- `POST /api/photos/[id]/replace` — "Upload again" for a daily-log photo: only
+  when its image is missing (409 otherwise), an image only, the taker or an
+  office role with write access to the job. Restoring a lost image is not an
+  edit to the log, so an approved log does not lock it. Audited
+  `file_replace` on `FieldPhoto`.
+- `src/components/photos/job-photo-gallery.tsx` rebuilt on the merged list:
+  source chips (All / Daily logs / Tasks and uploads), a Missing chip,
+  daily-log category chips, dates; a placeholder tile for a missing photo; the
+  lightbox steps across both kinds, links to the log, the task or the Files
+  tab, and offers Upload again. Delete goes to the photo's own route (an
+  approved log still locks a daily-log photo's delete there).
+- Photos are downscaled before upload everywhere now: `preparedUpload` in
+  `use-task-file-upload.ts` (task sheet, Complete dialog, AddTaskDialog, field
+  task page) and the Files panel use `downscalePhoto` (2000 px JPEG). A GIF
+  and anything that is not an image go as they are.
+
+Dev QA (2026-10-03): API 14/14; headless Chromium at 400 and 1280 px — one
+gallery with both sources, placeholder for a missing photo, source and
+category filters, the lightbox stepping across task photos, uploads and
+daily-log photos, Upload again restoring a daily-log photo, delete of an
+uploaded image, no console errors (two reported failures were the test reading
+the wrong paragraph on the missing photo). A 4000 px, 1.3 MB JPEG taken from
+the field task page was stored at 2000 px, 204 KB, and appeared in the job's
+gallery. SALES_REP not on the job 403; on the job, read-only. Dev DB restored.
+Not done: the field daily-log screen's own photo grid still shows a broken
+image for a missing photo.
 
 ## Rules
 

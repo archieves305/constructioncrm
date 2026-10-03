@@ -280,7 +280,12 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    backup `postgres-2026-10-03-201622.dump`): `files.job_id` + backfill (migration
    `20261016120000_file_job_link`), `lib/files/scope.ts` / `list.ts`,
    job-scoped list, rename / move / "Upload again" routes, `FilePreviewDialog`,
-   Files panel rebuilt, generated documents undeletable. Stage 2 = one photo gallery; Stage 3 = receipts on expenses.
+   Files panel rebuilt, generated documents undeletable. **Stage 2 (one photo
+   gallery, two sources) built + dev-QA'd 2026-10-03 on `job-gallery`,
+   fast-forwarded to `main`, not deployed**: pure `lib/photos/gallery.ts`,
+   `GET /api/jobs/[id]/gallery`, `POST /api/photos/[id]/replace`, gallery
+   rebuilt, photos downscaled on every upload path. No migration. Stage 3 =
+   receipts on expenses.
    Notes: [features/job-files.md](docs/project-memory/features/job-files.md).
 0. 🔴 **Audit initiative 6: vendors, compliance, commitments** — three
    stages, plan approved 2026-10-03
@@ -367,6 +372,27 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Audit initiative 7, Stage 2: one photo gallery, two sources (built, dev-QA'd, on `main`, not deployed)
+
+Carried on straight after the Stage 1 deploy check (same approved plan, no
+migration). Built on `job-gallery`: pure `lib/photos/gallery.ts`
+(`mergeGallery`, `filterGallery`, each item with its `origin` and `href`);
+`GET /api/jobs/[id]/gallery` (daily-log `FieldPhoto`s + the job's image
+`File`s, `missing` per item); `POST /api/photos/[id]/replace` (only when
+missing; the taker or an office role; an approved log does not lock a
+restore); `JobPhotoGallery` rebuilt (source chips, Missing chip, placeholder
+tile, lightbox across both kinds with Upload again); `preparedUpload` —
+photos are downscaled on every upload path (task sheet, Complete dialog,
+AddTaskDialog, field task page, Files panel). Gate: typecheck clean, lint
+5/22, 1437 tests (+8), build clean (the first build after stopping `next dev`
+failed on `.next` contention, as before; the re-run was clean). Dev QA: API
+14/14; headless Chromium at 400 and 1280 px, no console errors; a 4000 px /
+1.3 MB photo taken from the field task page was stored at 2000 px / 204 KB and
+appeared in the job gallery; SALES_REP off the job 403, on it read-only. Dev DB
+restored. Not done: the field daily-log screen's own grid still shows a broken
+image for a missing photo. Details:
+[features/job-files.md](docs/project-memory/features/job-files.md).
 
 ### 2026-10-03 — Audit initiative 7, Stage 1: files belong to the job (deployed `d18d054`)
 
@@ -2178,6 +2204,14 @@ Notification Digests).
 > morning at 11:50 UTC); the "Expiry tasks go to …" control on Vendors
 > (automatic falls to Richard on prod — no Accounting role default is set).
 >
+> **Initiative 7, Stage 2 (one photo gallery) is on `main`, not deployed; no
+> migration.** After Richard pushes and deploys: verify BUILD_ID, smoke,
+> journal, uploads intact. Click-through: JOB-00014 → Field → Photos (its 106
+> daily-log photos will show as "Photo missing" placeholders; Upload again
+> works on any he still has), and on a phone Field → a task → Take photo, then
+> the job's gallery. Next build: Stage 3 (receipts on expenses) — it carries a
+> migration.
+
 > **Initiative 7, Stage 1 (files belong to the job) is on prod (`d18d054`,
 > BUILD_ID `16_91QFu9eTLm0-ZEhAiC`).** Click-through for Richard: a job →
 > Files (JOB-00009 has 13): category groups, the Missing chip, open a PDF in

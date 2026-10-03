@@ -19,6 +19,7 @@ import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { formatFileSize, uploadProblem } from "@/lib/files/limits";
 import { CATEGORY_LABEL, UPLOAD_CATEGORIES, categoryCounts, categoryLabel, filterFiles, groupByCategory, isImageType, type FileCategoryName } from "@/lib/files/scope";
 import { jobLabel, type JobLabelInput } from "@/lib/labels/job";
+import { preparedUpload } from "@/components/workflows/use-task-file-upload";
 import { FilePreviewDialog } from "./file-preview";
 
 export type FileRecord = {
@@ -105,7 +106,8 @@ export function FilesPanel(props: { leadId: string; scope?: FilesScope } | { sco
         continue;
       }
       const form = new FormData();
-      form.append("file", f);
+      // Photos are downscaled before they are sent, as they are everywhere else.
+      form.append("file", await preparedUpload(f));
       form.append("leadId", scope.leadId);
       if (scope.jobId) form.append("jobId", scope.jobId);
       if (scope.violationCaseId) form.append("violationCaseId", scope.violationCaseId);

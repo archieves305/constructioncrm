@@ -3,9 +3,22 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { taskKeys } from "@/components/tasks/use-tasks";
+import { downscalePhoto } from "@/lib/photo-utils";
+
+/**
+ * A photo is downscaled before it is sent (2000 px, JPEG — the same treatment
+ * daily-log photos get); anything else goes as it is. A GIF keeps its frames.
+ */
+export async function preparedUpload(file: File): Promise<File> {
+  if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
+  const prepared = await downscalePhoto(file);
+  return prepared.converted ? new File([prepared.blob], prepared.fileName, { type: "image/jpeg" }) : file;
+}
 
 /** The one request that stores a file against a task. Throws with the server's reason. */
-export async function uploadTaskFile(taskId: string, file: File, opts: { photo?: boolean } = {}) {
+export async function uploadTaskFile(taskId: string, picked: File, opts: { photo?: boolean } = {}) {
+  // A phone photo is 3–8 MB; the job gallery and jobsite LTE want ~500 KB.
+  const file = await preparedUpload(picked);
   const form = new FormData();
   form.append("file", file);
   form.append("taskId", taskId);
@@ -34,6 +47,9 @@ export function useTaskFileUpload(taskId: string | null | undefined, opts: { pho
       if (taskId) qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) });
       qc.invalidateQueries({ queryKey: ["job-workflow"] });
       qc.invalidateQueries({ queryKey: ["case-workflow"] });
+      // A photo on a job's task shows in that job's gallery and files.
+      qc.invalidateQueries({ queryKey: ["job-photos"] });
+      qc.invalidateQueries({ queryKey: ["job-files"] });
       toast.success("File attached");
       opts.onDone?.();
     },
