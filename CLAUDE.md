@@ -39,10 +39,12 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    lead's Roofr tab and the job's Estimates tab, and a signed roofing estimate
    now feeds the job's estimated cost. **Stage B (takeoff rules + price book)
    built + dev-QA'd 2026-10-03 on `roofing-price-book`, fast-forwarded to
-   `main`, not deployed**: `RoofRule` / `RoofMaterialItem` /
+   `main`, deployed 2026-10-03 as `ac2a1d8`** (BUILD_ID
+   `Sm73Z7jwQy_iEWRSA7K2T`, migration applied, smoke 307 ×2, journal clean,
+   backup `postgres-2026-10-03-232527.dump`): `RoofRule` / `RoofMaterialItem` /
    `RoofMaterialPrice` (migration `20261019120000_roof_price_book`), pure
    `engine/resolve.ts`, `/admin/roofing` (Price book · Takeoff rules · Try a
-   takeoff). **Deploy carries a migration.** Next: Stage C (import the
+   takeoff). Next: Stage C (import the
    estimator's data). The estimator itself is
    untouched and now under local git (`~/roofestimator`, `e0adbff`). Notes:
    [features/roofing.md](docs/project-memory/features/roofing.md).
@@ -400,7 +402,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-03 — Roofing integration, P0 Stage B: takeoff rules + price book (on `main`, not deployed)
+### 2026-10-03 — Roofing integration, P0 Stage B: takeoff rules + price book (deployed `ac2a1d8`)
 
 Carried on after the Stage A deploy check. Built on `roofing-price-book`:
 migration `20261019120000_roof_price_book`; pure `engine/resolve.ts` (rules
@@ -414,8 +416,15 @@ QA and fixed: a price dated today through the date picker lost to the price
 saved earlier the same day (instants compared) — prices now take effect by
 day, later entry wins. Gate: typecheck clean, lint 5/22, 1517 tests (+15),
 build clean. Dev QA: API 26/26, headless Chromium 10/10; QA rows removed.
-**Deploy carries a migration.** Details:
+Details:
 [features/roofing.md](docs/project-memory/features/roofing.md).
+Richard pushed and deployed from `!` (background, 255 s, exit 0): BUILD_ID
+`HfCtieXEwvKgJaManWLme` → `Sm73Z7jwQy_iEWRSA7K2T`, migration
+`20261019120000_roof_price_book` applied (86), smoke 307 ×3, zero journal
+errors since the restart, 21 files in the store, backup
+`postgres-2026-10-03-232527.dump`. Prod after (read-only script): 0 changed
+rules, 0 materials, 0 prices, 0 measurements; the engine loads 16 shingle
+rules and an empty catalog.
 
 ### 2026-10-03 — Roofing integration, P0 Stage A: library, measurements, cost baseline (deployed `79e4e19`)
 
@@ -2419,10 +2428,9 @@ Notification Digests).
 > contracts. Next build: initiative 7 (job documents and photos:
 > `File.jobId`, preview, receipts on expenses) — plan it first.
 
-> **Roofing P0 Stage B (rules + price book) is on `main`, not deployed**;
-> the deploy carries migration `20261019120000_roof_price_book`. After it:
-> verify the three tables, then Richard opens Admin → Roofing Prices &
-> Takeoff. Next build: Stage C — import the estimator's data (script with a
+> **Roofing P0 Stage B (rules + price book) is on prod (`ac2a1d8`, BUILD_ID
+> `Sm73Z7jwQy_iEWRSA7K2T`).** Click-through for Richard: Admin → Roofing
+> Prices & Takeoff (empty until the import). Next build: Stage C — import the estimator's data (script with a
 > dry run and a match report; strict address match; unmatched to a person).
 
 > **Roofing P0 Stage A is on prod (`79e4e19`, BUILD_ID

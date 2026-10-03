@@ -15,7 +15,7 @@ imported, then is frozen and redirected.
 | 0.2 Parser + takeoff engine as a library | On prod (`79e4e19`). |
 | 0.3 Measurements as structured data | On prod (`79e4e19`). |
 | 0.5 Roofing estimate feeds the cost baseline | On prod (`79e4e19`). |
-| 0.4 Rules and price book | Built (Stage B), not deployed. `RoofSystem` deferred to P1 (nothing reads it yet). |
+| 0.4 Rules and price book | On prod (`ac2a1d8`). `RoofSystem` deferred to P1 (nothing reads it yet). |
 | 0.6 Import the estimator's data | After 0.4 (Stage C). |
 
 ## Stage A (built + dev-QA'd 2026-10-03 on `roofing-p0`)
@@ -135,7 +135,7 @@ changed rule moves the quantity; four 400s, two 404s; tile takeoff runs);
 headless Chromium 10/10 at 1280 and 400 px, no console errors; QA rows
 removed. Gate: typecheck clean, lint 5/22, 1517 tests (+15), build clean.
 **Not exercised:** a non-admin session against the routes (the role function
-is unit-tested). **Deploy carries a migration.** The price book starts empty
+is unit-tested). Deployed 2026-10-03 as `ac2a1d8` (BUILD_ID `Sm73Z7jwQy_iEWRSA7K2T`, migration applied — 86). The price book starts empty
 on prod; Stage C imports the estimator's 40 materials (seed placeholders —
 prices need checking).
 
