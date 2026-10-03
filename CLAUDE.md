@@ -381,6 +381,25 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-03 — Fix: the in-app PDF preview was blocked by the site's own frame headers (on `main`, not deployed)
+
+Found while starting the roofing integration. `next.config.ts` sends
+`X-Frame-Options: DENY` and `frame-ancestors 'none'` on every path, so the
+browser refused the `<iframe>` in `FilePreviewDialog` (shipped in `d18d054`)
+and the agreement frame on the customer signing page (older; prod has no
+customer contracts). The frame stayed blank; "Open in a new tab" and Download
+worked. The Stage 1 QA had only counted the iframe element in a headless shell
+with no PDF viewer and reported it as passing. Fix: a second headers entry
+after the site-wide one lets `/api/files/:id` and `/api/sign/:token/pdf` be
+framed by this origin only (`SAMEORIGIN`, `frame-ancestors 'self'`). Verified
+by headers on dev (the two paths `SAMEORIGIN`; `/api/files`, `/api/jobs`,
+`/vendors` still `DENY`) and in full Chromium (`chromium-1228`, which has a PDF
+viewer): the preview frame loads the file URL with no refusal, and a control
+frame of `/api/jobs` is still refused. **Lesson: a framed response needs a
+real-browser check of the frame's loaded URL or a refusal in the console —
+`chrome-headless-shell` cannot show a PDF, so "an iframe exists" proves
+nothing.** No migration.
+
 ### 2026-10-03 — Tidy-up pass after the MVP roadmap (deployed `b28e94e`)
 
 "continue" with nothing queued: offered the audit's Phase 2 list, Richard chose
@@ -2226,6 +2245,11 @@ Notification Digests).
   in `lib/permits/alerts.ts` (once per source key, closed by the record). The
   fee typed on a permit is a quote — it never becomes an expense; what was
   paid is read from the job's `PERMIT_FEE` costs.
+- **Every response is unframeable except the two documents the app frames
+  itself** (`FRAMED_BY_SELF` in `next.config.ts`: the file route and the
+  signing PDF, same-origin only). A new page that shows one of the app's own
+  responses in an `<iframe>` must add its path there, and be checked in a full
+  browser.
 - **A file belongs to a job when it has `jobId`; a lead's file with none is a
   lead document** (shown on the lead and, in its own group, on the lead's
   jobs). Code that writes a `File` for something on a job sets `jobId`. A file

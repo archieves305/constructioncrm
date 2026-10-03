@@ -32,10 +32,31 @@ const securityHeaders = [
   },
 ];
 
+/**
+ * Documents the app shows inside its own pages: the file preview and the
+ * agreement on the signing page are an <iframe> of one of these responses.
+ * The site-wide rule above ("never framed, by anyone") made the browser refuse
+ * them, so the frame stayed blank. These responses may be framed by this
+ * origin and no other. When two entries set the same header for a path, the
+ * later one wins, so this list must stay after the site-wide entry.
+ */
+const FRAMED_BY_SELF = ["/api/files/:id", "/api/sign/:token/pdf"];
+
+const sameOriginFrameHeaders = securityHeaders.map((h) =>
+  h.key === "X-Frame-Options"
+    ? { key: h.key, value: "SAMEORIGIN" }
+    : h.key === "Content-Security-Policy"
+      ? { key: h.key, value: h.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'") }
+      : h,
+);
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["richards-mac-studio", "richards-mac-studio:4000"],
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      ...FRAMED_BY_SELF.map((source) => ({ source, headers: sameOriginFrameHeaders })),
+    ];
   },
 };
 
