@@ -67,4 +67,9 @@ describe("tasks in ⌘K", () => {
     const hits = toSearchHits({ jobs: [], leads: [], cases: [], prospects: [], tasks: [{ id: "t1", title: "Order shingles", dueAt: "2026-09-29T12:00:00.000Z", status: "PENDING", job: { jobNumber: "JOB-00005", title: "t", serviceType: "Roofing", lead: { fullName: "Sarah Smith", propertyAddress1: "12 Palm Ct", propertyAddress2: null, city: "Miami" } }, lead: null, violationCase: null }] });
     expect(hits[0]).toMatchObject({ type: "task", primary: "Order shingles", secondary: "12 Palm Ct, Miami · Tue, Sep 29" });
   });
+
+  it("lists vendors with their kind and opens the vendor page", () => {
+    const hits = toSearchHits({ jobs: [], leads: [], cases: [], prospects: [], vendors: [{ id: "v1", name: "Rocket HVAC", kind: "SUBCONTRACTOR", trade: "HVAC", isActive: true }] });
+    expect(hits).toEqual([{ type: "vendor", id: "v1", primary: "Rocket HVAC", secondary: "Subcontractor · HVAC", code: null, href: "/vendors/v1" }]);
+  });
 });

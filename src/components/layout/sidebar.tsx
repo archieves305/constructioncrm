@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import type { RoleName } from "@/generated/prisma/client";
 import { NotificationBell } from "./notification-bell";
 import { isNavActive } from "./nav-active";
-import { BarChart3, BellRing, Briefcase, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, Gauge, Gavel, Hammer, HardHat, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Scale, Search, Settings, Shield, UserCheck, Users, UsersRound, Zap } from "lucide-react";
+import { BarChart3, BellRing, Briefcase, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, Gauge, Gavel, Hammer, HardHat, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Scale, Search, Settings, Shield, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
 import { useViolationSummary } from "@/components/violations/use-violations";
@@ -87,6 +87,7 @@ export const navSections: NavSection[] = [
     icon: DollarSign,
     items: [
       { href: "/collections", label: "Collections", icon: DollarSign, roles: ["ADMIN", "MANAGER", "OFFICE_STAFF", "READ_ONLY"], hint: "Deposits missing, balances due and unpaid invoices" },
+      { href: "/vendors", label: "Vendors", icon: Store, roles: ["ADMIN", "MANAGER", "OFFICE_STAFF", "READ_ONLY"], hint: "Subcontractors, crews and suppliers — who they are and what has been spent with them" },
       { href: "/referrals", label: "Referrals", icon: Repeat, roles: ["ADMIN", "MANAGER"] },
       { href: "/reports", label: "Reports", icon: BarChart3 },
       { href: "/reports/labor", label: "Labor Reports", icon: HardHat, roles: OFFICE },

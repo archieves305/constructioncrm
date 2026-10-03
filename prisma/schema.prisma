@@ -1429,11 +1429,64 @@ model Crew {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // The vendor record this crew belongs to (insurance, W-9 and spend live
+  // there). Null until someone links it under Vendors → Unmatched.
+  vendorId String? @map("vendor_id")
+
   assignments    CrewAssignment[]
   laborContracts LaborContract[]
   members        Personnel[]
+  vendor         Vendor?          @relation(fields: [vendorId], references: [id], onDelete: SetNull)
 
+  @@index([vendorId])
   @@map("crews")
+}
+
+// ─── Vendors: one directory for subcontractors, crews and suppliers ────────
+
+enum VendorKind {
+  SUBCONTRACTOR
+  SUPPLIER
+  OTHER
+}
+
+model Vendor {
+  id          String     @id @default(cuid())
+  name        String
+  kind        VendorKind @default(SUPPLIER)
+  trade       String?
+  contactName String?    @map("contact_name")
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?    @db.Text
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  aliases        VendorAlias[]
+  expenses       JobExpense[]
+  crews          Crew[]
+  laborContracts LaborContract[]
+
+  @@index([name])
+  @@map("vendors")
+}
+
+/// A payee spelling that means this vendor ("homedepot", "the home depot").
+/// `pattern` is stored normalised (`normalisePayee`); an expense's payee text
+/// matches when it contains the pattern at a word start. The vendor's own
+/// name always matches without a row here.
+model VendorAlias {
+  id        String   @id @default(cuid())
+  vendorId  String   @map("vendor_id")
+  pattern   String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId])
+  @@map("vendor_aliases")
 }
 
 model CrewAssignment {
@@ -1458,6 +1511,9 @@ model LaborContract {
   jobId                   String    @map("job_id")
   crewId                  String?   @map("crew_id") // null for ad-hoc/typed labor lines
   label                   String? // ad-hoc name when no crew selected
+  // The contractor's vendor record when the contract is typed by name. A
+  // contract's vendor is this, else its crew's (`vendorForLaborContract`).
+  vendorId                String?   @map("vendor_id")
   contractAmount          Decimal   @map("contract_amount") @db.Decimal(12, 2)
   description             String?   @db.Text
   // Optional contract-detail fields surfaced on generated contract PDFs.
@@ -1478,6 +1534,7 @@ model LaborContract {
 
   job                  Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
   crew                 Crew?               @relation(fields: [crewId], references: [id])
+  vendor               Vendor?               @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   createdBy            User                @relation(fields: [createdByUserId], references: [id])
   payments             LaborPayment[]
   changeOrders         LaborChangeOrder[]
@@ -1488,6 +1545,7 @@ model LaborContract {
   paymentRequests      LaborPaymentRequest[]
 
   @@index([jobId])
+  @@index([vendorId])
   @@map("labor_contracts")
 }
 
@@ -1808,7 +1866,9 @@ model JobExpense {
   id               String         @id @default(cuid())
   jobId            String         @map("job_id")
   type             JobExpenseType @default(OTHER)
+  // The payee as it arrived (typed, or the bank memo). `vendorId` is the match.
   vendor           String?
+  vendorId         String?        @map("vendor_id")
   description      String?        @db.Text
   amount           Decimal        @db.Decimal(12, 2)
   incurredDate     DateTime       @default(now()) @map("incurred_date")
@@ -1838,11 +1898,13 @@ model JobExpense {
   createdBy         User               @relation(fields: [createdByUserId], references: [id])
   approvedBy        User?              @relation("ExpenseApprovedBy", fields: [approvedByUserId], references: [id])
   payrollPayment    PayrollPayment?    @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
+  vendorRecord      Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   budgetAllocations BudgetAllocation[]
 
   @@index([jobId])
   @@index([type])
   @@index([payrollPaymentId])
+  @@index([vendorId])
   // Drives the review queue: "everything still pending, oldest first".
   @@index([status, incurredDate])
   @@map("job_expenses")

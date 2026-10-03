@@ -15,6 +15,7 @@ import {
   recomputeJobBalance,
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
+import { resolveVendorId } from "@/lib/vendors/service";
 
 const TYPES = [
   "MATERIAL",
@@ -92,8 +93,14 @@ export async function PATCH(
 
   const data: Record<string, unknown> = {};
   if (parsed.data.type !== undefined) data.type = parsed.data.type;
-  if (parsed.data.vendor !== undefined)
+  if (parsed.data.vendor !== undefined) {
     data.vendor = parsed.data.vendor?.trim() || null;
+    // A changed payee is matched afresh; payroll rows carry a worker's name
+    // and are never matched.
+    if ((data.vendor ?? null) !== existing.vendor && !existing.payrollPaymentId) {
+      data.vendorId = await resolveVendorId(parsed.data.vendor);
+    }
+  }
   if (parsed.data.description !== undefined)
     data.description = parsed.data.description?.trim() || null;
   if (parsed.data.amount !== undefined) data.amount = parsed.data.amount;
@@ -126,7 +133,10 @@ export async function PATCH(
 
   const record = await prisma.jobExpense.findUnique({
     where: { id },
-    include: { createdBy: { select: { firstName: true, lastName: true } } },
+    include: {
+      createdBy: { select: { firstName: true, lastName: true } },
+      vendorRecord: { select: { id: true, name: true } },
+    },
   });
   return NextResponse.json(record);
 }

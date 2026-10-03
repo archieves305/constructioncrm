@@ -6,7 +6,7 @@ import { dayKey, dayKeyToLocalDate } from "@/lib/time/zone";
 
 /** One row in the palette: what to show and where it goes. */
 export type SearchHit = {
-  type: "job" | "lead" | "case" | "prospect" | "task";
+  type: "job" | "lead" | "case" | "prospect" | "task" | "vendor";
   id: string;
   primary: string;
   secondary: string | null;
@@ -29,6 +29,7 @@ export type SearchRows = {
     lead: { fullName: string; propertyAddress1?: string | null; propertyAddress2?: string | null; city?: string | null } | null;
     violationCase: { caseNumber: string } | null;
   }[];
+  vendors?: { id: string; name: string; kind: string; trade?: string | null; isActive?: boolean }[];
 };
 
 /** Where a task hit lands: the calendar on its day with the sheet open, else the tasks page. */
@@ -68,6 +69,10 @@ export function toSearchHits(rows: SearchRows): SearchHit[] {
     const where = t.job ? jobLabel(t.job, { customer: false }).primary : t.violationCase ? `Case ${t.violationCase.caseNumber}` : t.lead ? formatAddressLine(t.lead) || t.lead.fullName : null;
     const due = t.dueAt ? format(dayKeyToLocalDate(dayKey(t.dueAt instanceof Date ? t.dueAt : new Date(t.dueAt))), "EEE, MMM d") : "No date";
     hits.push({ type: "task", id: t.id, primary: t.title, secondary: [where, due].filter(Boolean).join(" · ") || null, code: null, href: taskHitHref(t) });
+  }
+  for (const v of rows.vendors ?? []) {
+    const kind = v.kind === "SUBCONTRACTOR" ? "Subcontractor" : v.kind === "SUPPLIER" ? "Supplier" : "Vendor";
+    hits.push({ type: "vendor", id: v.id, primary: v.name, secondary: [kind, v.trade, v.isActive === false ? "Inactive" : null].filter(Boolean).join(" · "), code: null, href: `/vendors/${v.id}` });
   }
   return hits;
 }

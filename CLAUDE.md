@@ -271,6 +271,17 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `TASK_ESCALATIONS_ENABLED=1`, then `TASK_AUTO_RULES_DISABLED=`) and
    Richard's own click-through. Notes:
    [features/tasks.md](docs/project-memory/features/tasks.md).
+0. 🔴 **Audit initiative 6: vendors, compliance, commitments** — three
+   stages, plan approved 2026-10-03
+   (`~/.claude/plans/encapsulated-frolicking-possum.md`). **Stage 1 (vendor
+   record + payee matching) built + dev-QA'd 2026-10-03 on `vendors`,
+   fast-forwarded to `main`, not deployed**: `Vendor` / `VendorAlias` +
+   `vendor_id` on expenses, crews and labor contracts (migration
+   `20261013120000_vendors`), `src/lib/vendors/*`, `/vendors` (Directory |
+   Unmatched) and `/vendors/[id]`, matching on every expense write, ⌘K group,
+   backfill script. **Deploy carries a migration.** Stage 2 = compliance
+   documents + expiry alerts; Stage 3 = commitments feeding committed cost.
+   Notes: [features/vendors.md](docs/project-memory/features/vendors.md).
 0. 🔴 **Audit initiative 5: attention dashboard** — built + dev-QA'd
    2026-10-03 on `attention-dashboard`, fast-forwarded to `main`, **deployed
    2026-10-03 as `9b75536`** (BUILD_ID `PmFnvrNoVx2_HApQwqCDx`, no migration,
@@ -323,6 +334,31 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Audit initiative 6, Stage 1: vendor record + payee matching (built, dev-QA'd, on `main`, not deployed)
+
+"continue where i left off". A plan from earlier the same day existed
+(`abundant-scribbling-kahn.md`, nothing built); it was re-planned with a fresh
+read-only prod check and four amendments (labor contracts get their own vendor
+link because 5 of 11 are typed by name; the Unmatched tab lists crews and
+contract labels; expiry tasks fall back to the Accounting role default before
+the oldest admin; commitments never route through `Job.laborCost`, and the two
+cost formulas outside the summary get switched to it in Stage 3). Richard
+approved. Built Stage 1 on `vendors`: schema + migration
+`20261013120000_vendors`; pure `lib/vendors/match.ts` (pattern at a word
+start, open end, longest wins), `access.ts`, `service.ts`, `validation.ts`;
+seven routes under `/api/vendors`; matching in the cc-allocator intake, manual
+expense create and expense PATCH; `vendorId` accepted on the crew and labor
+contract PATCH, typed contracts matched on create; `/vendors` and
+`/vendors/[id]`; vendor suggestions and vendor links in the expenses panel;
+vendor line on crew cards and labor contract cards; sidebar entry; ⌘K group;
+`scripts/link-expense-vendors-2026-10.ts`. Gate: typecheck clean, lint 5/22,
+1395 tests (+8), build clean. Dev QA: API 31/31, headless Chromium at 1280 and
+400 px with no console errors, SALES_REP 403s, backfill 3 → 3 → 0; dev DB
+restored from a dump. Nothing is seeded: after the deploy the directory is
+built from Vendors → Unmatched (prod: 86 payee strings, 11 crews, 4 typed
+contractor names). Details:
+[features/vendors.md](docs/project-memory/features/vendors.md).
 
 ### 2026-10-03 — Audit initiative 5: attention dashboard (deployed `9b75536`)
 
@@ -1942,6 +1978,11 @@ Notification Digests).
   in `lib/permits/alerts.ts` (once per source key, closed by the record). The
   fee typed on a permit is a quote — it never becomes an expense; what was
   paid is read from the job's `PERMIT_FEE` costs.
+- **`JobExpense.vendor` is the payee as it arrived; `vendorId` is the match**
+  (`lib/vendors/match.ts`, run wherever an expense is written). Never rewrite
+  the text; payroll rows are never matched. A labor contract's vendor is its
+  own link, else its crew's. Vendor routes use `canManageVendors` /
+  `canViewVendors` (`lib/vendors/access.ts`).
 - **A dashboard attention row's count and its list share one `where`**
   (`lib/attention/load.ts`). A new row gets a role list in `rows.ts` and both
   a counter and a lister over the same builder — never two queries.
@@ -1950,6 +1991,16 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **Initiative 6, Stage 1 (vendors + payee matching) is on `main`, not
+> deployed; the deploy carries migration `20261013120000_vendors`.** After
+> Richard pushes and deploys: verify BUILD_ID, smoke 307 ×2, journal, the
+> migration and the three `vendor_id` columns, uploads intact. Then Richard
+> works Vendors → Unmatched (create Home Depot first — it should link about
+> 200 expenses at once, and the alias `homedepot` about 20 more; link each crew and the four typed contractors), and the
+> backfill script's dry run should then report 0 matchable. Next build:
+> Stage 2 (compliance documents, expiry tasks, attention row, calendar
+> overlay), then Stage 3 (commitments).
 
 > **Initiative 5 (attention dashboard) is on prod (`9b75536`, BUILD_ID
 > `PmFnvrNoVx2_HApQwqCDx`).** Click-through for Richard: the dashboard's

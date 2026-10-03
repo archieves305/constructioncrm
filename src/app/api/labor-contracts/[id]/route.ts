@@ -20,6 +20,9 @@ const updateSchema = z.object({
   retainagePercent: z.number().min(0).max(100).nullable().optional(),
   retainageReleased: z.boolean().optional(),
   delayDamagesPerDay: z.number().min(0).nullable().optional(),
+  // The contractor's vendor record, for a contract typed by name. A contract
+  // under a crew uses the crew's vendor and stores none of its own.
+  vendorId: z.string().max(60).nullable().optional(),
 });
 
 function parseDate(v: string | null | undefined): Date | null {
@@ -44,7 +47,7 @@ export async function PATCH(
 
   const existing = await prisma.laborContract.findUnique({
     where: { id },
-    select: { id: true, jobId: true },
+    select: { id: true, jobId: true, crewId: true },
   });
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -85,6 +88,15 @@ export async function PATCH(
     const crewId = parsed.data.crewId || null;
     data.crewId = crewId;
     data.label = crewId ? null : parsed.data.label?.trim() || null;
+    if (crewId) data.vendorId = null;
+  }
+  const underCrew = "crewId" in data ? Boolean(data.crewId) : Boolean(existing.crewId);
+  if (parsed.data.vendorId !== undefined && !underCrew) {
+    if (parsed.data.vendorId) {
+      const vendor = await prisma.vendor.findUnique({ where: { id: parsed.data.vendorId }, select: { id: true } });
+      if (!vendor) return badRequest("That vendor no longer exists");
+    }
+    data.vendorId = parsed.data.vendorId || null;
   }
 
   await prisma.laborContract.update({ where: { id }, data });
@@ -93,7 +105,8 @@ export async function PATCH(
   const record = await prisma.laborContract.findUnique({
     where: { id },
     include: {
-      crew: { select: { id: true, name: true } },
+      crew: { select: { id: true, name: true, vendor: { select: { id: true, name: true } } } },
+      vendor: { select: { id: true, name: true } },
       createdBy: { select: { firstName: true, lastName: true } },
       payments: { orderBy: { paidDate: "desc" } },
     },

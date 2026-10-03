@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
+import { resolveVendorId } from "@/lib/vendors/service";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { recomputeJobLabor } from "@/lib/services/job-pricing";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
@@ -31,7 +32,8 @@ export async function GET(
     where: { jobId: id },
     orderBy: { createdAt: "asc" },
     include: {
-      crew: { select: { id: true, name: true } },
+      crew: { select: { id: true, name: true, vendor: { select: { id: true, name: true } } } },
+      vendor: { select: { id: true, name: true } },
       createdBy: { select: { firstName: true, lastName: true } },
       payments: { orderBy: { paidDate: "desc" } },
       changeOrders: { orderBy: { changeDate: "asc" } },
@@ -77,17 +79,22 @@ export async function POST(
   const crewId = parsed.data.crewId || null;
   const label = crewId ? null : parsed.data.label?.trim() || null;
 
+  // A crew carries its own vendor; a typed name is matched to a known vendor.
+  const vendorId = crewId ? null : await resolveVendorId(label);
+
   const contract = await prisma.laborContract.create({
     data: {
       jobId: id,
       crewId,
       label,
+      vendorId,
       contractAmount: parsed.data.contractAmount,
       description: parsed.data.description?.trim() || null,
       createdByUserId: session.user.id,
     },
     include: {
-      crew: { select: { id: true, name: true } },
+      crew: { select: { id: true, name: true, vendor: { select: { id: true, name: true } } } },
+      vendor: { select: { id: true, name: true } },
       createdBy: { select: { firstName: true, lastName: true } },
       payments: true,
     },

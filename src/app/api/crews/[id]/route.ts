@@ -10,6 +10,8 @@ const updateSchema = z.object({
   trades: z.array(z.string().min(1).max(80)).optional(),
   counties: z.array(z.string().min(1).max(80)).optional(),
   isActive: z.boolean().optional(),
+  // The vendor record this crew belongs to; null unlinks it.
+  vendorId: z.string().max(60).nullable().optional(),
 });
 
 export async function PATCH(
@@ -34,6 +36,13 @@ export async function PATCH(
   if (parsed.data.trades !== undefined) data.trades = parsed.data.trades;
   if (parsed.data.counties !== undefined) data.counties = parsed.data.counties;
   if (parsed.data.isActive !== undefined) data.isActive = parsed.data.isActive;
+  if (parsed.data.vendorId !== undefined) {
+    if (parsed.data.vendorId) {
+      const vendor = await prisma.vendor.findUnique({ where: { id: parsed.data.vendorId }, select: { id: true } });
+      if (!vendor) return badRequest("That vendor no longer exists");
+    }
+    data.vendorId = parsed.data.vendorId || null;
+  }
 
   const crew = await prisma.crew.update({ where: { id }, data });
   return NextResponse.json(crew);

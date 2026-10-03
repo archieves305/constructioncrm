@@ -6,6 +6,7 @@ import { taskVisibilityFilter, type VisibilityScope } from "@/lib/tasks/access";
 import { taskSearchWhere } from "@/lib/tasks/query";
 import { buildViolationListWhere, parseViolationListParams } from "@/lib/violations/query";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { canViewVendors } from "@/lib/vendors/access";
 
 /**
  * The ⌘K search reuses the list builders, so a search hit is exactly a row
@@ -22,6 +23,8 @@ export type SearchWheres = {
   prospects: Prisma.ProspectWhereInput;
   /** Active, open tasks by title / description / job / customer, under the task visibility rule. */
   tasks: Prisma.TaskWhereInput;
+  /** Vendors by name, trade, contact or a payee alias; null for roles that cannot open the directory. */
+  vendors: Prisma.VendorWhereInput | null;
 };
 
 export function buildSearchWheres(q: string, ctx: SearchContext): SearchWheres {
@@ -44,5 +47,15 @@ export function buildSearchWheres(q: string, ctx: SearchContext): SearchWheres {
       ],
     },
     tasks: { AND: [ACTIVE_OPEN_WHERE, taskSearchWhere(search), taskVisibilityFilter(ctx.user, ctx.scope)] },
+    vendors: canViewVendors(ctx.user.role)
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { trade: { contains: search, mode: "insensitive" } },
+            { contactName: { contains: search, mode: "insensitive" } },
+            { aliases: { some: { pattern: { contains: search.toLowerCase() } } } },
+          ],
+        }
+      : null,
   };
 }

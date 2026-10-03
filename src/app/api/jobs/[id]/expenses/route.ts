@@ -14,6 +14,7 @@ import {
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
 import { guardJob } from "@/lib/access/records";
+import { resolveVendorId } from "@/lib/vendors/service";
 
 const TYPES = [
   "MATERIAL",
@@ -61,6 +62,7 @@ export async function GET(
     orderBy: { incurredDate: "desc" },
     include: {
       createdBy: { select: { firstName: true, lastName: true } },
+      vendorRecord: { select: { id: true, name: true } },
     },
   });
   return NextResponse.json(expenses);
@@ -108,12 +110,16 @@ export async function POST(
   // Only an APPROVED charge may touch the ledger on creation.
   const affectsLedger = status === "APPROVED";
 
+  // The payee text is kept as typed; a known vendor is linked beside it.
+  const vendorId = await resolveVendorId(parsed.data.vendor);
+
   const [expense] = await prisma.$transaction([
     prisma.jobExpense.create({
       data: {
         jobId: id,
         type: parsed.data.type,
         vendor: parsed.data.vendor?.trim() || null,
+        vendorId,
         description: parsed.data.description?.trim() || null,
         amount,
         incurredDate: parsed.data.incurredDate
@@ -129,6 +135,7 @@ export async function POST(
       },
       include: {
         createdBy: { select: { firstName: true, lastName: true } },
+        vendorRecord: { select: { id: true, name: true } },
       },
     }),
     ...(billable && affectsLedger

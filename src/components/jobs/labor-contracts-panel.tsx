@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import Link from "next/link";
+import { VendorSelect } from "@/components/vendors/vendor-select";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -107,7 +109,9 @@ type LaborContract = {
   retainageReleased: boolean;
   retainageReleasedDate: string | null;
   delayDamagesPerDay: string | null;
-  crew: { id: string; name: string } | null;
+  crew: { id: string; name: string; vendor?: { id: string; name: string } | null } | null;
+  /** The contractor's own vendor record (contracts typed by name). */
+  vendor?: { id: string; name: string } | null;
   createdBy: { firstName: string; lastName: string };
   payments: LaborPayment[];
   changeOrders: LaborChangeOrder[];
@@ -165,6 +169,11 @@ function DocRow({ doc, showType }: { doc: GeneratedDoc; showType?: boolean }) {
 type Crew = { id: string; name: string; isActive: boolean };
 
 const ADHOC = "__adhoc";
+
+/** A contract's vendor: its own link, else its crew's. */
+function vendorOf(c: LaborContract): { id: string; name: string } | null {
+  return c.vendor ?? c.crew?.vendor ?? null;
+}
 
 export function LaborContractsPanel({ jobId }: { jobId: string }) {
   const qc = useQueryClient();
@@ -263,6 +272,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
   const [editNotes, setEditNotes] = useState("");
   const [editRetainage, setEditRetainage] = useState("");
   const [editDelay, setEditDelay] = useState("");
+  const [editVendorId, setEditVendorId] = useState("");
 
   const openEdit = (c: LaborContract) => {
     setEditAmount(String(Number(c.contractAmount)));
@@ -276,6 +286,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
     setEditNotes(c.notes ?? "");
     setEditRetainage(c.retainagePercent != null ? String(Number(c.retainagePercent)) : "");
     setEditDelay(c.delayDamagesPerDay != null ? String(Number(c.delayDamagesPerDay)) : "");
+    setEditVendorId(c.vendor?.id ?? "");
     setEditing(c);
   };
 
@@ -297,6 +308,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
           notes: editNotes || null,
           retainagePercent: editRetainage === "" ? null : Number(editRetainage),
           delayDamagesPerDay: editDelay === "" ? null : Number(editDelay),
+          ...(editing.crewId ? {} : { vendorId: editVendorId || null }),
         }),
       });
       if (!res.ok) {
@@ -713,6 +725,16 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                           ad-hoc
                         </Badge>
                       )}
+                      {vendorOf(c) ? (
+                        <Link
+                          href={`/vendors/${vendorOf(c)!.id}`}
+                          className="text-xs text-muted-foreground hover:underline"
+                        >
+                          Vendor: {vendorOf(c)!.name}
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No vendor record</span>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-1">
                       <Button
@@ -1118,6 +1140,12 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                 />
               </div>
             </div>
+            {editing && !editing.crewId && (
+              <div>
+                <Label className="text-xs">Vendor record</Label>
+                <VendorSelect value={editVendorId} onChange={setEditVendorId} />
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div>
                 <Label className="text-xs">Contractor license #</Label>

@@ -33,6 +33,8 @@ import {
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { VendorSelect } from "@/components/vendors/vendor-select";
 
 const COMMON_TRADES = [
   "Roofing",
@@ -74,6 +76,7 @@ type CrewData = {
   trades: string[];
   counties: string[];
   isActive: boolean;
+  vendor: { id: string; name: string } | null;
   assignments: {
     id: string;
     installDate: string | null;
@@ -88,6 +91,7 @@ type FormState = {
   trades: string[];
   counties: string[];
   isActive: boolean;
+  vendorId: string;
 };
 
 const emptyForm: FormState = {
@@ -97,6 +101,7 @@ const emptyForm: FormState = {
   trades: [],
   counties: [],
   isActive: true,
+  vendorId: "",
 };
 
 export default function CrewsPage() {
@@ -149,7 +154,7 @@ export default function CrewsPage() {
         email: form.email,
         trades: form.trades,
         counties: form.counties,
-        ...(editingId ? { isActive: form.isActive } : {}),
+        ...(editingId ? { isActive: form.isActive, vendorId: form.vendorId || null } : {}),
       };
       const url = editingId ? `/api/crews/${editingId}` : "/api/crews";
       const res = await fetch(url, {
@@ -166,6 +171,7 @@ export default function CrewsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["crews"] });
       qc.invalidateQueries({ queryKey: ["crews-all-for-filters"] });
+      qc.invalidateQueries({ queryKey: ["vendors"] });
       setDialogOpen(false);
       setEditingId(null);
       setForm(emptyForm);
@@ -207,6 +213,7 @@ export default function CrewsPage() {
       trades: c.trades ?? [],
       counties: c.counties ?? [],
       isActive: c.isActive,
+      vendorId: c.vendor?.id ?? "",
     });
     setCustomTrade("");
     setCustomCounty("");
@@ -372,6 +379,16 @@ export default function CrewsPage() {
                 />
               </div>
             </div>
+
+            {editingId && (
+              <div>
+                <Label>Vendor record</Label>
+                <VendorSelect value={form.vendorId} onChange={(vendorId) => setForm({ ...form, vendorId })} />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Where this crew&rsquo;s insurance, W-9 and spend are kept. Create one under Vendors → Unmatched.
+                </p>
+              </div>
+            )}
 
             <div>
               <Label>Trade types</Label>
@@ -584,6 +601,18 @@ export default function CrewsPage() {
                     ))
                   ) : (
                     <span className="text-xs text-muted-foreground">No trades set</span>
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {crew.vendor ? (
+                    <>
+                      Vendor:{" "}
+                      <Link href={`/vendors/${crew.vendor.id}`} className="font-medium text-gray-700 hover:underline">
+                        {crew.vendor.name}
+                      </Link>
+                    </>
+                  ) : (
+                    "No vendor record"
                   )}
                 </div>
                 {crew.counties.length > 0 && (

@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
   const crews = await prisma.crew.findMany({
     where,
     include: {
+      vendor: { select: { id: true, name: true } },
       assignments: {
         where: {
           job: { currentStage: { isClosed: false } },

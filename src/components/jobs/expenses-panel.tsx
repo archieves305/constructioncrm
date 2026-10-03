@@ -24,6 +24,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import Link from "next/link";
+import { useVendorOptions } from "@/components/vendors/use-vendors";
 import { Trash2, Plus, DollarSign, Receipt, Download, Pencil, X } from "lucide-react";
 
 const TYPES = [
@@ -50,6 +52,8 @@ type Expense = {
   id: string;
   type: (typeof TYPES)[number];
   vendor: string | null;
+  /** The vendor record the payee text matched, if any. */
+  vendorRecord?: { id: string; name: string } | null;
   description: string | null;
   amount: string;
   incurredDate: string;
@@ -97,6 +101,11 @@ function expenseToForm(e: Expense): Form {
   };
 }
 
+/** One name per payee for the filter: the vendor record when matched, else the text as entered. */
+function vendorKey(e: Expense): string {
+  return e.vendorRecord?.name ?? e.vendor?.trim() ?? "";
+}
+
 type PaymentSource = { id: string; name: string; isActive: boolean };
 
 type CostPlusMeta = {
@@ -122,6 +131,8 @@ function ExpenseFields({
   onAddSource: (name: string) => void;
   showBillable: boolean;
 }) {
+  // Known vendors are suggested; anything else may still be typed.
+  const { data: knownVendors = [] } = useVendorOptions();
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
@@ -153,7 +164,14 @@ function ExpenseFields({
             value={form.vendor}
             onChange={(e) => setForm({ ...form, vendor: e.target.value })}
             placeholder="Home Depot"
+            list="expense-vendor-suggestions"
+            autoComplete="off"
           />
+          <datalist id="expense-vendor-suggestions">
+            {knownVendors.map((v) => (
+              <option key={v.id} value={v.name} />
+            ))}
+          </datalist>
         </div>
         <div>
           <Label className="text-xs">Amount ($)</Label>
@@ -517,7 +535,7 @@ export function ExpensesPanel({
   const vendorOptions = useMemo(
     () =>
       Array.from(
-        new Set(expenses.map((e) => e.vendor?.trim()).filter(Boolean) as string[]),
+        new Set(expenses.map(vendorKey).filter(Boolean) as string[]),
       ).sort((a, b) => a.localeCompare(b)),
     [expenses],
   );
@@ -528,7 +546,7 @@ export function ExpensesPanel({
       if (filter === "billable" && !e.billable) return false;
       if (filter === "nonbillable" && e.billable) return false;
     }
-    if (vendorFilter !== "__all" && (e.vendor?.trim() || "") !== vendorFilter)
+    if (vendorFilter !== "__all" && vendorKey(e) !== vendorFilter)
       return false;
     if (typeFilter !== "__all" && e.type !== typeFilter) return false;
     return true;
@@ -894,8 +912,16 @@ export function ExpensesPanel({
                       <Badge variant="outline" className="text-[10px]">
                         {e.type.replace(/_/g, " ")}
                       </Badge>
-                      {e.vendor && (
-                        <span className="text-sm font-medium">{e.vendor}</span>
+                      {e.vendorRecord ? (
+                        <Link
+                          href={`/vendors/${e.vendorRecord.id}`}
+                          className="text-sm font-medium hover:underline"
+                          title={e.vendor && e.vendor.trim() !== e.vendorRecord.name ? `Payee as entered: ${e.vendor}` : undefined}
+                        >
+                          {e.vendorRecord.name}
+                        </Link>
+                      ) : (
+                        e.vendor && <span className="text-sm font-medium">{e.vendor}</span>
                       )}
                       <span
                         className={
