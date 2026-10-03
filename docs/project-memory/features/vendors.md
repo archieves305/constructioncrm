@@ -1,7 +1,8 @@
 # Vendors, subcontractor compliance, commitments (audit initiative 6)
 
 Three stages, plan approved 2026-10-03
-(`~/.claude/plans/encapsulated-frolicking-possum.md`). Stage 1 is built;
+(`~/.claude/plans/encapsulated-frolicking-possum.md`). Stage 1 is on prod
+(`ec88e96`, BUILD_ID `5x6HE43-USWkCl1cgP0Zn`, deployed 2026-10-03);
 Stages 2 (compliance documents + expiry alerts) and 3 (commitments feeding
 committed cost) follow, each with its own migration.
 

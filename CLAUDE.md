@@ -275,11 +275,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    stages, plan approved 2026-10-03
    (`~/.claude/plans/encapsulated-frolicking-possum.md`). **Stage 1 (vendor
    record + payee matching) built + dev-QA'd 2026-10-03 on `vendors`,
-   fast-forwarded to `main`, not deployed**: `Vendor` / `VendorAlias` +
+   fast-forwarded to `main`, deployed 2026-10-03 as `ec88e96`** (BUILD_ID
+   `5x6HE43-USWkCl1cgP0Zn`, migration applied, smoke 307 ×2, journal clean,
+   backup `postgres-2026-10-03-184726.dump`): `Vendor` / `VendorAlias` +
    `vendor_id` on expenses, crews and labor contracts (migration
    `20261013120000_vendors`), `src/lib/vendors/*`, `/vendors` (Directory |
    Unmatched) and `/vendors/[id]`, matching on every expense write, ⌘K group,
-   backfill script. **Deploy carries a migration.** Stage 2 = compliance
+   backfill script. The directory starts empty — Richard builds it from
+   Vendors → Unmatched. Stage 2 = compliance
    documents + expiry alerts; Stage 3 = commitments feeding committed cost.
    Notes: [features/vendors.md](docs/project-memory/features/vendors.md).
 0. 🔴 **Audit initiative 5: attention dashboard** — built + dev-QA'd
@@ -335,7 +338,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-03 — Audit initiative 6, Stage 1: vendor record + payee matching (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-03 — Audit initiative 6, Stage 1: vendor record + payee matching (deployed `ec88e96`)
 
 "continue where i left off". A plan from earlier the same day existed
 (`abundant-scribbling-kahn.md`, nothing built); it was re-planned with a fresh
@@ -359,6 +362,14 @@ restored from a dump. Nothing is seeded: after the deploy the directory is
 built from Vendors → Unmatched (prod: 86 payee strings, 11 crews, 4 typed
 contractor names). Details:
 [features/vendors.md](docs/project-memory/features/vendors.md).
+Richard pushed and deployed from `!` (the deploy ran past the shell's 120 s
+timeout into the background and finished exit 0, 256 s): BUILD_ID
+`PmFnvrNoVx2_HApQwqCDx` → `5x6HE43-USWkCl1cgP0Zn`, migration
+`20261013120000_vendors` applied (80; `vendor_id` nullable on `job_expenses`,
+`crews`, `labor_contracts`), smoke 307 ×2, zero journal errors since the
+restart, the process carries `UPLOADS_DIR`, 21 files in the store, backups
+`postgres-2026-10-03-184726.dump` + `uploads-2026-10-03-184726.tar.gz`. Prod
+after: 0 vendors, 456 expenses, 0 linked — as designed.
 
 ### 2026-10-03 — Audit initiative 5: attention dashboard (deployed `9b75536`)
 
@@ -1992,15 +2003,14 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Initiative 6, Stage 1 (vendors + payee matching) is on `main`, not
-> deployed; the deploy carries migration `20261013120000_vendors`.** After
-> Richard pushes and deploys: verify BUILD_ID, smoke 307 ×2, journal, the
-> migration and the three `vendor_id` columns, uploads intact. Then Richard
-> works Vendors → Unmatched (create Home Depot first — it should link about
-> 200 expenses at once, and the alias `homedepot` about 20 more; link each crew and the four typed contractors), and the
-> backfill script's dry run should then report 0 matchable. Next build:
-> Stage 2 (compliance documents, expiry tasks, attention row, calendar
-> overlay), then Stage 3 (commitments).
+> **Initiative 6, Stage 1 (vendors + payee matching) is on prod (`ec88e96`,
+> BUILD_ID `5x6HE43-USWkCl1cgP0Zn`).** Richard works Vendors → Unmatched:
+> create Home Depot first (trim the bank memo to the name — it should link
+> about 200 expenses at once, and the alias `homedepot` about 20 more), then
+> each crew and the four typed contractors (BNW Construction, JDA Legacy,
+> Prime Surfaces, MTL Granite). The backfill script's dry run should then
+> report 0 matchable. Next build: Stage 2 (compliance documents, expiry
+> tasks, attention row, calendar overlay), then Stage 3 (commitments).
 
 > **Initiative 5 (attention dashboard) is on prod (`9b75536`, BUILD_ID
 > `PmFnvrNoVx2_HApQwqCDx`).** Click-through for Richard: the dashboard's
