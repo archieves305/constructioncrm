@@ -814,6 +814,7 @@ model Task {
   dependents       TaskDependency[]     @relation("TaskDependencyOn")
   files            File[]
   notificationRows Notification[]
+  permitInspections JobPermitInspection[] @relation("PermitInspectionTask")
 
   @@unique([workflowInstanceId, workflowTaskKey])
   @@index([workflowInstanceId, workflowPhaseKey])
@@ -1401,11 +1402,17 @@ model JobPermitInspection {
   createdAt     DateTime               @default(now()) @map("created_at")
   updatedAt     DateTime               @updatedAt @map("updated_at")
 
+  /// The workflow inspection step this result was recorded against, so the
+  /// permit's record and the step's are one entry, not two.
+  taskId        String?                @map("task_id")
+
   permit             JobPermit           @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  task               Task?               @relation("PermitInspectionTask", fields: [taskId], references: [id], onDelete: SetNull)
   followUpExecutions FollowUpExecution[]
 
   @@index([permitId])
   @@index([scheduledFor])
+  @@index([taskId])
   @@map("job_permit_inspections")
 }
 

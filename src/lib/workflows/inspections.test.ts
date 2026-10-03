@@ -20,8 +20,11 @@ vi.mock("@/lib/audit/record", () => ({ recordAudit: vi.fn() }));
 vi.mock("@/lib/tasks/create", () => ({ createTask }));
 vi.mock("@/lib/tasks/update", () => ({ updateTask, TaskUpdateError: class extends Error {} }));
 vi.mock("@/lib/tasks/events", () => ({ recordTaskEvent, recordTaskEvents: vi.fn() }));
+vi.mock("@/lib/permits/effects", () => ({ fileStepResultOnPermit: vi.fn(async (i: { inspectionId?: string | null }) => i.inspectionId ?? null), closePermitIfFinalPassed: vi.fn(async () => null) }));
+vi.mock("./gates", () => ({ settleJobGates: vi.fn() }));
 
 const { recordInspectionResult } = await import("./inspections");
+const { fileStepResultOnPermit } = await import("@/lib/permits/effects");
 
 const step = {
   id: "insp",
@@ -71,7 +74,7 @@ describe("recordInspectionResult", () => {
     expect(db.task.update.mock.calls[0][0].data.inspectionResult).toBe("PASS");
     expect(updateTask).toHaveBeenCalledWith(expect.objectContaining({ input: { status: "COMPLETED" }, internal: { bypassEvidence: true, tickChecklist: true } }));
     expect(createTask).not.toHaveBeenCalled();
-    expect(r).toEqual({ status: "COMPLETED", correctionTaskId: null });
+    expect(r).toEqual({ status: "COMPLETED", correctionTaskId: null, jobPermitInspectionId: null });
   });
 
   it("FAIL blocks the step, creates a correction task for the superintendent that the step now waits on", async () => {
@@ -83,7 +86,7 @@ describe("recordInspectionResult", () => {
     expect(created.activatedAt).toBeInstanceOf(Date);
     expect(db.taskDependency.create.mock.calls[0][0].data).toMatchObject({ taskId: "insp", dependsOnTaskId: "corr1", kind: "BLOCKING", source: "workflow" });
     expect(updateTask).toHaveBeenCalledWith(expect.objectContaining({ input: { status: "BLOCKED", blockedReason: "Failed inspection — Fastener spacing" } }));
-    expect(r).toEqual({ status: "BLOCKED", correctionTaskId: "corr1" });
+    expect(r).toEqual({ status: "BLOCKED", correctionTaskId: "corr1", jobPermitInspectionId: null });
   });
 
   it("CONDITIONAL completes and still raises a correction task, without blocking", async () => {
@@ -95,7 +98,7 @@ describe("recordInspectionResult", () => {
 
   it("mirrors to a JobPermitInspection when one is named, and refuses non-inspection steps", async () => {
     await recordInspectionResult({ taskId: "insp", result: "PASS", jobPermitInspectionId: "jpi1", actor });
-    expect(db.jobPermitInspection.updateMany.mock.calls[0][0]).toMatchObject({ where: { id: "jpi1" }, data: { result: "PASS" } });
+    expect(vi.mocked(fileStepResultOnPermit).mock.calls.at(-1)?.[0]).toMatchObject({ taskId: "insp", jobId: "j1", result: "PASS", inspectionId: "jpi1" });
     db.task.findUnique.mockResolvedValue({ ...step, requiredEvidence: "PHOTO" });
     await expect(recordInspectionResult({ taskId: "insp", result: "PASS", actor })).rejects.toMatchObject({ status: 400 });
   });

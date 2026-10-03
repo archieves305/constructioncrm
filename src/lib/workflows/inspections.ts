@@ -4,6 +4,8 @@ import { recordAudit } from "@/lib/audit/record";
 import { createTask } from "@/lib/tasks/create";
 import { recordTaskEvent } from "@/lib/tasks/events";
 import { updateTask, TaskUpdateError } from "@/lib/tasks/update";
+import { closePermitIfFinalPassed, fileStepResultOnPermit } from "@/lib/permits/effects";
+import { settleJobGates } from "./gates";
 import { addBusinessDaysFrom, atDueHour } from "./schedule";
 import { loadRoleContext, resolveAssignee } from "./roles";
 
@@ -19,8 +21,11 @@ import { loadRoleContext, resolveAssignee } from "./roles";
  *                  whole history (fail, fix, re-request, pass) reads on
  *                  its timeline.
  *
- * The task is the authoritative record; a `JobPermitInspection` (job) or a
- * `CodeViolationInspection` (agency reinspection on a case) row is mirrored
+ * The task is the authoritative record. On a job the result is also filed on
+ * the permit (`fileStepResultOnPermit`) — the named `JobPermitInspection`,
+ * the booked one this step was waiting for, or a new row — so nobody enters
+ * it a second time on the Permits tab, and a passed final closes the permit.
+ * A `CodeViolationInspection` (agency reinspection on a case) row is mirrored
  * only when the caller names one.
  */
 
@@ -50,7 +55,7 @@ export class InspectionError extends Error {
   }
 }
 
-export async function recordInspectionResult(input: InspectionResultInput): Promise<{ status: string; correctionTaskId: string | null }> {
+export async function recordInspectionResult(input: InspectionResultInput): Promise<{ status: string; correctionTaskId: string | null; jobPermitInspectionId: string | null }> {
   const task = await prisma.task.findUnique({
     where: { id: input.taskId },
     select: {
@@ -83,12 +88,9 @@ export async function recordInspectionResult(input: InspectionResultInput): Prom
   await prisma.task.update({ where: { id: task.id }, data: { inspectionResult: input.result, inspectionRecordedAt: now } });
   await recordTaskEvent({ taskId: task.id, actorUserId: input.actor.id, type: "INSPECTION_RESULT", toValue: input.result, body: notes });
 
-  if (input.jobPermitInspectionId) {
-    await prisma.jobPermitInspection.updateMany({
-      where: { id: input.jobPermitInspectionId },
-      data: { result: input.result, completedAt: now, notes: notes ?? undefined },
-    });
-  }
+  const permitInspectionId = task.jobId
+    ? await fileStepResultOnPermit({ taskId: task.id, taskKey: task.workflowTaskKey, jobId: task.jobId, result: input.result, at: now, notes, inspectionId: input.jobPermitInspectionId })
+    : null;
   if (input.violationInspectionId) {
     await prisma.codeViolationInspection.updateMany({
       where: { id: input.violationInspectionId },
@@ -158,12 +160,17 @@ export async function recordInspectionResult(input: InspectionResultInput): Prom
     }
   }
 
+  // A passed final closes the permit, which may be what a later gate waits on.
+  if (permitInspectionId && task.jobId && input.result === "PASS") {
+    if (await closePermitIfFinalPassed(permitInspectionId, input.actor.id)) await settleJobGates(task.jobId, input.actor.id);
+  }
+
   await recordAudit({
     actorUserId: input.actor.id,
     entityType: "Task",
     entityId: task.id,
     action: "inspection_result",
-    after: { result: input.result, notes, correctionTaskId, jobPermitInspectionId: input.jobPermitInspectionId ?? null, violationInspectionId: input.violationInspectionId ?? null },
+    after: { result: input.result, notes, correctionTaskId, jobPermitInspectionId: permitInspectionId, violationInspectionId: input.violationInspectionId ?? null },
   });
-  return { status, correctionTaskId };
+  return { status, correctionTaskId, jobPermitInspectionId: permitInspectionId };
 }
