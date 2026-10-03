@@ -275,6 +275,7 @@ enum FileCategory {
   INTERIOR_RENOVATION_LABOR_CONTRACT
   CONTRACT_ADDENDUM
   CUSTOMER_CONTRACT
+  RECEIPT
   OTHER
 }
 
@@ -1041,10 +1042,14 @@ model File {
   // from the case, so the lead's Files tab lists them.
   violationCaseId  String?      @map("violation_case_id")
   violationItemId  String?      @map("violation_item_id")
+  // A receipt on a job expense. The file also carries the expense's job, so
+  // it stays on the job's Files tab if the expense is deleted.
+  expenseId        String?      @map("expense_id")
   createdAt        DateTime     @default(now()) @map("created_at")
 
   lead               Lead?               @relation(fields: [leadId], references: [id], onDelete: Cascade)
   job                Job?                @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  expense            JobExpense?         @relation(fields: [expenseId], references: [id], onDelete: SetNull)
   uploadedBy         User                @relation(fields: [uploadedByUserId], references: [id])
   doorKnock          PropertyDoorKnock?  @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
   task               Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
@@ -1054,6 +1059,7 @@ model File {
 
   @@index([leadId])
   @@index([jobId])
+  @@index([expenseId])
   @@index([doorKnockId])
   @@index([taskId])
   @@index([violationCaseId])
@@ -2015,6 +2021,7 @@ model JobExpense {
   payrollPayment    PayrollPayment?    @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
   vendorRecord      Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   commitment        Commitment?        @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+  receipts          File[]
   budgetAllocations BudgetAllocation[]
 
   @@index([jobId])

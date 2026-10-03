@@ -43,7 +43,8 @@ export async function GET(request: NextRequest, context: Context) {
     prisma.file.findMany({
       where: {
         AND: [
-          { jobId, fileType: { startsWith: "image/" } },
+          // A photographed receipt belongs with its expense, not in the job's photos.
+          { jobId, fileType: { startsWith: "image/" }, category: { not: "RECEIPT" } },
           fromOk || toOk ? { createdAt: { ...(fromOk ? { gte: startOfDayIn(fromOk) } : {}), ...(toOk ? { lte: endOfDayIn(toOk) } : {}) } } : {},
           fileReadWhere(ctx.session.user),
         ],

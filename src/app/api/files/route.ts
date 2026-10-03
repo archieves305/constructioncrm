@@ -8,6 +8,7 @@ import { taskRightsFor } from "@/lib/workflows/visibility";
 import { fileReadWhere } from "@/lib/files/access";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
 import { guardJob } from "@/lib/access/records";
+import { canEnterJobCosts, getCostGrants, COST_DENIED_MESSAGE } from "@/lib/expenses/permissions";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -109,6 +110,19 @@ export async function POST(request: NextRequest) {
     // The task's job is the file's job, so it shows on that job and no other.
     jobId = task.jobId;
   }
+  // A receipt on a job expense: the file takes the expense's job and lead.
+  // Attaching one never edits the expense, so it works on bank-fed rows too;
+  // it takes the right to enter job costs.
+  const expenseIdRaw = form.get("expenseId");
+  const expenseId = typeof expenseIdRaw === "string" && expenseIdRaw ? expenseIdRaw : null;
+  if (expenseId) {
+    const grants = await getCostGrants(session.user.id);
+    if (!canEnterJobCosts(session.user.role, grants)) return NextResponse.json({ error: COST_DENIED_MESSAGE }, { status: 403 });
+    const expense = await prisma.jobExpense.findUnique({ where: { id: expenseId }, select: { jobId: true, job: { select: { leadId: true } } } });
+    if (!expense) return badRequest("expense not found");
+    jobId = expense.jobId;
+    leadId = expense.job.leadId;
+  }
   if (!leadId && !taskId) return badRequest("leadId is required");
 
   if (file.size === 0) return badRequest("file is empty");
@@ -119,8 +133,9 @@ export async function POST(request: NextRequest) {
     return badRequest(`unsupported file type: ${file.type || "unknown"}`);
   }
 
-  const category =
-    typeof categoryRaw === "string" && categoryRaw in FileCategory
+  const category = expenseId
+    ? FileCategory.RECEIPT
+    : typeof categoryRaw === "string" && categoryRaw in FileCategory
       ? (categoryRaw as FileCategory)
       : FileCategory.OTHER;
 
@@ -146,6 +161,7 @@ export async function POST(request: NextRequest) {
       taskId,
       violationCaseId,
       violationItemId,
+      expenseId,
     },
     include: FILE_LIST_INCLUDE,
   });

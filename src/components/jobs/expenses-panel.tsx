@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -28,7 +28,11 @@ import Link from "next/link";
 import { useVendorOptions } from "@/components/vendors/use-vendors";
 import { useJobCommitments } from "@/components/vendors/use-commitments";
 import { commitmentCode } from "@/lib/vendors/commitments";
-import { Trash2, Plus, DollarSign, Receipt, Download, Pencil, X } from "lucide-react";
+import { Trash2, Plus, DollarSign, Receipt, Download, Paperclip, Pencil, X } from "lucide-react";
+import { fetchJson } from "@/lib/fetch-json";
+import { formatFileSize, uploadProblem } from "@/lib/files/limits";
+import { preparedUpload } from "@/components/workflows/use-task-file-upload";
+import { FilePreviewDialog } from "@/components/files/file-preview";
 
 const TYPES = [
   "MATERIAL",
@@ -58,6 +62,8 @@ type Expense = {
   vendorRecord?: { id: string; name: string } | null;
   /** The commitment this expense draws down, if any. */
   commitment?: { id: string; number: number } | null;
+  /** Receipts attached to it; `missing` when the stored file is gone. */
+  receipts?: ReceiptFile[];
   description: string | null;
   amount: string;
   incurredDate: string;
@@ -104,6 +110,8 @@ function expenseToForm(e: Expense): Form {
     billable: e.billable,
   };
 }
+
+type ReceiptFile = { id: string; fileName: string; fileType: string; fileSize: number; missing: boolean };
 
 /** One name per payee for the filter: the vendor record when matched, else the text as entered. */
 function vendorKey(e: Expense): string {
@@ -320,6 +328,41 @@ export function ExpensesPanel({
   // Which commitment the expense being edited draws down ("" = none).
   const [editCommitmentId, setEditCommitmentId] = useState("");
   const { data: jobCommitments } = useJobCommitments(jobId);
+
+  // Receipts: picked for the expense being added, attached to an existing
+  // one, and previewed in place.
+  const [newReceipts, setNewReceipts] = useState<File[]>([]);
+  const [receiptFor, setReceiptFor] = useState<string | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<{ files: ReceiptFile[]; index: number } | null>(null);
+  const [attaching, setAttaching] = useState(false);
+  const newReceiptInput = useRef<HTMLInputElement>(null);
+  const rowReceiptInput = useRef<HTMLInputElement>(null);
+
+  /** Store files against an expense. Attaching never edits the expense, so it works on bank-fed rows. */
+  async function attachReceipts(expenseId: string, picked: File[]): Promise<number> {
+    let ok = 0;
+    setAttaching(true);
+    for (const f of picked) {
+      const problem = uploadProblem(f);
+      if (problem) {
+        toast.error(problem);
+        continue;
+      }
+      const body = new FormData();
+      body.append("file", await preparedUpload(f));
+      body.append("expenseId", expenseId);
+      try {
+        await fetchJson("/api/files", { method: "POST", body });
+        ok += 1;
+      } catch (err) {
+        toast.error(`${f.name}: ${(err as Error).message}`);
+      }
+    }
+    setAttaching(false);
+    qc.invalidateQueries({ queryKey: ["expenses", jobId] });
+    qc.invalidateQueries({ queryKey: ["job-files", jobId] });
+    return ok;
+  }
   const commitmentChoices = (jobCommitments?.commitments ?? []).filter((c) => c.status === "OPEN" || c.id === editing?.commitment?.id);
 
   const { data: expenses = [], isLoading } = useQuery<Expense[]>({
@@ -426,11 +469,15 @@ export function ExpensesPanel({
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: async (created: { id: string }) => {
       qc.invalidateQueries({ queryKey: ["expenses", jobId] });
       qc.invalidateQueries({ queryKey: ["job", jobId] });
       setForm({ ...emptyForm, type: form.type });
-      toast.success("Expense added");
+      // The expense exists whatever happens to its receipts; a failed file is named in its own toast.
+      const picked = newReceipts;
+      setNewReceipts([]);
+      const attached = picked.length > 0 ? await attachReceipts(created.id, picked) : 0;
+      toast.success(attached > 0 ? `Expense added with ${attached} receipt${attached === 1 ? "" : "s"}` : "Expense added");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -788,10 +835,42 @@ export function ExpensesPanel({
               onAddSource={(name) => addSource.mutate(name)}
               showBillable={!rollsUp}
             />
-            <div className="flex justify-end">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <input
+                  ref={newReceiptInput}
+                  type="file"
+                  multiple
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(ev) => {
+                    const picked = Array.from(ev.target.files ?? []);
+                    ev.target.value = "";
+                    const good = picked.filter((f) => {
+                      const problem = uploadProblem(f);
+                      if (problem) toast.error(problem);
+                      return !problem;
+                    });
+                    setNewReceipts((r) => [...r, ...good]);
+                  }}
+                />
+                <Button type="button" size="sm" variant="outline" onClick={() => newReceiptInput.current?.click()}>
+                  <Paperclip className="mr-1 h-4 w-4" />
+                  Add receipt
+                </Button>
+                {newReceipts.map((f, i) => (
+                  <span key={`${f.name}-${i}`} className="inline-flex max-w-[14rem] items-center gap-1 rounded-full border bg-gray-50 px-2 py-0.5 text-xs">
+                    <span className="truncate">{f.name}</span>
+                    <span className="shrink-0 text-muted-foreground">{formatFileSize(f.size)}</span>
+                    <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setNewReceipts((r) => r.filter((_, j) => j !== i))}>
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
               <Button
                 size="sm"
-                disabled={!canSave || create.isPending}
+                disabled={!canSave || create.isPending || attaching}
                 onClick={() => create.mutate()}
               >
                 <Plus className="mr-1 h-4 w-4" />
@@ -1050,6 +1129,36 @@ export function ExpensesPanel({
                         </Button>
                       </>
                     )}
+                    {(e.receipts?.length ?? 0) > 0 && (
+                      <button
+                        type="button"
+                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-gray-100 ${e.receipts!.some((r) => r.missing) ? "text-amber-700" : "text-gray-700"}`}
+                        title={e.receipts!.some((r) => r.missing) ? "A receipt's file is missing — open it to upload it again" : "Open the receipt"}
+                        aria-label={`${e.receipts!.length} receipt${e.receipts!.length === 1 ? "" : "s"}`}
+                        onClick={() => setReceiptPreview({ files: e.receipts!, index: 0 })}
+                      >
+                        <Paperclip className="h-4 w-4" />
+                        {e.receipts!.length}
+                      </button>
+                    )}
+                    {mayEnterCosts && (
+                      <button
+                        type="button"
+                        className="rounded p-2 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+                        title="Attach a receipt"
+                        aria-label="Attach a receipt"
+                        disabled={attaching}
+                        onClick={() => {
+                          setReceiptFor(e.id);
+                          rowReceiptInput.current?.click();
+                        }}
+                      >
+                        <span className="relative inline-flex">
+                          <Paperclip className="h-4 w-4" />
+                          <Plus className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5" />
+                        </span>
+                      </button>
+                    )}
                     {!fromAllocator && mayEnterCosts && (
                       <button
                         type="button"
@@ -1125,6 +1234,39 @@ export function ExpensesPanel({
               <p className="mt-1 text-[11px] text-muted-foreground">An approved expense against a commitment lowers what is still open on it.</p>
             </div>
           )}
+          {editing && (
+            <div>
+              <Label className="text-xs">Receipts</Label>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                {(expenses.find((x) => x.id === editing.id)?.receipts ?? []).map((r, i, all) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setReceiptPreview({ files: all, index: i })}
+                    className={`inline-flex max-w-[16rem] items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-gray-50 ${r.missing ? "border-amber-200 bg-amber-50 text-amber-800" : "bg-white"}`}
+                  >
+                    <Paperclip className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{r.fileName}</span>
+                    {r.missing && <span className="shrink-0">· missing</span>}
+                  </button>
+                ))}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={attaching}
+                  onClick={() => {
+                    setReceiptFor(editing.id);
+                    rowReceiptInput.current?.click();
+                  }}
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  {attaching ? "Attaching…" : "Attach receipt"}
+                </Button>
+              </div>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setEditing(null)}>
               Cancel
@@ -1139,6 +1281,30 @@ export function ExpensesPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* One hidden picker for "attach a receipt" on any row or in the edit dialog. */}
+      <input
+        ref={rowReceiptInput}
+        type="file"
+        multiple
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={async (ev) => {
+          const picked = Array.from(ev.target.files ?? []);
+          ev.target.value = "";
+          const target = receiptFor;
+          setReceiptFor(null);
+          if (!target || picked.length === 0) return;
+          const n = await attachReceipts(target, picked);
+          if (n > 0) toast.success(`${n} receipt${n === 1 ? "" : "s"} attached`);
+        }}
+      />
+      <FilePreviewDialog
+        files={receiptPreview?.files ?? []}
+        index={receiptPreview?.index ?? null}
+        onIndexChange={(i) => setReceiptPreview(i === null || !receiptPreview ? null : { ...receiptPreview, index: i })}
+        onChanged={() => qc.invalidateQueries({ queryKey: ["expenses", jobId] })}
+      />
     </div>
   );
 }

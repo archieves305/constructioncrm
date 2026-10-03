@@ -14,6 +14,7 @@ import {
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
 import { guardJob } from "@/lib/access/records";
+import { fileExists } from "@/lib/files/storage";
 import { resolveVendorId } from "@/lib/vendors/service";
 import { autoCommitmentId } from "@/lib/vendors/commitment-service";
 
@@ -65,9 +66,17 @@ export async function GET(
       createdBy: { select: { firstName: true, lastName: true } },
       vendorRecord: { select: { id: true, name: true } },
       commitment: { select: { id: true, number: true } },
+      receipts: { orderBy: { createdAt: "asc" }, select: { id: true, fileName: true, fileType: true, fileSize: true, storageKey: true } },
     },
   });
-  return NextResponse.json(expenses);
+  // Each receipt says whether its file is still in the store; the storage key stays here.
+  const withReceipts = await Promise.all(
+    expenses.map(async (e) => ({
+      ...e,
+      receipts: await Promise.all(e.receipts.map(async ({ storageKey, ...r }) => ({ ...r, missing: !(await fileExists(storageKey)) }))),
+    })),
+  );
+  return NextResponse.json(withReceipts);
 }
 
 export async function POST(

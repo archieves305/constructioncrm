@@ -86,6 +86,7 @@ export async function PATCH(request: NextRequest, context: Context) {
   if (v.data.jobId !== undefined) {
     if (file.violationCaseId) return badRequest("A file on a code-violation case stays with the case");
     if (file.taskId && v.data.jobId !== file.jobId) return badRequest("A file on a task follows the task's job");
+    if (file.expenseId && v.data.jobId !== file.jobId) return badRequest("A receipt stays on its expense's job");
     if (v.data.jobId) {
       // Only onto a job of the same customer.
       const job = await prisma.job.findUnique({ where: { id: v.data.jobId }, select: { leadId: true } });

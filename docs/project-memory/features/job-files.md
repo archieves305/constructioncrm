@@ -4,7 +4,7 @@ Three stages, plan approved 2026-10-03
 (`~/.claude/plans/encapsulated-frolicking-possum.md`). Stage 1 (files belong
 to the job, preview, missing state) is on prod (`d18d054`, BUILD_ID
 `16_91QFu9eTLm0-ZEhAiC`; backfill gave 37 of 92 files a job); Stage 2 (one photo gallery from
-two sources) is built; Stage 3 (receipts on expenses) follows.
+two sources) and Stage 3 (receipts on expenses) are built.
 
 Richard's rulings (2026-10-03): a record whose file is gone stays, **marked
 missing, with "Upload again"** onto the same record; **any expense** (typed or
@@ -133,6 +133,40 @@ gallery. SALES_REP not on the job 403; on the job, read-only. Dev DB restored.
 Not done: the field daily-log screen's own photo grid still shows a broken
 image for a missing photo.
 
+## Stage 3 — receipts on expenses
+
+Migration `20261017120000_expense_receipts`: `files.expense_id` (nullable,
+`SET NULL`, indexed) and `FileCategory.RECEIPT`.
+
+- `POST /api/files` accepts `expenseId` (needs `canEnterJobCosts`): the file
+  takes the expense's job and lead and is always category `RECEIPT`.
+  Attaching never edits the expense, so it works on bank-fed rows.
+- `GET /api/jobs/[id]/expenses` returns each expense's `receipts`
+  (`id, fileName, fileType, fileSize, missing`).
+- `PATCH /api/files/[id]` refuses to move a receipt off its expense's job.
+- `FILE_LIST_INCLUDE` carries `expense`, so the Files tab's Receipts group
+  says "Receipt for <vendor>, $x".
+- The job gallery leaves receipts out (a photographed receipt is not a job
+  photo).
+- `components/jobs/expenses-panel.tsx`: "Add receipt" in the add form (files
+  are uploaded after the expense is created; a failed file never undoes the
+  expense), a paperclip with a count on the row that opens
+  `FilePreviewDialog`, an "Attach a receipt" button on every row (bank-fed
+  ones too), and the receipts with "Attach receipt" in the edit dialog. A
+  receipt whose file is gone shows amber and can be uploaded again from the
+  preview. Images are downscaled like every other photo.
+- Deleting an expense leaves its receipts on the job as files (the link is
+  cleared by the FK).
+
+Dev QA (2026-10-03): API 13/13 (typed and bank-fed expense; category forced
+to RECEIPT; job and lead taken from the expense; the expense row and the job's
+contract untouched by an attach; unknown expense 400; receipts listed with
+`missing`; on the Files tab; not in the gallery; cannot be moved; missing →
+upload again; expense delete keeps the files). Headless Chromium 10/10 at 1280
+and 400 px (add with a receipt, count on the row, preview, attach to a
+bank-fed row, edit dialog, Files tab), no console errors. SALES_REP without
+the cost grant 403 on attach; on the job, reads the receipts. Dev DB restored.
+
 ## Rules
 
 - A file belongs to a job when it has `jobId`; a lead's file with none is a
@@ -143,3 +177,5 @@ image for a missing photo.
 - A record whose file is missing is shown as missing and can be re-uploaded
   onto the same row; it is never hidden.
 - New file links open `FilePreviewDialog`, not a new tab.
+- A receipt is a `File` with `expenseId`, category `RECEIPT`, on the expense's
+  job. Attaching one never edits the expense.

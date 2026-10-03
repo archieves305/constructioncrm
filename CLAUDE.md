@@ -284,8 +284,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    gallery, two sources) built + dev-QA'd 2026-10-03 on `job-gallery`,
    fast-forwarded to `main`, not deployed**: pure `lib/photos/gallery.ts`,
    `GET /api/jobs/[id]/gallery`, `POST /api/photos/[id]/replace`, gallery
-   rebuilt, photos downscaled on every upload path. No migration. Stage 3 =
-   receipts on expenses.
+   rebuilt, photos downscaled on every upload path. No migration. **Stage 3
+   (receipts on expenses) built + dev-QA'd 2026-10-03 on `expense-receipts`,
+   fast-forwarded to `main`, not deployed**: `files.expense_id` +
+   `FileCategory.RECEIPT` (migration `20261017120000_expense_receipts`),
+   `expenseId` on the upload route, receipts on the expense list, attach /
+   count / preview in the expenses panel. **Deploy carries a migration.** With
+   it all three stages of initiative 7 — and the audit's whole MVP roadmap —
+   are built.
    Notes: [features/job-files.md](docs/project-memory/features/job-files.md).
 0. 🔴 **Audit initiative 6: vendors, compliance, commitments** — three
    stages, plan approved 2026-10-03
@@ -373,6 +379,26 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-03 — Audit initiative 7, Stage 3: receipts on expenses (built, dev-QA'd, on `main`, not deployed)
+
+Built on `expense-receipts` straight after Stage 2: migration
+`20261017120000_expense_receipts` (`files.expense_id`, `FileCategory.RECEIPT`);
+`expenseId` on `POST /api/files` (`canEnterJobCosts`; job and lead from the
+expense; category forced to RECEIPT); receipts with `missing` on
+`GET /api/jobs/[id]/expenses`; a receipt cannot be moved off its job; receipts
+left out of the photo gallery; the expenses panel's add-form picker, row
+paperclip + count, per-row attach (bank-fed rows too), edit-dialog list; the
+Files tab's Receipts group naming the expense. Gate: typecheck clean, lint
+5/22, 1437 tests, build clean. Dev QA: API 13/13, headless Chromium 10/10 at
+1280 and 400 px, SALES_REP without the cost grant 403. Dev DB restored.
+**Lesson: `set -a; . ./.env` in the same shell as `npm run build` sets a
+development `NODE_ENV` and the build dies prerendering
+(`Cannot read properties of null (reading 'useState')`). Run the build in a
+shell that has not sourced `.env`.** The "fails right after killing `next
+dev`, passes on the re-run" seen in earlier sessions was very likely this.
+**Deploy carries a migration.** Details:
+[features/job-files.md](docs/project-memory/features/job-files.md).
+
 ### 2026-10-03 — Audit initiative 7, Stage 2: one photo gallery, two sources (built, dev-QA'd, on `main`, not deployed)
 
 Carried on straight after the Stage 1 deploy check (same approved plan, no
@@ -385,8 +411,8 @@ restore); `JobPhotoGallery` rebuilt (source chips, Missing chip, placeholder
 tile, lightbox across both kinds with Upload again); `preparedUpload` —
 photos are downscaled on every upload path (task sheet, Complete dialog,
 AddTaskDialog, field task page, Files panel). Gate: typecheck clean, lint
-5/22, 1437 tests (+8), build clean (the first build after stopping `next dev`
-failed on `.next` contention, as before; the re-run was clean). Dev QA: API
+5/22, 1437 tests (+8), build clean (a first build failed because the dev
+`.env` had been sourced into the same shell — see the Stage 3 entry). Dev QA: API
 14/14; headless Chromium at 400 and 1280 px, no console errors; a 4000 px /
 1.3 MB photo taken from the field task page was stored at 2000 px / 204 KB and
 appeared in the job gallery; SALES_REP off the job 403, on it read-only. Dev DB
@@ -2204,13 +2230,19 @@ Notification Digests).
 > morning at 11:50 UTC); the "Expiry tasks go to …" control on Vendors
 > (automatic falls to Richard on prod — no Accounting role default is set).
 >
-> **Initiative 7, Stage 2 (one photo gallery) is on `main`, not deployed; no
-> migration.** After Richard pushes and deploys: verify BUILD_ID, smoke,
-> journal, uploads intact. Click-through: JOB-00009 → Field → Photos (its 106
-> daily-log photos will show as "Photo missing" placeholders; Upload again
-> works on any he still has), and on a phone Field → a task → Take photo, then
-> the job's gallery. Next build: Stage 3 (receipts on expenses) — it carries a
-> migration.
+> **Initiative 7, Stages 2 (one photo gallery) and 3 (receipts on expenses)
+> are on `main`, not deployed; the deploy carries migration
+> `20261017120000_expense_receipts`.** After Richard pushes and deploys:
+> verify BUILD_ID, smoke, journal, uploads intact, the migration
+> (`files.expense_id`, enum value `RECEIPT`). Click-through: JOB-00009 →
+> Field → Photos (its 106 daily-log photos show as "Photo missing"
+> placeholders; Upload again works on any he still has); on a phone Field → a
+> task → Take photo, then the job's gallery; a job → Money → Expenses → Add
+> receipt on a row, then the paperclip. **With this the audit's MVP roadmap
+> (Foundation + seven initiatives) is fully built.** What remains is
+> operator work and click-throughs: the duplicate SPF record (then digests,
+> nurture, escalations), the vendor directory, Workflow Roles, and Phase 2
+> items from the audit.
 
 > **Initiative 7, Stage 1 (files belong to the job) is on prod (`d18d054`,
 > BUILD_ID `16_91QFu9eTLm0-ZEhAiC`).** Click-through for Richard: a job →
