@@ -16,7 +16,7 @@ imported, then is frozen and redirected.
 | 0.3 Measurements as structured data | On prod (`79e4e19`). |
 | 0.5 Roofing estimate feeds the cost baseline | On prod (`79e4e19`). |
 | 0.4 Rules and price book | On prod (`ac2a1d8`). `RoofSystem` deferred to P1 (nothing reads it yet). |
-| 0.6 Import the estimator's data | After 0.4 (Stage C). |
+| 0.6 Import the estimator's data | Script built (Stage C), not deployed, not run on prod. |
 
 ## Stage A (built + dev-QA'd 2026-10-03 on `roofing-p0`)
 
@@ -138,6 +138,39 @@ removed. Gate: typecheck clean, lint 5/22, 1517 tests (+15), build clean.
 is unit-tested). Deployed 2026-10-03 as `ac2a1d8` (BUILD_ID `Sm73Z7jwQy_iEWRSA7K2T`, migration applied — 86). The price book starts empty
 on prod; Stage C imports the estimator's 40 materials (seed placeholders —
 prices need checking).
+
+## Stage C — the import (built + dev-QA'd 2026-10-03 on `roofing-import`)
+
+`scripts/import-roof-estimator-2026-10.ts` — dry run by default, `--yes`
+applies, idempotent. It reads the estimator's database through a read-only
+session (`ROOF_SOURCE_DATABASE_URL`) and its PDFs (`ROOF_SOURCE_STORAGE_DIR`)
+and never writes there. Planning is pure: `src/lib/roofing/import-plan.ts`.
+
+- **Materials + prices** → price book, source `import`; a supplier is linked
+  only when a vendor of the same name exists (else blank, and listed).
+  Already here = same name, category and roof type.
+- **Rules** → a `RoofRule` only where the estimator's number differs from the
+  code or the rule is off; unknown keys are listed and ignored.
+- **Roofr reports** → the PDF is parsed again by this app (so it gets pitch
+  bands and Roofr's waste) and stored through `createFromReport` on the lead
+  at the same address; values a person typed in the estimator are carried
+  over as corrections; where the estimator's stored reading differs from the
+  fresh parse, both are printed and this app's reading is kept.
+- **Address match** (`matchProperty`): same street after normalising AND same
+  5-digit zip (or, with a zip missing on either side, same city). Unmatched,
+  two leads at one address, no PDF, or a missing PDF → HELD and listed.
+- **Not imported:** roof jobs, material lists and supplier invoices (no home
+  until the estimate builder / calibration, P1–P2). Counted in the output.
+
+Dev QA against a throw-away estimator database built from the estimator's own
+schema and seed (40 materials / 40 prices / 43 rules / 2 suppliers — the same
+counts as prod, so prod's catalog is the seed) plus two test reports: dry run
+wrote nothing; `--yes` created 40 + 40, saved 2 rule changes, imported 1
+report with 2 typed corrections (the report's own reading kept as
+`previous`), held 4; second run 0 / 0 / skip. Dev rows and the throw-away
+database removed. Gate: typecheck clean, lint 5/22, 1525 tests (+8), build
+clean. **Not exercised:** the real estimator database and its storage folder
+(first done by the prod dry run), and whether `knuco` can read them.
 
 ## Still open (Richard)
 

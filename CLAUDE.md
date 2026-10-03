@@ -44,8 +44,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    backup `postgres-2026-10-03-232527.dump`): `RoofRule` / `RoofMaterialItem` /
    `RoofMaterialPrice` (migration `20261019120000_roof_price_book`), pure
    `engine/resolve.ts`, `/admin/roofing` (Price book · Takeoff rules · Try a
-   takeoff). Next: Stage C (import the
-   estimator's data). The estimator itself is
+   takeoff). **Stage C (the import script) built + dev-QA'd 2026-10-03 on
+   `roofing-import`, fast-forwarded to `main`, not deployed, not run on
+   prod**: pure `import-plan.ts` + `scripts/import-roof-estimator-2026-10.ts`
+   (dry run by default). No migration. The estimator itself is
    untouched and now under local git (`~/roofestimator`, `e0adbff`). Notes:
    [features/roofing.md](docs/project-memory/features/roofing.md).
 0000000. 🔴 **Streamlined ("slim") workflows** — four stages, plan approved
@@ -401,6 +403,23 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Roofing integration, P0 Stage C: the import script (on `main`, not deployed, not run on prod)
+
+Built on `roofing-import`: pure `src/lib/roofing/import-plan.ts`
+(`matchProperty` — street + zip, nothing looser; `planMaterials`;
+`planRuleChanges`; `measurementDifferences`; `manualOverrides`) and
+`scripts/import-roof-estimator-2026-10.ts` (read-only session on the
+estimator's database; materials + prices, rule changes, Roofr reports
+re-parsed onto the lead at the same address with typed corrections carried
+over; lists and invoices counted, not imported). There was no local estimator
+database, so QA ran against a throw-away one built from the estimator's own
+schema and seed (its 40 / 40 / 43 / 2 counts equal prod's — prod's catalog is
+seed data) plus two test reports: dry run wrote nothing, `--yes` imported,
+a second run created nothing; everything removed afterwards. Gate: typecheck
+clean, lint 5/22, 1525 tests (+8), build clean. No migration. Not exercised:
+the real source and its storage folder. Details:
+[features/roofing.md](docs/project-memory/features/roofing.md).
 
 ### 2026-10-03 — Roofing integration, P0 Stage B: takeoff rules + price book (deployed `ac2a1d8`)
 
@@ -2427,6 +2446,14 @@ Notification Digests).
 > drops. Also check JOB-00002: crew paid $17,380 against $15,030 of labor
 > contracts. Next build: initiative 7 (job documents and photos:
 > `File.jobId`, preview, receipts on expenses) — plan it first.
+
+> **Roofing P0 Stage C (the import script) is on `main`, not deployed.**
+> After Richard's push and deploy (no migration): run the import's dry run on
+> prod (reads both databases, writes nothing), show Richard the report —
+> what would be created, which properties match a lead, which are held — and
+> apply with `--yes` only on his word, after a fresh backup. Then P0 is
+> complete; P1 (the estimate builder) needs his rulings first: who sees cost
+> and margin, labor basis, price source, when a budget is seeded.
 
 > **Roofing P0 Stage B (rules + price book) is on prod (`ac2a1d8`, BUILD_ID
 > `Sm73Z7jwQy_iEWRSA7K2T`).** Click-through for Richard: Admin → Roofing
