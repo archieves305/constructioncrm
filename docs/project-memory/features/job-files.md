@@ -4,7 +4,9 @@ Three stages, plan approved 2026-10-03
 (`~/.claude/plans/encapsulated-frolicking-possum.md`). Stage 1 (files belong
 to the job, preview, missing state) is on prod (`d18d054`, BUILD_ID
 `16_91QFu9eTLm0-ZEhAiC`; backfill gave 37 of 92 files a job); Stage 2 (one photo gallery from
-two sources) and Stage 3 (receipts on expenses) are built.
+two sources) and Stage 3 (receipts on expenses) are on prod (`a03c698`,
+BUILD_ID `SBnOF_n7Dfa0xpp-w6tyi`, deployed 2026-10-03). All three stages are
+live.
 
 Richard's rulings (2026-10-03): a record whose file is gone stays, **marked
 missing, with "Upload again"** onto the same record; **any expense** (typed or

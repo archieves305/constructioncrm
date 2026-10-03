@@ -271,7 +271,7 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `TASK_ESCALATIONS_ENABLED=1`, then `TASK_AUTO_RULES_DISABLED=`) and
    Richard's own click-through. Notes:
    [features/tasks.md](docs/project-memory/features/tasks.md).
-0. 🔴 **Audit initiative 7: job documents and photos** — three stages, plan
+0. ✅ **Audit initiative 7: job documents and photos — all three stages on prod** — plan
    approved 2026-10-03 (`~/.claude/plans/encapsulated-frolicking-possum.md`).
    **Stage 1 (files belong to the job, preview, missing state) built +
    dev-QA'd 2026-10-03 on `job-files`, fast-forwarded to `main`, deployed
@@ -282,16 +282,18 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    job-scoped list, rename / move / "Upload again" routes, `FilePreviewDialog`,
    Files panel rebuilt, generated documents undeletable. **Stage 2 (one photo
    gallery, two sources) built + dev-QA'd 2026-10-03 on `job-gallery`,
-   fast-forwarded to `main`, not deployed**: pure `lib/photos/gallery.ts`,
+   fast-forwarded to `main`, deployed 2026-10-03 inside `a03c698`**: pure `lib/photos/gallery.ts`,
    `GET /api/jobs/[id]/gallery`, `POST /api/photos/[id]/replace`, gallery
    rebuilt, photos downscaled on every upload path. No migration. **Stage 3
    (receipts on expenses) built + dev-QA'd 2026-10-03 on `expense-receipts`,
-   fast-forwarded to `main`, not deployed**: `files.expense_id` +
+   fast-forwarded to `main`, deployed 2026-10-03 as `a03c698`** (BUILD_ID
+   `SBnOF_n7Dfa0xpp-w6tyi`, migration applied, smoke 307 ×2, journal clean,
+   backup `postgres-2026-10-03-203928.dump`): `files.expense_id` +
    `FileCategory.RECEIPT` (migration `20261017120000_expense_receipts`),
    `expenseId` on the upload route, receipts on the expense list, attach /
-   count / preview in the expenses panel. **Deploy carries a migration.** With
-   it all three stages of initiative 7 — and the audit's whole MVP roadmap —
-   are built.
+   count / preview in the expenses panel. **All three stages of initiative 7 —
+   and the audit's whole MVP roadmap — are on prod**; what remains is
+   Richard's click-through.
    Notes: [features/job-files.md](docs/project-memory/features/job-files.md).
 0. 🔴 **Audit initiative 6: vendors, compliance, commitments** — three
    stages, plan approved 2026-10-03
@@ -379,7 +381,19 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-03 — Audit initiative 7, Stage 3: receipts on expenses (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-03 — Audit initiative 7, Stages 2 and 3 deployed (`a03c698`); the MVP roadmap is complete
+
+Richard pushed and deployed from `!` (background, 253 s, exit 0): BUILD_ID
+`16_91QFu9eTLm0-ZEhAiC` → `SBnOF_n7Dfa0xpp-w6tyi`, migration
+`20261017120000_expense_receipts` applied (84; `files.expense_id` nullable
+with its index, enum value `RECEIPT`), smoke 307 ×2, zero journal errors since
+the restart, `UPLOADS_DIR` carried, 21 files in the store, backup
+`postgres-2026-10-03-203928.dump`. Prod after: 92 files (37 with a job), 0
+receipts, 106 daily-log photos (all on JOB-00009, all missing on disk), 0 image
+files. **Foundation and all seven initiatives of the audit's MVP roadmap are
+on prod.**
+
+### 2026-10-03 — Audit initiative 7, Stage 3: receipts on expenses (deployed inside `a03c698`)
 
 Built on `expense-receipts` straight after Stage 2: migration
 `20261017120000_expense_receipts` (`files.expense_id`, `FileCategory.RECEIPT`);
@@ -399,7 +413,7 @@ dev`, passes on the re-run" seen in earlier sessions was very likely this.
 **Deploy carries a migration.** Details:
 [features/job-files.md](docs/project-memory/features/job-files.md).
 
-### 2026-10-03 — Audit initiative 7, Stage 2: one photo gallery, two sources (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-03 — Audit initiative 7, Stage 2: one photo gallery, two sources (deployed inside `a03c698`)
 
 Carried on straight after the Stage 1 deploy check (same approved plan, no
 migration). Built on `job-gallery`: pure `lib/photos/gallery.ts`
@@ -2230,19 +2244,21 @@ Notification Digests).
 > morning at 11:50 UTC); the "Expiry tasks go to …" control on Vendors
 > (automatic falls to Richard on prod — no Accounting role default is set).
 >
-> **Initiative 7, Stages 2 (one photo gallery) and 3 (receipts on expenses)
-> are on `main`, not deployed; the deploy carries migration
-> `20261017120000_expense_receipts`.** After Richard pushes and deploys:
-> verify BUILD_ID, smoke, journal, uploads intact, the migration
-> (`files.expense_id`, enum value `RECEIPT`). Click-through: JOB-00009 →
-> Field → Photos (its 106 daily-log photos show as "Photo missing"
-> placeholders; Upload again works on any he still has); on a phone Field → a
-> task → Take photo, then the job's gallery; a job → Money → Expenses → Add
-> receipt on a row, then the paperclip. **With this the audit's MVP roadmap
-> (Foundation + seven initiatives) is fully built.** What remains is
-> operator work and click-throughs: the duplicate SPF record (then digests,
-> nurture, escalations), the vendor directory, Workflow Roles, and Phase 2
-> items from the audit.
+> **The audit's MVP roadmap is complete on prod (`a03c698`, BUILD_ID
+> `SBnOF_n7Dfa0xpp-w6tyi`): Foundation + initiatives 1–7.** No build is
+> queued. What remains is Richard's:
+> - click-throughs — JOB-00009 → Files (13 files, most missing: Missing chip,
+>   Upload again) and Field → Photos (106 "Photo missing" placeholders); a job
+>   → Money → Expenses → attach a receipt; a job → Money → Commitments; a
+>   subcontractor's Compliance card; the dashboard's Needs attention rows;
+> - operator work — delete the duplicate SPF record (then digests, nurture,
+>   escalations can be switched on), build the vendor directory under Vendors
+>   → Unmatched, set Admin → Workflow Roles, pick the vendor compliance owner;
+> - a look at JOB-00002 (crew paid $17,380 against $15,030 of labor
+>   contracts).
+> If asked to "continue" with nothing else said: propose the audit's Phase 2
+> list (Part 10 of the audit doc) and the small leftovers recorded in
+> `features/job-files.md` ("Not done") rather than starting a build.
 
 > **Initiative 7, Stage 1 (files belong to the job) is on prod (`d18d054`,
 > BUILD_ID `16_91QFu9eTLm0-ZEhAiC`).** Click-through for Richard: a job →
