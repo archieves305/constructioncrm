@@ -2206,7 +2206,7 @@ Notification Digests).
 >
 > **Initiative 7, Stage 2 (one photo gallery) is on `main`, not deployed; no
 > migration.** After Richard pushes and deploys: verify BUILD_ID, smoke,
-> journal, uploads intact. Click-through: JOB-00014 → Field → Photos (its 106
+> journal, uploads intact. Click-through: JOB-00009 → Field → Photos (its 106
 > daily-log photos will show as "Photo missing" placeholders; Upload again
 > works on any he still has), and on a phone Field → a task → Take photo, then
 > the job's gallery. Next build: Stage 3 (receipts on expenses) — it carries a
