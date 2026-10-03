@@ -27,6 +27,19 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+00000000. 🔴 **Roofing estimator → CRM** — plan approved 2026-10-03
+   (https://claude.ai/code/artifact/8b95fb53-2275-421e-a4ed-842fa7919005):
+   native module, engine as a pure library in `src/lib/roofing`. **P0 Stage A
+   built + dev-QA'd 2026-10-03 on `roofing-p0`, fast-forwarded to `main`, not
+   deployed**: parser + takeoff engine ported with their tests, Roofr's
+   recommended waste read from page positions, `RoofMeasurement` (migration
+   `20261018120000_roof_measurements`) with upload / correct / review on the
+   lead's Roofr tab and the job's Estimates tab, and a signed roofing estimate
+   now feeds the job's estimated cost. **Deploy carries a migration and a new
+   dependency (`pdfjs-dist`).** Next: Stage B (roof systems, rules, price
+   book), then Stage C (import the estimator's data). The estimator itself is
+   untouched and now under local git (`~/roofestimator`, `e0adbff`). Notes:
+   [features/roofing.md](docs/project-memory/features/roofing.md).
 0000000. 🔴 **Streamlined ("slim") workflows** — four stages, plan approved
    2026-09-30 (`~/.claude/plans/please-look-at-the-structured-seal.md`);
    Richard signed off the step lists the same day. Why: nobody worked the
@@ -380,6 +393,25 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Roofing integration, P0 Stage A: library, measurements, cost baseline (on `main`, not deployed)
+
+"approved, start with P0". 0.1: `~/roofestimator` verified identical to the
+server copy and put under local git (`e0adbff`). Stage A on `roofing-p0`:
+`src/lib/roofing/{types,round,address,measurements,service,validation}.ts`,
+`parsing/{roofr,pdf,waste-table}.ts`, `engine/{engine,defaults}.ts`;
+`pdfjs-dist` 4.10.38 (`serverExternalPackages`); `RoofMeasurement` +
+`FileCategory.MEASUREMENT_REPORT`; routes under `/api/leads/[id]/roof-measurements`
+and `/api/roof-measurements/[id]`; `RoofMeasurementsPanel` on the lead and the
+job; `signedEstimateCost` so a roofing estimate is a cost baseline. Found on
+the way: Roofr's recommended waste is a position on the page, not text — read
+from glyph positions, stored as a suggestion, never applied by the engine. The
+estimator's OCR stub (did nothing) was not carried over. Gate: typecheck clean,
+lint 5/22, 1502 tests (+63), build clean. Dev QA: API 25/25 with a real
+report, headless Chromium at 1280 and 400 px, all 23 real Roofr PDFs parse in
+the CRM (confidence ≥ 0.84); dev DB restored. Not exercised: SALES_REP, and
+PDF parsing under the production server. Details:
+[features/roofing.md](docs/project-memory/features/roofing.md).
 
 ### 2026-10-03 — Fix: the in-app PDF preview was blocked by the site's own frame headers (on `main`, not deployed)
 
@@ -2245,6 +2277,12 @@ Notification Digests).
   in `lib/permits/alerts.ts` (once per source key, closed by the record). The
   fee typed on a permit is a quote — it never becomes an expense; what was
   paid is read from the job's `PERMIT_FEE` costs.
+- **The roofing library is pure.** Nothing under `src/lib/roofing/parsing` or
+  `src/lib/roofing/engine` imports Prisma, Next or the rest of the CRM; the
+  database lives in `src/lib/roofing/service.ts`. A measurement the reader did
+  not find is null, never 0. A person's correction keeps the report's own
+  reading (`applyEdits`). Roofr's recommended waste is a suggestion and is
+  never applied to a takeoff by itself.
 - **Every response is unframeable except the two documents the app frames
   itself** (`FRAMED_BY_SELF` in `next.config.ts`: the file route and the
   signing PDF, same-origin only). A new page that shows one of the app's own
@@ -2340,6 +2378,15 @@ Notification Digests).
 > drops. Also check JOB-00002: crew paid $17,380 against $15,030 of labor
 > contracts. Next build: initiative 7 (job documents and photos:
 > `File.jobId`, preview, receipts on expenses) — plan it first.
+
+> **Roofing P0 Stage A is on `main`, not deployed** (with the preview-frame
+> fix `1a1313d`). Richard pushes and deploys; the deploy carries migration
+> `20261018120000_roof_measurements` and `pdfjs-dist`. After it: verify the
+> table, then upload a Roofr PDF on a lead's Roofr tab on prod (first run of
+> the PDF reader under the production server) and open a PDF from a job's
+> Files tab (the preview frame). Next build: Stage B — roof systems, rules and
+> the price book (`RoofSystem`, `RoofRule`, `RoofMaterialItem`, prices with
+> history, Decimal money, vendor link, admin pages), then Stage C — the import.
 
 > **Initiative 5 (attention dashboard) is on prod (`9b75536`, BUILD_ID
 > `PmFnvrNoVx2_HApQwqCDx`).** Click-through for Richard: the dashboard's

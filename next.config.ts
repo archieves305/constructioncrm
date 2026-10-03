@@ -52,6 +52,8 @@ const sameOriginFrameHeaders = securityHeaders.map((h) =>
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["richards-mac-studio", "richards-mac-studio:4000"],
+  // The Roofr report reader loads pdfjs at run time from node_modules; bundling it breaks its worker lookup.
+  serverExternalPackages: ["pdfjs-dist"],
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

@@ -276,6 +276,8 @@ enum FileCategory {
   CONTRACT_ADDENDUM
   CUSTOMER_CONTRACT
   RECEIPT
+  // A roof measurement report (Roofr): the source document of a RoofMeasurement.
+  MEASUREMENT_REPORT
   OTHER
 }
 
@@ -479,6 +481,8 @@ model User {
   workflowRoleDefaults              WorkflowRoleDefault[]     @relation("WorkflowRoleDefaultUser")
   vendorDocuments                   VendorDocument[]          @relation("VendorDocumentUploadedBy")
   commitmentsCreated                Commitment[]              @relation("CommitmentCreatedBy")
+  roofMeasurementsCreated           RoofMeasurement[]         @relation("RoofMeasurementCreatedBy")
+  roofMeasurementsReviewed          RoofMeasurement[]         @relation("RoofMeasurementReviewedBy")
   vendorComplianceOwnerOf           VendorSettings[]          @relation("VendorComplianceOwner")
   workflowTeamSlots                 JobWorkflowTeamMember[]   @relation("WorkflowTeamUser")
   workflowsApplied                  JobWorkflowInstance[]     @relation("WorkflowAppliedBy")
@@ -631,6 +635,7 @@ model Lead {
   roofEstimates     RoofEstimate[]
   estimates         Estimate[]
   roofrOrders       RoofrOrder[]
+  roofMeasurements  RoofMeasurement[]
   prospect          Prospect?
   violationCases    CodeViolationCase[]
   customerContracts CustomerContract[]
@@ -1056,6 +1061,7 @@ model File {
   violationCase      CodeViolationCase?  @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
   violationItem      CodeViolationItem?  @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
   generatedDocuments GeneratedDocument[]
+  roofMeasurement    RoofMeasurement?
 
   @@index([leadId])
   @@index([jobId])
@@ -1338,6 +1344,7 @@ model Job {
   laborContracts     LaborContract[]
   commitments        Commitment[]
   files              File[]
+  roofMeasurements   RoofMeasurement[]
   budgetLines        BudgetLine[]
   generatedDocuments GeneratedDocument[]
   changeOrders       ChangeOrder[]
@@ -2540,11 +2547,95 @@ model RoofrOrder {
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
-  lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  createdBy User @relation("RoofrOrderCreatedBy", fields: [createdByUserId], references: [id])
+  lead         Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation("RoofrOrderCreatedBy", fields: [createdByUserId], references: [id])
+  measurements RoofMeasurement[]
 
   @@index([leadId])
   @@map("roofr_orders")
+}
+
+enum RoofMeasurementSource {
+  ROOFR
+  MANUAL
+  FIELD
+}
+
+/// A roof's measurements as structured data: read from a Roofr report, typed
+/// by hand, or taken in the field. It belongs to the lead (the property) and,
+/// once there is one, the job. Lengths are feet, areas square feet, squares
+/// are 100 sq ft. Not money, so plain floats.
+///
+/// A value a person corrects is written to the column AND recorded in
+/// `overrides` with who and when; `fieldConfidence` is what the parser thought
+/// of each field. An estimate copies the numbers it used, so a later
+/// correction here never changes an estimate already sent.
+model RoofMeasurement {
+  id               String                @id @default(cuid())
+  leadId           String                @map("lead_id")
+  jobId            String?               @map("job_id")
+  // The report it was read from; null for measurements typed by hand.
+  fileId           String?               @unique @map("file_id")
+  roofrOrderId     String?               @map("roofr_order_id")
+  source           RoofMeasurementSource @default(ROOFR)
+  label            String?
+  reportDate       DateTime?             @map("report_date")
+  parsedAddress    String?               @map("parsed_address")
+  existingRoofType String?               @map("existing_roof_type")
+
+  totalSquares     Float?  @map("total_squares")
+  roofAreaSqFt     Float?  @map("roof_area_sq_ft")
+  pitchedAreaSqFt  Float?  @map("pitched_area_sq_ft")
+  flatAreaSqFt     Float?  @map("flat_area_sq_ft")
+  /// [{ pitch: "6/12", areaSqFt: 1234 }]
+  pitchBands       Json?   @map("pitch_bands")
+  facets           Int?
+  predominantPitch String? @map("predominant_pitch")
+  eavesLf          Float?  @map("eaves_lf")
+  rakesLf          Float?  @map("rakes_lf")
+  valleysLf        Float?  @map("valleys_lf")
+  hipsLf           Float?  @map("hips_lf")
+  ridgesLf         Float?  @map("ridges_lf")
+  ridgesHipsLf     Float?  @map("ridges_hips_lf")
+  dripEdgeLf       Float?  @map("drip_edge_lf")
+  stepFlashingLf   Float?  @map("step_flashing_lf")
+  flashingLf       Float?  @map("flashing_lf")
+  flashingAreaSqFt Float?  @map("flashing_area_sq_ft")
+  // Counts a measurement report does not give; entered by a person.
+  penetrations     Int?
+  skylights        Int?
+  chimneys         Int?
+  stories          Int?
+
+  /// The waste Roofr marks "Recommended" (a fraction, 0.08 = 8%) and the
+  /// options beside it. A suggestion for the estimator; never applied silently.
+  reportWastePct     Float? @map("report_waste_pct")
+  reportWasteOptions Json?  @map("report_waste_options")
+
+  parseConfidence  Float?    @map("parse_confidence")
+  fieldConfidence  Json?     @map("field_confidence")
+  /// { field: { value, previous, by, at } }
+  overrides        Json?
+  rawExtract       Json?     @map("raw_extract")
+  warnings         Json?
+  // Set when a person has looked over a low-confidence parse and accepted it.
+  reviewedAt       DateTime? @map("reviewed_at")
+  reviewedByUserId String?   @map("reviewed_by_user_id")
+
+  createdByUserId String   @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  lead       Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job        Job?        @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  file       File?       @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  roofrOrder RoofrOrder? @relation(fields: [roofrOrderId], references: [id], onDelete: SetNull)
+  createdBy  User        @relation("RoofMeasurementCreatedBy", fields: [createdByUserId], references: [id])
+  reviewedBy User?       @relation("RoofMeasurementReviewedBy", fields: [reviewedByUserId], references: [id])
+
+  @@index([leadId])
+  @@index([jobId])
+  @@map("roof_measurements")
 }
 
 // ─── Zylow property cache ─────────────────────────────────────────────────────

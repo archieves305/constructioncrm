@@ -1,7 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { formatAddressLine } from "@/lib/labels/address";
-import { computeCostSummary, type CostSummary } from "@/lib/jobs/cost-summary";
+import { computeCostSummary, signedEstimateCost, type CostSummary } from "@/lib/jobs/cost-summary";
 import { openCommitmentsByJob } from "@/lib/vendors/commitment-service";
 
 /**
@@ -61,10 +61,14 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
     prisma.invoice.groupBy({ by: ["jobId"], where: { jobId, status: { in: ["SENT", "PAID"] } }, _sum: { amount: true } }),
     prisma.payment.groupBy({ by: ["jobId"], where: { jobId, status: "RECEIVED" }, _sum: { amount: true } }),
     // The cost behind the price the customer signed: a fallback "estimated cost" for a job with no budget.
+    // A contract comes from exactly one estimate, of either kind: the sectioned
+    // estimate or the roofing estimate. Both carry the cost behind their price.
+    // (Until 2026-10 only the sectioned kind was read, so a roofing job had no
+    // estimated cost unless someone typed a budget.)
     prisma.customerContract.findMany({
-      where: { jobId, status: "SIGNED", estimateId: { not: null } },
+      where: { jobId, status: "SIGNED" },
       orderBy: { signedAt: "desc" },
-      select: { jobId: true, estimate: { select: { subtotalCost: true } } },
+      select: { jobId: true, estimate: { select: { subtotalCost: true } }, roofEstimate: { select: { subtotalCost: true } } },
     }),
     // Promised to vendors and not yet drawn down by an expense.
     openCommitmentsByJob({ jobId }),
@@ -80,7 +84,8 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
   const paidBy = sumBy(payments, (r) => r._sum.amount);
   const estimateBy = new Map<string, number>();
   for (const c of contracts) {
-    if (c.estimate && !estimateBy.has(c.jobId)) estimateBy.set(c.jobId, num(c.estimate.subtotalCost));
+    const cost = signedEstimateCost(c);
+    if (cost !== null && !estimateBy.has(c.jobId)) estimateBy.set(c.jobId, cost);
   }
 
   return jobs.map((j) => ({

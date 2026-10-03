@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeCostSummary, type CostSummaryInput } from "./cost-summary";
+import { computeCostSummary, signedEstimateCost, type CostSummaryInput } from "./cost-summary";
 
 const base: CostSummaryInput = {
   jobType: "FIXED_PRICE",
@@ -98,5 +98,24 @@ describe("computeCostSummary", () => {
     const s = computeCostSummary({ ...base, revisedContract: 0, storedOriginalContract: 0, approvedChangeOrders: 0, expenses: -500, budgetTotal: 0 });
     expect(s.projectedMargin).toBeNull();
     expect(Number.isNaN(s.projectedCost)).toBe(false);
+  });
+});
+
+describe("signedEstimateCost", () => {
+  it("reads the cost behind a sectioned estimate", () => {
+    expect(signedEstimateCost({ estimate: { subtotalCost: "18250.50" }, roofEstimate: null })).toBe(18250.5);
+  });
+  it("reads the cost behind a roofing estimate — a roofing job has a baseline too", () => {
+    expect(signedEstimateCost({ estimate: null, roofEstimate: { subtotalCost: "27850.00" } })).toBe(27850);
+  });
+  it("is null when the source estimate is gone or carries no cost", () => {
+    expect(signedEstimateCost({ estimate: null, roofEstimate: null })).toBeNull();
+    expect(signedEstimateCost({ roofEstimate: { subtotalCost: null } })).toBeNull();
+  });
+  it("a roofing baseline flows into the summary as the estimated cost", () => {
+    const cost = signedEstimateCost({ roofEstimate: { subtotalCost: "70000" } });
+    const s = computeCostSummary({ ...base, budgetTotal: null, estimateCost: cost });
+    expect(s.estimatedCost).toBe(70_000);
+    expect(s.estimatedCostSource).toBe("estimate");
   });
 });

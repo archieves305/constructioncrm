@@ -29,6 +29,7 @@ import { FilesPanel } from "@/components/files/files-panel";
 import { NurtureCard } from "@/components/leads/nurture-card";
 import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
 import { RoofrPanel } from "@/components/roofr/roofr-panel";
+import { RoofMeasurementsPanel } from "@/components/roofing/roof-measurements-panel";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 import { CaseListMini } from "@/components/violations/case-list-mini";
 import { useTasks } from "@/components/tasks/use-tasks";
@@ -521,7 +522,10 @@ export default function LeadDetailPage() {
             </TabsContent>
 
             <TabsContent value="roofr">
-              <RoofrPanel leadId={id} />
+              <div className="space-y-6">
+                <RoofMeasurementsPanel leadId={id} />
+                <RoofrPanel leadId={id} />
+              </div>
             </TabsContent>
 
             <TabsContent value="files">

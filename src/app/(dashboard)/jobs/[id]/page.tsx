@@ -49,6 +49,7 @@ import { BudgetPanel } from "@/components/jobs/budget-panel";
 import { CommitmentsPanel } from "@/components/jobs/commitments-panel";
 import { PricingPanel } from "@/components/jobs/pricing-panel";
 import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
+import { RoofMeasurementsPanel } from "@/components/roofing/roof-measurements-panel";
 import { ContractPanel } from "@/components/jobs/contract-panel";
 import { useJobContracts } from "@/components/customer-contracts/use-customer-contracts";
 import { Callout } from "@/components/shared/callout";
@@ -538,11 +539,14 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="estimates">
-              <LeadEstimatesPanel
-                leadId={job.leadId}
-                services={job.lead?.services ?? []}
-                jobId={id}
-              />
+              <div className="space-y-6">
+                <LeadEstimatesPanel
+                  leadId={job.leadId}
+                  services={job.lead?.services ?? []}
+                  jobId={id}
+                />
+                <RoofMeasurementsPanel leadId={job.leadId} jobId={id} />
+              </div>
             </TabsContent>
 
             <TabsContent value="payments">

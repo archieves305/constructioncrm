@@ -84,6 +84,22 @@ export type CostSummary = {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * The cost behind a signed contract's source estimate — the fallback
+ * "estimated cost" for a job with no budget. A contract has one source: a
+ * sectioned estimate or a roofing estimate. Null when neither is attached
+ * (the estimate was deleted) or it carries no cost.
+ */
+export function signedEstimateCost(contract: {
+  estimate?: { subtotalCost: unknown } | null;
+  roofEstimate?: { subtotalCost: unknown } | null;
+}): number | null {
+  const source = contract.estimate ?? contract.roofEstimate ?? null;
+  if (!source || source.subtotalCost === null || source.subtotalCost === undefined) return null;
+  const cost = Number(source.subtotalCost);
+  return Number.isFinite(cost) ? cost : null;
+}
+
 export function computeCostSummary(i: CostSummaryInput): CostSummary {
   const billable = i.jobType !== "OWNED_REHAB";
 
