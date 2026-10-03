@@ -18,5 +18,10 @@ export function canViewVendors(role: RoleName | null | undefined): boolean {
   return Boolean(role) && VENDOR_VIEW_ROLES.includes(role as RoleName);
 }
 
+/** Choosing who receives vendor expiry tasks. */
+export function canSetComplianceOwner(role: RoleName | null | undefined): boolean {
+  return role === "ADMIN" || role === "MANAGER";
+}
+
 export const VENDOR_VIEW_ROLE_LIST = VENDOR_VIEW_ROLES;
 export const VENDOR_DENIED_MESSAGE = "You don't have permission to manage vendors.";

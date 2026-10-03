@@ -2,6 +2,9 @@ import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit/record";
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import type { VendorKind } from "@/generated/prisma/client";
+import { todayKey } from "@/lib/time/zone";
+import { deriveCompliance, needsAttention } from "./compliance";
+import { DOC_COMPLIANCE_SELECT } from "./compliance-load";
 import { aliasRows, groupPayees, matchVendor, normalisePayee, MIN_PATTERN_LENGTH, type AliasRow } from "./match";
 
 /** A refusal the route turns into a response. */
@@ -203,7 +206,7 @@ export async function updateVendor(id: string, input: Partial<VendorInput> & { i
 }
 
 /** The directory: each vendor with its approved spend and the jobs it appears on. */
-export async function listVendors(opts: { q?: string; kind?: VendorKind; includeInactive?: boolean } = {}) {
+export async function listVendors(opts: { q?: string; kind?: VendorKind; includeInactive?: boolean; needsDocuments?: boolean } = {}) {
   const vendors = await prisma.vendor.findMany({
     where: {
       ...(opts.includeInactive ? {} : { isActive: true }),
@@ -211,8 +214,9 @@ export async function listVendors(opts: { q?: string; kind?: VendorKind; include
       ...(opts.q ? { OR: [{ name: { contains: opts.q, mode: "insensitive" as const } }, { trade: { contains: opts.q, mode: "insensitive" as const } }, { contactName: { contains: opts.q, mode: "insensitive" as const } }] } : {}),
     },
     orderBy: { name: "asc" },
-    include: { _count: { select: { aliases: true, crews: true } } },
+    include: { _count: { select: { aliases: true, crews: true } }, documents: { select: DOC_COMPLIANCE_SELECT } },
   });
+  const today = todayKey();
   const ids = vendors.map((v) => v.id);
   const [spend, jobPairs] = await Promise.all([
     prisma.jobExpense.groupBy({ by: ["vendorId"], where: { vendorId: { in: ids }, status: "APPROVED" }, _sum: { amount: true }, _count: { _all: true } }),
@@ -221,7 +225,10 @@ export async function listVendors(opts: { q?: string; kind?: VendorKind; include
   const spendBy = new Map(spend.map((s) => [s.vendorId, { total: Number(s._sum.amount ?? 0), count: s._count._all }]));
   const jobsBy = new Map<string, number>();
   for (const p of jobPairs) if (p.vendorId) jobsBy.set(p.vendorId, (jobsBy.get(p.vendorId) ?? 0) + 1);
-  return vendors.map((v) => ({
+  const rows = vendors.map((v) => {
+    const compliance = deriveCompliance(v.kind, v.documents, today);
+    return {
+    compliance: { verdict: compliance.verdict, gaps: compliance.gaps },
     id: v.id,
     name: v.name,
     kind: v.kind,
@@ -235,7 +242,9 @@ export async function listVendors(opts: { q?: string; kind?: VendorKind; include
     approvedSpend: spendBy.get(v.id)?.total ?? 0,
     expenseCount: spendBy.get(v.id)?.count ?? 0,
     jobCount: jobsBy.get(v.id) ?? 0,
-  }));
+    };
+  });
+  return opts.needsDocuments ? rows.filter((r) => needsAttention(r.compliance.verdict)) : rows;
 }
 
 /** Labor contracts that are a vendor's: linked directly, or through the vendor's crew. */
@@ -252,7 +261,7 @@ export async function getVendorDetail(id: string) {
     include: { aliases: { orderBy: { pattern: "asc" } }, crews: { select: { id: true, name: true, isActive: true, trades: true } } },
   });
   if (!vendor) return null;
-  const [byJob, contracts, recent] = await Promise.all([
+  const [byJob, contracts, recent, documents] = await Promise.all([
     prisma.jobExpense.groupBy({ by: ["jobId"], where: { vendorId: id, status: "APPROVED" }, _sum: { amount: true }, _count: { _all: true } }),
     prisma.laborContract.findMany({
       where: laborContractsOfVendor(id),
@@ -271,11 +280,22 @@ export async function getVendorDetail(id: string) {
       take: 25,
       select: { id: true, vendor: true, description: true, amount: true, incurredDate: true, type: true, status: true, externalId: true, job: { select: JOB_LABEL_SELECT } },
     }),
+    prisma.vendorDocument.findMany({
+      where: { vendorId: id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true, type: true, carrier: true, policyNumber: true, effectiveDate: true, expiresAt: true,
+        fileName: true, fileSize: true, notes: true, createdAt: true,
+        uploadedBy: { select: { firstName: true, lastName: true } },
+      },
+    }),
   ]);
   const jobs = await prisma.job.findMany({ where: { id: { in: byJob.map((b) => b.jobId) } }, select: JOB_LABEL_SELECT });
   const jobById = new Map(jobs.map((j) => [j.id, j]));
   return {
     vendor,
+    documents,
+    compliance: deriveCompliance(vendor.kind, documents, todayKey()),
     spendByJob: byJob
       .map((b) => ({ job: jobById.get(b.jobId) ?? null, total: Number(b._sum.amount ?? 0), count: b._count._all }))
       .filter((r) => r.job)

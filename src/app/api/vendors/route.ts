@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     q: params.get("q")?.trim() || undefined,
     kind: (kind as (typeof VENDOR_KINDS)[number] | null) ?? undefined,
     includeInactive: params.get("inactive") === "1",
+    needsDocuments: params.get("needs") === "1",
   });
   return NextResponse.json({ vendors, canManage: canManageVendors(session.user.role) });
 }

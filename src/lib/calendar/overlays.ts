@@ -69,9 +69,13 @@ export type CaseInspectionRow = {
 };
 export type JobStartRow = CalendarJob & { targetStartDate: Date | null };
 
+/** A vendor's dated document in force: an insurance certificate, an exemption, a license. */
+export type VendorDocRow = { id: string; label: string; expiresAt: Date; vendor: { id: string; name: string } };
+
 export type OverlayRows = {
   permitInspections: PermitInspectionRow[];
   permitDates?: PermitDateRow[];
+  vendorDocs?: VendorDocRow[];
   hearings: HearingRow[];
   caseInspections: CaseInspectionRow[];
   jobStarts: JobStartRow[];
@@ -148,6 +152,9 @@ export function overlayItems(rows: OverlayRows, now: Date = new Date(), tz: stri
       item.job = r.job;
       out.push(item);
     }
+  }
+  for (const r of rows.vendorDocs ?? []) {
+    out.push(base("vendor_doc", `vd:${r.id}`, `${r.label} expires — ${r.vendor.name}`, overlayWhen(r.expiresAt, tz), { label: "Vendor document", detail: r.vendor.name, href: `/vendors/${r.vendor.id}`, state: "scheduled" }, false, now));
   }
   for (const r of rows.hearings) {
     const when = overlayWhen(r.scheduledAt, tz);

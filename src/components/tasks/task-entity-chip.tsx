@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, ClipboardList, FileText, Gavel, MapPin, Receipt, UserRound } from "lucide-react";
+import { Briefcase, ClipboardList, FileText, Gavel, MapPin, Receipt, Store, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { subjectLabel, type SubjectKind } from "@/lib/labels/subject";
 import type { TaskEntityContext, TaskListItem } from "./types";
@@ -21,6 +21,7 @@ const ICONS: Record<SubjectKind, React.ElementType> = {
   prospect: MapPin,
   job: Briefcase,
   lead: UserRound,
+  vendor: Store,
 };
 
 export function chipForTask(task: TaskListItem): Chip | null {

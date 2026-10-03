@@ -72,6 +72,8 @@ export type CreateTaskInput = {
   invoiceId?: string | null;
   prospectId?: string | null;
   dailyLogId?: string | null;
+  /** The vendor the task is about (an expiring certificate). */
+  vendorId?: string | null;
   /** A code-violation case, or one of its items (which fills in the case). Never carries a jobId. */
   violationCaseId?: string | null;
   violationItemId?: string | null;
@@ -208,6 +210,7 @@ export async function createTask(
       invoiceId: input.invoiceId ?? null,
       prospectId: input.prospectId ?? null,
       dailyLogId: input.dailyLogId ?? null,
+      vendorId: input.vendorId ?? null,
       violationCaseId: parents.violationCaseId,
       violationItemId: input.violationItemId ?? null,
       sourceKey: input.sourceKey ?? null,

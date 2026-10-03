@@ -64,6 +64,7 @@ const TASK_SELECT = {
   estimate: { select: { id: true, estimateNumber: true, name: true, leadId: true } },
   prospect: { select: { id: true, propertyAddress1: true, city: true } },
   dailyLog: { select: { id: true, jobId: true, logDate: true } },
+  vendor: { select: { id: true, name: true } },
   assignedTo: { select: { firstName: true, lastName: true } },
   createdBy: { select: { firstName: true, lastName: true } },
   completedBy: { select: { firstName: true, lastName: true } },
@@ -86,6 +87,7 @@ type LoadedTask = TaskEmailTask & {
   estimate: { id: string; estimateNumber: string; name: string; leadId: string } | null;
   prospect: { id: string; propertyAddress1: string; city: string } | null;
   dailyLog: { id: string; jobId: string; logDate: Date } | null;
+  vendor?: { id: string; name: string } | null;
 };
 
 async function loadTask(taskId: string): Promise<LoadedTask | null> {

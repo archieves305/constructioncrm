@@ -7,6 +7,8 @@ import type { UsersSelection } from "./access";
 import { overlayItems, overlayScopes, type OverlayRows } from "./overlays";
 import type { CalendarParams } from "./query";
 import type { CalendarItem } from "./types";
+import { canManageVendors } from "@/lib/vendors/access";
+import { DOC_TYPE_LABEL, docInForce, type RequirementKey } from "@/lib/vendors/compliance";
 
 const CASE_SELECT = { id: true, caseNumber: true, agencyCaseNumber: true, leadId: true, lead: { select: LEAD_LABEL_SELECT } } as const;
 
@@ -27,7 +29,7 @@ export async function loadOverlays(params: CalendarParams, sel: UsersSelection, 
   const to = endOfDayIn(params.to);
   const scopes = overlayScopes(sel, user, scope);
   const jobs = params.jobId ? { AND: [scopes.jobs, { id: params.jobId }] } : scopes.jobs;
-  const [permitInspections, permitDates, hearings, caseInspections, jobStarts] = await Promise.all([
+  const [permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs] = await Promise.all([
     prisma.jobPermitInspection.findMany({
       where: { scheduledFor: { gte: from, lte: to }, permit: { job: jobs } },
       select: { id: true, type: true, scheduledFor: true, result: true, permit: { select: { id: true, permitType: true, permitNumber: true, job: { select: JOB_LABEL_SELECT } } } },
@@ -63,7 +65,30 @@ export async function loadOverlays(params: CalendarParams, sel: UsersSelection, 
       select: { ...JOB_LABEL_SELECT, targetStartDate: true },
       take: 200,
     }),
+    // Vendor documents belong to no job: shown to the roles that keep the
+    // vendor directory, and never under a job filter.
+    params.jobId || !canManageVendors(user.role) ? [] : loadVendorDocs(from, to),
   ]);
-  const rows: OverlayRows = { permitInspections, permitDates, hearings, caseInspections, jobStarts };
+  const rows: OverlayRows = { permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs };
   return overlayItems(rows, now).filter((i) => i.dayKey !== null && i.dayKey >= params.from && i.dayKey <= params.to);
+}
+
+const WATCHED: readonly RequirementKey[] = ["liability", "workers_comp", "license"];
+
+/** Expiry days of the documents in force on active vendors — a superseded certificate is not on the calendar. */
+async function loadVendorDocs(from: Date, to: Date): Promise<NonNullable<OverlayRows["vendorDocs"]>> {
+  const vendors = await prisma.vendor.findMany({
+    where: { isActive: true, documents: { some: { expiresAt: { gte: from, lte: to } } } },
+    select: { id: true, name: true, documents: { select: { id: true, type: true, expiresAt: true, createdAt: true } } },
+    take: 200,
+  });
+  const out: NonNullable<OverlayRows["vendorDocs"]> = [];
+  for (const v of vendors) {
+    for (const key of WATCHED) {
+      const doc = docInForce(key, v.documents);
+      if (!doc?.expiresAt || doc.expiresAt < from || doc.expiresAt > to) continue;
+      out.push({ id: doc.id, label: DOC_TYPE_LABEL[doc.type], expiresAt: doc.expiresAt, vendor: { id: v.id, name: v.name } });
+    }
+  }
+  return out;
 }

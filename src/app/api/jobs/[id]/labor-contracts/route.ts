@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { resolveVendorId } from "@/lib/vendors/service";
+import { complianceForVendors, summarise } from "@/lib/vendors/compliance-load";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { recomputeJobLabor } from "@/lib/services/job-pricing";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
@@ -52,7 +53,11 @@ export async function GET(
       },
     },
   });
-  return NextResponse.json(contracts);
+  // What to warn about where the contractor is paid: derived on read, never blocking.
+  const compliance = await complianceForVendors(contracts.map((c) => c.vendor?.id ?? c.crew?.vendor?.id ?? ""));
+  return NextResponse.json(
+    contracts.map((c) => ({ ...c, vendorCompliance: summarise(compliance.get(c.vendor?.id ?? c.crew?.vendor?.id ?? "")) })),
+  );
 }
 
 export async function POST(

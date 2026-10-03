@@ -282,8 +282,16 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `20261013120000_vendors`), `src/lib/vendors/*`, `/vendors` (Directory |
    Unmatched) and `/vendors/[id]`, matching on every expense write, ⌘K group,
    backfill script. The directory starts empty — Richard builds it from
-   Vendors → Unmatched. Stage 2 = compliance
-   documents + expiry alerts; Stage 3 = commitments feeding committed cost.
+   Vendors → Unmatched. **Stage 2 (compliance
+   documents + expiry alerts) built + dev-QA'd 2026-10-03 on
+   `vendor-compliance`, fast-forwarded to `main`, not deployed**:
+   `VendorDocument` / `VendorSettings` / `tasks.vendor_id` (migration
+   `20261014120000_vendor_documents`), pure `compliance.ts` + `alerts.ts`,
+   `alert-run.ts`, document and settings routes, `POST
+   /api/cron/vendor-compliance`, Compliance card on the vendor page, warning
+   on labor contracts, dashboard row, calendar overlay. **Deploy carries a
+   migration; the cron wrapper is installed after it.** Stage 3 = commitments
+   feeding committed cost.
    Notes: [features/vendors.md](docs/project-memory/features/vendors.md).
 0. 🔴 **Audit initiative 5: attention dashboard** — built + dev-QA'd
    2026-10-03 on `attention-dashboard`, fast-forwarded to `main`, **deployed
@@ -337,6 +345,30 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Audit initiative 6, Stage 2: compliance documents + expiry alerts (built, dev-QA'd, on `main`, not deployed)
+
+"continue". Built on `vendor-compliance`: migration
+`20261014120000_vendor_documents`; pure `lib/vendors/compliance.ts`
+(`deriveCompliance`, `docInForce` — the most recently filed document of a
+requirement is the one in force) and `alerts.ts` (expiring inside 30 days →
+HIGH, due 14 days before; lapsed → URGENT, replaces the reminder);
+`alert-run.ts` (owner = the person set under Vendors → Accounting role default
+→ oldest admin; raise once per key; settle on every document write);
+`documents.ts`; routes for documents, settings and the cron; `Task.vendorId`
+through `createTask`, the task include and `subjectLabel` (kind `vendor`);
+Compliance card, document dialog, badge / callout, owner control; warning on
+the labor contract card and add form; attention row `vendor-compliance`;
+calendar overlay `vendor_doc`. One addition to the plan, from Richard's answer
+"a task 30 days before expiry and again when it lapses": the second, URGENT
+task. Gate: typecheck clean, lint 5/22, 1409 tests (+14), build clean. Dev QA:
+API 39/39, headless Chromium 23/23 at 1280 and 400 px, SALES_REP 403s; found
+and fixed in QA: the vendor page's cards ran past the right edge at phone
+width (grid children needed `min-w-0`). Dev DB restored. Not exercised: the
+assignment email and the oldest-admin fallback. **Deploy carries a
+migration**; afterwards install `crm-cron/vendor-compliance.sh` at
+`50 11 * * 1-5`. Details:
+[features/vendors.md](docs/project-memory/features/vendors.md).
 
 ### 2026-10-03 — Audit initiative 6, Stage 1: vendor record + payee matching (deployed `ec88e96`)
 
@@ -1836,6 +1868,10 @@ ssh knuco-droplet 'set -a; . /etc/knuco/env; set +a; curl -s -X POST -H "x-cron-
 # Permit follow-up crons, by hand (droplet; each alert is raised once)
 ssh knuco-droplet '/home/knuco/crm-cron/permit-aging.sh; tail -1 /home/knuco/crm-cron/permit-aging.log'
 ssh knuco-droplet '/home/knuco/crm-cron/inspection-reminders.sh; tail -1 /home/knuco/crm-cron/inspection-reminders.log'
+# Vendor document expiry cron, by hand (droplet; each alert is raised once)
+ssh knuco-droplet '/home/knuco/crm-cron/vendor-compliance.sh; tail -1 /home/knuco/crm-cron/vendor-compliance.log'
+# Link existing expenses to vendors (dry run by default; --yes applies; idempotent)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/link-expense-vendors-2026-10.ts"'
 # Notifications cron wrapper, by hand (droplet; the tick is idempotent per person per window)
 ssh knuco-droplet '/home/knuco/crm-cron/notifications.sh; tail -1 /home/knuco/crm-cron/notifications.log'
 # Notifications tick, dry run (per-person planned digests + due window; sends nothing)
@@ -1989,6 +2025,12 @@ Notification Digests).
   in `lib/permits/alerts.ts` (once per source key, closed by the record). The
   fee typed on a permit is a quote — it never becomes an expense; what was
   paid is read from the job's `PERMIT_FEE` costs.
+- **A vendor's compliance is derived from its documents on read, never
+  stored** (`lib/vendors/compliance.ts`): the most recently filed document of
+  a requirement is the one in force. A gap warns wherever the vendor is used
+  and **never blocks**. Expiry alerts are tasks raised once per document date
+  (`lib/vendors/alert-run.ts`) and closed by the record — every document write
+  calls `settleVendorAlerts`. A document never filed raises no task.
 - **`JobExpense.vendor` is the payee as it arrived; `vendorId` is the match**
   (`lib/vendors/match.ts`, run wherever an expense is written). Never rewrite
   the text; payroll rows are never matched. A labor contract's vendor is its
@@ -2009,8 +2051,18 @@ Notification Digests).
 > about 200 expenses at once, and the alias `homedepot` about 20 more), then
 > each crew and the four typed contractors (BNW Construction, JDA Legacy,
 > Prime Surfaces, MTL Granite). The backfill script's dry run should then
-> report 0 matchable. Next build: Stage 2 (compliance documents, expiry
-> tasks, attention row, calendar overlay), then Stage 3 (commitments).
+> report 0 matchable.
+>
+> **Stage 2 (compliance documents + expiry alerts) is on `main`, not
+> deployed; the deploy carries migration `20261014120000_vendor_documents`.**
+> After Richard pushes and deploys: verify BUILD_ID, smoke, journal, the
+> migration (`vendor_documents`, `vendor_settings`, `tasks.vendor_id`),
+> uploads intact; install `/home/knuco/crm-cron/vendor-compliance.sh` +
+> crontab `50 11 * * 1-5` and run it once (expect 0 raised — no documents
+> yet); no secret → 403. Click-through: a subcontractor's page → Compliance →
+> Add document; the "Expiry tasks go to …" control on Vendors (automatic =
+> Accounting role default, which is unset on prod, so the oldest admin). Next
+> build: Stage 3 (commitments).
 
 > **Initiative 5 (attention dashboard) is on prod (`9b75536`, BUILD_ID
 > `PmFnvrNoVx2_HApQwqCDx`).** Click-through for Richard: the dashboard's

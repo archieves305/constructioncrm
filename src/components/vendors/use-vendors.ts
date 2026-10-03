@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import type { JobLabelInput } from "@/lib/labels/job";
+import type { Compliance, ComplianceVerdict, VendorDocType } from "@/lib/vendors/compliance";
 
 export type VendorKind = "SUBCONTRACTOR" | "SUPPLIER" | "OTHER";
 
@@ -26,6 +27,27 @@ export type VendorRow = {
   approvedSpend: number;
   expenseCount: number;
   jobCount: number;
+  compliance: { verdict: ComplianceVerdict; gaps: string[] };
+};
+
+export type VendorDocument = {
+  id: string;
+  type: VendorDocType;
+  carrier: string | null;
+  policyNumber: string | null;
+  effectiveDate: string | null;
+  expiresAt: string | null;
+  fileName: string | null;
+  fileSize: number | null;
+  notes: string | null;
+  createdAt: string;
+  uploadedBy: { firstName: string; lastName: string };
+};
+
+export type VendorSettings = {
+  complianceOwner: { id: string; firstName: string; lastName: string; isActive: boolean } | null;
+  effectiveOwner: { id: string; firstName: string; lastName: string } | null;
+  canEdit: boolean;
 };
 
 export type VendorOption = { id: string; name: string; kind: VendorKind; trade: string | null };
@@ -59,6 +81,8 @@ export type VendorDetail = {
     crews: { id: string; name: string; isActive: boolean; trades: string[] }[];
   };
   canManage: boolean;
+  documents: VendorDocument[];
+  compliance: Compliance;
   approvedSpend: number;
   spendByJob: { job: JobRow; total: number; count: number }[];
   laborContracts: { id: string; name: string; job: JobRow; amount: number; paid: number }[];
@@ -91,6 +115,15 @@ export function useUnmatched(enabled = true) {
   return useQuery<Unmatched>({
     queryKey: ["vendors", "unmatched"],
     queryFn: () => fetchJson("/api/vendors/unmatched"),
+    retry: retryServerErrors,
+    enabled,
+  });
+}
+
+export function useVendorSettings(enabled = true) {
+  return useQuery<VendorSettings>({
+    queryKey: ["vendors", "settings"],
+    queryFn: () => fetchJson("/api/vendors/settings"),
     retry: retryServerErrors,
     enabled,
   });

@@ -18,6 +18,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { VendorFormDialog, type VendorFormValues } from "@/components/vendors/vendor-form-dialog";
 import { LinkVendorDialog } from "@/components/vendors/link-vendor-dialog";
+import { ComplianceBadge } from "@/components/vendors/compliance-badge";
+import { ComplianceOwner } from "@/components/vendors/compliance-owner";
 import { KIND_LABEL, usd, useUnmatched, type PayeeGroup, type VendorKind, type VendorLink, type VendorRow } from "@/components/vendors/use-vendors";
 
 type Tab = "directory" | "unmatched";
@@ -38,6 +40,7 @@ function Vendors() {
   const url = useSearchParamState();
   const tab: Tab = url.get("tab") === "unmatched" ? "unmatched" : "directory";
   const kind = (["SUBCONTRACTOR", "SUPPLIER", "OTHER"].includes(url.get("kind") ?? "") ? url.get("kind") : "all") as KindFilter;
+  const needs = url.get("needs") === "1";
   const [search, setSearch] = useState(url.get("q") ?? "");
   const q = useDebouncedValue(search.trim());
   const [creating, setCreating] = useState<Pending | null>(null);
@@ -46,9 +49,10 @@ function Vendors() {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (kind !== "all") params.set("kind", kind);
+  if (needs) params.set("needs", "1");
 
   const list = useQuery<{ vendors: VendorRow[]; canManage: boolean }>({
-    queryKey: ["vendors", "list", q, kind],
+    queryKey: ["vendors", "list", q, kind, needs],
     queryFn: () => fetchJson(`/api/vendors?${params.toString()}`),
     retry: retryServerErrors,
   });
@@ -62,12 +66,15 @@ function Vendors() {
         title="Vendors"
         description="Subcontractors, crews and suppliers in one list. Expenses attach to a vendor by the payee name."
         actions={
-          canManage && (
-            <Button onClick={() => setCreating({ link: {}, initial: {}, what: "" })}>
-              <Plus className="mr-2 size-4" />
-              New vendor
-            </Button>
-          )
+          <>
+            <ComplianceOwner />
+            {canManage && (
+              <Button onClick={() => setCreating({ link: {}, initial: {}, what: "" })}>
+                <Plus className="mr-2 size-4" />
+                New vendor
+              </Button>
+            )}
+          </>
         }
       />
 
@@ -94,6 +101,10 @@ function Vendors() {
                 { value: "OTHER", label: "Other" },
               ]}
             />
+            <label className="inline-flex items-center gap-1.5 text-xs text-gray-700">
+              <input type="checkbox" checked={needs} onChange={(e) => url.set("needs", e.target.checked ? "1" : null)} />
+              Needs documents
+            </label>
             <div className="relative w-full sm:ml-auto sm:w-64">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search vendors" className="pl-8" aria-label="Search vendors" />
@@ -105,7 +116,7 @@ function Vendors() {
       {tab === "directory" ? (
         <Directory
           query={list}
-          filtered={Boolean(q) || kind !== "all"}
+          filtered={Boolean(q) || kind !== "all" || needs}
           onNew={canManage ? () => setCreating({ link: {}, initial: {}, what: "" }) : undefined}
           onUnmatched={() => url.set("tab", "unmatched")}
           unmatchedCount={unmatchedCount ?? 0}
@@ -151,7 +162,7 @@ function Directory({
   const vendors = query.data?.vendors ?? [];
   if (vendors.length === 0) {
     return filtered ? (
-      <EmptyState icon={Store} title="No vendors match" description="Try a different search or kind." />
+      <EmptyState icon={Store} title="No vendors match" description="Try a different search, kind or filter." />
     ) : (
       <EmptyState
         icon={Store}
@@ -187,7 +198,12 @@ function Directory({
                   {!v.isActive && <Badge variant="outline" className="ml-2">Inactive</Badge>}
                   {v.trade && <div className="text-xs text-muted-foreground">{v.trade}</div>}
                 </TableCell>
-                <TableCell><Badge variant="secondary">{KIND_LABEL[v.kind]}</Badge></TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge variant="secondary">{KIND_LABEL[v.kind]}</Badge>
+                    {v.compliance.verdict !== "not_required" && <ComplianceBadge compliance={v.compliance} />}
+                  </div>
+                </TableCell>
                 <TableCell className="hidden md:table-cell">
                   <div className="text-sm">{v.contactName || "—"}</div>
                   {v.phone && <a href={`tel:${v.phone}`} className="text-xs text-muted-foreground hover:underline">{v.phone}</a>}

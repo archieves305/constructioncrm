@@ -3,8 +3,8 @@
 Three stages, plan approved 2026-10-03
 (`~/.claude/plans/encapsulated-frolicking-possum.md`). Stage 1 is on prod
 (`ec88e96`, BUILD_ID `5x6HE43-USWkCl1cgP0Zn`, deployed 2026-10-03);
-Stages 2 (compliance documents + expiry alerts) and 3 (commitments feeding
-committed cost) follow, each with its own migration.
+Stage 2 (compliance documents + expiry alerts) is built; Stage 3
+(commitments feeding committed cost) follows with its own migration.
 
 Richard's rulings (2026-10-03): crews, typed contractors and suppliers are
 **one directory**; a subcontractor needs a general liability COI, workers'
@@ -97,9 +97,96 @@ The cc-allocator intake was exercised on dev with a throwaway key.
 Prime Surfaces $17,700, MTL Granite $1,872.50); license and insurance text
 blank on all 11.
 
+## Stage 2 — compliance documents + expiry alerts
+
+Migration `20261014120000_vendor_documents`: `VendorDocument` (type
+`GL_INSURANCE | WORKERS_COMP | WC_EXEMPTION | W9 | LICENSE | OTHER`, carrier,
+policy number, effective and expiry days, optional stored file, notes),
+`VendorSettings` singleton (`complianceOwnerUserId`), `tasks.vendor_id`.
+
+### Where things are
+
+- `src/lib/vendors/compliance.ts` — pure, client-safe, tested:
+  `deriveCompliance(kind, docs, today)` → four requirements (liability,
+  workers' comp, W-9, license), each `ok | expiring | expired | missing |
+  not_recorded`, a verdict (`expired` > `missing` > `expiring` > `ok`;
+  `not_required` for a supplier with nothing lapsing) and plain-words `gaps`.
+  `docInForce` = the most recently **filed** document of a requirement's
+  types (an exemption filed after a certificate replaces it). A W-9 never
+  expires. The license is optional but an expired one counts.
+- `src/lib/vendors/alerts.ts` — pure, tested: `alertsForVendor` (one alert per
+  dated document in force: `expiring` inside 30 days, HIGH, due 14 days before
+  expiry; `expired` once lapsed, URGENT, due today), `liveVendorAlertKeys`.
+  Source key `vendor:<vendorId>:doc:<docId>:<kind>@<expiry day>`.
+- `src/lib/vendors/alert-run.ts` — `complianceOwnerId` (the person set under
+  Vendors → the `ACCOUNTING` workflow role default → the oldest active admin;
+  an inactive person is passed over), `raiseVendorAlerts` (once per key; an
+  `expired` task cancels its `expiring` one), `settleVendorAlerts` (closes
+  open alert tasks the documents have overtaken; called on every document
+  write).
+- `src/lib/vendors/documents.ts` — create / update / delete (row first, then
+  the file), dates stored as a day pinned at noon UTC, audited
+  (`VendorDocument`).
+- `src/lib/vendors/compliance-load.ts` — `complianceForVendors`,
+  `vendorsNeedingDocuments` (the dashboard row's one query).
+- Routes: `POST /api/vendors/[id]/documents` (multipart),
+  `GET | PATCH | DELETE /api/vendors/[id]/documents/[docId]` (GET streams the
+  file; vendor-view roles), `GET | PUT /api/vendors/settings` (PUT is ADMIN /
+  MANAGER), `POST /api/cron/vendor-compliance` (`requireCronSecret`).
+- UI: `components/vendors/compliance-card.tsx` on the vendor page (requirement
+  tiles, document history, add / edit / remove), `document-dialog.tsx`,
+  `compliance-badge.tsx` (`ComplianceBadge`, `ComplianceCallout`),
+  `compliance-owner.tsx` (the "Expiry tasks go to …" control on `/vendors`),
+  the list's pill and "Needs documents" filter (`?needs=1`).
+
+### Where the warning shows (never a block)
+
+- Labor contract card (above the buttons that pay the contractor) and the
+  add-contract form once a crew is picked; a crew with no vendor record gets a
+  neutral hint. `GET /api/jobs/[id]/labor-contracts` and `GET /api/crews`
+  return `vendorCompliance`.
+- Dashboard row "Subcontractors missing documents" (`vendor-compliance`,
+  office roles): active subcontractors whose verdict is not `ok`. Company-wide
+  — Mine and All show the same number.
+- Calendar overlay kind `vendor_doc` ("General liability certificate expires —
+  <vendor>") for the roles that keep the directory; never under a job filter;
+  only the document in force.
+- A task about a vendor carries `vendorId`; the task chip, sheet and emails
+  name the vendor (`subjectLabel` kind `vendor`).
+
+Not done in this stage: the record-payment and payment-request dialogs do not
+repeat the callout (it sits on the card they open from), and
+`LaborContract.contractorLicense` / `contractorInsurance` are untouched (they
+print on contract PDFs).
+
+### Operator
+
+Cron wrapper `/home/knuco/crm-cron/vendor-compliance.sh`, crontab
+`50 11 * * 1-5` (after the permit crons). A document that was never filed
+raises no task; only dated documents do.
+
+### Dev QA (2026-10-03)
+
+API script 39/39 (missing ×3 → attention row count = list; add with a file,
+download; bad date / type / order / file type 400; cron 403 without the
+secret; one HIGH task for the Accounting default, due 14 days before expiry,
+linked to the vendor; second run 0; a newer certificate closes it; a lapsed
+document raises one URGENT task and a corrected date closes it; no task for a
+missing W-9; expired replaces expiring; delete closes the task and removes the
+file; owner setting; labor contract and crew carry the warning and the
+contract still saves). Headless Chromium 23/23 at 1280 and 400 px (list pill,
+owner control, add and edit dialogs, labor card callout, attention list, task
+chip, dashboard row, calendar card), no console errors. SALES_REP: 403 on
+every document and settings route, no dashboard row, no overlay. Dev DB
+restored from a dump. Not exercised: the assignment email (dev's owner is a
+muted seed user) and the oldest-admin fallback.
+
 ## Rules
 
 - `JobExpense.vendor` is the payee as it arrived; `vendorId` is the match.
   Never rewrite the text to make a match.
 - New vendor routes take `canManageVendors` / `canViewVendors`, never a bare
   session check.
+- A vendor's compliance is derived from its documents on read and never
+  stored; a gap warns and never blocks; an expiry alert is a task raised once
+  per document date and closed by the record (`settleVendorAlerts`).

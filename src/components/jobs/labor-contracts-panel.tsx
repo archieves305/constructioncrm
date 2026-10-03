@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import Link from "next/link";
 import { VendorSelect } from "@/components/vendors/vendor-select";
+import { ComplianceCallout, type ComplianceSummary } from "@/components/vendors/compliance-badge";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,8 @@ type LaborContract = {
   crew: { id: string; name: string; vendor?: { id: string; name: string } | null } | null;
   /** The contractor's own vendor record (contracts typed by name). */
   vendor?: { id: string; name: string } | null;
+  /** The vendor's document status, derived on read; null when there is no vendor. */
+  vendorCompliance?: ComplianceSummary | null;
   createdBy: { firstName: string; lastName: string };
   payments: LaborPayment[];
   changeOrders: LaborChangeOrder[];
@@ -166,7 +169,13 @@ function DocRow({ doc, showType }: { doc: GeneratedDoc; showType?: boolean }) {
   );
 }
 
-type Crew = { id: string; name: string; isActive: boolean };
+type Crew = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  vendor?: { id: string; name: string } | null;
+  vendorCompliance?: ComplianceSummary | null;
+};
 
 const ADHOC = "__adhoc";
 
@@ -191,6 +200,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
 
   // Add-contract form
   const [crewChoice, setCrewChoice] = useState<string>(""); // crewId or ADHOC
+  const chosenCrew = crews.find((c) => c.id === crewChoice) ?? null;
   const [adhocName, setAdhocName] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -692,6 +702,13 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+          {chosenCrew && (
+            <ComplianceCallout
+              compliance={chosenCrew.vendorCompliance}
+              vendorName={chosenCrew.vendor?.name ?? chosenCrew.name}
+              hasVendor={Boolean(chosenCrew.vendor)}
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -716,6 +733,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
             return (
               <Card key={c.id}>
                 <CardContent className="space-y-2 p-3">
+                  {vendorOf(c) && <ComplianceCallout compliance={c.vendorCompliance} vendorName={vendorOf(c)!.name} />}
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <HardHat className="h-4 w-4 text-muted-foreground" />

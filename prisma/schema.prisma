@@ -476,6 +476,8 @@ model User {
   fieldIssuesAssigned               FieldIssue[]              @relation("FieldIssueAssignedTo")
   fieldIssuesResolved               FieldIssue[]              @relation("FieldIssueResolvedBy")
   workflowRoleDefaults              WorkflowRoleDefault[]     @relation("WorkflowRoleDefaultUser")
+  vendorDocuments                   VendorDocument[]          @relation("VendorDocumentUploadedBy")
+  vendorComplianceOwnerOf           VendorSettings[]          @relation("VendorComplianceOwner")
   workflowTeamSlots                 JobWorkflowTeamMember[]   @relation("WorkflowTeamUser")
   workflowsApplied                  JobWorkflowInstance[]     @relation("WorkflowAppliedBy")
   permitsDetermined                 JobWorkflowInstance[]     @relation("WorkflowPermitDeterminedBy")
@@ -707,6 +709,8 @@ model Task {
   invoiceId       String?    @map("invoice_id")
   prospectId      String?    @map("prospect_id")
   dailyLogId      String?    @map("daily_log_id")
+  // A vendor the task is about (an expiring insurance certificate).
+  vendorId        String?    @map("vendor_id")
   // A task on a code-violation case (or one of its items) carries the case's
   // leadId but NOT a jobId — even when the case has a linked corrective job —
   // so case steps never appear in the construction job's queue or counts.
@@ -797,6 +801,7 @@ model Task {
   invoice       Invoice?           @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   prospect      Prospect?          @relation(fields: [prospectId], references: [id], onDelete: SetNull)
   dailyLog      DailyLog?          @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  vendor        Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   violationCase CodeViolationCase? @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
   violationItem CodeViolationItem? @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
   assignedTo    User?              @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
@@ -829,6 +834,7 @@ model Task {
   @@index([invoiceId])
   @@index([prospectId])
   @@index([dailyLogId])
+  @@index([vendorId])
   @@index([violationCaseId])
   @@index([violationItemId])
   @@index([sourceKey])
@@ -1468,6 +1474,8 @@ model Vendor {
   expenses       JobExpense[]
   crews          Crew[]
   laborContracts LaborContract[]
+  documents      VendorDocument[]
+  tasks          Task[]
 
   @@index([name])
   @@map("vendors")
@@ -1487,6 +1495,57 @@ model VendorAlias {
 
   @@index([vendorId])
   @@map("vendor_aliases")
+}
+
+enum VendorDocumentType {
+  GL_INSURANCE
+  WORKERS_COMP
+  WC_EXEMPTION
+  W9
+  LICENSE
+  OTHER
+}
+
+/// A compliance document on a vendor: an insurance certificate, a workers'
+/// comp certificate or exemption, a W-9, a license. The latest document of a
+/// type is the one in force; a vendor's compliance is derived from these on
+/// read (`lib/vendors/compliance.ts`) and never stored. The file is optional —
+/// the dates can be recorded before the paper arrives.
+model VendorDocument {
+  id               String             @id @default(cuid())
+  vendorId         String             @map("vendor_id")
+  type             VendorDocumentType
+  carrier          String?
+  policyNumber     String?            @map("policy_number")
+  effectiveDate    DateTime?          @map("effective_date")
+  expiresAt        DateTime?          @map("expires_at")
+  fileName         String?            @map("file_name")
+  fileType         String?            @map("file_type")
+  fileSize         Int?               @map("file_size")
+  storageKey       String?            @map("storage_key")
+  notes            String?            @db.Text
+  uploadedByUserId String             @map("uploaded_by_user_id")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  vendor     Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation("VendorDocumentUploadedBy", fields: [uploadedByUserId], references: [id])
+
+  @@index([vendorId, type])
+  @@index([expiresAt])
+  @@map("vendor_documents")
+}
+
+/// Singleton. Who gets a vendor's expiry tasks; unset = the Accounting role
+/// default (Admin → Workflow Roles), then the oldest admin.
+model VendorSettings {
+  id                    String   @id @default("default")
+  complianceOwnerUserId String?  @map("compliance_owner_user_id")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  complianceOwner User? @relation("VendorComplianceOwner", fields: [complianceOwnerUserId], references: [id], onDelete: SetNull)
+
+  @@map("vendor_settings")
 }
 
 model CrewAssignment {

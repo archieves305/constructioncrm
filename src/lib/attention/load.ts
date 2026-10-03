@@ -8,7 +8,8 @@ import { CASE_LABEL_SELECT, JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/la
 import type { ListScope } from "@/lib/lists/scope";
 import { dashboardTaskWhere } from "@/lib/reports/dashboard-scope";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
-import { APP_TIME_ZONE } from "@/lib/time/zone";
+import { APP_TIME_ZONE, dayKey } from "@/lib/time/zone";
+import { vendorsNeedingDocuments } from "@/lib/vendors/compliance-load";
 import { violationVisibilityFilter } from "@/lib/violations/access";
 import { OPEN_CASE_STATUSES } from "@/lib/violations/rules";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
@@ -152,6 +153,8 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "violation-deadlines": (ctx) => prisma.codeViolationCase.count({ where: violationDeadlinesWhere(ctx) }),
   "permits-expiring": (ctx) => prisma.jobPermit.count({ where: permitsExpiringWhere(ctx) }),
   "permits-waiting": (ctx) => prisma.jobPermit.count({ where: permitsWaitingWhere(ctx) }),
+  // Company-wide, so Mine and All agree: a vendor belongs to no one job.
+  "vendor-compliance": async (ctx) => (await vendorsNeedingDocuments(dayKey(ctx.now))).length,
   "overdue-follow-ups": (ctx) => prisma.lead.count({ where: overdueFollowUpsWhere(ctx) }),
   "change-orders-awaiting": (ctx) => prisma.changeOrder.count({ where: changeOrdersAwaitingWhere(ctx) }),
   "contracts-awaiting": (ctx) => prisma.customerContract.count({ where: contractsAwaitingWhere(ctx) }),
@@ -190,6 +193,12 @@ function permitName(p: { permitType: string | null; permitNumber: string | null 
 }
 
 const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionContext) => Promise<AttentionItem[]>> = {
+  "vendor-compliance": async (ctx) => {
+    const rows = await vendorsNeedingDocuments(dayKey(ctx.now));
+    return rows
+      .slice(0, take)
+      .map((v) => item(v.id, { primary: v.name, secondary: v.trade, code: null, placeholder: false }, v.compliance.gaps.join(" · "), null, `/vendors/${v.id}`));
+  },
   "inspections-to-correct": async (ctx) => {
     const rows = await prisma.task.findMany({
       where: inspectionsToCorrectWhere(ctx),

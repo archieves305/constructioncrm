@@ -124,3 +124,11 @@ describe("subjectText", () => {
     expect(subjectText({})).toBe("");
   });
 });
+
+describe("a task about a vendor", () => {
+  it("names the vendor and opens its page", () => {
+    const task = { vendor: { id: "v1", name: "Rocket HVAC" } };
+    expect(subjectLabel(task)).toEqual({ kind: "vendor", href: "/vendors/v1", primary: "Rocket HVAC", secondary: null, code: null, placeholder: false });
+    expect(subjectText(task)).toBe("Rocket HVAC");
+  });
+});

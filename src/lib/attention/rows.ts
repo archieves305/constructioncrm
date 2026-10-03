@@ -18,6 +18,7 @@ export const ATTENTION_KEYS = [
   "violation-deadlines",
   "permits-expiring",
   "permits-waiting",
+  "vendor-compliance",
   "overdue-follow-ups",
   "change-orders-awaiting",
   "contracts-awaiting",
@@ -80,6 +81,13 @@ export const ATTENTION_ROWS: readonly AttentionRowDef[] = [
     description: `Permits on open jobs submitted more than ${PERMIT_WAITING_DAYS} days ago and still not issued.`,
     tone: "warning",
     roles: PRODUCTION_VIEW,
+  },
+  {
+    key: "vendor-compliance",
+    label: "Subcontractors missing documents",
+    description: "Active subcontractors with insurance, workers' comp or a W-9 missing, expired or expiring within 30 days. Nothing is blocked; this is the list to chase.",
+    tone: "warning",
+    roles: OFFICE,
   },
   {
     key: "overdue-follow-ups",

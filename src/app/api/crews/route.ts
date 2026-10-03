@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
+import { complianceForVendors, summarise } from "@/lib/vendors/compliance-load";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 
 const createSchema = z.object({
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest) {
     orderBy: { name: "asc" },
   });
 
-  return NextResponse.json(crews);
+  const compliance = await complianceForVendors(crews.map((c) => c.vendor?.id ?? ""));
+  return NextResponse.json(crews.map((c) => ({ ...c, vendorCompliance: summarise(compliance.get(c.vendor?.id ?? "")) })));
 }
 
 export async function POST(request: NextRequest) {

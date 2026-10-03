@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fetchJson, HttpError, retryServerErrors } from "@/lib/fetch-json";
 import { VendorFormDialog } from "@/components/vendors/vendor-form-dialog";
+import { ComplianceCard } from "@/components/vendors/compliance-card";
+import { ComplianceBadge } from "@/components/vendors/compliance-badge";
 import { KIND_LABEL, usd, type VendorDetail } from "@/components/vendors/use-vendors";
 
 export default function VendorPage({ params }: { params: Promise<{ id: string }> }) {
@@ -87,6 +89,7 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
           <span className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{KIND_LABEL[vendor.kind]}</Badge>
             {vendor.trade && <span>{vendor.trade}</span>}
+            {data.compliance.verdict !== "not_required" && <ComplianceBadge compliance={data.compliance} />}
             {!vendor.isActive && <Badge variant="outline">Inactive</Badge>}
           </span>
         }
@@ -106,7 +109,7 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-base">Contact</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
@@ -171,7 +174,14 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
           )}
         </div>
 
-        <div className="space-y-4 lg:col-span-2">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
+          <ComplianceCard
+            vendorId={vendor.id}
+            compliance={data.compliance}
+            documents={data.documents}
+            canManage={canManage}
+            isSubcontractor={vendor.kind === "SUBCONTRACTOR"}
+          />
           <div className="grid grid-cols-2 gap-3">
             <Stat label="Spent (approved expenses)" value={usd(data.approvedSpend)} />
             <Stat label="Labor contracts" value={usd(contractTotal)} sub={data.laborContracts.length ? `${usd(contractPaid)} paid` : undefined} />

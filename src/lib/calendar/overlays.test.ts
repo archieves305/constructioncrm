@@ -92,3 +92,14 @@ describe("overlayScopes", () => {
     expect(overlayScopes({ kind: "all" }, admin, undefined)).toEqual({ jobs: {}, cases: {} });
   });
 });
+
+describe("vendor document overlays", () => {
+  it("puts a certificate's expiry on its day and opens the vendor", () => {
+    const [item] = overlayItems(
+      { permitInspections: [], hearings: [], caseInspections: [], jobStarts: [], vendorDocs: [{ id: "d1", label: "General liability certificate", expiresAt: new Date("2026-11-04T12:00:00.000Z"), vendor: { id: "v1", name: "Rocket HVAC" } }] },
+      new Date("2026-10-05T15:00:00.000Z"),
+    );
+    expect(item).toMatchObject({ id: "vd:d1", kind: "vendor_doc", title: "General liability certificate expires — Rocket HVAC", dayKey: "2026-11-04", allDay: true });
+    expect(item.overlay).toMatchObject({ href: "/vendors/v1", label: "Vendor document" });
+  });
+});

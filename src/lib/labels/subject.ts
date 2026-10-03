@@ -8,7 +8,7 @@ import { jobText, jobTextWithCustomer, jobLabel, type EntityLabel, type JobLabel
  * job); the address leads whenever one is reachable.
  */
 
-export type SubjectKind = "violation" | "invoice" | "estimate" | "dailyLog" | "prospect" | "job" | "lead";
+export type SubjectKind = "violation" | "invoice" | "estimate" | "dailyLog" | "prospect" | "job" | "lead" | "vendor";
 
 export type SubjectTaskInput = {
   violationCase?: { id: string; caseNumber: string } | null;
@@ -19,6 +19,8 @@ export type SubjectTaskInput = {
   prospect?: { id: string; propertyAddress1: string; city: string } | null;
   job?: (JobLabelInput & { id: string }) | null;
   lead?: (AddressInput & { id: string; fullName: string }) | null;
+  /** A task about a vendor itself (an expiring certificate); it has no job. */
+  vendor?: { id: string; name: string } | null;
 };
 
 export type SubjectLabel = EntityLabel & { kind: SubjectKind; href: string | null };
@@ -67,6 +69,7 @@ export function subjectLabel(task: SubjectTaskInput): SubjectLabel | null {
   if (task.lead) {
     return { kind: "lead", href: `/leads/${task.lead.id}`, ...withAddress(formatAddressLine(task.lead), task.lead.fullName, task.lead.fullName, null) };
   }
+  if (task.vendor) return { kind: "vendor", href: `/vendors/${task.vendor.id}`, primary: task.vendor.name, secondary: null, code: null, placeholder: false };
   return null;
 }
 
@@ -94,5 +97,6 @@ export function subjectText(task: SubjectTaskInput): string {
     const address = formatAddressLine(task.lead);
     return address ? `${task.lead.fullName} — ${address}` : task.lead.fullName;
   }
+  if (task.vendor) return task.vendor.name;
   return "";
 }
