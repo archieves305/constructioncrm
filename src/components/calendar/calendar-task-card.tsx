@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, CheckCircle2, ClipboardCheck, Clock, Flag, Gavel, Link2, ListChecks, Lock, MessageSquare, ShieldCheck } from "lucide-react";
+import { AlertCircle, CheckCircle2, ClipboardCheck, Clock, Flag, Gavel, Link2, ListChecks, Lock, MessageSquare, ShieldAlert, ShieldCheck } from "lucide-react";
 import type { CalendarKind } from "@/lib/calendar/types";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { PRIORITY_DOT_CLASS, PRIORITY_LABEL, STATUS_TONE } from "@/components/tasks/task-colors";
@@ -52,6 +52,7 @@ export type CalendarTaskCardProps = {
 /** The icon that says what kind of appointment an overlay is. */
 export const OVERLAY_ICON: Record<Exclude<CalendarKind, "task">, typeof Gavel> = {
   permit_inspection: ClipboardCheck,
+  permit_date: ShieldAlert,
   hearing: Gavel,
   case_inspection: ShieldCheck,
   job_start: Flag,

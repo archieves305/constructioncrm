@@ -66,12 +66,27 @@ The job's Field → Inspections tab, `components/jobs/inspections-list.tsx` and
 screen wrote). `?tab=field&sub=inspections` lands on the Permits tab. The
 table itself is left in the schema.
 
-## Not yet (Stage 3)
+## Stage 3, the part that needed no ruling (2026-10-03)
 
-Expiry and expected-approval dates as calendar overlays; the aging cron
-setting EXPIRED; scheduling `permit-aging` and `inspection-reminders` on the
-droplet (decide first whether the follow-up rules or tasks + digests notify);
-permit fee → expense; permit number in ⌘K search.
+- Calendar: `CalendarKind` `permit_date` — "Permit expires" (`px:<id>`, any
+  permit not Final / Denied) and "Permit approval expected" (`pa:<id>`, only
+  while Applied / In progress). Read-only, all-day, opens the job's Permits
+  tab. `overlays.ts` `PermitDateRow`, loaded in `overlays-load.ts`.
+- `POST /api/cron/permit-aging` also moves an Issued / In-progress permit
+  whose expiration day has passed (office zone) to EXPIRED, audited, firing
+  `PERMIT_STATUS_EXPIRED` once. Returns `expired`.
+
+## Not yet
+
+- **Scheduling `permit-aging` and `inspection-reminders` on the droplet.**
+  Both also queue follow-up-rule executions (`emitPermitEvent` /
+  `emitInspectionEvent`); dev has active rules for them (4 executions queued
+  for two QA permits), prod is unchecked. Richard decides first: the rule
+  engine mails, or tasks + digests do and the rules are switched off.
+- **Permit fee → expense.** Needs a ruling on how it meets the bank feed
+  (the same fee arrives from cc-allocator) and on the link (`externalId` is
+  treated as cc-allocator's record).
+- Permit number in ⌘K search; expiring permits on the dashboard (initiative 5).
 
 ## QA recipe
 

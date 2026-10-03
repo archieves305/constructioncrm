@@ -7,7 +7,7 @@ import type { CalendarItem, CalendarJob, CalendarLead, CalendarOverlay } from ".
 
 /**
  * Dated records that are not tasks, drawn on the calendar read-only: a
- * permit inspection, a code-violation hearing, an agency inspection on a
+ * permit inspection, a permit's expiry or expected approval, a code-violation hearing, an agency inspection on a
  * case, a job's target start. They carry their own icon, open their own
  * record, never count as work and can never be dragged — the calendar shows
  * them so nobody schedules a roof tear-off on inspection morning.
@@ -42,6 +42,16 @@ export type PermitInspectionRow = {
   result: string;
   permit: { id: string; permitType: string | null; permitNumber: string | null; job: CalendarJob };
 };
+/** A permit with a date worth seeing coming: the day it expires, or the day its approval is expected. */
+export type PermitDateRow = {
+  id: string;
+  permitType: string | null;
+  permitNumber: string | null;
+  status: string;
+  expirationDate: Date | null;
+  expectedApprovalDate: Date | null;
+  job: CalendarJob;
+};
 export type HearingRow = {
   id: string;
   type: string;
@@ -61,6 +71,7 @@ export type JobStartRow = CalendarJob & { targetStartDate: Date | null };
 
 export type OverlayRows = {
   permitInspections: PermitInspectionRow[];
+  permitDates?: PermitDateRow[];
   hearings: HearingRow[];
   caseInspections: CaseInspectionRow[];
   jobStarts: JobStartRow[];
@@ -121,6 +132,22 @@ export function overlayItems(rows: OverlayRows, now: Date = new Date(), tz: stri
     );
     item.job = r.permit.job;
     out.push(item);
+  }
+  for (const r of rows.permitDates ?? []) {
+    const detail = [r.permitType, r.permitNumber].filter(Boolean).join(" · ") || null;
+    const href = `/jobs/${r.job.id}?tab=permits`;
+    // A closed or denied permit has no expiry to watch.
+    if (r.expirationDate && r.status !== "FINAL" && r.status !== "DENIED") {
+      const item = base("permit_date", `px:${r.id}`, "Permit expires", overlayWhen(r.expirationDate, tz), { label: "Permit expiry", detail, href, state: "scheduled" }, false, now);
+      item.job = r.job;
+      out.push(item);
+    }
+    // Only while the permit is still waiting on the building department.
+    if (r.expectedApprovalDate && (r.status === "APPLIED" || r.status === "IN_PROGRESS")) {
+      const item = base("permit_date", `pa:${r.id}`, "Permit approval expected", overlayWhen(r.expectedApprovalDate, tz), { label: "Permit approval", detail, href, state: "scheduled" }, false, now);
+      item.job = r.job;
+      out.push(item);
+    }
   }
   for (const r of rows.hearings) {
     const when = overlayWhen(r.scheduledAt, tz);

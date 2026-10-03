@@ -55,6 +55,32 @@ describe("overlayItems", () => {
   });
 });
 
+describe("permit dates", () => {
+  const permit = { id: "pm", permitType: "Re-roof", permitNumber: "B-9", job, expirationDate: new Date("2026-10-20T00:00:00.000Z"), expectedApprovalDate: new Date("2026-10-02T00:00:00.000Z") };
+  const run = (status: string) => overlayItems({ permitInspections: [], hearings: [], caseInspections: [], jobStarts: [], permitDates: [{ ...permit, status }] }, now).map((i) => [i.id, i.title, i.dayKey]);
+
+  it("a permit in review shows its expected approval and its expiry; an issued one only its expiry", () => {
+    expect(run("APPLIED")).toEqual([
+      ["px:pm", "Permit expires", "2026-10-20"],
+      ["pa:pm", "Permit approval expected", "2026-10-02"],
+    ]);
+    expect(run("ISSUED")).toEqual([["px:pm", "Permit expires", "2026-10-20"]]);
+  });
+
+  it("a closed or denied permit shows neither", () => {
+    expect(run("FINAL")).toEqual([]);
+    expect(run("DENIED")).toEqual([]);
+  });
+
+  it("opens the job's Permits tab and is read-only like every overlay", () => {
+    const [x] = overlayItems({ permitInspections: [], hearings: [], caseInspections: [], jobStarts: [], permitDates: [{ ...permit, status: "ISSUED" }] }, now);
+    expect(x.kind).toBe("permit_date");
+    expect(x.overlay).toEqual({ label: "Permit expiry", detail: "Re-roof · B-9", href: "/jobs/j1?tab=permits", state: "scheduled" });
+    expect(x.allDay).toBe(true);
+    expect(isOverlay(x)).toBe(true);
+  });
+});
+
 describe("overlayScopes", () => {
   it("own-only roles get their visibility scope; My calendar is involvement; everyone is everything", () => {
     const rep = { id: "rep", role: "SALES_REP" as const };
