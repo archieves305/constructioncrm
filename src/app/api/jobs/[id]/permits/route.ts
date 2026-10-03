@@ -2,7 +2,6 @@ import { settleJobGates } from "@/lib/workflows/gates";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
-import { emitPermitEvent } from "@/lib/follow-ups/permit-events";
 import { guardJob } from "@/lib/access/records";
 import { canWriteProduction } from "@/lib/access/roles";
 import { isPermitStatus, statusStamps } from "@/lib/permits/rules";
@@ -15,7 +14,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   const denied = await guardJob(session.user, id, "read");
   if (denied) return denied;
-  const [permits, steps] = await Promise.all([
+  const [permits, steps, feeCharges] = await Promise.all([
     prisma.jobPermit.findMany({
       where: { jobId: id },
       include: {
@@ -25,8 +24,14 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       orderBy: { createdAt: "desc" },
     }),
     inspectionStepsForJob(id),
+    // What was actually paid: permit-fee charges already on the job's costs. A fee typed on a permit never becomes one.
+    prisma.jobExpense.findMany({
+      where: { jobId: id, type: "PERMIT_FEE", status: "APPROVED" },
+      select: { id: true, vendor: true, description: true, amount: true, incurredDate: true },
+      orderBy: { incurredDate: "asc" },
+    }),
   ]);
-  return NextResponse.json({ permits, steps, canEdit: canWriteProduction(session.user.role) });
+  return NextResponse.json({ permits, steps, feeCharges, canEdit: canWriteProduction(session.user.role) });
 }
 
 export async function POST(
@@ -80,8 +85,6 @@ export async function POST(
     });
   }
 
-  // Fire automation: PERMIT_CREATED for any active rule.
-  await emitPermitEvent("PERMIT_CREATED", permit.id);
   // A permit number on file completes the step that waits on it (the job's, and a linked violation case's).
   await settleJobGates(permit.jobId, session.user.id);
 

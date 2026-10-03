@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { guardJob } from "@/lib/access/records";
 import { recordAudit } from "@/lib/audit/record";
+import { settleInspectionAlerts } from "@/lib/permits/alert-run";
 import { PermitError, updatePermitInspection } from "@/lib/permits/service";
 
 type Params = { params: Promise<{ id: string }> };
@@ -42,6 +43,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { denied, insp } = await guard(id, session.user);
   if (denied) return denied;
   await prisma.jobPermitInspection.delete({ where: { id } });
+  await settleInspectionAlerts(id, session.user.id);
   await recordAudit({ actorUserId: session.user.id, entityType: "JobPermitInspection", entityId: id, action: "delete", before: { type: insp?.type, result: insp?.result, permitId: insp?.permitId } });
   return NextResponse.json({ ok: true });
 }

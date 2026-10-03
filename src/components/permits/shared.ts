@@ -38,7 +38,10 @@ export type PermitRecord = {
   inspections?: PermitInspection[];
 };
 
-export type JobPermitsData = { permits: PermitRecord[]; steps: InspectionStep[]; canEdit: boolean };
+/** A permit-fee charge on the job's costs (from the bank feed or entered under Money). */
+export type PermitFeeCharge = { id: string; vendor: string | null; description: string | null; amount: string; incurredDate: string };
+
+export type JobPermitsData = { permits: PermitRecord[]; steps: InspectionStep[]; feeCharges?: PermitFeeCharge[]; canEdit: boolean };
 
 export type AssignableUser = { id: string; firstName: string; lastName: string };
 

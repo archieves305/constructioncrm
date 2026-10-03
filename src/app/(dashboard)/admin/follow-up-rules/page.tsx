@@ -264,13 +264,13 @@ export default function FollowUpRulesPage() {
                         {t.replace(/_/g, " ")}
                       </SelectItem>
                     ))}
-                    <div className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Permit events</div>
+                    <div className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Permit events (retired — no longer fire)</div>
                     {PERMIT_TRIGGERS.map((t) => (
                       <SelectItem key={t} value={t}>
                         {t.replace(/_/g, " ")}
                       </SelectItem>
                     ))}
-                    <div className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Inspection events</div>
+                    <div className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Inspection events (retired — no longer fire)</div>
                     {INSPECTION_TRIGGERS.map((t) => (
                       <SelectItem key={t} value={t}>
                         {t.replace(/_/g, " ")}

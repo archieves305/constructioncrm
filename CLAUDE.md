@@ -272,11 +272,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    Richard's own click-through. Notes:
    [features/tasks.md](docs/project-memory/features/tasks.md).
 0. 🔴 **Audit initiative 4: permits and inspections as one record** —
-   Stages 1–2 (one entry per permit fact; job Permits tab rebuilt) built +
-   dev-QA'd 2026-10-03 on `permits-one-record`, **not merged, not deployed**
-   (migration `20261012120000_permit_inspection_task_link`). Stage 3:
-   calendar overlays and EXPIRED-by-cron built; the crons on the droplet and
-   fee → expense wait on Richard's two rulings. Notes: [features/permits.md](docs/project-memory/features/permits.md).
+   Stages 1–3 built + dev-QA'd 2026-10-03 on `permits-one-record`,
+   fast-forwarded to `main`, **not yet deployed** (migration
+   `20261012120000_permit_inspection_task_link`). Stage 3 after Richard's
+   rulings: permit follow-ups are tasks raised by the two crons, no customer
+   mail on permit events, the permit fee is shown from the job's costs and
+   never created. **After the deploy**: install the two cron wrappers and
+   run `scripts/retire-permit-follow-up-rules-2026-10.ts --yes` on prod.
+   Notes: [features/permits.md](docs/project-memory/features/permits.md).
 1. ✅ **Progress billing — complete.** Stage 1 deployed + JOB-00009
    backfilled 2026-08-27; Stage 2 (change orders → SOV line) `6b3868b` and
    Stage 3 (retainage release + Collections split) `4833ea3`, both
@@ -311,6 +314,37 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-03 — Audit initiative 4, Stage 3 finished: permit follow-ups as tasks, fee shown from costs (built, dev-QA'd, on `main`, not deployed)
+
+"continue on the next phase". Read-only prod check first: 18 active permit /
+inspection follow-up rules (9 of them customer emails), 4 executions PENDING
+since 09-28, and **the rule processor was never on the crontab — nothing was
+ever sent**; 2 permits (both Applied, JOB-00002 submitted 2025-09-01), no
+inspections, no fee typed on any permit, 3 `PERMIT_FEE` expenses ($1,298.13).
+Richard ruled: tasks + digests for staff, no customer emails, show the fee
+and create nothing. Built: pure `lib/permits/alerts.ts` + `alert-run.ts`
+(waiting 7 days → coordinator, 14 days → PM and the 7-day task is cancelled,
+expiring within 30 days → PM, "Be ready" the working day before an inspection
+→ superintendent; once per source key, closed by the record through
+`settlePermitAlerts` / `settleInspectionAlerts`); both cron routes rewritten
+on it (`inspection-reminders` is daily now); every `emitPermitEvent` /
+`emitInspectionEvent` call removed; the rules page marks those triggers
+retired; `scripts/retire-permit-follow-up-rules-2026-10.ts`; `feeCharges` on
+the job permits route + "Permit fees paid" card ("Permit fee quoted" on the
+form); permit number in the job search and ⌘K. Gate: typecheck clean, lint
+5/22, 1380 tests (+13), build clean. Dev QA by API on JOB-00001 (crons 403
+without the secret; run 1 raised 1/1/1 + 1 inspection task, run 2 raised 0;
+issuing, re-submitting, moving and passing each closed its task with the
+reason; a passed final closed the permit and its expiring task; no rule
+execution queued; search by permit number found the job) and the fee card in
+headless Chromium at 1280 and 400 px, no console errors; dev DB restored;
+retirement script on dev: 18 switched off, re-run 0. Not exercised: the
+assignment email itself (dev's owner was a muted seed user), and the fallback
+to the oldest admin. On prod the first run will raise one HIGH task for
+JOB-00002's permit (waiting since 2025-09-01) unless that job is closed.
+**Deploy carries the Stage 1 migration.** Details:
+[features/permits.md](docs/project-memory/features/permits.md).
+
 ### 2026-10-03 — Audit initiative 4: permits and inspections as one record (Stages 1–2 and part of 3 built, dev-QA'd, on branch `permits-one-record`, not deployed)
 
 "start initiative 4". **Stage 1 (backend):** pure `lib/permits/rules.ts`,
@@ -342,10 +376,8 @@ migration.** **Stage 3, the part needing no ruling, built the same day**:
 `permit_date` calendar overlays ("Permit expires", "Permit approval
 expected") and `permit-aging` moving a lapsed permit to EXPIRED (dev: week
 view returned both overlays; cron `expired: 1`, second run 0; 1367 tests).
-**Still open, both waiting on Richard**: putting `permit-aging` and
-`inspection-reminders` on the droplet's crontab (they also queue follow-up
-rule mail — rules or tasks + digests?), and permit fee → expense (how it
-meets the same fee arriving from the bank feed). Details:
+The two open rulings (cron mail, permit fee) were made the same day — see the
+entry above. Details:
 [features/permits.md](docs/project-memory/features/permits.md).
 
 ### 2026-10-02 — Crew payment requests + assignable labor-contract lines (deployed `7b1b3a7`)
@@ -1694,6 +1726,9 @@ ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd 
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-nurture.ts"'
 # Nurture dry run on prod (plans, writes nothing; works with the gates off)
 ssh knuco-droplet 'set -a; . /etc/knuco/env; set +a; curl -s -X POST -H "x-cron-secret: $CRON_SECRET" "http://127.0.0.1:4000/api/cron/nurture?dryRun=1"'
+# Permit follow-up crons, by hand (droplet; each alert is raised once)
+ssh knuco-droplet '/home/knuco/crm-cron/permit-aging.sh; tail -1 /home/knuco/crm-cron/permit-aging.log'
+ssh knuco-droplet '/home/knuco/crm-cron/inspection-reminders.sh; tail -1 /home/knuco/crm-cron/inspection-reminders.log'
 # Notifications cron wrapper, by hand (droplet; the tick is idempotent per person per window)
 ssh knuco-droplet '/home/knuco/crm-cron/notifications.sh; tail -1 /home/knuco/crm-cron/notifications.log'
 # Notifications tick, dry run (per-person planned digests + due window; sends nothing)
@@ -1842,11 +1877,28 @@ Notification Digests).
   "move to this day" and carries the window along). "Unscheduled" = active,
   open, no due date — never an inactive workflow step. Overdue = past the end
   of its day in `APP_TIME_ZONE` (all-day) or past its end (timed).
+- **Permit follow-ups are tasks, and a permit event never mails a customer.**
+  The rule engine takes no permit or inspection event; new permit alerts go
+  in `lib/permits/alerts.ts` (once per source key, closed by the record). The
+  fee typed on a permit is a quote — it never becomes an expense; what was
+  paid is read from the job's `PERMIT_FEE` costs.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **Initiative 4 (permits) is complete on `main`, not deployed.** Richard
+> pushes and deploys from `!` (carries migration
+> `20261012120000_permit_inspection_task_link`). Then: verify (BUILD_ID,
+> migration, smoke, journal, uploads intact), install
+> `crm-cron/permit-aging.sh` (`40 11 * * 1-5`) and
+> `crm-cron/inspection-reminders.sh` (`45 11 * * 1-5`) as `knuco`, run
+> `scripts/retire-permit-follow-up-rules-2026-10.ts` (dry run, then `--yes`),
+> run each cron once by hand and report what was raised. Click-through: a
+> job's Permits tab (edit, record an inspection result, "Permit fees paid"),
+> Permit Center's Inspections tab, ⌘K with a permit number. Next build:
+> initiative 5, the attention dashboard + digests on.
 
 > **Streamlined workflows: Stages 1 and 2 are done — every prod workflow
 > (8 jobs migrated + JOB-00026 applied streamlined, 3 cases) is on the

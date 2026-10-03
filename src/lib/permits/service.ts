@@ -1,12 +1,12 @@
 import type { PermitInspectionType, PermitStatus, Prisma, RoleName } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit/record";
-import { emitInspectionEvent, emitPermitEvent, resultEventName, statusEventName } from "@/lib/follow-ups/permit-events";
 import { createTask } from "@/lib/tasks/create";
 import { settleJobGates } from "@/lib/workflows/gates";
 import { InspectionError, recordInspectionResult } from "@/lib/workflows/inspections";
 import { userForJobRole } from "@/lib/workflows/roles";
 import { addBusinessDaysFrom, atDueHour } from "@/lib/workflows/schedule";
+import { settleInspectionAlerts, settlePermitAlerts } from "./alert-run";
 import { closePermitIfFinalPassed } from "./effects";
 import { isInspectionResult, isInspectionType, isPermitStatus, isRecordedResult, matchInspectionStep, resultAppliesToStep, statusStamps, type RecordedResult, type StepCandidate } from "./rules";
 
@@ -102,9 +102,9 @@ export async function updatePermit(id: string, body: Record<string, unknown>, ac
       },
     });
     await recordAudit({ actorUserId: actor.id, entityType: "JobPermit", entityId: id, action: "status_change", before: { status: previous.status }, after: { status } });
-    const event = statusEventName(status);
-    if (event) await emitPermitEvent(event, permit.id);
   }
+  // Issued, denied, a new submission or expiration date: the follow-ups raised on the old facts close.
+  await settlePermitAlerts(permit.id, actor.id);
   // A permit number, an issue date or a final on file completes the step that waits on it.
   await settleJobGates(permit.jobId, actor.id);
   return permit;
@@ -147,8 +147,6 @@ export async function createPermitInspection(permitId: string, body: Record<stri
       createdByUserId: actor.id,
     },
   });
-  // Only with a date: rules like the 24-hour reminder have nothing else to anchor to.
-  if (created.scheduledFor && created.result === "SCHEDULED" && !recorded) await emitInspectionEvent("INSPECTION_SCHEDULED", created.id);
   if (!recorded) return { inspection: created, workflow: null as WorkflowOutcome | null, permitClosed: false };
   return recordPermitInspectionResult({ inspectionId: created.id, result, notes: created.notes, completedAt: readDate(body.completedAt, "completedAt") ?? null, ...stepChoice(body), actor });
 }
@@ -226,8 +224,7 @@ export async function recordPermitInspectionResult(input: {
       createdByUserId: actor.id,
     },
   });
-  const event = resultEventName(input.result);
-  if (event) await emitInspectionEvent(event, before.id);
+  await settleInspectionAlerts(before.id, actor.id);
 
   const permitClosed = (await closePermitIfFinalPassed(before.id, actor.id)) !== null;
 
@@ -321,7 +318,8 @@ export async function updatePermitInspection(id: string, body: Record<string, un
   }
   const updated = await prisma.jobPermitInspection.update({ where: { id }, data });
   if (!recording) {
-    if (result === "CANCELLED" && result !== previous.result) await emitInspectionEvent("INSPECTION_CANCELLED", id);
+    // Cancelled or moved to another day: the "be ready" task for the old date closes.
+    await settleInspectionAlerts(id, actor.id);
     return { inspection: updated, workflow: null as WorkflowOutcome | null, permitClosed: false };
   }
   return recordPermitInspectionResult({

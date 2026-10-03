@@ -89,6 +89,8 @@ export function buildJobListWhere(params: JobListParams, ctx: JobListContext): P
       OR: [
         { jobNumber: { contains: params.search, mode: "insensitive" } },
         { title: { contains: params.search, mode: "insensitive" } },
+        // The number on the permit card: what an inspector or the building department quotes.
+        { permits: { some: { permitNumber: { contains: params.search, mode: "insensitive" } } } },
         {
           lead: {
             OR: [

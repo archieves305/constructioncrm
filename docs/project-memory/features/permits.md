@@ -73,20 +73,56 @@ table itself is left in the schema.
   while Applied / In progress). Read-only, all-day, opens the job's Permits
   tab. `overlays.ts` `PermitDateRow`, loaded in `overlays-load.ts`.
 - `POST /api/cron/permit-aging` also moves an Issued / In-progress permit
-  whose expiration day has passed (office zone) to EXPIRED, audited, firing
-  `PERMIT_STATUS_EXPIRED` once. Returns `expired`.
+  whose expiration day has passed (office zone) to EXPIRED, audited. Returns
+  `expired`.
+
+## Stage 3, after Richard's rulings (2026-10-03)
+
+Rulings: staff follow-ups are **tasks + digests**, not the rule engine;
+**no customer email** on any permit or inspection event; the permit fee is
+**shown, never created** as a cost.
+
+- **Follow-ups as tasks** — pure `lib/permits/alerts.ts` (`alertsForPermit`,
+  `alertForInspection`, `liveAlertKeys`, `liveInspectionKey`) and
+  `lib/permits/alert-run.ts` (`raisePermitAlerts`, `raiseInspectionAlerts`,
+  `settlePermitAlerts`, `settleInspectionAlerts`).
+  - In review 7–13 days after submission: MEDIUM task for the permit's
+    coordinator (→ Permit coordinator role → PM). Key
+    `permit:<id>:waiting-7@<submitted day>`.
+  - 14 days or more: HIGH task for the PM (→ coordinator); the open 7-day
+    task is cancelled. Key `…:waiting-14@<submitted day>`.
+  - Issued / in progress and expiring within 30 days: HIGH task for the PM,
+    due 14 days before expiry (or today). Key `…:expiring@<expiry day>`.
+  - Booked inspection on a day up to the next working day: HIGH "Be ready"
+    task for the superintendent (→ PM → coordinator), due that day. Key
+    `permit-inspection:<id>:ready@<day>`.
+  - With nobody to give it to, the oldest active ADMIN gets it. The owner is
+    also the task's creator (actor = system), so nobody else is mailed.
+  - Raised **once per key** whatever became of the task; the date in the key
+    makes a re-submission, a new expiry or a re-booked inspection a new alert.
+  - Closed by the record: every permit write, the cron's EXPIRED move and a
+    passed final call `settlePermitAlerts`; a result, a cancel, a new date or
+    a delete calls `settleInspectionAlerts` (timeline says why).
+  - Permits on jobs in a closed stage are skipped.
+- **Crons**: `POST /api/cron/permit-aging` → `{expired, waiting7, waiting14,
+  expiring}`; `POST /api/cron/inspection-reminders` → `{scanned, raised}`
+  (daily now, not hourly). Droplet wrappers `crm-cron/permit-aging.sh` and
+  `inspection-reminders.sh`, weekdays 11:40 / 11:45 UTC.
+- **Rule engine retired for permits**: no code emits a permit or inspection
+  event (`lib/follow-ups/permit-events.ts` keeps only the trigger names).
+  `scripts/retire-permit-follow-up-rules-2026-10.ts` (dry run; `--yes`)
+  switches the 18 rules off and cancels their pending executions. The rule
+  processor (`/api/cron/follow-ups`) was never scheduled on prod.
+- **Permit fee**: `GET /api/jobs/[id]/permits` returns `feeCharges` — the
+  job's APPROVED `PERMIT_FEE` expenses. The Permits tab shows "Permit fees
+  paid $X of $Y quoted" with the charges and a link to the job's costs. The
+  field on the permit is "Permit fee quoted": information only.
+- **Search**: a permit number finds its job (job list search and ⌘K).
 
 ## Not yet
 
-- **Scheduling `permit-aging` and `inspection-reminders` on the droplet.**
-  Both also queue follow-up-rule executions (`emitPermitEvent` /
-  `emitInspectionEvent`); dev has active rules for them (4 executions queued
-  for two QA permits), prod is unchecked. Richard decides first: the rule
-  engine mails, or tasks + digests do and the rules are switched off.
-- **Permit fee → expense.** Needs a ruling on how it meets the bank feed
-  (the same fee arrives from cc-allocator) and on the link (`externalId` is
-  treated as cc-allocator's record).
-- Permit number in ⌘K search; expiring permits on the dashboard (initiative 5).
+- Expiring permits on the dashboard (initiative 5).
+- A denied permit raises no task of its own (the job's health shows it).
 
 ## QA recipe
 

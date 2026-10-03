@@ -43,6 +43,7 @@ describe("buildJobListWhere", () => {
           OR: [
             { jobNumber: { contains: "smith", mode: "insensitive" } },
             { title: { contains: "smith", mode: "insensitive" } },
+            { permits: { some: { permitNumber: { contains: "smith", mode: "insensitive" } } } },
             {
               lead: {
                 OR: [
@@ -66,6 +67,11 @@ describe("buildJobListWhere", () => {
     const where = buildJobListWhere({ search: "wind" }, admin);
     const leadOr = (where.OR as { lead?: { OR: Record<string, unknown>[] } }[]).find((o) => o.lead)!.lead!.OR;
     expect(leadOr.map((o) => Object.keys(o)[0])).toEqual(["fullName", "companyName", "propertyAddress1", "city", "zipCode", "primaryPhone"]);
+  });
+
+  it("search finds a job by a permit number on it", () => {
+    const where = buildJobListWhere({ search: "BLD-24" }, admin);
+    expect(where.OR).toContainEqual({ permits: { some: { permitNumber: { contains: "BLD-24", mode: "insensitive" } } } });
   });
 
   it("a sales rep cannot widen the scope with salesRepId or scope=all", () => {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { ChevronDown, Plus, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
   typeLabel,
   type AssignableUser,
   type JobPermitsData,
+  type PermitFeeCharge,
   type PermitRecord,
 } from "@/components/permits/shared";
 import { fetchJson } from "@/lib/fetch-json";
@@ -58,7 +60,7 @@ export function JobPermitsPanel({ jobId }: { jobId: string }) {
 
   if (isLoading) return <ListSkeleton rows={3} />;
   if (error || !data) return <Callout tone="danger" title="The permits did not load">{(error as Error | null)?.message ?? "Try again in a moment."}</Callout>;
-  const { permits, steps, canEdit } = data;
+  const { permits, steps, canEdit, feeCharges = [] } = data;
   // One permit: nothing to choose, so it is open.
   const openId = open ?? (permits.length === 1 ? permits[0].id : null);
 
@@ -85,8 +87,52 @@ export function JobPermitsPanel({ jobId }: { jobId: string }) {
         </PermitCard>
       ))}
 
+      {(permits.length > 0 || feeCharges.length > 0) && <PermitFeesPaid jobId={jobId} permits={permits} charges={feeCharges} />}
+
       {permits.length === 0 && !canEdit && <EmptyState icon={Shield} title="No permits on this job" description="The office adds a permit here once it is submitted." />}
     </div>
+  );
+}
+
+const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * What the job has paid in permit fees, read from its costs. The fee typed on
+ * a permit is what the building department quoted — it never becomes a cost,
+ * so a fee cannot be counted twice.
+ */
+function PermitFeesPaid({ jobId, permits, charges }: { jobId: string; permits: PermitRecord[]; charges: PermitFeeCharge[] }) {
+  const paid = charges.reduce((s, c) => s + Number(c.amount), 0);
+  const quoted = permits.reduce((s, p) => s + (p.permitFee ? Number(p.permitFee) : 0), 0);
+  return (
+    <Card>
+      <CardContent className="space-y-2 py-3 text-sm">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <span className="font-medium">Permit fees paid</span>
+          <span className="tabular-nums">
+            {money(paid)}
+            {quoted > 0 && <span className="text-muted-foreground"> of {money(quoted)} quoted</span>}
+          </span>
+        </div>
+        {charges.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No permit-fee charge is on this job&apos;s costs yet. It appears here when the payment comes through the bank feed or is entered under Money.</p>
+        ) : (
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            {charges.map((c) => (
+              <li key={c.id} className="flex justify-between gap-3">
+                <span className="min-w-0 truncate">
+                  {formatDay(c.incurredDate)} · {c.vendor || c.description || "Permit fee"}
+                </span>
+                <span className="tabular-nums">{money(Number(c.amount))}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Link href={`/jobs/${jobId}?tab=money&sub=expenses`} className="inline-block text-xs text-primary hover:underline">
+          Open the job&apos;s costs
+        </Link>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -192,7 +238,7 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
             <Input type="date" value={form.expirationDate} onChange={(e) => set("expirationDate", e.target.value)} />
           </div>
           <div>
-            <Label className="text-[11px]">Permit fee</Label>
+            <Label className="text-[11px]">Permit fee quoted</Label>
             <Input value={form.permitFee} inputMode="decimal" placeholder="0.00" onChange={(e) => set("permitFee", e.target.value)} />
           </div>
           <div className="sm:col-span-2">

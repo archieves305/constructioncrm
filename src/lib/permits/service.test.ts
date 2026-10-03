@@ -15,7 +15,7 @@ const { db, createTask, recordInspectionResult, closePermitIfFinalPassed, settle
 }));
 vi.mock("@/lib/db/prisma", () => ({ prisma: db }));
 vi.mock("@/lib/audit/record", () => ({ recordAudit: vi.fn() }));
-vi.mock("@/lib/follow-ups/permit-events", () => ({ emitInspectionEvent: vi.fn(), emitPermitEvent: vi.fn(), resultEventName: () => null, statusEventName: () => null }));
+vi.mock("./alert-run", () => ({ settleInspectionAlerts: vi.fn(), settlePermitAlerts: vi.fn() }));
 vi.mock("@/lib/tasks/create", () => ({ createTask }));
 vi.mock("@/lib/workflows/gates", () => ({ settleJobGates }));
 vi.mock("@/lib/workflows/inspections", () => ({ recordInspectionResult, InspectionError }));

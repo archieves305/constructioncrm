@@ -103,7 +103,7 @@ export function PermitEditor({ permit, users, canEdit, onSaved }: { permit: Perm
             <Input type="date" value={dayOf(val(key))} onChange={(e) => set(key, e.target.value || null)} />
           </Field>
         ))}
-        <Field label="Permit fee">
+        <Field label="Permit fee quoted">
           <Input value={val("permitFee")} inputMode="decimal" placeholder="0.00" onChange={(e) => set("permitFee", e.target.value)} />
         </Field>
         <Field label="Inspector">

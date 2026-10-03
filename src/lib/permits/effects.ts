@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
-import { emitPermitEvent } from "@/lib/follow-ups/permit-events";
+import { settleInspectionAlerts, settlePermitAlerts } from "./alert-run";
 import { inspectionTypeForStep, passClosesPermit, statusStamps, typesForStep, type RecordedResult } from "./rules";
 
 /**
@@ -41,7 +41,7 @@ export async function closePermitIfFinalPassed(inspectionId: string, actorUserId
         createdByUserId: actorUserId,
       },
     });
-    await emitPermitEvent("PERMIT_STATUS_FINAL", p.id);
+    await settlePermitAlerts(p.id, actorUserId);
     return p.jobId;
   } catch (err) {
     logger.exception(err, { where: "permits.closePermitIfFinalPassed", inspectionId });
@@ -70,6 +70,7 @@ export async function fileStepResultOnPermit(input: {
     if (input.inspectionId) {
       // Only a row on this job's own permits.
       const n = await prisma.jobPermitInspection.updateMany({ where: { id: input.inspectionId, permit: { jobId: input.jobId } }, data });
+      if (n.count > 0) await settleInspectionAlerts(input.inspectionId, null);
       return n.count > 0 ? input.inspectionId : null;
     }
     const types = typesForStep(input.taskKey);
@@ -84,6 +85,7 @@ export async function fileStepResultOnPermit(input: {
     });
     if (booked) {
       await prisma.jobPermitInspection.update({ where: { id: booked.id }, data });
+      await settleInspectionAlerts(booked.id, null);
       return booked.id;
     }
     const live = await prisma.jobPermit.findMany({
