@@ -273,12 +273,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    [features/tasks.md](docs/project-memory/features/tasks.md).
 0. 🔴 **Audit initiative 4: permits and inspections as one record** —
    Stages 1–3 built + dev-QA'd 2026-10-03 on `permits-one-record`,
-   fast-forwarded to `main`, **not yet deployed** (migration
-   `20261012120000_permit_inspection_task_link`). Stage 3 after Richard's
-   rulings: permit follow-ups are tasks raised by the two crons, no customer
-   mail on permit events, the permit fee is shown from the job's costs and
-   never created. **After the deploy**: install the two cron wrappers and
-   run `scripts/retire-permit-follow-up-rules-2026-10.ts --yes` on prod.
+   fast-forwarded to `main`, **deployed 2026-10-03 as `9cd2aba`** (BUILD_ID
+   `Jz-SkZNZkAW6myqxzsKMy`, migration
+   `20261012120000_permit_inspection_task_link` applied). Stage 3 after
+   Richard's rulings: permit follow-ups are tasks raised by the two crons, no
+   customer mail on permit events, the permit fee is shown from the job's
+   costs and never created. Cron wrappers installed (`40 11` / `45 11 * * 1-5`),
+   the 18 follow-up rules switched off and 4 queued executions cancelled.
+   What remains is Richard's click-through.
    Notes: [features/permits.md](docs/project-memory/features/permits.md).
 1. ✅ **Progress billing — complete.** Stage 1 deployed + JOB-00009
    backfilled 2026-08-27; Stage 2 (change orders → SOV line) `6b3868b` and
@@ -313,6 +315,28 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Initiative 4 deployed (`9cd2aba`); the deploy's build was cut off and finished by hand
+
+"continue where we left off". `main` was already pushed and Richard's deploy
+from `!` had run backup (`postgres-2026-10-03-142612.dump`), rsync, `npm ci`
+and the migration (79, up to date) — then the remote build died at the
+compile stage two minutes in (the `!` shell's 120 s timeout), leaving no
+`BUILD_ID`, no `.deploy-sha` and the old process running over a half-written
+`.next`. Finished on the droplet: `npm run build` under `nohup` (log
+`/home/knuco/build-20261003.log`, clean), restart, `.deploy-sha` written.
+BUILD_ID `Jz-SkZNZkAW6myqxzsKMy`, smoke 307 ×2, zero journal errors since the
+restart, process carries `UPLOADS_DIR`, `job_permit_inspections.task_id`
+present. Then: `crm-cron/permit-aging.sh` + `inspection-reminders.sh`
+installed with crontab lines `40 11` / `45 11 * * 1-5` (crontab copy
+`/home/knuco/crontab.bak-20261003`); retirement script dry run (18 active
+rules, 4 pending) → `--yes` (18 switched off, 4 cancelled) → re-run 0 / 0;
+crons by hand: permit-aging raised one 14-day task (JOB-00002, permit
+#BD23-016647-001, "still not issued after 397 days", HIGH, assigned to
+Richard, one notification row), second run raised 0; inspection-reminders
+scanned 0; no secret → 403. **Lesson: a deploy from `!` can be killed by the
+shell timeout mid-build — if `BUILD_ID` is missing afterwards, run the build
+detached on the droplet and restart.**
 
 ### 2026-10-03 — Audit initiative 4, Stage 3 finished: permit follow-ups as tasks, fee shown from costs (built, dev-QA'd, on `main`, not deployed)
 
@@ -1888,17 +1912,13 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Initiative 4 (permits) is complete on `main`, not deployed.** Richard
-> pushes and deploys from `!` (carries migration
-> `20261012120000_permit_inspection_task_link`). Then: verify (BUILD_ID,
-> migration, smoke, journal, uploads intact), install
-> `crm-cron/permit-aging.sh` (`40 11 * * 1-5`) and
-> `crm-cron/inspection-reminders.sh` (`45 11 * * 1-5`) as `knuco`, run
-> `scripts/retire-permit-follow-up-rules-2026-10.ts` (dry run, then `--yes`),
-> run each cron once by hand and report what was raised. Click-through: a
-> job's Permits tab (edit, record an inspection result, "Permit fees paid"),
-> Permit Center's Inspections tab, ⌘K with a permit number. Next build:
-> initiative 5, the attention dashboard + digests on.
+> **Initiative 4 (permits) is on prod (`9cd2aba`, BUILD_ID
+> `Jz-SkZNZkAW6myqxzsKMy`), crons installed, old rules retired.**
+> Click-through for Richard: a job's Permits tab (edit, record an inspection
+> result, "Permit fees paid"), Permit Center's Inspections tab, ⌘K with a
+> permit number, and the new HIGH task on JOB-00002's permit (issue the
+> permit or close the job to settle it). Next build: initiative 5, the
+> attention dashboard + digests on.
 
 > **Streamlined workflows: Stages 1 and 2 are done — every prod workflow
 > (8 jobs migrated + JOB-00026 applied streamlined, 3 cases) is on the
