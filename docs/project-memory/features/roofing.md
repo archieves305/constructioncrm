@@ -12,9 +12,9 @@ imported, then is frozen and redirected.
 | Item | State |
 | --- | --- |
 | 0.1 Estimator under version control | Done 2026-10-03: `~/roofestimator` matched the server copy (75 files by checksum), `git init`, baseline `e0adbff`, local only, no remote. |
-| 0.2 Parser + takeoff engine as a library | Built (Stage A). |
-| 0.3 Measurements as structured data | Built (Stage A). |
-| 0.5 Roofing estimate feeds the cost baseline | Built (Stage A). |
+| 0.2 Parser + takeoff engine as a library | On prod (`79e4e19`). |
+| 0.3 Measurements as structured data | On prod (`79e4e19`). |
+| 0.5 Roofing estimate feeds the cost baseline | On prod (`79e4e19`). |
 | 0.4 Roof systems, rules, price book | Next (Stage B). |
 | 0.6 Import the estimator's data | After 0.4 (Stage C). |
 
@@ -87,6 +87,12 @@ survives). Headless Chromium on the lead page at 1280 and the job page at
 from a dump. **Not exercised:** a SALES_REP session (the guard is `guardLead`,
 tested in Foundation); PDF parsing under the production server (it runs from
 `node_modules` at run time — check on prod after deploy).
+
+**Deployed 2026-10-03 as `79e4e19`** (BUILD_ID `HfCtieXEwvKgJaManWLme`,
+migration applied — 85, journal clean, backup
+`postgres-2026-10-03-230418.dump`). A real report parsed on the droplet with
+the deployed code via `tsx` (0.91, 31.6 sq, waste 6%, nothing written). The
+parse inside the running server is proven by the first upload in the UI.
 
 ## Still open (Richard)
 

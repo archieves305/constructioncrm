@@ -30,13 +30,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 00000000. 🔴 **Roofing estimator → CRM** — plan approved 2026-10-03
    (https://claude.ai/code/artifact/8b95fb53-2275-421e-a4ed-842fa7919005):
    native module, engine as a pure library in `src/lib/roofing`. **P0 Stage A
-   built + dev-QA'd 2026-10-03 on `roofing-p0`, fast-forwarded to `main`, not
-   deployed**: parser + takeoff engine ported with their tests, Roofr's
+   built + dev-QA'd 2026-10-03 on `roofing-p0`, fast-forwarded to `main`,
+   deployed 2026-10-03 as `79e4e19`** (BUILD_ID `HfCtieXEwvKgJaManWLme`,
+   migration applied, smoke 307 ×2, journal clean, backup
+   `postgres-2026-10-03-230418.dump`): parser + takeoff engine ported with their tests, Roofr's
    recommended waste read from page positions, `RoofMeasurement` (migration
    `20261018120000_roof_measurements`) with upload / correct / review on the
    lead's Roofr tab and the job's Estimates tab, and a signed roofing estimate
-   now feeds the job's estimated cost. **Deploy carries a migration and a new
-   dependency (`pdfjs-dist`).** Next: Stage B (roof systems, rules, price
+   now feeds the job's estimated cost. Next: Stage B (roof systems, rules, price
    book), then Stage C (import the estimator's data). The estimator itself is
    untouched and now under local git (`~/roofestimator`, `e0adbff`). Notes:
    [features/roofing.md](docs/project-memory/features/roofing.md).
@@ -394,7 +395,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-03 — Roofing integration, P0 Stage A: library, measurements, cost baseline (on `main`, not deployed)
+### 2026-10-03 — Roofing integration, P0 Stage A: library, measurements, cost baseline (deployed `79e4e19`)
 
 "approved, start with P0". 0.1: `~/roofestimator` verified identical to the
 server copy and put under local git (`e0adbff`). Stage A on `roofing-p0`:
@@ -412,8 +413,19 @@ report, headless Chromium at 1280 and 400 px, all 23 real Roofr PDFs parse in
 the CRM (confidence ≥ 0.84); dev DB restored. Not exercised: SALES_REP, and
 PDF parsing under the production server. Details:
 [features/roofing.md](docs/project-memory/features/roofing.md).
+Richard pushed and deployed from `!` (background, 264 s, exit 0; the deploy
+also carried the preview-frame fix `1a1313d`): BUILD_ID
+`9llN2MQ3E4W4TUZGOSNH5` → `HfCtieXEwvKgJaManWLme`, migration
+`20261018120000_roof_measurements` applied (85), smoke 307 ×2, zero journal
+errors since the restart, `UPLOADS_DIR` carried, 21 files in the store, backup
+`postgres-2026-10-03-230418.dump`. Headers on prod: `/` `DENY`,
+`/api/files/:id` `SAMEORIGIN`. A real Roofr PDF parsed on the droplet with the
+deployed code through `tsx` (confidence 0.91, 31.6 squares, 3 pitch bands,
+waste 6%; nothing written, 0 measurement rows). **Still unproven: the same
+parse inside the running Next server** (pdfjs loaded as a server-external
+package) — the first upload from the lead's Roofr tab is that test.
 
-### 2026-10-03 — Fix: the in-app PDF preview was blocked by the site's own frame headers (on `main`, not deployed)
+### 2026-10-03 — Fix: the in-app PDF preview was blocked by the site's own frame headers (deployed inside `79e4e19`)
 
 Found while starting the roofing integration. `next.config.ts` sends
 `X-Frame-Options: DENY` and `frame-ancestors 'none'` on every path, so the
@@ -2379,12 +2391,11 @@ Notification Digests).
 > contracts. Next build: initiative 7 (job documents and photos:
 > `File.jobId`, preview, receipts on expenses) — plan it first.
 
-> **Roofing P0 Stage A is on `main`, not deployed** (with the preview-frame
-> fix `1a1313d`). Richard pushes and deploys; the deploy carries migration
-> `20261018120000_roof_measurements` and `pdfjs-dist`. After it: verify the
-> table, then upload a Roofr PDF on a lead's Roofr tab on prod (first run of
-> the PDF reader under the production server) and open a PDF from a job's
-> Files tab (the preview frame). Next build: Stage B — roof systems, rules and
+> **Roofing P0 Stage A is on prod (`79e4e19`, BUILD_ID
+> `HfCtieXEwvKgJaManWLme`)** with the preview-frame fix. Click-through for
+> Richard: upload a Roofr PDF on a lead's Roofr tab (first run of the PDF
+> reader inside the production server) and open a PDF from a job's Files tab
+> (it should show in place, not blank). Next build: Stage B — roof systems, rules and
 > the price book (`RoofSystem`, `RoofRule`, `RoofMaterialItem`, prices with
 > history, Decimal money, vendor link, admin pages), then Stage C — the import.
 
