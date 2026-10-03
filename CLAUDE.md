@@ -284,13 +284,15 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    backfill script. The directory starts empty — Richard builds it from
    Vendors → Unmatched. **Stage 2 (compliance
    documents + expiry alerts) built + dev-QA'd 2026-10-03 on
-   `vendor-compliance`, fast-forwarded to `main`, not deployed**:
+   `vendor-compliance`, fast-forwarded to `main`, deployed 2026-10-03 as
+   `45899b2`** (BUILD_ID `DcJXs_PTMUJdAIU9AJO2p`, migration applied, smoke
+   307 ×2, journal clean, backup `postgres-2026-10-03-192156.dump`; cron
+   wrapper installed at `50 11 * * 1-5`, first run 0 raised):
    `VendorDocument` / `VendorSettings` / `tasks.vendor_id` (migration
    `20261014120000_vendor_documents`), pure `compliance.ts` + `alerts.ts`,
    `alert-run.ts`, document and settings routes, `POST
    /api/cron/vendor-compliance`, Compliance card on the vendor page, warning
-   on labor contracts, dashboard row, calendar overlay. **Deploy carries a
-   migration; the cron wrapper is installed after it.** Stage 3 = commitments
+   on labor contracts, dashboard row, calendar overlay. Stage 3 = commitments
    feeding committed cost.
    Notes: [features/vendors.md](docs/project-memory/features/vendors.md).
 0. 🔴 **Audit initiative 5: attention dashboard** — built + dev-QA'd
@@ -346,7 +348,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-03 — Audit initiative 6, Stage 2: compliance documents + expiry alerts (built, dev-QA'd, on `main`, not deployed)
+### 2026-10-03 — Audit initiative 6, Stage 2: compliance documents + expiry alerts (deployed `45899b2`)
 
 "continue". Built on `vendor-compliance`: migration
 `20261014120000_vendor_documents`; pure `lib/vendors/compliance.ts`
@@ -366,9 +368,19 @@ API 39/39, headless Chromium 23/23 at 1280 and 400 px, SALES_REP 403s; found
 and fixed in QA: the vendor page's cards ran past the right edge at phone
 width (grid children needed `min-w-0`). Dev DB restored. Not exercised: the
 assignment email and the oldest-admin fallback. **Deploy carries a
-migration**; afterwards install `crm-cron/vendor-compliance.sh` at
-`50 11 * * 1-5`. Details:
+migration.** Details:
 [features/vendors.md](docs/project-memory/features/vendors.md).
+Richard pushed and deployed from `!` (background, 256 s, exit 0): BUILD_ID
+`5x6HE43-USWkCl1cgP0Zn` → `DcJXs_PTMUJdAIU9AJO2p`, migration
+`20261014120000_vendor_documents` applied (81; `vendor_documents`,
+`vendor_settings`, `tasks.vendor_id` nullable), smoke 307 ×2, zero journal
+errors since the restart, `UPLOADS_DIR` carried, 21 files in the store, backup
+`postgres-2026-10-03-192156.dump`. Then `crm-cron/vendor-compliance.sh` +
+crontab `50 11 * * 1-5` installed as `knuco` (crontab copy
+`/home/knuco/crontab.bak-20261003-vendor`), run twice by hand →
+`{"vendors":0,"expiring":0,"expired":0}` 200 both times; no secret → 403. Prod
+has 0 vendors and no Accounting role default, so expiry tasks fall to the
+oldest admin (Richard) until an owner is chosen on the Vendors page.
 
 ### 2026-10-03 — Audit initiative 6, Stage 1: vendor record + payee matching (deployed `ec88e96`)
 
@@ -2053,16 +2065,13 @@ Notification Digests).
 > Prime Surfaces, MTL Granite). The backfill script's dry run should then
 > report 0 matchable.
 >
-> **Stage 2 (compliance documents + expiry alerts) is on `main`, not
-> deployed; the deploy carries migration `20261014120000_vendor_documents`.**
-> After Richard pushes and deploys: verify BUILD_ID, smoke, journal, the
-> migration (`vendor_documents`, `vendor_settings`, `tasks.vendor_id`),
-> uploads intact; install `/home/knuco/crm-cron/vendor-compliance.sh` +
-> crontab `50 11 * * 1-5` and run it once (expect 0 raised — no documents
-> yet); no secret → 403. Click-through: a subcontractor's page → Compliance →
-> Add document; the "Expiry tasks go to …" control on Vendors (automatic =
-> Accounting role default, which is unset on prod, so the oldest admin). Next
-> build: Stage 3 (commitments).
+> **Stage 2 (compliance documents + expiry alerts) is on prod (`45899b2`,
+> BUILD_ID `DcJXs_PTMUJdAIU9AJO2p`), cron installed.** Click-through once
+> the directory has a subcontractor: its page → Compliance → Add document
+> (a certificate expiring inside 30 days raises a task the next weekday
+> morning at 11:50 UTC); the "Expiry tasks go to …" control on Vendors
+> (automatic falls to Richard on prod — no Accounting role default is set).
+> Next build: Stage 3 (commitments feeding committed cost).
 
 > **Initiative 5 (attention dashboard) is on prod (`9b75536`, BUILD_ID
 > `PmFnvrNoVx2_HApQwqCDx`).** Click-through for Richard: the dashboard's

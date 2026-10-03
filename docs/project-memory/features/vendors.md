@@ -3,7 +3,8 @@
 Three stages, plan approved 2026-10-03
 (`~/.claude/plans/encapsulated-frolicking-possum.md`). Stage 1 is on prod
 (`ec88e96`, BUILD_ID `5x6HE43-USWkCl1cgP0Zn`, deployed 2026-10-03);
-Stage 2 (compliance documents + expiry alerts) is built; Stage 3
+Stage 2 (compliance documents + expiry alerts) is on prod (`45899b2`,
+BUILD_ID `DcJXs_PTMUJdAIU9AJO2p`, cron installed 2026-10-03); Stage 3
 (commitments feeding committed cost) follows with its own migration.
 
 Richard's rulings (2026-10-03): crews, typed contractors and suppliers are
