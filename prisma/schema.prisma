@@ -483,6 +483,8 @@ model User {
   commitmentsCreated                Commitment[]              @relation("CommitmentCreatedBy")
   roofMeasurementsCreated           RoofMeasurement[]         @relation("RoofMeasurementCreatedBy")
   roofMeasurementsReviewed          RoofMeasurement[]         @relation("RoofMeasurementReviewedBy")
+  roofRulesUpdated                  RoofRule[]                @relation("RoofRuleUpdatedBy")
+  roofMaterialPricesCreated         RoofMaterialPrice[]       @relation("RoofMaterialPriceCreatedBy")
   vendorComplianceOwnerOf           VendorSettings[]          @relation("VendorComplianceOwner")
   workflowTeamSlots                 JobWorkflowTeamMember[]   @relation("WorkflowTeamUser")
   workflowsApplied                  JobWorkflowInstance[]     @relation("WorkflowAppliedBy")
@@ -1500,6 +1502,7 @@ model Vendor {
   documents      VendorDocument[]
   tasks          Task[]
   commitments    Commitment[]
+  roofMaterials  RoofMaterialItem[]
 
   @@index([name])
   @@map("vendors")
@@ -2636,6 +2639,72 @@ model RoofMeasurement {
   @@index([leadId])
   @@index([jobId])
   @@map("roof_measurements")
+}
+
+/// A company change to one takeoff rule. The rules themselves are code
+/// (`src/lib/roofing/engine/defaults.ts`); a row here changes a rule's number
+/// or switches it off. No row = the rule runs as written.
+model RoofRule {
+  id              String   @id @default(cuid())
+  // The rule's key in the code defaults, e.g. "shingle.field.bundles_per_square".
+  key             String   @unique
+  value           Float
+  // false = the rule produces no line at all.
+  active          Boolean  @default(true)
+  note            String?
+  updatedByUserId String   @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  updatedBy User @relation("RoofRuleUpdatedBy", fields: [updatedByUserId], references: [id])
+
+  @@map("roof_rules")
+}
+
+/// One thing the company buys for roofs. `category` is what ties it to a
+/// takeoff rule ("Shingles", "Drip Edge"); `roofType` null = any roof.
+model RoofMaterialItem {
+  id           String   @id @default(cuid())
+  category     String
+  name         String
+  sku          String?
+  // SHINGLE | TILE | METAL; null = used on any roof type.
+  roofType     String?  @map("roof_type")
+  unitType     String   @map("unit_type")
+  vendorId     String?  @map("vendor_id")
+  // The one the takeoff uses when several items share a category and roof type.
+  isPreferred  Boolean  @default(false) @map("is_preferred")
+  isActive     Boolean  @default(true) @map("is_active")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  vendor Vendor?             @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  prices RoofMaterialPrice[]
+
+  @@index([category])
+  @@index([vendorId])
+  @@map("roof_material_items")
+}
+
+/// A price for a material from a date. Append-only: the current price is the
+/// latest row effective today or earlier, and the earlier rows are the history.
+model RoofMaterialPrice {
+  id              String   @id @default(cuid())
+  materialItemId  String   @map("material_item_id")
+  unitCost        Decimal  @map("unit_cost") @db.Decimal(12, 4)
+  effectiveDate   DateTime @map("effective_date")
+  // manual | import | invoice | vendor
+  source          String   @default("manual")
+  note            String?
+  createdByUserId String?  @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  materialItem RoofMaterialItem @relation(fields: [materialItemId], references: [id], onDelete: Cascade)
+  createdBy    User?            @relation("RoofMaterialPriceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([materialItemId, effectiveDate])
+  @@map("roof_material_prices")
 }
 
 // ─── Zylow property cache ─────────────────────────────────────────────────────

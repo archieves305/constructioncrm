@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import type { RoleName } from "@/generated/prisma/client";
 import { NotificationBell } from "./notification-bell";
 import { isNavActive } from "./nav-active";
-import { BarChart3, BellRing, Briefcase, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, Gauge, Gavel, Hammer, HardHat, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Scale, Search, Settings, Shield, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
+import { BarChart3, BellRing, Briefcase, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, Gauge, Gavel, Hammer, HardHat, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Search, Settings, Shield, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
 import { useViolationSummary } from "@/components/violations/use-violations";
@@ -113,6 +113,7 @@ export const navSections: NavSection[] = [
       { href: "/admin/workflow-role-defaults", label: "Workflow Role Defaults", icon: UserCheck, hint: "Who a workflow step is assigned to when the job has nobody in that role" },
       { href: "/admin/canvassing-settings", label: "Knock Scoring", icon: Gauge, heading: "Canvassing", hint: "How promising a canvassed door looks, from its history and neighbourhood" },
       { href: "/admin/job-cost-reconciliation", label: "Cost Reconciliation", icon: Scale, heading: "Finance", hint: "Matches card postings from cc-allocator against job expenses" },
+      { href: "/admin/roofing", label: "Roofing Prices & Takeoff", icon: Ruler, hint: "What roofing materials cost and how measurements become a material list" },
     ],
   },
 ];

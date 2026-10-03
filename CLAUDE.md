@@ -37,8 +37,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    recommended waste read from page positions, `RoofMeasurement` (migration
    `20261018120000_roof_measurements`) with upload / correct / review on the
    lead's Roofr tab and the job's Estimates tab, and a signed roofing estimate
-   now feeds the job's estimated cost. Next: Stage B (roof systems, rules, price
-   book), then Stage C (import the estimator's data). The estimator itself is
+   now feeds the job's estimated cost. **Stage B (takeoff rules + price book)
+   built + dev-QA'd 2026-10-03 on `roofing-price-book`, fast-forwarded to
+   `main`, not deployed**: `RoofRule` / `RoofMaterialItem` /
+   `RoofMaterialPrice` (migration `20261019120000_roof_price_book`), pure
+   `engine/resolve.ts`, `/admin/roofing` (Price book · Takeoff rules · Try a
+   takeoff). **Deploy carries a migration.** Next: Stage C (import the
+   estimator's data). The estimator itself is
    untouched and now under local git (`~/roofestimator`, `e0adbff`). Notes:
    [features/roofing.md](docs/project-memory/features/roofing.md).
 0000000. 🔴 **Streamlined ("slim") workflows** — four stages, plan approved
@@ -394,6 +399,23 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Roofing integration, P0 Stage B: takeoff rules + price book (on `main`, not deployed)
+
+Carried on after the Stage A deploy check. Built on `roofing-price-book`:
+migration `20261019120000_roof_price_book`; pure `engine/resolve.ts` (rules
+with the company's changes over the code defaults — a switched-off rule is
+gone, which the estimator could not do; day-based price in force; catalog
+order = the takeoff's choice); `price-book.ts`, `access.ts` (ADMIN / MANAGER
+for everything under `/api/roofing`), eight routes, `/admin/roofing`. Narrower
+than the plan: one append-only price table instead of price + history, and no
+`RoofSystem` yet (nothing would read it before the estimate builder). Found in
+QA and fixed: a price dated today through the date picker lost to the price
+saved earlier the same day (instants compared) — prices now take effect by
+day, later entry wins. Gate: typecheck clean, lint 5/22, 1517 tests (+15),
+build clean. Dev QA: API 26/26, headless Chromium 10/10; QA rows removed.
+**Deploy carries a migration.** Details:
+[features/roofing.md](docs/project-memory/features/roofing.md).
 
 ### 2026-10-03 — Roofing integration, P0 Stage A: library, measurements, cost baseline (deployed `79e4e19`)
 
@@ -2295,6 +2317,12 @@ Notification Digests).
   not find is null, never 0. A person's correction keeps the report's own
   reading (`applyEdits`). Roofr's recommended waste is a suggestion and is
   never applied to a takeoff by itself.
+- **Takeoff rules are code; `RoofRule` holds only the company's changes**
+  (a number, or switched off — and off means the rule orders nothing). **Roofing
+  prices are append-only and take effect by day** (`priceInForce`); a material
+  is switched off, never deleted. Everything that prices a takeoff goes through
+  `loadEngineInputs`. Roofing costs and rules are ADMIN / MANAGER only
+  (`canManageRoofPricing`) until Richard rules on who sees cost.
 - **Every response is unframeable except the two documents the app frames
   itself** (`FRAMED_BY_SELF` in `next.config.ts`: the file route and the
   signing PDF, same-origin only). A new page that shows one of the app's own
@@ -2390,6 +2418,12 @@ Notification Digests).
 > drops. Also check JOB-00002: crew paid $17,380 against $15,030 of labor
 > contracts. Next build: initiative 7 (job documents and photos:
 > `File.jobId`, preview, receipts on expenses) — plan it first.
+
+> **Roofing P0 Stage B (rules + price book) is on `main`, not deployed**;
+> the deploy carries migration `20261019120000_roof_price_book`. After it:
+> verify the three tables, then Richard opens Admin → Roofing Prices &
+> Takeoff. Next build: Stage C — import the estimator's data (script with a
+> dry run and a match report; strict address match; unmatched to a person).
 
 > **Roofing P0 Stage A is on prod (`79e4e19`, BUILD_ID
 > `HfCtieXEwvKgJaManWLme`)** with the preview-frame fix. Click-through for

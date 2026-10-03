@@ -15,7 +15,7 @@ imported, then is frozen and redirected.
 | 0.2 Parser + takeoff engine as a library | On prod (`79e4e19`). |
 | 0.3 Measurements as structured data | On prod (`79e4e19`). |
 | 0.5 Roofing estimate feeds the cost baseline | On prod (`79e4e19`). |
-| 0.4 Roof systems, rules, price book | Next (Stage B). |
+| 0.4 Rules and price book | Built (Stage B), not deployed. `RoofSystem` deferred to P1 (nothing reads it yet). |
 | 0.6 Import the estimator's data | After 0.4 (Stage C). |
 
 ## Stage A (built + dev-QA'd 2026-10-03 on `roofing-p0`)
@@ -93,6 +93,51 @@ migration applied — 85, journal clean, backup
 `postgres-2026-10-03-230418.dump`). A real report parsed on the droplet with
 the deployed code via `tsx` (0.91, 31.6 sq, waste 6%, nothing written). The
 parse inside the running server is proven by the first upload in the UI.
+
+## Stage B (built + dev-QA'd 2026-10-03 on `roofing-price-book`)
+
+Migration `20261019120000_roof_price_book`: `RoofRule`, `RoofMaterialItem`,
+`RoofMaterialPrice`.
+
+- **Rules are code; the table holds the company's changes.** `RoofRule` is one
+  row per changed rule (`key`, `value`, `active`). `engine/resolve.ts`
+  (pure): `ruleRows` (defaults with changes laid over, for the admin page),
+  `resolveRules` (**a rule switched off is left out** — the estimator fell
+  back to the code default, so a rule could not be switched off),
+  `ruleValueProblem` (no zero coverage, waste is a fraction ≤ 0.50).
+- **Price book.** `RoofMaterialItem` (category = what ties it to a rule, roof
+  type or any, unit, optional vendor, `isPreferred`, never deleted — switched
+  off). `RoofMaterialPrice` is append-only (`Decimal(12,4)`): the current
+  price is the latest row effective today or earlier; the rest is the history.
+  One table instead of the plan's price + history pair. **A price takes effect
+  on a day** (stored at noon UTC, compared by date in the office zone); two
+  prices for one day → the later entry wins. Found in QA: comparing instants
+  made a same-day price from the date picker lose to the earlier one.
+  `pricedCatalog` orders the catalog so the engine's first match is: this roof
+  type → preferred → priced → name. No price in force = $0 line with a warning.
+  Prices older than 90 days are marked.
+- `price-book.ts` (service; `loadEngineInputs`, `previewTakeoff` — writes
+  nothing), `access.ts` (`canManageRoofPricing` = ADMIN / MANAGER for every
+  `/api/roofing/*` route, read and write, until "who sees cost" is ruled).
+- Routes: `GET|POST /api/roofing/materials`, `PATCH …/[id]`,
+  `POST …/[id]/prices`, `GET /api/roofing/rules`, `PUT|DELETE …/rules/[key]`,
+  `GET /api/roofing/measurements`, `POST /api/roofing/takeoff-preview`.
+- UI: `/admin/roofing` — Price book · Takeoff rules · Try a takeoff; sidebar
+  entry under Admin → Finance.
+- **Not built:** `RoofSystem` (a named system choosing materials per category
+  belongs with the estimate builder, P1); a rules snapshot on an estimate
+  (P1); editing a rule's label, kind or metric (code only).
+
+Dev QA: API 26/26 on a real report (empty book → lines at $0 with warnings;
+preferred item used; one preferred per category and roof; future price waits;
+same-day price wins; switched-off item and switched-off rule both drop out;
+changed rule moves the quantity; four 400s, two 404s; tile takeoff runs);
+headless Chromium 10/10 at 1280 and 400 px, no console errors; QA rows
+removed. Gate: typecheck clean, lint 5/22, 1517 tests (+15), build clean.
+**Not exercised:** a non-admin session against the routes (the role function
+is unit-tested). **Deploy carries a migration.** The price book starts empty
+on prod; Stage C imports the estimator's 40 materials (seed placeholders —
+prices need checking).
 
 ## Still open (Richard)
 
