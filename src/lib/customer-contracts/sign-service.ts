@@ -199,7 +199,7 @@ export async function signContract(token: string, input: SignInput, meta: SignMe
     if (flipped.count === 0) return "already_signed" as const;
 
     const file = await tx.file.create({
-      data: { leadId: c.leadId, fileName, fileType: "application/pdf", fileSize: pdfStored.bytes, storageKey: pdfStored.storageKey, category: FileCategory.SIGNED_DOC, uploadedByUserId: c.createdByUserId },
+      data: { leadId: c.leadId, jobId: c.jobId, fileName, fileType: "application/pdf", fileSize: pdfStored.bytes, storageKey: pdfStored.storageKey, category: FileCategory.SIGNED_DOC, uploadedByUserId: c.createdByUserId },
       select: { id: true },
     });
     await tx.generatedDocument.create({

@@ -271,6 +271,16 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `TASK_ESCALATIONS_ENABLED=1`, then `TASK_AUTO_RULES_DISABLED=`) and
    Richard's own click-through. Notes:
    [features/tasks.md](docs/project-memory/features/tasks.md).
+0. 🔴 **Audit initiative 7: job documents and photos** — three stages, plan
+   approved 2026-10-03 (`~/.claude/plans/encapsulated-frolicking-possum.md`).
+   **Stage 1 (files belong to the job, preview, missing state) built +
+   dev-QA'd 2026-10-03 on `job-files`, fast-forwarded to `main`, not
+   deployed**: `files.job_id` + backfill (migration
+   `20261016120000_file_job_link`), `lib/files/scope.ts` / `list.ts`,
+   job-scoped list, rename / move / "Upload again" routes, `FilePreviewDialog`,
+   Files panel rebuilt, generated documents undeletable. **Deploy carries a
+   migration.** Stage 2 = one photo gallery; Stage 3 = receipts on expenses.
+   Notes: [features/job-files.md](docs/project-memory/features/job-files.md).
 0. 🔴 **Audit initiative 6: vendors, compliance, commitments** — three
    stages, plan approved 2026-10-03
    (`~/.claude/plans/encapsulated-frolicking-possum.md`). **Stage 1 (vendor
@@ -356,6 +366,32 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Audit initiative 7, Stage 1: files belong to the job (built, dev-QA'd, on `main`, not deployed)
+
+"continue". Planned first (one explore agent + a read-only prod check: 92 file
+rows, 106 daily-log photos, 21 files on disk; no lead with files has two
+jobs). Richard ruled: missing files are marked and can be uploaded again onto
+the same record; any expense may carry receipts; one photo gallery from two
+sources. **Found while exploring: a signed customer agreement's PDF could be
+deleted** — it is stored as `SIGNED_DOC`, the guard covered only
+`CUSTOMER_CONTRACT`, and the delete unlinked the PDF the contract reads (prod
+has no customer contracts yet). Built on `job-files`: `files.job_id` with a
+three-rule backfill (migration `20261016120000_file_job_link`); pure
+`lib/files/scope.ts`; `canDeleteFile` / `canEditFile` take `generated` (any
+file a `GeneratedDocument` references is untouchable through the file routes);
+`presentFiles` adds `missing` and `generated` to every list;
+`GET /api/files?jobId=` → `{ files, leadFiles }`; `PATCH /api/files/[id]`;
+`POST /api/files/[id]/replace`; `?download=1` / `?meta=1`; the six contract
+writers set the job; `FilePreviewDialog`; Files panel rebuilt (groups, chips,
+Missing, search, row menu); task attachments, workflow-step files and the
+field task page open the preview. Gate: typecheck clean, lint 5/22, 1429 tests
+(+10), build clean. Dev QA: API 31/31, headless Chromium 28/28 at 400 and
+1280 px, SALES_REP 200 / 404 / 403; dev DB restored. Not exercised: signing a
+customer contract end to end. **Deploy carries a migration**; expected prod
+backfill: 37 files on single-job leads gain a job (less any on a case), 2 task
+files take their task's job, 54 stay lead documents. Details:
+[features/job-files.md](docs/project-memory/features/job-files.md).
 
 ### 2026-10-03 — Audit initiative 6, Stage 3: commitments (deployed `78bdc4c`)
 
@@ -2083,6 +2119,14 @@ Notification Digests).
   in `lib/permits/alerts.ts` (once per source key, closed by the record). The
   fee typed on a permit is a quote — it never becomes an expense; what was
   paid is read from the job's `PERMIT_FEE` costs.
+- **A file belongs to a job when it has `jobId`; a lead's file with none is a
+  lead document** (shown on the lead and, in its own group, on the lead's
+  jobs). Code that writes a `File` for something on a job sets `jobId`. A file
+  a `GeneratedDocument` references is never deleted, renamed or replaced
+  through the file routes — a signed agreement is stored as `SIGNED_DOC`, so
+  the category alone protects nothing. A record whose file is missing is shown
+  as missing and re-uploaded onto the same row, never hidden. New file links
+  open `FilePreviewDialog`.
 - **A commitment is a promise, not a cost.** Only its unspent part counts
   (`OPEN ? max(0, amount − Σ approved linked expenses) : 0`), and it reaches a
   job's numbers only through `computeCostSummary` (`commitmentsOpen`) — never
@@ -2124,6 +2168,14 @@ Notification Digests).
 > morning at 11:50 UTC); the "Expiry tasks go to …" control on Vendors
 > (automatic falls to Richard on prod — no Accounting role default is set).
 >
+> **Initiative 7, Stage 1 (files belong to the job) is on `main`, not
+> deployed; the deploy carries migration `20261016120000_file_job_link` with
+> a backfill.** After Richard pushes and deploys: verify BUILD_ID, smoke,
+> journal, uploads intact, and the backfill by SQL (files with a job, by
+> rule). Click-through: a job → Files (groups, Missing chip, open a PDF,
+> "Upload again" on a missing one). Next build: Stage 2 (one photo gallery),
+> then Stage 3 (receipts on expenses).
+
 > **Stage 3 (commitments) is on prod (`78bdc4c`, BUILD_ID
 > `xqCVJVDrq3De9dtsbMCfy`); initiative 6 is complete.** Click-through for
 > Richard, in order: Vendors → Unmatched (build the directory); a

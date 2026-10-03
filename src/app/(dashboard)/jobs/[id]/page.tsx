@@ -620,7 +620,7 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="files">
-              <FilesPanel leadId={job.leadId} />
+              <FilesPanel scope={{ leadId: job.leadId, jobId: id }} />
             </TabsContent>
 
             {(

@@ -1,13 +1,14 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Paperclip, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFileSize, uploadProblem } from "@/lib/files/limits";
 import { useTaskFileUpload } from "@/components/workflows/use-task-file-upload";
+import { FilePreviewDialog } from "@/components/files/file-preview";
 
-type FileRow = { id: string; fileName: string; fileSize: number; uploadedBy: { firstName: string; lastName: string } };
+type FileRow = { id: string; fileName: string; fileType?: string | null; fileSize: number; uploadedBy: { firstName: string; lastName: string } };
 
 /**
  * The files on an ordinary task, with a way to add another. A workflow step
@@ -16,6 +17,7 @@ type FileRow = { id: string; fileName: string; fileSize: number; uploadedBy: { f
 export function TaskAttachments({ taskId, files, canEdit }: { taskId: string; files: FileRow[]; canEdit: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const upload = useTaskFileUpload(taskId);
+  const [preview, setPreview] = useState<number | null>(null);
 
   if (files.length === 0 && !canEdit) return null;
 
@@ -24,12 +26,12 @@ export function TaskAttachments({ taskId, files, canEdit }: { taskId: string; fi
       <h3 className="text-xs font-medium text-muted-foreground">Attachments</h3>
       {files.length > 0 && (
         <ul className="mt-1 space-y-0.5 text-sm">
-          {files.map((f) => (
+          {files.map((f, i) => (
             <li key={f.id} className="flex items-center gap-1.5">
               <Paperclip className="size-3 shrink-0 text-muted-foreground" />
-              <a href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" className="truncate hover:underline">
+              <button type="button" onClick={() => setPreview(i)} className="truncate text-left hover:underline">
                 {f.fileName}
-              </a>
+              </button>
               <span className="shrink-0 text-[11px] text-muted-foreground">
                 {formatFileSize(f.fileSize)} · {f.uploadedBy.firstName} {f.uploadedBy.lastName}
               </span>
@@ -60,6 +62,7 @@ export function TaskAttachments({ taskId, files, canEdit }: { taskId: string; fi
           </Button>
         </div>
       )}
+      <FilePreviewDialog files={files} index={preview} onIndexChange={setPreview} />
     </section>
   );
 }

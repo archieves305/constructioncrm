@@ -474,6 +474,7 @@ export async function generateLaborContractPdf(
   const file = await prisma.file.create({
     data: {
       leadId: job.leadId,
+      jobId,
       fileName,
       fileType: "application/pdf",
       fileSize: stored.bytes,
@@ -592,6 +593,7 @@ export async function generateInteriorRenovationLaborContractPdf(
   const file = await prisma.file.create({
     data: {
       leadId: job.leadId,
+      jobId,
       fileName,
       fileType: "application/pdf",
       fileSize: stored.bytes,
@@ -732,6 +734,7 @@ export async function generateChangeOrderAddendumPdf(
   const file = await prisma.file.create({
     data: {
       leadId: job.leadId,
+      jobId,
       fileName,
       fileType: "application/pdf",
       fileSize: stored.bytes,

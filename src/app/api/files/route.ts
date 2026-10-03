@@ -6,6 +6,8 @@ import { FileCategory } from "@/generated/prisma/client";
 import { saveFile, MAX_UPLOAD_BYTES, ALLOWED_MIME } from "@/lib/files/storage";
 import { taskRightsFor } from "@/lib/workflows/visibility";
 import { fileReadWhere } from "@/lib/files/access";
+import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
+import { guardJob } from "@/lib/access/records";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -15,21 +17,35 @@ export async function GET(request: NextRequest) {
   const taskId = request.nextUrl.searchParams.get("taskId");
   const violationCaseId = request.nextUrl.searchParams.get("violationCaseId");
   const violationItemId = request.nextUrl.searchParams.get("violationItemId");
-  if (!leadId && !taskId && !violationCaseId && !violationItemId) return badRequest("leadId, taskId, violationCaseId or violationItemId is required");
+  const jobId = request.nextUrl.searchParams.get("jobId");
+  if (!leadId && !taskId && !violationCaseId && !violationItemId && !jobId) return badRequest("jobId, leadId, taskId, violationCaseId or violationItemId is required");
+  const scope = fileReadWhere(session.user);
+
+  // A job: its own files, and beside them the lead's documents that belong to
+  // no job (estimates, things uploaded before the job existed).
+  if (jobId) {
+    const denied = await guardJob(session.user, jobId, "read");
+    if (denied) return denied;
+    const job = await prisma.job.findUnique({ where: { id: jobId }, select: { leadId: true } });
+    if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const [files, leadFiles] = await Promise.all([
+      prisma.file.findMany({ where: { AND: [{ jobId }, scope] }, orderBy: { createdAt: "desc" }, include: FILE_LIST_INCLUDE }),
+      prisma.file.findMany({ where: { AND: [{ leadId: job.leadId, jobId: null, violationCaseId: null }, scope] }, orderBy: { createdAt: "desc" }, include: FILE_LIST_INCLUDE }),
+    ]);
+    return NextResponse.json({ files: await presentFiles(files), leadFiles: await presentFiles(leadFiles) });
+  }
 
   const files = await prisma.file.findMany({
     where: {
       AND: [
         taskId ? { taskId } : violationItemId ? { violationItemId } : violationCaseId ? { violationCaseId } : { leadId: leadId! },
-        fileReadWhere(session.user),
+        scope,
       ],
     },
     orderBy: { createdAt: "desc" },
-    include: {
-      uploadedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: FILE_LIST_INCLUDE,
   });
-  return NextResponse.json(files);
+  return NextResponse.json(await presentFiles(files));
 }
 
 export async function POST(request: NextRequest) {
@@ -52,6 +68,16 @@ export async function POST(request: NextRequest) {
   // the task may attach to it.
   const taskId = typeof taskIdRaw === "string" && taskIdRaw ? taskIdRaw : null;
   let leadId = typeof leadIdRaw === "string" && leadIdRaw ? leadIdRaw : null;
+  // A file uploaded on a job belongs to that job (and, through it, the lead).
+  const jobIdRaw = form.get("jobId");
+  let jobId = typeof jobIdRaw === "string" && jobIdRaw ? jobIdRaw : null;
+  if (jobId) {
+    const denied = await guardJob(session.user, jobId, "read");
+    if (denied) return denied;
+    const job = await prisma.job.findUnique({ where: { id: jobId }, select: { leadId: true } });
+    if (!job) return badRequest("job not found");
+    leadId = job.leadId;
+  }
   // A document or photo on a code-violation case (or one of its items): the
   // file hangs off the case AND the case's lead. Anyone who may edit the case may attach.
   const caseIdRaw = form.get("violationCaseId");
@@ -80,6 +106,8 @@ export async function POST(request: NextRequest) {
     if (!task) return badRequest("task not found");
     if (!(await taskRightsFor(session.user, task)).canEdit) return forbidden();
     leadId = task.leadId;
+    // The task's job is the file's job, so it shows on that job and no other.
+    jobId = task.jobId;
   }
   if (!leadId && !taskId) return badRequest("leadId is required");
 
@@ -107,6 +135,8 @@ export async function POST(request: NextRequest) {
   const record = await prisma.file.create({
     data: {
       leadId,
+      // A case's files hang off the case; a case links to its jobs itself.
+      jobId: violationCaseId ? null : jobId,
       fileName: file.name,
       fileType: file.type,
       fileSize: stored.bytes,
@@ -117,9 +147,7 @@ export async function POST(request: NextRequest) {
       violationCaseId,
       violationItemId,
     },
-    include: {
-      uploadedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
+    include: FILE_LIST_INCLUDE,
   });
   if (taskId) {
     await recordTaskEvent({ taskId, actorUserId: session.user.id, type: "EVIDENCE_ATTACHED", toValue: record.id, body: record.fileName });
@@ -129,5 +157,5 @@ export async function POST(request: NextRequest) {
     await recordCaseEvent(prisma, { caseId: violationCaseId, itemId: violationItemId, actorUserId: session.user.id, type: "FILE_ATTACHED", toValue: record.id, body: `${record.category.toLowerCase()} · ${record.fileName}` });
   }
 
-  return NextResponse.json(record, { status: 201 });
+  return NextResponse.json((await presentFiles([record]))[0], { status: 201 });
 }

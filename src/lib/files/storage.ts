@@ -49,6 +49,16 @@ export async function readFile(storageKey: string): Promise<Buffer> {
   return fs.readFile(resolveStoragePath(storageKey));
 }
 
+/** Is the stored file still there? Never throws: a bad key is simply "no". */
+export async function fileExists(storageKey: string): Promise<boolean> {
+  try {
+    await fs.access(resolveStoragePath(storageKey));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function deleteFile(storageKey: string): Promise<void> {
   await fs.unlink(resolveStoragePath(storageKey)).catch(() => {});
 }

@@ -16,6 +16,7 @@ import { SkipTaskDialog } from "./skip-task-dialog";
 import { InspectionResultForm } from "./inspection-result-form";
 import { DependencyEditor } from "./dependency-editor";
 import { useTaskFileUpload } from "./use-task-file-upload";
+import { FilePreviewDialog } from "@/components/files/file-preview";
 import { subjectHref, subjectOfTask, type WorkflowTaskItem } from "./types";
 
 type FileRow = { id: string; fileName: string; fileType: string; fileSize: number; createdAt: string; uploadedBy: { firstName: string; lastName: string } };
@@ -43,6 +44,7 @@ export function TaskWorkflowBlock({
   onPatch: (body: Record<string, unknown>) => void;
 }) {
   const [skipOpen, setSkipOpen] = useState(false);
+  const [preview, setPreview] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const upload = useTaskFileUpload(task.id, { photo: task.requiredEvidence === "PHOTO" });
 
@@ -110,12 +112,12 @@ export function TaskWorkflowBlock({
           {task.requiredEvidence && subject && <EvidenceLine task={{ ...task, _count: { ...(task._count ?? { events: 0 }), files: files.length } }} subject={subject} />}
           {files.length > 0 && (
             <ul className="mt-1 space-y-0.5 text-sm">
-              {files.map((f) => (
+              {files.map((f, i) => (
                 <li key={f.id} className="flex items-center gap-1.5">
                   <Paperclip className="size-3 text-muted-foreground" />
-                  <a href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" className="truncate hover:underline">
+                  <button type="button" onClick={() => setPreview(i)} className="truncate text-left hover:underline">
                     {f.fileName}
-                  </a>
+                  </button>
                   <span className="text-[11px] text-muted-foreground">
                     {f.uploadedBy.firstName} {f.uploadedBy.lastName}
                   </span>
@@ -123,6 +125,7 @@ export function TaskWorkflowBlock({
               ))}
             </ul>
           )}
+          <FilePreviewDialog files={files} index={preview} onIndexChange={setPreview} />
           {canEdit && open && (
             <div className="mt-1.5">
               <input

@@ -1022,6 +1022,11 @@ model File {
   id               String       @id @default(cuid())
   // Null only for a file on a task that has no lead (a task raised with no job).
   leadId           String?      @map("lead_id")
+  // The job the file belongs to. Null = a lead document (an estimate,
+  // something uploaded before the job existed): it shows on the lead, and on
+  // the lead's jobs in a group of its own. Anything written for something on
+  // a job sets this.
+  jobId            String?      @map("job_id")
   fileName         String       @map("file_name")
   fileType         String       @map("file_type")
   storageKey       String       @map("storage_key")
@@ -1039,6 +1044,7 @@ model File {
   createdAt        DateTime     @default(now()) @map("created_at")
 
   lead               Lead?               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job                Job?                @relation(fields: [jobId], references: [id], onDelete: SetNull)
   uploadedBy         User                @relation(fields: [uploadedByUserId], references: [id])
   doorKnock          PropertyDoorKnock?  @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
   task               Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
@@ -1047,6 +1053,7 @@ model File {
   generatedDocuments GeneratedDocument[]
 
   @@index([leadId])
+  @@index([jobId])
   @@index([doorKnockId])
   @@index([taskId])
   @@index([violationCaseId])
@@ -1324,6 +1331,7 @@ model Job {
   referrals          Referral[]
   laborContracts     LaborContract[]
   commitments        Commitment[]
+  files              File[]
   budgetLines        BudgetLine[]
   generatedDocuments GeneratedDocument[]
   changeOrders       ChangeOrder[]

@@ -293,7 +293,7 @@ export async function createContractDraft(input: CreateContractInput): Promise<{
     const gen = await generateUnsigned({ job, source, templateKey: input.templateKey, scheduleOverride: input.paymentSchedule, contractNumber, versionNumber: 1, now });
 
     const file = await tx.file.create({
-      data: { leadId: job.leadId, fileName: gen.fileName, fileType: "application/pdf", fileSize: gen.stored.bytes, storageKey: gen.stored.storageKey, category: FileCategory.CUSTOMER_CONTRACT, uploadedByUserId: input.userId },
+      data: { leadId: job.leadId, jobId: job.id, fileName: gen.fileName, fileType: "application/pdf", fileSize: gen.stored.bytes, storageKey: gen.stored.storageKey, category: FileCategory.CUSTOMER_CONTRACT, uploadedByUserId: input.userId },
       select: { id: true },
     });
     const contract = await tx.customerContract.create({
@@ -367,7 +367,7 @@ export async function regenerateContract(
 
   return prisma.$transaction(async (tx) => {
     const file = await tx.file.create({
-      data: { leadId: c.leadId, fileName: gen.fileName, fileType: "application/pdf", fileSize: gen.stored.bytes, storageKey: gen.stored.storageKey, category: FileCategory.CUSTOMER_CONTRACT, uploadedByUserId: userId },
+      data: { leadId: c.leadId, jobId: c.jobId, fileName: gen.fileName, fileType: "application/pdf", fileSize: gen.stored.bytes, storageKey: gen.stored.storageKey, category: FileCategory.CUSTOMER_CONTRACT, uploadedByUserId: userId },
       select: { id: true },
     });
     const doc = await tx.generatedDocument.create({

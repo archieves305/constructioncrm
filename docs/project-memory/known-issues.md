@@ -217,13 +217,10 @@ All five were live in production and all are now regression-tested in
 - Stage 3 is still open: jobs-list workflow filters, dashboard widget,
   reporting.
 
-- **`GET` / `DELETE /api/files/[id]` check only that someone is signed in**
-  (noted 2026-10-02) — no per-record scope, so any CRM user who has a file's
-  id can read or delete it. Pre-existing; now also true of files on tasks
-  with no job.
-
 - **190 prod uploads are missing on disk** (found 2026-10-02). `deploy.sh`
   synced with `--delete` and did not exclude `uploads/`; fixed the same day,
   7 files restored from pre-deploy tarballs. The rows remain in `files` /
-  `field_photos`; opening one returns 410 "Missing on disk". Recovery needs a
-  droplet-level backup. The store still lives inside `/opt/knuco`.
+  `field_photos`. Recovery needs a droplet-level backup. The store now lives
+  in `/var/lib/knuco/uploads`. Since 2026-10-03 a file whose data is gone is
+  listed as **missing** and can be uploaded again onto the same record (Files
+  tab → Missing chip); daily-log photos get the same in initiative 7 Stage 2.

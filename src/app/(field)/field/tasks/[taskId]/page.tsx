@@ -21,6 +21,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { PRIORITY_BADGE_CLASS, STATUS_BADGE_CLASS, STATUS_LABEL } from "@/components/tasks/task-colors";
 import { taskKeys } from "@/components/tasks/use-tasks";
 import { useTaskFileUpload } from "@/components/workflows/use-task-file-upload";
+import { FilePreviewDialog } from "@/components/files/file-preview";
 
 /**
  * Field-mode task view.
@@ -74,6 +75,7 @@ export default function FieldTaskPage({
   const { taskId } = use(params);
   const qc = useQueryClient();
   const [note, setNote] = useState("");
+  const [preview, setPreview] = useState<number | null>(null);
   const [blockReason, setBlockReason] = useState("");
   const [showBlock, setShowBlock] = useState(false);
   // Why the last "Mark done" was refused, shown where the thumb already is.
@@ -253,16 +255,17 @@ export default function FieldTaskPage({
             </h2>
             {files.length > 0 && (
               <ul className="mt-1 divide-y text-sm">
-                {files.map((f) => (
+                {files.map((f, i) => (
                   <li key={f.id}>
-                    <a href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 text-blue-700">
+                    <button type="button" onClick={() => setPreview(i)} className="flex min-h-11 w-full items-center gap-2 text-left text-blue-700">
                       {f.fileType.startsWith("image/") ? <Camera className="size-4 shrink-0" /> : <Paperclip className="size-4 shrink-0" />}
                       <span className="truncate">{f.fileName}</span>
-                    </a>
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
+            <FilePreviewDialog files={files} index={preview} onIndexChange={setPreview} />
             {!done && (
               <div className="mt-2 flex gap-2">
                 <input ref={photoInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={pick} />
