@@ -477,6 +477,7 @@ model User {
   fieldIssuesResolved               FieldIssue[]              @relation("FieldIssueResolvedBy")
   workflowRoleDefaults              WorkflowRoleDefault[]     @relation("WorkflowRoleDefaultUser")
   vendorDocuments                   VendorDocument[]          @relation("VendorDocumentUploadedBy")
+  commitmentsCreated                Commitment[]              @relation("CommitmentCreatedBy")
   vendorComplianceOwnerOf           VendorSettings[]          @relation("VendorComplianceOwner")
   workflowTeamSlots                 JobWorkflowTeamMember[]   @relation("WorkflowTeamUser")
   workflowsApplied                  JobWorkflowInstance[]     @relation("WorkflowAppliedBy")
@@ -1322,6 +1323,7 @@ model Job {
   reviewRequests     ReviewRequest[]
   referrals          Referral[]
   laborContracts     LaborContract[]
+  commitments        Commitment[]
   budgetLines        BudgetLine[]
   generatedDocuments GeneratedDocument[]
   changeOrders       ChangeOrder[]
@@ -1476,6 +1478,7 @@ model Vendor {
   laborContracts LaborContract[]
   documents      VendorDocument[]
   tasks          Task[]
+  commitments    Commitment[]
 
   @@index([name])
   @@map("vendors")
@@ -1534,6 +1537,48 @@ model VendorDocument {
   @@index([vendorId, type])
   @@index([expiresAt])
   @@map("vendor_documents")
+}
+
+enum CommitmentStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+/// A promise to pay a vendor on a job that has not been paid yet: a material
+/// order, a supplier quote accepted, a subcontract with no labor contract.
+/// A commitment is not a cost. Only its unspent part counts, as "committed":
+/// OPEN ? max(0, amount − Σ approved expenses linked to it) : 0
+/// (`lib/vendors/commitments.ts`), and it reaches a job's numbers only through
+/// `computeCostSummary`. Crew labor contracts are commitments of their own
+/// kind and are never copied here.
+model Commitment {
+  id              String           @id @default(cuid())
+  jobId           String           @map("job_id")
+  vendorId        String           @map("vendor_id")
+  /// 1, 2, 3… within the job; shown as C-1.
+  number          Int
+  description     String           @db.Text
+  amount          Decimal          @db.Decimal(12, 2)
+  budgetLineId    String?          @map("budget_line_id")
+  status          CommitmentStatus @default(OPEN)
+  committedDate   DateTime         @default(now()) @map("committed_date")
+  closedAt        DateTime?        @map("closed_at")
+  notes           String?          @db.Text
+  createdByUserId String           @map("created_by_user_id")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  vendor     Vendor      @relation(fields: [vendorId], references: [id])
+  budgetLine BudgetLine? @relation(fields: [budgetLineId], references: [id], onDelete: SetNull)
+  createdBy  User        @relation("CommitmentCreatedBy", fields: [createdByUserId], references: [id])
+  expenses   JobExpense[]
+
+  @@unique([jobId, number])
+  @@index([vendorId])
+  @@index([jobId, status])
+  @@map("commitments")
 }
 
 /// Singleton. Who gets a vendor's expiry tasks; unset = the Accounting role
@@ -1658,6 +1703,7 @@ model BudgetLine {
   job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
   allocations       BudgetAllocation[]
   dailyLaborEntries DailyLaborEntry[]
+  commitments       Commitment[]
 
   @@index([jobId])
   @@map("budget_lines")
@@ -1928,6 +1974,8 @@ model JobExpense {
   // The payee as it arrived (typed, or the bank memo). `vendorId` is the match.
   vendor           String?
   vendorId         String?        @map("vendor_id")
+  // The commitment this expense draws down, if any.
+  commitmentId     String?        @map("commitment_id")
   description      String?        @db.Text
   amount           Decimal        @db.Decimal(12, 2)
   incurredDate     DateTime       @default(now()) @map("incurred_date")
@@ -1958,12 +2006,14 @@ model JobExpense {
   approvedBy        User?              @relation("ExpenseApprovedBy", fields: [approvedByUserId], references: [id])
   payrollPayment    PayrollPayment?    @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
   vendorRecord      Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  commitment        Commitment?        @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
   budgetAllocations BudgetAllocation[]
 
   @@index([jobId])
   @@index([type])
   @@index([payrollPaymentId])
   @@index([vendorId])
+  @@index([commitmentId])
   // Drives the review queue: "everything still pending, oldest first".
   @@index([status, incurredDate])
   @@map("job_expenses")

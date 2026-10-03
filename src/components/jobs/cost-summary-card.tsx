@@ -24,7 +24,17 @@ export function useJobCostSummary(jobId: string) {
  * cost, what has gone out, what is promised, and what is left. The same
  * figures Collections shows, from the same calculation.
  */
-export function CostSummaryCard({ jobId, onOpenBudget, onOpenLabor }: { jobId: string; onOpenBudget?: () => void; onOpenLabor?: () => void }) {
+export function CostSummaryCard({
+  jobId,
+  onOpenBudget,
+  onOpenLabor,
+  onOpenCommitments,
+}: {
+  jobId: string;
+  onOpenBudget?: () => void;
+  onOpenLabor?: () => void;
+  onOpenCommitments?: () => void;
+}) {
   const { data: s, isLoading, error } = useJobCostSummary(jobId);
 
   if (isLoading) return <Skeleton className="mb-4 h-44 w-full" />;
@@ -66,7 +76,17 @@ export function CostSummaryCard({ jobId, onOpenBudget, onOpenLabor }: { jobId: s
             <Line
               label="Committed"
               value={money(s.committed)}
-              sub={s.committedOpen > 0 ? `Includes ${money(s.committedOpen)} of labor contracts not yet paid` : "Nothing promised beyond what is spent"}
+              sub={
+                s.committedOpen > 0
+                  ? `Includes ${[
+                      s.laborCommittedOpen > 0 ? `${money(s.laborCommittedOpen)} of labor contracts not yet paid` : null,
+                      s.commitmentsOpen > 0 ? `${money(s.commitmentsOpen)} of open commitments to vendors` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" and ")}`
+                  : "Nothing promised beyond what is spent"
+              }
+              action={onOpenCommitments ? { label: "View commitments", onClick: onOpenCommitments } : undefined}
               tone={s.overBudget ? "danger" : undefined}
             />
             <Line label="Remaining cost" value={money(s.remainingCost)} />

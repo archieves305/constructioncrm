@@ -210,7 +210,9 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
   const expenses = num(approvedExpenses._sum.amount);
   const contractLabor = num(job.laborCost);
   const fieldLaborCost = num(fieldLabor._sum.totalCost);
-  const cost = contractLabor + fieldLaborCost + expenses;
+  // Everything paid or promised, from the one cost calculation: crew labor,
+  // field labor, approved expenses and open commitments to vendors.
+  const cost = costSummary?.committed ?? contractLabor + fieldLaborCost + expenses;
   const billable = job.jobType !== "OWNED_REHAB";
   const sentCos = changeOrders.filter((c) => c.status === "SENT");
 
@@ -350,7 +352,9 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
       pendingExpenses: { count: pendingExpenses._count, total: num(pendingExpenses._sum.amount) },
       // The projection, from the one cost calculation (lib/jobs/cost-summary.ts).
       estimatedCost: costSummary?.estimatedCost ?? null,
-      committedOpen: costSummary?.committedOpen ?? 0,
+      // Crew labor contracted and not yet paid, and vendor commitments not yet drawn.
+      committedOpen: costSummary?.laborCommittedOpen ?? 0,
+      commitmentsOpen: costSummary?.commitmentsOpen ?? 0,
       projectedProfit: costSummary?.estimatedCost != null ? costSummary.projectedProfit : null,
       projectedMargin: costSummary?.estimatedCost != null ? costSummary.projectedMargin : null,
       overBudgetBy: costSummary?.overBudget ? costSummary.committed - (costSummary.estimatedCost ?? 0) : 0,

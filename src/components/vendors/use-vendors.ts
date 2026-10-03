@@ -83,6 +83,8 @@ export type VendorDetail = {
   canManage: boolean;
   documents: VendorDocument[];
   compliance: Compliance;
+  /** This vendor's commitments across jobs, open ones first. */
+  commitments: { id: string; number: number; description: string; amount: number; received: number; open: number; status: "OPEN" | "CLOSED" | "CANCELLED"; job: JobRow }[];
   approvedSpend: number;
   spendByJob: { job: JobRow; total: number; count: number }[];
   laborContracts: { id: string; name: string; job: JobRow; amount: number; paid: number }[];

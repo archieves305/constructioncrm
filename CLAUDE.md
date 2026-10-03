@@ -292,8 +292,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `20261014120000_vendor_documents`), pure `compliance.ts` + `alerts.ts`,
    `alert-run.ts`, document and settings routes, `POST
    /api/cron/vendor-compliance`, Compliance card on the vendor page, warning
-   on labor contracts, dashboard row, calendar overlay. Stage 3 = commitments
-   feeding committed cost.
+   on labor contracts, dashboard row, calendar overlay. **Stage 3
+   (commitments) built + dev-QA'd 2026-10-03 on `commitments`, fast-forwarded
+   to `main`, not deployed**: `Commitment` + `job_expenses.commitment_id`
+   (migration `20261015120000_commitments`), pure `commitments.ts`,
+   `commitment-service.ts`, `commitmentsOpen` in the one cost calculation,
+   Job → Money → Commitments, auto-link on expense write, budget line and
+   vendor page. **Deploy carries a migration.** With it all three stages of
+   initiative 6 are built.
    Notes: [features/vendors.md](docs/project-memory/features/vendors.md).
 0. 🔴 **Audit initiative 5: attention dashboard** — built + dev-QA'd
    2026-10-03 on `attention-dashboard`, fast-forwarded to `main`, **deployed
@@ -347,6 +353,29 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-03 — Audit initiative 6, Stage 3: commitments (built, dev-QA'd, on `main`, not deployed)
+
+"continue". Built on `commitments`: migration `20261015120000_commitments`;
+pure `lib/vendors/commitments.ts` (`openAmount`, `receivedAmount`,
+`commitmentForExpense`, `canMoveStatus`); `commitment-service.ts`
+(`openCommitmentsByJob` as the one definition); `computeCostSummary` takes
+`commitmentsOpen` and returns `laborCommittedOpen` / `commitmentsOpen` /
+`committedOpen`; `getFinancialSummary` and the Overview's cost line now agree
+with it; routes for a job's commitments and one commitment; `commitmentId` on
+the expense PATCH; auto-link on the manual create and the cc-allocator intake;
+`CommitmentsPanel` as Money → Commitments; cost card split and "View
+commitments"; C-n tag and pick on expenses; "+ $x committed" on budget lines;
+Commitments card on the vendor page. Decided while building: existing expenses
+are not linked when a commitment is created (it is for what has not been paid
+yet), and the vendor cannot change once an expense is linked. Gate: typecheck
+clean, lint 5/22, 1419 tests (+10), build clean. Dev QA: API 33/33 (a $10,000
+commitment raised committed by $10,000 and lowered projected profit by
+$10,000; a $4,000 expense moved it to spent with the total unchanged),
+headless Chromium 20/20 at 1280 and 400 px, SALES_REP read-only / 404 / 403;
+fixed in QA: the panel's tiles counted a closed commitment. Dev DB restored.
+**Deploy carries a migration.** Details:
+[features/vendors.md](docs/project-memory/features/vendors.md).
 
 ### 2026-10-03 — Audit initiative 6, Stage 2: compliance documents + expiry alerts (deployed `45899b2`)
 
@@ -2037,6 +2066,12 @@ Notification Digests).
   in `lib/permits/alerts.ts` (once per source key, closed by the record). The
   fee typed on a permit is a quote — it never becomes an expense; what was
   paid is read from the job's `PERMIT_FEE` costs.
+- **A commitment is a promise, not a cost.** Only its unspent part counts
+  (`OPEN ? max(0, amount − Σ approved linked expenses) : 0`), and it reaches a
+  job's numbers only through `computeCostSummary` (`commitmentsOpen`) — never
+  through `Job.laborCost`, which sets what a cost-plus customer owes. Crew
+  labor contracts are commitments of their own kind and are never copied into
+  `Commitment`. New readers use `openCommitmentsByJob`.
 - **A vendor's compliance is derived from its documents on read, never
   stored** (`lib/vendors/compliance.ts`): the most recently filed document of
   a requirement is the one in force. A gap warns wherever the vendor is used
@@ -2071,7 +2106,15 @@ Notification Digests).
 > (a certificate expiring inside 30 days raises a task the next weekday
 > morning at 11:50 UTC); the "Expiry tasks go to …" control on Vendors
 > (automatic falls to Richard on prod — no Accounting role default is set).
-> Next build: Stage 3 (commitments feeding committed cost).
+>
+> **Stage 3 (commitments) is on `main`, not deployed; the deploy carries
+> migration `20261015120000_commitments`.** After Richard pushes and deploys:
+> verify BUILD_ID, smoke, journal, the migration (`commitments`,
+> `job_expenses.commitment_id`), uploads intact, and that every job's cost
+> summary is unchanged (no commitments exist yet). Click-through: a job →
+> Money → Commitments → Add commitment (needs a vendor), then an expense to
+> that vendor shows C-1 and the Open figure drops. With this, initiative 6 is
+> complete; next is initiative 7 (job documents and photos, `File.jobId`).
 
 > **Initiative 5 (attention dashboard) is on prod (`9b75536`, BUILD_ID
 > `PmFnvrNoVx2_HApQwqCDx`).** Click-through for Richard: the dashboard's

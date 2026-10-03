@@ -9,6 +9,11 @@
  * the whole contract is cost from day one, and the part not yet paid is shown
  * as "committed, not yet paid" so the projection includes what has been
  * promised. Hourly field labor counts as it is worked; expenses once approved.
+ *
+ * Other promises — a material order, a subcontract with no labor contract —
+ * are commitments (lib/vendors/commitments.ts). Their unspent part joins
+ * "committed" here and nowhere else. It never passes through `Job.laborCost`:
+ * on a cost-plus job that figure sets what the customer owes.
  */
 export type CostSummaryInput = {
   jobType: "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB";
@@ -32,6 +37,8 @@ export type CostSummaryInput = {
   fieldLaborUnposted: number;
   /** Σ approved expenses (payroll-posted labor included; credits negative). */
   expenses: number;
+  /** Σ open commitments' unspent part: promised to vendors, no expense against it yet. */
+  commitmentsOpen: number;
   /** Σ invoices issued (sent or paid), any kind. */
   billedToDate: number;
   /** Σ payments received. */
@@ -50,7 +57,11 @@ export type CostSummary = {
   estimatedCostSource: "budget" | "estimate" | null;
   /** Money out or work done: labor paid + field labor + approved expenses. */
   spent: number;
-  /** Labor contracted and not yet paid. */
+  /** Crew labor contracted and not yet paid. */
+  laborCommittedOpen: number;
+  /** Open commitments to vendors, less what approved expenses have drawn. */
+  commitmentsOpen: number;
+  /** Everything promised and not yet paid: laborCommittedOpen + commitmentsOpen. */
   committedOpen: number;
   /** spent + committedOpen — the "cost" Collections has always shown. */
   committed: number;
@@ -87,7 +98,9 @@ export function computeCostSummary(i: CostSummaryInput): CostSummary {
   const estimatedCostSource = i.budgetTotal !== null ? "budget" : i.estimateCost !== null ? "estimate" : null;
 
   const spent = round2(i.laborPaid + i.fieldLaborUnposted + i.expenses);
-  const committedOpen = round2(Math.max(0, i.laborContracts - i.laborPaid));
+  const laborCommittedOpen = round2(Math.max(0, i.laborContracts - i.laborPaid));
+  const commitmentsOpen = round2(Math.max(0, i.commitmentsOpen));
+  const committedOpen = round2(laborCommittedOpen + commitmentsOpen);
   const committed = round2(spent + committedOpen);
 
   const projectedCost = estimatedCost !== null ? Math.max(estimatedCost, committed) : committed;
@@ -110,6 +123,8 @@ export function computeCostSummary(i: CostSummaryInput): CostSummary {
     estimatedCost,
     estimatedCostSource,
     spent,
+    laborCommittedOpen,
+    commitmentsOpen,
     committedOpen,
     committed,
     projectedCost: round2(projectedCost),

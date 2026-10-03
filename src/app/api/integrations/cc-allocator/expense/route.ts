@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { resolveVendorId } from "@/lib/vendors/service";
+import { autoCommitmentId } from "@/lib/vendors/commitment-service";
 import { verifyCcAllocatorAuth } from "@/lib/integrations/cc-allocator/auth";
 import { CC_ALLOCATOR_SYSTEM_USER_ID } from "@/lib/integrations/cc-allocator/system-user";
 import {
@@ -141,12 +142,15 @@ export async function POST(request: NextRequest) {
 
   // A bank memo for a known payee attaches to its vendor; the memo is kept.
   const vendorId = await resolveVendorId(input.vendor);
+  // One open commitment for that vendor on this job: the posting draws it down.
+  const commitmentId = await autoCommitmentId(input.jobId, vendorId);
 
   const created = await prisma.$transaction(async (tx) => {
     const expense = await tx.jobExpense.create({
       data: {
         jobId: input.jobId,
         vendorId,
+        commitmentId,
         type: input.type,
         amount: input.amount,
         incurredDate,

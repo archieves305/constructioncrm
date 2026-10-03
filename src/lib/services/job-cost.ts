@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { formatAddressLine } from "@/lib/labels/address";
 import { computeCostSummary, type CostSummary } from "@/lib/jobs/cost-summary";
+import { openCommitmentsByJob } from "@/lib/vendors/commitment-service";
 
 /**
  * The inputs of `computeCostSummary`, gathered for one job or many.
@@ -50,7 +51,7 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
   if (jobs.length === 0) return [];
   const jobId = { in: jobs.map((j) => j.id) };
 
-  const [changeOrders, expenses, billable, budgets, laborPayments, fieldLabor, invoices, payments, contracts] = await Promise.all([
+  const [changeOrders, expenses, billable, budgets, laborPayments, fieldLabor, invoices, payments, contracts, commitmentsBy] = await Promise.all([
     prisma.changeOrder.groupBy({ by: ["jobId"], where: { jobId, status: "APPROVED" }, _sum: { customerPrice: true } }),
     prisma.jobExpense.groupBy({ by: ["jobId"], where: { jobId, status: "APPROVED" }, _sum: { amount: true } }),
     prisma.jobExpense.groupBy({ by: ["jobId"], where: { jobId, status: "APPROVED", billable: true }, _sum: { amount: true } }),
@@ -65,6 +66,8 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
       orderBy: { signedAt: "desc" },
       select: { jobId: true, estimate: { select: { subtotalCost: true } } },
     }),
+    // Promised to vendors and not yet drawn down by an expense.
+    openCommitmentsByJob({ jobId }),
   ]);
 
   const coBy = sumBy(changeOrders, (r) => r._sum.customerPrice);
@@ -99,6 +102,7 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
       laborPaid: laborPaidBy.get(j.id) ?? 0,
       fieldLaborUnposted: fieldBy.get(j.id) ?? 0,
       expenses: expBy.get(j.id) ?? 0,
+      commitmentsOpen: commitmentsBy.get(j.id) ?? 0,
       billedToDate: billedBy.get(j.id) ?? 0,
       collected: paidBy.get(j.id) ?? 0,
     }),

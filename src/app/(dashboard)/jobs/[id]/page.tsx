@@ -46,6 +46,7 @@ import { ExpensesPanel } from "@/components/jobs/expenses-panel";
 import { LaborContractsPanel } from "@/components/jobs/labor-contracts-panel";
 import { ChangeOrdersPanel } from "@/components/jobs/change-orders-panel";
 import { BudgetPanel } from "@/components/jobs/budget-panel";
+import { CommitmentsPanel } from "@/components/jobs/commitments-panel";
 import { PricingPanel } from "@/components/jobs/pricing-panel";
 import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
 import { ContractPanel } from "@/components/jobs/contract-panel";
@@ -446,6 +447,7 @@ export default function JobDetailPage() {
               { value: "change-orders", label: "Change orders" },
               { value: "contract", label: awaitingSignature > 0 ? `Contract (${awaitingSignature})` : "Contract" },
               { value: "budget", label: "Budget" },
+              { value: "commitments", label: "Commitments" },
             ];
             const FIELD = [
               { value: "labor", label: "Labor" },
@@ -518,7 +520,14 @@ export default function JobDetailPage() {
               ))}
             </TabsList>
 
-            {group === "money" && <CostSummaryCard jobId={id} onOpenBudget={() => setTab("money", "budget")} onOpenLabor={() => setTab("field", "labor")} />}
+            {group === "money" && (
+              <CostSummaryCard
+                jobId={id}
+                onOpenBudget={() => setTab("money", "budget")}
+                onOpenLabor={() => setTab("field", "labor")}
+                onOpenCommitments={() => setTab("money", "commitments")}
+              />
+            )}
 
             <TabsContent value="overview">
               <JobOverview jobId={id} onNavigate={setTab} />
@@ -619,6 +628,10 @@ export default function JobDetailPage() {
                 <BudgetPanel jobId={id} totalJobCost={job.jobType === "OWNED_REHAB" ? Number(job.contractAmount) : (costSummary?.committed ?? 0)} />
               </TabsContent>
             )}
+
+            <TabsContent value="commitments">
+              <CommitmentsPanel jobId={id} onOpenLabor={() => setTab("field", "labor")} />
+            </TabsContent>
 
             <TabsContent value="violations">
               <CaseListMini scope={{ jobId: id, leadId: job.leadId }} newHref={`/violations/new?leadId=${job.leadId}&jobId=${id}`} linkAction />

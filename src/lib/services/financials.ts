@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { openCommitmentsByJob } from "@/lib/vendors/commitment-service";
 import { getBillingSummary, round2 } from "@/lib/services/progress-billing";
 import { formatAddressLine } from "@/lib/labels/address";
 
@@ -133,7 +134,7 @@ export type FinancialSummary = {
  * lump-sum subcontracts never double count.
  */
 export async function getFinancialSummary(): Promise<FinancialSummary> {
-  const [jobs, fieldLabor] = await Promise.all([
+  const [jobs, fieldLabor, commitmentsByJob] = await Promise.all([
     prisma.job.findMany({
       select: {
         id: true,
@@ -159,6 +160,9 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
       where: { isAbsent: false, payrollPaymentId: null },
       _sum: { totalCost: true },
     }),
+    // Promised to vendors and not yet paid — the same figure the job's cost
+    // summary adds to "committed", so the two never disagree.
+    openCommitmentsByJob(),
   ]);
   const fieldLaborByJob = new Map(
     fieldLabor.map((f) => [f.jobId, Number(f._sum.totalCost ?? 0)]),
@@ -180,7 +184,7 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
     const expensesTotal = j.expenses.reduce((s, e) => s + Number(e.amount), 0);
     const contractLaborCost = Number(j.laborCost ?? 0);
     const fieldLaborCost = fieldLaborByJob.get(j.id) ?? 0;
-    const cost = contractLaborCost + fieldLaborCost + expensesTotal;
+    const cost = contractLaborCost + fieldLaborCost + expensesTotal + (commitmentsByJob.get(j.id) ?? 0);
     const profit = contract - cost;
     profitability.push({
       jobId: j.id,

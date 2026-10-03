@@ -26,6 +26,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import { useVendorOptions } from "@/components/vendors/use-vendors";
+import { useJobCommitments } from "@/components/vendors/use-commitments";
+import { commitmentCode } from "@/lib/vendors/commitments";
 import { Trash2, Plus, DollarSign, Receipt, Download, Pencil, X } from "lucide-react";
 
 const TYPES = [
@@ -54,6 +56,8 @@ type Expense = {
   vendor: string | null;
   /** The vendor record the payee text matched, if any. */
   vendorRecord?: { id: string; name: string } | null;
+  /** The commitment this expense draws down, if any. */
+  commitment?: { id: string; number: number } | null;
   description: string | null;
   amount: string;
   incurredDate: string;
@@ -313,6 +317,10 @@ export function ExpensesPanel({
   // Feature 2: edit dialog state for manually-entered expenses.
   const [editing, setEditing] = useState<Expense | null>(null);
   const [editForm, setEditForm] = useState<Form>(emptyForm);
+  // Which commitment the expense being edited draws down ("" = none).
+  const [editCommitmentId, setEditCommitmentId] = useState("");
+  const { data: jobCommitments } = useJobCommitments(jobId);
+  const commitmentChoices = (jobCommitments?.commitments ?? []).filter((c) => c.status === "OPEN" || c.id === editing?.commitment?.id);
 
   const { data: expenses = [], isLoading } = useQuery<Expense[]>({
     queryKey: ["expenses", jobId],
@@ -442,6 +450,8 @@ export function ExpensesPanel({
           paidMethod: editForm.paidMethod || null,
           paidFrom: editForm.paidFrom || null,
           billable: editForm.billable,
+          // Sent only when changed, so a new payee can still re-link by itself.
+          ...(editCommitmentId !== (editing.commitment?.id ?? "") ? { commitmentId: editCommitmentId || null } : {}),
         }),
       });
       if (!res.ok) {
@@ -484,6 +494,7 @@ export function ExpensesPanel({
 
   const openEdit = (e: Expense) => {
     setEditForm(expenseToForm(e));
+    setEditCommitmentId(e.commitment?.id ?? "");
     setEditing(e);
   };
 
@@ -932,6 +943,11 @@ export function ExpensesPanel({
                       >
                         ${Number(e.amount).toLocaleString()}
                       </span>
+                      {e.commitment && (
+                        <Badge variant="outline" className="font-mono text-[10px]" title="Drawn against this commitment">
+                          {commitmentCode(e.commitment.number)}
+                        </Badge>
+                      )}
                       {/* The whole point of the state is that these do not
                           count yet — say so on the row, not just in a total. */}
                       {pending && (
@@ -1085,6 +1101,30 @@ export function ExpensesPanel({
             onAddSource={(name) => addSource.mutate(name)}
             showBillable={!rollsUp}
           />
+          {commitmentChoices.length > 0 && (
+            <div>
+              <Label className="text-xs">Commitment</Label>
+              <Select value={editCommitmentId || "__none"} onValueChange={(v: string | null) => setEditCommitmentId(!v || v === "__none" ? "" : v)}>
+                <SelectTrigger className="w-full" aria-label="Commitment">
+                  <SelectValue>
+                    {(v: string) => {
+                      const c = commitmentChoices.find((x) => x.id === v);
+                      return c ? `${commitmentCode(c.number)} · ${c.vendor.name}` : "Not against a commitment";
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Not against a commitment</SelectItem>
+                  {commitmentChoices.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {commitmentCode(c.number)} · {c.vendor.name} — {c.description.slice(0, 40)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-[11px] text-muted-foreground">An approved expense against a commitment lowers what is still open on it.</p>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setEditing(null)}>
               Cancel

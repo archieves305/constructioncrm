@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { fetchJson, HttpError, retryServerErrors } from "@/lib/fetch-json";
 import { VendorFormDialog } from "@/components/vendors/vendor-form-dialog";
 import { ComplianceCard } from "@/components/vendors/compliance-card";
+import { COMMITMENT_STATUS_LABEL, commitmentCode } from "@/lib/vendors/commitments";
 import { ComplianceBadge } from "@/components/vendors/compliance-badge";
 import { KIND_LABEL, usd, type VendorDetail } from "@/components/vendors/use-vendors";
 
@@ -205,6 +206,43 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
                         <TableCell className="max-w-[18rem]"><JobRef job={c.job} href={`/jobs/${c.job.id}?tab=field&sub=labor`} /></TableCell>
                         <TableCell className="text-right tabular-nums">{usd(c.amount)}</TableCell>
                         <TableCell className="text-right tabular-nums">{usd(c.paid)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {data.commitments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Commitments</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Promised to this vendor and not yet paid: {usd(data.commitments.reduce((s, c) => s + c.open, 0))} open across {new Set(data.commitments.filter((c) => c.open > 0).map((c) => c.job.id)).size} job(s).
+                </p>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Job</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Open</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.commitments.map((c) => (
+                      <TableRow key={c.id} className={c.status === "CANCELLED" ? "opacity-60" : undefined}>
+                        <TableCell className="max-w-[18rem] whitespace-normal">
+                          <JobRef job={c.job} href={`/jobs/${c.job.id}?tab=money&sub=commitments`} />
+                          <div className="break-words text-xs text-muted-foreground">
+                            <span className="font-mono">{commitmentCode(c.number)}</span> · {c.description}
+                            {c.status !== "OPEN" && ` · ${COMMITMENT_STATUS_LABEL[c.status].toLowerCase()}`}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{usd(c.amount)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{c.status === "OPEN" ? usd(c.open) : "—"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

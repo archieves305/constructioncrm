@@ -194,6 +194,7 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
                   m.costBreakdown.contractLabor ? `${money(m.costBreakdown.contractLabor)} labor contracts${m.committedOpen > 0 ? ` (${money(m.committedOpen)} not yet paid)` : ""}` : null,
                   m.costBreakdown.fieldLabor ? `${money(m.costBreakdown.fieldLabor)} field labor` : null,
                   m.costBreakdown.expenses ? `${money(m.costBreakdown.expenses)} expenses` : null,
+                  m.commitmentsOpen > 0 ? `${money(m.commitmentsOpen)} committed to vendors, not yet paid` : null,
                 ].filter(Boolean).join(" · ") || "No costs recorded yet"}
               </span>
             </Row>

@@ -13,6 +13,7 @@ const base: CostSummaryInput = {
   laborPaid: 36_000,
   fieldLaborUnposted: 5_000,
   expenses: 20_000,
+  commitmentsOpen: 0,
   billedToDate: 90_000,
   collected: 80_000,
 };

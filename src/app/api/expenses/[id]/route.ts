@@ -16,6 +16,7 @@ import {
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
 import { resolveVendorId } from "@/lib/vendors/service";
+import { autoCommitmentId } from "@/lib/vendors/commitment-service";
 
 const TYPES = [
   "MATERIAL",
@@ -46,6 +47,8 @@ const updateSchema = z.object({
   paidMethod: z.enum(METHODS).nullable().optional(),
   paidFrom: z.string().max(120).nullable().optional(),
   billable: z.boolean().optional(),
+  // The commitment this expense draws down; null detaches it.
+  commitmentId: z.string().max(60).nullable().optional(),
 });
 
 export async function PATCH(
@@ -99,7 +102,18 @@ export async function PATCH(
     // and are never matched.
     if ((data.vendor ?? null) !== existing.vendor && !existing.payrollPaymentId) {
       data.vendorId = await resolveVendorId(parsed.data.vendor);
+      // A different vendor cannot keep drawing down the old vendor's commitment.
+      if (data.vendorId !== existing.vendorId && parsed.data.commitmentId === undefined) {
+        data.commitmentId = await autoCommitmentId(existing.jobId, data.vendorId as string | null);
+      }
     }
+  }
+  if (parsed.data.commitmentId !== undefined) {
+    if (parsed.data.commitmentId) {
+      const commitment = await prisma.commitment.findFirst({ where: { id: parsed.data.commitmentId, jobId: existing.jobId }, select: { id: true } });
+      if (!commitment) return badRequest("That commitment is not on this job");
+    }
+    data.commitmentId = parsed.data.commitmentId || null;
   }
   if (parsed.data.description !== undefined)
     data.description = parsed.data.description?.trim() || null;
@@ -136,6 +150,7 @@ export async function PATCH(
     include: {
       createdBy: { select: { firstName: true, lastName: true } },
       vendorRecord: { select: { id: true, name: true } },
+      commitment: { select: { id: true, number: true } },
     },
   });
   return NextResponse.json(record);

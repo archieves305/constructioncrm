@@ -15,6 +15,7 @@ import {
 } from "@/lib/services/job-pricing";
 import { guardJob } from "@/lib/access/records";
 import { resolveVendorId } from "@/lib/vendors/service";
+import { autoCommitmentId } from "@/lib/vendors/commitment-service";
 
 const TYPES = [
   "MATERIAL",
@@ -63,6 +64,7 @@ export async function GET(
     include: {
       createdBy: { select: { firstName: true, lastName: true } },
       vendorRecord: { select: { id: true, name: true } },
+      commitment: { select: { id: true, number: true } },
     },
   });
   return NextResponse.json(expenses);
@@ -112,6 +114,8 @@ export async function POST(
 
   // The payee text is kept as typed; a known vendor is linked beside it.
   const vendorId = await resolveVendorId(parsed.data.vendor);
+  // One open commitment for that vendor on this job: the expense draws it down.
+  const commitmentId = await autoCommitmentId(id, vendorId);
 
   const [expense] = await prisma.$transaction([
     prisma.jobExpense.create({
@@ -120,6 +124,7 @@ export async function POST(
         type: parsed.data.type,
         vendor: parsed.data.vendor?.trim() || null,
         vendorId,
+        commitmentId,
         description: parsed.data.description?.trim() || null,
         amount,
         incurredDate: parsed.data.incurredDate
@@ -136,6 +141,7 @@ export async function POST(
       include: {
         createdBy: { select: { firstName: true, lastName: true } },
         vendorRecord: { select: { id: true, name: true } },
+      commitment: { select: { id: true, number: true } },
       },
     }),
     ...(billable && affectsLedger

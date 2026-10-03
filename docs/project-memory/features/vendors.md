@@ -5,7 +5,7 @@ Three stages, plan approved 2026-10-03
 (`ec88e96`, BUILD_ID `5x6HE43-USWkCl1cgP0Zn`, deployed 2026-10-03);
 Stage 2 (compliance documents + expiry alerts) is on prod (`45899b2`,
 BUILD_ID `DcJXs_PTMUJdAIU9AJO2p`, cron installed 2026-10-03); Stage 3
-(commitments feeding committed cost) follows with its own migration.
+(commitments feeding committed cost) is built.
 
 Richard's rulings (2026-10-03): crews, typed contractors and suppliers are
 **one directory**; a subcontractor needs a general liability COI, workers'
@@ -182,6 +182,80 @@ every document and settings route, no dashboard row, no overlay. Dev DB
 restored from a dump. Not exercised: the assignment email (dev's owner is a
 muted seed user) and the oldest-admin fallback.
 
+## Stage 3 — commitments
+
+Migration `20261015120000_commitments`: `Commitment` (job, vendor, `number`
+per job shown as C-n, description, amount, optional budget line, status `OPEN |
+CLOSED | CANCELLED`, committed date, closed at, notes) and
+`job_expenses.commitment_id` (`SET NULL`).
+
+### Where things are
+
+- `src/lib/vendors/commitments.ts` — pure, client-safe, tested: `openAmount`
+  (`OPEN ? max(0, amount − received) : 0`), `receivedAmount` (APPROVED only;
+  a credit gives money back), `commitmentForExpense` (exactly one OPEN
+  commitment for the vendor on the job, else null), `canMoveStatus` (anything
+  reopens; cancelled → closed is refused).
+- `src/lib/vendors/commitment-service.ts` — `openCommitmentsByJob` (the one
+  definition every reader uses), `autoCommitmentId`, `listJobCommitments`
+  (rows with received / open / expense count / vendor compliance, the job's
+  labor contracts as read-only rows, its budget lines, totals over OPEN rows),
+  `createCommitment` (number per job, unique index as the backstop),
+  `updateCommitment`, `deleteCommitment`, `listVendorCommitments`. Audited as
+  `Commitment`.
+- `lib/jobs/cost-summary.ts`: input `commitmentsOpen`; outputs
+  `laborCommittedOpen`, `commitmentsOpen`, `committedOpen` (their sum).
+  `lib/services/job-cost.ts` loads it. **Never through `Job.laborCost`** — on
+  a cost-plus job that sets what the customer owes.
+- The two formulas that sat outside the summary now agree with it:
+  `getFinancialSummary` adds `openCommitmentsByJob()` to cost, and the job
+  Overview's "Cost to date" reads `costSummary.committed`.
+- Routes: `GET | POST /api/jobs/[id]/commitments` (`guardJob` read /
+  `canManageJobMoney`), `PATCH | DELETE /api/commitments/[id]`
+  (`canManageJobMoney`), `commitmentId` on `PATCH /api/expenses/[id]` (must be
+  on the expense's job).
+- UI: Job → Money → **Commitments** (`components/jobs/commitments-panel.tsx`;
+  `?tab=money&sub=commitments`), "View commitments" and the split committed
+  line on the cost summary card, the C-n tag and the Commitment pick on an
+  expense, "+ $x committed" on a budget line, a Commitments card on the vendor
+  page, the Overview's cost line.
+
+### How it behaves
+
+- A commitment is a promise, not a cost. Adding $10,000 raises committed by
+  $10,000; an approved $4,000 expense against it moves $4,000 from committed
+  to spent and the total does not change. Under a budget the projection moves
+  only once commitments pass it.
+- A new expense (manual or bank feed) links by itself when its vendor has
+  exactly one OPEN commitment on the job; with two it is a person's pick on
+  the expense. A payee edit that changes the vendor re-links the same way.
+  **Existing expenses are not linked when a commitment is created** — a
+  commitment is for what has not been paid yet.
+- Close = nothing more is coming; what was left is released. Cancel releases
+  all of it. Either can be reopened. Delete only when no expense is linked;
+  the vendor cannot change once one is.
+- Crew labor contracts keep counting exactly as before and are shown under the
+  commitments as read-only rows; they are never copied into commitments.
+- Own-only roles see a job's commitments read-only when the job is theirs;
+  another job's answer 404.
+
+### Dev QA (2026-10-03)
+
+API script 33/33 (the three acceptance figures; zero amount, unknown vendor
+and a foreign budget line 400; auto-link from a manual expense and from the
+bank feed; a credit; two commitments → no auto-link → picked on the expense;
+another job's commitment 400; vendor change 409; close / reopen / cancel;
+cancelled → closed 409; delete 409 with expenses, 200 without; Overview,
+Collections job-cost row and the financial summary all equal the summary;
+`Job.laborCost` and the contract untouched; audit rows). Headless Chromium
+20/20 at 1280 and 400 px (panel from the URL, add dialog, row menu close,
+expense tag and pick, budget line, vendor page, Overview), no console errors.
+SALES_REP: own job's list 200 read-only, another job's 404, writes 403. Fixed
+in QA: the tiles counted a closed commitment's full amount — they now cover
+open commitments only. Dev DB restored. Not exercised: a PENDING expense
+against a commitment (dev's admin self-approves; unit-tested) and a cost-plus
+job at runtime.
+
 ## Rules
 
 - `JobExpense.vendor` is the payee as it arrived; `vendorId` is the match.
@@ -191,3 +265,7 @@ muted seed user) and the oldest-admin fallback.
 - A vendor's compliance is derived from its documents on read and never
   stored; a gap warns and never blocks; an expiry alert is a task raised once
   per document date and closed by the record (`settleVendorAlerts`).
+- A commitment is a promise, not a cost. Only its unspent part counts, and it
+  reaches a job's numbers only through `computeCostSummary` — never through
+  `Job.laborCost`, never as a sum of its own on a new screen. New readers use
+  `openCommitmentsByJob`.

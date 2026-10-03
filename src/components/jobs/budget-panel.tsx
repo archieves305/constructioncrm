@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useJobCommitments } from "@/components/vendors/use-commitments";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,6 +114,13 @@ export function BudgetPanel({
     allAllocations.filter((a) =>
       kind === "expense" ? a.expenseId === id : a.laborContractId === id,
     );
+
+  // Open commitments per budget line: promised to a vendor, not yet paid.
+  const { data: jobCommitments } = useJobCommitments(jobId);
+  const openByLine = new Map<string, number>();
+  for (const c of jobCommitments?.commitments ?? []) {
+    if (c.budgetLine && c.open > 0) openByLine.set(c.budgetLine.id, (openByLine.get(c.budgetLine.id) ?? 0) + c.open);
+  }
 
   const actualForLine = (l: BudgetLine) =>
     l.allocations.reduce((s, a) => s + Number(a.amount), 0);
@@ -434,6 +442,11 @@ export function BudgetPanel({
                   <div>
                     <div className="text-[10px] uppercase text-muted-foreground">Actual</div>
                     <div className="font-semibold">${actual.toLocaleString()}</div>
+                    {(openByLine.get(l.id) ?? 0) > 0 && (
+                      <div className="text-[11px] text-muted-foreground" title="Open commitments to vendors on this line — promised, not yet paid">
+                        + ${(openByLine.get(l.id) ?? 0).toLocaleString()} committed
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-[10px] uppercase text-muted-foreground">{v >= 0 ? "Under" : "Over"}</div>
