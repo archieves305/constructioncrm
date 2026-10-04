@@ -404,6 +404,23 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-04 — Tasks page always opens on the signed-in person's tasks (deployed `330fd6f`)
+
+Richard: "the default view for each user should be only tasks assigned to the
+user." The page already defaulted to Mine but followed the saved Mine / All
+preference shared with Jobs and Leads, so anyone who had picked All there (or
+clicked Everyone on Tasks once) kept landing on everyone's tasks.
+`resolveTaskScope` now reads only the URL (`?scope=all` for the visit, else
+Mine); the Everyone toggle no longer writes `defaultListScope`; Settings →
+Lists & boards says so. Links that mean the team's tasks (`scope=all`) are
+unchanged. Gate: typecheck clean, lint clean on the touched files, 1525 tests.
+Not clicked through in a browser. No migration. Richard pushed and deployed
+from `!` (background, 262 s, exit 0): BUILD_ID `Sm73Z7jwQy_iEWRSA7K2T` →
+`dnrclujOQuYo8gnVkDHq2`, smoke 307 ×2, zero journal errors since the restart,
+21 files in the store, backup `postgres-2026-10-04-131016.dump`. **The deploy
+also carried the roofing import script (`9265589`) — on prod now, still not
+run.**
+
 ### 2026-10-03 — Roofing integration, P0 Stage C: the import script (on `main`, not deployed, not run on prod)
 
 Built on `roofing-import`: pure `src/lib/roofing/import-plan.ts`
