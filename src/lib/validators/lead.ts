@@ -20,7 +20,8 @@ export const createLeadSchema = z.object({
   sourceDetail: z.string().optional(),
   assignedUserId: z.string().optional(),
   serviceCategoryIds: z.array(z.string()).optional(),
-  estimatedJobValue: z.number().positive().optional(),
+  // An emptied number field arrives as null (NaN does not survive JSON).
+  estimatedJobValue: z.number().positive("Estimated job value must be more than 0").nullish(),
   insuranceClaim: z.boolean().default(false),
   financingNeeded: z.boolean().default(false),
   urgent: z.boolean().default(false),
@@ -28,6 +29,11 @@ export const createLeadSchema = z.object({
   notesSummary: z.string().optional(),
   nextFollowUpAt: z.string().optional(),
 });
+
+/** One readable line for a 400: "Field: what is wrong; …". */
+export function leadIssuesMessage(issues: readonly { path: PropertyKey[]; message: string }[]): string {
+  return issues.map((i) => (i.path.length ? `${i.path.map(String).join(".")}: ${i.message}` : i.message)).join("; ");
+}
 
 export const updateLeadSchema = createLeadSchema.partial();
 

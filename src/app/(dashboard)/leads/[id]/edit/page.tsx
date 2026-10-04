@@ -110,13 +110,10 @@ export default function EditLeadPage() {
 
   const updateLead = useMutation({
     mutationFn: (data: UpdateLeadInput) =>
-      fetch(`/api/leads/${id}`, {
+      fetchJson(`/api/leads/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead", id] });
@@ -246,6 +243,7 @@ export default function EditLeadPage() {
             <div>
               <Label>Source</Label>
               <Select
+                items={(sources ?? []).map((s: { id: string; name: string }) => ({ value: s.id, label: s.name }))}
                 value={watch("sourceId") ?? ""}
                 onValueChange={(v: string | null) =>
                   setValue("sourceId", v ?? undefined, { shouldDirty: true })
@@ -270,6 +268,7 @@ export default function EditLeadPage() {
             <div>
               <Label>Assign To</Label>
               <Select
+                items={(users ?? []).map((u: { id: string; firstName: string; lastName: string }) => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }))}
                 value={watch("assignedUserId") ?? ""}
                 onValueChange={(v: string | null) =>
                   setValue("assignedUserId", v ?? undefined, {

@@ -72,13 +72,10 @@ export default function NewLeadPage() {
 
   const createLead = useMutation({
     mutationFn: (data: CreateLeadInput) =>
-      fetch("/api/leads", {
+      fetchJson<{ lead: { id: string }; duplicates?: unknown[] }>("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.json();
       }),
     onSuccess: (result) => {
       if (result.duplicates?.length) {
@@ -101,6 +98,13 @@ export default function NewLeadPage() {
       toast.error(`Failed to create lead: ${err.message}`);
     },
   });
+
+  // Base UI shows the selected value itself unless it is given the labels.
+  const sourceItems = (sources ?? []).map((s: { id: string; name: string }) => ({ value: s.id, label: s.name }));
+  const repOptions: { id: string; firstName: string; lastName: string }[] = (users ?? []).filter(
+    (u: { role: { name: string }; isActive: boolean }) => u.isActive && ["ADMIN", "MANAGER", "SALES_REP"].includes(u.role.name),
+  );
+  const repItems = repOptions.map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }));
 
   const selectedServices = watch("serviceCategoryIds") || [];
   const phoneInput = watch("primaryPhone") || "";
@@ -281,7 +285,7 @@ export default function NewLeadPage() {
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div>
               <Label>Source</Label>
-              <Select onValueChange={(v: string | null) => setValue("sourceId", v ?? undefined)}>
+              <Select items={sourceItems} onValueChange={(v: string | null) => setValue("sourceId", v ?? undefined)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
@@ -300,20 +304,16 @@ export default function NewLeadPage() {
             </div>
             <div>
               <Label>Assign To</Label>
-              <Select onValueChange={(v: string | null) => setValue("assignedUserId", v ?? undefined)}>
+              <Select items={repItems} onValueChange={(v: string | null) => setValue("assignedUserId", v ?? undefined)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select rep" />
                 </SelectTrigger>
                 <SelectContent>
-                  {users
-                    ?.filter((u: { role: { name: string }; isActive: boolean }) =>
-                      u.isActive && ["ADMIN", "MANAGER", "SALES_REP"].includes(u.role.name)
-                    )
-                    .map((u: { id: string; firstName: string; lastName: string }) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.firstName} {u.lastName}
-                      </SelectItem>
-                    ))}
+                  {repOptions.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.firstName} {u.lastName}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

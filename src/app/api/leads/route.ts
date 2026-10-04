@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { getSession } from "@/lib/auth/helpers";
 import { unauthorized, badRequest } from "@/lib/auth/helpers";
-import { createLeadSchema } from "@/lib/validators/lead";
+import { createLeadSchema, leadIssuesMessage } from "@/lib/validators/lead";
 import { emitLeadEvent } from "@/lib/follow-ups/events";
 import { buildLeadListWhere, parseLeadListParams } from "@/lib/leads/query";
 import { guardLeadCreate } from "@/lib/access/records";
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const parsed = createLeadSchema.safeParse(body);
   if (!parsed.success) {
-    return badRequest(JSON.stringify(parsed.error.issues));
+    return badRequest(leadIssuesMessage(parsed.error.issues));
   }
 
   const input = parsed.data;

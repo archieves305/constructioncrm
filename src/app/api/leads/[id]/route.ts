@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
-import { updateLeadSchema } from "@/lib/validators/lead";
+import { updateLeadSchema, leadIssuesMessage } from "@/lib/validators/lead";
 import { guardLead } from "@/lib/access/records";
 
 export async function GET(
@@ -89,7 +89,7 @@ export async function PATCH(
   const body = await request.json();
   const parsed = updateLeadSchema.safeParse(body);
   if (!parsed.success) {
-    return badRequest(JSON.stringify(parsed.error.issues));
+    return badRequest(leadIssuesMessage(parsed.error.issues));
   }
 
   const input = parsed.data;
