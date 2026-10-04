@@ -404,6 +404,26 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-04 — Fix: Create Lead refused an empty job value; source / rep pickers showed ids (deployed `4c0aaae`)
+
+Richard: "When I click create lead I get an error message", and Source /
+Assign To on the lead form did not show the chosen name. Reproduced on dev:
+the empty "Estimated Job Value" field (`valueAsNumber` → NaN → JSON `null`)
+failed `z.number().optional()` with a 400, shown as raw JSON in the toast.
+`estimatedJobValue` is now `.nullish()`; the create and update routes answer
+with `leadIssuesMessage` ("field: what is wrong"); both lead forms post through
+`fetchJson`; the Source and Assign To selects on New Lead and Edit Lead pass
+`items`, which Base UI needs to show a label instead of the value. Gate:
+typecheck clean, 1525 tests. Dev QA in headless Chromium on New Lead (both
+pickers show the name, lead created with the value empty, no page errors; QA
+lead removed). Not exercised: Edit Lead in the browser. No migration. Richard
+pushed and deployed from `!` (background, 254 s, exit 0): BUILD_ID
+`dnrclujOQuYo8gnVkDHq2` → `hLEppdI-GfVnoKGiBISj-`, smoke 307 ×2, zero journal
+errors since the restart, 21 files in the store, backup
+`postgres-2026-10-04-132441.dump`. **Lesson: a Base UI `Select` fed ids needs
+`items` (or a `SelectValue` render function) — other id-valued selects may
+show the same fault.**
+
 ### 2026-10-04 — Tasks page always opens on the signed-in person's tasks (deployed `330fd6f`)
 
 Richard: "the default view for each user should be only tasks assigned to the
