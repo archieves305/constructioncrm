@@ -404,6 +404,31 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-04 — An admin can delete a job (deployed `ac1e22b`)
+
+Richard: "I would like to give admin users the option to delete a job. Some
+jobs were created as a test." There was no delete. Built: `lib/jobs/delete.ts`
+(pure `jobDeleteBlockers` / `jobDeletePlan`, `loadJobDeleteCounts`, `deleteJob`
+— tasks deleted first because their job link is SET NULL, the rest by cascade;
+audit `job_delete` with a snapshot, the counts and the reason);
+`canDeleteJob` (ADMIN only) + `guardJobDelete`; `GET
+/api/jobs/[id]/delete-check` (writes nothing) and `DELETE /api/jobs/[id]`
+(reason required; 409 with the blockers); `DeleteJobDialog` behind "Delete
+job…" in the job page's ⋯ menu. **Refused when the job has customer payments,
+expenses, invoices, crew payments, daily logs, field labor entries, a sent or
+signed customer contract or a linked violation case** — chosen by the session,
+Richard has not ruled on whether to loosen it. The lead and the job's files
+stay. Read-only prod check: 13 of 26 jobs carry none of those records. Gate:
+typecheck clean, lint 5/22, 1527 tests (+2), build clean. Dev QA: API 409 /
+400 / 404, SALES_REP 403 on both routes, headless Chromium deleted a job with
+a workflow, 16 tasks and 35 budget lines (job and tasks gone, audit row, no
+page errors); dev DB restored from a dump. Not exercised: a job with permits,
+labor contracts, change orders or commitments. No migration. Richard pushed
+and deployed from `!` (background, 263 s, exit 0): BUILD_ID
+`hLEppdI-GfVnoKGiBISj-` → `ZHdfRxz1Bvd0_yY3_Y3sI`, smoke 307 ×2, zero journal
+errors since the restart, 21 files in the store, backup
+`postgres-2026-10-04-135010.dump`.
+
 ### 2026-10-04 — Fix: Create Lead refused an empty job value; source / rep pickers showed ids (deployed `4c0aaae`)
 
 Richard: "When I click create lead I get an error message", and Source /
@@ -2298,6 +2323,10 @@ Notification Digests).
   ADMIN/MANAGER/OFFICE_STAFF implicitly, anyone else by explicit grant. Use
   **explicit role lists, never `hasMinRole`**, for anything financial:
   `ROLE_HIERARCHY` ranks SALES_REP above OFFICE_STAFF (Accounting).
+- **A job is deleted only through `deleteJob`** (`lib/jobs/delete.ts`): ADMIN
+  only, a reason, audited, and refused while the job carries money, field or
+  contract records. A new table that hangs real business records on a job adds
+  a blocker there.
 - **A job's cost and profit come from one calculation**
   (`lib/jobs/cost-summary.ts` via `lib/services/job-cost.ts`). Crew labor
   counts when the labor contract is signed; the unpaid part is "committed".
