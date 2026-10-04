@@ -17,7 +17,8 @@ import {
 import { canEditJobRecord, canManageJobMoney, JOB_MONEY_FIELDS, MONEY_DENIED_MESSAGE, touchesJobMoney } from "@/lib/money/access";
 import { recordAudit } from "@/lib/audit/record";
 import { settleJobGates } from "@/lib/workflows/gates";
-import { guardJob } from "@/lib/access/records";
+import { guardJob, guardJobDelete } from "@/lib/access/records";
+import { deleteJob } from "@/lib/jobs/delete";
 
 export async function GET(
   _request: NextRequest,
@@ -221,4 +222,32 @@ export async function PATCH(
     await recordAudit({ actorUserId: session.user.id, entityType: "Job", entityId: id, action: "pricing_update", before: pick(existing), after: pick(refreshed) });
   }
   return NextResponse.json(refreshed);
+}
+
+/**
+ * Delete a job created by mistake or as a test. ADMIN only, a reason is
+ * required, and a job with money, field or contract records is refused (409).
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession();
+  if (!session?.user) return unauthorized();
+  const denied = guardJobDelete(session.user);
+  if (denied) return denied;
+
+  const { id } = await params;
+  const body = (await request.json().catch(() => null)) as { reason?: unknown } | null;
+  const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
+  if (reason.length < 3) return badRequest("Say why this job is being deleted.");
+
+  const result = await deleteJob(id, { userId: session.user.id, reason });
+  if (result.ok) return NextResponse.json({ deleted: true });
+  if (result.reason === "not_found") return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  const list = result.blockers.map((b) => `${b.count} ${b.label}`).join(", ");
+  return NextResponse.json(
+    { error: `This job has records that must be kept: ${list}. It cannot be deleted.`, blockers: result.blockers },
+    { status: 409 },
+  );
 }

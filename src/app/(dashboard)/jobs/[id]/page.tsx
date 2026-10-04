@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RecordRecent } from "@/components/shared/record-recent";
 import { jobLabel, jobText } from "@/lib/labels/job";
@@ -37,6 +38,7 @@ import { JobPhotoGallery } from "@/components/photos/job-photo-gallery";
 import { toast } from "sonner";
 import {
   DollarSign, User, Calendar, Hammer, Shield, MoreHorizontal, CornerDownRight, Copy, ExternalLink, Wallet, FileText,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { FilesPanel } from "@/components/files/files-panel";
@@ -60,6 +62,8 @@ import { CaseListMini } from "@/components/violations/case-list-mini";
 import { useTasks } from "@/components/tasks/use-tasks";
 import { JobWorkflowPanel } from "@/components/workflows/job-workflow-panel";
 import { useSession } from "@/lib/auth/session-client";
+import { canDeleteJob } from "@/lib/access/roles";
+import { DeleteJobDialog } from "@/components/jobs/delete-job-dialog";
 import { JobOverview } from "@/components/jobs/job-overview";
 import { CostSummaryCard, useJobCostSummary } from "@/components/jobs/cost-summary-card";
 import { canEditJobRecord, canManageJobMoney } from "@/lib/money/access";
@@ -76,6 +80,7 @@ export default function JobDetailPage() {
   const canEditRecord = canEditJobRecord(session?.user.role);
   const moneyViewOnly = Boolean(session?.user) && !canManageJobMoney(session?.user.role);
   const qc = useQueryClient();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const searchParams = useSearchParams();
   const pathname = usePathname();
   // Fourteen tabs in one strip never fit; they are grouped, and the URL owns
@@ -257,8 +262,17 @@ export default function JobDetailPage() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setTab("history")}>Stage history</DropdownMenuItem>
+                {canDeleteJob(session?.user.role) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                      <Trash2 className="size-4" /> Delete job…
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
+            <DeleteJobDialog jobId={id} jobName={jobLabel(job).primary} open={deleteOpen} onOpenChange={setDeleteOpen} />
           </>
         }
       >

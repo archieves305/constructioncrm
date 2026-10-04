@@ -34,6 +34,13 @@ export function canDecideChangeOrder(role: RoleName): boolean {
   return CHANGE_ORDER_DECISION_ROLES.includes(role);
 }
 
+/** Deleting a job outright (a test, or one created by mistake). */
+const JOB_DELETE_ROLES: readonly RoleName[] = ["ADMIN"];
+
+export function canDeleteJob(role: RoleName | null | undefined): boolean {
+  return Boolean(role) && JOB_DELETE_ROLES.includes(role as RoleName);
+}
+
 /** Referral records and their commissions. */
 const REFERRAL_ROLES: readonly RoleName[] = ["ADMIN", "MANAGER"];
 

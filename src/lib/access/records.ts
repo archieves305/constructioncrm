@@ -3,7 +3,7 @@ import type { Prisma, RoleName } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jobsInvolvingUserWhere, leadsInvolvingUserWhere } from "@/lib/jobs/involvement";
 import { prospectVisibilityWhere } from "@/lib/prospects/access";
-import { canManageReferrals, canWriteLeads, canWriteProduction, isOwnOnlyRole } from "./roles";
+import { canDeleteJob, canManageReferrals, canWriteLeads, canWriteProduction, isOwnOnlyRole } from "./roles";
 
 /**
  * By-id guards for leads and jobs.
@@ -82,6 +82,11 @@ export async function guardProspect(viewer: Viewer, prospectId: string, mode: Mo
 /** Role-only guard for creating leads and prospects. */
 export function guardLeadCreate(viewer: Viewer): NextResponse | null {
   return canWriteLeads(viewer.role) ? null : forbidden(LEAD_WRITE_DENIED);
+}
+
+/** Deleting a job is an admin's action. */
+export function guardJobDelete(viewer: Viewer): NextResponse | null {
+  return canDeleteJob(viewer.role) ? null : forbidden("Only an admin can delete a job.");
 }
 
 /** Referrals carry commissions; the page is ADMIN / MANAGER and so is the API. */
