@@ -32,7 +32,7 @@ export default function ListSettingsPage() {
                   <p className="text-xs text-muted-foreground">
                     {forced
                       ? "Your role always sees the jobs and leads you are on."
-                      : "Mine shows jobs you have a role on (rep, PM, workflow team, field, crew) and leads assigned to you. You can switch on any page; the switch is remembered here."}
+                      : "Mine shows jobs you have a role on (rep, PM, workflow team, field, crew) and leads assigned to you. You can switch on any page; the switch is remembered here. The Tasks page always opens on your own tasks."}
                   </p>
                 </div>
                 <SegmentedControl<ListScopePref>

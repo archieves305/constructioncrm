@@ -53,11 +53,11 @@ describe("resolveClientScope", () => {
 });
 
 describe("resolveTaskScope / taskAssigneeFor", () => {
-  it("the Tasks page defaults to Mine, follows the URL then the preference, with no role floor", () => {
-    expect(resolveTaskScope({ url: null, pref: null })).toBe("mine");
-    expect(resolveTaskScope({ url: null, pref: "ALL" })).toBe("all");
-    expect(resolveTaskScope({ url: "all", pref: "MINE" })).toBe("all");
-    expect(resolveTaskScope({ url: "junk", pref: "ALL" })).toBe("all");
+  it("the Tasks page opens on Mine unless the URL says all — no saved preference, no role floor", () => {
+    expect(resolveTaskScope({ url: null })).toBe("mine");
+    expect(resolveTaskScope({ url: "all" })).toBe("all");
+    expect(resolveTaskScope({ url: "mine" })).toBe("mine");
+    expect(resolveTaskScope({ url: "junk" })).toBe("mine");
   });
   it("an explicit assignee wins; Mine is the signed-in person; Everyone is no filter", () => {
     expect(taskAssigneeFor({ explicit: "u2", scope: "mine", userId: "u1" })).toBe("u2");

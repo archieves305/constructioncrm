@@ -44,14 +44,14 @@ export function scopeToPref(scope: ListScope): ListScopePref {
 }
 
 /**
- * The Tasks page: URL > saved preference > Mine, with no role floor — the
- * task API already limits an own-only role to what they may see, so their
- * "Everyone" is the tasks on their own jobs.
+ * The Tasks page: Mine unless this visit's URL says `scope=all`. The saved
+ * list preference is deliberately not read — the page opens on the signed-in
+ * person's tasks for everyone, every time. No role floor: the task API
+ * already limits an own-only role, so their "Everyone" is the tasks on their
+ * own jobs.
  */
-export function resolveTaskScope(input: { url?: string | null; pref?: ListScopePref | null }): ListScope {
-  const fromUrl = parseListScope(input.url);
-  if (fromUrl) return fromUrl;
-  return input.pref === "ALL" ? "all" : "mine";
+export function resolveTaskScope(input: { url?: string | null }): ListScope {
+  return parseListScope(input.url) ?? "mine";
 }
 
 /**

@@ -27,7 +27,6 @@ import { STATUS_LABEL, STATUS_TONE, TASK_PRIORITIES, TASK_STATUSES } from "@/com
 import { useAssignableUsers, useCreateTask, useTaskSummary, useTasks, useUpdateTask } from "@/components/tasks/use-tasks";
 import type { TaskListItem, TaskStatus, UpdatePatch, UserOption } from "@/components/tasks/types";
 import { useSearchParamState } from "@/components/shared/use-search-param-state";
-import { useMePreferences, usePatchPreferences } from "@/components/shared/use-list-scope";
 import { resolveTaskScope, taskAssigneeFor, type ListScope } from "@/lib/lists/scope";
 import { useDebouncedValue } from "@/components/shared/use-debounced-value";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
@@ -75,18 +74,13 @@ export default function TasksPage() {
   const flagOn = (k: string) => getUrl(k) === "1" || getUrl(k) === "true";
   const filterAssignee = getUrl("assignedUserId") ?? "";
   const setFilterAssignee = (v: string) => setUrl({ assignedUserId: v || null });
-  // Mine by default: the list opens on the signed-in person's tasks. The URL
-  // (`?scope=`) wins for this visit, the saved list preference otherwise —
-  // the same preference the jobs and leads lists use. An explicit assignee
-  // in the URL (a person, or the dashboard's "me") overrides both.
-  const { data: listPrefs, isLoading: prefsLoading } = useMePreferences();
-  const patchPrefs = usePatchPreferences();
-  const urlScope = getUrl("scope");
-  const scope = resolveTaskScope({ url: urlScope, pref: listPrefs?.defaultListScope ?? null });
-  const scopeReady = Boolean(urlScope) || Boolean(filterAssignee) || !prefsLoading;
+  // Mine for everyone: the list always opens on the signed-in person's tasks.
+  // "Everyone" lasts for the visit (`?scope=all`) and is never remembered —
+  // the saved jobs / leads list preference does not apply here. An explicit
+  // assignee in the URL (a person, or the dashboard's "me") overrides it.
+  const scope = resolveTaskScope({ url: getUrl("scope") });
   function setWho(next: ListScope) {
-    setUrl({ assignedUserId: null, scope: next });
-    patchPrefs.mutate({ defaultListScope: next === "mine" ? "MINE" : "ALL" });
+    setUrl({ assignedUserId: null, scope: next === "all" ? "all" : null });
   }
   const filterPriority = getUrl("priority") ?? "";
   const setFilterPriority = (v: string) => setUrl({ priority: v || null });
@@ -135,8 +129,6 @@ export default function TasksPage() {
       blocked: blockedOnly || undefined,
       includeInactive: showInactive || undefined,
     },
-    // Don't fetch on a guessed scope while the preference loads (a Mine→All flash).
-    { enabled: scopeReady },
   );
 
   const { data: users = [] } = useAssignableUsers();
@@ -253,8 +245,7 @@ export default function TasksPage() {
     (overdueOnly ? 1 : 0) + (unscheduledOnly ? 1 : 0) + (readyOnly ? 1 : 0) + (blockedOnly ? 1 : 0) + (showInactive ? 1 : 0);
 
   function showMine(overdue: boolean) {
-    setUrl({ assignedUserId: null, scope: "mine", overdue: overdue ? "1" : null });
-    patchPrefs.mutate({ defaultListScope: "MINE" });
+    setUrl({ assignedUserId: null, scope: null, overdue: overdue ? "1" : null });
     if (overdue) setShowFilters(true);
   }
 
