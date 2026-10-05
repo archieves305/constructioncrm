@@ -19,6 +19,7 @@ import { recordAudit } from "@/lib/audit/record";
 import { settleJobGates } from "@/lib/workflows/gates";
 import { guardJob, guardJobDelete } from "@/lib/access/records";
 import { deleteJob } from "@/lib/jobs/delete";
+import { openInstallTasks } from "@/lib/crews/install-run";
 
 export async function GET(
   _request: NextRequest,
@@ -71,7 +72,11 @@ export async function GET(
 
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
-  return NextResponse.json(job);
+  // Each crew's open get-ready task, so the Crews tab can say who has it.
+  const installTasks = await openInstallTasks(job.crewAssignments.map((a) => a.id));
+  const crewAssignments = job.crewAssignments.map((a) => ({ ...a, installTask: installTasks.get(a.id) ?? null }));
+
+  return NextResponse.json({ ...job, crewAssignments });
 }
 
 export async function PATCH(

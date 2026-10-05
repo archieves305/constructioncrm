@@ -15,7 +15,7 @@ const CASE_SELECT = { id: true, caseNumber: true, agencyCaseNumber: true, leadId
 /**
  * Read-only overlays for a range: permit inspections, permit expiry and
  * expected-approval days, hearings, agency
- * inspections, job starts. Shared by `GET /api/calendar` and the digest's
+ * inspections, job starts, crew installs. Shared by `GET /api/calendar` and the digest's
  * agenda. Skipped when a task-shaped filter (status, priority, search) is
  * on — those questions are about work, not appointments. A job filter narrows
  * the job-based ones and drops the case-based ones.
@@ -29,7 +29,7 @@ export async function loadOverlays(params: CalendarParams, sel: UsersSelection, 
   const to = endOfDayIn(params.to);
   const scopes = overlayScopes(sel, user, scope);
   const jobs = params.jobId ? { AND: [scopes.jobs, { id: params.jobId }] } : scopes.jobs;
-  const [permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs] = await Promise.all([
+  const [permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs, crewInstalls] = await Promise.all([
     prisma.jobPermitInspection.findMany({
       where: { scheduledFor: { gte: from, lte: to }, permit: { job: jobs } },
       select: { id: true, type: true, scheduledFor: true, result: true, permit: { select: { id: true, permitType: true, permitNumber: true, job: { select: JOB_LABEL_SELECT } } } },
@@ -68,8 +68,13 @@ export async function loadOverlays(params: CalendarParams, sel: UsersSelection, 
     // Vendor documents belong to no job: shown to the roles that keep the
     // vendor directory, and never under a job filter.
     params.jobId || !canManageVendors(user.role) ? [] : loadVendorDocs(from, to),
+    prisma.crewAssignment.findMany({
+      where: { installDate: { gte: from, lte: to }, job: { AND: [jobs, { currentStage: { isClosed: false } }] } },
+      select: { id: true, installDate: true, crew: { select: { name: true, trades: true } }, job: { select: JOB_LABEL_SELECT } },
+      take: 200,
+    }),
   ]);
-  const rows: OverlayRows = { permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs };
+  const rows: OverlayRows = { permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs, crewInstalls };
   return overlayItems(rows, now).filter((i) => i.dayKey !== null && i.dayKey >= params.from && i.dayKey <= params.to);
 }
 

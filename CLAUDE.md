@@ -404,6 +404,26 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-05 — Crew install dates: calendar marker + get-ready task (on `main`, not deployed)
+
+Richard asked whether a crew's install date notifies anyone (it did not: the
+date was display-only and could not be changed after saving), then ruled in
+plan mode (`~/.claude/plans/dynamic-orbiting-raven.md`): calendar marker + a
+task; owner = superintendent, else PM; raised when saved and due the working
+day before; tick the checklist line and offer the date as the job's start.
+Built on `crew-install-dates`: pure `lib/crews/install.ts`, `install-run.ts`
+(`syncInstallTask`, `openInstallTasks`); `POST /api/jobs/[id]/crews` validated
+and pinned through `parseDueAt`; new `PATCH|DELETE
+/api/jobs/[id]/crews/[assignmentId]`; `crew_install` calendar overlay;
+`HeldFacts.crewInstallSet`; **held facts are now also ticked when a step
+closes** (`afterClose`), so a line on a step that becomes Ready later is
+ticked then; Crews panel with date edit, remove and the owner line. No
+migration. Gate: typecheck clean, lint 5/22, 1536 tests (+9), build clean. Dev
+QA by API and headless Chromium at 1280 and 400 px; dev DB restored. Not
+exercised: the assignment email, a superintendent slot, SALES_REP. Prod has 2
+crew assignments and no install dates, so nothing to backfill. Details:
+[features/crews.md](docs/project-memory/features/crews.md).
+
 ### 2026-10-04 — An admin can delete a job (deployed `ac1e22b`)
 
 Richard: "I would like to give admin users the option to delete a job. Some
@@ -2405,6 +2425,10 @@ Notification Digests).
   in `lib/permits/alerts.ts` (once per source key, closed by the record). The
   fee typed on a permit is a quote — it never becomes an expense; what was
   paid is read from the job's `PERMIT_FEE` costs.
+- **Every write to a crew assignment calls `syncInstallTask`**
+  (`lib/crews/install-run.ts`): an install date is a calendar overlay plus one
+  get-ready task per date for the superintendent (else the PM), closed by the
+  record. The crew itself is never emailed.
 - **The roofing library is pure.** Nothing under `src/lib/roofing/parsing` or
   `src/lib/roofing/engine` imports Prisma, Next or the rest of the CRM; the
   database lives in `src/lib/roofing/service.ts`. A measurement the reader did
@@ -2455,6 +2479,14 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **Crew install dates are on `main`, not deployed (no migration).** After
+> Richard's push and deploy: verify BUILD_ID / smoke / journal, then his
+> click-through — a job → Field → Crews: assign a crew with an install date
+> (toast offers the start date when the job has none), the row names the
+> get-ready task's owner, move the date, Calendar → Everyone shows "Install —
+> <crew>" on the day. Assign a superintendent on the Workflow team first if
+> the task should not go to the PM.
 
 > **Initiative 6, Stage 1 (vendors + payee matching) is on prod (`ec88e96`,
 > BUILD_ID `5x6HE43-USWkCl1cgP0Zn`).** Richard works Vendors → Unmatched:

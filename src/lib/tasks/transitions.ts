@@ -47,6 +47,12 @@ async function afterClose(input: { taskId: string; to: TaskStatus; actorUserId: 
   if (t.workflowInstance.jobId) {
     const { syncJobStageFromWorkflow } = await import("@/lib/workflows/stage-sync");
     await syncJobStageFromWorkflow(t.workflowInstance.jobId, input.actorUserId);
+    // Closing this step may have made others Ready: tick the lines on them
+    // that restate what the job record already holds (a PM, an install date).
+    if (input.actorUserId) {
+      const { tickHeldFacts } = await import("@/lib/workflows/gates");
+      await tickHeldFacts(t.workflowInstance.jobId, input.actorUserId);
+    }
   }
   // A corrective job's workflow just completed → its violation cases may proceed.
   if (t.workflowInstance.status === "COMPLETED" && t.workflowInstance.jobId) {

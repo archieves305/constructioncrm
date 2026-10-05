@@ -39,7 +39,7 @@ export type CalendarJob = {
 export type CalendarCase = { id: string; caseNumber: string; agencyCaseNumber: string | null; leadId: string };
 
 /** A task, or a dated record drawn read-only beside the tasks. */
-export type CalendarKind = "task" | "permit_inspection" | "permit_date" | "hearing" | "case_inspection" | "job_start" | "vendor_doc";
+export type CalendarKind = "task" | "permit_inspection" | "permit_date" | "hearing" | "case_inspection" | "job_start" | "vendor_doc" | "crew_install";
 
 /** What a non-task item is and where it opens. Null on a task. */
 export type CalendarOverlay = {

@@ -611,7 +611,7 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="crews">
-              <CrewsPanel jobId={id} crewAssignments={job.crewAssignments ?? []} />
+              <CrewsPanel jobId={id} crewAssignments={job.crewAssignments ?? []} targetStartDate={job.targetStartDate ?? null} canSetStart={Boolean(workflow?.permissions.canCoordinate)} />
             </TabsContent>
 
             <TabsContent value="daily-logs">

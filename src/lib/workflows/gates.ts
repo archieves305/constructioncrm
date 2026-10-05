@@ -54,6 +54,8 @@ export type HeldFacts = {
   permitOnFile: boolean;
   /** Every permit has passed final, or the job needs no permit. */
   permitsClosed: boolean;
+  /** A crew is assigned to the job with an install date. */
+  crewInstallSet: boolean;
 };
 
 const FACT_LINES: { test: RegExp; holds: (f: HeldFacts) => boolean }[] = [
@@ -62,6 +64,7 @@ const FACT_LINES: { test: RegExp; holds: (f: HeldFacts) => boolean }[] = [
   { test: /^Target start date set on the job/i, holds: (f) => f.targetStartSet },
   { test: /^Permit added on the Permits tab/i, holds: (f) => f.permitOnFile },
   { test: /^Permit closed on the Permits tab/i, holds: (f) => f.permitsClosed },
+  { test: /^Crew and install date set/i, holds: (f) => f.crewInstallSet },
   // Completing "Close the job" moves the stage itself (stage-sync.ts), so there is nothing left to confirm.
   { test: /^Job moved to the Closed stage/i, holds: () => true },
 ];
@@ -81,6 +84,7 @@ export async function tickHeldFacts(jobId: string, actorUserId: string): Promise
         projectManagerId: true,
         targetStartDate: true,
         permits: { select: { status: true, submittedDate: true } },
+        crewAssignments: { where: { installDate: { not: null } }, select: { id: true }, take: 1 },
         workflow: { select: { id: true, status: true, permitStatus: true, team: { select: { role: true } } } },
       },
     });
@@ -91,6 +95,7 @@ export async function tickHeldFacts(jobId: string, actorUserId: string): Promise
       targetStartSet: job.targetStartDate !== null,
       permitOnFile: job.permits.some((p) => p.submittedDate !== null),
       permitsClosed: job.workflow.permitStatus === "NOT_REQUIRED" || (job.permits.length > 0 && job.permits.every((p) => p.status === "FINAL")),
+      crewInstallSet: job.crewAssignments.length > 0,
     };
     const steps = await prisma.task.findMany({
       where: { workflowInstanceId: job.workflow.id, workflowTaskKey: { not: null }, status: { in: ["PENDING", "IN_PROGRESS"] }, activatedAt: { not: null } },

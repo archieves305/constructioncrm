@@ -103,3 +103,26 @@ describe("vendor document overlays", () => {
     expect(item.overlay).toMatchObject({ href: "/vendors/v1", label: "Vendor document" });
   });
 });
+
+describe("crew install overlays", () => {
+  it("puts a crew's install on its day and opens the job's Crews tab", () => {
+    const items = overlayItems(
+      {
+        permitInspections: [],
+        hearings: [],
+        caseInspections: [],
+        jobStarts: [],
+        crewInstalls: [
+          { id: "a1", installDate: new Date("2026-10-14T12:00:00.000Z"), crew: { name: "Apex Roofing", trades: ["Roofing"] }, job },
+          { id: "a2", installDate: null, crew: { name: "No Date Crew", trades: [] }, job },
+        ],
+      },
+      new Date("2026-10-05T15:00:00.000Z"),
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ id: "cw:a1", kind: "crew_install", title: "Install — Apex Roofing", dayKey: "2026-10-14", allDay: true });
+    expect(items[0].job?.id).toBe("j1");
+    expect(items[0].overlay).toMatchObject({ href: "/jobs/j1?tab=field&sub=crews", label: "Crew install", detail: "Roofing" });
+    expect(isOverlay(items[0])).toBe(true);
+  });
+});

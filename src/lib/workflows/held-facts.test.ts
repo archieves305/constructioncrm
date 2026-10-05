@@ -9,7 +9,7 @@ import { suggestTradeKeys } from "./auto-apply";
 
 vi.mock("./apply", () => ({ applyWorkflow: vi.fn() }));
 
-const none: HeldFacts = { projectManagerSet: false, superintendentSet: false, targetStartSet: false, permitOnFile: false, permitsClosed: false };
+const none: HeldFacts = { projectManagerSet: false, superintendentSet: false, targetStartSet: false, permitOnFile: false, permitsClosed: false, crewInstallSet: false };
 const line = (key: string, label: string, done = false) => ({ key, label, done });
 
 describe("linesToTick", () => {
@@ -33,6 +33,12 @@ describe("linesToTick", () => {
     ];
     expect(linesToTick(lines, { ...none, targetStartSet: true, permitOnFile: true })).toEqual(["s", "p"]);
     expect(linesToTick(lines, { ...none, permitsClosed: true })).toEqual(["c"]);
+  });
+
+  it("ticks 'Crew and install date set' once a crew has an install date", () => {
+    const lines = [line("i", "Crew and install date set")];
+    expect(linesToTick(lines, none)).toEqual([]);
+    expect(linesToTick(lines, { ...none, crewInstallSet: true })).toEqual(["i"]);
   });
 
   it("always ticks 'Job moved to the Closed stage' — completing the step moves the stage", () => {

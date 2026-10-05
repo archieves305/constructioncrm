@@ -666,7 +666,7 @@ export default function CrewsPage() {
                       <span className="min-w-0 truncate" title={a.job.jobNumber}>{jobLabel(a.job, { customer: false, trade: false }).primary}</span>
                       {a.installDate && (
                         <span className="text-muted-foreground">
-                          {format(new Date(a.installDate), "MMM d")}
+                          {format(new Date(`${a.installDate.slice(0, 10)}T12:00:00`), "MMM d")}
                         </span>
                       )}
                     </div>

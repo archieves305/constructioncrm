@@ -8,7 +8,7 @@ import type { CalendarItem, CalendarJob, CalendarLead, CalendarOverlay } from ".
 /**
  * Dated records that are not tasks, drawn on the calendar read-only: a
  * permit inspection, a permit's expiry or expected approval, a code-violation hearing, an agency inspection on a
- * case, a job's target start. They carry their own icon, open their own
+ * case, a job's target start, a crew's install day. They carry their own icon, open their own
  * record, never count as work and can never be dragged — the calendar shows
  * them so nobody schedules a roof tear-off on inspection morning.
  *
@@ -72,10 +72,14 @@ export type JobStartRow = CalendarJob & { targetStartDate: Date | null };
 /** A vendor's dated document in force: an insurance certificate, an exemption, a license. */
 export type VendorDocRow = { id: string; label: string; expiresAt: Date; vendor: { id: string; name: string } };
 
+/** A crew booked to install on a job. */
+export type CrewInstallRow = { id: string; installDate: Date | null; crew: { name: string; trades: string[] }; job: CalendarJob };
+
 export type OverlayRows = {
   permitInspections: PermitInspectionRow[];
   permitDates?: PermitDateRow[];
   vendorDocs?: VendorDocRow[];
+  crewInstalls?: CrewInstallRow[];
   hearings: HearingRow[];
   caseInspections: CaseInspectionRow[];
   jobStarts: JobStartRow[];
@@ -196,6 +200,20 @@ export function overlayItems(rows: OverlayRows, now: Date = new Date(), tz: stri
     const when = overlayWhen(j.targetStartDate, tz);
     const item = base("job_start", `js:${j.id}`, "Job starts", when, { label: "Job start", detail: j.serviceType ?? null, href: `/jobs/${j.id}`, state: "scheduled" }, false, now);
     item.job = j;
+    out.push(item);
+  }
+  for (const r of rows.crewInstalls ?? []) {
+    if (!r.installDate) continue;
+    const item = base(
+      "crew_install",
+      `cw:${r.id}`,
+      `Install — ${r.crew.name}`,
+      overlayWhen(r.installDate, tz),
+      { label: "Crew install", detail: r.crew.trades.join(", ") || null, href: `/jobs/${r.job.id}?tab=field&sub=crews`, state: "scheduled" },
+      false,
+      now,
+    );
+    item.job = r.job;
     out.push(item);
   }
   return out;
