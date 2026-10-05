@@ -404,7 +404,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-05 — Crew install dates: calendar marker + get-ready task (on `main`, not deployed)
+### 2026-10-05 — Crew install dates: calendar marker + get-ready task (deployed `fd736c1`)
 
 Richard asked whether a crew's install date notifies anyone (it did not: the
 date was display-only and could not be changed after saving), then ruled in
@@ -423,6 +423,10 @@ QA by API and headless Chromium at 1280 and 400 px; dev DB restored. Not
 exercised: the assignment email, a superintendent slot, SALES_REP. Prod has 2
 crew assignments and no install dates, so nothing to backfill. Details:
 [features/crews.md](docs/project-memory/features/crews.md).
+Richard pushed and deployed from `!` (background, 282 s, exit 0): BUILD_ID
+`ZHdfRxz1Bvd0_yY3_Y3sI` → `cKcuzqLdl3kPJiUWOl6SE`, no migration, smoke 307 ×2,
+zero journal errors since the restart, `UPLOADS_DIR` carried, 22 files in the
+store, backup `postgres-2026-10-05-155517.dump`.
 
 ### 2026-10-04 — An admin can delete a job (deployed `ac1e22b`)
 
@@ -2480,9 +2484,8 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Crew install dates are on `main`, not deployed (no migration).** After
-> Richard's push and deploy: verify BUILD_ID / smoke / journal, then his
-> click-through — a job → Field → Crews: assign a crew with an install date
+> **Crew install dates are on prod (`fd736c1`, BUILD_ID
+> `cKcuzqLdl3kPJiUWOl6SE`, no migration).** Richard's click-through — a job → Field → Crews: assign a crew with an install date
 > (toast offers the start date when the job has none), the row names the
 > get-ready task's owner, move the date, Calendar → Everyone shows "Install —
 > <crew>" on the day. Assign a superintendent on the Workflow team first if
