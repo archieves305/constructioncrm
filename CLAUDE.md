@@ -34,12 +34,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    chain merge, AI id-picking ✓ for pipes and roof, timing ✓ with a child
    process per tick) — notes in
    [features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
-   **M1 (plan sets, sheet index, viewer) built + dev-QA'd 2026-10-08 on
-   `takeoff-m1`, not deployed** — migration `20261020120000_plan_sets`, two
-   operator items (nginx body size on `/api/plan-sets/`, `takeoff-tick.sh`
-   cron). Next: Richard's deploy + click-through (upload the 3310 set on a
-   lead's Plan takeoff tab, open the viewer), then **M2** (calibration +
-   manual tools). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
+   **M1 (plan sets, sheet index, viewer) deployed 2026-10-08 as `d2fa4d0`**
+   (BUILD_ID `jZogc4PvvnFSYj7gxiyS0`, migration `20261020120000_plan_sets`
+   applied, smoke 307 ×2, journal clean, backup
+   `postgres-2026-10-09-034839.dump`; nginx body size on `/api/plan-sets/` and
+   the `takeoff-tick.sh` cron installed). Richard's click-through: a lead →
+   Plan takeoff → upload the 3310 set → Open viewer. Next: **M2** (calibration
+   + manual tools). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
 00000000. 🔴 **Roofing estimator → CRM** — plan approved 2026-10-03
    (https://claude.ai/code/artifact/8b95fb53-2275-421e-a4ed-842fa7919005):
    native module, engine as a pure library in `src/lib/roofing`. **P0 Stage A
@@ -436,10 +437,19 @@ own pan/zoom). Found in QA: the SSO middleware caps request bodies at 10 MB
 5/22, 1555 tests (+19), build clean. Dev QA: API 35/35 (the 34-sheet set
 indexed in 2 ticks / 44 s, every sheet numbered and titled, scales as
 printed), headless Chromium 19/19 at 1280 and 400 px, SALES_REP 404 / 403;
-QA sets deleted. **Deploy carries a migration** and two operator items:
-nginx `client_max_body_size 100M` on `/api/plan-sets/`, `crm-cron/takeoff-tick.sh`
-every minute. Details:
+QA sets deleted. Details:
 [features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
+Richard pushed and deployed from `!` (the first run stopped at pre-flight on
+the two untracked 2026-10-07 research reports, committed as `d2fa4d0`; the
+second ran in the background, exit 0): BUILD_ID `cKcuzqLdl3kPJiUWOl6SE` →
+`jZogc4PvvnFSYj7gxiyS0`, migration `20261020120000_plan_sets` applied (87),
+`@napi-rs/canvas` linux binary present, smoke 307 ×2, zero journal errors
+since the restart, backup `postgres-2026-10-09-034839.dump`. Operator items
+done by the session: `location /api/plan-sets/ { client_max_body_size 100M;
+proxy_read_timeout 120s; … }` in the CRM vhost (copy at
+`/root/crm.careyos.com.bak-20261008-takeoff`, `nginx -t` ok, reloaded) and
+`crm-cron/takeoff-tick.sh` on the `knuco` crontab every minute (crontab copy
+`/home/knuco/crontab.bak-20261008-takeoff`), first run `{"jobs":0}`.
 
 ### 2026-10-08 — AI plan takeoff, Stage 1: plan approved, design written (nothing built)
 

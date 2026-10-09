@@ -105,9 +105,15 @@ rebuilt each render; React's passive `onWheel` (native listener now).
 (nginx), the cron sweeper on a live job, a SALES_REP creating a set on a
 lead of their own (no dev lead is assigned to the rep).
 
-**Deploy carries a migration.** Operator: nginx `location /api/plan-sets/ {
-client_max_body_size 100M; proxy_read_timeout 120s; }` on the CRM vhost,
-`crm-cron/takeoff-tick.sh` + a `* * * * *` crontab line.
+**Deployed 2026-10-08 as `d2fa4d0`** (BUILD_ID `jZogc4PvvnFSYj7gxiyS0`,
+migration applied, smoke 307 ×2, journal clean, backup
+`postgres-2026-10-09-034839.dump`). Operator items done: nginx `location
+/api/plan-sets/ { client_max_body_size 100M; proxy_read_timeout 120s; }` on
+the CRM vhost (backup `/root/crm.careyos.com.bak-20261008-takeoff`),
+`/home/knuco/crm-cron/takeoff-tick.sh` on the `knuco` crontab every minute
+(log `takeoff-tick.log`, first run `{"jobs":0}`). Prod has no plan sets yet;
+Richard's click-through is the first real upload (the 20 MB set exercises the
+nginx block and the worker under the service for the first time).
 
 ## Next: M2 — calibration + manual tools
 
