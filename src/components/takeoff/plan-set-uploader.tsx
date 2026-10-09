@@ -93,7 +93,13 @@ export function PlanSetUploader({ planSetId, leadId, hasDocuments, onUploaded }:
         onDrop={(e) => { e.preventDefault(); setOver(false); void take(e.dataTransfer.files); }}
         data-testid="plan-dropzone"
       >
-        <input ref={picker} type="file" accept="application/pdf" multiple className="hidden" onChange={(e) => { const f = e.target.files; e.target.value = ""; if (f) void take(f); }} />
+        <input ref={picker} type="file" accept="application/pdf" multiple className="hidden" onChange={(e) => {
+          // Snapshot first: `files` is a live FileList, and clearing the value
+          // (so the same file can be picked again) empties it in place.
+          const picked = Array.from(e.target.files ?? []);
+          e.target.value = "";
+          if (picked.length) void take(picked);
+        }} />
         {progress ? (
           <div className="w-full max-w-sm space-y-1">
             <p className="text-muted-foreground">Uploading {progress.name}…</p>

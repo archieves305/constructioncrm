@@ -423,6 +423,30 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-09 — Fix: "Choose a PDF" on the Plan takeoff tab did nothing; the Assignment select showed an id (on `main`, not deployed)
+
+Richard, on the M2 click-through: "I click choose pdf on plan take and select
+the file but it doesn't seem to be uploading." No upload request ever reached
+nginx. Reproduced in his Chrome against prod with a 6-page slice of the 3310
+set through the real file input: the uploader's `onChange` read
+`e.target.files`, cleared `e.target.value` (so the same file can be picked
+again) and only then called `take()` — in Chrome the `FileList` is live, so it
+was empty by then (probed in the page: 1 file at the event, 0 a microtask
+later). Drag-and-drop was unaffected, which is why the dev QA (drop + API)
+passed. The handler now snapshots the list with `Array.from` before clearing,
+as `task-attachments.tsx` already did; the other pickers were checked (they
+take `files[0]` or snapshot synchronously). Also proven on the way: a 15 MB
+body reaches the app on prod through Cloudflare, nginx and the Next proxy in
+about 3 s (the route answered its own 400 for a non-PDF), so the 100 MB nginx
+regex location and `proxyClientMaxBodySize` are right. Second fix: the lead
+page's Assignment card select now passes `items`, so it shows the person's
+name instead of the user id (the 2026-10-04 lesson; `44fd0c7`). Gate:
+typecheck clean, lint clean on both files, takeoff tests 36/36. Not done: the
+same `items` sweep on the admin-side selects (follow-up rules, job task
+templates, personnel crew, users role, Apply workflow permit file). Prod has
+one empty plan set on Brian Carter's lead (6770 McKinley), created 10:18 UTC —
+the upload goes on it after the deploy.
+
 ### 2026-10-09 — Plan takeoff M2: calibration + manual tools (built + dev-QA'd on `takeoff-m2`, not deployed)
 
 Built straight after the M1 deploy: migration `20261021120000_takeoffs_measurements`

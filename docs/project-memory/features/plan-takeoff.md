@@ -204,3 +204,12 @@ the three CHECKs, smoke 307 ×2, journal clean, backup
 `TAKEOFF_AI_MAX_USD` in env, `PlanAiCall` (migration), `ai/*` (specs from
 text with line ids; roof regions from the 144 dpi render with candidate loops
 and label ids), the analyze job steps, AI rows as dashed proposals.
+
+## 2026-10-09 — "Choose a PDF" did nothing (fixed on `main`)
+
+The uploader cleared the input's value before `take()` read the live
+`FileList`, so a file chosen through the picker was dropped on the floor; a
+dragged file worked. Found on Richard's prod click-through, reproduced through
+the real input in Chrome, fixed by snapshotting with `Array.from` before the
+clear. Lesson: a file input's `files` is live — copy it before `value = ""`,
+and QA the picker path (`setInputFiles`), not only drag-and-drop.
