@@ -43,5 +43,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   const denied = await guardPlanSet(session.user, id, "delete");
   if (denied) return denied;
   const removed = await deletePlanSet(id, session.user.id);
-  return removed ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Plan set not found" }, { status: 404 });
+  if (!removed) return NextResponse.json({ error: "Plan set not found" }, { status: 404 });
+  if ("error" in removed) return NextResponse.json({ error: `This plan set has ${removed.takeoffs} takeoff${removed.takeoffs === 1 ? "" : "s"} — delete those first` }, { status: 409 });
+  return NextResponse.json({ ok: true });
 }

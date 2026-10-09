@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { Sheet } from "../use-plan-sets";
-import { usePanZoom } from "./use-pan-zoom";
+import { usePanZoom, type PanZoomOptions } from "./use-pan-zoom";
 
 /**
  * One sheet: the server's PNG under a CSS transform, the 72 dpi level first
@@ -14,9 +14,12 @@ import { usePanZoom } from "./use-pan-zoom";
  * 72 dpi pixels. The same transform will carry the SVG overlay (M2); for now
  * the overlay slot is empty.
  */
-export function PlanViewer({ sheet, className, overlay }: { sheet: Sheet | null; className?: string; overlay?: React.ReactNode }) {
+export type ViewState = { s: number; tx: number; ty: number };
+
+export function PlanViewer({ sheet, className, overlay, options, cursor, onViewChange }: { sheet: Sheet | null; className?: string; overlay?: React.ReactNode | ((view: ViewState) => React.ReactNode); options?: PanZoomOptions; cursor?: string; onViewChange?: (view: ViewState) => void }) {
   const size = sheet ? { width: sheet.widthPt, height: sheet.heightPt } : null;
-  const { view, containerProps, fit, zoomBy, level } = usePanZoom(size);
+  const { view, containerProps, fit, zoomBy, level } = usePanZoom(size, options);
+  useEffect(() => { onViewChange?.(view); }, [view, onViewChange]);
   const want144 = level === 144 && !!sheet && !sheet.isRaster;
 
   useEffect(() => {
@@ -32,7 +35,7 @@ export function PlanViewer({ sheet, className, overlay }: { sheet: Sheet | null;
 
   return (
     <div className={cn("relative h-full w-full bg-muted/40", className)}>
-      <div {...containerProps} className="h-full w-full" data-testid="plan-viewer">
+      <div {...containerProps} style={{ ...containerProps.style, cursor: cursor ?? containerProps.style.cursor }} className="h-full w-full" data-testid="plan-viewer">
         {sheet && (
           <div
             data-testid="sheet-layer"
@@ -40,7 +43,7 @@ export function PlanViewer({ sheet, className, overlay }: { sheet: Sheet | null;
           >
             <SheetImages key={sheet.id} sheet={sheet} want144={want144} />
             <svg viewBox={`0 0 ${sheet.widthPt} ${sheet.heightPt}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }} data-testid="sheet-overlay">
-              {overlay}
+              {typeof overlay === "function" ? overlay(view) : overlay}
             </svg>
           </div>
         )}

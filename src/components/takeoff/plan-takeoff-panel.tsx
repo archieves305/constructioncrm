@@ -18,6 +18,7 @@ import { DOCUMENT_KIND_LABEL } from "@/lib/takeoff/types";
 import { DocumentStatusBadge } from "./badges";
 import { PlanSetUploader } from "./plan-set-uploader";
 import { SheetIndexTable } from "./sheet-index-table";
+import { TradeCards } from "./trade-cards";
 import { errorText, json, planKeys, useIndexJob, usePlanSets, useSheets, type PlanDocument, type PlanSet } from "./use-plan-sets";
 
 /**
@@ -107,6 +108,7 @@ function PlanSetCard({ set, leadId, canEdit, canDelete, onDeleted }: { set: Plan
           </ul>
         )}
         {canEdit && <PlanSetUploader planSetId={set.id} leadId={leadId} hasDocuments={set.documents.length > 0} onUploaded={setJobId} />}
+        {sheets.data && sheets.data.length > 0 && !live && <TradeCards leadId={leadId} planSetId={set.id} canEdit={canEdit} />}
         {sheets.data && sheets.data.length > 0 && <SheetIndexTable planSetId={set.id} sheets={sheets.data} canEdit={canEdit} />}
         {sheets.data && sheets.data.length > 0 && sheets.data.every((s) => s.isRaster) && (
           <Callout tone="warning" title="These plans have no readable text">Automatic indexing and takeoff are off for scanned sheets. Calibrate each sheet and measure by hand once the drawing tools arrive.</Callout>

@@ -3,6 +3,7 @@ import type { SessionUser } from "@/lib/auth/helpers";
 import { guardLead } from "@/lib/access/records";
 import { canDeletePlanSet, canEditTakeoff, PLAN_SET_DELETE_DENIED, TAKEOFF_EDIT_DENIED } from "./access";
 import { jobLead, planSetLead, sheetLead } from "./service";
+import { measurementLead, takeoffLead } from "./takeoff-service";
 
 /**
  * Every takeoff route answers to the lead the record hangs on: the viewer must
@@ -45,4 +46,20 @@ export async function guardTakeoffJob(user: SessionUser, jobId: string, mode: Mo
   const j = await jobLead(jobId);
   if (!j) return notFound("Job");
   return guardLead(user, j.leadId, mode === "read" ? "read" : "write");
+}
+
+export async function guardTakeoff(user: SessionUser, takeoffId: string, mode: Mode): Promise<NextResponse | null> {
+  const gate = roleGate(user, mode);
+  if (gate) return gate;
+  const t = await takeoffLead(takeoffId);
+  if (!t) return notFound("Takeoff");
+  return guardLead(user, t.leadId, mode === "read" ? "read" : "write");
+}
+
+export async function guardMeasurement(user: SessionUser, measurementId: string, mode: Mode): Promise<NextResponse | null> {
+  const gate = roleGate(user, mode);
+  if (gate) return gate;
+  const m = await measurementLead(measurementId);
+  if (!m) return notFound("Measurement");
+  return guardLead(user, m.leadId, mode === "read" ? "read" : "write");
 }

@@ -38,9 +38,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (BUILD_ID `jZogc4PvvnFSYj7gxiyS0`, migration `20261020120000_plan_sets`
    applied, smoke 307 ×2, journal clean, backup
    `postgres-2026-10-09-034839.dump`; nginx body size on `/api/plan-sets/` and
-   the `takeoff-tick.sh` cron installed). Richard's click-through: a lead →
-   Plan takeoff → upload the 3310 set → Open viewer. Next: **M2** (calibration
-   + manual tools). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
+   the `takeoff-tick.sh` cron installed). **M2 (calibration + manual tools)
+   built + dev-QA'd 2026-10-09 on `takeoff-m2`, fast-forwarded to `main`, not
+   deployed** — migration `20261021120000_takeoffs_measurements`. Richard's
+   click-through after the deploy: a lead → Plan takeoff → upload the 3310 set
+   → Start roofing takeoff → Auto calibrate A-10 → draw the roof outline → the
+   count tool on the drains. Next: **M3** (AI-assisted roofing; needs the prod
+   `ANTHROPIC_API_KEY`). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
 00000000. 🔴 **Roofing estimator → CRM** — plan approved 2026-10-03
    (https://claude.ai/code/artifact/8b95fb53-2275-421e-a4ed-842fa7919005):
    native module, engine as a pure library in `src/lib/roofing`. **P0 Stage A
@@ -417,6 +421,26 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-09 — Plan takeoff M2: calibration + manual tools (built + dev-QA'd on `takeoff-m2`, not deployed)
+
+Built straight after the M1 deploy: migration `20261021120000_takeoffs_measurements`
+(`Takeoff` with `TK-nnnn` from a sequence, `TakeoffSheet`, `TakeoffMeasurement`
+with the calibration it was measured at, `previousValue` and a review status;
+three CHECKs); pure `geometry/*` — dimension strings, chain merging of dash
+fragments, dimension-line matching that verifies the printed scale (A-10: 40
+of 45 strings matched, median 1.5 % over 18 pt/ft → VERIFIED), snapping with a
+grid index, one `computeValue` for client and server; `takeoff-service.ts`
+(create with proposed sheets, measurements refused on an uncalibrated sheet,
+edits keep the first value, explicit Recompute, calibrate auto / confirm /
+manual / clear); nine routes; the `/takeoff/[takeoffId]` workspace (rail,
+SVG overlay with dashed proposals and vertex handles, Area / Linear / Count /
+Calibrate tools with snapping and a live readout, label popover, calibrate
+dialog with the verification, grouped list with totals, inspector) and trade
+cards on the hub. Gate: typecheck clean, lint 5/22, 1572 tests (+17), build
+clean. Dev QA: API 37/37, headless Chromium 22/22 at 1280 and 400 px; QA data
+deleted. **Deploy carries a migration**; no operator items. Details:
+[features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
 
 ### 2026-10-08 — Plan takeoff M1: plan sets, sheet index, viewer (built + dev-QA'd on `takeoff-m1`, not deployed)
 

@@ -179,8 +179,9 @@ export async function updatePlanSet(id: string, patch: { name?: string; notes?: 
  * The uploaded PDFs go too — they were files of this set alone.
  */
 export async function deletePlanSet(id: string, userId: string) {
-  const row = await prisma.planSet.findUnique({ where: { id }, select: { id: true, leadId: true, name: true, documents: { select: { id: true, fileId: true, file: { select: { storageKey: true } } } } } });
+  const row = await prisma.planSet.findUnique({ where: { id }, select: { id: true, leadId: true, name: true, documents: { select: { id: true, fileId: true, file: { select: { storageKey: true } } } }, _count: { select: { takeoffs: true } } } });
   if (!row) return null;
+  if (row._count.takeoffs > 0) return { error: "has_takeoffs" as const, takeoffs: row._count.takeoffs };
   await prisma.$transaction(async (tx) => {
     await tx.planSet.delete({ where: { id } });
     await tx.file.deleteMany({ where: { id: { in: row.documents.map((d) => d.fileId) } } });

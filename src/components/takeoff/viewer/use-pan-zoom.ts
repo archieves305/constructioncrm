@@ -9,9 +9,24 @@ import { fitView, panBy, renderLevel, screenToSheet, zoomAt, type Pt, type View 
  * pinch, double-click to zoom in, `F` to fit. The view it returns is the one
  * transform the image and the SVG overlay share.
  */
-export function usePanZoom(sheet: { width: number; height: number } | null) {
+export type PanZoomOptions = {
+  /** A click that did not pan, in sheet points. */
+  onTap?: (p: Pt, shift: boolean) => void;
+  /** The pointer moving with no button down, in sheet points. */
+  onHover?: (p: Pt | null) => void;
+  /** A double click, in sheet points; return true to swallow the zoom. */
+  onDoubleTap?: (p: Pt) => boolean;
+};
+
+export function usePanZoom(sheet: { width: number; height: number } | null, options: PanZoomOptions = {}) {
+  const optionsRef = useRef(options);
+  useEffect(() => { optionsRef.current = options; }, [options]);
+  // the callbacks need the current view without going through a state updater
+  // (a parent setState inside an updater is a render-phase update)
+  const viewRef = useRef<View>({ s: 1, tx: 0, ty: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ s: 1, tx: 0, ty: 0 });
+  useEffect(() => { viewRef.current = view; }, [view]);
   const [fitScale, setFitScale] = useState(1);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const pointers = useRef(new Map<number, Pt>());
@@ -73,7 +88,11 @@ export function usePanZoom(sheet: { width: number; height: number } | null) {
   }, [local]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!pointers.current.has(e.pointerId) || !drag.current) return;
+    if (!pointers.current.has(e.pointerId) || !drag.current) {
+      const cb = optionsRef.current.onHover;
+      if (cb) cb(screenToSheet(local(e), viewRef.current));
+      return;
+    }
     pointers.current.set(e.pointerId, local(e));
     const pts = [...pointers.current.values()];
     if (pts.length === 2 && drag.current.pinchDist) {
@@ -93,14 +112,23 @@ export function usePanZoom(sheet: { width: number; height: number } | null) {
   }, [local, fitScale]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
+    const wasTap = drag.current && !drag.current.moved && pointers.current.size === 1 && e.button === 0;
     pointers.current.delete(e.pointerId);
     if (pointers.current.size === 0) drag.current = null;
     else { const pts = [...pointers.current.values()]; drag.current = { last: pts[0], pinchDist: null, moved: true }; }
-  }, []);
+    if (wasTap) {
+      const cb = optionsRef.current.onTap;
+      if (cb) cb(screenToSheet(local(e), viewRef.current), e.shiftKey);
+    }
+  }, [local]);
+
+  const onPointerLeave = useCallback(() => { optionsRef.current.onHover?.(null); }, []);
 
   const onDoubleClick = useCallback((e: React.MouseEvent) => {
     const p = local(e);
-    setView((v) => zoomAt(v, p, 2, fitScale * 0.5));
+    const cb = optionsRef.current.onDoubleTap;
+    const swallowed = cb ? cb(screenToSheet(p, viewRef.current)) : false;
+    if (!swallowed) setView((v) => zoomAt(v, p, 2, fitScale * 0.5));
   }, [local, fitScale]);
 
   const zoomBy = useCallback((factor: number) => {
@@ -113,6 +141,7 @@ export function usePanZoom(sheet: { width: number; height: number } | null) {
     onPointerMove,
     onPointerUp,
     onPointerCancel: onPointerUp,
+    onPointerLeave,
     onDoubleClick,
     style: { touchAction: "none" as const, userSelect: "none" as const, overflow: "hidden" as const, position: "relative" as const, cursor: "grab" as const },
   };

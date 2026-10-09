@@ -115,10 +115,80 @@ the CRM vhost (backup `/root/crm.careyos.com.bak-20261008-takeoff`),
 Richard's click-through is the first real upload (the 20 MB set exercises the
 nginx block and the worker under the service for the first time).
 
-## Next: M2 — calibration + manual tools
+## M2 — calibration + manual tools (built + dev-QA'd 2026-10-09 on `takeoff-m2`)
 
-Migration `takeoffs_measurements` (`Takeoff`, `TakeoffSheet`,
-`TakeoffMeasurement`, sequence); `geometry/{dimensions,calibrate,measure,
-segments}.ts` (dimension strings ↔ dimension lines, chain merge, snapping,
-shoelace); calibrate route (auto-verified / manual / confirm); Area / Linear
-/ Count tools with snapping on the SVG overlay; measurement list + inspector.
+**Schema** (migration `20261021120000_takeoffs_measurements`): `Takeoff`
+(number `TK-nnnn` from a Postgres sequence, lead, job?, plan set, one trade,
+status, `pinnedDocumentIds` → `stale`), `TakeoffSheet` (which sheets, with a
+role, proposed by `sheets/relevance.ts` and replaceable), `TakeoffMeasurement`
+(sheet, kind AREA / LENGTH / COUNT, `metricKey` from `metrics.ts`, label,
+attributes, geometry in sheet points, the `ptPerFt` it was measured with,
+`valueRaw` + unit, `previousValue`, origin, confidence, `TakeoffReviewStatus`
+— the plain name is taken by customer reviews — evidence, reviewed by / at).
+CHECKs: value ≥ 0, unit in LF / SF / EA, a length or area carries its scale.
+
+**Pure geometry** (`geometry/*`, tested on fixtures from the real set):
+`dimensions.ts` (`16'-8 11/16"` ↔ feet, dimension strings on a page),
+`segments.ts` (`buildChains`: dedupe, dots as bridges, collinear within 1.2 pt,
+gaps ≤ 9 pt — the 4" sanitary main becomes one chain), `calibrate.ts`
+(`matchDimensionLines` against raw long segments preferring the longest line
+under the text; `verifyScale`: median of the matched ratios, 5 % outlier
+filter twice, VERIFIED when ≥ 3 matches scatter ≤ 6 % and the median is within
+3 % of the printed scale, DISAGREES beyond that, PRINTED_ONLY with nothing to
+check; `manualCalibration`), `measure.ts` (shoelace, lengths, snapping with
+endpoint-before-segment priority, confidence from the snapped share),
+`snap.ts` (grid index, agrees with brute force on 200 probes),
+`measurement-value.ts` (the one place a number comes from, client and server).
+On A-10: 40 of 45 dimension strings matched, median 1.5 % over the printed
+18 pt/ft, spread 4.5 % → VERIFIED.
+
+**Service + routes**: `takeoff-service.ts` (create with proposed sheets,
+measurements with the value computed from the sheet's calibration — a length
+or area on an uncalibrated sheet is refused, counts always work; geometry
+edits recompute and keep the first replaced value, an AI row edited becomes
+MODIFIED; recompute as an explicit action; calibrate auto / confirm / manual /
+clear, measurements untouched until Recompute; delete). Routes: `GET|POST
+/api/takeoffs`, `GET|PATCH|DELETE /api/takeoffs/[id]`, `PUT …/sheets`,
+`GET|POST …/measurements`, `POST …/measurements/recompute`, `PATCH|DELETE
+/api/takeoff-measurements/[id]` (approving needs an office role), `POST
+/api/plan-sheets/[id]/calibrate`, `GET /api/plan-sheets/[id]/segments`
+(chains for snapping). A plan set with takeoffs refuses deletion (409).
+
+**UI**: trade cards on the hub (start / open a takeoff per trade);
+`/takeoff/[takeoffId]` workspace — rail of the takeoff's sheets (or all),
+`PlanViewer` with the SVG overlay (`shapes.tsx`: dashed proposals, solid
+reviewed, labels that keep their size, vertex handles), `DrawToolbar` (V A L
+C K, snap S), `use-drawing.ts` (taps add snapped vertices, Enter / double-click
+finish, Backspace, Esc, live readout), `LabelPopover` (type by trade, pipe
+size, label), `CalibrateDialog` (auto with the verification shown; manual
+from two clicks + a typed distance), the calibration block (Auto calibrate /
+Confirm printed scale / Calibrate by hand / Recompute when the scale moved),
+`MeasurementList` grouped by type with totals, `MeasurementInspector`
+(type, label, approve / mark reviewed / exclude / needs clarification / delete,
+"was …"). Phone: viewer + list, no drawing.
+
+**Dev QA**: API 37/37 (sheet proposals per trade; refusal on an uncalibrated
+sheet; 20 × 10 ft = 200 SF, 30 + 10 ft = 40 LF at 18 pt/ft; auto calibrate
+VERIFIED at 18 with 35 matches; geometry edit → previous value kept; manual
+calibration 36 pt/ft leaves values until Recompute, which changes 2 of 2;
+clarification note; type change only within the kind; chains for P-02 3,740
+of 5,988; takeoff counts by status; plan set with takeoffs 409). Headless
+Chromium 22/22 at 1280 and 400 px: trade cards, draw a run with the live
+readout and label it, a count, inspector exclude / include, auto calibrate
+with the verification text, manual calibrate dialog, Recompute changes the
+value, rail with all 34 sheets, phone read-only, zero console errors. Fixed in
+QA: the gas sheet proposed as "schedule"; parent setState from inside a view
+updater (render-phase update); the inspector's label stuck to the first
+selection. QA data deleted through the API.
+**Not exercised**: vertex dragging in the browser (unit-level only), a scanned
+sheet, SALES_REP on these routes (same guard as M1).
+
+**Deploy carries a migration** (sequence + three CHECKs hand-written). No
+operator items.
+
+## Next: M3 — AI-assisted roofing
+
+`@anthropic-ai/sdk`, `ANTHROPIC_API_KEY` / `TAKEOFF_AI_MODEL` /
+`TAKEOFF_AI_MAX_USD` in env, `PlanAiCall` (migration), `ai/*` (specs from
+text with line ids; roof regions from the 144 dpi render with candidate loops
+and label ids), the analyze job steps, AI rows as dashed proposals.

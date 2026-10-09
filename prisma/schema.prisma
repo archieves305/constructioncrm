@@ -489,6 +489,10 @@ model User {
   planDocumentsUploaded             PlanDocument[]            @relation("PlanDocumentUploadedBy")
   planSheetsCorrected               PlanSheet[]               @relation("PlanSheetCorrectedBy")
   planJobsRequested                 PlanJob[]                 @relation("PlanJobRequestedBy")
+  planSheetsCalibrated              PlanSheet[]               @relation("PlanSheetCalibratedBy")
+  takeoffsCreated                   Takeoff[]                 @relation("TakeoffCreatedBy")
+  takeoffMeasurementsCreated        TakeoffMeasurement[]      @relation("TakeoffMeasurementCreatedBy")
+  takeoffMeasurementsReviewed       TakeoffMeasurement[]      @relation("TakeoffMeasurementReviewedBy")
   roofRulesUpdated                  RoofRule[]                @relation("RoofRuleUpdatedBy")
   roofMaterialPricesCreated         RoofMaterialPrice[]       @relation("RoofMaterialPriceCreatedBy")
   vendorComplianceOwnerOf           VendorSettings[]          @relation("VendorComplianceOwner")
@@ -645,6 +649,7 @@ model Lead {
   roofrOrders       RoofrOrder[]
   roofMeasurements  RoofMeasurement[]
   planSets          PlanSet[]
+  takeoffs          Takeoff[]
   prospect          Prospect?
   violationCases    CodeViolationCase[]
   customerContracts CustomerContract[]
@@ -1356,6 +1361,7 @@ model Job {
   files              File[]
   roofMeasurements   RoofMeasurement[]
   planSets           PlanSet[]
+  takeoffs           Takeoff[]
   budgetLines        BudgetLine[]
   generatedDocuments GeneratedDocument[]
   changeOrders       ChangeOrder[]
@@ -4780,6 +4786,7 @@ model PlanSet {
   job       Job?           @relation(fields: [jobId], references: [id], onDelete: SetNull)
   createdBy User           @relation("PlanSetCreatedBy", fields: [createdByUserId], references: [id])
   documents PlanDocument[]
+  takeoffs  Takeoff[]
 
   @@index([leadId])
   @@index([jobId])
@@ -4863,8 +4870,11 @@ model PlanSheet {
 
   planDocument PlanDocument @relation(fields: [planDocumentId], references: [id], onDelete: Cascade)
   correctedBy  User?        @relation("PlanSheetCorrectedBy", fields: [indexCorrectedByUserId], references: [id])
+  calibratedBy User?        @relation("PlanSheetCalibratedBy", fields: [calibratedByUserId], references: [id])
   supersededBy PlanSheet?   @relation("SheetSupersedes", fields: [supersededBySheetId], references: [id], onDelete: SetNull)
   supersedes   PlanSheet[]  @relation("SheetSupersedes")
+  takeoffSheets TakeoffSheet[]
+  measurements  TakeoffMeasurement[]
 
   @@unique([planDocumentId, pageNumber])
   @@index([sheetNumber])
@@ -4922,4 +4932,142 @@ model PlanJobStep {
   @@unique([jobId, stepKey])
   @@index([jobId, status])
   @@map("plan_job_steps")
+}
+
+// ─── Takeoffs (M2) ─────────────────────────────────────────────────────────
+// A takeoff is one trade's measurements over a plan set. Every measurement
+// keeps the exact sheet row it was drawn on and the calibration it was
+// measured with, so a recalibrated or revised sheet never silently changes a
+// number: recomputing is an explicit action that records the previous value.
+
+enum TakeoffTrade {
+  ROOFING
+  PLUMBING
+}
+
+enum TakeoffStatus {
+  DRAFT
+  ANALYZING
+  IN_REVIEW
+  READY
+  SUPERSEDED
+}
+
+enum MeasurementKind {
+  AREA
+  LENGTH
+  COUNT
+}
+
+enum MeasurementOrigin {
+  AI
+  MANUAL
+  TEXT_LABEL
+  SCHEDULE
+}
+
+enum TakeoffReviewStatus {
+  AI_GENERATED
+  REVIEWED
+  MODIFIED
+  APPROVED
+  EXCLUDED
+  NEEDS_CLARIFICATION
+}
+
+enum TakeoffConfidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model Takeoff {
+  id                String         @id @default(cuid())
+  // "TK-0007": a sequence, never reused (a supplier will quote against it).
+  number            String         @unique
+  leadId            String         @map("lead_id")
+  jobId             String?        @map("job_id")
+  planSetId         String         @map("plan_set_id")
+  trade             TakeoffTrade
+  status            TakeoffStatus  @default(DRAFT)
+  // The documents the takeoff was built from; stale once the set has others.
+  pinnedDocumentIds Json           @map("pinned_document_ids")
+  // Specifications read from the plans or chosen by a person (M3+).
+  specs             Json?
+  specsReviewStatus TakeoffReviewStatus? @map("specs_review_status")
+  settings          Json?
+  createdByUserId   String         @map("created_by_user_id")
+  approvedByUserId  String?        @map("approved_by_user_id")
+  approvedAt        DateTime?      @map("approved_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  lead         Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job          Job?                 @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  planSet      PlanSet              @relation(fields: [planSetId], references: [id], onDelete: Restrict)
+  createdBy    User                 @relation("TakeoffCreatedBy", fields: [createdByUserId], references: [id])
+  sheets       TakeoffSheet[]
+  measurements TakeoffMeasurement[]
+
+  @@index([leadId])
+  @@index([planSetId])
+  @@map("takeoffs")
+}
+
+/// The sheets a takeoff draws on, and what each is for.
+model TakeoffSheet {
+  takeoffId   String  @map("takeoff_id")
+  planSheetId String  @map("plan_sheet_id")
+  // "auto" (proposed by code) | "user"
+  selectedBy  String  @map("selected_by")
+  // "roof_plan" | "roof_details" | "dwv_plan" | "water_plan" | "riser" | "schedule" | "gas_plan" | "notes" | null
+  role        String?
+
+  takeoff   Takeoff   @relation(fields: [takeoffId], references: [id], onDelete: Cascade)
+  planSheet PlanSheet @relation(fields: [planSheetId], references: [id], onDelete: Restrict)
+
+  @@id([takeoffId, planSheetId])
+  @@map("takeoff_sheets")
+}
+
+model TakeoffMeasurement {
+  id          String            @id @default(cuid())
+  takeoffId   String            @map("takeoff_id")
+  planSheetId String            @map("plan_sheet_id")
+  kind        MeasurementKind
+  // What the engine reads: "roof.flatArea", "roof.parapet", "roof.drain", "pipe.san.3", "fixture.WC" …
+  metricKey   String            @map("metric_key")
+  label       String
+  // { system, sizeIn, material, assemblyId, fixtureTag, slope … }
+  attributes  Json?
+  // { points: [{x,y}…] } in sheet points; a COUNT holds one point.
+  geometry    Json
+  // The calibration the value was computed with. Null for a COUNT.
+  ptPerFt     Float?            @map("pt_per_ft")
+  // Feet, square feet or a count — computed by code, never by a model.
+  valueRaw    Float             @map("value_raw")
+  // "LF" | "SF" | "EA"
+  unit        String
+  // The first replaced value, when a person changed what was measured.
+  previousValue Float?          @map("previous_value")
+  origin      MeasurementOrigin
+  confidence  TakeoffConfidence
+  confidenceScore Float?        @map("confidence_score")
+  reviewStatus TakeoffReviewStatus @default(AI_GENERATED) @map("review_status")
+  // { sourceText, textItemIds, chainIds, snapped, summary, aiCallId } — never a prompt or reasoning.
+  evidence    Json?
+  reviewedByUserId String?      @map("reviewed_by_user_id")
+  reviewedAt  DateTime?         @map("reviewed_at")
+  createdByUserId String?       @map("created_by_user_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  takeoff    Takeoff   @relation(fields: [takeoffId], references: [id], onDelete: Cascade)
+  planSheet  PlanSheet @relation(fields: [planSheetId], references: [id], onDelete: Restrict)
+  createdBy  User?     @relation("TakeoffMeasurementCreatedBy", fields: [createdByUserId], references: [id])
+  reviewedBy User?     @relation("TakeoffMeasurementReviewedBy", fields: [reviewedByUserId], references: [id])
+
+  @@index([takeoffId])
+  @@index([planSheetId])
+  @@map("takeoff_measurements")
 }
