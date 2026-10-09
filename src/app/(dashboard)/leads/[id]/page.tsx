@@ -80,6 +80,11 @@ export default function LeadDetailPage() {
     queryKey: ["assignable-users"],
     queryFn: () => fetchJson("/api/users/assignable"),
   });
+  // Base UI's Select shows the raw value unless it is given `items` (the
+  // 2026-10-04 lesson): the active people as { value, label }.
+  const assigneeItems = ((users ?? []) as { id: string; firstName: string; lastName: string; isActive: boolean }[])
+    .filter((u) => u.isActive)
+    .map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }));
 
   // Scoped through /api/tasks so the count matches what this viewer may see.
   const { data: leadTasks = [] } = useTasks({ leadId: id });
@@ -275,6 +280,7 @@ export default function LeadDetailPage() {
                 </span>
               </div>
               <Select
+                items={assigneeItems}
                 value={lead.assignedUser?.id || ""}
                 onValueChange={(v: string | null) => v && assignLead.mutate(v)}
               >
@@ -282,13 +288,11 @@ export default function LeadDetailPage() {
                   <SelectValue placeholder="Reassign..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {users
-                    ?.filter((u: { isActive: boolean }) => u.isActive)
-                    .map((u: { id: string; firstName: string; lastName: string }) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.firstName} {u.lastName}
-                      </SelectItem>
-                    ))}
+                  {assigneeItems.map((u) => (
+                    <SelectItem key={u.value} value={u.value}>
+                      {u.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </CardContent>
