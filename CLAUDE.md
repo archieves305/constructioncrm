@@ -39,9 +39,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    applied, smoke 307 ×2, journal clean, backup
    `postgres-2026-10-09-034839.dump`; nginx body size on `/api/plan-sets/` and
    the `takeoff-tick.sh` cron installed). **M2 (calibration + manual tools)
-   built + dev-QA'd 2026-10-09 on `takeoff-m2`, fast-forwarded to `main`, not
-   deployed** — migration `20261021120000_takeoffs_measurements`. Richard's
-   click-through after the deploy: a lead → Plan takeoff → upload the 3310 set
+   deployed 2026-10-09 as `c18e8f5`** (BUILD_ID `JyubG__VqAsj4BvpIQTie`, migration
+   `20261021120000_takeoffs_measurements` applied, smoke 307 ×2, journal
+   clean, backup `postgres-2026-10-09-042406.dump`). Richard's
+   click-through: a lead → Plan takeoff → upload the 3310 set
    → Start roofing takeoff → Auto calibrate A-10 → draw the roof outline → the
    count tool on the drains. Next: **M3** (AI-assisted roofing; needs the prod
    `ANTHROPIC_API_KEY`). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
@@ -439,8 +440,14 @@ Calibrate tools with snapping and a live readout, label popover, calibrate
 dialog with the verification, grouped list with totals, inspector) and trade
 cards on the hub. Gate: typecheck clean, lint 5/22, 1572 tests (+17), build
 clean. Dev QA: API 37/37, headless Chromium 22/22 at 1280 and 400 px; QA data
-deleted. **Deploy carries a migration**; no operator items. Details:
+deleted. Details:
 [features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
+Richard pushed and deployed from `!` (background, 253 s, exit 0): BUILD_ID
+`jZogc4PvvnFSYj7gxiyS0` → `JyubG__VqAsj4BvpIQTie`, migration
+`20261021120000_takeoffs_measurements` applied (88; `takeoff_number_seq` and
+the three CHECKs present, 0 takeoffs), smoke 307 ×2, zero journal errors
+since the restart, the tick cron still answering `{"jobs":0}`, backup
+`postgres-2026-10-09-042406.dump`.
 
 ### 2026-10-08 — Plan takeoff M1: plan sets, sheet index, viewer (built + dev-QA'd on `takeoff-m1`, not deployed)
 

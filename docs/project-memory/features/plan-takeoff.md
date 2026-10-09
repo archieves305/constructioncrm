@@ -183,8 +183,9 @@ selection. QA data deleted through the API.
 **Not exercised**: vertex dragging in the browser (unit-level only), a scanned
 sheet, SALES_REP on these routes (same guard as M1).
 
-**Deploy carries a migration** (sequence + three CHECKs hand-written). No
-operator items.
+**Deployed 2026-10-09 as `c18e8f5`** (BUILD_ID `JyubG__VqAsj4BvpIQTie`, migration applied with the sequence and
+the three CHECKs, smoke 307 ×2, journal clean, backup
+`postgres-2026-10-09-042406.dump`). No operator items.
 
 ## Next: M3 — AI-assisted roofing
 
