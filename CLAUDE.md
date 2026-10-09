@@ -423,7 +423,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-09 — Fix: "Choose a PDF" on the Plan takeoff tab did nothing; the Assignment select showed an id (on `main`, not deployed)
+### 2026-10-09 — Fix: "Choose a PDF" on the Plan takeoff tab did nothing; the Assignment select showed an id (deployed `f670e84`)
 
 Richard, on the M2 click-through: "I click choose pdf on plan take and select
 the file but it doesn't seem to be uploading." No upload request ever reached
@@ -446,6 +446,17 @@ same `items` sweep on the admin-side selects (follow-up rules, job task
 templates, personnel crew, users role, Apply workflow permit file). Prod has
 one empty plan set on Brian Carter's lead (6770 McKinley), created 10:18 UTC —
 the upload goes on it after the deploy.
+Richard pushed and deployed from `!` (background, 252 s, exit 0): BUILD_ID
+`JyubG__VqAsj4BvpIQTie` → `rdnoX1aBXPhXwFrp21OQG`, `.deploy-sha` `f670e84`,
+no migration, smoke 307 ×2, zero journal errors since the restart, backup
+`postgres-2026-10-09-103217.dump`. Verified on prod from Chrome: the 6-page
+slice went through the real picker (POST 201, progress, toast), and **the
+first prod index ran**: 9 steps done, 6 sheets numbered and titled (A-00 to
+A-05, scales as printed, all rendered). The test plan set was then deleted
+and an empty "Plan set" recreated on the lead (prod: 1 set, 0 documents, 0
+sheets, 0 jobs), so Richard lands where he was. **Also seen in the first
+prod index: `plan_jobs.started_at` is stamped by the last claim, not the
+first** — 48 ms between started and finished for nine steps — cosmetic.
 
 ### 2026-10-09 — Plan takeoff M2: calibration + manual tools (built + dev-QA'd on `takeoff-m2`, not deployed)
 
