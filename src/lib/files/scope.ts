@@ -19,6 +19,7 @@ export type FileCategoryName =
   | "CUSTOMER_CONTRACT"
   | "RECEIPT"
   | "MEASUREMENT_REPORT"
+  | "PLAN_SET"
   | "OTHER";
 
 export const CATEGORY_LABEL: Record<FileCategoryName, string> = {
@@ -33,6 +34,7 @@ export const CATEGORY_LABEL: Record<FileCategoryName, string> = {
   CONTRACT_ADDENDUM: "Contract addenda",
   RECEIPT: "Receipts",
   MEASUREMENT_REPORT: "Measurement reports",
+  PLAN_SET: "Plan sets",
   PHOTOS: "Photos",
   OTHER: "Other",
 };
@@ -50,6 +52,7 @@ export const CATEGORY_ORDER: readonly FileCategoryName[] = [
   "CONTRACT_ADDENDUM",
   "RECEIPT",
   "MEASUREMENT_REPORT",
+  "PLAN_SET",
   "PHOTOS",
   "OTHER",
 ];

@@ -30,6 +30,9 @@ import { NurtureCard } from "@/components/leads/nurture-card";
 import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
 import { RoofrPanel } from "@/components/roofr/roofr-panel";
 import { RoofMeasurementsPanel } from "@/components/roofing/roof-measurements-panel";
+import { PlanTakeoffPanel } from "@/components/takeoff/plan-takeoff-panel";
+import { canDeletePlanSet, canEditTakeoff } from "@/lib/takeoff/access";
+import { useSession } from "@/lib/auth/session-client";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 import { CaseListMini } from "@/components/violations/case-list-mini";
 import { useTasks } from "@/components/tasks/use-tasks";
@@ -50,7 +53,7 @@ import {
   Pencil,
 } from "lucide-react";
 
-const LEAD_TABS = ["activity", "tasks", "comms", "permits", "estimates", "roofr", "files", "violations", "history"];
+const LEAD_TABS = ["activity", "tasks", "comms", "permits", "estimates", "takeoff", "roofr", "files", "violations", "history"];
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -60,6 +63,7 @@ export default function LeadDetailPage() {
 
   const { get: getUrl, set: setUrl } = useSearchParamState();
   const tab = LEAD_TABS.includes(getUrl("tab") ?? "") ? (getUrl("tab") as string) : "activity";
+  const { data: session } = useSession();
 
   const { data: lead, isLoading, error: leadError, refetch: refetchLead, isRefetching } = useQuery({
     queryKey: ["lead", id],
@@ -348,6 +352,7 @@ export default function LeadDetailPage() {
               <TabsTrigger value="comms">Communications</TabsTrigger>
               <TabsTrigger value="permits">Permits</TabsTrigger>
               <TabsTrigger value="estimates">Estimates</TabsTrigger>
+              <TabsTrigger value="takeoff">Plan takeoff</TabsTrigger>
               <TabsTrigger value="roofr">Roofr</TabsTrigger>
               <TabsTrigger value="files">Files</TabsTrigger>
               <TabsTrigger value="violations">Violations</TabsTrigger>
@@ -519,6 +524,10 @@ export default function LeadDetailPage() {
 
             <TabsContent value="estimates">
               <LeadEstimatesPanel leadId={id} services={lead.services ?? []} />
+            </TabsContent>
+
+            <TabsContent value="takeoff">
+              <PlanTakeoffPanel leadId={id} canEdit={canEditTakeoff(session?.user.role)} canDelete={canDeletePlanSet(session?.user.role)} />
             </TabsContent>
 
             <TabsContent value="roofr">

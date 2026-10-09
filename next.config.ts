@@ -53,7 +53,11 @@ const sameOriginFrameHeaders = securityHeaders.map((h) =>
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["richards-mac-studio", "richards-mac-studio:4000"],
   // The Roofr report reader loads pdfjs at run time from node_modules; bundling it breaks its worker lookup.
-  serverExternalPackages: ["pdfjs-dist"],
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
+  // The SSO middleware buffers request bodies (10 MB by default): plan set
+  // PDFs on /api/plan-sets/[id]/documents may be 95 MB. nginx has its own
+  // limit on the droplet (25 MB until the operator raises it for that path).
+  experimental: { proxyClientMaxBodySize: "100mb" },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

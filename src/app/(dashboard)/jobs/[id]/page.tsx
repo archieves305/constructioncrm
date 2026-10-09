@@ -52,6 +52,8 @@ import { CommitmentsPanel } from "@/components/jobs/commitments-panel";
 import { PricingPanel } from "@/components/jobs/pricing-panel";
 import { LeadEstimatesPanel } from "@/components/estimates/lead-estimates-panel";
 import { RoofMeasurementsPanel } from "@/components/roofing/roof-measurements-panel";
+import { PlanTakeoffPanel } from "@/components/takeoff/plan-takeoff-panel";
+import { canDeletePlanSet, canEditTakeoff } from "@/lib/takeoff/access";
 import { ContractPanel } from "@/components/jobs/contract-panel";
 import { useJobContracts } from "@/components/customer-contracts/use-customer-contracts";
 import { Callout } from "@/components/shared/callout";
@@ -456,6 +458,7 @@ export default function JobDetailPage() {
           {(() => {
             const MONEY = [
               { value: "estimates", label: "Estimates" },
+              { value: "takeoff", label: "Plan takeoff" },
               { value: "payments", label: `Payments (${job.payments?.length || 0})` },
               { value: "invoices", label: "Invoices" },
               { value: "expenses", label: "Expenses" },
@@ -561,6 +564,10 @@ export default function JobDetailPage() {
                 />
                 <RoofMeasurementsPanel leadId={job.leadId} jobId={id} />
               </div>
+            </TabsContent>
+
+            <TabsContent value="takeoff">
+              <PlanTakeoffPanel leadId={job.leadId} jobId={id} canEdit={canEditTakeoff(session?.user.role)} canDelete={canDeletePlanSet(session?.user.role)} />
             </TabsContent>
 
             <TabsContent value="payments">

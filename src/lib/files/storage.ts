@@ -59,6 +59,22 @@ export async function fileExists(storageKey: string): Promise<boolean> {
   }
 }
 
+/**
+ * A folder of derived artefacts under the store (a plan document's page
+ * text, geometry and renders), created on first use. Returns its absolute
+ * path; the keys of files inside it are `<subKey>/<name>`.
+ */
+export async function ensureStorageDir(subKey: string): Promise<string> {
+  const absolute = resolveStoragePath(subKey);
+  await fs.mkdir(absolute, { recursive: true });
+  return absolute;
+}
+
+/** Remove a derived-artefact folder and everything in it. Never throws. */
+export async function deleteStorageDir(subKey: string): Promise<void> {
+  await fs.rm(resolveStoragePath(subKey), { recursive: true, force: true }).catch(() => {});
+}
+
 export async function deleteFile(storageKey: string): Promise<void> {
   await fs.unlink(resolveStoragePath(storageKey)).catch(() => {});
 }

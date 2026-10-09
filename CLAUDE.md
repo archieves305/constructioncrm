@@ -27,6 +27,19 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+000000000. 🔴 **AI plan takeoff → supplier RFQ (roofing + plumbing)** — plan
+   approved 2026-10-08 (`~/.claude/plans/harmonic-churning-stearns.md`), design
+   in `CAREYOS_PLAN_TAKEOFF_STAGE1_DESIGN.md`. **M0 proofs of concept done
+   2026-10-08** (canvas under the service sandbox ✓, geometry fidelity ✓ with a
+   chain merge, AI id-picking ✓ for pipes and roof, timing ✓ with a child
+   process per tick) — notes in
+   [features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
+   **M1 (plan sets, sheet index, viewer) built + dev-QA'd 2026-10-08 on
+   `takeoff-m1`, not deployed** — migration `20261020120000_plan_sets`, two
+   operator items (nginx body size on `/api/plan-sets/`, `takeoff-tick.sh`
+   cron). Next: Richard's deploy + click-through (upload the 3310 set on a
+   lead's Plan takeoff tab, open the viewer), then **M2** (calibration +
+   manual tools). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
 00000000. 🔴 **Roofing estimator → CRM** — plan approved 2026-10-03
    (https://claude.ai/code/artifact/8b95fb53-2275-421e-a4ed-842fa7919005):
    native module, engine as a pure library in `src/lib/roofing`. **P0 Stage A
@@ -403,6 +416,67 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-08 — Plan takeoff M1: plan sets, sheet index, viewer (built + dev-QA'd on `takeoff-m1`, not deployed)
+
+"start M1". Built: migration `20261020120000_plan_sets` (`PlanSet`,
+`PlanDocument`, `PlanSheet`, `PlanJob`, `PlanJobStep`, `FileCategory.PLAN_SET`);
+the extraction worker (`src/lib/takeoff/pdf/extract-worker.mjs`, forked by
+path — pdf.js and `@napi-rs/canvas` never run in the Next process); pure sheet
+parsers (`sheets/*`: cover-sheet list, title block, discipline, scale,
+classify) tested on text fixtures from the real set; the tick runner
+(`pipeline/*`: `SKIP LOCKED` claims, 40 s budget, 3 attempts, stale-lock
+reclaim, 2 concurrent across the app); `service.ts`; routes under
+`/api/plan-sets`, `/api/plan-sheets`, `/api/takeoff-jobs`, `/api/cron/takeoff-tick`
+(lead guard + explicit role lists); `PlanTakeoffPanel` on the lead's Plan
+takeoff tab and job Money → Plan takeoff; `/plans/[planSetId]` viewer
+(server PNG at 72 / 144 dpi under one CSS transform with an SVG overlay slot,
+own pan/zoom). Found in QA: the SSO middleware caps request bodies at 10 MB
+→ `experimental.proxyClientMaxBodySize: "100mb"`. Gate: typecheck clean, lint
+5/22, 1555 tests (+19), build clean. Dev QA: API 35/35 (the 34-sheet set
+indexed in 2 ticks / 44 s, every sheet numbered and titled, scales as
+printed), headless Chromium 19/19 at 1280 and 400 px, SALES_REP 404 / 403;
+QA sets deleted. **Deploy carries a migration** and two operator items:
+nginx `client_max_body_size 100M` on `/api/plan-sets/`, `crm-cron/takeoff-tick.sh`
+every minute. Details:
+[features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
+
+### 2026-10-08 — AI plan takeoff, Stage 1: plan approved, design written (nothing built)
+
+Richard's brief (plan mode): upload construction plan sets inside the
+estimator → identify sheets → roofing / plumbing takeoff → reviewed material
+list → supplier RFQ (no pricing). Audited (3 explore agents + read-only prod:
+5 draft estimates, 11 roof estimates, 0 vendors, 0 roof measurements), evaluated
+OpenTakeoff (Apache, concepts only), ConMCP (MIT, concepts), ProTakeoff (MuPDF =
+AGPL, reject), ran three PoCs on the 3310 NE 37th set (34 vector pages, 20 MB;
+sheet list on A-00; pdf.js `getOperatorList` gives the lines; dimension strings
+match their lines within 0–2 % of the printed 1/4" scale; pdf.js +
+`@napi-rs/canvas` renders a sheet in 0.3–0.7 s) and one AI test (Claude Opus
+5.5 on A-10 image only, $0.12: every drain, scupper, slope and dimension string
+read correctly, no material named — correct; free polygons −9 % on area, so
+geometry comes from ids + snapping). Plan approved
+(`~/.claude/plans/harmonic-churning-stearns.md`); full design in
+`CAREYOS_PLAN_TAKEOFF_STAGE1_DESIGN.md` (repo root). Decisions: native module
+`src/lib/takeoff`, takeoff on the Lead, code extracts and measures, Claude
+labels by picking ids, table-driven tick queue, server PNG + SVG viewer,
+`/takeoff/[id]` workspace, roles edit = office + SALES_REP own leads / approve =
+office. Milestones M0 (PoCs) → M1 plan sets → M2 calibration + manual tools →
+M3 AI roofing → M4 AI plumbing → M5 materials + review → M6 RFQ. **Open
+rulings:** prod `ANTHROPIC_API_KEY`, role lists, 2–3 historical plumbing
+projects for the accuracy benchmark, suppliers under Vendors. Oddity: macOS
+refused every read of the 3310 PDF mid-session (Richard's own `cp` from `!`
+too); the copy came from Terminal.app. **M0 run the same day** (details and
+pictures in [features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md)):
+canvas renders under the `knuco` sandbox on the droplet (11 pages 3.2 s, 277 MB);
+geometry extraction is complete for this set (no forms, no curves) but pipe
+runs are dash-dot fragments → a chain merge (21,470 segments → 5,990 chains in
+24 ms) is required; with chains as candidates Claude picked the right pipe line
+in 10/10 tiles ($0.13), with raw segments it failed; the roof call with segment
+ids snapped 36/36 vertices and chose 16 valid parapet ids (2,867 SF, 391 LF, 11
+drains, assembly = cementitious waterproofing with 10 items not specified);
+timing 1.0 s/page (≥ 39 pages per 40 s tick) but RSS reaches 2.3 GB across
+pages → the pipeline step runs in a forked child process. **M0 verdict: id
+design confirmed; next is M1.** No code, no migration, nothing on prod.
 
 ### 2026-10-05 — Crew install dates: calendar marker + get-ready task (deployed `fd736c1`)
 

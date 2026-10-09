@@ -278,6 +278,8 @@ enum FileCategory {
   RECEIPT
   // A roof measurement report (Roofr): the source document of a RoofMeasurement.
   MEASUREMENT_REPORT
+  // A construction plan set (PDF): the source document of a PlanDocument.
+  PLAN_SET
   OTHER
 }
 
@@ -483,6 +485,10 @@ model User {
   commitmentsCreated                Commitment[]              @relation("CommitmentCreatedBy")
   roofMeasurementsCreated           RoofMeasurement[]         @relation("RoofMeasurementCreatedBy")
   roofMeasurementsReviewed          RoofMeasurement[]         @relation("RoofMeasurementReviewedBy")
+  planSetsCreated                   PlanSet[]                 @relation("PlanSetCreatedBy")
+  planDocumentsUploaded             PlanDocument[]            @relation("PlanDocumentUploadedBy")
+  planSheetsCorrected               PlanSheet[]               @relation("PlanSheetCorrectedBy")
+  planJobsRequested                 PlanJob[]                 @relation("PlanJobRequestedBy")
   roofRulesUpdated                  RoofRule[]                @relation("RoofRuleUpdatedBy")
   roofMaterialPricesCreated         RoofMaterialPrice[]       @relation("RoofMaterialPriceCreatedBy")
   vendorComplianceOwnerOf           VendorSettings[]          @relation("VendorComplianceOwner")
@@ -638,6 +644,7 @@ model Lead {
   estimates         Estimate[]
   roofrOrders       RoofrOrder[]
   roofMeasurements  RoofMeasurement[]
+  planSets          PlanSet[]
   prospect          Prospect?
   violationCases    CodeViolationCase[]
   customerContracts CustomerContract[]
@@ -1064,6 +1071,7 @@ model File {
   violationItem      CodeViolationItem?  @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
   generatedDocuments GeneratedDocument[]
   roofMeasurement    RoofMeasurement?
+  planDocument       PlanDocument?
 
   @@index([leadId])
   @@index([jobId])
@@ -1347,6 +1355,7 @@ model Job {
   commitments        Commitment[]
   files              File[]
   roofMeasurements   RoofMeasurement[]
+  planSets           PlanSet[]
   budgetLines        BudgetLine[]
   generatedDocuments GeneratedDocument[]
   changeOrders       ChangeOrder[]
@@ -4691,4 +4700,226 @@ model LeadNurtureSend {
   @@index([toEmail, sentAt])
   @@index([createdAt])
   @@map("lead_nurture_sends")
+}
+
+// ─── Plan takeoff (Stage 1) ───────────────────────────────────────────────
+// A plan set is the construction drawings on a lead: one or more uploaded PDFs
+// (the full set, an addendum, a revision), each split into sheets. The sheets
+// carry what code read from the page (number, title, discipline, scale) and a
+// person's corrections; measurements (M2+) point at the exact sheet row they
+// were drawn on, so a revised sheet never silently replaces an old one.
+
+enum PlanDocumentKind {
+  FULL_SET
+  PARTIAL
+  ADDENDUM
+  REVISION
+}
+
+enum PlanDocumentStatus {
+  UPLOADED
+  INDEXING
+  INDEXED
+  FAILED
+}
+
+enum PlanDiscipline {
+  ARCHITECTURAL
+  STRUCTURAL
+  CIVIL
+  PLUMBING
+  MECHANICAL
+  ELECTRICAL
+  GAS
+  LANDSCAPE
+  LOW_VOLTAGE
+  IRRIGATION
+  GENERAL
+  UNKNOWN
+}
+
+enum SheetScaleSource {
+  NONE
+  AUTO
+  AUTO_VERIFIED
+  MANUAL
+}
+
+enum PlanJobKind {
+  INDEX_DOCUMENT
+  ANALYZE_TAKEOFF
+}
+
+enum PlanJobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+  CANCELLED
+}
+
+enum PlanJobStepStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+  SKIPPED
+}
+
+model PlanSet {
+  id              String   @id @default(cuid())
+  leadId          String   @map("lead_id")
+  jobId           String?  @map("job_id")
+  name            String
+  notes           String?
+  createdByUserId String   @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  lead      Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job       Job?           @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  createdBy User           @relation("PlanSetCreatedBy", fields: [createdByUserId], references: [id])
+  documents PlanDocument[]
+
+  @@index([leadId])
+  @@index([jobId])
+  @@map("plan_sets")
+}
+
+model PlanDocument {
+  id               String             @id @default(cuid())
+  planSetId        String             @map("plan_set_id")
+  // The uploaded PDF (File.category = PLAN_SET). Restrict: the PDF is never deleted from under its sheets.
+  fileId           String             @unique @map("file_id")
+  kind             PlanDocumentKind   @default(FULL_SET)
+  label            String
+  revisionLabel    String?            @map("revision_label")
+  // Upload order within the set.
+  sequence         Int
+  sha256           String
+  pageCount        Int?               @map("page_count")
+  status           PlanDocumentStatus @default(UPLOADED)
+  error            String?
+  indexedAt        DateTime?          @map("indexed_at")
+  uploadedByUserId String             @map("uploaded_by_user_id")
+  createdAt        DateTime           @default(now()) @map("created_at")
+
+  planSet    PlanSet     @relation(fields: [planSetId], references: [id], onDelete: Cascade)
+  file       File        @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  uploadedBy User        @relation("PlanDocumentUploadedBy", fields: [uploadedByUserId], references: [id])
+  sheets     PlanSheet[]
+  jobs       PlanJob[]
+
+  @@unique([planSetId, sequence])
+  @@index([sha256])
+  @@map("plan_documents")
+}
+
+model PlanSheet {
+  id             String @id @default(cuid())
+  planDocumentId String @map("plan_document_id")
+  // 1-based page number within the PDF.
+  pageNumber     Int    @map("page_number")
+  widthPt        Float  @map("width_pt")
+  heightPt       Float  @map("height_pt")
+  rotation       Int    @default(0)
+
+  // The index in force: what code detected, overwritten by a person's correction.
+  // `detected` keeps what code found so a correction can be compared with it.
+  sheetNumber            String?        @map("sheet_number")
+  title                  String?
+  discipline             PlanDiscipline @default(UNKNOWN)
+  revisionLabel          String?        @map("revision_label")
+  scaleText              String?        @map("scale_text")
+  detected               Json?
+  indexConfidence        Float?         @map("index_confidence")
+  indexCorrectedByUserId String?        @map("index_corrected_by_user_id")
+
+  // What the page holds. A page with almost no text and no drawn lines is a scan:
+  // nothing automatic runs on it, a person calibrates and measures by hand.
+  isRaster       Boolean @default(false) @map("is_raster")
+  textItemCount  Int     @default(0) @map("text_item_count")
+  segmentCount   Int     @default(0) @map("segment_count")
+  // Storage keys (under UPLOADS_DIR) of the page's extracted text, geometry and renders.
+  textKey        String? @map("text_key")
+  geometryKey    String? @map("geometry_key")
+  renderKey72    String? @map("render_key_72")
+  renderKey144   String? @map("render_key_144")
+
+  // Calibration in force: PDF points per real foot. AUTO = the printed scale, not yet
+  // confirmed; AUTO_VERIFIED = agrees with the drawn dimensions; MANUAL = two clicks and a distance.
+  scaleSource        SheetScaleSource @default(NONE) @map("scale_source")
+  ptPerFt            Float?           @map("pt_per_ft")
+  scaleConfidence    Float?           @map("scale_confidence")
+  scaleVerification  Json?            @map("scale_verification")
+  calibratedByUserId String?          @map("calibrated_by_user_id")
+  calibratedAt       DateTime?        @map("calibrated_at")
+
+  // Set by a person when a later document replaces this sheet.
+  supersededBySheetId String? @map("superseded_by_sheet_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  planDocument PlanDocument @relation(fields: [planDocumentId], references: [id], onDelete: Cascade)
+  correctedBy  User?        @relation("PlanSheetCorrectedBy", fields: [indexCorrectedByUserId], references: [id])
+  supersededBy PlanSheet?   @relation("SheetSupersedes", fields: [supersededBySheetId], references: [id], onDelete: SetNull)
+  supersedes   PlanSheet[]  @relation("SheetSupersedes")
+
+  @@unique([planDocumentId, pageNumber])
+  @@index([sheetNumber])
+  @@map("plan_sheets")
+}
+
+// Work on a plan set runs as small steps claimed one at a time by a tick
+// (`POST /api/takeoff-jobs/[id]/tick` from the browser, `/api/cron/takeoff-tick`
+// as the sweeper). Each step is idempotent and survives a restart: a lock older
+// than a few minutes is simply reclaimed.
+model PlanJob {
+  id                String        @id @default(cuid())
+  kind              PlanJobKind
+  planDocumentId    String?       @map("plan_document_id")
+  status            PlanJobStatus @default(PENDING)
+  totalSteps        Int           @default(0) @map("total_steps")
+  doneSteps         Int           @default(0) @map("done_steps")
+  failedSteps       Int           @default(0) @map("failed_steps")
+  error             String?
+  requestedByUserId String        @map("requested_by_user_id")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  startedAt         DateTime?     @map("started_at")
+  finishedAt        DateTime?     @map("finished_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  planDocument PlanDocument? @relation(fields: [planDocumentId], references: [id], onDelete: Cascade)
+  requestedBy  User          @relation("PlanJobRequestedBy", fields: [requestedByUserId], references: [id])
+  steps        PlanJobStep[]
+
+  @@index([status])
+  @@index([planDocumentId])
+  @@map("plan_jobs")
+}
+
+model PlanJobStep {
+  id         String            @id @default(cuid())
+  jobId      String            @map("job_id")
+  // Execution order; steps with the same sequence may run in any order.
+  sequence   Int
+  // "inventory" | "page.12" | "classify" | "scale"
+  stepKey    String            @map("step_key")
+  dependsOn  String[]          @map("depends_on")
+  status     PlanJobStepStatus @default(PENDING)
+  attempts   Int               @default(0)
+  lockedAt   DateTime?         @map("locked_at")
+  lockToken  String?           @map("lock_token")
+  error      String?
+  // A small summary only ({ textItems, segments }).
+  result     Json?
+  startedAt  DateTime?         @map("started_at")
+  finishedAt DateTime?         @map("finished_at")
+
+  job PlanJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, stepKey])
+  @@index([jobId, status])
+  @@map("plan_job_steps")
 }

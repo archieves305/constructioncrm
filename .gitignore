@@ -53,3 +53,6 @@ next-env.d.ts
 
 # Sibling worktrees another session checks out under the repo
 .claude/worktrees/
+
+# Local copy of the 3310 NE 37th test plan set (20 MB) — never committed
+/3310 NE 37 st/
