@@ -111,9 +111,20 @@ migration applied, smoke 307 ×2, journal clean, backup
 /api/plan-sets/ { client_max_body_size 100M; proxy_read_timeout 120s; }` on
 the CRM vhost (backup `/root/crm.careyos.com.bak-20261008-takeoff`),
 `/home/knuco/crm-cron/takeoff-tick.sh` on the `knuco` crontab every minute
-(log `takeoff-tick.log`, first run `{"jobs":0}`). Prod has no plan sets yet;
-Richard's click-through is the first real upload (the 20 MB set exercises the
-nginx block and the worker under the service for the first time).
+(log `takeoff-tick.log`, first run `{"jobs":0}`).
+
+**Click-through fault, 2026-10-09 — "Failed to fetch" on the Plan takeoff
+tab.** The nginx block was written as `location /api/plan-sets/ { … }`; a
+prefix location ending in a slash makes nginx answer the slash-less
+`/api/plan-sets?leadId=…` with a 301 to `/api/plan-sets/?leadId=…`, Next's
+trailing-slash rule sends a 308 back, and the browser reports the loop as
+"Failed to fetch". Nothing reached the app. Fixed on the droplet: `location ~
+^/api/plan-sets/[^/]+/documents$ { … }` (a regex matches only the upload
+route and carries no trailing-slash behaviour); `nginx -t`, reload, the origin
+answers 307 again; the edge served the old 301 for a few more minutes for the
+URLs already visited, then cleared. Lesson: never a slash-terminated prefix
+`location` in front of a Next route; curl the slash-less path at the origin
+and at the edge after any vhost change.
 
 ## M2 — calibration + manual tools (built + dev-QA'd 2026-10-09 on `takeoff-m2`)
 
