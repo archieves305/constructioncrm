@@ -49,9 +49,11 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    checklist filled), `company-document-alerts.sh` on the crontab at
    `56 11 * * 1-5`, first run `raised 0`). **Stage 3 (bids: invitations on
    `GC_BID` leads, go / no-go score, submissions, outcomes, award →
-   progress-billed job) built + dev-QA'd 2026-10-13 on `partners-s3`, not
-   merged, not deployed**; migration `20261025120000_partners_bids`, no seed,
-   no cron; after the deploy fill Admin → Business Development → Bid scoring
+   progress-billed job) built + dev-QA'd 2026-10-13 on `partners-s3`, deployed
+   2026-10-13 as `d2afb6f`** (BUILD_ID `Hb0xqBxUlMkJKftTLAj88`, migration
+   `20261025120000_partners_bids` applied (91), five CHECKs verified, smoke 307
+   ×2, journal clean, backup `postgres-2026-10-13-182830.dump`; the JOB-00009
+   bid backfill dry run is clean, not applied); no seed, no cron; fill Admin → Business Development → Bid scoring
    and run `scripts/backfill-partners-bid-job00009.ts`. Stage 2 facts:
    migration `20261024120000_partners_qualifications` (`CompanyDocumentType`,
    `CompanyDocument` with own storage + encryption at rest for RESTRICTED,
@@ -467,7 +469,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-13 — GC Partnerships Stage 3: bids (built + dev-QA'd on `partners-s3`, not deployed)
+### 2026-10-13 — GC Partnerships Stage 3: bids (deployed `d2afb6f`)
 
 "build stage 3", on a branch from `main` in the same worktree. Migration
 `20261025120000_partners_bids` (applied on dev with `db execute` then
@@ -496,6 +498,12 @@ JOB-00009 backfill run on a stand-in job (dry run, apply, re-run unchanged)
 and reverted. The dev bypass had written CREW_LEAD onto the seed rep; reset
 to SALES_REP. QA rows removed. Details:
 [features/partners.md](docs/project-memory/features/partners.md).
+Richard pushed and deployed from `!` (background, 276 s, exit 0): BUILD_ID
+`k_Dv0RZV2Xs5ihU2PF5fB` → `Hb0xqBxUlMkJKftTLAj88`, migration applied (91),
+the five `bid_*_chk` constraints present, 0 bids, smoke 307 ×2, zero journal
+errors since the restart, backup `postgres-2026-10-13-182830.dump`. Backfill
+dry run on prod: JOB-00009 (contract $832,500, created 2025-03-07, lead
+GC_BID linked to Coastal Choice) would become an awarded bid — not applied.
 
 ### 2026-10-13 — GC Partnerships Stage 2: qualifications and the document vault (built + dev-QA'd on `partners-s2`, not deployed)
 
@@ -2845,13 +2853,10 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **GC Partnerships Stage 3 (bids) is built + dev-QA'd on `partners-s3`, not
-> merged, not deployed.** Merge: in `/tmp/knuco-main` (branch `main`),
-> `git merge --ff-only partners-s3`; Richard pushes and deploys from `!`.
-> **Deploy carries migration `20261025120000_partners_bids`**; no seed, no
-> cron. After it: check the five `bid_*_chk` constraints and the sequence on
-> prod, then run `scripts/backfill-partners-bid-job00009.ts` (dry run →
-> `--apply` on Richard's word; JOB-00009 becomes BID-00001, awarded).
+> **GC Partnerships Stage 3 (bids) is on prod (`d2afb6f`, BUILD_ID
+> `Hb0xqBxUlMkJKftTLAj88`).** Waiting on Richard's word: `--apply` of
+> `scripts/backfill-partners-bid-job00009.ts` (dry run clean; JOB-00009
+> becomes BID-00001, awarded at $832,500).
 > Richard's click-through: Admin → Business Development → Bid scoring (trades
 > KNU bids, home / reachable counties, usual size per trade, bonding
 > capacity) → Coastal Choice → Log a bid → the lead's Bid tab (sliders, Bid,
