@@ -39,7 +39,17 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `teFcePwxp9jUwltnPFRYK`, migration `20261023120000_partners_core` applied
    (89), smoke 307 ×2, journal clean, backup `postgres-2026-10-13-154729.dump`;
    seeded on prod, Coastal Choice backfilled, `partner-follow-ups.sh` on the
-   crontab at `55 11 * * 1-5`, first run `raised 0`):
+   crontab at `55 11 * * 1-5`, first run `raised 0`). **Stage 2
+   (qualifications + the KNU document vault + expiry alerts + RESTRICTED
+   access) built + dev-QA'd 2026-10-13 on `partners-s2`, not deployed**:
+   migration `20261024120000_partners_qualifications` (`CompanyDocumentType`,
+   `CompanyDocument` with own storage + encryption at rest for RESTRICTED,
+   `Qualification`, `QualificationRequirement`, `PartnerSettings` vault owner +
+   default checklist, `User.canViewRestrictedDocuments`), pure
+   `qualification-state` / `document-alerts` / `vault-access`, services,
+   routes, the vault page, the Qualification and Documents tabs,
+   `/partners/qualifications`, attention rows, calendar overlays, the cron.
+   **Deploy carries the migration**; seed again after it. Stage 1 facts:
    migration `20261023120000_partners_core` (`Organization`,
    `OrganizationTrade`, `Contact`, `Interaction`, `PartnerStageHistory`,
    `PartnerSettings`; `Lead.kind` / `organizationId` / `contactId`;
@@ -445,6 +455,43 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-13 — GC Partnerships Stage 2: qualifications and the document vault (built + dev-QA'd on `partners-s2`, not deployed)
+
+"build stage 2", straight after the Stage 1 deploy, on a branch from `main`
+in the same worktree. Migration `20261024120000_partners_qualifications`
+(applied on dev with `db execute` **before** `migrate resolve` this time;
+hand-appended CHECKs). Built per the spec §2: `CompanyDocumentType` (16
+seeded, admin-editable), `CompanyDocument` (versioned per type, own storage
+columns; RESTRICTED bytes AES-GCM under the field keyring through new
+`encryptBlob` / `decryptBlob` in `lib/crypto/field-encryption.ts`;
+reclassifying re-writes the bytes), `Qualification` +
+`QualificationRequirement` (default checklist from the settings; the GC's
+answer per line), pure `qualification-state.ts` (EXPIRED / RENEWAL_DUE and
+every requirement state derived on read, coverage), `document-alerts.ts` +
+`document-alert-run.ts` (the vendor pattern; vault tasks carry no entity
+link), `vault-access.ts` (SHAREABLE / INTERNAL / RESTRICTED by role + the
+`canViewRestrictedDocuments` grant, read fresh per request), the audited
+rate-limited bytes route (the only one; added to `FRAMED_BY_SELF`), the
+follow-up planner now fed the representative qualification (rules 3–4 live),
+attention rows `qualifications-expiring` + `company-docs-expiring`, calendar
+overlays `company_doc` + `qualification_date`, the vault page, the
+Qualification and Documents tabs, `/partners/qualifications`, the grant on
+Admin → Users, the vault owner + default checklist on Admin → Business
+Development. Gate: typecheck clean, lint 5/22, 1632 tests (+16), build clean.
+Dev QA: API 54/54 (the one script miss was my reading of the tasks route; the
+vault task was verified raised and settled by SQL), headless Chromium 14/14
+at 1280 and 400 px with no page errors — found and fixed in QA: the
+qualification dialog seeded its checklist from options that had not loaded
+(a new qualification came up with an empty list), and link-styled buttons
+needed `nativeButton={false}`; role matrix: SALES_REP sees the restricted row
+locked and gets 404 on its bytes / 403 on upload, MANAGER without the grant
+404 and with it 200 plus one `document_view` audit row. QA rows and files
+deleted; no `.enc` blobs left in `uploads/`. Not exercised: the email of a
+vault task (owner = Richard on prod), a blob key rotation (no sweep yet),
+PDF rendering of the preview frame in a full browser (the headless shell
+showed the frame element only — the same caveat as 2026-10-03). Details:
+[features/partners.md](docs/project-memory/features/partners.md).
 
 ### 2026-10-13 — GC Partnerships Stage 1: accounts, contacts, interactions, follow-ups (built + dev-QA'd on `partners-s1`, not deployed)
 
@@ -2494,6 +2541,8 @@ ssh knuco-droplet '/home/knuco/crm-cron/inspection-reminders.sh; tail -1 /home/k
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-partners.ts"'
 # Coastal Choice backfill (dry run by default; --apply writes; --fix-billing only on Richard's word)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-partners-coastal-choice.ts"'
+# Vault + qualification expiry cron, by hand (droplet; each alert is raised once)
+ssh knuco-droplet '/home/knuco/crm-cron/company-document-alerts.sh; tail -1 /home/knuco/crm-cron/company-document-alerts.log'
 # Partner follow-up cron, by hand (droplet; each follow-up is raised once per period; ?dryRun=1 plans only)
 ssh knuco-droplet '/home/knuco/crm-cron/partner-follow-ups.sh; tail -1 /home/knuco/crm-cron/partner-follow-ups.log'
 # Vendor document expiry cron, by hand (droplet; each alert is raised once)
@@ -2718,13 +2767,39 @@ Notification Digests).
   source key by `lib/partners/follow-up-run.ts` and settled by every
   interaction or stage write; the CRM never emails a GC contact. Access through
   `lib/partners/access.ts` (SALES_REP manages; owner change, write-off, delete
-  and settings are ADMIN / MANAGER).
+  and settings are ADMIN / MANAGER). **KNU's own documents live in the vault**
+  (`CompanyDocument`, own storage, never a `File` row): the current version of
+  a type is the highest; a RESTRICTED document's bytes are encrypted under the
+  field keyring and served only by `/api/company-documents/[id]/file`, which
+  answers 404 to anyone outside `canReadDocument` (`lib/partners/vault-access.ts`)
+  and audits every RESTRICTED read. Qualification and requirement states are
+  derived on read (`qualification-state.ts`); the GC's answer is the only
+  stored decision. Vault and qualification expiries are tasks raised once per
+  key (`document-alert-run.ts`) and settled by every write.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
 
+> **GC Partnerships Stage 2 (qualifications + vault) is built + dev-QA'd on
+> `partners-s2`, not merged, not deployed.** Merge: from `/tmp/knuco-main`,
+> `git merge --ff-only partners-s2` onto `main`; Richard pushes and deploys
+> from `!` (**the deploy carries migration
+> `20261024120000_partners_qualifications`**). After the deploy: run
+> `prisma/seed-partners.ts` again (16 document types created, the default
+> checklist filled), install `crm-cron/company-document-alerts.sh` at
+> `56 11 * * 1-5` and run it once (expect `raised 0`), confirm
+> `FIELD_ENCRYPTION_KEYS` is set in `/etc/knuco/env` (a RESTRICTED upload
+> answers 503 without it). Click-through: Business Development → Document
+> Vault → File a document (a GL COI with an expiry — the date prefills), then
+> Coastal Choice → Qualification → Start a qualification → "Mark sent" on the
+> GL line → the Documents tab; Admin → Users → the new "Open restricted vault
+> documents" grant. Next build: **Stage 3** (bids) per the build spec §3.
+>
+> **Stage 1 is on prod** (`b8af730`, BUILD_ID `teFcePwxp9jUwltnPFRYK`).
+> The paragraph below is its record.
+>
 > **GC Partnerships Stage 1 is built + dev-QA'd on `partners-s1` (a worktree
 > under `.claude/worktrees/`), not merged, not deployed.** The main checkout is
 > on `takeoff-m3` with uncommitted M3 work, so the merge is: from the main

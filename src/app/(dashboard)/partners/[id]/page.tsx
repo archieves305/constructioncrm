@@ -32,9 +32,11 @@ import { OrgFormDialog, orgFormValues } from "@/components/partners/org-form-dia
 import { OwnerDialog } from "@/components/partners/owner-dialog";
 import { OrgBadges, PriorityBadge } from "@/components/partners/stage-badges";
 import { KIND_LABEL, personName, useChangeStage, useInteractions, useInvalidatePartners, useOrganization, usePartnerOptions, type Contact, type Interaction, type InteractionKind, type OrgDetail } from "@/components/partners/use-partners";
+import { QualificationPanel } from "@/components/partners/qualification-panel";
+import { OrgDocumentsTab } from "@/components/partners/org-documents-tab";
 
 const STAGES = stagesAsStageLike();
-const TABS = ["overview", "contacts", "activity"] as const;
+const TABS = ["overview", "contacts", "qualification", "documents", "activity"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function PartnerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -157,6 +159,8 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({activeContacts.length})</TabsTrigger>
+          <TabsTrigger value="qualification">Qualification</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="activity">Activity ({data.interactionCount})</TabsTrigger>
         </TabsList>
 
@@ -166,6 +170,14 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
 
         <TabsContent value="contacts" className="mt-4">
           <ContactsTab org={org} canManage={permissions.canManage} now={now} onAdd={() => setContactDialog({ open: true })} onEdit={(c) => setContactDialog({ open: true, contact: c })} />
+        </TabsContent>
+
+        <TabsContent value="qualification" className="mt-4">
+          <QualificationPanel organizationId={org.id} organizationName={org.name} canManage={permissions.canManage} />
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-4">
+          <OrgDocumentsTab organizationId={org.id} organizationName={org.name} />
         </TabsContent>
 
         <TabsContent value="activity" className="mt-4">

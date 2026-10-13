@@ -391,6 +391,11 @@ model User {
   // Frank's grant during the SSO cutover.
   canEnterJobCosts Boolean @default(false) @map("can_enter_job_costs")
 
+  // Open RESTRICTED documents in the Business Development vault (financial
+  // statements, banking letters, the W-9). ADMIN implicitly; MANAGER and
+  // OFFICE_STAFF only with the grant; every read is audited.
+  canViewRestrictedDocuments Boolean @default(false) @map("can_view_restricted_documents")
+
   // Task mail is internal work assignment, not marketing, so it has no
   // unsubscribe link — but a user who mutes here stops receiving it. The
   // pressure valve exists so nobody resorts to a mail-client filter, which
@@ -500,6 +505,10 @@ model User {
   interactions                      Interaction[]             @relation("InteractionUser")
   partnerStageChanges               PartnerStageHistory[]     @relation("PartnerStageChangedBy")
   partnerSettingsDefaultOwner       PartnerSettings[]         @relation("PartnerDefaultOwner")
+  partnerSettingsVaultOwner         PartnerSettings[]         @relation("PartnerVaultOwner")
+  companyDocumentsUploaded          CompanyDocument[]         @relation("CompanyDocumentUploadedBy")
+  qualificationsOwned               Qualification[]           @relation("QualificationOwner")
+  qualificationsCreated             Qualification[]           @relation("QualificationCreatedBy")
   roofMaterialPricesCreated         RoofMaterialPrice[]       @relation("RoofMaterialPriceCreatedBy")
   vendorComplianceOwnerOf           VendorSettings[]          @relation("VendorComplianceOwner")
   workflowTeamSlots                 JobWorkflowTeamMember[]   @relation("WorkflowTeamUser")
@@ -5237,9 +5246,10 @@ model Organization {
   trades       OrganizationTrade[]
   contacts     Contact[]
   interactions Interaction[]
-  stageHistory PartnerStageHistory[]
-  leads        Lead[]
-  tasks        Task[]
+  stageHistory   PartnerStageHistory[]
+  qualifications Qualification[]
+  leads          Lead[]
+  tasks          Task[]
 
   @@index([stage])
   @@index([ownerUserId])
@@ -5356,9 +5366,146 @@ model PartnerSettings {
   dormantAfterDays   Int      @default(180) @map("dormant_after_days")
   defaultOwnerUserId String?  @map("default_owner_user_id")
   markets            String[] @default([])
+  // Who gets the vault's expiry tasks (else the Accounting default, else the oldest admin).
+  vaultOwnerUserId   String?  @map("vault_owner_user_id")
+  // CompanyDocumentType keys a new qualification starts with.
+  defaultRequirementTypeKeys String[] @default([]) @map("default_requirement_type_keys")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   defaultOwner User? @relation("PartnerDefaultOwner", fields: [defaultOwnerUserId], references: [id], onDelete: SetNull)
+  vaultOwner   User? @relation("PartnerVaultOwner", fields: [vaultOwnerUserId], references: [id], onDelete: SetNull)
 
   @@map("partner_settings")
+}
+
+// ── Qualifications and the KNU document vault ─────────────────────────────
+
+enum QualificationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  INFO_REQUESTED
+  APPROVED
+  REJECTED
+}
+
+enum RequirementStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WAIVED
+}
+
+// INTERNAL: staff may read. RESTRICTED: financials, banking, tax forms —
+// ADMIN or the grant, audited. SHAREABLE: safe to send to a GC.
+enum DocumentConfidentiality {
+  INTERNAL
+  RESTRICTED
+  SHAREABLE
+}
+
+// The kinds of document a GC may ask for. Seeded, admin-editable: a
+// requirement list varies by GC, so nothing is hard-coded.
+model CompanyDocumentType {
+  id                    String   @id @default(cuid())
+  key                   String   @unique
+  name                  String
+  category              String   // insurance | licensing | safety | financial | company
+  defaultValidityMonths Int?     @map("default_validity_months")
+  isActive              Boolean  @default(true) @map("is_active")
+  sortOrder             Int      @default(0) @map("sort_order")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  documents    CompanyDocument[]
+  requirements QualificationRequirement[]
+
+  @@map("company_document_types")
+}
+
+// KNU's own documents, versioned and append-only: the current version of a
+// type is the highest. Own storage columns (never a File row) so a
+// RESTRICTED blob can be encrypted at rest and served by one audited route.
+model CompanyDocument {
+  id                  String                  @id @default(cuid())
+  documentTypeId      String                  @map("document_type_id")
+  title               String
+  version             Int                     @default(1)
+  effectiveDate       DateTime?               @map("effective_date")
+  expiresAt           DateTime?               @map("expires_at")
+  confidentiality     DocumentConfidentiality @default(INTERNAL)
+  approvedForExternal Boolean                 @default(false) @map("approved_for_external")
+  supersedesId        String?                 @map("supersedes_id")
+  notes               String?                 @db.Text
+  fileName            String                  @map("file_name")
+  fileType            String                  @map("file_type")
+  fileSize            Int                     @map("file_size")
+  storageKey          String                  @map("storage_key")
+  // Non-null = the bytes on disk are encrypted under this keyring version.
+  encryptedKeyVersion Int?                    @map("encrypted_key_version")
+  uploadedByUserId    String                  @map("uploaded_by_user_id")
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
+
+  documentType CompanyDocumentType @relation(fields: [documentTypeId], references: [id])
+  supersedes   CompanyDocument?    @relation("DocVersions", fields: [supersedesId], references: [id], onDelete: SetNull)
+  newer        CompanyDocument[]   @relation("DocVersions")
+  uploadedBy   User                @relation("CompanyDocumentUploadedBy", fields: [uploadedByUserId], references: [id])
+  requirements QualificationRequirement[]
+
+  @@unique([documentTypeId, version])
+  @@index([expiresAt])
+  @@map("company_documents")
+}
+
+// One prequalification with an account (per platform or renewal cycle).
+// EXPIRED and RENEWAL_DUE are derived from the dates on read.
+model Qualification {
+  id                 String              @id @default(cuid())
+  organizationId     String              @map("organization_id")
+  platform           String?
+  portalUrl          String?             @map("portal_url")
+  portalUsernameHint String?             @map("portal_username_hint")
+  ownerUserId        String?             @map("owner_user_id")
+  status             QualificationStatus @default(NOT_STARTED)
+  submittedAt        DateTime?           @map("submitted_at")
+  approvedAt         DateTime?           @map("approved_at")
+  expiresAt          DateTime?           @map("expires_at")
+  renewalDueAt       DateTime?           @map("renewal_due_at")
+  notes              String?             @db.Text
+  createdByUserId    String              @map("created_by_user_id")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?        @relation("QualificationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy    User         @relation("QualificationCreatedBy", fields: [createdByUserId], references: [id])
+  requirements QualificationRequirement[]
+
+  @@index([organizationId, status])
+  @@index([expiresAt])
+  @@map("qualifications")
+}
+
+// A document the GC asks for. "Missing" / "provided" derive from the linked
+// vault document; ACCEPTED / REJECTED / WAIVED are the GC's answer.
+model QualificationRequirement {
+  id                String            @id @default(cuid())
+  qualificationId   String            @map("qualification_id")
+  documentTypeId    String            @map("document_type_id")
+  required          Boolean           @default(true)
+  status            RequirementStatus @default(PENDING)
+  companyDocumentId String?           @map("company_document_id")
+  providedAt        DateTime?         @map("provided_at")
+  notes             String?
+  sortOrder         Int               @default(0) @map("sort_order")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  qualification   Qualification       @relation(fields: [qualificationId], references: [id], onDelete: Cascade)
+  documentType    CompanyDocumentType @relation(fields: [documentTypeId], references: [id])
+  companyDocument CompanyDocument?    @relation(fields: [companyDocumentId], references: [id], onDelete: SetNull)
+
+  @@unique([qualificationId, documentTypeId])
+  @@map("qualification_requirements")
 }

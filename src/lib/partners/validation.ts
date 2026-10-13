@@ -123,8 +123,38 @@ export const settingsSchema = z
     dormantAfterDays: z.number().int().min(30).max(730),
     defaultOwnerUserId: id.nullable(),
     markets: z.array(z.string().trim().min(1).max(60)).max(100),
+    vaultOwnerUserId: id.nullable(),
+    defaultRequirementTypeKeys: z.array(z.string().trim().min(1).max(60)).max(60),
   })
   .partial();
+
+export const QUALIFICATION_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "SUBMITTED", "INFO_REQUESTED", "APPROVED", "REJECTED"] as const;
+export const REQUIREMENT_STATUSES = ["PENDING", "ACCEPTED", "REJECTED", "WAIVED"] as const;
+export const CONFIDENTIALITIES = ["INTERNAL", "RESTRICTED", "SHAREABLE"] as const;
+export const DOCUMENT_CATEGORIES = ["insurance", "licensing", "safety", "financial", "company"] as const;
+
+const dayOrEmpty = z.union([dayKey, z.literal(""), z.null()]).optional();
+
+export const qualificationFields = {
+  platform: text(120),
+  portalUrl: url,
+  portalUsernameHint: text(120),
+  ownerUserId: id.nullish(),
+  status: z.enum(QUALIFICATION_STATUSES).optional(),
+  submittedAt: dayOrEmpty,
+  approvedAt: dayOrEmpty,
+  expiresAt: dayOrEmpty,
+  renewalDueAt: dayOrEmpty,
+  notes: text(5000),
+};
+export const createQualificationSchema = z.object({ ...qualificationFields, requirementTypeKeys: z.array(z.string().trim().min(1).max(60)).max(60).optional() });
+export const updateQualificationSchema = z.object(qualificationFields).partial();
+export const requirementPatchSchema = z.object({ required: z.boolean(), status: z.enum(REQUIREMENT_STATUSES), companyDocumentId: id.nullable(), notes: text(1000) }).partial();
+export const addRequirementSchema = z.object({ documentTypeKey: z.string().trim().min(1).max(60) });
+export const documentPatchSchema = z
+  .object({ title: z.string().trim().min(1).max(200), effectiveDate: dayOrEmpty, expiresAt: dayOrEmpty, notes: text(2000), confidentiality: z.enum(CONFIDENTIALITIES), approvedForExternal: z.boolean() })
+  .partial();
+export const documentTypeSchema = z.object({ id: id.optional(), name: z.string().trim().min(2).max(120), category: z.enum(DOCUMENT_CATEGORIES), defaultValidityMonths: z.number().int().min(1).max(120).nullish(), isActive: z.boolean().optional(), sortOrder: z.number().int().min(0).max(1000).optional() });
 
 /** Zod issues as one line: "field: what is wrong". */
 export function issuesMessage(err: z.ZodError): string {

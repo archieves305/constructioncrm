@@ -18,7 +18,20 @@ export type InteractionOutcome = "NO_ANSWER" | "LEFT_MESSAGE" | "SENT" | "SPOKE"
 export type Person = { id: string; firstName: string; lastName: string };
 export type Option<T extends string = string> = { value: T; label: string; hint?: string; isClosed?: boolean };
 
+export type QualificationStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "INFO_REQUESTED" | "APPROVED" | "REJECTED";
+export type DerivedQualStatus = QualificationStatus | "EXPIRED" | "RENEWAL_DUE";
+export type RequirementStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "WAIVED";
+export type RequirementState = "missing" | "provided" | "expired" | "accepted" | "rejected" | "waived";
+export type Confidentiality = "INTERNAL" | "RESTRICTED" | "SHAREABLE";
+
+export type DocumentTypeOption = Option & { id: string; category: string; defaultValidityMonths: number | null };
+
 export type PartnerOptions = {
+  documentTypes: DocumentTypeOption[];
+  qualificationStatuses: Option<QualificationStatus>[];
+  requirementStatuses: Option<RequirementStatus>[];
+  confidentialities: Option<Confidentiality>[];
+  defaultRequirementTypeKeys: string[];
   stages: Option<PartnerStage>[];
   kinds: Option<OrganizationKind>[];
   priorities: Option<Priority>[];
@@ -145,7 +158,77 @@ export type OrgDetail = {
   permissions: { canManage: boolean; canAdmin: boolean };
 };
 
+export type DocumentView = {
+  id: string;
+  documentTypeId: string;
+  title: string;
+  version: number;
+  effectiveDate: string | null;
+  expiresAt: string | null;
+  confidentiality: Confidentiality;
+  approvedForExternal: boolean;
+  supersedesId: string | null;
+  notes: string | null;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  createdAt: string;
+  updatedAt: string;
+  uploadedBy: Person;
+  documentType: { id: string; key: string; name: string; category: string };
+  encrypted: boolean;
+  locked: boolean;
+  missing: boolean;
+  current: boolean;
+  daysLeft: number | null;
+  usedByCount: number;
+};
+
+export type VaultType = { id: string; key: string; name: string; category: string; defaultValidityMonths: number | null; isActive: boolean; sortOrder: number; current: DocumentView | null; versions: DocumentView[] };
+export type Vault = { types: VaultType[]; canUpload: boolean; canClassify: boolean; canReadRestricted: boolean };
+
+export type Requirement = {
+  id: string;
+  qualificationId: string;
+  documentTypeId: string;
+  required: boolean;
+  status: RequirementStatus;
+  companyDocumentId: string | null;
+  providedAt: string | null;
+  notes: string | null;
+  sortOrder: number;
+  documentType: { id: string; key: string; name: string; category: string };
+  companyDocument: { id: string; title: string; version: number; expiresAt: string | null; confidentiality: Confidentiality; fileName: string; locked: boolean } | null;
+  state: RequirementState;
+};
+
+export type Qualification = {
+  id: string;
+  organizationId: string;
+  platform: string | null;
+  portalUrl: string | null;
+  portalUsernameHint: string | null;
+  ownerUserId: string | null;
+  status: QualificationStatus;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  expiresAt: string | null;
+  renewalDueAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  owner: Person | null;
+  createdBy: Person;
+  organization: { id: string; name: string; stage: PartnerStage; owner: Person | null };
+  requirements: Requirement[];
+  derivedStatus: DerivedQualStatus;
+  coverage: { required: number; satisfied: number; missing: number; optionalSatisfied: number; optionalTotal: number };
+};
+
 export type PartnerSettings = {
+  vaultOwnerUserId: string | null;
+  vaultOwner: (Person & { isActive: boolean }) | null;
+  defaultRequirementTypeKeys: string[];
   newTargetDays: number;
   noResponseDays: number;
   qualSubmittedDays: number;
@@ -196,6 +279,19 @@ export function useInteractions(organizationId: string, kind?: InteractionKind |
 export function useContactsAcross(params: URLSearchParams) {
   const key = params.toString();
   return useQuery<{ rows: ContactRow[]; total: number; canManage: boolean }>({ queryKey: ["partners", "contacts", key], queryFn: () => fetchJson(`/api/partners/contacts?${key}`), retry: retryServerErrors });
+}
+
+export function useVault(enabled = true) {
+  return useQuery<Vault>({ queryKey: ["partners", "vault"], queryFn: () => fetchJson("/api/company-documents"), retry: retryServerErrors, enabled });
+}
+
+export function useQualifications(organizationId: string, enabled = true) {
+  return useQuery<{ qualifications: Qualification[]; canManage: boolean }>({ queryKey: ["partners", "qualifications", organizationId], queryFn: () => fetchJson(`/api/partners/${organizationId}/qualifications`), retry: retryServerErrors, enabled });
+}
+
+export function useQualificationsAcross(params: URLSearchParams) {
+  const key = params.toString();
+  return useQuery<{ rows: Qualification[]; canManage: boolean }>({ queryKey: ["partners", "qualifications-all", key], queryFn: () => fetchJson(`/api/qualifications?${key}`), retry: retryServerErrors });
 }
 
 export function usePartnerSettings(enabled = true) {

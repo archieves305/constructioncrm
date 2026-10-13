@@ -8,6 +8,11 @@ import { CASE_LABEL_SELECT, JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/la
 import type { ListScope } from "@/lib/lists/scope";
 import { dashboardTaskWhere } from "@/lib/reports/dashboard-scope";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
+
+/** A prequalification this close to its expiry is on the list. */
+const QUALIFICATION_EXPIRING_DAYS = 90;
+/** A vault document this close to its expiry — the same window the vault alerts use. */
+const VAULT_EXPIRING_DAYS = 30;
 import { APP_TIME_ZONE, dayKey } from "@/lib/time/zone";
 import { vendorsNeedingDocuments } from "@/lib/vendors/compliance-load";
 import { violationVisibilityFilter } from "@/lib/violations/access";
@@ -56,6 +61,17 @@ export function partnerFollowUpsWhere(ctx: AttentionContext): Prisma.TaskWhereIn
     AND: [
       { organizationId: { not: null }, sourceKey: { startsWith: "org:" }, status: { in: [...OPEN_TASK_STATUSES] }, activatedAt: { not: null } },
       dashboardTaskWhere({ scope: ctx.scope, userId: ctx.user.id }),
+    ],
+  };
+}
+
+/** Approved prequalifications expired, renewal-due, or expiring inside 90 days; Mine = accounts I own. */
+export function qualificationsExpiringWhere(ctx: AttentionContext): Prisma.QualificationWhereInput {
+  const soon = new Date(ctx.now.getTime() + QUALIFICATION_EXPIRING_DAYS * 86_400_000);
+  return {
+    AND: [
+      { status: "APPROVED", organization: { isActive: true }, OR: [{ expiresAt: { lte: soon } }, { renewalDueAt: { lte: ctx.now } }] },
+      ctx.scope === "mine" ? { organization: { ownerUserId: ctx.user.id } } : {},
     ],
   };
 }
@@ -173,7 +189,24 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "deposits-missing": (ctx) => prisma.job.count({ where: depositsMissingWhere(ctx) }),
   "quiet-jobs": (ctx) => prisma.job.count({ where: quietJobsWhere(ctx) }),
   "partner-follow-ups": (ctx) => prisma.task.count({ where: partnerFollowUpsWhere(ctx) }),
+  "qualifications-expiring": (ctx) => prisma.qualification.count({ where: qualificationsExpiringWhere(ctx) }),
+  // Company-wide, so Mine and All agree: the vault belongs to no one account.
+  "company-docs-expiring": async (ctx) => (await expiringVaultDocuments(ctx.now)).length,
 };
+
+/** The current version of each document type that has expired or expires inside 30 days. */
+async function expiringVaultDocuments(now: Date) {
+  const soon = new Date(now.getTime() + VAULT_EXPIRING_DAYS * 86_400_000);
+  const docs = await prisma.companyDocument.findMany({ orderBy: [{ documentTypeId: "asc" }, { version: "desc" }], select: { id: true, title: true, documentTypeId: true, expiresAt: true, documentType: { select: { name: true } } } });
+  const seen = new Set<string>();
+  const out: typeof docs = [];
+  for (const d of docs) {
+    if (seen.has(d.documentTypeId)) continue;
+    seen.add(d.documentTypeId);
+    if (d.expiresAt && d.expiresAt <= soon) out.push(d);
+  }
+  return out.sort((a, b) => a.expiresAt!.getTime() - b.expiresAt!.getTime());
+}
 
 /** Every row this person's role is shown, with its count (zeros included — the caller decides what to hide). */
 export async function loadAttention(ctx: AttentionContext): Promise<AttentionCount[]> {
@@ -365,6 +398,23 @@ const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionCon
     return rows.map((j) =>
       item(j.id, jobLabel(j), `${j.currentStage.name} · last edited ${day(j.updatedAt)}${j.nextAction?.trim() ? ` · next: ${j.nextAction.trim()}` : ""}`, j.updatedAt, `/jobs/${j.id}`),
     );
+  },
+  "qualifications-expiring": async (ctx) => {
+    const rows = await prisma.qualification.findMany({
+      where: qualificationsExpiringWhere(ctx),
+      orderBy: [{ expiresAt: { sort: "asc", nulls: "last" } }],
+      take,
+      select: { id: true, platform: true, expiresAt: true, renewalDueAt: true, organization: { select: { id: true, name: true } } },
+    });
+    return rows.map((q) => {
+      const expired = q.expiresAt && q.expiresAt < ctx.now;
+      const detail = expired ? `expired ${day(q.expiresAt)}` : q.renewalDueAt && q.renewalDueAt <= ctx.now ? `renewal was due ${day(q.renewalDueAt)}` : `expires ${day(q.expiresAt)}`;
+      return item(q.id, { primary: q.organization.name, secondary: q.platform, code: null, placeholder: false }, detail, q.expiresAt, `/partners/${q.organization.id}?tab=qualification`);
+    });
+  },
+  "company-docs-expiring": async (ctx) => {
+    const rows = await expiringVaultDocuments(ctx.now);
+    return rows.slice(0, take).map((d) => item(d.id, { primary: d.documentType.name, secondary: d.title, code: null, placeholder: false }, d.expiresAt! < ctx.now ? `expired ${day(d.expiresAt)}` : `expires ${day(d.expiresAt)}`, d.expiresAt, "/partners/vault"));
   },
   "partner-follow-ups": async (ctx) => {
     const rows = await prisma.task.findMany({

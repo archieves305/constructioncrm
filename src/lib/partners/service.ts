@@ -9,6 +9,7 @@ import { orgBadges, type OrgBadge } from "./derive";
 import { PartnerError } from "./errors";
 import { settlePartnerFollowUps } from "./follow-up-run";
 import { buildOrgListWhere, orgOrderBy, type OrgListContext, type OrgListParams } from "./query";
+import { representativeQualifications } from "./qualifications";
 import { getPartnerSettings } from "./settings";
 import { stageDef, stageNeedsReason } from "./stages";
 
@@ -133,7 +134,7 @@ export async function listOrganizations(params: OrgListParams, ctx: OrgListConte
     prisma.organization.count({ where }),
     getPartnerSettings(),
   ]);
-  const tasks = await nextOpenTasks(rows.map((r) => r.id));
+  const [tasks, quals] = await Promise.all([nextOpenTasks(rows.map((r) => r.id)), representativeQualifications(rows.map((r) => r.id))]);
   const now = new Date();
   const perms = partnerPermissions(ctx.user.role);
   return {
@@ -157,7 +158,7 @@ export async function listOrganizations(params: OrgListParams, ctx: OrgListConte
         contactCount: r._count.contacts,
         interactionCount: r._count.interactions,
         nextOpenTask: tasks.get(r.id) ?? null,
-        badges: orgBadges({ stage: r.stage, createdAt: r.createdAt, lastContactAt: r.lastContactAt, interactionCount: r._count.interactions, jobCount: undefined }, now, { activeQuietDays: settings.activeQuietDays }),
+        badges: orgBadges({ stage: r.stage, createdAt: r.createdAt, lastContactAt: r.lastContactAt, interactionCount: r._count.interactions, jobCount: undefined, qualification: quals.get(r.id) ?? null }, now, { activeQuietDays: settings.activeQuietDays }),
       };
     }),
     total,
@@ -216,7 +217,7 @@ const DETAIL_SELECT = {
 export type OrgDetailRow = Prisma.OrganizationGetPayload<{ select: typeof DETAIL_SELECT }>;
 
 export async function getOrganizationDetail(id: string, viewer: { id: string; role: RoleName }) {
-  const [org, settings] = await Promise.all([prisma.organization.findUnique({ where: { id }, select: DETAIL_SELECT }), getPartnerSettings()]);
+  const [org, settings, quals] = await Promise.all([prisma.organization.findUnique({ where: { id }, select: DETAIL_SELECT }), getPartnerSettings(), representativeQualifications([id])]);
   if (!org) throw new PartnerError(404, "Account not found");
   const openTasks = await prisma.task.findMany({
     where: { organizationId: id, status: { in: [...OPEN_TASK_STATUSES] }, activatedAt: { not: null } },
@@ -231,7 +232,7 @@ export async function getOrganizationDetail(id: string, viewer: { id: string; ro
     interactionCount: _count.interactions,
     leadCount: _count.leads,
     openTasks,
-    badges: orgBadges({ stage: org.stage, createdAt: org.createdAt, lastContactAt: org.lastContactAt, interactionCount: _count.interactions }, now, { activeQuietDays: settings.activeQuietDays }),
+    badges: orgBadges({ stage: org.stage, createdAt: org.createdAt, lastContactAt: org.lastContactAt, interactionCount: _count.interactions, qualification: quals.get(id) ?? null }, now, { activeQuietDays: settings.activeQuietDays }),
     permissions: partnerPermissions(viewer.role),
   };
 }

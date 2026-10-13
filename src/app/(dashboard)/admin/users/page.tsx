@@ -51,6 +51,7 @@ type UserRow = {
   canEditPayRates: boolean;
   canViewPayrollReports: boolean;
   canEnterJobCosts: boolean;
+  canViewRestrictedDocuments: boolean;
 };
 
 const GRANT_OPTIONS = [
@@ -74,6 +75,11 @@ const GRANT_OPTIONS = [
     label: "Enter job costs",
     description:
       "Add and amend charges on jobs. Admin, Manager and Accounting already can — grant this to a PM or crew lead who buys materials",
+  },
+  {
+    key: "canViewRestrictedDocuments" as const,
+    label: "Open restricted vault documents",
+    description: "Financial statements, banking letters and tax forms in the Business Development vault. Admins always can; a Manager or Accounting person needs this (every read is logged)",
   },
 ];
 

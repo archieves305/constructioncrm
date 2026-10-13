@@ -4,7 +4,9 @@ import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { canViewPartners, PARTNER_DENIED_MESSAGE } from "@/lib/partners/access";
 import { getPartnerSettings } from "@/lib/partners/settings";
 import { PARTNER_STAGES } from "@/lib/partners/stages";
-import { CONTACT_ROLES, INTERACTION_KINDS, INTERACTION_OUTCOMES, ORGANIZATION_KINDS, ORGANIZATION_PRIORITIES } from "@/lib/partners/validation";
+import { CONFIDENTIALITIES, CONTACT_ROLES, INTERACTION_KINDS, INTERACTION_OUTCOMES, ORGANIZATION_KINDS, ORGANIZATION_PRIORITIES, QUALIFICATION_STATUSES, REQUIREMENT_STATUSES } from "@/lib/partners/validation";
+import { QUAL_STATUS_LABEL } from "@/lib/partners/qualification-state";
+import { CONFIDENTIALITY_LABEL } from "@/lib/partners/vault-access";
 
 const KIND_LABEL: Record<(typeof ORGANIZATION_KINDS)[number], string> = {
   GENERAL_CONTRACTOR: "General contractor",
@@ -63,10 +65,11 @@ export async function GET() {
   const session = await getSession();
   if (!session?.user) return unauthorized();
   if (!canViewPartners(session.user.role)) return NextResponse.json({ error: PARTNER_DENIED_MESSAGE }, { status: 403 });
-  const [settings, trades, owners] = await Promise.all([
+  const [settings, trades, owners, documentTypes] = await Promise.all([
     getPartnerSettings(),
     prisma.serviceCategory.findMany({ where: { isActive: true, parentId: null }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
     prisma.user.findMany({ where: { isActive: true, role: { name: { in: ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP"] } } }, orderBy: [{ firstName: "asc" }, { lastName: "asc" }], select: { id: true, firstName: true, lastName: true } }),
+    prisma.companyDocumentType.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, key: true, name: true, category: true, defaultValidityMonths: true } }),
   ]);
   return NextResponse.json({
     stages: PARTNER_STAGES.map((s) => ({ value: s.key, label: s.name, hint: s.hint, isClosed: s.isClosed })),
@@ -78,5 +81,10 @@ export async function GET() {
     markets: settings.markets,
     trades: trades.map((t) => ({ value: t.id, label: t.name })),
     owners: owners.map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName}` })),
+    documentTypes: documentTypes.map((t) => ({ value: t.key, label: t.name, id: t.id, category: t.category, defaultValidityMonths: t.defaultValidityMonths })),
+    qualificationStatuses: QUALIFICATION_STATUSES.map((s) => ({ value: s, label: QUAL_STATUS_LABEL[s] })),
+    requirementStatuses: REQUIREMENT_STATUSES.map((s) => ({ value: s, label: s === "PENDING" ? "Pending" : s === "ACCEPTED" ? "Accepted" : s === "REJECTED" ? "Rejected" : "Waived" })),
+    confidentialities: CONFIDENTIALITIES.map((c) => ({ value: c, label: CONFIDENTIALITY_LABEL[c] })),
+    defaultRequirementTypeKeys: settings.defaultRequirementTypeKeys,
   });
 }

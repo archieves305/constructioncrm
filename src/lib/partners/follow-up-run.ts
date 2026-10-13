@@ -6,6 +6,7 @@ import { createTask } from "@/lib/tasks/create";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 import { pinAllDay, todayKey, type DayKey } from "@/lib/time/zone";
 import { followUpPrefix, liveFollowUpKeys, planFollowUps, type FollowUpInput, type FollowUpRule, type PlannedFollowUp } from "./follow-ups";
+import { representativeQualifications } from "./qualifications";
 import { getPartnerSettings, thresholdsOf } from "./settings";
 
 /**
@@ -36,7 +37,9 @@ const ORG_SELECT = {
 
 type OrgRow = Prisma.OrganizationGetPayload<{ select: typeof ORG_SELECT }>;
 
-function inputOf(o: OrgRow): FollowUpInput {
+type QualFact = { status: string; submittedAt: Date | null; approvedAt: Date | null } | null;
+
+function inputOf(o: OrgRow, qualification: QualFact): FollowUpInput {
   const last = o.interactions[0];
   return {
     org: { id: o.id, name: o.name, stage: o.stage, createdAt: o.createdAt, lastContactAt: o.lastContactAt },
@@ -44,6 +47,7 @@ function inputOf(o: OrgRow): FollowUpInput {
       ? { id: last.id, kind: last.kind, direction: last.direction, outcome: last.outcome, occurredAt: last.occurredAt, contactName: last.contact ? `${last.contact.firstName} ${last.contact.lastName}` : null }
       : null,
     interactionCount: o._count.interactions,
+    qualification,
   };
 }
 
@@ -91,9 +95,10 @@ export async function raisePartnerFollowUps(today: DayKey = todayKey(), opts: { 
   const t = thresholdsOf(settings);
   const orgs = await prisma.organization.findMany({ where: { isActive: true, stage: { notIn: ["DORMANT", "DO_NOT_PURSUE"] } }, select: ORG_SELECT });
   out.organizations = orgs.length;
+  const quals = await representativeQualifications(orgs.map((o) => o.id));
   for (const o of orgs) {
     try {
-      const plans = planFollowUps(inputOf(o), today, t);
+      const plans = planFollowUps(inputOf(o, quals.get(o.id) ?? null), today, t);
       if (plans.length === 0) continue;
       if (opts.dryRun) {
         for (const p of plans) {
@@ -125,7 +130,8 @@ export async function settlePartnerFollowUps(organizationId: string, actorUserId
     const o = await prisma.organization.findUnique({ where: { id: organizationId }, select: ORG_SELECT });
     if (!o) return 0;
     const settings = await getPartnerSettings();
-    const live = liveFollowUpKeys(inputOf(o), todayKey(), thresholdsOf(settings));
+    const quals = await representativeQualifications([o.id]);
+    const live = liveFollowUpKeys(inputOf(o, quals.get(o.id) ?? null), todayKey(), thresholdsOf(settings));
     const open = await prisma.task.findMany({
       where: { sourceKey: { startsWith: followUpPrefix(organizationId) }, status: { in: [...OPEN_TASK_STATUSES] } },
       select: { sourceKey: true },

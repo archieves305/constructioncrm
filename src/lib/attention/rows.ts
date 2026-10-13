@@ -27,6 +27,8 @@ export const ATTENTION_KEYS = [
   "deposits-missing",
   "quiet-jobs",
   "partner-follow-ups",
+  "qualifications-expiring",
+  "company-docs-expiring",
 ] as const;
 export type AttentionKey = (typeof ATTENTION_KEYS)[number];
 
@@ -145,6 +147,20 @@ export const ATTENTION_ROWS: readonly AttentionRowDef[] = [
     description: "Open follow-ups the Business Development rules raised: a target nobody has called, an unanswered touch, an active partner gone quiet. Logging the interaction on the account closes it.",
     tone: "warning",
     roles: PRODUCTION,
+  },
+  {
+    key: "qualifications-expiring",
+    label: "Prequalifications expiring",
+    description: "Approved prequalifications that have expired, reached their renewal day, or expire within 90 days.",
+    tone: "warning",
+    roles: PRODUCTION,
+  },
+  {
+    key: "company-docs-expiring",
+    label: "Vault documents expiring",
+    description: "The current version of a company document (insurance, licences, safety, financials) that has expired or expires within 30 days.",
+    tone: "warning",
+    roles: OFFICE,
   },
 ];
 

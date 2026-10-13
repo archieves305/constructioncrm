@@ -17,7 +17,7 @@ import { useInvalidatePartners, usePartnerOptions, usePartnerSettings, type Part
 
 const NONE = "__none";
 
-type Form = Pick<PartnerSettings, "newTargetDays" | "noResponseDays" | "qualSubmittedDays" | "prequalNoBidDays" | "activeQuietDays" | "dormantAfterDays" | "defaultOwnerUserId" | "markets">;
+type Form = Pick<PartnerSettings, "newTargetDays" | "noResponseDays" | "qualSubmittedDays" | "prequalNoBidDays" | "activeQuietDays" | "dormantAfterDays" | "defaultOwnerUserId" | "markets" | "vaultOwnerUserId" | "defaultRequirementTypeKeys">;
 
 /** Follow-up timing for GC accounts, who gets the tasks by default, and the markets list. */
 export default function PartnerSettingsPage() {
@@ -29,7 +29,7 @@ export default function PartnerSettingsPage() {
 function SettingsForm({ data }: { data: PartnerSettings }) {
   const { data: options } = usePartnerOptions();
   const invalidate = useInvalidatePartners();
-  const [form, setForm] = useState<Form>(() => ({ newTargetDays: data.newTargetDays, noResponseDays: data.noResponseDays, qualSubmittedDays: data.qualSubmittedDays, prequalNoBidDays: data.prequalNoBidDays, activeQuietDays: data.activeQuietDays, dormantAfterDays: data.dormantAfterDays, defaultOwnerUserId: data.defaultOwnerUserId, markets: data.markets }));
+  const [form, setForm] = useState<Form>(() => ({ newTargetDays: data.newTargetDays, noResponseDays: data.noResponseDays, qualSubmittedDays: data.qualSubmittedDays, prequalNoBidDays: data.prequalNoBidDays, activeQuietDays: data.activeQuietDays, dormantAfterDays: data.dormantAfterDays, defaultOwnerUserId: data.defaultOwnerUserId, markets: data.markets, vaultOwnerUserId: data.vaultOwnerUserId, defaultRequirementTypeKeys: data.defaultRequirementTypeKeys }));
   const [newMarket, setNewMarket] = useState("");
 
   const save = useMutation({
@@ -80,6 +80,33 @@ function SettingsForm({ data }: { data: PartnerSettings }) {
                 <SelectTrigger className="w-full sm:w-72" aria-label="Default owner"><SelectValue /></SelectTrigger>
                 <SelectContent>{owners.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}</SelectContent>
               </Select>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Vault owner</CardTitle><p className="text-sm text-muted-foreground">Gets the task when a company document in the vault is about to expire. Automatic = the Accounting role default, then the oldest admin.</p></CardHeader>
+            <CardContent>
+              <Select items={[{ value: NONE, label: "Automatic" }, ...(options?.owners ?? [])]} value={form.vaultOwnerUserId ?? NONE} onValueChange={(v: string | null) => set("vaultOwnerUserId", !v || v === NONE ? null : v)} disabled={!canEdit}>
+                <SelectTrigger className="w-full sm:w-72" aria-label="Vault owner"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Automatic</SelectItem>
+                  {(options?.owners ?? []).map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Default qualification checklist</CardTitle><p className="text-sm text-muted-foreground">What a new qualification starts with; each GC list is then adjusted on its own tab.</p></CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-1.5">
+                {(options?.documentTypes ?? []).map((t) => {
+                  const on = form.defaultRequirementTypeKeys.includes(t.value);
+                  return (
+                    <Button key={t.value} type="button" size="sm" variant={on ? "default" : "outline"} className="h-7 rounded-full text-xs" aria-pressed={on} disabled={!canEdit} onClick={() => set("defaultRequirementTypeKeys", on ? form.defaultRequirementTypeKeys.filter((k) => k !== t.value) : [...form.defaultRequirementTypeKeys, t.value])}>
+                      {t.label}
+                    </Button>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
           <Card>
