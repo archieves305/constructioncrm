@@ -67,7 +67,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (`BidIntake`), pure `itb-parse.ts`, `itb-intake.ts`, paste on
    `/partners/intake`, MailerSend inbound webhook (off until
    `MAILERSEND_INBOUND_SECRET` is set and a route is created), Outlook poller
-   hand-off. Stage 2 facts:
+   hand-off. **Phase 8a (prequalification package: one zip of the vault
+   documents a GC's checklist asks for) built + dev-QA'd 2026-10-13 on
+   `partners-s8`, fast-forwarded to `main`, not deployed**; no migration, new
+   direct dependency `fflate`. Stage 2 facts:
    migration `20261024120000_partners_qualifications` (`CompanyDocumentType`,
    `CompanyDocument` with own storage + encryption at rest for RESTRICTED,
    `Qualification`, `QualificationRequirement`, `PartnerSettings` vault owner +
@@ -481,6 +484,33 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-13 — GC Partnerships Phase 8a: prequalification package (built + dev-QA'd on `partners-s8`, on `main`, not deployed)
+
+"go to next recommended phase". Phases 5b (BuildingConnected: Bid Board Pro +
+OAuth), 6 (discovery: the plan defers it until bid volume) and 7 (AI: no
+`ANTHROPIC_API_KEY` on prod, and the shared AI-call layer is the takeoff M3
+work still uncommitted in the main checkout) are each blocked, so the session
+took Phase 8's first piece. Built: pure `lib/partners/package-plan.ts`
+(`planPackage` — per checklist line the vault's current version, else the
+attached one; out when waived, nothing filed, expired, not approved for
+external, file missing, or RESTRICTED without both the right and the tick; a
+version the GC rejected is not resent; `contentsSheet` lists enclosed and "to
+follow" only, never internal reasons; `entryName`, `docLabel`);
+`lib/partners/package.ts` (`previewPackage`, `buildPackage` — fflate zip,
+documents stored, RESTRICTED decrypted, audit `qualification_package` + one
+`document_view` per restricted file with IP / UA);
+`GET /api/qualifications/[id]/package` (`?preview=1` writes nothing,
+`?restricted=1`; partner managers; 409 when nothing can go; rate-limited);
+`PackageDialog` behind a **Package** button on each qualification. Gate:
+typecheck clean, lint 5/22, 1713 tests (+10), build clean. Dev QA: API 18/18
+(current-version preference, every reason, restricted opt-in, zip listing and
+contents sheet, W-9 decrypted, audit rows, 409 / 404), headless Chromium 6/6
+at 1280 and 400 px; SALES_REP asking for restricted gets none, READ_ONLY 403;
+fixed in QA: "W-9 v3 v3" (default titles already carry the version). QA vault
+files and rows removed, john.rep back to SALES_REP. Not done (rest of Phase
+8): estimating hours per task, `Organization.kind` work beyond GCs; logging
+the package as sent is a manual interaction.
 
 ### 2026-10-13 — GC Partnerships Phase 5: bid invitations by email (deployed `f4f39c3`)
 
@@ -2956,11 +2986,23 @@ Notification Digests).
   (`itb-parse.ts`) is deterministic and leaves what it cannot read empty; no
   due date or addendum count moves without the person ticking it. New intake
   channels call `ingestItbEmail`, never `createBid` directly.
+- **A vault document leaves the CRM in a package only if a manager approved it
+  for external distribution** (`lib/partners/package-plan.ts`): in date, on
+  file, and RESTRICTED only for someone who may open it and asked for it —
+  each such file audited as a `document_view`. The contents sheet the GC sees
+  never states internal reasons.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **GC Partnerships Phase 8a (prequalification package) is on `main`, not
+> deployed (no migration; `npm ci` picks up `fflate`).** After Richard's push +
+> deploy: an account → Qualification → Package — only documents marked
+> "approved for external" in the vault go in, so approve the ones KNU sends.
+> Still blocked: 5b (Bid Board Pro), 6 (volume), 7 (prod AI key + the takeoff
+> AI layer).
 
 > **GC Partnerships Phase 5 (bid intake) is on prod (`f4f39c3`, BUILD_ID
 > `fq9IG_D9irXnQMsxcg7XR`).** Next: paste

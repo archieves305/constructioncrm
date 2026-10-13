@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Check, ClipboardCheck, ExternalLink, FileText, Lock, MoreHorizontal, Paperclip, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, ClipboardCheck, Download, ExternalLink, FileText, Lock, MoreHorizontal, Paperclip, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -17,6 +17,7 @@ import { QUAL_STATUS_LABEL, REQUIREMENT_STATE_LABEL } from "@/lib/partners/quali
 import { toneClasses } from "@/lib/ui/tones";
 import type { Tone } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
+import { PackageDialog } from "./package-dialog";
 import { QualificationDialog } from "./qualification-dialog";
 import { useInvalidatePartners, usePartnerOptions, useQualifications, useVault, personName, type DerivedQualStatus, type Qualification, type Requirement, type RequirementState } from "./use-partners";
 import { VaultPreviewDialog } from "./vault-preview-dialog";
@@ -89,6 +90,7 @@ function QualificationCard({ q, canManage, onEdit, onDelete }: { q: Qualificatio
   const invalidate = useInvalidatePartners();
   const { data: options } = usePartnerOptions();
   const { data: vault } = useVault();
+  const [packaging, setPackaging] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addKey, setAddKey] = useState("");
   const [preview, setPreview] = useState<DocumentView | null>(null);
@@ -130,6 +132,7 @@ function QualificationCard({ q, canManage, onEdit, onDelete }: { q: Qualificatio
 
   return (
     <Card>
+      {packaging && <PackageDialog qualificationId={q.id} open={packaging} onOpenChange={setPackaging} />}
       <CardHeader className="space-y-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
@@ -153,6 +156,11 @@ function QualificationCard({ q, canManage, onEdit, onDelete }: { q: Qualificatio
             {q.portalUrl && (
               <Button size="sm" variant="outline" nativeButton={false} render={<a href={q.portalUrl} target="_blank" rel="noreferrer" />}>
                 <ExternalLink className="mr-1 size-3.5" /> Portal
+              </Button>
+            )}
+            {canManage && (
+              <Button size="sm" variant="outline" onClick={() => setPackaging(true)}>
+                <Download className="mr-1 size-3.5" /> Package
               </Button>
             )}
             {canManage && (

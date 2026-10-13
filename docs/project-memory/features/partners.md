@@ -376,6 +376,29 @@ link carry it).
 QA (dev, 2026-10-13): API 37/38 (one check's own formatting), Chromium 18/18
 at 1280 / 400 px, roles, webhook 503 unset; QA rows removed.
 
+## Phase 8a — prequalification package (built 2026-10-13, `partners-s8`)
+
+Account → Qualification → **Package**: a dialog lists each checklist line as
+included (with the document and any note) or left out (with the reason), an
+"Include restricted documents" tick for those who may open them, and
+**Download n documents** → `KNU prequalification - <GC> - <date>.zip`:
+`00 - Contents.txt` (enclosed + "to follow"; never internal reasons) and the
+files numbered in checklist order.
+
+Rules (`package-plan.ts`, pure): prefer the vault's current version of the
+line's type, fall back to the attached version, note either difference; leave
+out waived lines, lines with nothing filed, expired documents, documents not
+`approvedForExternal`, files missing from storage, RESTRICTED documents unless
+the person may read them **and** ticked the box, and a version the GC
+rejected. Loader + zip in `package.ts` (fflate, stored not deflated, RESTRICTED
+decrypted); audit `qualification_package` on the qualification and
+`document_view` (via `qualification_package`) per restricted file.
+`GET /api/qualifications/[id]/package[?preview=1][&restricted=1]`, partner
+managers only, 409 when nothing can go.
+
+QA (dev): API 18/18, Chromium 6/6, SALES_REP / READ_ONLY checked; QA vault
+emptied again.
+
 ## Next
 
 Later phases from the plan: BuildingConnected OAuth, opportunity discovery,
