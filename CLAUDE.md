@@ -60,7 +60,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `kRdp4GOoGpB0OBh-SM6ol`, migration `20261026120000_partners_scorecard`
    applied (92), CHECK present, smoke 307 ×2, journal clean, backup
    `postgres-2026-10-13-185953.dump`); no seed, no cron. **The four-stage
-   plan is on prod.** Stage 2 facts:
+   plan is on prod.** **Phase 5 (bid invitations by email → Bid intake
+   queue) built + dev-QA'd 2026-10-13 on `partners-s5`, fast-forwarded to
+   `main`, not deployed**: migration `20261027120000_partners_bid_intake`
+   (`BidIntake`), pure `itb-parse.ts`, `itb-intake.ts`, paste on
+   `/partners/intake`, MailerSend inbound webhook (off until
+   `MAILERSEND_INBOUND_SECRET` is set and a route is created), Outlook poller
+   hand-off. **Deploy carries the migration.** Stage 2 facts:
    migration `20261024120000_partners_qualifications` (`CompanyDocumentType`,
    `CompanyDocument` with own storage + encryption at rest for RESTRICTED,
    `Qualification`, `QualificationRequirement`, `PartnerSettings` vault owner +
@@ -474,6 +480,42 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-13 — GC Partnerships Phase 5: bid invitations by email (built + dev-QA'd on `partners-s5`, on `main`, not deployed)
+
+"build phase 5". Found first: the plan's "existing intake mailbox" never ran —
+the four `OUTLOOK_*` lines are commented out in `/etc/knuco/env`, prod has 0
+`inbound_email_events` and 0 `intake_settings` rows, and nothing calls the
+poller. So the pipeline was built channel-agnostic: one `ingestItbEmail`
+fed by (1) **paste** on Business Development → Bid intake (works with no
+setup), (2) **MailerSend inbound routing** →
+`POST /api/integrations/mailersend/inbound` (HMAC-SHA256 `Signature` of the
+raw body; 503 without `MAILERSEND_INBOUND_SECRET`, 401 on a bad signature,
+the published test-secret ping acknowledged and dropped), (3) the dormant
+Outlook poller handing platform / contact mail over instead of reading it as
+a Google Ads lead. Built: migration `20261027120000_partners_bid_intake`
+(`BidIntake` beside the raw `InboundEmailEvent`); pure `itb-parse.ts`
+(forward unwrapping, HTML → text, platform from sender / links, labelled
+fields, dates in office time with named zones, a date without a time = 5 PM
+flagged, address split, kind INVITATION / ADDENDUM / UPDATE, account match by
+contact email → company domain → GC name, existing bid by platform id → same
+account + project, trades by name, sender gate: KNU users, known contacts,
+bid platforms); `itb-intake.ts` (ingest with idempotency, review task to the
+account owner once per item `bid-intake:<id>` — none for a paste, create the
+bid through `createBid` with `signalSource "email:<platform>"`, file on an
+existing bid with optional addendum count / due date, dismiss, pick account;
+conditional on NEW so two people cannot both decide); routes under
+`/api/partners/intake`; `/partners/intake` page + sidebar entry, the bid form
+prefilled from the email, a "waiting for review" link on Bids. A subject line
+used as the project is shown as such and never counted as "read". Gate:
+typecheck clean, lint 5/22, 1703 tests (+28), build clean. Dev QA: API 37/38
+(the miss was the check's own date formatting; values right), headless
+Chromium 18/18 at 1280 and 400 px, READ_ONLY 403 / SALES_REP 201, webhook 503
+unset; QA rows removed, john.rep back to SALES_REP. **Not proven: real ITB
+emails** (fixtures are written from the platforms' known shapes) and the
+MailerSend signature scheme against a live route (taken from a third-party
+guide; the route's first test ping will show it). Attachments in forwarded
+mail are not stored.
 
 ### 2026-10-13 — GC Partnerships Stage 4: health, scorecard, analytics (deployed `68bfb2f`)
 
@@ -2691,6 +2733,9 @@ off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
 deadline), `VIOLATION_ESCALATIONS_ENABLED` (default off; `1` after SPF),
 `UPLOADS_DIR` (absolute path of the upload store; set on the droplet so it
 lives outside the app folder; unset = `./uploads`),
+`MAILERSEND_INBOUND_SECRET` (signing secret of the MailerSend inbound route
+that forwards bid invitations; unset = `/api/integrations/mailersend/inbound`
+503s, pasting on Bid intake still works),
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
 `ZYLOW_API_KEY`, `ZYLOW_API_BASE`, `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`,
 `NURTURE_ENABLED` (default `0`; `1` after SPF — the DB switch under
@@ -2898,11 +2943,28 @@ Notification Digests).
   derived on read (`qualification-state.ts`); the GC's answer is the only
   stored decision. Vault and qualification expiries are tasks raised once per
   key (`document-alert-run.ts`) and settled by every write.
+- **An emailed bid invitation is never a bid until a person confirms it**
+  (`lib/partners/itb-intake.ts`): every channel (paste, MailerSend inbound,
+  Outlook) goes through `ingestItbEmail` into a `BidIntake`; the reader
+  (`itb-parse.ts`) is deterministic and leaves what it cannot read empty; no
+  due date or addendum count moves without the person ticking it. New intake
+  channels call `ingestItbEmail`, never `createBid` directly.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **GC Partnerships Phase 5 (bid intake) is on `main`, not deployed (migration
+> `20261027120000_partners_bid_intake`).** After Richard's push + deploy: paste
+> two or three real ITB emails on Business Development → Bid intake and check
+> what was read; any field misread is a parser fixture to add. To have
+> forwarded mail arrive by itself: MailerSend → Inbound routing → a route
+> (its `…@inbound.mailersend.net` address) forwarding to
+> `https://crm.careyos.com/api/integrations/mailersend/inbound`, its secret as
+> `MAILERSEND_INBOUND_SECRET` in `/etc/knuco/env` + restart; then forward one
+> invitation and watch it land. Check first that the MailerSend plan includes
+> inbound routing.
 
 > **GC Partnerships Stage 4 is on prod (`68bfb2f`, BUILD_ID
 > `kRdp4GOoGpB0OBh-SM6ol`); all four stages are live.** Coastal Choice reads

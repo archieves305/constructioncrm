@@ -254,3 +254,15 @@ export function partnerErrorResponse(err: unknown): NextResponse {
   if (err instanceof z.ZodError) return NextResponse.json({ error: issuesMessage(err) }, { status: 400 });
   throw err;
 }
+
+// ─── Bid intake (Phase 5) ───────────────────────────────────────────────────
+
+export const INTAKE_STATUSES = ["NEW", "DONE", "DISMISSED"] as const;
+export const intakePasteSchema = z.object({
+  subject: z.string().trim().max(500).nullish(),
+  from: z.string().trim().max(320).nullish(),
+  body: z.string().trim().min(20, "paste the whole email").max(200_000),
+});
+export const intakeAttachSchema = z.object({ bidId: id, countAddendum: z.boolean().optional(), updateBidDue: z.boolean().optional() });
+export const intakeDismissSchema = z.object({ reason: text(500) });
+export const intakeAccountSchema = z.object({ organizationId: id.nullable() });

@@ -511,6 +511,7 @@ model User {
   qualificationsCreated             Qualification[]           @relation("QualificationCreatedBy")
   bidsCreated                       BidInvitation[]           @relation("BidCreatedBy")
   bidsDecided                       BidInvitation[]           @relation("BidDecidedBy")
+  bidIntakesResolved BidIntake[] @relation("BidIntakeResolvedBy")
   bidsEstimating                    BidInvitation[]           @relation("BidEstimator")
   bidSubmissionsMade                BidSubmission[]           @relation("BidSubmittedBy")
   roofMaterialPricesCreated         RoofMaterialPrice[]       @relation("RoofMaterialPriceCreatedBy")
@@ -2333,6 +2334,7 @@ model InboundEmailEvent {
   leadId            String?               @map("lead_id")
   processedAt       DateTime?             @map("processed_at")
   createdAt         DateTime              @default(now()) @map("created_at")
+  bidIntake         BidIntake?
 
   @@index([processingStatus])
   @@index([senderEmail])
@@ -5259,6 +5261,7 @@ model Organization {
   leads          Lead[]
   tasks          Task[]
   bidInvitations BidInvitation[]
+  bidIntakes     BidIntake[]
 
   @@index([stage])
   @@index([ownerUserId])
@@ -5308,6 +5311,7 @@ model Contact {
   interactions Interaction[]
   leads        Lead[]
   bidInvitations BidInvitation[]
+  bidIntakes     BidIntake[]
   submissionsReceived BidSubmission[] @relation("BidSubmissionRecipient")
 
   @@index([organizationId])
@@ -5674,12 +5678,56 @@ model BidInvitation {
   decidedBy    User?         @relation("BidDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
   createdBy    User          @relation("BidCreatedBy", fields: [createdByUserId], references: [id])
   submissions  BidSubmission[]
+  intakes      BidIntake[]
 
   @@index([organizationId, status])
   @@index([status])
   @@index([bidDueAt])
   @@index([estimatorUserId])
   @@map("bid_invitations")
+}
+
+// An emailed bid invitation waiting for a person (Phase 5). The email is kept
+// as an InboundEmailEvent; this row is what the reader made of it and what
+// became of it. Nothing here is a bid until someone confirms it.
+enum BidIntakeStatus {
+  NEW
+  CREATED
+  ATTACHED
+  DISMISSED
+}
+
+model BidIntake {
+  id                  String          @id @default(cuid())
+  inboundEmailEventId String          @unique @map("inbound_email_event_id")
+  channel             String                                              // manual | mailersend | outlook
+  receivedAt          DateTime        @map("received_at")
+  forwardedBy         String?         @map("forwarded_by")                // the outer sender's address
+  subject             String
+  platform            BidPlatform     @default(EMAIL)
+  // ParsedItb from src/lib/partners/itb-parse.ts, as read on arrival.
+  parsed              Json
+  organizationId      String?         @map("organization_id")
+  contactId           String?         @map("contact_id")
+  matchedBy           String?         @map("matched_by")                  // contact email | email domain | name | person
+  existingBidId       String?         @map("existing_bid_id")             // the reader's suggestion
+  status              BidIntakeStatus @default(NEW)
+  bidInvitationId     String?         @map("bid_invitation_id")           // what it became (CREATED / ATTACHED)
+  dismissReason       String?         @map("dismiss_reason")
+  resolvedByUserId    String?         @map("resolved_by_user_id")
+  resolvedAt          DateTime?       @map("resolved_at")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  email          InboundEmailEvent @relation(fields: [inboundEmailEventId], references: [id], onDelete: Cascade)
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact        Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  bidInvitation  BidInvitation?    @relation(fields: [bidInvitationId], references: [id], onDelete: SetNull)
+  resolvedBy     User?             @relation("BidIntakeResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, receivedAt])
+  @@index([organizationId])
+  @@map("bid_intakes")
 }
 
 // A bid as sent: never edited, a revision is a new row.

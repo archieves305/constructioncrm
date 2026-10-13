@@ -323,9 +323,61 @@ headless Chromium 23/23 at 1280 and 400 px; SALES_REP sees health but gets 403
 on scorecard / analytics / summary / weights; READ_ONLY reads scorecard and
 analytics. QA rows removed, dev settings reset.
 
+## Phase 5 — bid invitations by email (built 2026-10-13, `partners-s5`)
+
+The Outlook intake the plan leaned on was never live (prod env lines commented
+out, 0 events), so intake is channel-agnostic: `ingestItbEmail`
+(`src/lib/partners/itb-intake.ts`) takes an email from a paste
+(`POST /api/partners/intake`), MailerSend inbound routing
+(`/api/integrations/mailersend/inbound`, `src/lib/integrations/mailersend/inbound.ts`)
+or the Outlook poller (`isItbSender` → hand-off in `intake-service.ts`).
+
+- Raw email → `InboundEmailEvent` (provider `manual` / `mailersend_inbound` /
+  `outlook_graph`, status PARSED or IGNORED); the reading → `BidIntake`
+  (NEW → CREATED / ATTACHED / DISMISSED, `parsed` = `ParsedItb`, account +
+  how it matched, suggested existing bid).
+- Sender gate for the open channels: an active user's address, a contact's
+  address, or a bid-platform domain. Anything else is stored IGNORED and shown
+  nowhere. A paste is always accepted.
+- The reader (`itb-parse.ts`) is pure and deterministic. Unwraps Gmail /
+  Outlook / Apple forwards; platform by sender domain then links; labelled
+  fields ("Bid Due Date", "Location", "Bid Package", "Site Walk", "Pre-Bid",
+  "RFI Due"…); "X has invited you to bid on Y"; subject patterns (ITB / RFP /
+  Invitation to Bid / Addendum). Dates are office time unless a zone is named;
+  no time → 5 PM with `dateOnly` (the card says "check it"). Unread fields stay
+  null; the bare subject used as a project name is never counted as read.
+- Matching: contact email → company domain (never a free-mail or platform
+  domain) → GC name (suffixes stripped); a tie is no match. Existing bid:
+  platform id, else same account + project name (equal or contained, ≥ 8
+  chars).
+- Review task (`bid-intake:<id>`, account owner → default owner → oldest admin,
+  HIGH when due within 3 days) for channel mail; none for a paste. Closed when
+  the item is decided.
+- Decide: **Create bid** (the bid form prefilled; posts to
+  `/api/partners/intake/[id]/create`, which calls `createBid` with
+  `signalSource "email:<platform>"`, files the email on the lead's activity),
+  **File on BID-n** (optional addendum count and due date; logs an inbound
+  interaction, moves last contact forward only), **Dismiss** (reason). All
+  conditional on NEW (409 otherwise), all audited (`bid_intake_*`).
+- Roles: partner managers (ADMIN / MANAGER / OFFICE_STAFF / SALES_REP); attach
+  also passes `guardBid`.
+
+Operator setup for forwarding: MailerSend → Inbound routing → new route,
+forward to `https://crm.careyos.com/api/integrations/mailersend/inbound`, copy
+the route secret to `MAILERSEND_INBOUND_SECRET`, restart. People (or an
+Outlook rule) forward invitations to the route's inbound address. The
+signature scheme (hex HMAC-SHA256 of the raw body in `Signature`) comes from a
+third-party guide; the first live ping confirms it.
+
+Not done: storing attachments from forwarded mail; parsing on real ITB emails
+(fixtures are synthetic); an attention row (the review task and the Bids-page
+link carry it).
+
+QA (dev, 2026-10-13): API 37/38 (one check's own formatting), Chromium 18/18
+at 1280 / 400 px, roles, webhook 503 unset; QA rows removed.
+
 ## Next
 
-Later phases from the plan: ITB email intake to the Outlook mailbox,
-BuildingConnected OAuth, opportunity discovery, AI explanations of the health
-breakdown (words only, never points), a nightly health snapshot for trend
-lines.
+Later phases from the plan: BuildingConnected OAuth, opportunity discovery,
+AI (explanations, drafts, ITB field proposals — words only, never points), a
+nightly health snapshot for trend lines.

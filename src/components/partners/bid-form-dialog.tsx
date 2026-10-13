@@ -21,6 +21,8 @@ const dayOf = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "");
 /** datetime-local → an instant; empty → clear. */
 const instant = (v: string) => (v ? new Date(v).toISOString() : "");
 
+export type BidFormPrefill = Partial<Form>;
+
 type Form = {
   organizationId: string;
   contactId: string | null;
@@ -96,21 +98,21 @@ function initialForm(bid: Bid | null, organizationId: string | null): Form {
 }
 
 /** Log a bid invitation from a GC (creates the bid package) or edit one. */
-export function BidFormDialog({ open, onOpenChange, organizationId, editing, onSaved }: { open: boolean; onOpenChange: (o: boolean) => void; organizationId?: string | null; editing?: Bid | null; onSaved?: (b: Bid) => void }) {
+export function BidFormDialog({ open, onOpenChange, organizationId, editing, onSaved, prefill, intakeId }: { open: boolean; onOpenChange: (o: boolean) => void; organizationId?: string | null; editing?: Bid | null; onSaved?: (b: Bid) => void; prefill?: BidFormPrefill; intakeId?: string | null }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        {open && <BidForm organizationId={organizationId ?? null} editing={editing ?? null} onSaved={onSaved} onClose={() => onOpenChange(false)} />}
+        {open && <BidForm organizationId={organizationId ?? null} editing={editing ?? null} onSaved={onSaved} prefill={prefill} intakeId={intakeId ?? null} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function BidForm({ organizationId, editing, onSaved, onClose }: { organizationId: string | null; editing: Bid | null; onSaved?: (b: Bid) => void; onClose: () => void }) {
+function BidForm({ organizationId, editing, onSaved, onClose, prefill, intakeId }: { organizationId: string | null; editing: Bid | null; onSaved?: (b: Bid) => void; onClose: () => void; prefill?: BidFormPrefill; intakeId: string | null }) {
   const router = useRouter();
   const invalidate = useInvalidateBids();
   const { data: options } = useBidOptions();
-  const [form, setForm] = useState<Form>(() => initialForm(editing, organizationId));
+  const [form, setForm] = useState<Form>(() => ({ ...initialForm(editing, organizationId), ...(editing ? {} : prefill) }));
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
   const accountFixed = Boolean(editing || organizationId);
   const accounts = useOrganizations(new URLSearchParams({ pageSize: "500" }), !accountFixed);
@@ -149,7 +151,8 @@ function BidForm({ organizationId, editing, onSaved, onClose }: { organizationId
         tradeIds: form.tradeIds,
       };
       if (editing) return fetchJson<Bid>(`/api/bids/${editing.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(common) });
-      return fetchJson<Bid>("/api/bids", {
+      // From an emailed invitation: the same body, through the intake so the email is filed with the bid.
+      return fetchJson<Bid>(intakeId ? `/api/partners/intake/${intakeId}/create` : "/api/bids", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...common, organizationId: form.organizationId, status: form.tracking ? "TRACKING" : "INVITED", site: { address1: form.address1, city: form.city, state: form.state, zipCode: form.zipCode, county: form.county } }),
@@ -187,8 +190,8 @@ function BidForm({ organizationId, editing, onSaved, onClose }: { organizationId
       }}
     >
       <DialogHeader>
-        <DialogTitle>{editing ? `Edit ${editing.number}` : "Log a bid invitation"}</DialogTitle>
-        <DialogDescription>{editing ? "The package's facts and dates." : "A GC asked KNU to price a package. This creates the bid and its lead, so the estimators, plan takeoff and files work on it as on any lead."}</DialogDescription>
+        <DialogTitle>{editing ? `Edit ${editing.number}` : intakeId ? "Create the bid from the email" : "Log a bid invitation"}</DialogTitle>
+        <DialogDescription>{editing ? "The package's facts and dates." : intakeId ? "Filled in from the email. Check every field against the invitation: nothing is saved until you press Create bid." : "A GC asked KNU to price a package. This creates the bid and its lead, so the estimators, plan takeoff and files work on it as on any lead."}</DialogDescription>
       </DialogHeader>
 
       <div className="grid gap-3 sm:grid-cols-2">

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { EmailInboxProvider } from "./email-provider";
 import { parseGoogleAdsLeadEmail } from "./email-parser";
 import { sendLeadAlertSms } from "@/lib/services/notifications/alert-service";
+import { ingestItbEmail, isItbSender } from "@/lib/partners/itb-intake";
 
 /**
  * Core intake pipeline:
@@ -28,6 +29,15 @@ export async function processInboundEmails(provider: EmailInboxProvider) {
     });
     if (existing) {
       results.push({ messageId: email.externalMessageId, status: "already_processed" });
+      continue;
+    }
+
+    // Bid invitations (a bid platform, or a contact at a GC account) go to the
+    // bid-intake queue instead of being read as a Google Ads lead.
+    if (await isItbSender(email.senderEmail)) {
+      const r = await ingestItbEmail({ channel: "outlook", externalId: email.externalMessageId, from: email.senderEmail, subject: email.subject, text: email.bodyText, html: email.bodyHtml, receivedAt: email.receivedAt });
+      await provider.markProcessed(email.externalMessageId).catch(() => {});
+      results.push({ messageId: email.externalMessageId, status: `bid_intake_${r.status}` });
       continue;
     }
 

@@ -41,6 +41,9 @@ const schema = z.object({
   OUTLOOK_MAILBOX_ADDRESS: z.string().email().optional(),
 
   MAILERSEND_API_KEY: z.string().optional(),
+  // Signing secret of the MailerSend inbound route that forwards bid
+  // invitations to /api/integrations/mailersend/inbound. Unset = that route 503s.
+  MAILERSEND_INBOUND_SECRET: z.string().min(8).optional(),
   // Accepts either a bare "addr@example.com" or "Display Name <addr@example.com>";
   // runtime parser in src/lib/email/send.ts handles both shapes.
   EMAIL_FROM: z.string().min(3).optional(),

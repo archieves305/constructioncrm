@@ -581,3 +581,70 @@ export function useActionTask(organizationId: string) {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+// ─── Bid intake (Phase 5) ───────────────────────────────────────────────────
+
+export type IntakeStatusFilter = "NEW" | "DONE" | "DISMISSED";
+export type ParsedDate = { at: string; dateOnly: boolean; text: string };
+export type ParsedItb = {
+  kind: "INVITATION" | "ADDENDUM" | "UPDATE";
+  platform: BidPlatform;
+  platformUrl: string | null;
+  platformRef: string | null;
+  projectName: string | null;
+  gcName: string | null;
+  bidDue: ParsedDate | null;
+  siteWalk: ParsedDate | null;
+  preBidMeeting: ParsedDate | null;
+  rfiDue: ParsedDate | null;
+  address: { address1: string | null; city: string | null; state: string | null; zipCode: string | null; text: string } | null;
+  scope: string | null;
+  originalFrom: { name: string | null; email: string | null };
+  originalSubject: string;
+  contactEmail: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  found: string[];
+};
+export type IntakeItem = {
+  id: string;
+  channel: "manual" | "mailersend" | "outlook";
+  receivedAt: string;
+  forwardedBy: string | null;
+  subject: string;
+  platform: BidPlatform;
+  parsed: ParsedItb;
+  organizationId: string | null;
+  contactId: string | null;
+  matchedBy: string | null;
+  status: "NEW" | "CREATED" | "ATTACHED" | "DISMISSED";
+  dismissReason: string | null;
+  resolvedAt: string | null;
+  organization: { id: string; name: string } | null;
+  contact: { id: string; firstName: string; lastName: string; email: string | null } | null;
+  bidInvitation: { id: string; number: string; leadId: string; projectName: string } | null;
+  resolvedBy: Person | null;
+  existingBid: { id: string; number: string; leadId: string; projectName: string; status: BidStatus; bidDueAt: string | null; addendaCount: number } | null;
+  suggestedTradeIds: string[];
+};
+export type IntakeList = { rows: IntakeItem[]; counts: Record<IntakeStatusFilter, number>; channels: { mailersend: boolean; outlook: boolean } };
+
+export function useIntakes(status: IntakeStatusFilter, enabled = true) {
+  return useQuery<IntakeList>({ queryKey: ["partners", "intake", status], queryFn: () => fetchJson(`/api/partners/intake?status=${status}`), retry: retryServerErrors, enabled });
+}
+
+export function useIntakeEmail(id: string | null) {
+  return useQuery<IntakeItem & { body: string }>({ queryKey: ["partners", "intake", "item", id], queryFn: () => fetchJson(`/api/partners/intake/${id}`), retry: retryServerErrors, enabled: Boolean(id) });
+}
+
+export function useIntakeAction<T = unknown>(path: (id: string) => string, success: string | ((r: T) => string), method = "POST") {
+  const invalidate = useInvalidateBids();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: unknown }) => fetchJson<T>(path(id), json(body, method)),
+    onSuccess: (r) => {
+      invalidate();
+      toast.success(typeof success === "function" ? success(r) : success);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}

@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { Download, Gavel, LayoutGrid, List, Plus } from "lucide-react";
+import { Download, Gavel, Inbox, LayoutGrid, List, Plus } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
@@ -19,7 +19,7 @@ import { bidKpis } from "@/lib/partners/scorecard";
 import { cn } from "@/lib/utils";
 import { BidFormDialog } from "@/components/partners/bid-form-dialog";
 import { BidStatusBadge } from "@/components/partners/bid-panel";
-import { personName, useBids, type Bid } from "@/components/partners/use-partners";
+import { personName, useBids, useIntakes, type Bid } from "@/components/partners/use-partners";
 
 type View = "list" | "board";
 type Scope = "all" | "mine";
@@ -92,6 +92,7 @@ function Bids() {
         }
       />
       <BidKpiStrip scope={scope} />
+      <IntakeNotice enabled={Boolean(list.data?.canManage)} />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <SegmentedControl<View> ariaLabel="View" size="sm" value={view} onValueChange={(v) => url.set("view", v === "list" ? null : v)} options={[{ value: "list", label: "List", icon: List }, { value: "board", label: "Board", icon: LayoutGrid }]} />
         <SegmentedControl<Scope> ariaLabel="Whose" size="sm" value={scope} onValueChange={(v) => url.set("scope", v === "all" ? null : v)} options={[{ value: "all", label: "All" }, { value: "mine", label: "Mine" }]} />
@@ -225,5 +226,17 @@ function BidKpiStrip({ scope }: { scope: Scope }) {
         </Card>
       ))}
     </div>
+  );
+}
+
+/** Emailed invitations nobody has looked at yet. */
+function IntakeNotice({ enabled }: { enabled: boolean }) {
+  const intake = useIntakes("NEW", enabled);
+  const n = intake.data?.counts.NEW ?? 0;
+  if (!enabled || n === 0) return null;
+  return (
+    <Link href="/partners/intake" className="mb-3 flex items-center gap-2 rounded-md bg-sky-50 px-3 py-2 text-sm text-sky-900 hover:bg-sky-100">
+      <Inbox className="size-4" /> {n} emailed invitation{n === 1 ? "" : "s"} waiting for review — create the bid or file {n === 1 ? "it" : "them"}
+    </Link>
   );
 }

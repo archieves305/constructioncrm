@@ -170,6 +170,8 @@ export type CreateBidInput = BidInput & {
   projectName: string;
   status?: "TRACKING" | "INVITED";
   tradeIds: string[];
+  /** Set by an intake ("email:BUILDINGCONNECTED") so the bid says where it came from. */
+  signalSource?: string | null;
   site: { address1: string; address2?: string | null; city: string; state?: string; zipCode: string; county?: string | null };
 };
 
@@ -260,6 +262,7 @@ export async function createBid(input: CreateBidInput, actorUserId: string) {
         status,
         estimatorUserId: input.estimatorUserId ?? null,
         invitedAt: status === "INVITED" ? (whenOf(input.invitedAt) ?? new Date()) : (whenOf(input.invitedAt) ?? null),
+        signalSource: input.signalSource ?? null,
         createdByUserId: actorUserId,
       },
       select: BID_SELECT,
