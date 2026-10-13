@@ -30,7 +30,8 @@ import { ContactFormDialog, contactFormValues } from "@/components/partners/cont
 import { InteractionDialog } from "@/components/partners/interaction-dialog";
 import { OrgFormDialog, orgFormValues } from "@/components/partners/org-form-dialog";
 import { OwnerDialog } from "@/components/partners/owner-dialog";
-import { OrgBadges, PriorityBadge } from "@/components/partners/stage-badges";
+import { HealthPill, OrgBadges, PriorityBadge } from "@/components/partners/stage-badges";
+import { PerformanceTab } from "@/components/partners/performance-tab";
 import { KIND_LABEL, personName, useChangeStage, useInteractions, useInvalidatePartners, useOrganization, usePartnerOptions, type Contact, type Interaction, type InteractionKind, type OrgDetail } from "@/components/partners/use-partners";
 import { QualificationPanel } from "@/components/partners/qualification-panel";
 import { OrgDocumentsTab } from "@/components/partners/org-documents-tab";
@@ -38,7 +39,7 @@ import { OrgBidsTab, OrgProjectsTab } from "@/components/partners/org-bids-tab";
 import { BidFormDialog } from "@/components/partners/bid-form-dialog";
 
 const STAGES = stagesAsStageLike();
-const TABS = ["overview", "contacts", "bids", "projects", "qualification", "documents", "activity"] as const;
+const TABS = ["overview", "performance", "contacts", "bids", "projects", "qualification", "documents", "activity"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function PartnerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -95,6 +96,7 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
       subtitle={[KIND_LABEL[org.kind], org.city, org.markets.slice(0, 3).join(", ")].filter(Boolean).join(" · ")}
       badges={
         <>
+          <HealthPill health={data.health ? { score: data.health.score, band: data.health.band, strength: data.health.strengths[0] ?? null, weakness: data.health.weaknesses[0] ?? null } : null} />
           <PriorityBadge priority={org.priority} />
           {!org.isActive && <Badge variant="outline">Inactive</Badge>}
           <OrgBadges badges={badges} />
@@ -164,8 +166,9 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
       {header}
 
       <Tabs value={tab} onValueChange={(v) => v && url.set("tab", v === "overview" ? null : String(v))}>
-        <TabsList>
+        <TabsList className="h-auto w-full flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({activeContacts.length})</TabsTrigger>
           <TabsTrigger value="bids">Bids ({data.bidFacts.bidCount})</TabsTrigger>
           <TabsTrigger value="projects">Projects ({data.jobCount})</TabsTrigger>
@@ -180,6 +183,10 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
 
         <TabsContent value="contacts" className="mt-4">
           <ContactsTab org={org} canManage={permissions.canManage} now={now} onAdd={() => setContactDialog({ open: true })} onEdit={(c) => setContactDialog({ open: true, contact: c })} />
+        </TabsContent>
+
+        <TabsContent value="performance" className="mt-4">
+          <PerformanceTab organizationId={org.id} health={data.health} canManage={permissions.canManage} />
         </TabsContent>
 
         <TabsContent value="bids" className="mt-4">

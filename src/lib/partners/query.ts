@@ -8,7 +8,7 @@ import { isPartnerStage } from "./stages";
  * "Mine" on an account list means accounts I own — a convenience filter,
  * not a floor: every viewing role sees every account (seven users today).
  */
-export type OrgSort = "name" | "lastContact" | "stage";
+export type OrgSort = "name" | "lastContact" | "stage" | "health";
 
 export type OrgListParams = {
   search?: string;
@@ -42,7 +42,7 @@ export function parseOrgListParams(sp: URLSearchParams): OrgListParams {
     kind: kind && KINDS.includes(kind) ? (kind as OrganizationKind) : undefined,
     includeInactive: sp.get("inactive") === "1",
     scope: parseListScope(sp.get("scope")),
-    sort: sort === "name" || sort === "lastContact" || sort === "stage" ? sort : undefined,
+    sort: sort === "name" || sort === "lastContact" || sort === "stage" || sort === "health" ? sort : undefined,
     page: Math.max(1, Number(sp.get("page")) || 1),
     pageSize: Math.min(500, Math.max(1, Number(sp.get("pageSize")) || 50)),
   };

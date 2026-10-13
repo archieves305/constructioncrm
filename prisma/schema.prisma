@@ -5394,6 +5394,12 @@ model PartnerSettings {
   // { [serviceCategoryId]: { min, max } } — the contract size KNU is built for, per trade.
   typicalRange       Json?    @map("typical_range")
   bondingCapacity    Decimal? @map("bonding_capacity") @db.Decimal(12, 2)
+  // ── Relationship health + scorecard (lib/partners/health.ts) ───────────
+  healthWeights        Json?   @map("health_weights")
+  healthWeightsVersion Int     @default(1) @map("health_weights_version")
+  // "Preferred": at least this many awards at this projected margin or better.
+  preferredMinAwards   Int     @default(2) @map("preferred_min_awards")
+  preferredMinMargin   Decimal @default(0.20) @map("preferred_min_margin") @db.Decimal(5, 4)
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   defaultOwner User? @relation("PartnerDefaultOwner", fields: [defaultOwnerUserId], references: [id], onDelete: SetNull)

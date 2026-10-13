@@ -47,3 +47,16 @@ describe("derive", () => {
     expect(lastTouchLabel("2026-10-01T10:00:00Z", now)).toBe("12 d ago");
   });
 });
+
+describe("preferred badge", () => {
+  const now = new Date("2026-10-13T12:00:00Z");
+  const f = { stage: "ACTIVE" as const, createdAt: "2026-01-01", lastContactAt: "2026-10-10", interactionCount: 4 };
+  const s = { activeQuietDays: 45, preferredMinAwards: 2, preferredMinMargin: 0.2 };
+  it("needs both the awards and the margin", () => {
+    expect(orgBadges({ ...f, awardedCount: 2, margin: 0.22 }, now, s).some((b) => b.key === "preferred")).toBe(true);
+    expect(orgBadges({ ...f, awardedCount: 1, margin: 0.3 }, now, s).some((b) => b.key === "preferred")).toBe(false);
+    expect(orgBadges({ ...f, awardedCount: 3, margin: 0.1 }, now, s).some((b) => b.key === "preferred")).toBe(false);
+    expect(orgBadges({ ...f, awardedCount: 3, margin: null }, now, s).some((b) => b.key === "preferred")).toBe(false);
+    expect(orgBadges({ ...f, awardedCount: 3, margin: 0.3 }, now, { activeQuietDays: 45 }).some((b) => b.key === "preferred")).toBe(false);
+  });
+});

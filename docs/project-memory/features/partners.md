@@ -1,7 +1,8 @@
 # Business Development — GC Partnerships
 
 _Stage 1 deployed 2026-10-13 (`b8af730`); Stage 2 deployed 2026-10-13
-(`65cc01e`); Stage 3 (bids) deployed 2026-10-13 (`d2afb6f`). Design:
+(`65cc01e`); Stage 3 (bids) deployed 2026-10-13 (`d2afb6f`); Stage 4 (health, scorecard,
+analytics) built + dev-QA'd 2026-10-13 on `partners-s4`. Design:
 `CAREYOS_GC_PARTNERSHIPS_IMPLEMENTATION_PLAN.md` and
 `CAREYOS_GC_PARTNERSHIPS_BUILD_SPECIFICATIONS.md` at the repo root._
 
@@ -257,8 +258,74 @@ SALES_REP 15/15 (sees only own bids, 404 on others, 403 on decide / award /
 reopen / delete), READ_ONLY and CREW_LEAD cannot write; backfill dry run /
 apply / re-run on a stand-in job. QA rows removed.
 
+## Stage 4 — health, scorecard, analytics
+
+Migration `20261026120000_partners_scorecard`: `PartnerSettings` gains
+`healthWeights` + `healthWeightsVersion`, `preferredMinAwards` (2) and
+`preferredMinMargin` (0.20), with a CHECK on their bounds. No new table.
+
+Pure modules:
+
+- `health.ts` — relationship health 0–100 (plan §17): engagement 30 (last
+  touch, meetings in 12 months, touches in 90 days), qualification 20, bid
+  flow 25 (invitations, half submitted, awards), economics 25 (billed in 12
+  months, projected margin, days to pay). A touch-less account past
+  `dormantAfterDays` (180) is held at `dormantCap` (40). Bands Strong ≥ 80,
+  Active ≥ 60, Developing ≥ 40, Cold ≥ 20, Dormant. Strengths = sections at
+  ≥ 70 %, weaknesses = factors under half their points, the action = the first
+  match of expired prequal → expiring → quiet → unbid invitations → slow payer
+  → keep the cadence. The plan's worked example scores 76 in the tests.
+- `windows.ts` — presets (30 d, 90 d, 12 mo, month, quarter, YTD, year, last
+  year, custom) on office-day keys, period buckets (week from Monday, month,
+  quarter, year).
+- `scorecard.ts` — money KPIs: billed and collected in the window; contract,
+  projected profit and margin over **jobs active in the window** (created or
+  billed there); days to pay over linked payments with the unlinked ones
+  counted and reported; retainage held (a balance); change-order approval
+  rate; profit per estimating hour on awards and on every bid; `groupBy`.
+- `derive.ts` — "Preferred": awards ≥ the setting at a margin ≥ the setting.
+
+Loaders (`scorecard-load.ts`): `loadHealth(orgIds)` in a fixed number of
+queries (used by the accounts list, the account page and the bid score — its
+relationship slot is live now); `loadOrgScorecard`; `loadAnalytics` (by GC,
+trade — a bid's package trades, a job's bid's trades, else the account's —
+market or owner; groups with nothing in the window are left out); BD
+activity per period; the dashboard summary.
+
+Routes: `GET /api/partners/[id]/scorecard?preset=&from=&to=` and
+`GET /api/partners/analytics?preset=&groupBy=&period=&stage=&market=`
+(`&csv=1` → CSV) for ADMIN / MANAGER / OFFICE_STAFF / READ_ONLY
+(`canViewPartnerMoney`); `GET /api/partners/summary` (ADMIN / MANAGER);
+`POST /api/partners/[id]/action-task` (partner managers: the recommended
+action becomes a task for the owner, due in three working days). Settings PUT
+takes `healthWeights` (validated by the scorer's schema), the Preferred
+thresholds; a weights change bumps its version, compared key-order-independently.
+
+UI: health pill on the account header (strength / weakness on hover) and a
+**Performance** tab (health card with section meters, factor notes,
+strengths, weaknesses, next step + Create task; window presets + custom;
+twelve KPI cards for money roles, a note for the rest); Health column on the
+accounts list, sortable; `/partners/analytics` (KPI row, pipeline strip
+linking to the filtered list, billed / profit and win-rate charts, group
+table, BD activity by period, CSV); Admin → Weights (both rule sets as JSON,
+Reset to defaults, Preferred thresholds); a Business development strip on the
+dashboard for ADMIN / MANAGER (open bid value, bids due this week, partner
+follow-ups overdue).
+
+Fixed on the way: recording a back-dated submission, or a bid with a past
+invitation date, moved the account's last contact backwards
+(`advanceLastContact` is forward-only now); the account page's tab strip ran
+off a phone screen.
+
+QA (dev, 2026-10-13): API 31/31 on an account with an awarded progress job, a
+budget (25 % margin), an invoice paid 45 days later and an unlinked payment;
+headless Chromium 23/23 at 1280 and 400 px; SALES_REP sees health but gets 403
+on scorecard / analytics / summary / weights; READ_ONLY reads scorecard and
+analytics. QA rows removed, dev settings reset.
+
 ## Next
 
-Stage 4: health score (feeds the bid score's relationship factor), the money
-side of the scorecard (revenue, margin, days to pay per account), partner
-analytics, the weights editor.
+Later phases from the plan: ITB email intake to the Outlook mailbox,
+BuildingConnected OAuth, opportunity discovery, AI explanations of the health
+breakdown (words only, never points), a nightly health snapshot for trend
+lines.

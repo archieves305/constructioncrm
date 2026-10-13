@@ -7,7 +7,7 @@ import { buildStageToneMap } from "@/lib/ui/stage-colors";
 import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 import { stagesAsStageLike } from "@/lib/partners/stages";
-import type { PartnerStage } from "./use-partners";
+import { HEALTH_BAND_LABEL, HEALTH_BAND_TONE, type HealthBand, type PartnerStage } from "./use-partners";
 
 const STAGE_LIKE = stagesAsStageLike();
 const TONES = buildStageToneMap(STAGE_LIKE);
@@ -38,4 +38,16 @@ export function PriorityBadge({ priority }: { priority: "A" | "B" | "C" | null }
   if (!priority) return null;
   const cls = priority === "A" ? toneClasses("danger").pill : priority === "B" ? toneClasses("warning").pill : toneClasses("neutral").pill;
   return <span className={cn("inline-flex size-5 items-center justify-center rounded-full text-[11px] font-semibold", cls)} title={`Priority ${priority}`}>{priority}</span>;
+}
+
+/** Health as a pill: the score and its band, with the top strength and weakness on hover. */
+export function HealthPill({ health, className }: { health: { score: number; band: HealthBand; strength?: string | null; weakness?: string | null } | null | undefined; className?: string }) {
+  if (!health) return <span className="text-xs text-muted-foreground">—</span>;
+  const title = [health.strength && `+ ${health.strength}`, health.weakness && `− ${health.weakness}`].filter(Boolean).join("\n") || undefined;
+  return (
+    <span title={title} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums", toneClasses(HEALTH_BAND_TONE[health.band]).pill, className)}>
+      {health.score}
+      <span className="font-normal">· {HEALTH_BAND_LABEL[health.band]}</span>
+    </span>
+  );
 }

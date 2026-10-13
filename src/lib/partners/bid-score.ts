@@ -87,7 +87,7 @@ export function scoreBid(input: BidScoreInput, w: BidWeights = DEFAULT_BID_WEIGH
   // Relationship (health score, Stage 4; neutral = half until then)
   const rel = input.healthScore === null ? w.relationship.max / 2 : Math.min(w.relationship.max, input.healthScore * w.relationship.factor);
   breakdown.relationship = { points: round(rel), max: w.relationship.max, note: input.healthScore === null ? "No relationship score yet" : `Relationship health ${input.healthScore}/100`, mode: "AUTO" };
-  if (input.healthScore === null) concerns.push("No relationship score yet (the health score arrives with Stage 4)");
+  if (input.healthScore === null) concerns.push("No relationship score for this account");
 
   // Size vs typical
   if (input.estimatedValue === null || !input.typicalRange) {

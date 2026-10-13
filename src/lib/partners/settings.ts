@@ -30,6 +30,10 @@ const SELECT = {
   adjacentCounties: true,
   typicalRange: true,
   bondingCapacity: true,
+  healthWeights: true,
+  healthWeightsVersion: true,
+  preferredMinAwards: true,
+  preferredMinMargin: true,
   updatedAt: true,
   defaultOwner: { select: { id: true, firstName: true, lastName: true, isActive: true } },
   vaultOwner: { select: { id: true, firstName: true, lastName: true, isActive: true } },
@@ -69,6 +73,9 @@ export type PartnerSettingsPatch = Partial<{
   adjacentCounties: string[];
   typicalRange: unknown;
   bondingCapacity: number | null;
+  healthWeights: unknown;
+  preferredMinAwards: number;
+  preferredMinMargin: number;
 }>;
 
 export async function updatePartnerSettings(patch: PartnerSettingsPatch, actorUserId: string) {
@@ -77,7 +84,9 @@ export async function updatePartnerSettings(patch: PartnerSettingsPatch, actorUs
   if (data.markets) data.markets = Array.from(new Set(data.markets.map((m) => m.trim()).filter(Boolean)));
   if (data.defaultRequirementTypeKeys) data.defaultRequirementTypeKeys = Array.from(new Set(data.defaultRequirementTypeKeys.map((k) => k.trim()).filter(Boolean)));
   // Edited weights get a new version so every stored decision keeps its own.
-  const weightsChanged = data.scoreWeights !== undefined && JSON.stringify(data.scoreWeights) !== JSON.stringify(before.scoreWeights);
+  // Postgres stores JSON with its own key order, so compare canonically.
+  const weightsChanged = data.scoreWeights !== undefined && canonical(data.scoreWeights) !== canonical(before.scoreWeights);
+  const healthChanged = data.healthWeights !== undefined && canonical(data.healthWeights) !== canonical(before.healthWeights);
   const after = await prisma.partnerSettings.update({
     where: { id: "default" },
     data: {
@@ -85,6 +94,8 @@ export async function updatePartnerSettings(patch: PartnerSettingsPatch, actorUs
       // A JSON column is cleared with DbNull, not null.
       ...(data.scoreWeights === null ? { scoreWeights: Prisma.DbNull } : {}),
       ...(data.typicalRange === null ? { typicalRange: Prisma.DbNull } : {}),
+      ...(data.healthWeights === null ? { healthWeights: Prisma.DbNull } : {}),
+      ...(healthChanged ? { healthWeightsVersion: { increment: 1 } } : {}),
       ...(weightsChanged ? { scoreWeightsVersion: { increment: 1 } } : {}),
     },
     select: SELECT,
@@ -95,4 +106,10 @@ export async function updatePartnerSettings(patch: PartnerSettingsPatch, actorUs
 
 function pick(row: Record<string, unknown>, patch: Record<string, unknown>) {
   return Object.fromEntries(Object.keys(patch).map((k) => [k, row[k]]));
+}
+
+/** JSON with object keys sorted at every level, for equality checks. */
+export function canonical(v: unknown): string {
+  const sort = (x: unknown): unknown => (Array.isArray(x) ? x.map(sort) : x && typeof x === "object" ? Object.fromEntries(Object.keys(x as object).sort().map((k) => [k, sort((x as Record<string, unknown>)[k])])) : x);
+  return JSON.stringify(sort(v ?? null));
 }

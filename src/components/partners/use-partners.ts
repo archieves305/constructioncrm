@@ -62,6 +62,7 @@ export type OrgRow = {
   interactionCount: number;
   nextOpenTask: { id: string; title: string; dueAt: string | null } | null;
   badges: OrgBadge[];
+  health: HealthPill | null;
 };
 
 export type OrgList = { rows: OrgRow[]; total: number; canManage: boolean; canAdmin: boolean };
@@ -157,6 +158,7 @@ export type OrgDetail = {
   badges: OrgBadge[];
   permissions: { canManage: boolean; canAdmin: boolean };
   bidFacts: { openBidCount: number; bidCount: number; awardedCount: number; lastBidActivityAt: string | null };
+  health: Health | null;
   jobCount: number;
   projects: { id: string; jobNumber: string; title: string; contractAmount: number; billingMethod: string; createdAt: string; leadId: string; currentStage: { name: string; isClosed: boolean } | null }[];
 };
@@ -247,6 +249,11 @@ export type PartnerSettings = {
   typicalRange: Record<string, { min: number; max: number }> | null;
   bondingCapacity: string | number | null;
   scoreWeightsVersion: number;
+  scoreWeights: unknown;
+  healthWeights: unknown;
+  healthWeightsVersion: number;
+  preferredMinAwards: number;
+  preferredMinMargin: string | number;
   updatedAt?: string;
   canEdit: boolean;
 };
@@ -506,6 +513,70 @@ export function useBidAction<T = BidDetail>(bidId: string, path: string, success
     onSuccess: (r) => {
       invalidate();
       toast.success(typeof success === "function" ? success(r) : success);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── Health, scorecard, analytics (Stage 4) ────────────────────────────────
+
+export type HealthBand = "STRONG" | "ACTIVE" | "DEVELOPING" | "COLD" | "DORMANT";
+export type HealthPill = { score: number; band: HealthBand; strength: string | null; weakness: string | null };
+export type HealthFactor = { key: string; label: string; points: number; max: number; note: string };
+export type Health = {
+  score: number;
+  band: HealthBand;
+  capped: boolean;
+  breakdown: Record<"engagement" | "qualification" | "bidFlow" | "economics", { points: number; max: number; factors: HealthFactor[] }>;
+  strengths: string[];
+  weaknesses: string[];
+  recommendedAction: string;
+  weightsVersion: number;
+};
+
+export type ReportWindow = { preset: string; from: string; to: string; label: string };
+export type BidKpis = { invitations: number; decided: number; bid: number; noBid: number; bidRate: number | null; submitted: number; awarded: number; lost: number; winRate: number | null; open: number; openValue: number; awardedValue: number; avgTurnaroundDays: number | null; estimatingHours: number; lossReasons: Record<string, number> };
+export type MoneyKpis = { billed: number; collected: number; contractValue: number; grossProfit: number | null; margin: number | null; averageContract: number | null; daysToPay: number | null; linkedPayments: number; unlinkedPayments: number; retainageHeld: number; changeOrderApprovalRate: number | null; changeOrdersDecided: number; jobs: number; repeatWork: boolean };
+export type Scorecard = {
+  window: ReportWindow;
+  bids: BidKpis & { priceGap: number | null; perAwardHour: number | null; perBidHour: number | null };
+  money: MoneyKpis;
+  activity: { interactions: number; meetings: number; outbound: number; responses: number };
+  health: Health | null;
+};
+export type BdPeriod = { key: string; label: string; newOrgs: number; contactsAdded: number; outreach: number; responses: number; meetings: number; qualsStarted: number; qualsSubmitted: number; qualsApproved: number; invitations: number; submitted: number; awards: number; awardedRevenue: number; awardedGp: number | null };
+export type Analytics = {
+  window: ReportWindow;
+  groupBy: "org" | "trade" | "market" | "owner";
+  period: "week" | "month" | "quarter" | "year";
+  totals: BidKpis & MoneyKpis & { priceGap: number | null };
+  groups: { key: string; label: string; kpis: BidKpis & MoneyKpis }[];
+  pipeline: { byStage: { stage: PartnerStage; label: string; count: number }[] };
+  bdKpis: BdPeriod[];
+};
+
+export const HEALTH_BAND_LABEL: Record<HealthBand, string> = { STRONG: "Strong", ACTIVE: "Active", DEVELOPING: "Developing", COLD: "Cold", DORMANT: "Dormant" };
+export const HEALTH_BAND_TONE: Record<HealthBand, "success" | "info" | "warning" | "neutral" | "danger"> = { STRONG: "success", ACTIVE: "info", DEVELOPING: "warning", COLD: "neutral", DORMANT: "danger" };
+
+export function useScorecard(organizationId: string, qs: string, enabled = true) {
+  return useQuery<Scorecard>({ queryKey: ["partners", "scorecard", organizationId, qs], queryFn: () => fetchJson(`/api/partners/${organizationId}/scorecard?${qs}`), retry: retryServerErrors, enabled });
+}
+
+export function useAnalytics(qs: string) {
+  return useQuery<Analytics>({ queryKey: ["partners", "analytics", qs], queryFn: () => fetchJson(`/api/partners/analytics?${qs}`), retry: retryServerErrors });
+}
+
+export function useBdSummary(enabled: boolean) {
+  return useQuery<{ openBids: number; openBidValue: number; bidsDueThisWeek: number; overdueFollowUps: number }>({ queryKey: ["partners", "summary"], queryFn: () => fetchJson("/api/partners/summary"), retry: retryServerErrors, enabled });
+}
+
+export function useActionTask(organizationId: string) {
+  const invalidate = useInvalidatePartners();
+  return useMutation({
+    mutationFn: (title: string) => fetchJson<{ id: string; title: string }>(`/api/partners/${organizationId}/action-task`, json({ title }, "POST")),
+    onSuccess: (t) => {
+      invalidate();
+      toast.success(`Task created: ${t.title}`);
     },
     onError: (e: Error) => toast.error(e.message),
   });

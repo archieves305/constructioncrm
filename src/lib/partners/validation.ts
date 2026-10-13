@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { bidWeightsSchema } from "./bid-score";
+import { healthWeightsSchema } from "./health";
 import { NextResponse } from "next/server";
 import { PartnerError } from "./errors";
 import { PARTNER_STAGE_KEYS, stageNeedsReason } from "./stages";
@@ -132,6 +133,9 @@ export const settingsSchema = z
     adjacentCounties: z.array(z.string().trim().min(1).max(60)).max(100),
     typicalRange: z.record(z.string(), z.object({ min: z.number().min(0), max: z.number().min(0) })),
     bondingCapacity: z.number().min(0).max(1_000_000_000).nullable(),
+    healthWeights: healthWeightsSchema.nullable(),
+    preferredMinAwards: z.number().int().min(1).max(50),
+    preferredMinMargin: z.number().min(0).max(1),
   })
   .partial();
 

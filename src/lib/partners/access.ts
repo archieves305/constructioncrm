@@ -39,3 +39,9 @@ export function partnerPermissions(role: RoleName | null | undefined): PartnerPe
 }
 
 export const PARTNER_DENIED_MESSAGE = "You don't have access to Business Development records.";
+
+/** Money on the partner pages (scorecard, analytics): the roles that read company financials. */
+export const PARTNER_MONEY_ROLES: readonly RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF", "READ_ONLY"];
+export function canViewPartnerMoney(role: RoleName | null | undefined): boolean {
+  return Boolean(role && PARTNER_MONEY_ROLES.includes(role));
+}

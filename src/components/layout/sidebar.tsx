@@ -79,6 +79,7 @@ export const navSections: NavSection[] = [
     items: [
       { href: "/partners", label: "GC Partnerships", icon: Building2, match: "exact", hint: "The general contractors and other accounts KNU courts for work — who owns each, where it stands, when it was last touched" },
       { href: "/partners/contacts", label: "Contacts", icon: Users, hint: "The estimators, preconstruction managers and executives at those accounts" },
+      { href: "/partners/analytics", label: "Analytics", icon: BarChart3, roles: ["ADMIN", "MANAGER", "OFFICE_STAFF", "READ_ONLY"], hint: "Which GCs bring work worth having: bids, wins, revenue, profit, days to pay" },
       { href: "/partners/bids", label: "Bids", icon: Landmark, hint: "Bid packages from the accounts: due dates, go / no-go, what went out, what came back" },
       { href: "/partners/qualifications", label: "Qualifications", icon: ClipboardCheck, hint: "Prequalification applications with each GC: where each stands, what they still want, when it expires" },
       { href: "/partners/vault", label: "Document Vault", icon: FolderLock, hint: "KNU's own licences, certificates and company papers, versioned, with expiry alerts" },

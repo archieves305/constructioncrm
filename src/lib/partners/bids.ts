@@ -7,9 +7,11 @@ import { todayKey } from "@/lib/time/zone";
 import { bidWeightsSchema, DEFAULT_BID_WEIGHTS, scoreBid, type BidScore, type BidScoreInput, type Slider } from "./bid-score";
 import { BID_PLATFORM_LABEL, BID_STATUS_LABEL, bidNumber, canTransition, closeRequires, latestAmount, leadStageFor } from "./bid-state";
 import { PartnerError } from "./errors";
+import { advanceLastContact } from "./interactions";
 import { settlePartnerFollowUps } from "./follow-up-run";
 import { coverage, requirementState } from "./qualification-state";
 import { representativeQualifications } from "./qualifications";
+import { loadHealth } from "./scorecard-load";
 import { getPartnerSettings } from "./settings";
 
 /**
@@ -265,7 +267,7 @@ export async function createBid(input: CreateBidInput, actorUserId: string) {
     if (status === "INVITED") {
       // The invitation itself is a touch from the GC: it moves last contact and settles rule 4.
       await tx.interaction.create({ data: { organizationId: org.id, contactId: contact?.id ?? null, leadId: lead.id, userId: actorUserId, kind: "BID_DISCUSSION", direction: "INBOUND", outcome: "NOT_APPLICABLE", occurredAt: bid.invitedAt ?? new Date(), summary: `Invitation to bid: ${bid.projectName} (${bid.number})` } });
-      await tx.organization.update({ where: { id: org.id }, data: { lastContactAt: new Date() } });
+      await advanceLastContact(tx, org.id, bid.invitedAt ?? new Date());
     }
     return bid;
   });
@@ -339,7 +341,7 @@ export async function scoreInputsFor(bid: BidRow, manual: BidScoreInput["manual"
     }
   }
   return {
-    healthScore: null,
+    healthScore: (await loadHealth([bid.organizationId])).get(bid.organizationId)?.health.score ?? null,
     estimatedValue: num(bid.lead.estimatedJobValue),
     typicalRange: range,
     packageTradeIds: tradeIds,

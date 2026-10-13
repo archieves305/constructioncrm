@@ -13,6 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchJson } from "@/lib/fetch-json";
+import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_BID_WEIGHTS } from "@/lib/partners/bid-score";
+import { DEFAULT_HEALTH_WEIGHTS } from "@/lib/partners/health";
 import { useInvalidatePartners, usePartnerOptions, usePartnerSettings, type PartnerSettings } from "@/components/partners/use-partners";
 
 const NONE = "__none";
@@ -149,7 +152,95 @@ function SettingsForm({ data }: { data: PartnerSettings }) {
           <Button onClick={() => save.mutate(form)} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save settings"}</Button>
         </div>
       )}
+      <WeightsCard data={data} canEdit={canEdit} />
     </div>
+  );
+}
+
+const pretty = (v: unknown) => JSON.stringify(v, null, 2);
+
+/**
+ * The scoring rules as editable JSON. The server validates against the same
+ * schema the scorer uses; a change bumps the version, and every stored bid
+ * decision keeps the version it was scored with. "Reset" stores nothing, so
+ * the coded defaults apply.
+ */
+function WeightsCard({ data, canEdit }: { data: PartnerSettings; canEdit: boolean }) {
+  const invalidate = useInvalidatePartners();
+  const [health, setHealth] = useState(() => pretty(data.healthWeights ?? DEFAULT_HEALTH_WEIGHTS));
+  const [bid, setBid] = useState(() => pretty(data.scoreWeights ?? DEFAULT_BID_WEIGHTS));
+  const [minAwards, setMinAwards] = useState(String(data.preferredMinAwards));
+  const [minMargin, setMinMargin] = useState(String(Math.round(Number(data.preferredMinMargin) * 100)));
+  const [error, setError] = useState<string | null>(null);
+  const save = useMutation({
+    mutationFn: (body: Record<string, unknown>) => fetchJson<PartnerSettings>("/api/partners/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    onSuccess: () => {
+      invalidate();
+      setError(null);
+      toast.success("Scoring rules saved");
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+  const submit = () => {
+    let h: unknown;
+    let b: unknown;
+    try {
+      h = JSON.parse(health);
+    } catch {
+      return setError("Health weights: not valid JSON");
+    }
+    try {
+      b = JSON.parse(bid);
+    } catch {
+      return setError("Bid weights: not valid JSON");
+    }
+    // Unchanged from the coded defaults → store nothing, so later default changes still apply.
+    const same = (x: unknown, d: unknown) => JSON.stringify(x) === JSON.stringify(d);
+    save.mutate({ healthWeights: same(h, DEFAULT_HEALTH_WEIGHTS) ? null : h, scoreWeights: same(b, DEFAULT_BID_WEIGHTS) ? null : b, preferredMinAwards: Number(minAwards), preferredMinMargin: Number(minMargin) / 100 });
+  };
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle className="text-base">Weights</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          The fixed rules behind relationship health (rules v{data.healthWeightsVersion}) and the bid score (rules v{data.scoreWeightsVersion}). A saved change raises the version; past bid decisions keep theirs.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="pref-awards">Preferred: at least this many awards</Label>
+            <Input id="pref-awards" type="number" min={1} max={50} className="max-w-[8rem]" value={minAwards} onChange={(e) => setMinAwards(e.target.value)} disabled={!canEdit} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="pref-margin">…at this projected margin or better (%)</Label>
+            <Input id="pref-margin" type="number" min={0} max={100} className="max-w-[8rem]" value={minMargin} onChange={(e) => setMinMargin(e.target.value)} disabled={!canEdit} />
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="w-health">Relationship health</Label>
+              {canEdit && <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setHealth(pretty(DEFAULT_HEALTH_WEIGHTS))}>Reset to defaults</Button>}
+            </div>
+            <Textarea id="w-health" value={health} onChange={(e) => setHealth(e.target.value)} rows={18} className="font-mono text-xs" spellCheck={false} disabled={!canEdit} />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="w-bid">Bid / no-bid</Label>
+              {canEdit && <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setBid(pretty(DEFAULT_BID_WEIGHTS))}>Reset to defaults</Button>}
+            </div>
+            <Textarea id="w-bid" value={bid} onChange={(e) => setBid(e.target.value)} rows={18} className="font-mono text-xs" spellCheck={false} disabled={!canEdit} />
+          </div>
+        </div>
+        {error && <p role="alert" className="text-sm text-tone-danger-fg">{error}</p>}
+        {canEdit && (
+          <div className="flex justify-end">
+            <Button onClick={submit} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save weights"}</Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -168,7 +259,7 @@ function Chips({ all, picked, onChange, disabled }: { all: { value: string; labe
   );
 }
 
-/** What the bid / no-bid score reads about KNU itself. The point values stay coded until the Stage 4 weights page. */
+/** What the bid / no-bid score reads about KNU itself. The point values are under Weights below. */
 function BidScoringCard({ form, set, canEdit, trades, weightsVersion }: { form: Form; set: <K extends keyof Form>(k: K, v: Form[K]) => void; canEdit: boolean; trades: { value: string; label: string }[]; weightsVersion: number }) {
   const markets = form.markets.map((m) => ({ value: m, label: m }));
   const ours = trades.filter((t) => form.ourTradeIds.includes(t.value));

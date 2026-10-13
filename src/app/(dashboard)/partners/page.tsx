@@ -23,7 +23,7 @@ import type { ListScope } from "@/lib/lists/scope";
 import { cn } from "@/lib/utils";
 import { OrgFormDialog } from "@/components/partners/org-form-dialog";
 import { PartnerBoard } from "@/components/partners/partner-board";
-import { OrgBadges, PriorityBadge } from "@/components/partners/stage-badges";
+import { HealthPill, OrgBadges, PriorityBadge } from "@/components/partners/stage-badges";
 import { KIND_LABEL, useChangeStage, useOrganizations, usePartnerOptions, type OrgRow } from "@/components/partners/use-partners";
 import { format } from "date-fns";
 
@@ -219,6 +219,7 @@ function AccountsTable({ rows, total, canManage, sort, onSort }: { rows: OrgRow[
             <TableRow>
               <TableHead>{sortButton("name", "Account")}</TableHead>
               <TableHead>{sortButton("stage", "Stage")}</TableHead>
+              <TableHead>{sortButton("health", "Health")}</TableHead>
               <TableHead className="hidden md:table-cell">Owner</TableHead>
               <TableHead className="hidden lg:table-cell">Primary contact</TableHead>
               <TableHead>{sortButton("lastContact", "Last touch")}</TableHead>
@@ -269,6 +270,7 @@ function AccountRow({ row, now, canManage }: { row: OrgRow; now: Date; canManage
           }}
         />
       </TableCell>
+      <TableCell><HealthPill health={row.health} /></TableCell>
       <TableCell className="hidden md:table-cell">
         <span className="flex items-center gap-1.5 text-sm">
           <UserAvatar user={row.owner} size="sm" />

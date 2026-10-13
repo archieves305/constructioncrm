@@ -177,3 +177,8 @@ export async function listInteractions(organizationId: string, opts: { page: num
 function pickFrom(row: Record<string, unknown>, patch: Record<string, unknown>) {
   return Object.fromEntries(Object.keys(patch).map((k) => [k, row[k]]));
 }
+
+/** Move an account's last contact forward to `at`, never back (a back-dated touch must not make it look quieter). */
+export async function advanceLastContact(tx: Prisma.TransactionClient, organizationId: string, at: Date): Promise<void> {
+  await tx.organization.updateMany({ where: { id: organizationId, OR: [{ lastContactAt: null }, { lastContactAt: { lt: at } }] }, data: { lastContactAt: at } });
+}

@@ -7,6 +7,7 @@ import { MyTasksWidget } from "@/components/tasks/my-tasks-widget";
 import { TodayWidget } from "@/components/calendar/today-widget";
 import { WorkflowHealthWidget } from "@/components/dashboard/workflow-health-widget";
 import { NeedsAttention } from "@/components/dashboard/needs-attention";
+import { BusinessDevelopmentStrip } from "@/components/partners/bd-strip";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { useListScope } from "@/components/shared/use-list-scope";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -90,6 +91,7 @@ export default function DashboardPage() {
       />
 
       <NeedsAttention scope={scope} />
+      <BusinessDevelopmentStrip />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <TodayWidget />

@@ -54,7 +54,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `20261025120000_partners_bids` applied (91), five CHECKs verified, smoke 307
    ×2, journal clean, backup `postgres-2026-10-13-182830.dump`; JOB-00009 recorded as
    BID-00001, awarded $832,500); no seed, no cron; fill Admin → Business Development → Bid scoring
-   and run `scripts/backfill-partners-bid-job00009.ts`. Stage 2 facts:
+   and run `scripts/backfill-partners-bid-job00009.ts`. **Stage 4 (relationship health, account scorecard,
+   partner analytics, weights editor, dashboard strip) built + dev-QA'd
+   2026-10-13 on `partners-s4`, not merged, not deployed**; migration
+   `20261026120000_partners_scorecard`, no seed, no cron. Stage 2 facts:
    migration `20261024120000_partners_qualifications` (`CompanyDocumentType`,
    `CompanyDocument` with own storage + encryption at rest for RESTRICTED,
    `Qualification`, `QualificationRequirement`, `PartnerSettings` vault owner +
@@ -468,6 +471,30 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-13 — GC Partnerships Stage 4: health, scorecard, analytics (built + dev-QA'd on `partners-s4`, not deployed)
+
+"build stage 4", on a branch from `origin/main` (`0e13694`) in the same
+worktree. Migration `20261026120000_partners_scorecard` (settings columns +
+one CHECK; `db execute` then `resolve`). Pure `health.ts` (plan §17 tables,
+dormant cap, bands, rule-made strengths / weaknesses / next step; the worked
+example scores 76), `windows.ts` (presets, period buckets), money KPIs in
+`scorecard.ts`, the Preferred badge. `scorecard-load.ts` gathers rows in
+batches; health now feeds the accounts list (sortable column), the account
+header, the bid score's relationship slot and the new Performance tab.
+Routes for the scorecard, analytics (+ CSV), the dashboard summary and the
+recommended-action task; Admin → Weights edits both rule sets as JSON.
+Found in QA and fixed: a back-dated submission or invitation moved an
+account's last contact backwards (now forward-only); re-saving the same
+weights bumped the version (Postgres reorders JSON keys — compared
+canonically); a 45.0001-day average fell in the 60-day band (rounded now);
+a window with no activity still showed whole-life profit (money now counts
+jobs active in the window, and empty groups drop out); the account tab strip
+ran off a phone screen. Gate: typecheck clean, lint 5/22, 1675 tests (+29),
+build clean. Dev QA: API 31/31, headless Chromium 23/23 at 1280 and 400 px,
+SALES_REP and READ_ONLY 7/7 each; seed rep reset to SALES_REP; QA rows
+removed. Details:
+[features/partners.md](docs/project-memory/features/partners.md).
 
 ### 2026-10-13 — GC Partnerships Stage 3: bids (deployed `d2afb6f`)
 
@@ -2816,6 +2843,13 @@ Notification Digests).
   the text; payroll rows are never matched. A labor contract's vendor is its
   own link, else its crew's. Vendor routes use `canManageVendors` /
   `canViewVendors` (`lib/vendors/access.ts`).
+- **Relationship health is computed on read, never stored**
+  (`lib/partners/health.ts`, weights in `PartnerSettings.healthWeights`,
+  versioned). Every reader goes through `loadHealth` in
+  `lib/partners/scorecard-load.ts`; a new screen never sums its own. Money on
+  partner pages (scorecard, analytics) is for `canViewPartnerMoney` roles and
+  counts jobs active in the window. An account's `lastContactAt` only moves
+  forward (`advanceLastContact`).
 - **A bid's status is the master; its lead's stage only mirrors Won and
   Lost** (`lib/partners/bids.ts`). A `GC_BID` lead is never moved through the
   lead stage route (409) and never fires the lead event; an award creates the
@@ -2854,6 +2888,18 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **GC Partnerships Stage 4 (health, scorecard, analytics) is built +
+> dev-QA'd on `partners-s4`, not merged, not deployed.** Merge: in
+> `/tmp/knuco-main`, `git merge --ff-only partners-s4`; Richard pushes and
+> deploys from `!`. **Deploy carries migration
+> `20261026120000_partners_scorecard`**; no seed, no cron. After it: check the
+> CHECK `partner_settings_preferred_chk` on prod and read Coastal Choice's
+> health through the account page (only one bid, so expect bid flow low).
+> Richard's click-through: an account → Performance; GC Partnerships → sort
+> by Health; Business Development → Analytics (by GC / trade, CSV); Admin →
+> Business Development → Weights; the dashboard's Business development strip.
+> That completes the four-stage plan.
 
 > **GC Partnerships Stage 3 (bids) is on prod (`d2afb6f`, BUILD_ID
 > `Hb0xqBxUlMkJKftTLAj88`); JOB-00009 is BID-00001, awarded.

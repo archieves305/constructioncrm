@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit/record";
 import { BID_SELECT, presentBid } from "./bids";
 import { PartnerError } from "./errors";
+import { advanceLastContact } from "./interactions";
 
 /**
  * A bid as it went out: append-only. Each row snapshots the linked estimate's
@@ -81,7 +82,7 @@ export async function addSubmission(bidId: string, input: SubmissionInput, actor
     if (input.estimatingHours !== undefined && input.estimatingHours !== null) data.estimatingHours = input.estimatingHours;
     await tx.bidInvitation.update({ where: { id: bidId }, data });
     await tx.interaction.create({ data: { organizationId: bid.organizationId, contactId: input.recipientContactId ?? null, leadId: bid.leadId, userId: actorUserId, kind: "BID_DISCUSSION", direction: "OUTBOUND", outcome: "SENT", occurredAt: submittedAt, summary: `Bid ${bid.number} v${version} submitted: ${input.amount.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}` } });
-    await tx.organization.update({ where: { id: bid.organizationId }, data: { lastContactAt: submittedAt } });
+    await advanceLastContact(tx, bid.organizationId, submittedAt);
     return s;
   });
   await recordAudit({ actorUserId, entityType: "BidSubmission", entityId: created.id, action: version === 1 ? "bid_submitted" : "bid_revised", after: { bidId, version, amount: input.amount, estimateId: input.estimateId ?? null, roofEstimateId: input.roofEstimateId ?? null, method: input.method ?? "PLATFORM" } });

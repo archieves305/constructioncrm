@@ -10,6 +10,8 @@ import { PartnerError } from "./errors";
 import { settlePartnerFollowUps } from "./follow-up-run";
 import { buildOrgListWhere, orgOrderBy, type OrgListContext, type OrgListParams } from "./query";
 import { bidFactsFor } from "./bids";
+import { loadHealth } from "./scorecard-load";
+import type { HealthResult } from "./health";
 import { representativeQualifications } from "./qualifications";
 import { getPartnerSettings } from "./settings";
 import { stageDef, stageNeedsReason } from "./stages";
@@ -102,6 +104,7 @@ export type OrgRow = {
   interactionCount: number;
   nextOpenTask: { id: string; title: string; dueAt: Date | null } | null;
   badges: OrgBadge[];
+  health: { score: number; band: "STRONG" | "ACTIVE" | "DEVELOPING" | "COLD" | "DORMANT"; strength: string | null; weakness: string | null } | null;
 };
 
 function strip<T extends Partial<OrganizationInput>>(input: T): Omit<T, "tradeIds" | "stage"> {
@@ -130,12 +133,18 @@ async function nextOpenTasks(orgIds: string[]) {
 
 export async function listOrganizations(params: OrgListParams, ctx: OrgListContext): Promise<{ rows: OrgRow[]; total: number; canManage: boolean; canAdmin: boolean }> {
   const where = buildOrgListWhere(params, ctx);
-  const [rows, total, settings] = await Promise.all([
-    prisma.organization.findMany({ where, orderBy: orgOrderBy(params.sort), skip: (params.page - 1) * params.pageSize, take: params.pageSize, select: ROW_SELECT }),
+  // Health is computed on read, so sorting by it reads the whole filtered list (≤ 500) and pages in memory.
+  const byHealth = params.sort === "health";
+  const [found, total, settings] = await Promise.all([
+    prisma.organization.findMany({ where, orderBy: orgOrderBy(byHealth ? "name" : params.sort), skip: byHealth ? 0 : (params.page - 1) * params.pageSize, take: byHealth ? 500 : params.pageSize, select: ROW_SELECT }),
     prisma.organization.count({ where }),
     getPartnerSettings(),
   ]);
+  let health = await loadHealth(found.map((r) => r.id));
+  const rows = byHealth ? [...found].sort((a, b) => (health.get(b.id)?.health.score ?? 0) - (health.get(a.id)?.health.score ?? 0)).slice((params.page - 1) * params.pageSize, params.page * params.pageSize) : found;
+  if (byHealth) health = new Map(rows.map((r) => [r.id, health.get(r.id)!]));
   const [tasks, quals, bids] = await Promise.all([nextOpenTasks(rows.map((r) => r.id)), representativeQualifications(rows.map((r) => r.id)), bidFactsFor(rows.map((r) => r.id))]);
+  const preferred = { preferredMinAwards: settings.preferredMinAwards, preferredMinMargin: Number(settings.preferredMinMargin) };
   const now = new Date();
   const perms = partnerPermissions(ctx.user.role);
   return {
@@ -159,7 +168,8 @@ export async function listOrganizations(params: OrgListParams, ctx: OrgListConte
         contactCount: r._count.contacts,
         interactionCount: r._count.interactions,
         nextOpenTask: tasks.get(r.id) ?? null,
-        badges: orgBadges({ stage: r.stage, createdAt: r.createdAt, lastContactAt: r.lastContactAt, interactionCount: r._count.interactions, qualification: quals.get(r.id) ?? null, openBidCount: bids.get(r.id)?.openBidCount, bidCount: bids.get(r.id)?.bidCount, awardedCount: bids.get(r.id)?.awardedCount }, now, { activeQuietDays: settings.activeQuietDays }),
+        badges: orgBadges({ stage: r.stage, createdAt: r.createdAt, lastContactAt: r.lastContactAt, interactionCount: r._count.interactions, qualification: quals.get(r.id) ?? null, openBidCount: bids.get(r.id)?.openBidCount, bidCount: bids.get(r.id)?.bidCount, awardedCount: bids.get(r.id)?.awardedCount, margin: health.get(r.id)?.margin }, now, { activeQuietDays: settings.activeQuietDays, ...preferred }),
+        health: healthPill(health.get(r.id)?.health),
       };
     }),
     total,
@@ -221,6 +231,7 @@ export async function getOrganizationDetail(id: string, viewer: { id: string; ro
   const [org, settings, quals, bids, projects] = await Promise.all([prisma.organization.findUnique({ where: { id }, select: DETAIL_SELECT }), getPartnerSettings(), representativeQualifications([id]), bidFactsFor([id]), prisma.job.findMany({ where: { lead: { organizationId: id } }, orderBy: { createdAt: "desc" }, select: { id: true, jobNumber: true, title: true, contractAmount: true, billingMethod: true, createdAt: true, leadId: true, currentStage: { select: { name: true, isClosed: true } } } })]);
   const jobCount = projects.length;
   if (!org) throw new PartnerError(404, "Account not found");
+  const facts = (await loadHealth([id])).get(id);
   const openTasks = await prisma.task.findMany({
     where: { organizationId: id, status: { in: [...OPEN_TASK_STATUSES] }, activatedAt: { not: null } },
     orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
@@ -234,7 +245,8 @@ export async function getOrganizationDetail(id: string, viewer: { id: string; ro
     interactionCount: _count.interactions,
     leadCount: _count.leads,
     openTasks,
-    badges: orgBadges({ stage: org.stage, createdAt: org.createdAt, lastContactAt: org.lastContactAt, interactionCount: _count.interactions, qualification: quals.get(id) ?? null, openBidCount: bids.get(id)?.openBidCount, bidCount: bids.get(id)?.bidCount, awardedCount: bids.get(id)?.awardedCount, jobCount }, now, { activeQuietDays: settings.activeQuietDays }),
+    badges: orgBadges({ stage: org.stage, createdAt: org.createdAt, lastContactAt: org.lastContactAt, interactionCount: _count.interactions, qualification: quals.get(id) ?? null, openBidCount: bids.get(id)?.openBidCount, bidCount: bids.get(id)?.bidCount, awardedCount: bids.get(id)?.awardedCount, jobCount, margin: facts?.margin }, now, { activeQuietDays: settings.activeQuietDays, preferredMinAwards: settings.preferredMinAwards, preferredMinMargin: Number(settings.preferredMinMargin) }),
+    health: facts?.health ?? null,
     bidFacts: bids.get(id) ?? { openBidCount: 0, bidCount: 0, awardedCount: 0, lastBidActivityAt: null },
     jobCount,
     projects: projects.map((j) => ({ ...j, contractAmount: Number(j.contractAmount) })),
@@ -348,4 +360,9 @@ export async function deleteOrganization(id: string, actorUserId: string) {
     prisma.organization.delete({ where: { id } }),
   ]);
   await recordAudit({ actorUserId, entityType: "Organization", entityId: id, action: "delete", before: { ...org, counts: org._count } });
+}
+
+/** What a list row carries of health: enough for the pill and its tooltip. */
+function healthPill(h: HealthResult | undefined) {
+  return h ? { score: h.score, band: h.band, strength: h.strengths[0] ?? null, weakness: h.weaknesses[0] ?? null } : null;
 }

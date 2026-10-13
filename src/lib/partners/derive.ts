@@ -17,10 +17,12 @@ export type OrgFacts = {
   bidCount?: number;
   awardedCount?: number;
   jobCount?: number;
+  /** Projected margin across the account's jobs; with awardedCount it decides "Preferred". */
+  margin?: number | null;
   qualification?: { status: "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "INFO_REQUESTED" | "APPROVED" | "REJECTED"; expiresAt: Date | string | null } | null;
 };
 
-export type OrgBadgeKey = "quiet" | "never-contacted" | "prequal-pending" | "prequalified" | "prequal-expiring" | "first-bid" | "bidding" | "awarded" | "repeat";
+export type OrgBadgeKey = "preferred" | "quiet" | "never-contacted" | "prequal-pending" | "prequalified" | "prequal-expiring" | "first-bid" | "bidding" | "awarded" | "repeat";
 
 export type OrgBadge = { key: OrgBadgeKey; label: string; tone: Tone };
 
@@ -43,7 +45,7 @@ export function quietDays(f: Pick<OrgFacts, "createdAt" | "lastContactAt">, now:
   return daysSince(f.lastContactAt ?? f.createdAt, now) ?? 0;
 }
 
-export type BadgeSettings = { activeQuietDays: number; prequalExpiringDays?: number };
+export type BadgeSettings = { activeQuietDays: number; prequalExpiringDays?: number; preferredMinAwards?: number; preferredMinMargin?: number };
 
 export function orgBadges(f: OrgFacts, now: Date, s: BadgeSettings): OrgBadge[] {
   const out: OrgBadge[] = [];
@@ -67,6 +69,8 @@ export function orgBadges(f: OrgFacts, now: Date, s: BadgeSettings): OrgBadge[] 
 
   if ((f.openBidCount ?? 0) > 0) out.push({ key: "bidding", label: `Bidding · ${f.openBidCount}`, tone: "info" });
   else if ((f.bidCount ?? 0) > 0) out.push({ key: "first-bid", label: "Bid received", tone: "info" });
+  // Preferred: enough awards at a margin worth repeating (Admin → Business Development).
+  if (s.preferredMinAwards !== undefined && s.preferredMinMargin !== undefined && (f.awardedCount ?? 0) >= s.preferredMinAwards && f.margin != null && f.margin >= s.preferredMinMargin) out.push({ key: "preferred", label: "Preferred", tone: "success" });
   if ((f.jobCount ?? 0) >= 2) out.push({ key: "repeat", label: "Repeat work", tone: "success" });
   else if ((f.awardedCount ?? 0) > 0 || (f.jobCount ?? 0) > 0) out.push({ key: "awarded", label: "Awarded", tone: "success" });
 
