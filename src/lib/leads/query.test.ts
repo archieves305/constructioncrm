@@ -31,9 +31,10 @@ describe("buildLeadListWhere", () => {
     expect(w).toContain('"roofEstimates":{"some":{"estimateNumber"');
   });
 
-  it("searches across name, phone, email, address, company and estimate numbers", () => {
+  it("searches across name, phone, email, address, company, estimate numbers and bid numbers", () => {
     const w = buildLeadListWhere({ search: "smith", includeClosed: true, kind: "ALL" }, admin);
-    expect(w.OR).toHaveLength(7);
+    expect(w.OR).toHaveLength(8);
+    expect(w.OR).toContainEqual({ bidInvitation: { OR: [{ number: { contains: "smith", mode: "insensitive" } }, { projectName: { contains: "smith", mode: "insensitive" } }] } });
   });
 
   it("ANDs every filter", () => {

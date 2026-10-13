@@ -156,6 +156,9 @@ export type OrgDetail = {
   openTasks: OpenTask[];
   badges: OrgBadge[];
   permissions: { canManage: boolean; canAdmin: boolean };
+  bidFacts: { openBidCount: number; bidCount: number; awardedCount: number; lastBidActivityAt: string | null };
+  jobCount: number;
+  projects: { id: string; jobNumber: string; title: string; contractAmount: number; billingMethod: string; createdAt: string; leadId: string; currentStage: { name: string; isClosed: boolean } | null }[];
 };
 
 export type DocumentView = {
@@ -238,6 +241,12 @@ export type PartnerSettings = {
   defaultOwnerUserId: string | null;
   markets: string[];
   defaultOwner: (Person & { isActive: boolean }) | null;
+  ourTradeIds: string[];
+  homeCounties: string[];
+  adjacentCounties: string[];
+  typicalRange: Record<string, { min: number; max: number }> | null;
+  bondingCapacity: string | number | null;
+  scoreWeightsVersion: number;
   updatedAt?: string;
   canEdit: boolean;
 };
@@ -327,6 +336,176 @@ export function useChangeOwner(organizationId: string) {
     onSuccess: () => {
       invalidate();
       toast.success("Owner updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── Bids (Stage 3) ────────────────────────────────────────────────────────
+
+export type BidStatus = "TRACKING" | "INVITED" | "DECIDING" | "ESTIMATING" | "SUBMITTED" | "SHORTLISTED" | "CLOSED";
+export type BidOutcome = "AWARDED" | "LOST" | "NO_BID" | "CANCELLED" | "NO_DECISION" | "REBID";
+export type BidDecision = "UNDECIDED" | "BID" | "NO_BID";
+export type BidPlatform = "BUILDINGCONNECTED" | "PROCORE" | "PLANHUB" | "SMARTBID" | "CONSTRUCTCONNECT" | "TEXTURA" | "EMAIL" | "OTHER";
+export type LossReason = "PRICE" | "RELATIONSHIP" | "SCHEDULE" | "SCOPE" | "QUALIFICATION" | "BONDING" | "CAPACITY" | "COMPETITOR" | "UNKNOWN" | "OTHER";
+export type SubmissionKind = "ORIGINAL" | "REVISED" | "ALTERNATE" | "VALUE_ENGINEERING";
+export type SubmissionMethod = "PLATFORM" | "EMAIL" | "PORTAL" | "HAND" | "OTHER";
+export type SliderKey = "margin" | "capacity" | "competition" | "complexity" | "plansAndTerms";
+export type Sliders = Record<SliderKey, number | null>;
+
+export type BidOptions = {
+  bidPlatforms: Option<BidPlatform>[];
+  bidStatuses: Option<BidStatus>[];
+  bidOutcomes: Option<BidOutcome>[];
+  lossReasons: Option<LossReason>[];
+  submissionKinds: Option<SubmissionKind>[];
+  submissionMethods: Option<SubmissionMethod>[];
+  ourTradeIds: string[];
+};
+
+export type BidSubmission = {
+  id: string;
+  version: number;
+  kind: SubmissionKind;
+  amount: number;
+  estimateId: string | null;
+  roofEstimateId: string | null;
+  snapshotTotalPrice: number | null;
+  snapshotSubtotalCost: number | null;
+  submittedAt: string;
+  method: SubmissionMethod;
+  alternates: string | null;
+  clarifications: string | null;
+  exclusions: string | null;
+  fileId: string | null;
+  createdAt: string;
+  submittedBy: Person;
+  recipientContact: Person | null;
+};
+
+export type Factor = { points: number; max: number; note: string; mode: "AUTO" | "MANUAL" | "GATE" };
+export type ScoreResult = { score: number; recommendation: "BID" | "REVIEW" | "NO_BID"; reasons: string[]; concerns: string[]; gates: string[]; breakdown: Record<string, Factor>; weightsVersion: number };
+
+export type Bid = {
+  id: string;
+  leadId: string;
+  organizationId: string;
+  contactId: string | null;
+  number: string;
+  projectName: string;
+  projectType: string | null;
+  scopeSummary: string | null;
+  invitedAt: string | null;
+  bidDueAt: string | null;
+  siteWalkAt: string | null;
+  preBidMeetingAt: string | null;
+  rfiDueAt: string | null;
+  addendaDeadlineAt: string | null;
+  interviewAt: string | null;
+  expectedAwardAt: string | null;
+  addendaCount: number;
+  specsReceived: boolean;
+  estimatorUserId: string | null;
+  siteVisitRequired: boolean;
+  bondRequired: boolean;
+  prevailingWage: boolean;
+  unionRequired: boolean;
+  insuranceNotes: string | null;
+  scheduleNotes: string | null;
+  platform: BidPlatform;
+  platformUrl: string | null;
+  platformRef: string | null;
+  status: BidStatus;
+  statusLabel: string;
+  waitingOn: string | null;
+  decision: BidDecision;
+  decisionScore: number | null;
+  decisionFactors: (Omit<ScoreResult, "score"> & { inputs: Record<string, unknown> }) | null;
+  decisionReason: string | null;
+  decidedAt: string | null;
+  submittedAt: string | null;
+  estimatingHours: number | null;
+  outcome: BidOutcome | null;
+  lossReason: LossReason | null;
+  winningContractor: string | null;
+  winningPrice: number | null;
+  outcomeNotes: string | null;
+  outcomeAt: string | null;
+  awardedAmount: number | null;
+  contractReceivedAt: string | null;
+  needsReview: boolean;
+  createdAt: string;
+  updatedAt: string;
+  estimator: Person | null;
+  decidedBy: Person | null;
+  createdBy: Person;
+  contact: { id: string; firstName: string; lastName: string; title: string | null; email: string | null; phone: string | null; mobile: string | null } | null;
+  organization: { id: string; name: string; stage: PartnerStage; owner: Person | null };
+  lead: {
+    id: string;
+    fullName: string;
+    companyName: string | null;
+    propertyAddress1: string;
+    propertyAddress2: string | null;
+    city: string;
+    state: string;
+    zipCode: string;
+    county: string | null;
+    estimatedJobValue: number | null;
+    currentStage: { id: string; name: string; isWon: boolean; isLost: boolean };
+    trades: { id: string; name: string }[];
+    jobs: { id: string; jobNumber: string; title: string; contractAmount: number; billingMethod: string; currentStage: { name: string } | null }[];
+    _count: { estimates: number; roofEstimates: number; planSets: number; files: number };
+  };
+  submissions: BidSubmission[];
+  latestAmount: number | null;
+};
+
+export type BidDetail = Bid & { permissions: { canManage: boolean; canAdmin: boolean; canDecide: boolean } };
+
+export const BID_STATUS_TONE: Record<BidStatus, "neutral" | "info" | "warning" | "success" | "danger"> = {
+  TRACKING: "neutral",
+  INVITED: "info",
+  DECIDING: "warning",
+  ESTIMATING: "info",
+  SUBMITTED: "info",
+  SHORTLISTED: "success",
+  CLOSED: "neutral",
+};
+
+export function useBids(params: URLSearchParams, enabled = true) {
+  const key = params.toString();
+  return useQuery<{ rows: Bid[]; total: number; canManage: boolean; canDecide: boolean }>({ queryKey: ["partners", "bids", key], queryFn: () => fetchJson(`/api/bids?${key}`), retry: retryServerErrors, enabled });
+}
+
+export function useBid(id: string | null | undefined) {
+  return useQuery<BidDetail>({ queryKey: ["partners", "bid", id], queryFn: () => fetchJson(`/api/bids/${id}`), retry: retryServerErrors, enabled: Boolean(id) });
+}
+
+export function useBidOptions(enabled = true) {
+  return useQuery<PartnerOptions & BidOptions>({ queryKey: ["partners", "options"], queryFn: () => fetchJson("/api/partners/options"), retry: retryServerErrors, staleTime: 60_000, enabled });
+}
+
+/** Every bid write also moves the lead (stage, value), the jobs list (an award) and the attention rows. */
+export function useInvalidateBids() {
+  const qc = useQueryClient();
+  const invalidate = useInvalidatePartners();
+  return () => {
+    invalidate();
+    qc.invalidateQueries({ queryKey: ["lead"] });
+    qc.invalidateQueries({ queryKey: ["leads"] });
+    qc.invalidateQueries({ queryKey: ["jobs"] });
+    qc.invalidateQueries({ queryKey: ["calendar"] });
+  };
+}
+
+export function useBidAction<T = BidDetail>(bidId: string, path: string, success: string | ((r: T) => string)) {
+  const invalidate = useInvalidateBids();
+  return useMutation({
+    mutationFn: (body: unknown) => fetchJson<T>(`/api/bids/${bidId}${path}`, json(body, "POST")),
+    onSuccess: (r) => {
+      invalidate();
+      toast.success(typeof success === "function" ? success(r) : success);
     },
     onError: (e: Error) => toast.error(e.message),
   });

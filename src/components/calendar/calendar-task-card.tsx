@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, CheckCircle2, ClipboardCheck, Clock, FileWarning, Flag, FolderLock, Gavel, Hammer, Link2, ListChecks, Lock, MessageSquare, ShieldAlert, ShieldCheck } from "lucide-react";
+import { AlertCircle, CheckCircle2, ClipboardCheck, Clock, FileWarning, Flag, FolderLock, Gavel, Hammer, Landmark, Link2, ListChecks, Lock, MessageSquare, ShieldAlert, ShieldCheck } from "lucide-react";
 import type { CalendarKind } from "@/lib/calendar/types";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { PRIORITY_DOT_CLASS, PRIORITY_LABEL, STATUS_TONE } from "@/components/tasks/task-colors";
@@ -60,6 +60,7 @@ export const OVERLAY_ICON: Record<Exclude<CalendarKind, "task">, typeof Gavel> =
   crew_install: Hammer,
   company_doc: FolderLock,
   qualification_date: ClipboardCheck,
+  bid_date: Landmark,
 };
 
 /**

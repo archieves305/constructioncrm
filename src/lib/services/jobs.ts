@@ -21,7 +21,24 @@ async function nextJobNumber(): Promise<string> {
   return `JOB-${String(jobCounter).padStart(5, "0")}`;
 }
 
-export async function createJobFromLead(leadId: string, userId: string) {
+/**
+ * How the job is set up at Won. A homeowner job keeps the residential
+ * defaults (50% deposit, lump sum). A GC bid package (lead kind GC_BID) is a
+ * subcontract: progress billing, 10% retainage, no deposit and no deposit
+ * task — the award path passes these, and the kind picks them when nothing
+ * is passed.
+ */
+export type CreateJobOptions = {
+  billingMethod?: "LUMP_SUM" | "PROGRESS";
+  retainagePercent?: number;
+  /** Absolute amount; defaults to 50% of the contract for a customer job, 0 for a bid package. */
+  depositRequired?: number;
+  skipDepositTask?: boolean;
+  title?: string;
+  contractAmount?: number;
+};
+
+export async function createJobFromLead(leadId: string, userId: string, opts: CreateJobOptions = {}) {
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
     include: {
@@ -30,6 +47,7 @@ export async function createJobFromLead(leadId: string, userId: string) {
     },
   });
   if (!lead) throw new Error("Lead not found");
+  const gcBid = lead.kind === "GC_BID";
 
   // Check if job already exists for this lead
   const existing = await prisma.job.findFirst({ where: { leadId } });
@@ -41,21 +59,26 @@ export async function createJobFromLead(leadId: string, userId: string) {
   const depositNeededStage = await prisma.jobStage.findFirst({ where: { name: "Deposit Needed" } });
 
   const serviceType = lead.services.map((s) => s.serviceCategory.name).join(", ") || "General";
-  const contractAmount = lead.estimatedJobValue || 0;
-  const depositRequired = Number(contractAmount) * 0.5; // Default 50% deposit
+  const contractAmount = opts.contractAmount ?? Number(lead.estimatedJobValue || 0);
+  const depositRequired = opts.depositRequired ?? (gcBid ? 0 : Number(contractAmount) * 0.5); // Default 50% deposit on a customer job
+  const billingMethod = opts.billingMethod ?? (gcBid ? "PROGRESS" : "LUMP_SUM");
+  const retainagePercent = opts.retainagePercent ?? (gcBid ? 10 : 0);
+  const skipDepositTask = opts.skipDepositTask ?? gcBid;
 
   const job = await prisma.job.create({
     data: {
       leadId,
       jobNumber: await nextJobNumber(),
-      title: `${serviceType} — ${formatAddressLine(lead) || lead.fullName}`,
+      title: opts.title ?? `${serviceType} — ${formatAddressLine(lead) || lead.fullName}`,
       serviceType,
       contractAmount,
       depositRequired,
       balanceDue: contractAmount,
+      billingMethod,
+      retainagePercent,
       salesRepId: lead.assignedUserId,
-      currentStageId: depositNeededStage?.id || wonStage.id,
-      nextAction: "Collect deposit",
+      currentStageId: depositRequired > 0 ? depositNeededStage?.id || wonStage.id : wonStage.id,
+      nextAction: depositRequired > 0 ? "Collect deposit" : gcBid ? "Return the signed subcontract" : null,
       financingRequired: lead.financingNeeded,
       financingStatus: lead.financingNeeded ? "PENDING_APPLICATION" : "NOT_NEEDED",
     },
@@ -86,7 +109,7 @@ export async function createJobFromLead(leadId: string, userId: string) {
     : null;
 
   // Create deposit task
-  if (!applied) await createTask(
+  if (!applied && !skipDepositTask && depositRequired > 0) await createTask(
     {
       jobId: job.id,
       leadId,

@@ -24,9 +24,14 @@ export async function POST(
 
   const lead = await prisma.lead.findUnique({
     where: { id },
-    select: { currentStageId: true },
+    select: { currentStageId: true, kind: true },
   });
   if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  // A GC bid package's stage mirrors its bid (Won on award, Lost on a loss);
+  // moving it by hand would put the Leads board and the bid out of step.
+  if (lead.kind === "GC_BID") {
+    return NextResponse.json({ error: "This lead is a bid package; change the bid's status instead", hint: `/leads/${id}?tab=bid` }, { status: 409 });
+  }
 
   const newStage = await prisma.leadStage.findUnique({ where: { id: stageId } });
   if (!newStage) return badRequest("Invalid stage");

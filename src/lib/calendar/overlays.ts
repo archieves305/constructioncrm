@@ -77,6 +77,8 @@ export type CrewInstallRow = { id: string; installDate: Date | null; crew: { nam
 
 /** The current version of one of KNU's own documents in the vault, with its expiry day. */
 export type CompanyDocRow = { id: string; title: string; typeName: string; expiresAt: Date };
+/** A bid package's dated milestones: due, site walk, pre-bid meeting, RFI deadline, addenda deadline, interview, expected award. */
+export type BidDateRow = { id: string; leadId: string; number: string; projectName: string; status: string; bidDueAt: Date | null; siteWalkAt: Date | null; preBidMeetingAt: Date | null; rfiDueAt: Date | null; addendaDeadlineAt: Date | null; interviewAt: Date | null; expectedAwardAt: Date | null; organization: { id: string; name: string } };
 /** An approved prequalification's expiry or renewal day. */
 export type QualificationDateRow = { id: string; platform: string | null; expiresAt: Date | null; renewalDueAt: Date | null; organization: { id: string; name: string } };
 
@@ -87,6 +89,7 @@ export type OverlayRows = {
   crewInstalls?: CrewInstallRow[];
   companyDocs?: CompanyDocRow[];
   qualificationDates?: QualificationDateRow[];
+  bidDates?: BidDateRow[];
   hearings: HearingRow[];
   caseInspections: CaseInspectionRow[];
   jobStarts: JobStartRow[];
@@ -169,6 +172,23 @@ export function overlayItems(rows: OverlayRows, now: Date = new Date(), tz: stri
   }
   for (const r of rows.companyDocs ?? []) {
     out.push(base("company_doc", `cd:${r.id}`, `${r.typeName} expires — vault`, overlayWhen(r.expiresAt, tz), { label: "Company document", detail: r.title, href: "/partners/vault", state: "scheduled" }, false, now));
+  }
+  for (const r of rows.bidDates ?? []) {
+    const href = `/leads/${r.leadId}?tab=bid`;
+    const closed = r.status === "CLOSED";
+    const dates: [Date | null, string, string][] = [
+      [r.bidDueAt, "bd", "Bid due"],
+      [r.siteWalkAt, "bw", "Site walk"],
+      [r.preBidMeetingAt, "bp", "Pre-bid meeting"],
+      [r.rfiDueAt, "br", "RFI deadline"],
+      [r.addendaDeadlineAt, "ba", "Addenda deadline"],
+      [r.interviewAt, "bi", "Bid interview"],
+      [r.expectedAwardAt, "be", "Award expected"],
+    ];
+    for (const [d, prefix, label] of dates) {
+      if (!d) continue;
+      out.push(base("bid_date", `${prefix}:${r.id}`, `${label} — ${r.organization.name} · ${r.projectName}`, overlayWhen(d, tz), { label, detail: `${r.number} · ${r.organization.name}`, href, state: closed ? "done" : "scheduled" }, closed, now));
+    }
   }
   for (const r of rows.qualificationDates ?? []) {
     const href = `/partners/${r.organization.id}?tab=qualification`;

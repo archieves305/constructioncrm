@@ -29,6 +29,8 @@ export const ATTENTION_KEYS = [
   "partner-follow-ups",
   "qualifications-expiring",
   "company-docs-expiring",
+  "bids-due",
+  "bids-awaiting-decision",
 ] as const;
 export type AttentionKey = (typeof ATTENTION_KEYS)[number];
 
@@ -41,6 +43,10 @@ export const PERMIT_WAITING_DAYS = 14;
 /** An open job nobody has touched for this long. */
 export const QUIET_JOB_DAYS = 14;
 
+/** A bid due inside this many days (or past due) is on the list. */
+export const BIDS_DUE_DAYS = 7;
+
+const ADMIN_MANAGER: readonly RoleName[] = ["ADMIN", "MANAGER"];
 const OFFICE: readonly RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF"];
 const PRODUCTION: readonly RoleName[] = [...OFFICE, "SALES_REP"];
 const PRODUCTION_VIEW: readonly RoleName[] = [...PRODUCTION, "READ_ONLY"];
@@ -161,6 +167,20 @@ export const ATTENTION_ROWS: readonly AttentionRowDef[] = [
     description: "The current version of a company document (insurance, licences, safety, financials) that has expired or expires within 30 days.",
     tone: "warning",
     roles: OFFICE,
+  },
+  {
+    key: "bids-due",
+    label: "Bids due this week",
+    description: `Open bid packages due within ${BIDS_DUE_DAYS} days, or past due, that have not been submitted.`,
+    tone: "danger",
+    roles: PRODUCTION,
+  },
+  {
+    key: "bids-awaiting-decision",
+    label: "Bids awaiting a go / no-go",
+    description: "Invitations nobody has decided on. A manager decides on the bid's tab.",
+    tone: "warning",
+    roles: ADMIN_MANAGER,
   },
 ];
 

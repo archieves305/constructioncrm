@@ -9,6 +9,7 @@ import type { CalendarParams } from "./query";
 import type { CalendarItem } from "./types";
 import { canManageVendors } from "@/lib/vendors/access";
 import { canViewPartners } from "@/lib/partners/access";
+import { leadAccessWhere } from "@/lib/access/records";
 import { DOC_TYPE_LABEL, docInForce, type RequirementKey } from "@/lib/vendors/compliance";
 
 const CASE_SELECT = { id: true, caseNumber: true, agencyCaseNumber: true, leadId: true, lead: { select: LEAD_LABEL_SELECT } } as const;
@@ -30,7 +31,7 @@ export async function loadOverlays(params: CalendarParams, sel: UsersSelection, 
   const to = endOfDayIn(params.to);
   const scopes = overlayScopes(sel, user, scope);
   const jobs = params.jobId ? { AND: [scopes.jobs, { id: params.jobId }] } : scopes.jobs;
-  const [permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs, crewInstalls, companyDocs, qualificationDates] = await Promise.all([
+  const [permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs, crewInstalls, companyDocs, qualificationDates, bidDates] = await Promise.all([
     prisma.jobPermitInspection.findMany({
       where: { scheduledFor: { gte: from, lte: to }, permit: { job: jobs } },
       select: { id: true, type: true, scheduledFor: true, result: true, permit: { select: { id: true, permitType: true, permitNumber: true, job: { select: JOB_LABEL_SELECT } } } },
@@ -82,8 +83,19 @@ export async function loadOverlays(params: CalendarParams, sel: UsersSelection, 
           select: { id: true, platform: true, expiresAt: true, renewalDueAt: true, organization: { select: { id: true, name: true } } },
           take: 200,
         }),
+    // Bid packages: lead-scoped like any lead, never under a job filter.
+    params.jobId || !canViewPartners(user.role)
+      ? []
+      : prisma.bidInvitation.findMany({
+          where: {
+            lead: leadAccessWhere(user),
+            OR: [{ bidDueAt: { gte: from, lte: to } }, { siteWalkAt: { gte: from, lte: to } }, { preBidMeetingAt: { gte: from, lte: to } }, { rfiDueAt: { gte: from, lte: to } }, { addendaDeadlineAt: { gte: from, lte: to } }, { interviewAt: { gte: from, lte: to } }, { expectedAwardAt: { gte: from, lte: to } }],
+          },
+          select: { id: true, leadId: true, number: true, projectName: true, status: true, bidDueAt: true, siteWalkAt: true, preBidMeetingAt: true, rfiDueAt: true, addendaDeadlineAt: true, interviewAt: true, expectedAwardAt: true, organization: { select: { id: true, name: true } } },
+          take: 200,
+        }),
   ]);
-  const rows: OverlayRows = { permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs, crewInstalls, companyDocs, qualificationDates };
+  const rows: OverlayRows = { permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs, crewInstalls, companyDocs, qualificationDates, bidDates };
   return overlayItems(rows, now).filter((i) => i.dayKey !== null && i.dayKey >= params.from && i.dayKey <= params.to);
 }
 

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const where = buildSearchWheres(q, { user: { id: session.user.id, role: session.user.role }, now: new Date(), scope });
   const [jobs, leads, cases, prospects, tasks, vendors, organizations, contacts] = await Promise.all([
     prisma.job.findMany({ where: where.jobs, take: TAKE, orderBy: { updatedAt: "desc" }, select: { ...JOB_LABEL_SELECT, currentStage: { select: { name: true } } } }),
-    prisma.lead.findMany({ where: where.leads, take: TAKE, orderBy: { updatedAt: "desc" }, select: { ...LEAD_LABEL_SELECT, primaryPhone: true, currentStage: { select: { name: true } } } }),
+    prisma.lead.findMany({ where: where.leads, take: TAKE, orderBy: { updatedAt: "desc" }, select: { ...LEAD_LABEL_SELECT, primaryPhone: true, currentStage: { select: { name: true } }, bidInvitation: { select: { number: true, projectName: true, status: true } } } }),
     prisma.codeViolationCase.findMany({ where: where.cases, take: TAKE, orderBy: { updatedAt: "desc" }, select: { id: true, caseNumber: true, title: true, status: true, lead: { select: LEAD_LABEL_SELECT } } }),
     prisma.prospect.findMany({ where: where.prospects, take: TAKE, orderBy: { createdAt: "desc" }, select: { id: true, propertyAddress1: true, city: true, ownerName: true } }),
     prisma.task.findMany({

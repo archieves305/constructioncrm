@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import type { RoleName } from "@/generated/prisma/client";
 import { NotificationBell } from "./notification-bell";
 import { isNavActive } from "./nav-active";
-import { BarChart3, BellRing, Briefcase, Building2, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, FolderLock, Gauge, Gavel, Hammer, Handshake, HardHat, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Search, Settings, Shield, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
+import { BarChart3, BellRing, Briefcase, Building2, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, FolderLock, Gauge, Gavel, Hammer, Handshake, HardHat, Landmark, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Search, Settings, Shield, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
 import { useViolationSummary } from "@/components/violations/use-violations";
@@ -79,6 +79,7 @@ export const navSections: NavSection[] = [
     items: [
       { href: "/partners", label: "GC Partnerships", icon: Building2, match: "exact", hint: "The general contractors and other accounts KNU courts for work — who owns each, where it stands, when it was last touched" },
       { href: "/partners/contacts", label: "Contacts", icon: Users, hint: "The estimators, preconstruction managers and executives at those accounts" },
+      { href: "/partners/bids", label: "Bids", icon: Landmark, hint: "Bid packages from the accounts: due dates, go / no-go, what went out, what came back" },
       { href: "/partners/qualifications", label: "Qualifications", icon: ClipboardCheck, hint: "Prequalification applications with each GC: where each stands, what they still want, when it expires" },
       { href: "/partners/vault", label: "Document Vault", icon: FolderLock, hint: "KNU's own licences, certificates and company papers, versioned, with expiry alerts" },
     ],

@@ -8,6 +8,7 @@ import { CASE_LABEL_SELECT, JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/la
 import type { ListScope } from "@/lib/lists/scope";
 import { dashboardTaskWhere } from "@/lib/reports/dashboard-scope";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
+import { BIDS_DUE_DAYS } from "./rows";
 
 /** A prequalification this close to its expiry is on the list. */
 const QUALIFICATION_EXPIRING_DAYS = 90;
@@ -63,6 +64,22 @@ export function partnerFollowUpsWhere(ctx: AttentionContext): Prisma.TaskWhereIn
       dashboardTaskWhere({ scope: ctx.scope, userId: ctx.user.id }),
     ],
   };
+}
+
+/** Open bids due inside the window or past due, not yet submitted; Mine = I estimate it or own the account. */
+export function bidsDueWhere(ctx: AttentionContext): Prisma.BidInvitationWhereInput {
+  const soon = new Date(ctx.now.getTime() + BIDS_DUE_DAYS * 86_400_000);
+  return {
+    AND: [
+      { status: { in: ["TRACKING", "INVITED", "DECIDING", "ESTIMATING"] }, bidDueAt: { lte: soon }, lead: leadAccessWhere(ctx.user) },
+      ctx.scope === "mine" ? { OR: [{ estimatorUserId: ctx.user.id }, { organization: { ownerUserId: ctx.user.id } }] } : {},
+    ],
+  };
+}
+
+/** Invitations with no go / no-go yet. */
+export function bidsAwaitingDecisionWhere(ctx: AttentionContext): Prisma.BidInvitationWhereInput {
+  return { AND: [{ status: { in: ["INVITED", "DECIDING"] }, decision: "UNDECIDED", lead: leadAccessWhere(ctx.user) }, ctx.scope === "mine" ? { OR: [{ estimatorUserId: ctx.user.id }, { organization: { ownerUserId: ctx.user.id } }] } : {}] };
 }
 
 /** Approved prequalifications expired, renewal-due, or expiring inside 90 days; Mine = accounts I own. */
@@ -192,6 +209,8 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "qualifications-expiring": (ctx) => prisma.qualification.count({ where: qualificationsExpiringWhere(ctx) }),
   // Company-wide, so Mine and All agree: the vault belongs to no one account.
   "company-docs-expiring": async (ctx) => (await expiringVaultDocuments(ctx.now)).length,
+  "bids-due": (ctx) => prisma.bidInvitation.count({ where: bidsDueWhere(ctx) }),
+  "bids-awaiting-decision": (ctx) => prisma.bidInvitation.count({ where: bidsAwaitingDecisionWhere(ctx) }),
 };
 
 /** The current version of each document type that has expired or expires inside 30 days. */
@@ -398,6 +417,14 @@ const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionCon
     return rows.map((j) =>
       item(j.id, jobLabel(j), `${j.currentStage.name} · last edited ${day(j.updatedAt)}${j.nextAction?.trim() ? ` · next: ${j.nextAction.trim()}` : ""}`, j.updatedAt, `/jobs/${j.id}`),
     );
+  },
+  "bids-due": async (ctx) => {
+    const rows = await prisma.bidInvitation.findMany({ where: bidsDueWhere(ctx), orderBy: { bidDueAt: "asc" }, take, select: { id: true, leadId: true, number: true, projectName: true, bidDueAt: true, status: true, organization: { select: { name: true } } } });
+    return rows.map((b) => item(b.id, { primary: `${b.organization.name} · ${b.projectName}`, secondary: words(b.status), code: b.number, placeholder: false }, b.bidDueAt && b.bidDueAt < ctx.now ? `was due ${day(b.bidDueAt)}` : `due ${day(b.bidDueAt)}`, b.bidDueAt, `/leads/${b.leadId}?tab=bid`));
+  },
+  "bids-awaiting-decision": async (ctx) => {
+    const rows = await prisma.bidInvitation.findMany({ where: bidsAwaitingDecisionWhere(ctx), orderBy: [{ bidDueAt: { sort: "asc", nulls: "last" } }], take, select: { id: true, leadId: true, number: true, projectName: true, bidDueAt: true, invitedAt: true, organization: { select: { name: true } } } });
+    return rows.map((b) => item(b.id, { primary: `${b.organization.name} · ${b.projectName}`, secondary: b.invitedAt ? `invited ${day(b.invitedAt)}` : null, code: b.number, placeholder: false }, b.bidDueAt ? `due ${day(b.bidDueAt)}` : "no due date", b.bidDueAt, `/leads/${b.leadId}?tab=bid`));
   },
   "qualifications-expiring": async (ctx) => {
     const rows = await prisma.qualification.findMany({

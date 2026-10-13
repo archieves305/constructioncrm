@@ -17,7 +17,7 @@ import { useInvalidatePartners, usePartnerOptions, usePartnerSettings, type Part
 
 const NONE = "__none";
 
-type Form = Pick<PartnerSettings, "newTargetDays" | "noResponseDays" | "qualSubmittedDays" | "prequalNoBidDays" | "activeQuietDays" | "dormantAfterDays" | "defaultOwnerUserId" | "markets" | "vaultOwnerUserId" | "defaultRequirementTypeKeys">;
+type Form = Pick<PartnerSettings, "newTargetDays" | "noResponseDays" | "qualSubmittedDays" | "prequalNoBidDays" | "activeQuietDays" | "dormantAfterDays" | "defaultOwnerUserId" | "markets" | "vaultOwnerUserId" | "defaultRequirementTypeKeys" | "ourTradeIds" | "homeCounties" | "adjacentCounties"> & { typicalRange: Record<string, { min: number; max: number }>; bondingCapacity: number | null };
 
 /** Follow-up timing for GC accounts, who gets the tasks by default, and the markets list. */
 export default function PartnerSettingsPage() {
@@ -29,7 +29,7 @@ export default function PartnerSettingsPage() {
 function SettingsForm({ data }: { data: PartnerSettings }) {
   const { data: options } = usePartnerOptions();
   const invalidate = useInvalidatePartners();
-  const [form, setForm] = useState<Form>(() => ({ newTargetDays: data.newTargetDays, noResponseDays: data.noResponseDays, qualSubmittedDays: data.qualSubmittedDays, prequalNoBidDays: data.prequalNoBidDays, activeQuietDays: data.activeQuietDays, dormantAfterDays: data.dormantAfterDays, defaultOwnerUserId: data.defaultOwnerUserId, markets: data.markets, vaultOwnerUserId: data.vaultOwnerUserId, defaultRequirementTypeKeys: data.defaultRequirementTypeKeys }));
+  const [form, setForm] = useState<Form>(() => ({ newTargetDays: data.newTargetDays, noResponseDays: data.noResponseDays, qualSubmittedDays: data.qualSubmittedDays, prequalNoBidDays: data.prequalNoBidDays, activeQuietDays: data.activeQuietDays, dormantAfterDays: data.dormantAfterDays, defaultOwnerUserId: data.defaultOwnerUserId, markets: data.markets, vaultOwnerUserId: data.vaultOwnerUserId, defaultRequirementTypeKeys: data.defaultRequirementTypeKeys, ourTradeIds: data.ourTradeIds ?? [], homeCounties: data.homeCounties ?? [], adjacentCounties: data.adjacentCounties ?? [], typicalRange: data.typicalRange ?? {}, bondingCapacity: data.bondingCapacity == null ? null : Number(data.bondingCapacity) }));
   const [newMarket, setNewMarket] = useState("");
 
   const save = useMutation({
@@ -109,6 +109,7 @@ function SettingsForm({ data }: { data: PartnerSettings }) {
               </div>
             </CardContent>
           </Card>
+          <BidScoringCard form={form} set={set} canEdit={canEdit} trades={options?.trades ?? []} weightsVersion={data.scoreWeightsVersion} />
           <Card>
             <CardHeader><CardTitle className="text-base">Markets</CardTitle><p className="text-sm text-muted-foreground">The counties and regions accounts are tagged with and filtered by.</p></CardHeader>
             <CardContent className="space-y-3">
@@ -149,5 +150,71 @@ function SettingsForm({ data }: { data: PartnerSettings }) {
         </div>
       )}
     </div>
+  );
+}
+
+function Chips({ all, picked, onChange, disabled }: { all: { value: string; label: string }[]; picked: string[]; onChange: (v: string[]) => void; disabled: boolean }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {all.map((t) => {
+        const on = picked.includes(t.value);
+        return (
+          <Button key={t.value} type="button" size="sm" variant={on ? "default" : "outline"} className="h-7 rounded-full text-xs" aria-pressed={on} disabled={disabled} onClick={() => onChange(on ? picked.filter((k) => k !== t.value) : [...picked, t.value])}>
+            {t.label}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** What the bid / no-bid score reads about KNU itself. The point values stay coded until the Stage 4 weights page. */
+function BidScoringCard({ form, set, canEdit, trades, weightsVersion }: { form: Form; set: <K extends keyof Form>(k: K, v: Form[K]) => void; canEdit: boolean; trades: { value: string; label: string }[]; weightsVersion: number }) {
+  const markets = form.markets.map((m) => ({ value: m, label: m }));
+  const ours = trades.filter((t) => form.ourTradeIds.includes(t.value));
+  const setRange = (id: string, k: "min" | "max", v: string) => {
+    const cur = form.typicalRange[id] ?? { min: 0, max: 0 };
+    set("typicalRange", { ...form.typicalRange, [id]: { ...cur, [k]: Number(v) || 0 } });
+  };
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Bid scoring</CardTitle>
+        <p className="text-sm text-muted-foreground">What the bid / no-bid score knows about KNU. A trade outside this list is a hard stop; a county outside both lists and a size far from the range lower the score. Rules version {weightsVersion}.</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <Label>Trades KNU bids</Label>
+          <Chips all={trades} picked={form.ourTradeIds} onChange={(v) => set("ourTradeIds", v)} disabled={!canEdit} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Home counties</Label>
+          <Chips all={markets} picked={form.homeCounties} onChange={(v) => set("homeCounties", v)} disabled={!canEdit} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Within reach</Label>
+          <Chips all={markets} picked={form.adjacentCounties} onChange={(v) => set("adjacentCounties", v)} disabled={!canEdit} />
+          <p className="text-xs text-muted-foreground">Counties come from the Markets list; add one there first.</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="bond-cap">Bonding capacity</Label>
+          <Input id="bond-cap" type="number" min={0} step="10000" className="max-w-xs" value={form.bondingCapacity ?? ""} onChange={(e) => set("bondingCapacity", e.target.value === "" ? null : Number(e.target.value))} placeholder="Not set: a bonded bid is a hard stop" disabled={!canEdit} />
+        </div>
+        {ours.length > 0 && (
+          <div className="space-y-1.5">
+            <Label>Usual contract size per trade</Label>
+            <div className="space-y-1.5">
+              {ours.map((t) => (
+                <div key={t.value} className="grid grid-cols-[1fr_7rem_7rem] items-center gap-2 text-sm">
+                  <span className="truncate">{t.label}</span>
+                  <Input type="number" min={0} step="10000" aria-label={`${t.label} from`} placeholder="from $" value={form.typicalRange[t.value]?.min || ""} onChange={(e) => setRange(t.value, "min", e.target.value)} disabled={!canEdit} />
+                  <Input type="number" min={0} step="10000" aria-label={`${t.label} to`} placeholder="to $" value={form.typicalRange[t.value]?.max || ""} onChange={(e) => setRange(t.value, "max", e.target.value)} disabled={!canEdit} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

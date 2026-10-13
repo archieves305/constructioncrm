@@ -4,7 +4,8 @@ import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { canViewPartners, PARTNER_DENIED_MESSAGE } from "@/lib/partners/access";
 import { getPartnerSettings } from "@/lib/partners/settings";
 import { PARTNER_STAGES } from "@/lib/partners/stages";
-import { CONFIDENTIALITIES, CONTACT_ROLES, INTERACTION_KINDS, INTERACTION_OUTCOMES, ORGANIZATION_KINDS, ORGANIZATION_PRIORITIES, QUALIFICATION_STATUSES, REQUIREMENT_STATUSES } from "@/lib/partners/validation";
+import { BID_LOSS_REASONS, BID_OUTCOMES, BID_PLATFORMS, BID_STATUSES_LIST, BID_SUBMISSION_KINDS, BID_SUBMISSION_METHODS, CONFIDENTIALITIES, CONTACT_ROLES, INTERACTION_KINDS, INTERACTION_OUTCOMES, ORGANIZATION_KINDS, ORGANIZATION_PRIORITIES, QUALIFICATION_STATUSES, REQUIREMENT_STATUSES } from "@/lib/partners/validation";
+import { BID_OUTCOME_LABEL, BID_PLATFORM_LABEL, BID_STATUS_HINT, BID_STATUS_LABEL } from "@/lib/partners/bid-state";
 import { QUAL_STATUS_LABEL } from "@/lib/partners/qualification-state";
 import { CONFIDENTIALITY_LABEL } from "@/lib/partners/vault-access";
 
@@ -60,6 +61,10 @@ const OUTCOME_LABEL: Record<(typeof INTERACTION_OUTCOMES)[number], string> = {
   NOT_APPLICABLE: "Not applicable",
 };
 
+const LOSS_LABEL: Record<(typeof BID_LOSS_REASONS)[number], string> = { PRICE: "Price", RELATIONSHIP: "Relationship", SCHEDULE: "Schedule", SCOPE: "Scope", QUALIFICATION: "Qualification", BONDING: "Bonding", CAPACITY: "Capacity", COMPETITOR: "Competitor", UNKNOWN: "Unknown", OTHER: "Other" };
+const SUBMISSION_KIND_LABEL: Record<(typeof BID_SUBMISSION_KINDS)[number], string> = { ORIGINAL: "Original", REVISED: "Revised", ALTERNATE: "Alternate", VALUE_ENGINEERING: "Value engineering" };
+const SUBMISSION_METHOD_LABEL: Record<(typeof BID_SUBMISSION_METHODS)[number], string> = { PLATFORM: "Bid platform", EMAIL: "Email", PORTAL: "GC portal", HAND: "By hand", OTHER: "Other" };
+
 /** Everything the Business Development forms need for their selects, with labels (Base UI needs `items`). */
 export async function GET() {
   const session = await getSession();
@@ -86,5 +91,12 @@ export async function GET() {
     requirementStatuses: REQUIREMENT_STATUSES.map((s) => ({ value: s, label: s === "PENDING" ? "Pending" : s === "ACCEPTED" ? "Accepted" : s === "REJECTED" ? "Rejected" : "Waived" })),
     confidentialities: CONFIDENTIALITIES.map((c) => ({ value: c, label: CONFIDENTIALITY_LABEL[c] })),
     defaultRequirementTypeKeys: settings.defaultRequirementTypeKeys,
+    bidPlatforms: BID_PLATFORMS.map((p) => ({ value: p, label: BID_PLATFORM_LABEL[p] })),
+    bidStatuses: BID_STATUSES_LIST.map((s) => ({ value: s, label: BID_STATUS_LABEL[s], hint: BID_STATUS_HINT[s] })),
+    bidOutcomes: BID_OUTCOMES.map((o) => ({ value: o, label: BID_OUTCOME_LABEL[o] })),
+    lossReasons: BID_LOSS_REASONS.map((r) => ({ value: r, label: LOSS_LABEL[r] })),
+    submissionKinds: BID_SUBMISSION_KINDS.map((k) => ({ value: k, label: SUBMISSION_KIND_LABEL[k] })),
+    submissionMethods: BID_SUBMISSION_METHODS.map((m) => ({ value: m, label: SUBMISSION_METHOD_LABEL[m] })),
+    ourTradeIds: settings.ourTradeIds,
   });
 }

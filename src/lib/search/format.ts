@@ -19,7 +19,7 @@ export type SearchHit = {
 
 export type SearchRows = {
   jobs: (JobLabelInput & { id: string; currentStage?: { name: string } | null })[];
-  leads: { id: string; kind?: "CUSTOMER" | "GC_BID"; fullName: string; companyName?: string | null; propertyAddress1: string; propertyAddress2?: string | null; city: string; primaryPhone?: string | null; currentStage?: { name: string } | null }[];
+  leads: { id: string; kind?: "CUSTOMER" | "GC_BID"; fullName: string; companyName?: string | null; propertyAddress1: string; propertyAddress2?: string | null; city: string; primaryPhone?: string | null; currentStage?: { name: string } | null; bidInvitation?: { number: string; projectName: string; status: string } | null }[];
   cases: (CaseLabelInput & { id: string; status?: string | null })[];
   prospects: { id: string; propertyAddress1: string; city: string; ownerName?: string | null }[];
   /** Active open tasks; a dated one opens on the calendar's day, an undated one on the tasks page. */
@@ -56,7 +56,7 @@ export function toSearchHits(rows: SearchRows): SearchHit[] {
     const stage = l.currentStage?.name;
     if (l.kind === "GC_BID") {
       // A bid package: the contractor leads, the site is the detail, and it opens on its Bid tab.
-      hits.push({ type: "lead", id: l.id, primary: `Bid · ${l.companyName || l.fullName}`, secondary: [address, stage].filter(Boolean).join(" · ") || null, code: null, href: `/leads/${l.id}?tab=bid` });
+      hits.push({ type: "lead", id: l.id, primary: `Bid · ${l.companyName || l.fullName}${l.bidInvitation ? ` · ${l.bidInvitation.projectName}` : ""}`, secondary: [address, l.bidInvitation ? ORG_STAGE_LABEL[l.bidInvitation.status] ?? l.bidInvitation.status : stage].filter(Boolean).join(" · ") || null, code: l.bidInvitation?.number ?? null, href: `/leads/${l.id}?tab=bid` });
       continue;
     }
     hits.push({

@@ -47,7 +47,12 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    applied (90), smoke 307 ×2, journal clean, backup
    `postgres-2026-10-13-170744.dump`; seeded (16 document types, default
    checklist filled), `company-document-alerts.sh` on the crontab at
-   `56 11 * * 1-5`, first run `raised 0`):
+   `56 11 * * 1-5`, first run `raised 0`). **Stage 3 (bids: invitations on
+   `GC_BID` leads, go / no-go score, submissions, outcomes, award →
+   progress-billed job) built + dev-QA'd 2026-10-13 on `partners-s3`, not
+   merged, not deployed**; migration `20261025120000_partners_bids`, no seed,
+   no cron; after the deploy fill Admin → Business Development → Bid scoring
+   and run `scripts/backfill-partners-bid-job00009.ts`. Stage 2 facts:
    migration `20261024120000_partners_qualifications` (`CompanyDocumentType`,
    `CompanyDocument` with own storage + encryption at rest for RESTRICTED,
    `Qualification`, `QualificationRequirement`, `PartnerSettings` vault owner +
@@ -461,6 +466,36 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-13 — GC Partnerships Stage 3: bids (built + dev-QA'd on `partners-s3`, not deployed)
+
+"build stage 3", on a branch from `main` in the same worktree. Migration
+`20261025120000_partners_bids` (applied on dev with `db execute` then
+`resolve`; hand-appended sequence + five CHECKs): `BidInvitation`,
+`BidSubmission`, seven enums, scoring columns on `PartnerSettings`. Pure
+`bid-state.ts` (transitions, labels, lead mirror), `bid-score.ts` (zod
+weights, deterministic score with gates and a snapshot; the design's worked
+example scores 75), `scorecard.ts` (12-month KPIs). Services `bids.ts`
+(create lead + invitation in one transaction, status, preview / decide,
+close, award through `createJobFromLead` with progress billing / 10 % /
+no deposit, reopen, delete, list, bid facts for badges and follow-ups) and
+`submissions.ts`; `createJobFromLead` takes options and picks the subcontract
+defaults for any `GC_BID` lead; the lead stage route answers 409 for a bid;
+`bid-guard.ts` lead-scopes every bid route and the list. Routes under
+`/api/bids`; the lead's Bid tab (`bid-panel.tsx`), `bid-form-dialog.tsx`,
+`/partners/bids` (KPI strip, list | board), the account's Bids and Projects
+tabs, Admin → Bid scoring, attention rows `bids-due` /
+`bids-awaiting-decision`, calendar overlay `bid_date`, bid number in ⌘K and
+the Leads search. Found in QA and fixed: reopen answered with the lead's old
+stage; a sales rep's list showed bids whose lead 404s for them; the nurture
+card showed on a bid lead; and, on every lead, the page widened past a phone
+screen (grid columns lacked `min-w-0`). Gate: typecheck clean, lint 5/22,
+1646 tests (+14), build clean. Dev QA: API 48/48, headless Chromium 25/25 at
+1280 and 400 px, SALES_REP 15/15, READ_ONLY and CREW_LEAD read-only; the
+JOB-00009 backfill run on a stand-in job (dry run, apply, re-run unchanged)
+and reverted. The dev bypass had written CREW_LEAD onto the seed rep; reset
+to SALES_REP. QA rows removed. Details:
+[features/partners.md](docs/project-memory/features/partners.md).
 
 ### 2026-10-13 — GC Partnerships Stage 2: qualifications and the document vault (built + dev-QA'd on `partners-s2`, not deployed)
 
@@ -2558,6 +2593,8 @@ ssh knuco-droplet '/home/knuco/crm-cron/inspection-reminders.sh; tail -1 /home/k
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-partners.ts"'
 # Coastal Choice backfill (dry run by default; --apply writes; --fix-billing only on Richard's word)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-partners-coastal-choice.ts"'
+# JOB-00009's award as a bid record (dry run by default; --apply writes; idempotent)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-partners-bid-job00009.ts"'
 # Vault + qualification expiry cron, by hand (droplet; each alert is raised once)
 ssh knuco-droplet '/home/knuco/crm-cron/company-document-alerts.sh; tail -1 /home/knuco/crm-cron/company-document-alerts.log'
 # Partner follow-up cron, by hand (droplet; each follow-up is raised once per period; ?dryRun=1 plans only)
@@ -2769,6 +2806,15 @@ Notification Digests).
   the text; payroll rows are never matched. A labor contract's vendor is its
   own link, else its crew's. Vendor routes use `canManageVendors` /
   `canViewVendors` (`lib/vendors/access.ts`).
+- **A bid's status is the master; its lead's stage only mirrors Won and
+  Lost** (`lib/partners/bids.ts`). A `GC_BID` lead is never moved through the
+  lead stage route (409) and never fires the lead event; an award creates the
+  job through `createJobFromLead` with progress billing, 10 % retainage and no
+  deposit. The bid / no-bid score is deterministic advice
+  (`lib/partners/bid-score.ts`): a person decides (ADMIN / MANAGER), and the
+  decision stores the score, its inputs and the weights version. Every bid
+  route and list is lead-scoped (`bid-guard.ts`). A submission is a record:
+  append-only, snapshotting the estimate's price and cost.
 - **A dashboard attention row's count and its list share one `where`**
   (`lib/attention/load.ts`). A new row gets a role list in `rows.ts` and both
   a counter and a lister over the same builder — never two queries.
@@ -2798,6 +2844,19 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **GC Partnerships Stage 3 (bids) is built + dev-QA'd on `partners-s3`, not
+> merged, not deployed.** Merge: in `/tmp/knuco-main` (branch `main`),
+> `git merge --ff-only partners-s3`; Richard pushes and deploys from `!`.
+> **Deploy carries migration `20261025120000_partners_bids`**; no seed, no
+> cron. After it: check the five `bid_*_chk` constraints and the sequence on
+> prod, then run `scripts/backfill-partners-bid-job00009.ts` (dry run →
+> `--apply` on Richard's word; JOB-00009 becomes BID-00001, awarded).
+> Richard's click-through: Admin → Business Development → Bid scoring (trades
+> KNU bids, home / reachable counties, usual size per trade, bonding
+> capacity) → Coastal Choice → Log a bid → the lead's Bid tab (sliders, Bid,
+> Record submission, Close…) → Business Development → Bids. Next build:
+> **Stage 4** (health score, scorecard, analytics, weights editor).
 
 > **GC Partnerships Stage 2 (qualifications + vault) is on prod (`65cc01e`,
 > BUILD_ID `k_Dv0RZV2Xs5ihU2PF5fB`), seeded, cron installed.** Click-through: Business Development → Document

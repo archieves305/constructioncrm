@@ -25,6 +25,8 @@ export async function GET(
       // The jobs this lead became, so the lead page can link to them.
       jobs: { orderBy: { createdAt: "asc" }, select: { id: true, jobNumber: true, currentStage: { select: { name: true } } } },
       services: { include: { serviceCategory: true } },
+      organization: { select: { id: true, name: true, stage: true } },
+      bidInvitation: { select: { id: true, number: true, status: true, projectName: true, bidDueAt: true, outcome: true } },
       stageHistory: {
         include: {
           fromStage: true,

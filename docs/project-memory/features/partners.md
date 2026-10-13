@@ -1,7 +1,7 @@
 # Business Development — GC Partnerships
 
-_Stage 1 built + deployed 2026-10-13 (`b8af730`); Stage 2 built 2026-10-13 on
-`partners-s2`. Design:
+_Stage 1 deployed 2026-10-13 (`b8af730`); Stage 2 deployed 2026-10-13
+(`65cc01e`); Stage 3 (bids) built + dev-QA'd 2026-10-13 on `partners-s3`. Design:
 `CAREYOS_GC_PARTNERSHIPS_IMPLEMENTATION_PLAN.md` and
 `CAREYOS_GC_PARTNERSHIPS_BUILD_SPECIFICATIONS.md` at the repo root._
 
@@ -175,8 +175,90 @@ POST upsert) · `/api/partners/[id]/qualifications` (GET, POST) ·
 Operator: seed again after the deploy (16 types created; default checklist
 filled); `crm-cron/company-document-alerts.sh` at `56 11 * * 1-5`.
 
+## Stage 3 — bids
+
+Migration `20261025120000_partners_bids`: `BidInvitation` (1:1 with a
+`GC_BID` lead, `BID-nnnnn` from `bid_invitation_number_seq`, dates, flags,
+platform, status, decision + score + snapshot, outcome, estimating hours),
+`BidSubmission` (append-only versions), seven enums, scoring columns on
+`PartnerSettings` (`scoreWeights` + `scoreWeightsVersion`, `ourTradeIds`,
+`homeCounties`, `adjacentCounties`, `typicalRange`, `bondingCapacity`).
+CHECKs: outcome only when CLOSED, awarded amount only when AWARDED, score
+0–100, a submission links at most one estimate, version ≥ 1.
+
+Rules:
+
+- **A bid package is a Lead of kind `GC_BID` plus its `BidInvitation`.**
+  `createBid` writes both in one transaction (contact or account fill the
+  person columns, the site fills the address, `primaryPhone` falls back to
+  "N/A", source "GC bid invitation", assignee = estimator → account owner →
+  actor) and logs the invitation as an inbound interaction.
+- **Status is the master; the lead's stage mirrors only Won and Lost.** The
+  lead stage route answers 409 for a `GC_BID` lead. `moveLeadStage` in
+  `bids.ts` writes history, activity and audit, and never fires the lead
+  event (no nurture, no rule mail). The stepper is hidden on a bid lead; the
+  nurture card too.
+- **Transitions** (`bid-state.ts`): forward, the corrections back
+  (SUBMITTED → ESTIMATING for a revision), CLOSED only through `/outcome` or
+  a NO_BID decision, reopen only from CLOSED. SUBMITTED needs a submission.
+  "Waiting on" is a note while ESTIMATING, not a state.
+- **The score is advice** (`bid-score.ts`, pure): relationship 15 (neutral
+  until Stage 4's health score), size vs the trade's usual range 10, trade fit
+  10 (none = hard NO_BID), market 10, lead time 5, payment history 10, win
+  rate with the GC 5 (needs 3 decided), lapsed insurance −5, five 1–5 sliders
+  (margin, capacity ×2; competition, complexity, plans/terms ×1). A bond
+  beyond capacity caps the recommendation at REVIEW. Bands: ≥ 70 BID, ≥ 50
+  REVIEW. Every decision stores the score, the inputs and the weights version.
+  Admin → Business Development → Bid scoring sets the trades, counties, size
+  ranges and bonding capacity; the point values stay coded until Stage 4.
+- **Who:** view = partner viewers; log / edit / move / submit / record a
+  loss = ADMIN, MANAGER, OFFICE_STAFF, SALES_REP; decide, award, reopen,
+  delete = ADMIN / MANAGER. **Every bid route and the list are lead-scoped**
+  (`bid-guard.ts`, `leadAccessWhere`): a sales rep sees the bids they
+  estimate, raised, or whose lead is theirs.
+- **Award → job** through `createJobFromLead(…, { billingMethod: PROGRESS,
+  retainagePercent: 10, depositRequired: 0, skipDepositTask: true,
+  contractAmount, title })`. `createJobFromLead` also picks these defaults by
+  itself for any `GC_BID` lead (the hand-moved Won path is closed anyway).
+  Reopening an awarded bid needs `force` and leaves the job.
+- A submission snapshots the linked estimate's price and cost (margin at bid
+  time); only a manager may delete one, within a day.
+- Delete only a bid never worked (TRACKING / INVITED, no submission, no
+  estimate, plan set or file on its lead) — the lead goes with it.
+
+Surfaces: the lead's **Bid** tab (first, default; facts, dates, Bid or pass
+card with live score and sliders, What went out, Outcome, Move to… / Record
+submission / Close… / Reopen), header = project + `BID-nnnnn`, breadcrumb
+Bids; `/partners/bids` (12-month KPI strip from `scorecard.ts`, list | board,
+All | Mine, search by project / GC / number, Show closed, CSV, Log a bid);
+the account's **Bids** and **Projects** tabs and a Log a bid button; attention
+rows `bids-due` (PRODUCTION, 7 days) and `bids-awaiting-decision`
+(ADMIN / MANAGER); calendar overlay `bid_date` (due, site walk, pre-bid, RFI,
+addenda, interview, award expected); ⌘K and the Leads search find a bid by
+number or project; badges Bidding / Bid received / Awarded / Repeat work.
+Fixed on the way: the lead page widened past a phone screen on every lead
+(grid columns lacked `min-w-0`).
+
+Routes: `/api/bids` (GET, POST) · `/[id]` (GET, PATCH, DELETE) ·
+`/[id]/status` · `/[id]/decision` (GET preview with slider query, POST) ·
+`/[id]/outcome` · `/[id]/reopen` · `/[id]/submissions` (POST) ·
+`/[id]/submissions/[sid]` (DELETE).
+
+Operator: no seed and no cron. After the deploy, fill Admin → Business
+Development → Bid scoring (trades, counties, size ranges, bonding), then
+`scripts/backfill-partners-bid-job00009.ts` (dry run, then `--apply`) records
+JOB-00009's award as BID-00001 — CLOSED / AWARDED at the original contract,
+no score, no invented submission.
+
+QA (dev, 2026-10-13): API 48/48; headless Chromium 25/25 at 1280 and 400 px
+(log a bid through the dialog, sliders move the score, decide, submit, lose,
+reopen, award → job, account tabs, list / board, attention list); roles —
+SALES_REP 15/15 (sees only own bids, 404 on others, 403 on decide / award /
+reopen / delete), READ_ONLY and CREW_LEAD cannot write; backfill dry run /
+apply / re-run on a stand-in job. QA rows removed.
+
 ## Next
 
-Stage 3: bid invitations on `GC_BID` leads, decisions, submissions,
-outcomes, award → progress-billed job. Stage 4: health score, scorecard,
-analytics.
+Stage 4: health score (feeds the bid score's relationship factor), the money
+side of the scorecard (revenue, margin, days to pay per account), partner
+analytics, the weights editor.

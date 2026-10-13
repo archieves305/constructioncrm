@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit/record";
 import type { FollowUpThresholds } from "./follow-ups";
@@ -22,6 +23,13 @@ const SELECT = {
   markets: true,
   vaultOwnerUserId: true,
   defaultRequirementTypeKeys: true,
+  scoreWeights: true,
+  scoreWeightsVersion: true,
+  ourTradeIds: true,
+  homeCounties: true,
+  adjacentCounties: true,
+  typicalRange: true,
+  bondingCapacity: true,
   updatedAt: true,
   defaultOwner: { select: { id: true, firstName: true, lastName: true, isActive: true } },
   vaultOwner: { select: { id: true, firstName: true, lastName: true, isActive: true } },
@@ -55,6 +63,12 @@ export type PartnerSettingsPatch = Partial<{
   markets: string[];
   vaultOwnerUserId: string | null;
   defaultRequirementTypeKeys: string[];
+  scoreWeights: unknown;
+  ourTradeIds: string[];
+  homeCounties: string[];
+  adjacentCounties: string[];
+  typicalRange: unknown;
+  bondingCapacity: number | null;
 }>;
 
 export async function updatePartnerSettings(patch: PartnerSettingsPatch, actorUserId: string) {
@@ -62,7 +76,19 @@ export async function updatePartnerSettings(patch: PartnerSettingsPatch, actorUs
   const data: PartnerSettingsPatch = { ...patch };
   if (data.markets) data.markets = Array.from(new Set(data.markets.map((m) => m.trim()).filter(Boolean)));
   if (data.defaultRequirementTypeKeys) data.defaultRequirementTypeKeys = Array.from(new Set(data.defaultRequirementTypeKeys.map((k) => k.trim()).filter(Boolean)));
-  const after = await prisma.partnerSettings.update({ where: { id: "default" }, data, select: SELECT });
+  // Edited weights get a new version so every stored decision keeps its own.
+  const weightsChanged = data.scoreWeights !== undefined && JSON.stringify(data.scoreWeights) !== JSON.stringify(before.scoreWeights);
+  const after = await prisma.partnerSettings.update({
+    where: { id: "default" },
+    data: {
+      ...(data as Prisma.PartnerSettingsUpdateInput),
+      // A JSON column is cleared with DbNull, not null.
+      ...(data.scoreWeights === null ? { scoreWeights: Prisma.DbNull } : {}),
+      ...(data.typicalRange === null ? { typicalRange: Prisma.DbNull } : {}),
+      ...(weightsChanged ? { scoreWeightsVersion: { increment: 1 } } : {}),
+    },
+    select: SELECT,
+  });
   await recordAudit({ actorUserId, entityType: "PartnerSettings", entityId: "default", action: "update", before: pick(before, patch), after: pick(after, patch) });
   return after;
 }

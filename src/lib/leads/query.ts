@@ -76,6 +76,8 @@ export function buildLeadListWhere(params: LeadListParams, ctx: LeadListContext)
         // The number printed on an estimate, from either estimate builder.
         { estimates: { some: { estimateNumber: { contains: params.search, mode: "insensitive" } } } },
         { roofEstimates: { some: { estimateNumber: { contains: params.search, mode: "insensitive" } } } },
+        // A bid package by its number or project.
+        { bidInvitation: { OR: [{ number: { contains: params.search, mode: "insensitive" } }, { projectName: { contains: params.search, mode: "insensitive" } }] } },
       ],
     });
   }

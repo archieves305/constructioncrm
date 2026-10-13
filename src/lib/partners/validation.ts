@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bidWeightsSchema } from "./bid-score";
 import { NextResponse } from "next/server";
 import { PartnerError } from "./errors";
 import { PARTNER_STAGE_KEYS, stageNeedsReason } from "./stages";
@@ -125,6 +126,12 @@ export const settingsSchema = z
     markets: z.array(z.string().trim().min(1).max(60)).max(100),
     vaultOwnerUserId: id.nullable(),
     defaultRequirementTypeKeys: z.array(z.string().trim().min(1).max(60)).max(60),
+    scoreWeights: bidWeightsSchema.nullable(),
+    ourTradeIds: z.array(id).max(30),
+    homeCounties: z.array(z.string().trim().min(1).max(60)).max(100),
+    adjacentCounties: z.array(z.string().trim().min(1).max(60)).max(100),
+    typicalRange: z.record(z.string(), z.object({ min: z.number().min(0), max: z.number().min(0) })),
+    bondingCapacity: z.number().min(0).max(1_000_000_000).nullable(),
   })
   .partial();
 
@@ -155,6 +162,82 @@ export const documentPatchSchema = z
   .object({ title: z.string().trim().min(1).max(200), effectiveDate: dayOrEmpty, expiresAt: dayOrEmpty, notes: text(2000), confidentiality: z.enum(CONFIDENTIALITIES), approvedForExternal: z.boolean() })
   .partial();
 export const documentTypeSchema = z.object({ id: id.optional(), name: z.string().trim().min(2).max(120), category: z.enum(DOCUMENT_CATEGORIES), defaultValidityMonths: z.number().int().min(1).max(120).nullish(), isActive: z.boolean().optional(), sortOrder: z.number().int().min(0).max(1000).optional() });
+
+export const BID_PLATFORMS = ["BUILDINGCONNECTED", "PROCORE", "PLANHUB", "SMARTBID", "CONSTRUCTCONNECT", "TEXTURA", "EMAIL", "OTHER"] as const;
+export const BID_STATUSES_LIST = ["TRACKING", "INVITED", "DECIDING", "ESTIMATING", "SUBMITTED", "SHORTLISTED", "CLOSED"] as const;
+export const BID_OUTCOMES = ["AWARDED", "LOST", "NO_BID", "CANCELLED", "NO_DECISION", "REBID"] as const;
+export const BID_LOSS_REASONS = ["PRICE", "RELATIONSHIP", "SCHEDULE", "SCOPE", "QUALIFICATION", "BONDING", "CAPACITY", "COMPETITOR", "UNKNOWN", "OTHER"] as const;
+export const BID_SUBMISSION_KINDS = ["ORIGINAL", "REVISED", "ALTERNATE", "VALUE_ENGINEERING"] as const;
+export const BID_SUBMISSION_METHODS = ["PLATFORM", "EMAIL", "PORTAL", "HAND", "OTHER"] as const;
+
+/** An instant (datetime-local or ISO) or a bare day; empty clears. */
+const when = z.union([z.string().datetime({ offset: true }), dayKey, z.literal(""), z.null()]).optional();
+const slider = z.number().int().min(1).max(5).nullable();
+
+export const bidFields = {
+  contactId: id.nullish(),
+  projectName: z.string().trim().min(2, "Name the project").max(200),
+  projectType: text(120),
+  scopeSummary: text(5000),
+  invitedAt: when,
+  bidDueAt: when,
+  siteWalkAt: when,
+  preBidMeetingAt: when,
+  rfiDueAt: when,
+  addendaDeadlineAt: when,
+  interviewAt: when,
+  expectedAwardAt: when,
+  addendaCount: z.number().int().min(0).max(99).optional(),
+  specsReceived: z.boolean().optional(),
+  estimatorUserId: id.nullish(),
+  siteVisitRequired: z.boolean().optional(),
+  bondRequired: z.boolean().optional(),
+  prevailingWage: z.boolean().optional(),
+  unionRequired: z.boolean().optional(),
+  insuranceNotes: text(2000),
+  scheduleNotes: text(2000),
+  platform: z.enum(BID_PLATFORMS).optional(),
+  platformUrl: url,
+  platformRef: text(120),
+  estimatedContractValue: money,
+  estimatingHours: z.number().min(0).max(9999).nullish(),
+  waitingOn: text(200),
+  contractReceivedAt: when,
+};
+
+export const createBidSchema = z.object({
+  ...bidFields,
+  organizationId: id,
+  status: z.enum(["TRACKING", "INVITED"]).optional(),
+  tradeIds: z.array(id).min(1, "Pick at least one trade").max(10),
+  site: z.object({ address1: z.string().trim().min(3).max(200), address2: text(200), city: z.string().trim().min(2).max(120), state: z.string().trim().length(2).optional(), zipCode: z.string().trim().min(5).max(12), county: text(80) }),
+});
+export const updateBidSchema = z.object({ ...bidFields, tradeIds: z.array(id).min(1).max(10).optional() }).partial();
+export const bidStatusSchema = z.object({ status: z.enum(BID_STATUSES_LIST), waitingOn: text(200) });
+export const bidDecisionSchema = z.object({
+  decision: z.enum(["BID", "NO_BID"]),
+  manual: z.object({ margin: slider, capacity: slider, competition: slider, complexity: slider, plansAndTerms: slider }),
+  reason: text(2000),
+});
+export const bidOutcomeSchema = z
+  .object({ outcome: z.enum(BID_OUTCOMES), lossReason: z.enum(BID_LOSS_REASONS).nullish(), winningContractor: text(200), winningPrice: money, outcomeNotes: text(5000), awardedAmount: money, outcomeAt: when })
+  .refine((v) => v.outcome !== "LOST" || Boolean(v.lossReason), { message: "Say why it was lost", path: ["lossReason"] })
+  .refine((v) => v.outcome !== "AWARDED" || (v.awardedAmount !== null && v.awardedAmount !== undefined && v.awardedAmount > 0), { message: "The awarded amount is needed to create the job", path: ["awardedAmount"] });
+export const bidSubmissionSchema = z.object({
+  kind: z.enum(BID_SUBMISSION_KINDS).optional(),
+  amount: z.number().min(0).max(1_000_000_000),
+  estimateId: id.nullish(),
+  roofEstimateId: id.nullish(),
+  submittedAt: when,
+  method: z.enum(BID_SUBMISSION_METHODS).optional(),
+  recipientContactId: id.nullish(),
+  alternates: text(5000),
+  clarifications: text(5000),
+  exclusions: text(5000),
+  fileId: id.nullish(),
+  estimatingHours: z.number().min(0).max(9999).nullish(),
+});
+export const bidReopenSchema = z.object({ force: z.boolean().optional() });
 
 /** Zod issues as one line: "field: what is wrong". */
 export function issuesMessage(err: z.ZodError): string {

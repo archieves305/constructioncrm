@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, Building2, CalendarClock, CheckSquare, ExternalLink, Globe, Mail, MapPin, MessageSquarePlus, MoreHorizontal, Pencil, Phone, Plus, Star, Trash2, UserCheck } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Building2, Gavel, CalendarClock, CheckSquare, ExternalLink, Globe, Mail, MapPin, MessageSquarePlus, MoreHorizontal, Pencil, Phone, Plus, Star, Trash2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { EntityHeader } from "@/components/shared/entity-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -34,9 +34,11 @@ import { OrgBadges, PriorityBadge } from "@/components/partners/stage-badges";
 import { KIND_LABEL, personName, useChangeStage, useInteractions, useInvalidatePartners, useOrganization, usePartnerOptions, type Contact, type Interaction, type InteractionKind, type OrgDetail } from "@/components/partners/use-partners";
 import { QualificationPanel } from "@/components/partners/qualification-panel";
 import { OrgDocumentsTab } from "@/components/partners/org-documents-tab";
+import { OrgBidsTab, OrgProjectsTab } from "@/components/partners/org-bids-tab";
+import { BidFormDialog } from "@/components/partners/bid-form-dialog";
 
 const STAGES = stagesAsStageLike();
-const TABS = ["overview", "contacts", "qualification", "documents", "activity"] as const;
+const TABS = ["overview", "contacts", "bids", "projects", "qualification", "documents", "activity"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function PartnerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -50,6 +52,7 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
   const changeStage = useChangeStage(id);
 
   const [editing, setEditing] = useState(false);
+  const [loggingBid, setLoggingBid] = useState(false);
   const [logging, setLogging] = useState<{ open: boolean; interaction?: Interaction | null }>({ open: false });
   const [contactDialog, setContactDialog] = useState<{ open: boolean; contact?: Contact | null }>({ open: false });
   const [ownerOpen, setOwnerOpen] = useState(false);
@@ -102,6 +105,11 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
           {permissions.canManage && (
             <Button variant="brand" onClick={() => setLogging({ open: true })}>
               <MessageSquarePlus className="mr-2 size-4" /> Log interaction
+            </Button>
+          )}
+          {permissions.canManage && (
+            <Button variant="outline" onClick={() => setLoggingBid(true)}>
+              <Gavel className="mr-2 size-4" /> Log a bid
             </Button>
           )}
           {permissions.canManage && (
@@ -159,6 +167,8 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({activeContacts.length})</TabsTrigger>
+          <TabsTrigger value="bids">Bids ({data.bidFacts.bidCount})</TabsTrigger>
+          <TabsTrigger value="projects">Projects ({data.jobCount})</TabsTrigger>
           <TabsTrigger value="qualification">Qualification</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="activity">Activity ({data.interactionCount})</TabsTrigger>
@@ -170,6 +180,14 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
 
         <TabsContent value="contacts" className="mt-4">
           <ContactsTab org={org} canManage={permissions.canManage} now={now} onAdd={() => setContactDialog({ open: true })} onEdit={(c) => setContactDialog({ open: true, contact: c })} />
+        </TabsContent>
+
+        <TabsContent value="bids" className="mt-4">
+          <OrgBidsTab organizationId={org.id} canManage={permissions.canManage} onLog={() => setLoggingBid(true)} />
+        </TabsContent>
+
+        <TabsContent value="projects" className="mt-4">
+          <OrgProjectsTab projects={data.projects} />
         </TabsContent>
 
         <TabsContent value="qualification" className="mt-4">
@@ -193,6 +211,7 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
         </div>
       )}
 
+      <BidFormDialog open={loggingBid} onOpenChange={setLoggingBid} organizationId={org.id} />
       <OrgFormDialog open={editing} onOpenChange={setEditing} organizationId={org.id} initial={orgFormValues(org)} canAdmin={permissions.canAdmin} />
       <InteractionDialog
         open={logging.open}
