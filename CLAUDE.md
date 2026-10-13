@@ -56,8 +56,11 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    BID-00001, awarded $832,500); no seed, no cron; fill Admin → Business Development → Bid scoring
    and run `scripts/backfill-partners-bid-job00009.ts`. **Stage 4 (relationship health, account scorecard,
    partner analytics, weights editor, dashboard strip) built + dev-QA'd
-   2026-10-13 on `partners-s4`, not merged, not deployed**; migration
-   `20261026120000_partners_scorecard`, no seed, no cron. Stage 2 facts:
+   2026-10-13 on `partners-s4`, deployed 2026-10-13 as `68bfb2f`** (BUILD_ID
+   `kRdp4GOoGpB0OBh-SM6ol`, migration `20261026120000_partners_scorecard`
+   applied (92), CHECK present, smoke 307 ×2, journal clean, backup
+   `postgres-2026-10-13-185953.dump`); no seed, no cron. **The four-stage
+   plan is on prod.** Stage 2 facts:
    migration `20261024120000_partners_qualifications` (`CompanyDocumentType`,
    `CompanyDocument` with own storage + encryption at rest for RESTRICTED,
    `Qualification`, `QualificationRequirement`, `PartnerSettings` vault owner +
@@ -472,7 +475,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-13 — GC Partnerships Stage 4: health, scorecard, analytics (built + dev-QA'd on `partners-s4`, not deployed)
+### 2026-10-13 — GC Partnerships Stage 4: health, scorecard, analytics (deployed `68bfb2f`)
 
 "build stage 4", on a branch from `origin/main` (`0e13694`) in the same
 worktree. Migration `20261026120000_partners_scorecard` (settings columns +
@@ -495,6 +498,18 @@ build clean. Dev QA: API 31/31, headless Chromium 23/23 at 1280 and 400 px,
 SALES_REP and READ_ONLY 7/7 each; seed rep reset to SALES_REP; QA rows
 removed. Details:
 [features/partners.md](docs/project-memory/features/partners.md).
+Richard pushed and deployed from `!` (background, 281 s, exit 0): BUILD_ID
+`Hb0xqBxUlMkJKftTLAj88` → `kRdp4GOoGpB0OBh-SM6ol`, migration applied (92),
+`partner_settings_preferred_chk` present, zero journal errors, backup
+`postgres-2026-10-13-185953.dump`. Coastal Choice read on prod through the
+deployed loaders: health **15, Dormant** — engagement 0 (no interaction has
+ever been logged on the account), qualification 0 (none on file), bid flow 0
+(its one bid, BID-00001, was awarded in March 2025, outside 12 months),
+economics 15 ($200,769 billed in 12 months, 36 % projected margin, 79 days to
+pay → 0); next step "Raise payment terms before the next bid". 12-month
+scorecard: billed $200,769, collected $290,035, 7 linked payments + 1
+unlinked, retainage held $60,743. The numbers are real; the low score is the
+empty relationship record, not a fault.
 
 ### 2026-10-13 — GC Partnerships Stage 3: bids (deployed `d2afb6f`)
 
@@ -2889,14 +2904,10 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **GC Partnerships Stage 4 (health, scorecard, analytics) is built +
-> dev-QA'd on `partners-s4`, not merged, not deployed.** Merge: in
-> `/tmp/knuco-main`, `git merge --ff-only partners-s4`; Richard pushes and
-> deploys from `!`. **Deploy carries migration
-> `20261026120000_partners_scorecard`**; no seed, no cron. After it: check the
-> CHECK `partner_settings_preferred_chk` on prod and read Coastal Choice's
-> health through the account page (only one bid, so expect bid flow low).
-> Richard's click-through: an account → Performance; GC Partnerships → sort
+> **GC Partnerships Stage 4 is on prod (`68bfb2f`, BUILD_ID
+> `kRdp4GOoGpB0OBh-SM6ol`); all four stages are live.** Coastal Choice reads
+> 15 / Dormant until its contacts, interactions and prequalification are
+> entered. Richard's click-through: an account → Performance; GC Partnerships → sort
 > by Health; Business Development → Analytics (by GC / trade, CSV); Admin →
 > Business Development → Weights; the dashboard's Business development strip.
 > That completes the four-stage plan.

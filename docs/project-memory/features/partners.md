@@ -2,7 +2,7 @@
 
 _Stage 1 deployed 2026-10-13 (`b8af730`); Stage 2 deployed 2026-10-13
 (`65cc01e`); Stage 3 (bids) deployed 2026-10-13 (`d2afb6f`); Stage 4 (health, scorecard,
-analytics) built + dev-QA'd 2026-10-13 on `partners-s4`. Design:
+analytics) deployed 2026-10-13 (`68bfb2f`). Design:
 `CAREYOS_GC_PARTNERSHIPS_IMPLEMENTATION_PLAN.md` and
 `CAREYOS_GC_PARTNERSHIPS_BUILD_SPECIFICATIONS.md` at the repo root._
 
