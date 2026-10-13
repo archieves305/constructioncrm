@@ -34,7 +34,12 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    1 accounts / contacts / interactions / follow-up tasks, 2 qualifications +
    the KNU document vault, 3 bid invitations as `GC_BID` leads → award →
    progress-billed job, 4 health score + scorecard + analytics. **Stage 1
-   built + dev-QA'd 2026-10-13 on `partners-s1` (worktree), not deployed**:
+   built + dev-QA'd 2026-10-13 on `partners-s1` (worktree), fast-forwarded to
+   `main` and deployed 2026-10-13 as `b8af730`** (BUILD_ID
+   `teFcePwxp9jUwltnPFRYK`, migration `20261023120000_partners_core` applied
+   (89), smoke 307 ×2, journal clean, backup `postgres-2026-10-13-154729.dump`;
+   seeded on prod, Coastal Choice backfilled, `partner-follow-ups.sh` on the
+   crontab at `55 11 * * 1-5`, first run `raised 0`):
    migration `20261023120000_partners_core` (`Organization`,
    `OrganizationTrade`, `Contact`, `Interaction`, `PartnerStageHistory`,
    `PartnerSettings`; `Lead.kind` / `organizationId` / `contactId`;
@@ -475,6 +480,20 @@ run on dev "nothing to do"; QA rows deleted. Not exercised: the follow-up
 assignment email (QA owner was the muted dev rep), a bid lead end to end
 (Stage 3). Details:
 [features/partners.md](docs/project-memory/features/partners.md).
+Merged and deployed the same day: `main` was fast-forwarded in a temporary
+worktree (`/tmp/knuco-main`) because the main checkout holds uncommitted
+takeoff M3 work; Richard pushed and deployed from `!` (background, 272 s,
+exit 0): BUILD_ID `rdnoX1aBXPhXwFrp21OQG` → `teFcePwxp9jUwltnPFRYK`,
+`.deploy-sha` `b8af730`, migration `20261023120000_partners_core` applied
+(89; the two CHECKs and the partial index present), smoke 307 ×2, zero
+journal errors since the restart, backup `postgres-2026-10-13-154729.dump`.
+Then on prod: seed (created ×5 / unchanged ×5), backfill dry run → `--apply`
+(JOB-00009 was already PROGRESS / 10 %, so `--fix-billing` was not needed;
+account `cmv6v0zei0000asbt4ua6kjs7` created ACTIVE with the Drywall trade,
+the lead marked `GC_BID` and linked, re-run "nothing to do"), wrapper
+`crm-cron/partner-follow-ups.sh` + crontab `55 11 * * 1-5` (crontab copy
+`/home/knuco/crontab.bak-20261013-partners`), first run
+`{"organizations":1,"raised":0}` 200.
 
 ### 2026-10-09 — Fix: "Choose a PDF" on the Plan takeoff tab did nothing; the Assignment select showed an id (deployed `f670e84`)
 
@@ -2725,6 +2744,16 @@ Notification Digests).
 > + expiry alerts + RESTRICTED access) per
 > `CAREYOS_GC_PARTNERSHIPS_BUILD_SPECIFICATIONS.md` §2 — on a branch from
 > `main` after Stage 1 is merged.
+>
+> **Update 2026-10-13: Stage 1 is on prod (`b8af730`, BUILD_ID
+> `teFcePwxp9jUwltnPFRYK`), merged through a temporary `main` worktree at
+> `/tmp/knuco-main` (the main checkout stays on `takeoff-m3`). Seed run
+> (created ×5, then unchanged ×5), backfill applied — "Coastal Choice
+> Construction" exists as an ACTIVE account owned by the job's sales rep,
+> JOB-00009's lead is now `GC_BID` and linked; the job was already PROGRESS /
+> 10 %, so `--fix-billing` was not used — and the follow-up cron is
+> installed (`55 11 * * 1-5`, first run `organizations 1, raised 0`). What
+> remains is Richard's click-through (the paragraph above), then Stage 2.**
 
 > **Crew install dates are on prod (`fd736c1`, BUILD_ID
 > `cKcuzqLdl3kPJiUWOl6SE`, no migration).** Richard's click-through — a job → Field → Crews: assign a crew with an install date
