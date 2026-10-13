@@ -41,7 +41,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    seeded on prod, Coastal Choice backfilled, `partner-follow-ups.sh` on the
    crontab at `55 11 * * 1-5`, first run `raised 0`). **Stage 2
    (qualifications + the KNU document vault + expiry alerts + RESTRICTED
-   access) built + dev-QA'd 2026-10-13 on `partners-s2`, not deployed**:
+   access) built + dev-QA'd 2026-10-13 on `partners-s2`, fast-forwarded to
+   `main` and deployed 2026-10-13 as `65cc01e`** (BUILD_ID
+   `k_Dv0RZV2Xs5ihU2PF5fB`, migration `20261024120000_partners_qualifications`
+   applied (90), smoke 307 ×2, journal clean, backup
+   `postgres-2026-10-13-170744.dump`; seeded (16 document types, default
+   checklist filled), `company-document-alerts.sh` on the crontab at
+   `56 11 * * 1-5`, first run `raised 0`):
    migration `20261024120000_partners_qualifications` (`CompanyDocumentType`,
    `CompanyDocument` with own storage + encryption at rest for RESTRICTED,
    `Qualification`, `QualificationRequirement`, `PartnerSettings` vault owner +
@@ -492,6 +498,17 @@ vault task (owner = Richard on prod), a blob key rotation (no sweep yet),
 PDF rendering of the preview frame in a full browser (the headless shell
 showed the frame element only — the same caveat as 2026-10-03). Details:
 [features/partners.md](docs/project-memory/features/partners.md).
+Merged and deployed the same day through `/tmp/knuco-main`; Richard pushed
+and deployed from `!` (background, 265 s, exit 0): BUILD_ID
+`teFcePwxp9jUwltnPFRYK` → `k_Dv0RZV2Xs5ihU2PF5fB`, `.deploy-sha` `65cc01e`,
+migration applied (90; both CHECKs and the grant column present), smoke 307
+×2, zero journal errors since the restart, backup
+`postgres-2026-10-13-170744.dump`. Then on prod: seed (16 document types
+created, the default checklist filled; second run unchanged ×21), wrapper
+`crm-cron/company-document-alerts.sh` + crontab `56 11 * * 1-5` (crontab
+copy `/home/knuco/crontab.bak-20261013-vault`), first run `{"documents":0,
+"qualifications":0,"raised":0}` 200. `FIELD_ENCRYPTION_KEYS` is set on prod,
+so RESTRICTED uploads work.
 
 ### 2026-10-13 — GC Partnerships Stage 1: accounts, contacts, interactions, follow-ups (built + dev-QA'd on `partners-s1`, not deployed)
 
@@ -2782,16 +2799,8 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **GC Partnerships Stage 2 (qualifications + vault) is built + dev-QA'd on
-> `partners-s2`, not merged, not deployed.** Merge: from `/tmp/knuco-main`,
-> `git merge --ff-only partners-s2` onto `main`; Richard pushes and deploys
-> from `!` (**the deploy carries migration
-> `20261024120000_partners_qualifications`**). After the deploy: run
-> `prisma/seed-partners.ts` again (16 document types created, the default
-> checklist filled), install `crm-cron/company-document-alerts.sh` at
-> `56 11 * * 1-5` and run it once (expect `raised 0`), confirm
-> `FIELD_ENCRYPTION_KEYS` is set in `/etc/knuco/env` (a RESTRICTED upload
-> answers 503 without it). Click-through: Business Development → Document
+> **GC Partnerships Stage 2 (qualifications + vault) is on prod (`65cc01e`,
+> BUILD_ID `k_Dv0RZV2Xs5ihU2PF5fB`), seeded, cron installed.** Click-through: Business Development → Document
 > Vault → File a document (a GL COI with an expiry — the date prefills), then
 > Coastal Choice → Qualification → Start a qualification → "Mark sent" on the
 > GL line → the Documents tab; Admin → Users → the new "Open restricted vault
