@@ -20,9 +20,9 @@ describe("parseLeadListParams", () => {
 
 describe("buildLeadListWhere", () => {
   it("hides closed stages by default, but not when a stage is chosen or closed are included", () => {
-    expect(buildLeadListWhere({}, admin)).toEqual({ currentStage: { isClosed: false } });
+    expect(buildLeadListWhere({}, admin)).toEqual({ AND: [{ kind: "CUSTOMER" }, { currentStage: { isClosed: false } }] });
     expect(clauses(buildLeadListWhere({ stageId: "won" }, admin))).not.toContainEqual({ currentStage: { isClosed: false } });
-    expect(buildLeadListWhere({ includeClosed: true }, admin)).toEqual({});
+    expect(buildLeadListWhere({ includeClosed: true }, admin)).toEqual({ kind: "CUSTOMER" });
   });
 
   it("finds a lead by the number on one of its estimates, from either builder", () => {
@@ -32,7 +32,7 @@ describe("buildLeadListWhere", () => {
   });
 
   it("searches across name, phone, email, address, company and estimate numbers", () => {
-    const w = buildLeadListWhere({ search: "smith", includeClosed: true }, admin);
+    const w = buildLeadListWhere({ search: "smith", includeClosed: true, kind: "ALL" }, admin);
     expect(w.OR).toHaveLength(7);
   });
 
@@ -47,7 +47,7 @@ describe("buildLeadListWhere", () => {
   });
 
   it("admin: scope=all adds nothing, scope=mine adds involvement", () => {
-    expect(clauses(buildLeadListWhere({ scope: "all" }, admin))).toHaveLength(1);
+    expect(clauses(buildLeadListWhere({ scope: "all" }, admin))).toHaveLength(2); // the kind fence + open stages
     expect(clauses(buildLeadListWhere({ scope: "mine" }, admin))).toContainEqual(leadsInvolvingUserWhere("admin"));
   });
 
@@ -60,5 +60,15 @@ describe("buildLeadListWhere", () => {
 
   it("involvesUserId filters by another person's involvement", () => {
     expect(clauses(buildLeadListWhere({ involvesUserId: "pm" }, admin))).toContainEqual(leadsInvolvingUserWhere("pm"));
+  });
+});
+
+describe("the GC bid fence", () => {
+  it("customer lists exclude bid packages unless asked", () => {
+    expect(clauses(buildLeadListWhere({}, admin))).toContainEqual({ kind: "CUSTOMER" });
+    expect(clauses(buildLeadListWhere(parseLeadListParams(new URLSearchParams("kind=GC_BID")), admin))).toContainEqual({ kind: "GC_BID" });
+    const all = clauses(buildLeadListWhere(parseLeadListParams(new URLSearchParams("kind=ALL")), admin));
+    expect(all.some((c) => "kind" in c)).toBe(false);
+    expect(parseLeadListParams(new URLSearchParams("kind=BOGUS")).kind).toBeUndefined();
   });
 });

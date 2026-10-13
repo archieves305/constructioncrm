@@ -7,6 +7,8 @@ import { taskSearchWhere } from "@/lib/tasks/query";
 import { buildViolationListWhere, parseViolationListParams } from "@/lib/violations/query";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { canViewVendors } from "@/lib/vendors/access";
+import { canViewPartners } from "@/lib/partners/access";
+import { buildContactListWhere, buildOrgListWhere } from "@/lib/partners/query";
 
 /**
  * The ⌘K search reuses the list builders, so a search hit is exactly a row
@@ -25,6 +27,9 @@ export type SearchWheres = {
   tasks: Prisma.TaskWhereInput;
   /** Vendors by name, trade, contact or a payee alias; null for roles that cannot open the directory. */
   vendors: Prisma.VendorWhereInput | null;
+  /** Business Development accounts and the people at them; null for roles outside the office shell. */
+  organizations: Prisma.OrganizationWhereInput | null;
+  contacts: Prisma.ContactWhereInput | null;
 };
 
 export function buildSearchWheres(q: string, ctx: SearchContext): SearchWheres {
@@ -32,7 +37,7 @@ export function buildSearchWheres(q: string, ctx: SearchContext): SearchWheres {
   const caseParams = { ...parseViolationListParams(new URLSearchParams("view=all")), search };
   return {
     jobs: buildJobListWhere({ search }, ctx),
-    leads: buildLeadListWhere({ search, includeClosed: true }, ctx),
+    leads: buildLeadListWhere({ search, includeClosed: true, kind: "ALL" }, ctx),
     cases: buildViolationListWhere(caseParams, ctx),
     prospects: {
       AND: [
@@ -57,5 +62,7 @@ export function buildSearchWheres(q: string, ctx: SearchContext): SearchWheres {
           ],
         }
       : null,
+    organizations: canViewPartners(ctx.user.role) ? buildOrgListWhere({ search, includeInactive: true, page: 1, pageSize: 5 }, ctx) : null,
+    contacts: canViewPartners(ctx.user.role) ? buildContactListWhere({ search, includeInactive: true, page: 1, pageSize: 5 }) : null,
   };
 }

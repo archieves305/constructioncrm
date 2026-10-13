@@ -27,6 +27,24 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
+   2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
+   `CAREYOS_GC_PARTNERSHIPS_IMPLEMENTATION_PLAN.md`, build-ready spec in
+   `CAREYOS_GC_PARTNERSHIPS_BUILD_SPECIFICATIONS.md` (repo root). Four stages:
+   1 accounts / contacts / interactions / follow-up tasks, 2 qualifications +
+   the KNU document vault, 3 bid invitations as `GC_BID` leads → award →
+   progress-billed job, 4 health score + scorecard + analytics. **Stage 1
+   built + dev-QA'd 2026-10-13 on `partners-s1` (worktree), not deployed**:
+   migration `20261023120000_partners_core` (`Organization`,
+   `OrganizationTrade`, `Contact`, `Interaction`, `PartnerStageHistory`,
+   `PartnerSettings`; `Lead.kind` / `organizationId` / `contactId`;
+   `Task.organizationId`; CHECKs + one-primary partial index), pure
+   `src/lib/partners/*`, the fence on six customer-only lead surfaces, the
+   follow-up cron, the Business Development sidebar section, ⌘K groups,
+   `/partners`, `/partners/[id]`, `/partners/contacts`, `/admin/partners`,
+   seed, backfill script. Rulings taken as recommended (6-stage enum;
+   SALES_REP manages; bids-as-leads) — Richard can still change them. Notes:
+   [features/partners.md](docs/project-memory/features/partners.md).
 000000000. 🔴 **AI plan takeoff → supplier RFQ (roofing + plumbing)** — plan
    approved 2026-10-08 (`~/.claude/plans/harmonic-churning-stearns.md`), design
    in `CAREYOS_PLAN_TAKEOFF_STAGE1_DESIGN.md`. **M0 proofs of concept done
@@ -422,6 +440,41 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-13 — GC Partnerships Stage 1: accounts, contacts, interactions, follow-ups (built + dev-QA'd on `partners-s1`, not deployed)
+
+Richard: "start stage 1" after approving the plan and the build spec earlier
+the same day. Built in a worktree branched from `main` (the main checkout
+holds uncommitted takeoff M3 work). Migration `20261023120000_partners_core`
+generated as a datamodel diff against the committed schema (the dev DB already
+carries M3's `plan_ai_calls`), applied with `db execute` — note `migrate
+resolve` ran first by mistake and recorded the migration before the SQL had
+run; the SQL was then executed and every object verified. Pure modules with
+tests: `stages` (six-value enum + `StageLike`), `derive` (badges, quiet days),
+`follow-ups` (rules new-target / no-response / quiet with period keys; rules 3–4
+coded, waiting on Stage 2 inputs), `query`, `access`, `validation`,
+`time/working-days` (shared with the crew install planner). Services:
+`service` (create / update / stage / owner / delete, every write audited,
+owner change reassigns open engine follow-ups), `contacts` (one primary per
+account), `interactions` (moves `lastContactAt`, ActivityLog bridge for bid
+leads, optional follow-up task, settles), `follow-up-run` (copy of the vendor
+alert run), `settings`. **The fence**: `Lead.kind` guards `buildLeadListWhere`
+(`?kind=` param, test), nurture enrolment, `emitLeadEvent`, the overdue
+follow-ups row, the dashboard counts and the funnel cohort; `customerName()`
+prefers the company on a `GC_BID` lead; search labels bids. Task plumbing
+(`organizationId` on create / include / list params, `SubjectKind
+"organization"`, chip icon), attention row `partner-follow-ups`,
+contact-lookup returns `contacts`. Decided while building: the partner list
+does **not** floor SALES_REP to Mine (seven users; Mine is a convenience
+filter). Gate: typecheck clean, lint 5/22, 1616 tests (+44), build clean. Dev
+QA: API 46/46 as ADMIN (found and fixed: contact-lookup compared digits
+against phones stored with dashes), headless Chromium 17/17 at 1280 and 400
+px with no page errors, role matrix as SALES_REP / MARKETING / CREW_LEAD
+exactly as specified; seed idempotent (second run unchanged ×5); backfill dry
+run on dev "nothing to do"; QA rows deleted. Not exercised: the follow-up
+assignment email (QA owner was the muted dev rep), a bid lead end to end
+(Stage 3). Details:
+[features/partners.md](docs/project-memory/features/partners.md).
 
 ### 2026-10-09 — Fix: "Choose a PDF" on the Plan takeoff tab did nothing; the Assignment select showed an id (deployed `f670e84`)
 
@@ -2418,6 +2471,12 @@ ssh knuco-droplet 'set -a; . /etc/knuco/env; set +a; curl -s -X POST -H "x-cron-
 # Permit follow-up crons, by hand (droplet; each alert is raised once)
 ssh knuco-droplet '/home/knuco/crm-cron/permit-aging.sh; tail -1 /home/knuco/crm-cron/permit-aging.log'
 ssh knuco-droplet '/home/knuco/crm-cron/inspection-reminders.sh; tail -1 /home/knuco/crm-cron/inspection-reminders.log'
+# Business Development seed (idempotent; categories + lead source + settings, all create-only)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-partners.ts"'
+# Coastal Choice backfill (dry run by default; --apply writes; --fix-billing only on Richard's word)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-partners-coastal-choice.ts"'
+# Partner follow-up cron, by hand (droplet; each follow-up is raised once per period; ?dryRun=1 plans only)
+ssh knuco-droplet '/home/knuco/crm-cron/partner-follow-ups.sh; tail -1 /home/knuco/crm-cron/partner-follow-ups.log'
 # Vendor document expiry cron, by hand (droplet; each alert is raised once)
 ssh knuco-droplet '/home/knuco/crm-cron/vendor-compliance.sh; tail -1 /home/knuco/crm-cron/vendor-compliance.log'
 # Link existing expenses to vendors (dry run by default; --yes applies; idempotent)
@@ -2628,11 +2687,44 @@ Notification Digests).
 - **A dashboard attention row's count and its list share one `where`**
   (`lib/attention/load.ts`). A new row gets a role list in `rows.ts` and both
   a counter and a lister over the same builder — never two queries.
+- **A GC account is an `Organization`, never a Vendor** (vendors are payees,
+  matched against expense payees); an account that is also a payee links
+  through `vendorId`. **A GC's bid package is a Lead of kind `GC_BID`**; the
+  customer surfaces — `buildLeadListWhere`, nurture, follow-up rules, the
+  overdue-follow-ups row, the dashboard and the funnel — filter on `kind`,
+  and any new reader that means homeowners must add `kind: "CUSTOMER"`.
+  Relationship stages are the `PartnerStage` enum; everything else about an
+  account (quiet, prequalified, bidding, awarded) is derived on read
+  (`lib/partners/derive.ts`). Account follow-ups are tasks raised once per
+  source key by `lib/partners/follow-up-run.ts` and settled by every
+  interaction or stage write; the CRM never emails a GC contact. Access through
+  `lib/partners/access.ts` (SALES_REP manages; owner change, write-off, delete
+  and settings are ADMIN / MANAGER).
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **GC Partnerships Stage 1 is built + dev-QA'd on `partners-s1` (a worktree
+> under `.claude/worktrees/`), not merged, not deployed.** The main checkout is
+> on `takeoff-m3` with uncommitted M3 work, so the merge is: from the main
+> checkout, `git merge --ff-only partners-s1` onto `main` once `takeoff-m3` is
+> parked or committed (expect a `prisma/schema.prisma` merge if M3 lands
+> first — both add models at the end of the file). **Deploy carries migration
+> `20261023120000_partners_core`.** After the deploy: run `prisma/seed-partners.ts`
+> (prints created / unchanged), the backfill dry run → `--apply` (creates
+> "Coastal Choice Construction", marks JOB-00009's lead a `GC_BID`; `--fix-billing`
+> only after Richard reads the printed billing values), install
+> `crm-cron/partner-follow-ups.sh` at `55 11 * * 1-5` and run it once
+> (`raised 0` expected). Richard's click-through: Business Development → GC
+> Partnerships → New account (owner, markets, trades) → the account page → Add
+> contact → Log interaction with "Create a follow-up task" → the task on /tasks
+> and under Open follow-ups → the board drag → Admin → Business Development
+> thresholds. Next build: **Stage 2** (qualifications + the KNU document vault
+> + expiry alerts + RESTRICTED access) per
+> `CAREYOS_GC_PARTNERSHIPS_BUILD_SPECIFICATIONS.md` §2 — on a branch from
+> `main` after Stage 1 is merged.
 
 > **Crew install dates are on prod (`fd736c1`, BUILD_ID
 > `cKcuzqLdl3kPJiUWOl6SE`, no migration).** Richard's click-through — a job → Field → Crews: assign a crew with an install date

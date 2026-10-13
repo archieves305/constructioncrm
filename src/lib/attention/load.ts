@@ -50,6 +50,16 @@ const openJobInScope = (ctx: AttentionContext): Prisma.JobWhereInput => ({ AND: 
 
 // ── One `where` per row ─────────────────────────────────────────────────────
 
+/** The engine's account follow-ups still open; Mine = assigned to me. */
+export function partnerFollowUpsWhere(ctx: AttentionContext): Prisma.TaskWhereInput {
+  return {
+    AND: [
+      { organizationId: { not: null }, sourceKey: { startsWith: "org:" }, status: { in: [...OPEN_TASK_STATUSES] }, activatedAt: { not: null } },
+      dashboardTaskWhere({ scope: ctx.scope, userId: ctx.user.id }),
+    ],
+  };
+}
+
 export function overdueTasksWhere(ctx: AttentionContext): Prisma.TaskWhereInput {
   return { AND: [overdueWhere(ctx.now), ACTIVE_OPEN_WHERE, dashboardTaskWhere({ scope: ctx.scope, userId: ctx.user.id })] };
 }
@@ -101,7 +111,7 @@ export function permitsWaitingWhere(ctx: AttentionContext): Prisma.JobPermitWher
 export function overdueFollowUpsWhere(ctx: AttentionContext): Prisma.LeadWhereInput {
   return {
     AND: [
-      { nextFollowUpAt: { lt: ctx.now }, currentStage: { isClosed: false } },
+      { kind: "CUSTOMER", nextFollowUpAt: { lt: ctx.now }, currentStage: { isClosed: false } },
       ctx.scope === "mine" ? leadsInvolvingUserWhere(ctx.user.id) : leadAccessWhere(ctx.user),
     ],
   };
@@ -162,6 +172,7 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "logs-awaiting": (ctx) => prisma.dailyLog.count({ where: logsAwaitingWhere(ctx) }),
   "deposits-missing": (ctx) => prisma.job.count({ where: depositsMissingWhere(ctx) }),
   "quiet-jobs": (ctx) => prisma.job.count({ where: quietJobsWhere(ctx) }),
+  "partner-follow-ups": (ctx) => prisma.task.count({ where: partnerFollowUpsWhere(ctx) }),
 };
 
 /** Every row this person's role is shown, with its count (zeros included — the caller decides what to hide). */
@@ -353,6 +364,23 @@ const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionCon
     });
     return rows.map((j) =>
       item(j.id, jobLabel(j), `${j.currentStage.name} · last edited ${day(j.updatedAt)}${j.nextAction?.trim() ? ` · next: ${j.nextAction.trim()}` : ""}`, j.updatedAt, `/jobs/${j.id}`),
+    );
+  },
+  "partner-follow-ups": async (ctx) => {
+    const rows = await prisma.task.findMany({
+      where: partnerFollowUpsWhere(ctx),
+      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+      take,
+      select: { id: true, title: true, dueAt: true, organization: { select: { id: true, name: true, stage: true } }, assignedTo: { select: { firstName: true, lastName: true } } },
+    });
+    return rows.map((t) =>
+      item(
+        t.id,
+        { primary: t.organization?.name ?? t.title, secondary: t.title, code: null, placeholder: false },
+        [t.dueAt ? `due ${day(t.dueAt)}` : null, t.assignedTo ? `${t.assignedTo.firstName} ${t.assignedTo.lastName}` : "unassigned"].filter(Boolean).join(" · "),
+        t.dueAt,
+        t.organization ? `/partners/${t.organization.id}` : `/tasks?task=${t.id}`,
+      ),
     );
   },
 };

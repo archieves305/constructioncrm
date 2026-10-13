@@ -77,6 +77,8 @@ export type CreateTaskInput = {
   /** A code-violation case, or one of its items (which fills in the case). Never carries a jobId. */
   violationCaseId?: string | null;
   violationItemId?: string | null;
+  /** A strategic account (Business Development): a follow-up on a GC relationship. Has no lead. */
+  organizationId?: string | null;
   watcherUserIds?: string[];
   source?: TaskSource;
   /** Automation idempotency key, e.g. "invoice:SENT:<id>". */
@@ -213,6 +215,7 @@ export async function createTask(
       vendorId: input.vendorId ?? null,
       violationCaseId: parents.violationCaseId,
       violationItemId: input.violationItemId ?? null,
+      organizationId: input.organizationId ?? null,
       sourceKey: input.sourceKey ?? null,
       remindAt: input.remindAt ?? null,
       remindSetByUserId: input.remindAt ? (input.remindSetByUserId ?? input.createdByUserId) : null,

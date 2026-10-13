@@ -8,10 +8,11 @@ import { cn } from "@/lib/utils";
 import type { RoleName } from "@/generated/prisma/client";
 import { NotificationBell } from "./notification-bell";
 import { isNavActive } from "./nav-active";
-import { BarChart3, BellRing, Briefcase, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, Gauge, Gavel, Hammer, HardHat, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Search, Settings, Shield, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
+import { BarChart3, BellRing, Briefcase, Building2, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, Gauge, Gavel, Hammer, Handshake, HardHat, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Search, Settings, Shield, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
 import { useViolationSummary } from "@/components/violations/use-violations";
+import { PARTNER_VIEW_ROLES } from "@/lib/partners/access";
 
 export type NavItem = {
   href: string;
@@ -37,6 +38,7 @@ export type NavSection = {
 
 const OFFICE: RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF"];
 const VIOLATION_VIEWERS: RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "READ_ONLY"];
+const PARTNER_VIEWERS: RoleName[] = [...PARTNER_VIEW_ROLES];
 
 /**
  * Eleven entries for an admin (it was 41 links). One item per thing people
@@ -67,6 +69,16 @@ export const navSections: NavSection[] = [
       { href: "/violations/list", label: "Cases", icon: ListChecks, badge: "violations", hint: "Every case; the queues (mine, overdue, awaiting agency…) are on the page" },
       { href: "/violations/inspections", label: "Inspections", icon: ClipboardCheck },
       { href: "/violations/hearings", label: "Hearings", icon: Gavel },
+    ],
+  },
+  {
+    key: "business-development",
+    label: "Business Development",
+    icon: Handshake,
+    roles: PARTNER_VIEWERS,
+    items: [
+      { href: "/partners", label: "GC Partnerships", icon: Building2, match: "exact", hint: "The general contractors and other accounts KNU courts for work — who owns each, where it stands, when it was last touched" },
+      { href: "/partners/contacts", label: "Contacts", icon: Users, hint: "The estimators, preconstruction managers and executives at those accounts" },
     ],
   },
   {
@@ -111,6 +123,7 @@ export const navSections: NavSection[] = [
       { href: "/admin/nurture", label: "Customer Nurture", icon: Repeat, hint: "Automatic check-in emails to open leads that have gone quiet" },
       { href: "/admin/notifications", label: "Notification Digests", icon: BellRing, hint: "When staff get email: the four daily digests, what goes out right away, and the delivery log" },
       { href: "/admin/workflow-role-defaults", label: "Workflow Role Defaults", icon: UserCheck, hint: "Who a workflow step is assigned to when the job has nobody in that role" },
+      { href: "/admin/partners", label: "Business Development", icon: Handshake, hint: "Follow-up timing for GC accounts, who gets the tasks by default, and the markets list" },
       { href: "/admin/canvassing-settings", label: "Knock Scoring", icon: Gauge, heading: "Canvassing", hint: "How promising a canvassed door looks, from its history and neighbourhood" },
       { href: "/admin/job-cost-reconciliation", label: "Cost Reconciliation", icon: Scale, heading: "Finance", hint: "Matches card postings from cc-allocator against job expenses" },
       { href: "/admin/roofing", label: "Roofing Prices & Takeoff", icon: Ruler, hint: "What roofing materials cost and how measurements become a material list" },

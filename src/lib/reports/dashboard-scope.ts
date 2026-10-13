@@ -3,11 +3,11 @@ import { leadsInvolvingUserWhere } from "@/lib/jobs/involvement";
 import type { ListScope } from "@/lib/lists/scope";
 
 /** The lead `where` every dashboard count shares: optional date window, plus Mine. */
-export function dashboardLeadWhere(input: { dateFilter?: Prisma.DateTimeFilter | null; scope: ListScope; userId: string }): Prisma.LeadWhereInput | undefined {
-  const and: Prisma.LeadWhereInput[] = [];
+export function dashboardLeadWhere(input: { dateFilter?: Prisma.DateTimeFilter | null; scope: ListScope; userId: string }): Prisma.LeadWhereInput {
+  // Customer leads only: GC bid packages have their own numbers under Business Development.
+  const and: Prisma.LeadWhereInput[] = [{ kind: "CUSTOMER" }];
   if (input.dateFilter && Object.keys(input.dateFilter).length > 0) and.push({ createdAt: input.dateFilter });
   if (input.scope === "mine") and.push(leadsInvolvingUserWhere(input.userId));
-  if (and.length === 0) return undefined;
   if (and.length === 1) return and[0];
   return { AND: and };
 }

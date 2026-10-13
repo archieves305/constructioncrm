@@ -175,7 +175,8 @@ export async function runNurtureTick(now: Date = new Date(), opts: { dryRun?: bo
   // 1. Enrol open leads with an email that have no state yet.
   try {
     const fresh = await prisma.lead.findMany({
-      where: { email: { not: null }, emailOptedOut: false, currentStage: { isClosed: false }, nurtureState: null },
+      // Customer leads only: a GC estimator on a bid package is never nurtured.
+      where: { kind: "CUSTOMER", email: { not: null }, emailOptedOut: false, currentStage: { isClosed: false }, nurtureState: null },
       select: LEAD_SELECT,
       take: 500,
     });

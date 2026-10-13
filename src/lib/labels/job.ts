@@ -6,7 +6,7 @@ import { formatAddressLine, type AddressInput } from "./address";
  * small mono hint and the search key.
  */
 
-export type CustomerInput = AddressInput & { fullName?: string | null; companyName?: string | null };
+export type CustomerInput = AddressInput & { fullName?: string | null; companyName?: string | null; kind?: "CUSTOMER" | "GC_BID" | null };
 
 export type JobLabelInput = {
   jobNumber: string;
@@ -27,7 +27,11 @@ export type EntityLabel = {
 };
 
 export function customerName(lead: CustomerInput | null | undefined): string {
-  return (lead?.fullName ?? "").trim() || (lead?.companyName ?? "").trim();
+  const person = (lead?.fullName ?? "").trim();
+  const company = (lead?.companyName ?? "").trim();
+  // On a GC bid package the customer is the contractor, not the estimator named on the lead.
+  if (lead?.kind === "GC_BID") return company || person;
+  return person || company;
 }
 
 export function jobLabel(job: JobLabelInput, opts: { customer?: boolean; trade?: boolean } = {}): EntityLabel {

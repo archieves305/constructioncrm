@@ -494,6 +494,12 @@ model User {
   takeoffMeasurementsCreated        TakeoffMeasurement[]      @relation("TakeoffMeasurementCreatedBy")
   takeoffMeasurementsReviewed       TakeoffMeasurement[]      @relation("TakeoffMeasurementReviewedBy")
   roofRulesUpdated                  RoofRule[]                @relation("RoofRuleUpdatedBy")
+  organizationsOwned                Organization[]            @relation("OrganizationOwner")
+  organizationsCreated              Organization[]            @relation("OrganizationCreatedBy")
+  contactsCreated                   Contact[]                 @relation("ContactCreatedBy")
+  interactions                      Interaction[]             @relation("InteractionUser")
+  partnerStageChanges               PartnerStageHistory[]     @relation("PartnerStageChangedBy")
+  partnerSettingsDefaultOwner       PartnerSettings[]         @relation("PartnerDefaultOwner")
   roofMaterialPricesCreated         RoofMaterialPrice[]       @relation("RoofMaterialPriceCreatedBy")
   vendorComplianceOwnerOf           VendorSettings[]          @relation("VendorComplianceOwner")
   workflowTeamSlots                 JobWorkflowTeamMember[]   @relation("WorkflowTeamUser")
@@ -564,6 +570,7 @@ model ServiceCategory {
   children          ServiceCategory[]                 @relation("ServiceHierarchy")
   leadServices      LeadService[]
   workflowTemplates WorkflowTemplateServiceCategory[]
+  organizationTrades OrganizationTrade[]
 
   @@map("service_categories")
 }
@@ -621,6 +628,14 @@ model Lead {
   duplicateGroupId       String?      @map("duplicate_group_id")
   emailOptedOut          Boolean      @default(false) @map("email_opted_out")
   emailOptedOutAt        DateTime?    @map("email_opted_out_at")
+  // CUSTOMER = a homeowner or owner inquiry; GC_BID = a bid package from a
+  // general contractor (Business Development). Customer-only surfaces —
+  // the Leads list, nurture, follow-up rules, the sales funnel — filter on
+  // kind so a GC estimator is never treated as a homeowner.
+  kind                   LeadKind     @default(CUSTOMER)
+  // The strategic account this lead belongs to, and the person there.
+  organizationId         String?      @map("organization_id")
+  contactId              String?      @map("contact_id")
   createdByUserId        String       @map("created_by_user_id")
   createdAt              DateTime     @default(now()) @map("created_at")
   updatedAt              DateTime     @updatedAt @map("updated_at")
@@ -629,6 +644,8 @@ model Lead {
   assignedUser User?       @relation("AssignedUser", fields: [assignedUserId], references: [id])
   currentStage LeadStage   @relation(fields: [currentStageId], references: [id])
   createdBy    User        @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
   services          LeadService[]
   stageHistory      LeadStageHistory[]
@@ -656,6 +673,7 @@ model Lead {
   nurtureState      LeadNurtureState?
   nurtureSends      LeadNurtureSend[]
   notificationRows  Notification[]
+  interactions      Interaction[]
 
   @@index([primaryPhone])
   @@index([email])
@@ -665,6 +683,8 @@ model Lead {
   @@index([sourceId])
   @@index([nextFollowUpAt])
   @@index([createdAt])
+  @@index([kind])
+  @@index([organizationId])
   @@map("leads")
 }
 
@@ -737,6 +757,8 @@ model Task {
   // so case steps never appear in the construction job's queue or counts.
   violationCaseId String?    @map("violation_case_id")
   violationItemId String?    @map("violation_item_id")
+  // A strategic account (Business Development): a follow-up on a GC relationship.
+  organizationId  String?    @map("organization_id")
   title           String
   description     String?    @db.Text
   assignedUserId  String?    @map("assigned_user_id")
@@ -825,6 +847,7 @@ model Task {
   vendor        Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   violationCase CodeViolationCase? @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
   violationItem CodeViolationItem? @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
+  organization  Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   assignedTo    User?              @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
   createdBy     User               @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
   completedBy   User?              @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
@@ -858,6 +881,7 @@ model Task {
   @@index([vendorId])
   @@index([violationCaseId])
   @@index([violationItemId])
+  @@index([organizationId])
   @@index([sourceKey])
   @@index([remindAt])
   @@map("tasks")
@@ -1518,6 +1542,7 @@ model Vendor {
   tasks          Task[]
   commitments    Commitment[]
   roofMaterials  RoofMaterialItem[]
+  organizations  Organization[]
 
   @@index([name])
   @@map("vendors")
@@ -5070,4 +5095,270 @@ model TakeoffMeasurement {
   @@index([takeoffId])
   @@index([planSheetId])
   @@map("takeoff_measurements")
+}
+
+// ============================================================================
+// Business Development — GC Partnerships
+// ----------------------------------------------------------------------------
+// An Organization is an external company KNU courts for work: a general
+// contractor, developer, property manager… It is customer-side, which is why
+// it is not a Vendor (a payee, matched against expense payees). A GC's bid
+// packages are Leads of kind GC_BID, so the estimators, takeoff, files and job
+// creation work on them unchanged. Design: CAREYOS_GC_PARTNERSHIPS_*.md.
+// ============================================================================
+
+enum LeadKind {
+  CUSTOMER
+  GC_BID
+}
+
+enum OrganizationKind {
+  GENERAL_CONTRACTOR
+  DEVELOPER
+  PROPERTY_MANAGER
+  ARCHITECT
+  ENGINEER
+  MUNICIPALITY
+  REFERRAL_PARTNER
+  OTHER
+}
+
+enum OrganizationPriority {
+  A
+  B
+  C
+}
+
+// Hand-moved relationship stage. Everything else about the relationship
+// (prequalified, bidding, awarded, quiet…) is derived on read (lib/partners/derive.ts).
+enum PartnerStage {
+  TARGET
+  CONTACTED
+  ENGAGED
+  ACTIVE
+  DORMANT
+  DO_NOT_PURSUE
+}
+
+enum ContactRole {
+  ESTIMATOR
+  SENIOR_ESTIMATOR
+  PRECON_MANAGER
+  PRECON_DIRECTOR
+  PROCUREMENT
+  TRADE_PARTNER_MANAGER
+  BUSINESS_DEVELOPMENT
+  PROJECT_EXECUTIVE
+  PROJECT_MANAGER
+  SUPERINTENDENT
+  ACCOUNTS_PAYABLE
+  SAFETY
+  OTHER
+}
+
+enum InteractionKind {
+  CALL
+  EMAIL
+  MEETING
+  SITE_VISIT
+  LUNCH
+  LINKEDIN
+  INTRO
+  PREQUAL_SUBMISSION
+  BID_DISCUSSION
+  DOC_SENT
+  NOTE
+  OTHER
+}
+
+enum InteractionDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum InteractionOutcome {
+  NO_ANSWER
+  LEFT_MESSAGE
+  SENT
+  SPOKE
+  REPLIED
+  MEETING_HELD
+  NOT_APPLICABLE
+}
+
+model Organization {
+  id                     String                @id @default(cuid())
+  name                   String
+  // Normalised name (lowercased, punctuation stripped) — the duplicate guard.
+  nameKey                String                @unique @map("name_key")
+  kind                   OrganizationKind      @default(GENERAL_CONTRACTOR)
+  website                String?
+  phone                  String?
+  email                  String?
+  address1               String?               @map("address_1")
+  address2               String?               @map("address_2")
+  city                   String?
+  state                  String?               @default("FL")
+  zipCode                String?               @map("zip_code")
+  localOffices           String?               @map("local_offices") @db.Text
+  // County names, from PartnerSettings.markets.
+  markets                String[]              @default([])
+  notes                  String?               @db.Text
+  isActive               Boolean               @default(true) @map("is_active")
+  // ── Relationship ──────────────────────────────────────────────────────
+  ownerUserId            String?               @map("owner_user_id")
+  priority               OrganizationPriority?
+  stage                  PartnerStage          @default(TARGET)
+  stageChangedAt         DateTime              @default(now()) @map("stage_changed_at")
+  // max(Interaction.occurredAt); kept by lib/partners/interactions.ts so lists sort on it.
+  lastContactAt          DateTime?             @map("last_contact_at")
+  // The due day of the follow-up task last created from an interaction (display only).
+  nextFollowUpAt         DateTime?             @map("next_follow_up_at")
+  potentialAnnualRevenue Decimal?              @map("potential_annual_revenue") @db.Decimal(12, 2)
+  paymentTermsDays       Int?                  @map("payment_terms_days")
+  // ── GC profile (nullable; what the account expects of a trade partner) ─
+  annualVolume           String?               @map("annual_volume")
+  companySize            String?               @map("company_size")
+  projectTypes           String[]              @default([]) @map("project_types")
+  typicalProjectSize     String?               @map("typical_project_size")
+  biddingPlatform        String?               @map("bidding_platform")
+  prequalPlatform        String?               @map("prequal_platform")
+  vendorRegistrationUrl  String?               @map("vendor_registration_url")
+  requirementsNotes      String?               @map("requirements_notes") @db.Text
+  // The same company as a payee, if it ever is one (never merged).
+  vendorId               String?               @map("vendor_id")
+  createdByUserId        String                @map("created_by_user_id")
+  createdAt              DateTime              @default(now()) @map("created_at")
+  updatedAt              DateTime              @updatedAt @map("updated_at")
+
+  owner        User?   @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy    User    @relation("OrganizationCreatedBy", fields: [createdByUserId], references: [id])
+  vendor       Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  trades       OrganizationTrade[]
+  contacts     Contact[]
+  interactions Interaction[]
+  stageHistory PartnerStageHistory[]
+  leads        Lead[]
+  tasks        Task[]
+
+  @@index([stage])
+  @@index([ownerUserId])
+  @@index([lastContactAt])
+  @@map("organizations")
+}
+
+model OrganizationTrade {
+  organizationId    String @map("organization_id")
+  serviceCategoryId String @map("service_category_id")
+
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  serviceCategory ServiceCategory @relation(fields: [serviceCategoryId], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, serviceCategoryId])
+  @@map("organization_trades")
+}
+
+model Contact {
+  id                   String      @id @default(cuid())
+  organizationId       String      @map("organization_id")
+  firstName            String      @map("first_name")
+  lastName             String      @map("last_name")
+  title                String?
+  roleTag              ContactRole @default(OTHER) @map("role_tag")
+  email                String?
+  phone                String?
+  mobile               String?
+  linkedinUrl          String?     @map("linkedin_url")
+  office               String?
+  geography            String?
+  trades               String[]    @default([])
+  // 1–5 (CHECK in the migration); null = not rated.
+  relationshipStrength Int?        @map("relationship_strength")
+  influence            Int?
+  // One primary per organization (partial unique index in the migration).
+  isPrimary            Boolean     @default(false) @map("is_primary")
+  isActive             Boolean     @default(true) @map("is_active")
+  lastContactAt        DateTime?   @map("last_contact_at")
+  notes                String?     @db.Text
+  createdByUserId      String      @map("created_by_user_id")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User          @relation("ContactCreatedBy", fields: [createdByUserId], references: [id])
+  interactions Interaction[]
+  leads        Lead[]
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([phone])
+  @@map("contacts")
+}
+
+// One touch with an account: a call, a meeting, a lunch, a bid discussion.
+// Organization-scoped (a lead is optional, set when the touch is about a
+// bid), which is why it is not a Communication or an ActivityLog row.
+model Interaction {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  contactId      String?              @map("contact_id")
+  leadId         String?              @map("lead_id")
+  userId         String               @map("user_id")
+  kind           InteractionKind
+  direction      InteractionDirection @default(OUTBOUND)
+  outcome        InteractionOutcome   @default(NOT_APPLICABLE)
+  occurredAt     DateTime             @map("occurred_at")
+  summary        String               @db.Text
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact      Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  user         User         @relation("InteractionUser", fields: [userId], references: [id])
+
+  @@index([organizationId, occurredAt])
+  @@index([contactId])
+  @@index([leadId])
+  @@map("interactions")
+}
+
+model PartnerStageHistory {
+  id              String        @id @default(cuid())
+  organizationId  String        @map("organization_id")
+  fromStage       PartnerStage? @map("from_stage")
+  toStage         PartnerStage  @map("to_stage")
+  reason          String?
+  changedByUserId String        @map("changed_by_user_id")
+  changedAt       DateTime      @default(now()) @map("changed_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  changedBy    User         @relation("PartnerStageChangedBy", fields: [changedByUserId], references: [id])
+
+  @@index([organizationId, changedAt])
+  @@map("partner_stage_history")
+}
+
+// Singleton (id "default"): follow-up thresholds, the fallback owner, markets.
+model PartnerSettings {
+  id                 String   @id @default("default")
+  // Working days a TARGET may sit with no interaction before its owner is nudged.
+  newTargetDays      Int      @default(5) @map("new_target_days")
+  // Days an unanswered outbound touch waits before a follow-up task.
+  noResponseDays     Int      @default(7) @map("no_response_days")
+  // Days a submitted qualification waits before "check status" (Stage 2).
+  qualSubmittedDays  Int      @default(14) @map("qual_submitted_days")
+  // Days a prequalified account may go without bid activity (Stage 2/3).
+  prequalNoBidDays   Int      @default(30) @map("prequal_no_bid_days")
+  // Days an ACTIVE partner may go quiet before a check-in task.
+  activeQuietDays    Int      @default(60) @map("active_quiet_days")
+  // No interaction for this long caps the health score (Stage 4).
+  dormantAfterDays   Int      @default(180) @map("dormant_after_days")
+  defaultOwnerUserId String?  @map("default_owner_user_id")
+  markets            String[] @default([])
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  defaultOwner User? @relation("PartnerDefaultOwner", fields: [defaultOwnerUserId], references: [id], onDelete: SetNull)
+
+  @@map("partner_settings")
 }

@@ -26,6 +26,7 @@ export const ATTENTION_KEYS = [
   "logs-awaiting",
   "deposits-missing",
   "quiet-jobs",
+  "partner-follow-ups",
 ] as const;
 export type AttentionKey = (typeof ATTENTION_KEYS)[number];
 
@@ -137,6 +138,13 @@ export const ATTENTION_ROWS: readonly AttentionRowDef[] = [
     description: `Open jobs with no edit, stage change, task activity, daily log, payment or cost in the last ${QUIET_JOB_DAYS} days.`,
     tone: "neutral",
     roles: PRODUCTION_VIEW,
+  },
+  {
+    key: "partner-follow-ups",
+    label: "GC accounts to follow up",
+    description: "Open follow-ups the Business Development rules raised: a target nobody has called, an unanswered touch, an active partner gone quiet. Logging the interaction on the account closes it.",
+    tone: "warning",
+    roles: PRODUCTION,
   },
 ];
 

@@ -1,5 +1,6 @@
 import { dayOfDate } from "@/lib/permits/alerts";
-import { addDayKeys, weekdayOf, type DayKey } from "@/lib/time/zone";
+import type { DayKey } from "@/lib/time/zone";
+import { previousWorkingDay } from "@/lib/time/working-days";
 
 /**
  * The "get ready" task a crew's install date calls for. Pure: the routes
@@ -29,12 +30,8 @@ function longDay(k: DayKey): string {
   return new Date(`${k}T12:00:00.000Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-/** The last working day (Mon–Fri) before `day`. */
-export function previousWorkingDay(day: DayKey): DayKey {
-  let d = addDayKeys(day, -1);
-  while (weekdayOf(d) === 0 || weekdayOf(d) === 6) d = addDayKeys(d, -1);
-  return d;
-}
+/** The last working day (Mon–Fri) before `day` — shared with the partner follow-ups. */
+export { previousWorkingDay };
 
 /** The task for this assignment as it stands today, or null: no date, or the install day has passed. */
 export function planInstallTask(a: InstallRow, today: DayKey): PlannedInstallTask | null {
