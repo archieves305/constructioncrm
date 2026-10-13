@@ -61,12 +61,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    applied (92), CHECK present, smoke 307 ×2, journal clean, backup
    `postgres-2026-10-13-185953.dump`); no seed, no cron. **The four-stage
    plan is on prod.** **Phase 5 (bid invitations by email → Bid intake
-   queue) built + dev-QA'd 2026-10-13 on `partners-s5`, fast-forwarded to
-   `main`, not deployed**: migration `20261027120000_partners_bid_intake`
+   queue) built + dev-QA'd 2026-10-13 on `partners-s5`, deployed 2026-10-13
+   as `f4f39c3`** (BUILD_ID `fq9IG_D9irXnQMsxcg7XR`, migration applied (93),
+   journal clean, backup `postgres-2026-10-13-222029.dump`): migration `20261027120000_partners_bid_intake`
    (`BidIntake`), pure `itb-parse.ts`, `itb-intake.ts`, paste on
    `/partners/intake`, MailerSend inbound webhook (off until
    `MAILERSEND_INBOUND_SECRET` is set and a route is created), Outlook poller
-   hand-off. **Deploy carries the migration.** Stage 2 facts:
+   hand-off. Stage 2 facts:
    migration `20261024120000_partners_qualifications` (`CompanyDocumentType`,
    `CompanyDocument` with own storage + encryption at rest for RESTRICTED,
    `Qualification`, `QualificationRequirement`, `PartnerSettings` vault owner +
@@ -481,7 +482,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-13 — GC Partnerships Phase 5: bid invitations by email (built + dev-QA'd on `partners-s5`, on `main`, not deployed)
+### 2026-10-13 — GC Partnerships Phase 5: bid invitations by email (deployed `f4f39c3`)
 
 "build phase 5". Found first: the plan's "existing intake mailbox" never ran —
 the four `OUTLOOK_*` lines are commented out in `/etc/knuco/env`, prod has 0
@@ -516,6 +517,12 @@ emails** (fixtures are written from the platforms' known shapes) and the
 MailerSend signature scheme against a live route (taken from a third-party
 guide; the route's first test ping will show it). Attachments in forwarded
 mail are not stored.
+Richard pushed and deployed from `!` (background, 274 s, exit 0): BUILD_ID
+`kRdp4GOoGpB0OBh-SM6ol` → `fq9IG_D9irXnQMsxcg7XR`, migration
+`20261027120000_partners_bid_intake` applied (93, none unfinished,
+`bid_intakes` empty), zero journal errors since the restart, `/partners/intake`
+307 to the portal, the inbound webhook 503 (secret not set — as designed),
+backup `postgres-2026-10-13-222029.dump`.
 
 ### 2026-10-13 — GC Partnerships Stage 4: health, scorecard, analytics (deployed `68bfb2f`)
 
@@ -2955,8 +2962,8 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **GC Partnerships Phase 5 (bid intake) is on `main`, not deployed (migration
-> `20261027120000_partners_bid_intake`).** After Richard's push + deploy: paste
+> **GC Partnerships Phase 5 (bid intake) is on prod (`f4f39c3`, BUILD_ID
+> `fq9IG_D9irXnQMsxcg7XR`).** Next: paste
 > two or three real ITB emails on Business Development → Bid intake and check
 > what was read; any field misread is a parser fixture to add. To have
 > forwarded mail arrive by itself: MailerSend → Inbound routing → a route
