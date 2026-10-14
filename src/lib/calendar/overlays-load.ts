@@ -8,6 +8,8 @@ import { overlayItems, overlayScopes, type OverlayRows } from "./overlays";
 import type { CalendarParams } from "./query";
 import type { CalendarItem } from "./types";
 import { canManageVendors } from "@/lib/vendors/access";
+import { canViewPartners } from "@/lib/partners/access";
+import { leadAccessWhere } from "@/lib/access/records";
 import { DOC_TYPE_LABEL, docInForce, type RequirementKey } from "@/lib/vendors/compliance";
 
 const CASE_SELECT = { id: true, caseNumber: true, agencyCaseNumber: true, leadId: true, lead: { select: LEAD_LABEL_SELECT } } as const;
@@ -29,7 +31,7 @@ export async function loadOverlays(params: CalendarParams, sel: UsersSelection, 
   const to = endOfDayIn(params.to);
   const scopes = overlayScopes(sel, user, scope);
   const jobs = params.jobId ? { AND: [scopes.jobs, { id: params.jobId }] } : scopes.jobs;
-  const [permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs, crewInstalls] = await Promise.all([
+  const [permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs, crewInstalls, companyDocs, qualificationDates, bidDates] = await Promise.all([
     prisma.jobPermitInspection.findMany({
       where: { scheduledFor: { gte: from, lte: to }, permit: { job: jobs } },
       select: { id: true, type: true, scheduledFor: true, result: true, permit: { select: { id: true, permitType: true, permitNumber: true, job: { select: JOB_LABEL_SELECT } } } },
@@ -73,12 +75,44 @@ export async function loadOverlays(params: CalendarParams, sel: UsersSelection, 
       select: { id: true, installDate: true, crew: { select: { name: true, trades: true } }, job: { select: JOB_LABEL_SELECT } },
       take: 200,
     }),
+    params.jobId || !canViewPartners(user.role) ? [] : loadCompanyDocs(from, to),
+    params.jobId || !canViewPartners(user.role)
+      ? []
+      : prisma.qualification.findMany({
+          where: { status: "APPROVED", organization: { isActive: true }, OR: [{ expiresAt: { gte: from, lte: to } }, { renewalDueAt: { gte: from, lte: to } }] },
+          select: { id: true, platform: true, expiresAt: true, renewalDueAt: true, organization: { select: { id: true, name: true } } },
+          take: 200,
+        }),
+    // Bid packages: lead-scoped like any lead, never under a job filter.
+    params.jobId || !canViewPartners(user.role)
+      ? []
+      : prisma.bidInvitation.findMany({
+          where: {
+            lead: leadAccessWhere(user),
+            OR: [{ bidDueAt: { gte: from, lte: to } }, { siteWalkAt: { gte: from, lte: to } }, { preBidMeetingAt: { gte: from, lte: to } }, { rfiDueAt: { gte: from, lte: to } }, { addendaDeadlineAt: { gte: from, lte: to } }, { interviewAt: { gte: from, lte: to } }, { expectedAwardAt: { gte: from, lte: to } }],
+          },
+          select: { id: true, leadId: true, number: true, projectName: true, status: true, bidDueAt: true, siteWalkAt: true, preBidMeetingAt: true, rfiDueAt: true, addendaDeadlineAt: true, interviewAt: true, expectedAwardAt: true, organization: { select: { id: true, name: true } } },
+          take: 200,
+        }),
   ]);
-  const rows: OverlayRows = { permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs, crewInstalls };
+  const rows: OverlayRows = { permitInspections, permitDates, hearings, caseInspections, jobStarts, vendorDocs, crewInstalls, companyDocs, qualificationDates, bidDates };
   return overlayItems(rows, now).filter((i) => i.dayKey !== null && i.dayKey >= params.from && i.dayKey <= params.to);
 }
 
 const WATCHED: readonly RequirementKey[] = ["liability", "workers_comp", "license"];
+
+/** Expiry days of the current version of each vault document type — a superseded version is not on the calendar. */
+async function loadCompanyDocs(from: Date, to: Date): Promise<NonNullable<OverlayRows["companyDocs"]>> {
+  const docs = await prisma.companyDocument.findMany({ orderBy: [{ documentTypeId: "asc" }, { version: "desc" }], select: { id: true, title: true, documentTypeId: true, expiresAt: true, documentType: { select: { name: true } } } });
+  const seen = new Set<string>();
+  const out: NonNullable<OverlayRows["companyDocs"]> = [];
+  for (const d of docs) {
+    if (seen.has(d.documentTypeId)) continue;
+    seen.add(d.documentTypeId);
+    if (d.expiresAt && d.expiresAt >= from && d.expiresAt <= to) out.push({ id: d.id, title: d.title, typeName: d.documentType.name, expiresAt: d.expiresAt });
+  }
+  return out;
+}
 
 /** Expiry days of the documents in force on active vendors — a superseded certificate is not on the calendar. */
 async function loadVendorDocs(from: Date, to: Date): Promise<NonNullable<OverlayRows["vendorDocs"]>> {

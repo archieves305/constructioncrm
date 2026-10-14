@@ -31,6 +31,11 @@ export async function emitLeadEvent(
         }
       : { triggerEvent: event, isActive: true };
 
+  // The rules send customer SMS and email; a GC bid package is a lead that
+  // must never receive them.
+  const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { kind: true } });
+  if (!lead || lead.kind !== "CUSTOMER") return 0;
+
   const rules = await prisma.followUpRule.findMany({
     where,
     select: { id: true, delayMinutes: true },

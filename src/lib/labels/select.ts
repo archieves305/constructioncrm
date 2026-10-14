@@ -6,6 +6,7 @@ import type { Prisma } from "@/generated/prisma/client";
  */
 export const LEAD_LABEL_SELECT = {
   id: true,
+  kind: true,
   fullName: true,
   companyName: true,
   propertyAddress1: true,

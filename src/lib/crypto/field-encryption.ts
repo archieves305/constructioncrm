@@ -117,6 +117,40 @@ export function decryptField(ciphertext: string, aad: string): string {
   return decryptWithKeyring(envKeyring(), ciphertext, aad);
 }
 
+// ── Blobs ───────────────────────────────────────────────────────────────────
+// The same keyring over a file's bytes (a RESTRICTED vault document). Wire
+// format: 2-byte version, 12-byte IV, 16-byte tag, ciphertext — binary, so a
+// 20 MB PDF does not become a 27 MB base64 string.
+
+const BLOB_HEADER = 2 + IV_BYTES + 16;
+
+export function encryptBlob(plain: Buffer, aad: string): { data: Buffer; keyVersion: number } {
+  const ring = envKeyring();
+  const key = ring.keys.get(ring.activeVersion)!;
+  const iv = randomBytes(IV_BYTES);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  cipher.setAAD(Buffer.from(aad, "utf8"));
+  const ct = Buffer.concat([cipher.update(plain), cipher.final()]);
+  const header = Buffer.alloc(2);
+  header.writeUInt16BE(ring.activeVersion, 0);
+  return { data: Buffer.concat([header, iv, cipher.getAuthTag(), ct]), keyVersion: ring.activeVersion };
+}
+
+export function decryptBlob(data: Buffer, aad: string): Buffer {
+  if (data.length < BLOB_HEADER) throw new Error("Malformed blob ciphertext");
+  const ring = envKeyring();
+  const version = data.readUInt16BE(0);
+  const key = ring.keys.get(version);
+  if (!key) throw new Error(`No key for blob version v${version}`);
+  const iv = data.subarray(2, 2 + IV_BYTES);
+  const tag = data.subarray(2 + IV_BYTES, BLOB_HEADER);
+  const ct = data.subarray(BLOB_HEADER);
+  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAAD(Buffer.from(aad, "utf8"));
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ct), decipher.final()]);
+}
+
 // ── SSN helpers ─────────────────────────────────────────────────────────────
 
 /** Strip formatting and validate a 9-digit SSN; null when input isn't one. */

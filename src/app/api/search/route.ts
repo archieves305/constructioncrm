@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
 
   const scope = await visibilityScopeFor(session.user);
   const where = buildSearchWheres(q, { user: { id: session.user.id, role: session.user.role }, now: new Date(), scope });
-  const [jobs, leads, cases, prospects, tasks, vendors] = await Promise.all([
+  const [jobs, leads, cases, prospects, tasks, vendors, organizations, contacts] = await Promise.all([
     prisma.job.findMany({ where: where.jobs, take: TAKE, orderBy: { updatedAt: "desc" }, select: { ...JOB_LABEL_SELECT, currentStage: { select: { name: true } } } }),
-    prisma.lead.findMany({ where: where.leads, take: TAKE, orderBy: { updatedAt: "desc" }, select: { ...LEAD_LABEL_SELECT, primaryPhone: true, currentStage: { select: { name: true } } } }),
+    prisma.lead.findMany({ where: where.leads, take: TAKE, orderBy: { updatedAt: "desc" }, select: { ...LEAD_LABEL_SELECT, primaryPhone: true, currentStage: { select: { name: true } }, bidInvitation: { select: { number: true, projectName: true, status: true } } } }),
     prisma.codeViolationCase.findMany({ where: where.cases, take: TAKE, orderBy: { updatedAt: "desc" }, select: { id: true, caseNumber: true, title: true, status: true, lead: { select: LEAD_LABEL_SELECT } } }),
     prisma.prospect.findMany({ where: where.prospects, take: TAKE, orderBy: { createdAt: "desc" }, select: { id: true, propertyAddress1: true, city: true, ownerName: true } }),
     prisma.task.findMany({
@@ -31,6 +31,12 @@ export async function GET(request: NextRequest) {
     where.vendors
       ? prisma.vendor.findMany({ where: where.vendors, take: TAKE, orderBy: [{ isActive: "desc" }, { name: "asc" }], select: { id: true, name: true, kind: true, trade: true, isActive: true } })
       : Promise.resolve([]),
+    where.organizations
+      ? prisma.organization.findMany({ where: where.organizations, take: TAKE, orderBy: [{ isActive: "desc" }, { name: "asc" }], select: { id: true, name: true, kind: true, stage: true, city: true, isActive: true } })
+      : Promise.resolve([]),
+    where.contacts
+      ? prisma.contact.findMany({ where: where.contacts, take: TAKE, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], select: { id: true, firstName: true, lastName: true, title: true, organization: { select: { id: true, name: true } } } })
+      : Promise.resolve([]),
   ]);
-  return NextResponse.json({ hits: toSearchHits({ jobs, leads, cases, prospects, tasks, vendors }) });
+  return NextResponse.json({ hits: toSearchHits({ jobs, leads, cases, prospects, tasks, vendors, organizations, contacts }) });
 }

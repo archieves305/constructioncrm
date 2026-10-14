@@ -1,0 +1,311 @@
+"use client";
+
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { X } from "lucide-react";
+import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/page-header";
+import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fetchJson } from "@/lib/fetch-json";
+import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_BID_WEIGHTS } from "@/lib/partners/bid-score";
+import { DEFAULT_HEALTH_WEIGHTS } from "@/lib/partners/health";
+import { useInvalidatePartners, usePartnerOptions, usePartnerSettings, type PartnerSettings } from "@/components/partners/use-partners";
+
+const NONE = "__none";
+
+type Form = Pick<PartnerSettings, "newTargetDays" | "noResponseDays" | "qualSubmittedDays" | "prequalNoBidDays" | "activeQuietDays" | "dormantAfterDays" | "defaultOwnerUserId" | "markets" | "vaultOwnerUserId" | "defaultRequirementTypeKeys" | "ourTradeIds" | "homeCounties" | "adjacentCounties"> & { typicalRange: Record<string, { min: number; max: number }>; bondingCapacity: number | null };
+
+/** Follow-up timing for GC accounts, who gets the tasks by default, and the markets list. */
+export default function PartnerSettingsPage() {
+  const { data, isLoading } = usePartnerSettings();
+  if (isLoading || !data) return <ListSkeleton rows={6} />;
+  return <SettingsForm key={data.updatedAt ?? "settings"} data={data} />;
+}
+
+function SettingsForm({ data }: { data: PartnerSettings }) {
+  const { data: options } = usePartnerOptions();
+  const invalidate = useInvalidatePartners();
+  const [form, setForm] = useState<Form>(() => ({ newTargetDays: data.newTargetDays, noResponseDays: data.noResponseDays, qualSubmittedDays: data.qualSubmittedDays, prequalNoBidDays: data.prequalNoBidDays, activeQuietDays: data.activeQuietDays, dormantAfterDays: data.dormantAfterDays, defaultOwnerUserId: data.defaultOwnerUserId, markets: data.markets, vaultOwnerUserId: data.vaultOwnerUserId, defaultRequirementTypeKeys: data.defaultRequirementTypeKeys, ourTradeIds: data.ourTradeIds ?? [], homeCounties: data.homeCounties ?? [], adjacentCounties: data.adjacentCounties ?? [], typicalRange: data.typicalRange ?? {}, bondingCapacity: data.bondingCapacity == null ? null : Number(data.bondingCapacity) }));
+  const [newMarket, setNewMarket] = useState("");
+
+  const save = useMutation({
+    mutationFn: (body: Form) => fetchJson<PartnerSettings>("/api/partners/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Settings saved");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const canEdit = data.canEdit;
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const days = (key: keyof Form, label: string, hint: string, unit = "days") => (
+    <div className="grid gap-1 sm:grid-cols-[1fr_8rem] sm:items-center">
+      <div>
+        <Label htmlFor={`ps-${key}`}>{label}</Label>
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <Input id={`ps-${key}`} type="number" min={1} className="h-8 w-20" value={Number(form[key])} onChange={(e) => set(key, Number(e.target.value) as never)} disabled={!canEdit} />
+        <span className="text-xs text-muted-foreground">{unit}</span>
+      </div>
+    </div>
+  );
+  const owners = [{ value: NONE, label: "The oldest admin" }, ...(options?.owners ?? [])];
+
+  return (
+    <div>
+      <PageHeader title="Business Development" breadcrumb={[{ label: "Admin" }, { label: "Business Development" }]} description="When the follow-up rules nudge an account's owner, who gets a task when an account has no owner, and the markets accounts are tagged with." />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Follow-up rules</CardTitle><p className="text-sm text-muted-foreground">Each raises one ordinary task for the account owner, once, and closes it when an interaction is logged. Nothing is sent to the GC.</p></CardHeader>
+          <CardContent className="space-y-4">
+            {days("newTargetDays", "New target, nobody has reached out", "Working days after an account is added with no interaction.", "working days")}
+            {days("noResponseDays", "No reply to an outbound touch", "Days after a call, email or message that got no answer.")}
+            {days("activeQuietDays", "Active partner gone quiet", "Days without any interaction on an Active account.")}
+            {days("qualSubmittedDays", "Prequalification submitted, no word", "Days after a submission before \"check its status\" (used once qualifications exist).")}
+            {days("prequalNoBidDays", "Prequalified, no bid activity", "Days since approval or the last bid activity (used once bids exist).")}
+            {days("dormantAfterDays", "Dormant after", "No interaction for this long caps the relationship score (used once scoring exists).")}
+          </CardContent>
+        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Default owner</CardTitle><p className="text-sm text-muted-foreground">Gets the follow-up tasks of an account that has no relationship owner.</p></CardHeader>
+            <CardContent>
+              <Select items={owners} value={form.defaultOwnerUserId ?? NONE} onValueChange={(v: string | null) => set("defaultOwnerUserId", !v || v === NONE ? null : v)} disabled={!canEdit}>
+                <SelectTrigger className="w-full sm:w-72" aria-label="Default owner"><SelectValue /></SelectTrigger>
+                <SelectContent>{owners.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Vault owner</CardTitle><p className="text-sm text-muted-foreground">Gets the task when a company document in the vault is about to expire. Automatic = the Accounting role default, then the oldest admin.</p></CardHeader>
+            <CardContent>
+              <Select items={[{ value: NONE, label: "Automatic" }, ...(options?.owners ?? [])]} value={form.vaultOwnerUserId ?? NONE} onValueChange={(v: string | null) => set("vaultOwnerUserId", !v || v === NONE ? null : v)} disabled={!canEdit}>
+                <SelectTrigger className="w-full sm:w-72" aria-label="Vault owner"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Automatic</SelectItem>
+                  {(options?.owners ?? []).map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-base">Default qualification checklist</CardTitle><p className="text-sm text-muted-foreground">What a new qualification starts with; each GC list is then adjusted on its own tab.</p></CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-1.5">
+                {(options?.documentTypes ?? []).map((t) => {
+                  const on = form.defaultRequirementTypeKeys.includes(t.value);
+                  return (
+                    <Button key={t.value} type="button" size="sm" variant={on ? "default" : "outline"} className="h-7 rounded-full text-xs" aria-pressed={on} disabled={!canEdit} onClick={() => set("defaultRequirementTypeKeys", on ? form.defaultRequirementTypeKeys.filter((k) => k !== t.value) : [...form.defaultRequirementTypeKeys, t.value])}>
+                      {t.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+          <BidScoringCard form={form} set={set} canEdit={canEdit} trades={options?.trades ?? []} weightsVersion={data.scoreWeightsVersion} />
+          <Card>
+            <CardHeader><CardTitle className="text-base">Markets</CardTitle><p className="text-sm text-muted-foreground">The counties and regions accounts are tagged with and filtered by.</p></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {form.markets.map((m) => (
+                  <Badge key={m} variant="outline" className="gap-1">
+                    {m}
+                    {canEdit && (
+                      <button type="button" aria-label={`Remove ${m}`} onClick={() => set("markets", form.markets.filter((x) => x !== m))} className="rounded-full hover:bg-gray-200">
+                        <X className="size-3" />
+                      </button>
+                    )}
+                  </Badge>
+                ))}
+              </div>
+              {canEdit && (
+                <form
+                  className="flex gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const m = newMarket.trim();
+                    if (!m || form.markets.includes(m)) return;
+                    set("markets", [...form.markets, m]);
+                    setNewMarket("");
+                  }}
+                >
+                  <Input value={newMarket} onChange={(e) => setNewMarket(e.target.value)} placeholder="Monroe" aria-label="New market" maxLength={60} />
+                  <Button type="submit" variant="outline" disabled={!newMarket.trim()}>Add</Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      {canEdit && (
+        <div className="mt-4 flex justify-end">
+          <Button onClick={() => save.mutate(form)} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save settings"}</Button>
+        </div>
+      )}
+      <WeightsCard data={data} canEdit={canEdit} />
+    </div>
+  );
+}
+
+const pretty = (v: unknown) => JSON.stringify(v, null, 2);
+
+/**
+ * The scoring rules as editable JSON. The server validates against the same
+ * schema the scorer uses; a change bumps the version, and every stored bid
+ * decision keeps the version it was scored with. "Reset" stores nothing, so
+ * the coded defaults apply.
+ */
+function WeightsCard({ data, canEdit }: { data: PartnerSettings; canEdit: boolean }) {
+  const invalidate = useInvalidatePartners();
+  const [health, setHealth] = useState(() => pretty(data.healthWeights ?? DEFAULT_HEALTH_WEIGHTS));
+  const [bid, setBid] = useState(() => pretty(data.scoreWeights ?? DEFAULT_BID_WEIGHTS));
+  const [minAwards, setMinAwards] = useState(String(data.preferredMinAwards));
+  const [minMargin, setMinMargin] = useState(String(Math.round(Number(data.preferredMinMargin) * 100)));
+  const [error, setError] = useState<string | null>(null);
+  const save = useMutation({
+    mutationFn: (body: Record<string, unknown>) => fetchJson<PartnerSettings>("/api/partners/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    onSuccess: () => {
+      invalidate();
+      setError(null);
+      toast.success("Scoring rules saved");
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+  const submit = () => {
+    let h: unknown;
+    let b: unknown;
+    try {
+      h = JSON.parse(health);
+    } catch {
+      return setError("Health weights: not valid JSON");
+    }
+    try {
+      b = JSON.parse(bid);
+    } catch {
+      return setError("Bid weights: not valid JSON");
+    }
+    // Unchanged from the coded defaults → store nothing, so later default changes still apply.
+    const same = (x: unknown, d: unknown) => JSON.stringify(x) === JSON.stringify(d);
+    save.mutate({ healthWeights: same(h, DEFAULT_HEALTH_WEIGHTS) ? null : h, scoreWeights: same(b, DEFAULT_BID_WEIGHTS) ? null : b, preferredMinAwards: Number(minAwards), preferredMinMargin: Number(minMargin) / 100 });
+  };
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle className="text-base">Weights</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          The fixed rules behind relationship health (rules v{data.healthWeightsVersion}) and the bid score (rules v{data.scoreWeightsVersion}). A saved change raises the version; past bid decisions keep theirs.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="pref-awards">Preferred: at least this many awards</Label>
+            <Input id="pref-awards" type="number" min={1} max={50} className="max-w-[8rem]" value={minAwards} onChange={(e) => setMinAwards(e.target.value)} disabled={!canEdit} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="pref-margin">…at this projected margin or better (%)</Label>
+            <Input id="pref-margin" type="number" min={0} max={100} className="max-w-[8rem]" value={minMargin} onChange={(e) => setMinMargin(e.target.value)} disabled={!canEdit} />
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="w-health">Relationship health</Label>
+              {canEdit && <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setHealth(pretty(DEFAULT_HEALTH_WEIGHTS))}>Reset to defaults</Button>}
+            </div>
+            <Textarea id="w-health" value={health} onChange={(e) => setHealth(e.target.value)} rows={18} className="font-mono text-xs" spellCheck={false} disabled={!canEdit} />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="w-bid">Bid / no-bid</Label>
+              {canEdit && <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setBid(pretty(DEFAULT_BID_WEIGHTS))}>Reset to defaults</Button>}
+            </div>
+            <Textarea id="w-bid" value={bid} onChange={(e) => setBid(e.target.value)} rows={18} className="font-mono text-xs" spellCheck={false} disabled={!canEdit} />
+          </div>
+        </div>
+        {error && <p role="alert" className="text-sm text-tone-danger-fg">{error}</p>}
+        {canEdit && (
+          <div className="flex justify-end">
+            <Button onClick={submit} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save weights"}</Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Chips({ all, picked, onChange, disabled }: { all: { value: string; label: string }[]; picked: string[]; onChange: (v: string[]) => void; disabled: boolean }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {all.map((t) => {
+        const on = picked.includes(t.value);
+        return (
+          <Button key={t.value} type="button" size="sm" variant={on ? "default" : "outline"} className="h-7 rounded-full text-xs" aria-pressed={on} disabled={disabled} onClick={() => onChange(on ? picked.filter((k) => k !== t.value) : [...picked, t.value])}>
+            {t.label}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** What the bid / no-bid score reads about KNU itself. The point values are under Weights below. */
+function BidScoringCard({ form, set, canEdit, trades, weightsVersion }: { form: Form; set: <K extends keyof Form>(k: K, v: Form[K]) => void; canEdit: boolean; trades: { value: string; label: string }[]; weightsVersion: number }) {
+  const markets = form.markets.map((m) => ({ value: m, label: m }));
+  const ours = trades.filter((t) => form.ourTradeIds.includes(t.value));
+  const setRange = (id: string, k: "min" | "max", v: string) => {
+    const cur = form.typicalRange[id] ?? { min: 0, max: 0 };
+    set("typicalRange", { ...form.typicalRange, [id]: { ...cur, [k]: Number(v) || 0 } });
+  };
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Bid scoring</CardTitle>
+        <p className="text-sm text-muted-foreground">What the bid / no-bid score knows about KNU. A trade outside this list is a hard stop; a county outside both lists and a size far from the range lower the score. Rules version {weightsVersion}.</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <Label>Trades KNU bids</Label>
+          <Chips all={trades} picked={form.ourTradeIds} onChange={(v) => set("ourTradeIds", v)} disabled={!canEdit} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Home counties</Label>
+          <Chips all={markets} picked={form.homeCounties} onChange={(v) => set("homeCounties", v)} disabled={!canEdit} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Within reach</Label>
+          <Chips all={markets} picked={form.adjacentCounties} onChange={(v) => set("adjacentCounties", v)} disabled={!canEdit} />
+          <p className="text-xs text-muted-foreground">Counties come from the Markets list; add one there first.</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="bond-cap">Bonding capacity</Label>
+          <Input id="bond-cap" type="number" min={0} step="10000" className="max-w-xs" value={form.bondingCapacity ?? ""} onChange={(e) => set("bondingCapacity", e.target.value === "" ? null : Number(e.target.value))} placeholder="Not set: a bonded bid is a hard stop" disabled={!canEdit} />
+        </div>
+        {ours.length > 0 && (
+          <div className="space-y-1.5">
+            <Label>Usual contract size per trade</Label>
+            <div className="space-y-1.5">
+              {ours.map((t) => (
+                <div key={t.value} className="grid grid-cols-[1fr_7rem_7rem] items-center gap-2 text-sm">
+                  <span className="truncate">{t.label}</span>
+                  <Input type="number" min={0} step="10000" aria-label={`${t.label} from`} placeholder="from $" value={form.typicalRange[t.value]?.min || ""} onChange={(e) => setRange(t.value, "min", e.target.value)} disabled={!canEdit} />
+                  <Input type="number" min={0} step="10000" aria-label={`${t.label} to`} placeholder="to $" value={form.typicalRange[t.value]?.max || ""} onChange={(e) => setRange(t.value, "max", e.target.value)} disabled={!canEdit} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

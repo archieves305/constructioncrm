@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Briefcase, CheckSquare, Clock, Gavel, MapPin, Store, UserRound } from "lucide-react";
+import { Briefcase, Building2, CheckSquare, Clock, Gavel, MapPin, Store, UserRound, Users } from "lucide-react";
 import type { RoleName } from "@/generated/prisma/client";
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
@@ -12,10 +12,12 @@ import { useDebouncedValue } from "@/components/shared/use-debounced-value";
 import { useRecentlyViewed } from "@/components/shared/use-recently-viewed";
 import { navSections } from "./sidebar";
 
-const ICONS = { job: Briefcase, lead: UserRound, case: Gavel, prospect: MapPin, task: CheckSquare, vendor: Store } as const;
+const ICONS = { job: Briefcase, lead: UserRound, case: Gavel, prospect: MapPin, task: CheckSquare, vendor: Store, organization: Building2, contact: Users } as const;
 const GROUPS: { type: SearchHit["type"]; heading: string }[] = [
   { type: "job", heading: "Jobs" },
   { type: "lead", heading: "Leads" },
+  { type: "organization", heading: "GC partners" },
+  { type: "contact", heading: "Contacts" },
   { type: "case", heading: "Code violation cases" },
   { type: "prospect", heading: "Prospects" },
   { type: "task", heading: "Tasks" },

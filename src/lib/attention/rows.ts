@@ -26,6 +26,11 @@ export const ATTENTION_KEYS = [
   "logs-awaiting",
   "deposits-missing",
   "quiet-jobs",
+  "partner-follow-ups",
+  "qualifications-expiring",
+  "company-docs-expiring",
+  "bids-due",
+  "bids-awaiting-decision",
 ] as const;
 export type AttentionKey = (typeof ATTENTION_KEYS)[number];
 
@@ -38,6 +43,10 @@ export const PERMIT_WAITING_DAYS = 14;
 /** An open job nobody has touched for this long. */
 export const QUIET_JOB_DAYS = 14;
 
+/** A bid due inside this many days (or past due) is on the list. */
+export const BIDS_DUE_DAYS = 7;
+
+const ADMIN_MANAGER: readonly RoleName[] = ["ADMIN", "MANAGER"];
 const OFFICE: readonly RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF"];
 const PRODUCTION: readonly RoleName[] = [...OFFICE, "SALES_REP"];
 const PRODUCTION_VIEW: readonly RoleName[] = [...PRODUCTION, "READ_ONLY"];
@@ -137,6 +146,41 @@ export const ATTENTION_ROWS: readonly AttentionRowDef[] = [
     description: `Open jobs with no edit, stage change, task activity, daily log, payment or cost in the last ${QUIET_JOB_DAYS} days.`,
     tone: "neutral",
     roles: PRODUCTION_VIEW,
+  },
+  {
+    key: "partner-follow-ups",
+    label: "GC accounts to follow up",
+    description: "Open follow-ups the Business Development rules raised: a target nobody has called, an unanswered touch, an active partner gone quiet. Logging the interaction on the account closes it.",
+    tone: "warning",
+    roles: PRODUCTION,
+  },
+  {
+    key: "qualifications-expiring",
+    label: "Prequalifications expiring",
+    description: "Approved prequalifications that have expired, reached their renewal day, or expire within 90 days.",
+    tone: "warning",
+    roles: PRODUCTION,
+  },
+  {
+    key: "company-docs-expiring",
+    label: "Vault documents expiring",
+    description: "The current version of a company document (insurance, licences, safety, financials) that has expired or expires within 30 days.",
+    tone: "warning",
+    roles: OFFICE,
+  },
+  {
+    key: "bids-due",
+    label: "Bids due this week",
+    description: `Open bid packages due within ${BIDS_DUE_DAYS} days, or past due, that have not been submitted.`,
+    tone: "danger",
+    roles: PRODUCTION,
+  },
+  {
+    key: "bids-awaiting-decision",
+    label: "Bids awaiting a go / no-go",
+    description: "Invitations nobody has decided on. A manager decides on the bid's tab.",
+    tone: "warning",
+    roles: ADMIN_MANAGER,
   },
 ];
 

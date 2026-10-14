@@ -13,7 +13,7 @@ import { endOfDayIn, isDayKey, startOfDayIn } from "@/lib/time/zone";
  * is what keeps a sales rep from reading another rep's tasks off a job page.
  */
 
-const LINK_PARAMS = ["leadId", "jobId", "estimateId", "invoiceId", "prospectId", "dailyLogId", "violationCaseId", "violationItemId"] as const;
+const LINK_PARAMS = ["leadId", "jobId", "estimateId", "invoiceId", "prospectId", "dailyLogId", "violationCaseId", "violationItemId", "organizationId"] as const;
 
 export type TaskListParams = {
   /** Free text over the title, description, job number, address and customer. */

@@ -8,6 +8,12 @@ import { CASE_LABEL_SELECT, JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/la
 import type { ListScope } from "@/lib/lists/scope";
 import { dashboardTaskWhere } from "@/lib/reports/dashboard-scope";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
+import { BIDS_DUE_DAYS } from "./rows";
+
+/** A prequalification this close to its expiry is on the list. */
+const QUALIFICATION_EXPIRING_DAYS = 90;
+/** A vault document this close to its expiry — the same window the vault alerts use. */
+const VAULT_EXPIRING_DAYS = 30;
 import { APP_TIME_ZONE, dayKey } from "@/lib/time/zone";
 import { vendorsNeedingDocuments } from "@/lib/vendors/compliance-load";
 import { violationVisibilityFilter } from "@/lib/violations/access";
@@ -49,6 +55,43 @@ function jobScope(ctx: AttentionContext): Prisma.JobWhereInput {
 const openJobInScope = (ctx: AttentionContext): Prisma.JobWhereInput => ({ AND: [OPEN_JOB, jobScope(ctx)] });
 
 // ── One `where` per row ─────────────────────────────────────────────────────
+
+/** The engine's account follow-ups still open; Mine = assigned to me. */
+export function partnerFollowUpsWhere(ctx: AttentionContext): Prisma.TaskWhereInput {
+  return {
+    AND: [
+      { organizationId: { not: null }, sourceKey: { startsWith: "org:" }, status: { in: [...OPEN_TASK_STATUSES] }, activatedAt: { not: null } },
+      dashboardTaskWhere({ scope: ctx.scope, userId: ctx.user.id }),
+    ],
+  };
+}
+
+/** Open bids due inside the window or past due, not yet submitted; Mine = I estimate it or own the account. */
+export function bidsDueWhere(ctx: AttentionContext): Prisma.BidInvitationWhereInput {
+  const soon = new Date(ctx.now.getTime() + BIDS_DUE_DAYS * 86_400_000);
+  return {
+    AND: [
+      { status: { in: ["TRACKING", "INVITED", "DECIDING", "ESTIMATING"] }, bidDueAt: { lte: soon }, lead: leadAccessWhere(ctx.user) },
+      ctx.scope === "mine" ? { OR: [{ estimatorUserId: ctx.user.id }, { organization: { ownerUserId: ctx.user.id } }] } : {},
+    ],
+  };
+}
+
+/** Invitations with no go / no-go yet. */
+export function bidsAwaitingDecisionWhere(ctx: AttentionContext): Prisma.BidInvitationWhereInput {
+  return { AND: [{ status: { in: ["INVITED", "DECIDING"] }, decision: "UNDECIDED", lead: leadAccessWhere(ctx.user) }, ctx.scope === "mine" ? { OR: [{ estimatorUserId: ctx.user.id }, { organization: { ownerUserId: ctx.user.id } }] } : {}] };
+}
+
+/** Approved prequalifications expired, renewal-due, or expiring inside 90 days; Mine = accounts I own. */
+export function qualificationsExpiringWhere(ctx: AttentionContext): Prisma.QualificationWhereInput {
+  const soon = new Date(ctx.now.getTime() + QUALIFICATION_EXPIRING_DAYS * 86_400_000);
+  return {
+    AND: [
+      { status: "APPROVED", organization: { isActive: true }, OR: [{ expiresAt: { lte: soon } }, { renewalDueAt: { lte: ctx.now } }] },
+      ctx.scope === "mine" ? { organization: { ownerUserId: ctx.user.id } } : {},
+    ],
+  };
+}
 
 export function overdueTasksWhere(ctx: AttentionContext): Prisma.TaskWhereInput {
   return { AND: [overdueWhere(ctx.now), ACTIVE_OPEN_WHERE, dashboardTaskWhere({ scope: ctx.scope, userId: ctx.user.id })] };
@@ -101,7 +144,7 @@ export function permitsWaitingWhere(ctx: AttentionContext): Prisma.JobPermitWher
 export function overdueFollowUpsWhere(ctx: AttentionContext): Prisma.LeadWhereInput {
   return {
     AND: [
-      { nextFollowUpAt: { lt: ctx.now }, currentStage: { isClosed: false } },
+      { kind: "CUSTOMER", nextFollowUpAt: { lt: ctx.now }, currentStage: { isClosed: false } },
       ctx.scope === "mine" ? leadsInvolvingUserWhere(ctx.user.id) : leadAccessWhere(ctx.user),
     ],
   };
@@ -162,7 +205,27 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "logs-awaiting": (ctx) => prisma.dailyLog.count({ where: logsAwaitingWhere(ctx) }),
   "deposits-missing": (ctx) => prisma.job.count({ where: depositsMissingWhere(ctx) }),
   "quiet-jobs": (ctx) => prisma.job.count({ where: quietJobsWhere(ctx) }),
+  "partner-follow-ups": (ctx) => prisma.task.count({ where: partnerFollowUpsWhere(ctx) }),
+  "qualifications-expiring": (ctx) => prisma.qualification.count({ where: qualificationsExpiringWhere(ctx) }),
+  // Company-wide, so Mine and All agree: the vault belongs to no one account.
+  "company-docs-expiring": async (ctx) => (await expiringVaultDocuments(ctx.now)).length,
+  "bids-due": (ctx) => prisma.bidInvitation.count({ where: bidsDueWhere(ctx) }),
+  "bids-awaiting-decision": (ctx) => prisma.bidInvitation.count({ where: bidsAwaitingDecisionWhere(ctx) }),
 };
+
+/** The current version of each document type that has expired or expires inside 30 days. */
+async function expiringVaultDocuments(now: Date) {
+  const soon = new Date(now.getTime() + VAULT_EXPIRING_DAYS * 86_400_000);
+  const docs = await prisma.companyDocument.findMany({ orderBy: [{ documentTypeId: "asc" }, { version: "desc" }], select: { id: true, title: true, documentTypeId: true, expiresAt: true, documentType: { select: { name: true } } } });
+  const seen = new Set<string>();
+  const out: typeof docs = [];
+  for (const d of docs) {
+    if (seen.has(d.documentTypeId)) continue;
+    seen.add(d.documentTypeId);
+    if (d.expiresAt && d.expiresAt <= soon) out.push(d);
+  }
+  return out.sort((a, b) => a.expiresAt!.getTime() - b.expiresAt!.getTime());
+}
 
 /** Every row this person's role is shown, with its count (zeros included — the caller decides what to hide). */
 export async function loadAttention(ctx: AttentionContext): Promise<AttentionCount[]> {
@@ -353,6 +416,48 @@ const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionCon
     });
     return rows.map((j) =>
       item(j.id, jobLabel(j), `${j.currentStage.name} · last edited ${day(j.updatedAt)}${j.nextAction?.trim() ? ` · next: ${j.nextAction.trim()}` : ""}`, j.updatedAt, `/jobs/${j.id}`),
+    );
+  },
+  "bids-due": async (ctx) => {
+    const rows = await prisma.bidInvitation.findMany({ where: bidsDueWhere(ctx), orderBy: { bidDueAt: "asc" }, take, select: { id: true, leadId: true, number: true, projectName: true, bidDueAt: true, status: true, organization: { select: { name: true } } } });
+    return rows.map((b) => item(b.id, { primary: `${b.organization.name} · ${b.projectName}`, secondary: words(b.status), code: b.number, placeholder: false }, b.bidDueAt && b.bidDueAt < ctx.now ? `was due ${day(b.bidDueAt)}` : `due ${day(b.bidDueAt)}`, b.bidDueAt, `/leads/${b.leadId}?tab=bid`));
+  },
+  "bids-awaiting-decision": async (ctx) => {
+    const rows = await prisma.bidInvitation.findMany({ where: bidsAwaitingDecisionWhere(ctx), orderBy: [{ bidDueAt: { sort: "asc", nulls: "last" } }], take, select: { id: true, leadId: true, number: true, projectName: true, bidDueAt: true, invitedAt: true, organization: { select: { name: true } } } });
+    return rows.map((b) => item(b.id, { primary: `${b.organization.name} · ${b.projectName}`, secondary: b.invitedAt ? `invited ${day(b.invitedAt)}` : null, code: b.number, placeholder: false }, b.bidDueAt ? `due ${day(b.bidDueAt)}` : "no due date", b.bidDueAt, `/leads/${b.leadId}?tab=bid`));
+  },
+  "qualifications-expiring": async (ctx) => {
+    const rows = await prisma.qualification.findMany({
+      where: qualificationsExpiringWhere(ctx),
+      orderBy: [{ expiresAt: { sort: "asc", nulls: "last" } }],
+      take,
+      select: { id: true, platform: true, expiresAt: true, renewalDueAt: true, organization: { select: { id: true, name: true } } },
+    });
+    return rows.map((q) => {
+      const expired = q.expiresAt && q.expiresAt < ctx.now;
+      const detail = expired ? `expired ${day(q.expiresAt)}` : q.renewalDueAt && q.renewalDueAt <= ctx.now ? `renewal was due ${day(q.renewalDueAt)}` : `expires ${day(q.expiresAt)}`;
+      return item(q.id, { primary: q.organization.name, secondary: q.platform, code: null, placeholder: false }, detail, q.expiresAt, `/partners/${q.organization.id}?tab=qualification`);
+    });
+  },
+  "company-docs-expiring": async (ctx) => {
+    const rows = await expiringVaultDocuments(ctx.now);
+    return rows.slice(0, take).map((d) => item(d.id, { primary: d.documentType.name, secondary: d.title, code: null, placeholder: false }, d.expiresAt! < ctx.now ? `expired ${day(d.expiresAt)}` : `expires ${day(d.expiresAt)}`, d.expiresAt, "/partners/vault"));
+  },
+  "partner-follow-ups": async (ctx) => {
+    const rows = await prisma.task.findMany({
+      where: partnerFollowUpsWhere(ctx),
+      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+      take,
+      select: { id: true, title: true, dueAt: true, organization: { select: { id: true, name: true, stage: true } }, assignedTo: { select: { firstName: true, lastName: true } } },
+    });
+    return rows.map((t) =>
+      item(
+        t.id,
+        { primary: t.organization?.name ?? t.title, secondary: t.title, code: null, placeholder: false },
+        [t.dueAt ? `due ${day(t.dueAt)}` : null, t.assignedTo ? `${t.assignedTo.firstName} ${t.assignedTo.lastName}` : "unassigned"].filter(Boolean).join(" · "),
+        t.dueAt,
+        t.organization ? `/partners/${t.organization.id}` : `/tasks?task=${t.id}`,
+      ),
     );
   },
 };

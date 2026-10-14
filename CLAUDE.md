@@ -27,6 +27,68 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
+   2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
+   `CAREYOS_GC_PARTNERSHIPS_IMPLEMENTATION_PLAN.md`, build-ready spec in
+   `CAREYOS_GC_PARTNERSHIPS_BUILD_SPECIFICATIONS.md` (repo root). Four stages:
+   1 accounts / contacts / interactions / follow-up tasks, 2 qualifications +
+   the KNU document vault, 3 bid invitations as `GC_BID` leads → award →
+   progress-billed job, 4 health score + scorecard + analytics. **Stage 1
+   built + dev-QA'd 2026-10-13 on `partners-s1` (worktree), fast-forwarded to
+   `main` and deployed 2026-10-13 as `b8af730`** (BUILD_ID
+   `teFcePwxp9jUwltnPFRYK`, migration `20261023120000_partners_core` applied
+   (89), smoke 307 ×2, journal clean, backup `postgres-2026-10-13-154729.dump`;
+   seeded on prod, Coastal Choice backfilled, `partner-follow-ups.sh` on the
+   crontab at `55 11 * * 1-5`, first run `raised 0`). **Stage 2
+   (qualifications + the KNU document vault + expiry alerts + RESTRICTED
+   access) built + dev-QA'd 2026-10-13 on `partners-s2`, fast-forwarded to
+   `main` and deployed 2026-10-13 as `65cc01e`** (BUILD_ID
+   `k_Dv0RZV2Xs5ihU2PF5fB`, migration `20261024120000_partners_qualifications`
+   applied (90), smoke 307 ×2, journal clean, backup
+   `postgres-2026-10-13-170744.dump`; seeded (16 document types, default
+   checklist filled), `company-document-alerts.sh` on the crontab at
+   `56 11 * * 1-5`, first run `raised 0`). **Stage 3 (bids: invitations on
+   `GC_BID` leads, go / no-go score, submissions, outcomes, award →
+   progress-billed job) built + dev-QA'd 2026-10-13 on `partners-s3`, deployed
+   2026-10-13 as `d2afb6f`** (BUILD_ID `Hb0xqBxUlMkJKftTLAj88`, migration
+   `20261025120000_partners_bids` applied (91), five CHECKs verified, smoke 307
+   ×2, journal clean, backup `postgres-2026-10-13-182830.dump`; JOB-00009 recorded as
+   BID-00001, awarded $832,500); no seed, no cron; fill Admin → Business Development → Bid scoring
+   and run `scripts/backfill-partners-bid-job00009.ts`. **Stage 4 (relationship health, account scorecard,
+   partner analytics, weights editor, dashboard strip) built + dev-QA'd
+   2026-10-13 on `partners-s4`, deployed 2026-10-13 as `68bfb2f`** (BUILD_ID
+   `kRdp4GOoGpB0OBh-SM6ol`, migration `20261026120000_partners_scorecard`
+   applied (92), CHECK present, smoke 307 ×2, journal clean, backup
+   `postgres-2026-10-13-185953.dump`); no seed, no cron. **The four-stage
+   plan is on prod.** **Phase 5 (bid invitations by email → Bid intake
+   queue) built + dev-QA'd 2026-10-13 on `partners-s5`, deployed 2026-10-13
+   as `f4f39c3`** (BUILD_ID `fq9IG_D9irXnQMsxcg7XR`, migration applied (93),
+   journal clean, backup `postgres-2026-10-13-222029.dump`): migration `20261027120000_partners_bid_intake`
+   (`BidIntake`), pure `itb-parse.ts`, `itb-intake.ts`, paste on
+   `/partners/intake`, MailerSend inbound webhook (off until
+   `MAILERSEND_INBOUND_SECRET` is set and a route is created), Outlook poller
+   hand-off. **Phase 8a (prequalification package: one zip of the vault
+   documents a GC's checklist asks for) built + dev-QA'd 2026-10-13 on
+   `partners-s8`, fast-forwarded to `main`, not deployed**; no migration, new
+   direct dependency `fflate`. Stage 2 facts:
+   migration `20261024120000_partners_qualifications` (`CompanyDocumentType`,
+   `CompanyDocument` with own storage + encryption at rest for RESTRICTED,
+   `Qualification`, `QualificationRequirement`, `PartnerSettings` vault owner +
+   default checklist, `User.canViewRestrictedDocuments`), pure
+   `qualification-state` / `document-alerts` / `vault-access`, services,
+   routes, the vault page, the Qualification and Documents tabs,
+   `/partners/qualifications`, attention rows, calendar overlays, the cron.
+   **Deploy carries the migration**; seed again after it. Stage 1 facts:
+   migration `20261023120000_partners_core` (`Organization`,
+   `OrganizationTrade`, `Contact`, `Interaction`, `PartnerStageHistory`,
+   `PartnerSettings`; `Lead.kind` / `organizationId` / `contactId`;
+   `Task.organizationId`; CHECKs + one-primary partial index), pure
+   `src/lib/partners/*`, the fence on six customer-only lead surfaces, the
+   follow-up cron, the Business Development sidebar section, ⌘K groups,
+   `/partners`, `/partners/[id]`, `/partners/contacts`, `/admin/partners`,
+   seed, backfill script. Rulings taken as recommended (6-stage enum;
+   SALES_REP manages; bids-as-leads) — Richard can still change them. Notes:
+   [features/partners.md](docs/project-memory/features/partners.md).
 000000000. 🔴 **AI plan takeoff → supplier RFQ (roofing + plumbing)** — plan
    approved 2026-10-08 (`~/.claude/plans/harmonic-churning-stearns.md`), design
    in `CAREYOS_PLAN_TAKEOFF_STAGE1_DESIGN.md`. **M0 proofs of concept done
@@ -422,6 +484,246 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-13 — GC Partnerships Phase 8a: prequalification package (built + dev-QA'd on `partners-s8`, on `main`, not deployed)
+
+"go to next recommended phase". Phases 5b (BuildingConnected: Bid Board Pro +
+OAuth), 6 (discovery: the plan defers it until bid volume) and 7 (AI: no
+`ANTHROPIC_API_KEY` on prod, and the shared AI-call layer is the takeoff M3
+work still uncommitted in the main checkout) are each blocked, so the session
+took Phase 8's first piece. Built: pure `lib/partners/package-plan.ts`
+(`planPackage` — per checklist line the vault's current version, else the
+attached one; out when waived, nothing filed, expired, not approved for
+external, file missing, or RESTRICTED without both the right and the tick; a
+version the GC rejected is not resent; `contentsSheet` lists enclosed and "to
+follow" only, never internal reasons; `entryName`, `docLabel`);
+`lib/partners/package.ts` (`previewPackage`, `buildPackage` — fflate zip,
+documents stored, RESTRICTED decrypted, audit `qualification_package` + one
+`document_view` per restricted file with IP / UA);
+`GET /api/qualifications/[id]/package` (`?preview=1` writes nothing,
+`?restricted=1`; partner managers; 409 when nothing can go; rate-limited);
+`PackageDialog` behind a **Package** button on each qualification. Gate:
+typecheck clean, lint 5/22, 1713 tests (+10), build clean. Dev QA: API 18/18
+(current-version preference, every reason, restricted opt-in, zip listing and
+contents sheet, W-9 decrypted, audit rows, 409 / 404), headless Chromium 6/6
+at 1280 and 400 px; SALES_REP asking for restricted gets none, READ_ONLY 403;
+fixed in QA: "W-9 v3 v3" (default titles already carry the version). QA vault
+files and rows removed, john.rep back to SALES_REP. Not done (rest of Phase
+8): estimating hours per task, `Organization.kind` work beyond GCs; logging
+the package as sent is a manual interaction.
+
+### 2026-10-13 — GC Partnerships Phase 5: bid invitations by email (deployed `f4f39c3`)
+
+"build phase 5". Found first: the plan's "existing intake mailbox" never ran —
+the four `OUTLOOK_*` lines are commented out in `/etc/knuco/env`, prod has 0
+`inbound_email_events` and 0 `intake_settings` rows, and nothing calls the
+poller. So the pipeline was built channel-agnostic: one `ingestItbEmail`
+fed by (1) **paste** on Business Development → Bid intake (works with no
+setup), (2) **MailerSend inbound routing** →
+`POST /api/integrations/mailersend/inbound` (HMAC-SHA256 `Signature` of the
+raw body; 503 without `MAILERSEND_INBOUND_SECRET`, 401 on a bad signature,
+the published test-secret ping acknowledged and dropped), (3) the dormant
+Outlook poller handing platform / contact mail over instead of reading it as
+a Google Ads lead. Built: migration `20261027120000_partners_bid_intake`
+(`BidIntake` beside the raw `InboundEmailEvent`); pure `itb-parse.ts`
+(forward unwrapping, HTML → text, platform from sender / links, labelled
+fields, dates in office time with named zones, a date without a time = 5 PM
+flagged, address split, kind INVITATION / ADDENDUM / UPDATE, account match by
+contact email → company domain → GC name, existing bid by platform id → same
+account + project, trades by name, sender gate: KNU users, known contacts,
+bid platforms); `itb-intake.ts` (ingest with idempotency, review task to the
+account owner once per item `bid-intake:<id>` — none for a paste, create the
+bid through `createBid` with `signalSource "email:<platform>"`, file on an
+existing bid with optional addendum count / due date, dismiss, pick account;
+conditional on NEW so two people cannot both decide); routes under
+`/api/partners/intake`; `/partners/intake` page + sidebar entry, the bid form
+prefilled from the email, a "waiting for review" link on Bids. A subject line
+used as the project is shown as such and never counted as "read". Gate:
+typecheck clean, lint 5/22, 1703 tests (+28), build clean. Dev QA: API 37/38
+(the miss was the check's own date formatting; values right), headless
+Chromium 18/18 at 1280 and 400 px, READ_ONLY 403 / SALES_REP 201, webhook 503
+unset; QA rows removed, john.rep back to SALES_REP. **Not proven: real ITB
+emails** (fixtures are written from the platforms' known shapes) and the
+MailerSend signature scheme against a live route (taken from a third-party
+guide; the route's first test ping will show it). Attachments in forwarded
+mail are not stored.
+Richard pushed and deployed from `!` (background, 274 s, exit 0): BUILD_ID
+`kRdp4GOoGpB0OBh-SM6ol` → `fq9IG_D9irXnQMsxcg7XR`, migration
+`20261027120000_partners_bid_intake` applied (93, none unfinished,
+`bid_intakes` empty), zero journal errors since the restart, `/partners/intake`
+307 to the portal, the inbound webhook 503 (secret not set — as designed),
+backup `postgres-2026-10-13-222029.dump`.
+
+### 2026-10-13 — GC Partnerships Stage 4: health, scorecard, analytics (deployed `68bfb2f`)
+
+"build stage 4", on a branch from `origin/main` (`0e13694`) in the same
+worktree. Migration `20261026120000_partners_scorecard` (settings columns +
+one CHECK; `db execute` then `resolve`). Pure `health.ts` (plan §17 tables,
+dormant cap, bands, rule-made strengths / weaknesses / next step; the worked
+example scores 76), `windows.ts` (presets, period buckets), money KPIs in
+`scorecard.ts`, the Preferred badge. `scorecard-load.ts` gathers rows in
+batches; health now feeds the accounts list (sortable column), the account
+header, the bid score's relationship slot and the new Performance tab.
+Routes for the scorecard, analytics (+ CSV), the dashboard summary and the
+recommended-action task; Admin → Weights edits both rule sets as JSON.
+Found in QA and fixed: a back-dated submission or invitation moved an
+account's last contact backwards (now forward-only); re-saving the same
+weights bumped the version (Postgres reorders JSON keys — compared
+canonically); a 45.0001-day average fell in the 60-day band (rounded now);
+a window with no activity still showed whole-life profit (money now counts
+jobs active in the window, and empty groups drop out); the account tab strip
+ran off a phone screen. Gate: typecheck clean, lint 5/22, 1675 tests (+29),
+build clean. Dev QA: API 31/31, headless Chromium 23/23 at 1280 and 400 px,
+SALES_REP and READ_ONLY 7/7 each; seed rep reset to SALES_REP; QA rows
+removed. Details:
+[features/partners.md](docs/project-memory/features/partners.md).
+Richard pushed and deployed from `!` (background, 281 s, exit 0): BUILD_ID
+`Hb0xqBxUlMkJKftTLAj88` → `kRdp4GOoGpB0OBh-SM6ol`, migration applied (92),
+`partner_settings_preferred_chk` present, zero journal errors, backup
+`postgres-2026-10-13-185953.dump`. Coastal Choice read on prod through the
+deployed loaders: health **15, Dormant** — engagement 0 (no interaction has
+ever been logged on the account), qualification 0 (none on file), bid flow 0
+(its one bid, BID-00001, was awarded in March 2025, outside 12 months),
+economics 15 ($200,769 billed in 12 months, 36 % projected margin, 79 days to
+pay → 0); next step "Raise payment terms before the next bid". 12-month
+scorecard: billed $200,769, collected $290,035, 7 linked payments + 1
+unlinked, retainage held $60,743. The numbers are real; the low score is the
+empty relationship record, not a fault.
+
+### 2026-10-13 — GC Partnerships Stage 3: bids (deployed `d2afb6f`)
+
+"build stage 3", on a branch from `main` in the same worktree. Migration
+`20261025120000_partners_bids` (applied on dev with `db execute` then
+`resolve`; hand-appended sequence + five CHECKs): `BidInvitation`,
+`BidSubmission`, seven enums, scoring columns on `PartnerSettings`. Pure
+`bid-state.ts` (transitions, labels, lead mirror), `bid-score.ts` (zod
+weights, deterministic score with gates and a snapshot; the design's worked
+example scores 75), `scorecard.ts` (12-month KPIs). Services `bids.ts`
+(create lead + invitation in one transaction, status, preview / decide,
+close, award through `createJobFromLead` with progress billing / 10 % /
+no deposit, reopen, delete, list, bid facts for badges and follow-ups) and
+`submissions.ts`; `createJobFromLead` takes options and picks the subcontract
+defaults for any `GC_BID` lead; the lead stage route answers 409 for a bid;
+`bid-guard.ts` lead-scopes every bid route and the list. Routes under
+`/api/bids`; the lead's Bid tab (`bid-panel.tsx`), `bid-form-dialog.tsx`,
+`/partners/bids` (KPI strip, list | board), the account's Bids and Projects
+tabs, Admin → Bid scoring, attention rows `bids-due` /
+`bids-awaiting-decision`, calendar overlay `bid_date`, bid number in ⌘K and
+the Leads search. Found in QA and fixed: reopen answered with the lead's old
+stage; a sales rep's list showed bids whose lead 404s for them; the nurture
+card showed on a bid lead; and, on every lead, the page widened past a phone
+screen (grid columns lacked `min-w-0`). Gate: typecheck clean, lint 5/22,
+1646 tests (+14), build clean. Dev QA: API 48/48, headless Chromium 25/25 at
+1280 and 400 px, SALES_REP 15/15, READ_ONLY and CREW_LEAD read-only; the
+JOB-00009 backfill run on a stand-in job (dry run, apply, re-run unchanged)
+and reverted. The dev bypass had written CREW_LEAD onto the seed rep; reset
+to SALES_REP. QA rows removed. Details:
+[features/partners.md](docs/project-memory/features/partners.md).
+Richard pushed and deployed from `!` (background, 276 s, exit 0): BUILD_ID
+`k_Dv0RZV2Xs5ihU2PF5fB` → `Hb0xqBxUlMkJKftTLAj88`, migration applied (91),
+the five `bid_*_chk` constraints present, 0 bids, smoke 307 ×2, zero journal
+errors since the restart, backup `postgres-2026-10-13-182830.dump`. Backfill
+dry run on prod: JOB-00009 (contract $832,500, created 2025-03-07, lead
+GC_BID linked to Coastal Choice) would become an awarded bid; Richard ran
+`--apply` from `!`: BID-00001 created (CLOSED / AWARDED $832,500, one audit
+row), a re-run changed nothing.
+
+### 2026-10-13 — GC Partnerships Stage 2: qualifications and the document vault (built + dev-QA'd on `partners-s2`, not deployed)
+
+"build stage 2", straight after the Stage 1 deploy, on a branch from `main`
+in the same worktree. Migration `20261024120000_partners_qualifications`
+(applied on dev with `db execute` **before** `migrate resolve` this time;
+hand-appended CHECKs). Built per the spec §2: `CompanyDocumentType` (16
+seeded, admin-editable), `CompanyDocument` (versioned per type, own storage
+columns; RESTRICTED bytes AES-GCM under the field keyring through new
+`encryptBlob` / `decryptBlob` in `lib/crypto/field-encryption.ts`;
+reclassifying re-writes the bytes), `Qualification` +
+`QualificationRequirement` (default checklist from the settings; the GC's
+answer per line), pure `qualification-state.ts` (EXPIRED / RENEWAL_DUE and
+every requirement state derived on read, coverage), `document-alerts.ts` +
+`document-alert-run.ts` (the vendor pattern; vault tasks carry no entity
+link), `vault-access.ts` (SHAREABLE / INTERNAL / RESTRICTED by role + the
+`canViewRestrictedDocuments` grant, read fresh per request), the audited
+rate-limited bytes route (the only one; added to `FRAMED_BY_SELF`), the
+follow-up planner now fed the representative qualification (rules 3–4 live),
+attention rows `qualifications-expiring` + `company-docs-expiring`, calendar
+overlays `company_doc` + `qualification_date`, the vault page, the
+Qualification and Documents tabs, `/partners/qualifications`, the grant on
+Admin → Users, the vault owner + default checklist on Admin → Business
+Development. Gate: typecheck clean, lint 5/22, 1632 tests (+16), build clean.
+Dev QA: API 54/54 (the one script miss was my reading of the tasks route; the
+vault task was verified raised and settled by SQL), headless Chromium 14/14
+at 1280 and 400 px with no page errors — found and fixed in QA: the
+qualification dialog seeded its checklist from options that had not loaded
+(a new qualification came up with an empty list), and link-styled buttons
+needed `nativeButton={false}`; role matrix: SALES_REP sees the restricted row
+locked and gets 404 on its bytes / 403 on upload, MANAGER without the grant
+404 and with it 200 plus one `document_view` audit row. QA rows and files
+deleted; no `.enc` blobs left in `uploads/`. Not exercised: the email of a
+vault task (owner = Richard on prod), a blob key rotation (no sweep yet),
+PDF rendering of the preview frame in a full browser (the headless shell
+showed the frame element only — the same caveat as 2026-10-03). Details:
+[features/partners.md](docs/project-memory/features/partners.md).
+Merged and deployed the same day through `/tmp/knuco-main`; Richard pushed
+and deployed from `!` (background, 265 s, exit 0): BUILD_ID
+`teFcePwxp9jUwltnPFRYK` → `k_Dv0RZV2Xs5ihU2PF5fB`, `.deploy-sha` `65cc01e`,
+migration applied (90; both CHECKs and the grant column present), smoke 307
+×2, zero journal errors since the restart, backup
+`postgres-2026-10-13-170744.dump`. Then on prod: seed (16 document types
+created, the default checklist filled; second run unchanged ×21), wrapper
+`crm-cron/company-document-alerts.sh` + crontab `56 11 * * 1-5` (crontab
+copy `/home/knuco/crontab.bak-20261013-vault`), first run `{"documents":0,
+"qualifications":0,"raised":0}` 200. `FIELD_ENCRYPTION_KEYS` is set on prod,
+so RESTRICTED uploads work.
+
+### 2026-10-13 — GC Partnerships Stage 1: accounts, contacts, interactions, follow-ups (built + dev-QA'd on `partners-s1`, not deployed)
+
+Richard: "start stage 1" after approving the plan and the build spec earlier
+the same day. Built in a worktree branched from `main` (the main checkout
+holds uncommitted takeoff M3 work). Migration `20261023120000_partners_core`
+generated as a datamodel diff against the committed schema (the dev DB already
+carries M3's `plan_ai_calls`), applied with `db execute` — note `migrate
+resolve` ran first by mistake and recorded the migration before the SQL had
+run; the SQL was then executed and every object verified. Pure modules with
+tests: `stages` (six-value enum + `StageLike`), `derive` (badges, quiet days),
+`follow-ups` (rules new-target / no-response / quiet with period keys; rules 3–4
+coded, waiting on Stage 2 inputs), `query`, `access`, `validation`,
+`time/working-days` (shared with the crew install planner). Services:
+`service` (create / update / stage / owner / delete, every write audited,
+owner change reassigns open engine follow-ups), `contacts` (one primary per
+account), `interactions` (moves `lastContactAt`, ActivityLog bridge for bid
+leads, optional follow-up task, settles), `follow-up-run` (copy of the vendor
+alert run), `settings`. **The fence**: `Lead.kind` guards `buildLeadListWhere`
+(`?kind=` param, test), nurture enrolment, `emitLeadEvent`, the overdue
+follow-ups row, the dashboard counts and the funnel cohort; `customerName()`
+prefers the company on a `GC_BID` lead; search labels bids. Task plumbing
+(`organizationId` on create / include / list params, `SubjectKind
+"organization"`, chip icon), attention row `partner-follow-ups`,
+contact-lookup returns `contacts`. Decided while building: the partner list
+does **not** floor SALES_REP to Mine (seven users; Mine is a convenience
+filter). Gate: typecheck clean, lint 5/22, 1616 tests (+44), build clean. Dev
+QA: API 46/46 as ADMIN (found and fixed: contact-lookup compared digits
+against phones stored with dashes), headless Chromium 17/17 at 1280 and 400
+px with no page errors, role matrix as SALES_REP / MARKETING / CREW_LEAD
+exactly as specified; seed idempotent (second run unchanged ×5); backfill dry
+run on dev "nothing to do"; QA rows deleted. Not exercised: the follow-up
+assignment email (QA owner was the muted dev rep), a bid lead end to end
+(Stage 3). Details:
+[features/partners.md](docs/project-memory/features/partners.md).
+Merged and deployed the same day: `main` was fast-forwarded in a temporary
+worktree (`/tmp/knuco-main`) because the main checkout holds uncommitted
+takeoff M3 work; Richard pushed and deployed from `!` (background, 272 s,
+exit 0): BUILD_ID `rdnoX1aBXPhXwFrp21OQG` → `teFcePwxp9jUwltnPFRYK`,
+`.deploy-sha` `b8af730`, migration `20261023120000_partners_core` applied
+(89; the two CHECKs and the partial index present), smoke 307 ×2, zero
+journal errors since the restart, backup `postgres-2026-10-13-154729.dump`.
+Then on prod: seed (created ×5 / unchanged ×5), backfill dry run → `--apply`
+(JOB-00009 was already PROGRESS / 10 %, so `--fix-billing` was not needed;
+account `cmv6v0zei0000asbt4ua6kjs7` created ACTIVE with the Drywall trade,
+the lead marked `GC_BID` and linked, re-run "nothing to do"), wrapper
+`crm-cron/partner-follow-ups.sh` + crontab `55 11 * * 1-5` (crontab copy
+`/home/knuco/crontab.bak-20261013-partners`), first run
+`{"organizations":1,"raised":0}` 200.
 
 ### 2026-10-09 — Fix: "Choose a PDF" on the Plan takeoff tab did nothing; the Assignment select showed an id (deployed `f670e84`)
 
@@ -2418,6 +2720,16 @@ ssh knuco-droplet 'set -a; . /etc/knuco/env; set +a; curl -s -X POST -H "x-cron-
 # Permit follow-up crons, by hand (droplet; each alert is raised once)
 ssh knuco-droplet '/home/knuco/crm-cron/permit-aging.sh; tail -1 /home/knuco/crm-cron/permit-aging.log'
 ssh knuco-droplet '/home/knuco/crm-cron/inspection-reminders.sh; tail -1 /home/knuco/crm-cron/inspection-reminders.log'
+# Business Development seed (idempotent; categories + lead source + settings, all create-only)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-partners.ts"'
+# Coastal Choice backfill (dry run by default; --apply writes; --fix-billing only on Richard's word)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-partners-coastal-choice.ts"'
+# JOB-00009's award as a bid record (dry run by default; --apply writes; idempotent)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-partners-bid-job00009.ts"'
+# Vault + qualification expiry cron, by hand (droplet; each alert is raised once)
+ssh knuco-droplet '/home/knuco/crm-cron/company-document-alerts.sh; tail -1 /home/knuco/crm-cron/company-document-alerts.log'
+# Partner follow-up cron, by hand (droplet; each follow-up is raised once per period; ?dryRun=1 plans only)
+ssh knuco-droplet '/home/knuco/crm-cron/partner-follow-ups.sh; tail -1 /home/knuco/crm-cron/partner-follow-ups.log'
 # Vendor document expiry cron, by hand (droplet; each alert is raised once)
 ssh knuco-droplet '/home/knuco/crm-cron/vendor-compliance.sh; tail -1 /home/knuco/crm-cron/vendor-compliance.log'
 # Link existing expenses to vendors (dry run by default; --yes applies; idempotent)
@@ -2458,6 +2770,9 @@ off; `1` to enable — after SPF), `TASK_AUTO_RULES_DISABLED` (default
 deadline), `VIOLATION_ESCALATIONS_ENABLED` (default off; `1` after SPF),
 `UPLOADS_DIR` (absolute path of the upload store; set on the droplet so it
 lives outside the app folder; unset = `./uploads`),
+`MAILERSEND_INBOUND_SECRET` (signing secret of the MailerSend inbound route
+that forwards bid invitations; unset = `/api/integrations/mailersend/inbound`
+503s, pasting on Bid intake still works),
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
 `ZYLOW_API_KEY`, `ZYLOW_API_BASE`, `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`,
 `NURTURE_ENABLED` (default `0`; `1` after SPF — the DB switch under
@@ -2625,14 +2940,136 @@ Notification Digests).
   the text; payroll rows are never matched. A labor contract's vendor is its
   own link, else its crew's. Vendor routes use `canManageVendors` /
   `canViewVendors` (`lib/vendors/access.ts`).
+- **Relationship health is computed on read, never stored**
+  (`lib/partners/health.ts`, weights in `PartnerSettings.healthWeights`,
+  versioned). Every reader goes through `loadHealth` in
+  `lib/partners/scorecard-load.ts`; a new screen never sums its own. Money on
+  partner pages (scorecard, analytics) is for `canViewPartnerMoney` roles and
+  counts jobs active in the window. An account's `lastContactAt` only moves
+  forward (`advanceLastContact`).
+- **A bid's status is the master; its lead's stage only mirrors Won and
+  Lost** (`lib/partners/bids.ts`). A `GC_BID` lead is never moved through the
+  lead stage route (409) and never fires the lead event; an award creates the
+  job through `createJobFromLead` with progress billing, 10 % retainage and no
+  deposit. The bid / no-bid score is deterministic advice
+  (`lib/partners/bid-score.ts`): a person decides (ADMIN / MANAGER), and the
+  decision stores the score, its inputs and the weights version. Every bid
+  route and list is lead-scoped (`bid-guard.ts`). A submission is a record:
+  append-only, snapshotting the estimate's price and cost.
 - **A dashboard attention row's count and its list share one `where`**
   (`lib/attention/load.ts`). A new row gets a role list in `rows.ts` and both
   a counter and a lister over the same builder — never two queries.
+- **A GC account is an `Organization`, never a Vendor** (vendors are payees,
+  matched against expense payees); an account that is also a payee links
+  through `vendorId`. **A GC's bid package is a Lead of kind `GC_BID`**; the
+  customer surfaces — `buildLeadListWhere`, nurture, follow-up rules, the
+  overdue-follow-ups row, the dashboard and the funnel — filter on `kind`,
+  and any new reader that means homeowners must add `kind: "CUSTOMER"`.
+  Relationship stages are the `PartnerStage` enum; everything else about an
+  account (quiet, prequalified, bidding, awarded) is derived on read
+  (`lib/partners/derive.ts`). Account follow-ups are tasks raised once per
+  source key by `lib/partners/follow-up-run.ts` and settled by every
+  interaction or stage write; the CRM never emails a GC contact. Access through
+  `lib/partners/access.ts` (SALES_REP manages; owner change, write-off, delete
+  and settings are ADMIN / MANAGER). **KNU's own documents live in the vault**
+  (`CompanyDocument`, own storage, never a `File` row): the current version of
+  a type is the highest; a RESTRICTED document's bytes are encrypted under the
+  field keyring and served only by `/api/company-documents/[id]/file`, which
+  answers 404 to anyone outside `canReadDocument` (`lib/partners/vault-access.ts`)
+  and audits every RESTRICTED read. Qualification and requirement states are
+  derived on read (`qualification-state.ts`); the GC's answer is the only
+  stored decision. Vault and qualification expiries are tasks raised once per
+  key (`document-alert-run.ts`) and settled by every write.
+- **An emailed bid invitation is never a bid until a person confirms it**
+  (`lib/partners/itb-intake.ts`): every channel (paste, MailerSend inbound,
+  Outlook) goes through `ingestItbEmail` into a `BidIntake`; the reader
+  (`itb-parse.ts`) is deterministic and leaves what it cannot read empty; no
+  due date or addendum count moves without the person ticking it. New intake
+  channels call `ingestItbEmail`, never `createBid` directly.
+- **A vault document leaves the CRM in a package only if a manager approved it
+  for external distribution** (`lib/partners/package-plan.ts`): in date, on
+  file, and RESTRICTED only for someone who may open it and asked for it —
+  each such file audited as a `document_view`. The contents sheet the GC sees
+  never states internal reasons.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **GC Partnerships Phase 8a (prequalification package) is on `main`, not
+> deployed (no migration; `npm ci` picks up `fflate`).** After Richard's push +
+> deploy: an account → Qualification → Package — only documents marked
+> "approved for external" in the vault go in, so approve the ones KNU sends.
+> Still blocked: 5b (Bid Board Pro), 6 (volume), 7 (prod AI key + the takeoff
+> AI layer).
+
+> **GC Partnerships Phase 5 (bid intake) is on prod (`f4f39c3`, BUILD_ID
+> `fq9IG_D9irXnQMsxcg7XR`).** Next: paste
+> two or three real ITB emails on Business Development → Bid intake and check
+> what was read; any field misread is a parser fixture to add. To have
+> forwarded mail arrive by itself: MailerSend → Inbound routing → a route
+> (its `…@inbound.mailersend.net` address) forwarding to
+> `https://crm.careyos.com/api/integrations/mailersend/inbound`, its secret as
+> `MAILERSEND_INBOUND_SECRET` in `/etc/knuco/env` + restart; then forward one
+> invitation and watch it land. Check first that the MailerSend plan includes
+> inbound routing.
+
+> **GC Partnerships Stage 4 is on prod (`68bfb2f`, BUILD_ID
+> `kRdp4GOoGpB0OBh-SM6ol`); all four stages are live.** Coastal Choice reads
+> 15 / Dormant until its contacts, interactions and prequalification are
+> entered. Richard's click-through: an account → Performance; GC Partnerships → sort
+> by Health; Business Development → Analytics (by GC / trade, CSV); Admin →
+> Business Development → Weights; the dashboard's Business development strip.
+> That completes the four-stage plan.
+
+> **GC Partnerships Stage 3 (bids) is on prod (`d2afb6f`, BUILD_ID
+> `Hb0xqBxUlMkJKftTLAj88`); JOB-00009 is BID-00001, awarded.
+> Richard's click-through: Admin → Business Development → Bid scoring (trades
+> KNU bids, home / reachable counties, usual size per trade, bonding
+> capacity) → Coastal Choice → Log a bid → the lead's Bid tab (sliders, Bid,
+> Record submission, Close…) → Business Development → Bids. Next build:
+> **Stage 4** (health score, scorecard, analytics, weights editor).
+
+> **GC Partnerships Stage 2 (qualifications + vault) is on prod (`65cc01e`,
+> BUILD_ID `k_Dv0RZV2Xs5ihU2PF5fB`), seeded, cron installed.** Click-through: Business Development → Document
+> Vault → File a document (a GL COI with an expiry — the date prefills), then
+> Coastal Choice → Qualification → Start a qualification → "Mark sent" on the
+> GL line → the Documents tab; Admin → Users → the new "Open restricted vault
+> documents" grant. Next build: **Stage 3** (bids) per the build spec §3.
+>
+> **Stage 1 is on prod** (`b8af730`, BUILD_ID `teFcePwxp9jUwltnPFRYK`).
+> The paragraph below is its record.
+>
+> **GC Partnerships Stage 1 is built + dev-QA'd on `partners-s1` (a worktree
+> under `.claude/worktrees/`), not merged, not deployed.** The main checkout is
+> on `takeoff-m3` with uncommitted M3 work, so the merge is: from the main
+> checkout, `git merge --ff-only partners-s1` onto `main` once `takeoff-m3` is
+> parked or committed (expect a `prisma/schema.prisma` merge if M3 lands
+> first — both add models at the end of the file). **Deploy carries migration
+> `20261023120000_partners_core`.** After the deploy: run `prisma/seed-partners.ts`
+> (prints created / unchanged), the backfill dry run → `--apply` (creates
+> "Coastal Choice Construction", marks JOB-00009's lead a `GC_BID`; `--fix-billing`
+> only after Richard reads the printed billing values), install
+> `crm-cron/partner-follow-ups.sh` at `55 11 * * 1-5` and run it once
+> (`raised 0` expected). Richard's click-through: Business Development → GC
+> Partnerships → New account (owner, markets, trades) → the account page → Add
+> contact → Log interaction with "Create a follow-up task" → the task on /tasks
+> and under Open follow-ups → the board drag → Admin → Business Development
+> thresholds. Next build: **Stage 2** (qualifications + the KNU document vault
+> + expiry alerts + RESTRICTED access) per
+> `CAREYOS_GC_PARTNERSHIPS_BUILD_SPECIFICATIONS.md` §2 — on a branch from
+> `main` after Stage 1 is merged.
+>
+> **Update 2026-10-13: Stage 1 is on prod (`b8af730`, BUILD_ID
+> `teFcePwxp9jUwltnPFRYK`), merged through a temporary `main` worktree at
+> `/tmp/knuco-main` (the main checkout stays on `takeoff-m3`). Seed run
+> (created ×5, then unchanged ×5), backfill applied — "Coastal Choice
+> Construction" exists as an ACTIVE account owned by the job's sales rep,
+> JOB-00009's lead is now `GC_BID` and linked; the job was already PROGRESS /
+> 10 %, so `--fix-billing` was not used — and the follow-up cron is
+> installed (`55 11 * * 1-5`, first run `organizations 1, raised 0`). What
+> remains is Richard's click-through (the paragraph above), then Stage 2.**
 
 > **Crew install dates are on prod (`fd736c1`, BUILD_ID
 > `cKcuzqLdl3kPJiUWOl6SE`, no migration).** Richard's click-through — a job → Field → Crews: assign a crew with an install date

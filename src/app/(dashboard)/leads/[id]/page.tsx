@@ -8,6 +8,8 @@ import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { EntityHeader } from "@/components/shared/entity-header";
+import { Callout } from "@/components/shared/callout";
+import { BidPanel } from "@/components/partners/bid-panel";
 import { StageBadge } from "@/components/shared/stage-badge";
 import { StageStepper } from "@/components/shared/stage-stepper";
 import { Button } from "@/components/ui/button";
@@ -53,7 +55,7 @@ import {
   Pencil,
 } from "lucide-react";
 
-const LEAD_TABS = ["activity", "tasks", "comms", "permits", "estimates", "takeoff", "roofr", "files", "violations", "history"];
+const LEAD_TABS = ["bid", "activity", "tasks", "comms", "permits", "estimates", "takeoff", "roofr", "files", "violations", "history"];
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -62,7 +64,6 @@ export default function LeadDetailPage() {
   const [noteContent, setNoteContent] = useState("");
 
   const { get: getUrl, set: setUrl } = useSearchParamState();
-  const tab = LEAD_TABS.includes(getUrl("tab") ?? "") ? (getUrl("tab") as string) : "activity";
   const { data: session } = useSession();
 
   const { data: lead, isLoading, error: leadError, refetch: refetchLead, isRefetching } = useQuery({
@@ -206,13 +207,18 @@ export default function LeadDetailPage() {
 
   const isOverdue =
     lead.nextFollowUpAt && new Date(lead.nextFollowUpAt) < new Date();
+  // A GC bid package opens on its Bid tab, and its stage follows the bid.
+  const bid: { id: string; number: string; projectName: string } | null = lead.kind === "GC_BID" ? (lead.bidInvitation ?? null) : null;
+  const defaultTab = bid ? "bid" : "activity";
+  const rawTab = getUrl("tab") ?? "";
+  const tab = LEAD_TABS.includes(rawTab) && (rawTab !== "bid" || bid) ? rawTab : defaultTab;
 
   return (
     <div>
       <RecordRecent item={{ type: "lead", id, primary: formatAddressLine(lead) || lead.fullName, secondary: formatAddressLine(lead) ? lead.fullName : null, code: null, href: `/leads/${id}` }} />
       <EntityHeader
-        breadcrumb={[{ label: "Leads", href: "/leads" }, { label: lead.fullName }]}
-        title={lead.fullName}
+        breadcrumb={bid ? [{ label: "Bids", href: "/partners/bids" }, { label: bid.number }] : [{ label: "Leads", href: "/leads" }, { label: lead.fullName }]}
+        title={bid ? bid.projectName : lead.fullName}
         subtitle={
           <>
             Created {format(new Date(lead.createdAt), "MMM d, yyyy 'at' h:mm a")}
@@ -240,7 +246,12 @@ export default function LeadDetailPage() {
           </Button>
         }
       >
-        {stages && (
+        {lead.kind === "GC_BID" && (
+          <Callout tone="info" title={lead.organization ? <>Bid package for <Link href={`/partners/${lead.organization.id}?tab=bids`} className="underline">{lead.organization.name}</Link></> : "Bid package"}>
+            Its stage follows the bid: Won on an award (which creates the job with progress billing), Lost when it closes any other way. Work it from the Bid tab.
+          </Callout>
+        )}
+        {stages && lead.kind !== "GC_BID" && (
           <StageStepper
             stages={stages}
             currentStageId={lead.currentStage.id}
@@ -253,8 +264,8 @@ export default function LeadDetailPage() {
       </EntityHeader>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left column: contact and property info */}
-        <div className="space-y-4">
+        {/* Left column: contact and property info. min-w-0 keeps a long tab strip from widening the grid on phones. */}
+        <div className="min-w-0 space-y-4">
           <ContactCard
             name={lead.fullName}
             companyName={lead.companyName}
@@ -298,7 +309,8 @@ export default function LeadDetailPage() {
             </CardContent>
           </Card>
 
-          <NurtureCard leadId={id} />
+          {/* A GC's estimator never gets the homeowner drip mail. */}
+          {lead.kind !== "GC_BID" && <NurtureCard leadId={id} />}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Details</CardTitle>
@@ -348,9 +360,10 @@ export default function LeadDetailPage() {
         </div>
 
         {/* Right column: tabs */}
-        <div className="lg:col-span-2">
-          <Tabs value={tab} onValueChange={(v) => v && setUrl("tab", v === "activity" ? null : String(v))}>
-            <TabsList>
+        <div className="min-w-0 lg:col-span-2">
+          <Tabs value={tab} onValueChange={(v) => v && setUrl("tab", v === defaultTab ? null : String(v))}>
+            <TabsList className="h-auto w-full flex-wrap justify-start">
+              {bid && <TabsTrigger value="bid">Bid</TabsTrigger>}
               <TabsTrigger value="activity">Activity</TabsTrigger>
               <TabsTrigger value="tasks">Tasks ({leadTasks.length})</TabsTrigger>
               <TabsTrigger value="comms">Communications</TabsTrigger>
@@ -362,6 +375,12 @@ export default function LeadDetailPage() {
               <TabsTrigger value="violations">Violations</TabsTrigger>
               <TabsTrigger value="history">Stage History</TabsTrigger>
             </TabsList>
+
+            {bid && (
+              <TabsContent value="bid">
+                <BidPanel bidId={bid.id} />
+              </TabsContent>
+            )}
 
             <TabsContent value="activity" className="space-y-4">
               <Card>

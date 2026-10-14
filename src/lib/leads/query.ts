@@ -21,6 +21,12 @@ export type LeadListParams = {
   scope?: ListScope;
   /** Leads assigned to this person, or the customer of a job they have a role on. */
   involvesUserId?: string;
+  /**
+   * CUSTOMER (the default): homeowner and owner inquiries. GC_BID: bid
+   * packages from general contractors, which live under Business
+   * Development. ALL: both — for pickers that must find any lead.
+   */
+  kind?: "CUSTOMER" | "GC_BID" | "ALL";
 };
 
 export type LeadListContext = { user: { id: string; role: RoleName } };
@@ -40,11 +46,21 @@ export function parseLeadListParams(searchParams: URLSearchParams): LeadListPara
     includeClosed: searchParams.get("includeClosed") === "true",
     scope: parseListScope(searchParams.get("scope")),
     involvesUserId: s("involvesUserId"),
+    kind: parseLeadKind(searchParams.get("kind")),
   };
+}
+
+export function parseLeadKind(v: string | null | undefined): LeadListParams["kind"] {
+  return v === "GC_BID" || v === "ALL" || v === "CUSTOMER" ? v : undefined;
 }
 
 export function buildLeadListWhere(params: LeadListParams, ctx: LeadListContext): Prisma.LeadWhereInput {
   const and: Prisma.LeadWhereInput[] = [];
+
+  // GC bid packages are leads too, but they are worked under Business
+  // Development; the customer lists never show them unless asked.
+  const kind = params.kind ?? "CUSTOMER";
+  if (kind !== "ALL") and.push({ kind });
 
   // Closed stages are hidden unless asked for, or a specific stage is chosen.
   if (!params.includeClosed && !params.stageId) and.push({ currentStage: { isClosed: false } });
@@ -60,6 +76,8 @@ export function buildLeadListWhere(params: LeadListParams, ctx: LeadListContext)
         // The number printed on an estimate, from either estimate builder.
         { estimates: { some: { estimateNumber: { contains: params.search, mode: "insensitive" } } } },
         { roofEstimates: { some: { estimateNumber: { contains: params.search, mode: "insensitive" } } } },
+        // A bid package by its number or project.
+        { bidInvitation: { OR: [{ number: { contains: params.search, mode: "insensitive" } }, { projectName: { contains: params.search, mode: "insensitive" } }] } },
       ],
     });
   }

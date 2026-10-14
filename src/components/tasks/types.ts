@@ -53,6 +53,7 @@ export type TaskListItem = {
   prospect?: { id: string; propertyAddress1: string; city: string } | null;
   dailyLog?: { id: string; jobId: string; logDate: string } | null;
   vendor?: { id: string; name: string } | null;
+  organization?: { id: string; name: string } | null;
   violationCase?: { id: string; caseNumber: string; agencyCaseNumber: string | null; leadId: string } | null;
   violationItem?: { id: string; itemNumber: number; caseId: string } | null;
   assignedTo: Person | null;

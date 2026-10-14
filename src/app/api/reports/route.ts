@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
 
     const overdueFollowUps = await prisma.lead.count({
       where: {
+        kind: "CUSTOMER",
         nextFollowUpAt: { lt: new Date() },
         currentStage: { isClosed: false },
         ...(scope === "mine" ? { AND: [jobsInvolvingLeadWhere(session.user.id)] } : {}),
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
     // The funnel is counted per lead (see lib/reports/funnel.ts); the stage
     // distribution above stays a count of moves into each stage.
     const cohort = await prisma.lead.findMany({
-      where: hasDateFilter ? { createdAt: dateFilter } : undefined,
+      where: { kind: "CUSTOMER", ...(hasDateFilter ? { createdAt: dateFilter } : {}) },
       select: { currentStageId: true, stageHistory: { select: { toStageId: true } } },
     });
     const { metrics } = computeFunnel(
