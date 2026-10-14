@@ -526,7 +526,8 @@ script also moves that posting to JOB-00010 and counts it through the 5/22
 payment (cc-allocator's bank row still names JOB-00011). Richard is finding
 the right date for the JOB-00011 payment dated year 0009. Prod changed during
 the session: BNW's 2188 contract is now $259,870 and a 10/5 $14,032.99
-payment was added. Note for
+payment was added. Richard: $259,870 is right — 2188 is built for KNU to sell,
+so cost equal to the job's contract (no profit shown) is expected. Note for
 the takeoff merge: its migration `20261028…` sorts before this one.
 
 ### 2026-10-13 — GC Partnerships Phase 8a: prequalification package (built + dev-QA'd on `partners-s8`, on `main`, not deployed)
