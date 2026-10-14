@@ -198,12 +198,76 @@ sheet, SALES_REP on these routes (same guard as M1).
 the three CHECKs, smoke 307 ×2, journal clean, backup
 `postgres-2026-10-09-042406.dump`). No operator items.
 
-## Next: M3 — AI-assisted roofing
+## M3 — AI-assisted roofing (built + dev-QA'd 2026-10-14 on `takeoff-m3`, not deployed)
 
-`@anthropic-ai/sdk`, `ANTHROPIC_API_KEY` / `TAKEOFF_AI_MODEL` /
-`TAKEOFF_AI_MAX_USD` in env, `PlanAiCall` (migration), `ai/*` (specs from
-text with line ids; roof regions from the 144 dpi render with candidate loops
-and label ids), the analyze job steps, AI rows as dashed proposals.
+Started 2026-10-09 (code written, one real dev run, nothing committed), finished
+2026-10-14: committed, `main` merged in, migration renamed to sort after the
+partner migrations, checked, dialog added, QA'd.
+
+**Schema** (migration `20261028120000_plan_ai_calls` — renamed from
+`20261022…`, which would have sorted before `20261023–27` already on prod; the
+dev `_prisma_migrations` row was renamed by SQL): `PlanAiCall` (purpose,
+prompt version, model that answered, input hash = cache key, token counts,
+cost, structured output — never the prompt or reasoning; CHECK cost ≥ 0),
+`PlanJob.takeoffId` for `ANALYZE_TAKEOFF` jobs.
+
+**Library**: `ai/client.ts` (one client, 120 s, 2 retries; no key → 503),
+`ai/calls.ts` `runAiCall` (cache by hash, per-takeoff cap `TAKEOFF_AI_MAX_USD`,
+`client.beta.messages.parse` + `betaZodOutputFormat`, effort high,
+**`fallbacks: "default"`** with `server-side-fallback-2026-07-01`, priced on
+`res.model`; refusal / max_tokens / schema miss / API error each recorded as a
+FAILED row), `ai/pricing.ts` (Opus 5.5 $4 / $20, cache read $0.20, write $5),
+`ai/candidates.ts` (labels by regex, longest 1,500 segments as `s{i}`, 220 in
+the prompt; image ≤ 2,000 px long edge — A-10 goes at 57 dpi), `ai/prompts.ts`
+(`roof-specs-1`, `roof-regions-1`), `ai/schemas.ts`, `roofing/analyze.ts`
+(pure: polygons px → pt, snapped; parapet = named segments merged face-to-face
+then joined; drains = points at their labels; the model never returns a
+number), `roofing/specs-run.ts` / `regions-run.ts`, `pipeline/analyze-plan.ts`
+(specs step + one regions step per roof plan), `specs.ts` (`assemblyInForce`:
+a person's choice over the plans' reading, both kept).
+
+**Routes / UI**: `POST /api/takeoffs/[id]/analyze` `{ planSheetIds? }` (edit
+role on the lead; 503 no key, 409 running, 400 sheet outside the set); the job
+is ticked by the existing tick route and cron sweeper. Workspace: **Analyze
+with AI** opens `AnalyzeDialog` (the takeoff's roof plans ticked, the rest of
+the set behind "Show the other sheets", "read before" marks; a picked sheet
+becomes a roof plan, `selectedBy: user`), progress pill, "AI $x" spend, toast
+on finish; `SpecsCard` (assembly on the plans or "Assembly not specified",
+deck / insulation / parapet / slopes / drainage, not-specified list, "Choose an
+assembly" stored as the person's choice); AI rows are dashed proposals with
+"AI proposal — measured by code from the lines the model named".
+
+**Results on 3310 (dev)**: specs — assembly **null**, 7 items not specified,
+"ROOF TILES" in a colours note correctly dismissed ($0.21). A-10 — 8 fields
+2,848 SF, parapet 220 LF, 7 primary + 2 emergency drains + 2 scuppers, every
+vertex snapped ($0.11, 30 s). Checked by overlaying the polygons on the 144 dpi
+render: each field follows its drawn drain field; the gaps between fields are
+walls between roof levels (32.75′ vs 41.17′ spot elevations), not missed roof;
+the parapet encloses 61.9 × 52.4 ft = 3,246 SF (the dimension envelope), fields
+sit ~7″ inside it. Every drain matches its tag. A-09 re-run through the new
+beta + fallbacks path: same answer (408 SF, 2 scuppers), $0.07, 18 s. Whole
+takeoff so far $0.51.
+
+**Found and handled**: the set draws the main roof twice (A-10 whole; A-08 +
+A-09 in parts) and all three were analysed → the dialog. **M5 must still
+guard totals**: a material list that sums a metric across several roof plans
+double-counts unless one sheet's rows are excluded — put it on the validation
+checklist. Also fixed: dialog body overflowed at 400 px (grid child needed
+`min-w-0`).
+
+**Gate**: typecheck clean, lint 5/22, 1741 tests, build clean. Dev QA:
+headless Chromium 8/8 at 1440 and 400 px (dialog, overlap note, read-before,
+other sheets, run one sheet, progress, finished toast, no page errors); API:
+foreign sheet 400, empty list 400, no body 400, `{}` 202, second start 409,
+missing takeoff 404, SALES_REP off the lead 404 on analyze / read / tick; a
+four-step all-cached job finishes in one tick with no new spend.
+**Not exercised**: a refusal or a fallback actually firing, the cost cap
+tripping, a scanned or uncalibrated roof plan through the run, the 503 with the
+key unset (`isAiConfigured` only).
+
+**Deploy needs**: `ANTHROPIC_API_KEY` in `/etc/knuco/env` (Richard's ruling —
+without it the button is disabled and the route answers 503; manual tools
+unaffected). Migration carried.
 
 ## 2026-10-09 — "Choose a PDF" did nothing (fixed on `main`)
 

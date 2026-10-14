@@ -106,8 +106,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    clean, backup `postgres-2026-10-09-042406.dump`). Richard's
    click-through: a lead → Plan takeoff → upload the 3310 set
    → Start roofing takeoff → Auto calibrate A-10 → draw the roof outline → the
-   count tool on the drains. Next: **M3** (AI-assisted roofing; needs the prod
-   `ANTHROPIC_API_KEY`). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
+   count tool on the drains. **M3 (AI-assisted roofing) built + dev-QA'd
+   2026-10-14 on `takeoff-m3`, not merged to `main`, not deployed**: specs
+   call ("assembly not specified" on 3310 ✓), regions call (A-10 8 fields
+   2,848 SF / parapet 220 LF / 11 drains, checked over the drawing), Analyze
+   dialog to pick roof plans, refusal fallbacks on; migration
+   `20261028120000_plan_ai_calls`. **Needs Richard: the prod
+   `ANTHROPIC_API_KEY`**, then merge + deploy. Next after: M4 (plumbing). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
 00000000. 🔴 **Roofing estimator → CRM** — plan approved 2026-10-03
    (https://claude.ai/code/artifact/8b95fb53-2275-421e-a4ed-842fa7919005):
    native module, engine as a pure library in `src/lib/roofing`. **P0 Stage A
@@ -484,6 +489,27 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-14 — Plan takeoff M3: AI-assisted roofing (built + dev-QA'd on `takeoff-m3`, not deployed)
+
+"start on M3". The code had been written on 2026-10-09 and left uncommitted;
+committed as WIP, `main` (GC Partnerships) merged in (one schema conflict —
+both sides appended models — rebuilt from `main` + the M3 hunks to avoid
+format churn), migration renamed `20261022…` → `20261028120000_plan_ai_calls`
+so it sorts after the partner migrations prod already has (dev row renamed by
+SQL, no drift). AI calls moved to `client.beta.messages.parse` with
+`fallbacks: "default"` and priced on the answering model. Checked the earlier
+dev run against the drawing (overlay on the 144 dpi render): specs assembly
+null (correct), A-10 fields follow the drawn drain fields, gaps are walls
+between roof levels, drains all right. Found: A-08 + A-09 draw the same roof
+as A-10, so analysing all three duplicates it → **Analyze dialog** (roof
+plans ticked, other sheets behind a disclosure, "read before" marks; a picked
+sheet becomes a roof plan). Gate: typecheck clean, lint 5/22, 1741 tests,
+build clean. Dev QA: Chromium 8/8 at 1440 and 400 px (fixed: dialog overflow
+at 400 px), API probes 400 / 409 / 404 / 202, SALES_REP 404; one real call
+($0.07) through the new path; dev spend on this takeoff $0.51. Details:
+[features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
+**M5 must guard totals across roof plans.**
 
 ### 2026-10-13 — GC Partnerships Phase 8a: prequalification package (built + dev-QA'd on `partners-s8`, on `main`, not deployed)
 
@@ -2781,7 +2807,10 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 records a `Notification` row per staff-facing event and lights the bell —
 shadow mode, legacy mail unchanged; delivery only moves to v2 when
 `NotificationSettings.enabled` is on too — the switch under Admin →
-Notification Digests).
+Notification Digests), `ANTHROPIC_API_KEY` (plan takeoff AI; unset = the
+Analyze button is disabled and the route answers 503), `TAKEOFF_AI_MODEL`
+(default `claude-opus-5-5`), `TAKEOFF_AI_MAX_USD` (per-takeoff cap, default
+`25`).
 
 ## 9. Important Product / Business Rules
 
@@ -2996,6 +3025,16 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **Plan takeoff M3 (AI roofing) is built on `takeoff-m3`, not on `main`.**
+> Before merging: Richard decides on the prod `ANTHROPIC_API_KEY` (goes in
+> `/etc/knuco/env`; the feature is inert without it). Then fast-forward
+> `main`, push and deploy (migration `20261028120000_plan_ai_calls`), add the
+> key, restart, and click through on a lead with the 3310 set: Plan takeoff →
+> roofing takeoff → calibrate A-10 → Analyze with AI → tick A-10 only →
+> review the proposals and the Specifications card ("Assembly not
+> specified"). Expect ~$0.35 for that run. GC Phase 8a (`d9f180a`) is on
+> `main` and unpushed — it ships with the same deploy.
 
 > **GC Partnerships Phase 8a (prequalification package) is on `main`, not
 > deployed (no migration; `npm ci` picks up `fflate`).** After Richard's push +
