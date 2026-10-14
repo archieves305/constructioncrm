@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/shared/callout";
@@ -12,8 +12,9 @@ import { useIsPhone } from "@/components/shared/use-media-query";
 import { useSearchParamState } from "@/components/shared/use-search-param-state";
 import { CalibrationBadge } from "@/components/takeoff/badges";
 import { MeasurementInspector, MeasurementList } from "@/components/takeoff/measurements/measurement-list";
+import { SpecsCard } from "@/components/takeoff/specs-card";
 import { errorText, useSheets, type Sheet } from "@/components/takeoff/use-plan-sets";
-import { useCalibrate, useCreateMeasurement, useDeleteMeasurement, useMeasurements, useRecompute, useSheetSnapIndex, useTakeoff, useUpdateMeasurement } from "@/components/takeoff/use-takeoff";
+import { useAnalysisJob, useAnalyze, useCalibrate, useCreateMeasurement, useDeleteMeasurement, useMeasurements, useRecompute, useSetAssembly, useSheetSnapIndex, useTakeoff, useUpdateMeasurement } from "@/components/takeoff/use-takeoff";
 import { CalibrateDialog } from "@/components/takeoff/viewer/calibrate-dialog";
 import { DrawToolbar } from "@/components/takeoff/viewer/draw-toolbar";
 import { LabelPopover, type LabelChoice } from "@/components/takeoff/viewer/label-popover";
@@ -52,6 +53,10 @@ export default function TakeoffPage({ params }: { params: Promise<{ takeoffId: s
   const remove = useDeleteMeasurement(takeoffId);
   const recompute = useRecompute(takeoffId);
   const calibrate = useCalibrate(planSetId ?? "");
+  const analyze = useAnalyze(takeoffId);
+  const setAssembly = useSetAssembly(takeoffId);
+  const analysis = takeoff.data?.analysis ?? null;
+  const analysisJob = useAnalysisJob(analysis?.running && analysis.job ? analysis.job.id : null, takeoffId);
 
   const [tool, setTool] = useState<Tool>("select");
   const [snapOn, setSnapOn] = useState(true);
@@ -130,6 +135,17 @@ export default function TakeoffPage({ params }: { params: Promise<{ takeoffId: s
       <h1 className="text-sm font-semibold">{TRADE_LABEL[t.trade]} takeoff <span className="font-mono text-muted-foreground">{t.number}</span></h1>
       <span className="text-xs text-muted-foreground">· {t.measurementCount} measurement{t.measurementCount === 1 ? "" : "s"}</span>
       {t.stale && <span className="rounded-full bg-tone-warning-soft px-2 py-0.5 text-xs text-tone-warning-fg">Plan set has newer documents</span>}
+      {t.trade === "ROOFING" && (
+        t.analysis.running ? (
+          <span className="flex items-center gap-1 rounded-full bg-tone-info-soft px-2 py-0.5 text-xs text-tone-info-fg" data-testid="analysis-progress"><Loader2 className="h-3 w-3 animate-spin" /> {analysisJob.data?.progress ?? t.analysis.job?.progress ?? "Starting the analysis"}</span>
+        ) : canEdit ? (
+          <Button size="sm" variant="outline" disabled={!t.analysis.available || analyze.isPending} title={t.analysis.available ? "Read the specifications and label the roof plans with AI; every result is a proposal to review" : "AI analysis is not set up on this server"} onClick={() => analyze.mutate()} data-testid="analyze">
+            <Sparkles className="mr-1 h-3 w-3" /> {t.analysis.calls ? "Analyze again" : "Analyze with AI"}
+          </Button>
+        ) : null
+      )}
+      {!t.analysis.running && t.analysis.job?.status === "FAILED" && <span className="rounded-full bg-tone-danger-soft px-2 py-0.5 text-xs text-tone-danger-fg" title={t.analysis.job.error ?? undefined}>Analysis stopped</span>}
+      {t.analysis.spentUsd > 0 && <span className="text-xs text-muted-foreground" title="What the AI analysis has cost on this takeoff">AI ${t.analysis.spentUsd.toFixed(2)}</span>}
       {current && (
         <div className="ml-auto flex items-center gap-1 text-sm">
           <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Previous sheet" disabled={index <= 0} onClick={() => setUrl("sheet", railSheets[index - 1].id)}><ChevronLeft className="h-4 w-4" /></Button>
@@ -200,6 +216,7 @@ export default function TakeoffPage({ params }: { params: Promise<{ takeoffId: s
         </aside>
         <main className="min-h-0">{viewer}</main>
         <aside className="flex min-h-0 flex-col border-l" data-testid="takeoff-side">
+          {t.trade === "ROOFING" && <SpecsCard specs={t.specs} canEdit={canEdit} saving={setAssembly.isPending} onChoose={(c) => setAssembly.mutate(c)} />}
           {current && (
             <div className="space-y-2 border-b p-3 text-sm">
               <div className="flex flex-wrap items-center gap-2">

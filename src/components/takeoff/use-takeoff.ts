@@ -1,11 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import type { Verification } from "@/lib/takeoff/geometry/calibrate";
 import { chainsToSegments, SnapIndex } from "@/lib/takeoff/snap";
+import type { RoofAssemblyType } from "@/lib/takeoff/ai/schemas";
+import type { PresentedJob } from "@/lib/takeoff/service";
 import type { PresentedMeasurement, PresentedTakeoff } from "@/lib/takeoff/takeoff-service";
 import type { CalibrateInput, CreateMeasurementInput, PatchMeasurementInput } from "@/lib/takeoff/validation";
 import { errorText, json, planKeys, type Sheet } from "./use-plan-sets";
@@ -15,11 +17,13 @@ export const takeoffKeys = {
   one: (id: string) => ["takeoff", id] as const,
   measurements: (id: string) => ["takeoff-measurements", id] as const,
   chains: (sheetId: string) => ["plan-sheet-chains", sheetId] as const,
+  job: (jobId: string) => ["takeoff-analysis-job", jobId] as const,
 };
 
 type Dates<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K] };
 export type Takeoff = Dates<PresentedTakeoff>;
 export type Measurement = Dates<PresentedMeasurement>;
+export type AnalysisJob = Dates<PresentedJob>;
 
 export function useTakeoffs(leadId: string) {
   return useQuery<Takeoff[]>({ queryKey: takeoffKeys.list(leadId), queryFn: () => fetchJson(`/api/takeoffs?leadId=${leadId}`), retry: retryServerErrors });
@@ -111,4 +115,59 @@ export function useCalibrate(planSetId: string) {
     mutationFn: ({ sheetId, input }: { sheetId: string; input: CalibrateInput }) => fetchJson<CalibrateResult>(`/api/plan-sheets/${sheetId}/calibrate`, json(input)),
     onSuccess: () => qc.invalidateQueries({ queryKey: planKeys.sheets(planSetId) }),
   });
+}
+
+/** Start the AI analysis; the takeoff then reports a running job that `useAnalysisJob` drives. */
+export function useAnalyze(takeoffId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => fetchJson<{ job: AnalysisJob }>(`/api/takeoffs/${takeoffId}/analyze`, { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: takeoffKeys.one(takeoffId) }),
+    onError: (err) => toast.error(errorText(err)),
+  });
+}
+
+/** A person's choice of roof assembly (null clears it). */
+export function useSetAssembly(takeoffId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (choice: { type: RoofAssemblyType; description: string | null } | null) => fetchJson<Takeoff>(`/api/takeoffs/${takeoffId}`, { ...json({ roofingAssembly: choice }), method: "PATCH" }),
+    onSuccess: (_t, choice) => { qc.invalidateQueries({ queryKey: takeoffKeys.one(takeoffId) }); toast.success(choice ? "Assembly chosen — material lines will say it came from you, not the plans" : "Choice cleared"); },
+    onError: (err) => toast.error(errorText(err)),
+  });
+}
+
+const LIVE_JOB = new Set(["PENDING", "RUNNING"]);
+
+/**
+ * Drive a running analysis: every poll is a tick on the server (up to 40 s
+ * of work), proposals appear sheet by sheet, and the takeoff is refreshed
+ * once when the job settles. Pass null when nothing is running.
+ */
+export function useAnalysisJob(jobId: string | null, takeoffId: string) {
+  const qc = useQueryClient();
+  const query = useQuery<AnalysisJob>({
+    queryKey: takeoffKeys.job(jobId ?? ""),
+    queryFn: async () => {
+      const r = await fetchJson<{ ran: number; job: AnalysisJob }>(`/api/takeoff-jobs/${jobId}/tick`, { method: "POST" });
+      if (r.ran > 0) { qc.invalidateQueries({ queryKey: takeoffKeys.measurements(takeoffId) }); qc.invalidateQueries({ queryKey: takeoffKeys.one(takeoffId) }); }
+      return r.job;
+    },
+    enabled: !!jobId,
+    refetchInterval: (q) => (q.state.data && LIVE_JOB.has(q.state.data.status) ? 1500 : false),
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
+    retry: retryServerErrors,
+  });
+  const job = query.data ?? null;
+  const settled = !!job && !LIVE_JOB.has(job.status);
+  const seen = useRef<string | null>(null);
+  useEffect(() => {
+    if (!settled || !job || seen.current === job.id) return;
+    seen.current = job.id;
+    invalidateTakeoff(qc, takeoffId);
+    if (job.status === "DONE") toast.success("Analysis finished — review the proposals");
+    else if (job.status === "FAILED") toast.error(job.error ?? "The analysis stopped");
+  }, [settled, job, qc, takeoffId]);
+  return query;
 }

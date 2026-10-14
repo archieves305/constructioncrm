@@ -7,13 +7,19 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit/record";
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
+import { isAiConfigured } from "./ai/client";
+import type { RoofAssemblyType, RoofSpecsOutput } from "./ai/schemas";
 import type { Pt } from "./geometry";
 import { calibrationFrom, manualCalibration, verifyScale, type Verification } from "./geometry/calibrate";
 import { computeValue } from "./measurement-value";
 import { metricFor, type TradeName } from "./metrics";
+import { describeAnalyzeProgress } from "./pipeline/analyze-plan";
+import type { StepState } from "./pipeline/plan";
+import type { AiMeasurementInput } from "./roofing/analyze";
 import { readSheetGeometry, readSheetText } from "./sheet-cache";
 import { presentSheet } from "./service";
 import { proposeSheets } from "./sheets/relevance";
+import type { TakeoffSpecs } from "./specs";
 import type { CalibrateInput, CreateMeasurementInput, PatchMeasurementInput } from "./validation";
 
 const PERSON = { select: { id: true, firstName: true, lastName: true } } as const;
@@ -36,22 +42,36 @@ const TAKEOFF_INCLUDE = {
   planSet: { select: { id: true, name: true, documents: { select: { id: true } } } },
   createdBy: PERSON,
   sheets: { select: { planSheetId: true, selectedBy: true, role: true } },
-  _count: { select: { measurements: true } },
+  jobs: { select: { id: true, status: true, error: true, createdAt: true, finishedAt: true, steps: { select: { stepKey: true, status: true, dependsOn: true } } }, orderBy: { createdAt: "desc" as const }, take: 1 },
+  _count: { select: { measurements: true, aiCalls: true } },
 } satisfies Prisma.TakeoffInclude;
 
 type TakeoffRow = Prisma.TakeoffGetPayload<{ include: typeof TAKEOFF_INCLUDE }>;
 
 async function presentTakeoff(t: TakeoffRow) {
-  const { planSet, _count, ...rest } = t;
+  const { planSet, _count, jobs, ...rest } = t;
   const pinned = (t.pinnedDocumentIds as string[]) ?? [];
-  const counts = await prisma.takeoffMeasurement.groupBy({ by: ["reviewStatus"], where: { takeoffId: t.id }, _count: { _all: true } });
+  const [counts, spent] = await Promise.all([
+    prisma.takeoffMeasurement.groupBy({ by: ["reviewStatus"], where: { takeoffId: t.id }, _count: { _all: true } }),
+    prisma.planAiCall.aggregate({ where: { takeoffId: t.id }, _sum: { costUsd: true } }),
+  ]);
+  const job = jobs[0] ?? null;
   return {
     ...rest,
+    specs: (t.specs ?? null) as TakeoffSpecs | null,
     pinnedDocumentIds: pinned,
     planSet: { id: planSet.id, name: planSet.name },
     stale: planSet.documents.some((d) => !pinned.includes(d.id)),
     measurementCount: _count.measurements,
     byStatus: Object.fromEntries(counts.map((c) => [c.reviewStatus, c._count._all])) as Record<string, number>,
+    // the analysis: whether the server can run one, the latest job and what it has cost so far
+    analysis: {
+      available: isAiConfigured(),
+      job: job ? { id: job.id, status: job.status, error: job.error, progress: describeAnalyzeProgress(job.steps as StepState[]), createdAt: job.createdAt, finishedAt: job.finishedAt } : null,
+      running: !!job && (job.status === "PENDING" || job.status === "RUNNING"),
+      calls: _count.aiCalls,
+      spentUsd: Math.round((spent._sum.costUsd ?? 0) * 100) / 100,
+    },
   };
 }
 export type PresentedTakeoff = Awaited<ReturnType<typeof presentTakeoff>>;
@@ -119,12 +139,84 @@ export async function deleteTakeoff(id: string, userId: string) {
   return row;
 }
 
-export async function updateTakeoff(id: string, patch: { status?: "DRAFT" | "IN_REVIEW" | "READY"; settings?: Record<string, unknown> }, userId: string) {
-  const before = await prisma.takeoff.findUnique({ where: { id }, select: { status: true, settings: true } });
+export async function updateTakeoff(id: string, patch: { status?: "DRAFT" | "IN_REVIEW" | "READY"; settings?: Record<string, unknown>; roofingAssembly?: { type: RoofAssemblyType; description?: string | null } | null }, userId: string) {
+  const before = await prisma.takeoff.findUnique({ where: { id }, select: { status: true, settings: true, specs: true, specsReviewStatus: true } });
   if (!before) return null;
-  const row = await prisma.takeoff.update({ where: { id }, data: { status: patch.status, settings: patch.settings as Prisma.InputJsonValue | undefined }, include: TAKEOFF_INCLUDE });
-  await recordAudit({ actorUserId: userId, entityType: "takeoff", entityId: id, action: "update", before, after: patch });
+  const data: Prisma.TakeoffUpdateInput = { status: patch.status, settings: patch.settings as Prisma.InputJsonValue | undefined };
+  if (patch.roofingAssembly !== undefined) {
+    // a person's choice beside the plans' reading; never over it
+    const who = await prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true } });
+    const specs = ((before.specs ?? {}) as TakeoffSpecs);
+    const choice = patch.roofingAssembly ? { type: patch.roofingAssembly.type, description: patch.roofingAssembly.description ?? null, byUserId: userId, byName: who ? `${who.firstName} ${who.lastName}` : "", at: new Date().toISOString() } : null;
+    data.specs = { ...specs, roofing: { ...(specs.roofing ?? {}), choice } } as Prisma.InputJsonValue;
+    data.specsReviewStatus = choice ? "REVIEWED" : specs.roofing?.ai ? "AI_GENERATED" : null;
+  }
+  const row = await prisma.takeoff.update({ where: { id }, data, include: TAKEOFF_INCLUDE });
+  await recordAudit({ actorUserId: userId, entityType: "takeoff", entityId: id, action: "update", before: { status: before.status, settings: before.settings, specsReviewStatus: before.specsReviewStatus }, after: patch });
   return presentTakeoff(row);
+}
+
+/** The model's reading of the roof assembly, kept beside any choice a person already made. */
+export async function saveRoofSpecs(takeoffId: string, ai: RoofSpecsOutput, meta: { aiCallId: string | null; promptVersion: string; sheets: string[] }) {
+  const t = await prisma.takeoff.findUnique({ where: { id: takeoffId }, select: { specs: true } });
+  if (!t) return null;
+  const specs = (t.specs ?? {}) as TakeoffSpecs;
+  const next: TakeoffSpecs = { ...specs, roofing: { ...(specs.roofing ?? {}), ai: { ...ai, aiCallId: meta.aiCallId, promptVersion: meta.promptVersion, sheets: meta.sheets, at: new Date().toISOString() } } };
+  return prisma.takeoff.update({ where: { id: takeoffId }, data: { specs: next as Prisma.InputJsonValue, specsReviewStatus: specs.roofing?.choice ? "REVIEWED" : "AI_GENERATED" }, select: { id: true } });
+}
+
+/**
+ * The proposals of one analysis purpose on one sheet, replacing the earlier
+ * ones nobody has reviewed yet (reviewed, modified, approved and excluded
+ * rows stay, and so do hand-drawn ones). Values come from `computeValue` at
+ * the sheet's calibration, exactly as for a hand-drawn row; a row that
+ * cannot be measured is left out and counted.
+ */
+export async function replaceAiMeasurements(takeoffId: string, planSheetId: string, inputs: AiMeasurementInput[], purpose: string) {
+  const takeoff = await prisma.takeoff.findUnique({ where: { id: takeoffId }, select: { trade: true } });
+  const sheet = await prisma.planSheet.findUnique({ where: { id: planSheetId }, select: { ptPerFt: true } });
+  if (!takeoff || !sheet) throw new Error("takeoff or sheet is gone");
+  const rows: Prisma.TakeoffMeasurementCreateManyInput[] = [];
+  let skipped = 0;
+  for (const m of inputs) {
+    const metric = metricFor(takeoff.trade, m.metricKey);
+    const value = metric && metric.kind === m.kind ? computeValue(m.kind, m.geometry, sheet.ptPerFt) : null;
+    if (!value) { skipped++; continue; }
+    rows.push({
+      takeoffId,
+      planSheetId,
+      kind: m.kind,
+      metricKey: m.metricKey,
+      label: m.label.slice(0, 160),
+      attributes: (m.attributes ?? undefined) as Prisma.InputJsonValue | undefined,
+      geometry: m.geometry as Prisma.InputJsonValue,
+      ptPerFt: m.kind === "COUNT" ? null : sheet.ptPerFt,
+      valueRaw: value.valueRaw,
+      unit: value.unit,
+      origin: "AI",
+      confidence: m.confidence,
+      reviewStatus: "AI_GENERATED",
+      evidence: m.evidence as Prisma.InputJsonValue,
+    });
+  }
+  const [replaced] = await prisma.$transaction([
+    prisma.takeoffMeasurement.deleteMany({ where: { takeoffId, planSheetId, origin: "AI", reviewStatus: "AI_GENERATED", evidence: { path: ["purpose"], equals: purpose } } }),
+    prisma.takeoffMeasurement.createMany({ data: rows }),
+  ]);
+  return { created: rows.length, replaced: replaced.count, skipped };
+}
+
+/** Start an analysis job on the takeoff: one at a time, roofing only until M4. */
+export async function startAnalysis(takeoffId: string, userId: string) {
+  const takeoff = await prisma.takeoff.findUnique({ where: { id: takeoffId }, select: { id: true, trade: true, jobs: { where: { status: { in: ["PENDING", "RUNNING"] } }, select: { id: true }, take: 1 } } });
+  if (!takeoff) return null;
+  if (takeoff.trade !== "ROOFING") return { error: "Plumbing analysis is not available yet" as const, status: 400 as const };
+  if (takeoff.jobs.length) return { error: "An analysis is already running on this takeoff" as const, status: 409 as const };
+  const { createAnalyzeJob } = await import("./pipeline/runner");
+  const job = await createAnalyzeJob(takeoffId, userId);
+  if (!job) return { error: "This takeoff has no roof plan selected — pick the roof plan sheets first" as const, status: 400 as const };
+  await recordAudit({ actorUserId: userId, entityType: "takeoff", entityId: takeoffId, action: "analyze", after: { jobId: job.id } });
+  return { jobId: job.id };
 }
 
 /** Replace the takeoff's sheet selection (a person's choice always says so). */

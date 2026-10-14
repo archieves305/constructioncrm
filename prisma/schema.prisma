@@ -489,6 +489,7 @@ model User {
   planDocumentsUploaded             PlanDocument[]            @relation("PlanDocumentUploadedBy")
   planSheetsCorrected               PlanSheet[]               @relation("PlanSheetCorrectedBy")
   planJobsRequested                 PlanJob[]                 @relation("PlanJobRequestedBy")
+  planAiCallsRequested PlanAiCall[] @relation("PlanAiCallRequestedBy")
   planSheetsCalibrated              PlanSheet[]               @relation("PlanSheetCalibratedBy")
   takeoffsCreated                   Takeoff[]                 @relation("TakeoffCreatedBy")
   takeoffMeasurementsCreated        TakeoffMeasurement[]      @relation("TakeoffMeasurementCreatedBy")
@@ -4875,6 +4876,7 @@ model PlanSheet {
   supersedes   PlanSheet[]  @relation("SheetSupersedes")
   takeoffSheets TakeoffSheet[]
   measurements  TakeoffMeasurement[]
+  aiCalls       PlanAiCall[]
 
   @@unique([planDocumentId, pageNumber])
   @@index([sheetNumber])
@@ -4889,6 +4891,8 @@ model PlanJob {
   id                String        @id @default(cuid())
   kind              PlanJobKind
   planDocumentId    String?       @map("plan_document_id")
+  // An ANALYZE_TAKEOFF job hangs on its takeoff instead of a document.
+  takeoffId         String?       @map("takeoff_id")
   status            PlanJobStatus @default(PENDING)
   totalSteps        Int           @default(0) @map("total_steps")
   doneSteps         Int           @default(0) @map("done_steps")
@@ -4901,11 +4905,13 @@ model PlanJob {
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
   planDocument PlanDocument? @relation(fields: [planDocumentId], references: [id], onDelete: Cascade)
+  takeoff      Takeoff?      @relation(fields: [takeoffId], references: [id], onDelete: Cascade)
   requestedBy  User          @relation("PlanJobRequestedBy", fields: [requestedByUserId], references: [id])
   steps        PlanJobStep[]
 
   @@index([status])
   @@index([planDocumentId])
+  @@index([takeoffId])
   @@map("plan_jobs")
 }
 
@@ -5008,6 +5014,8 @@ model Takeoff {
   createdBy    User                 @relation("TakeoffCreatedBy", fields: [createdByUserId], references: [id])
   sheets       TakeoffSheet[]
   measurements TakeoffMeasurement[]
+  jobs         PlanJob[]
+  aiCalls      PlanAiCall[]
 
   @@index([leadId])
   @@index([planSetId])
@@ -5070,4 +5078,42 @@ model TakeoffMeasurement {
   @@index([takeoffId])
   @@index([planSheetId])
   @@map("takeoff_measurements")
+}
+
+enum PlanAiCallStatus {
+  OK
+  FAILED
+}
+
+/// One call to the model on behalf of a takeoff: what was asked (by purpose,
+/// prompt version and a hash of the inputs — the cache key), what it cost,
+/// and the structured output. Never the prompt text or any reasoning.
+model PlanAiCall {
+  id                String           @id @default(cuid())
+  takeoffId         String           @map("takeoff_id")
+  planSheetId       String?          @map("plan_sheet_id")
+  // "roof_specs" | "roof_regions" (M4 adds the plumbing purposes)
+  purpose           String
+  promptVersion     String           @map("prompt_version")
+  model             String
+  inputHash         String           @map("input_hash")
+  status            PlanAiCallStatus @default(OK)
+  inputTokens       Int              @default(0) @map("input_tokens")
+  outputTokens      Int              @default(0) @map("output_tokens")
+  cacheReadTokens   Int              @default(0) @map("cache_read_tokens")
+  cacheWriteTokens  Int              @default(0) @map("cache_write_tokens")
+  costUsd           Float            @default(0) @map("cost_usd")
+  durationMs        Int              @default(0) @map("duration_ms")
+  // The parsed structured output (the schema of the purpose), or null when it failed.
+  output            Json?
+  error             String?
+  requestedByUserId String?          @map("requested_by_user_id")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  takeoff     Takeoff    @relation(fields: [takeoffId], references: [id], onDelete: Cascade)
+  planSheet   PlanSheet? @relation(fields: [planSheetId], references: [id], onDelete: SetNull)
+  requestedBy User?      @relation("PlanAiCallRequestedBy", fields: [requestedByUserId], references: [id])
+
+  @@index([takeoffId, purpose, inputHash])
+  @@map("plan_ai_calls")
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ROOF_ASSEMBLY_TYPES } from "./ai/schemas";
 import { DISCIPLINES } from "./types";
 
 const trimmed = (max: number) => z.string().trim().max(max);
@@ -57,6 +58,8 @@ export const patchTakeoffSchema = z
   .object({
     status: z.enum(["DRAFT", "IN_REVIEW", "READY"]).optional(),
     settings: z.record(z.string(), z.unknown()).optional(),
+    // A person's choice of roof assembly when the plans do not name one; null clears it.
+    roofingAssembly: z.object({ type: z.enum(ROOF_ASSEMBLY_TYPES), description: trimmed(300).nullable().optional() }).nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "Nothing to change" });
 

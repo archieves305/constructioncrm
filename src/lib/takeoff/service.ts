@@ -11,6 +11,7 @@ import { deleteFile, deleteStorageDir, fileExists, saveFile } from "@/lib/files/
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { createIndexJob } from "./pipeline/runner";
 import { describeProgress, type StepState } from "./pipeline/plan";
+import { describeAnalyzeProgress } from "./pipeline/analyze-plan";
 import { documentArtifactKey } from "./sheet-cache";
 import { parseScaleText } from "./sheets/scale";
 import type { DetectedIndex } from "./types";
@@ -65,6 +66,7 @@ export type PresentedSheet = ReturnType<typeof presentSheet>;
 const JOB_SELECT = {
   id: true,
   kind: true,
+  takeoffId: true,
   status: true,
   totalSteps: true,
   doneSteps: true,
@@ -83,7 +85,7 @@ export function presentJob(j: JobRow) {
   const { steps, ...rest } = j;
   return {
     ...rest,
-    progress: describeProgress(steps as StepState[]),
+    progress: j.kind === "ANALYZE_TAKEOFF" ? describeAnalyzeProgress(steps as StepState[]) : describeProgress(steps as StepState[]),
     failed: steps.filter((s) => s.status === "FAILED").map((s) => ({ stepKey: s.stepKey, error: s.error })),
   };
 }
@@ -146,8 +148,10 @@ export async function sheetLead(sheetId: string): Promise<{ leadId: string; plan
 }
 
 export async function jobLead(jobId: string): Promise<{ leadId: string } | null> {
-  const j = await prisma.planJob.findUnique({ where: { id: jobId }, select: { planDocument: { select: { planSet: { select: { leadId: true } } } } } });
-  return j?.planDocument ? { leadId: j.planDocument.planSet.leadId } : null;
+  const j = await prisma.planJob.findUnique({ where: { id: jobId }, select: { planDocument: { select: { planSet: { select: { leadId: true } } } }, takeoff: { select: { leadId: true } } } });
+  if (j?.planDocument) return { leadId: j.planDocument.planSet.leadId };
+  if (j?.takeoff) return { leadId: j.takeoff.leadId };
+  return null;
 }
 
 /** A plan set belongs to the job when the caller says so, or when the lead has exactly one job. */

@@ -78,7 +78,7 @@ export function MeasurementInspector({ m, trade, canEdit, canApprove, onPatch, o
         <p className="font-medium">{formatValue(m.valueRaw, m.unit as Unit)}{m.previousValue != null && m.previousValue !== m.valueRaw && <span className="ml-2 text-xs font-normal text-muted-foreground">was {formatValue(m.previousValue, m.unit as Unit)}</span>}</p>
         <div className="flex items-center gap-1"><ReviewStatusBadge status={m.reviewStatus} /><ConfidenceBadge value={m.confidence} /></div>
       </div>
-      <p className="text-xs text-muted-foreground">{m.planSheet.sheetNumber ?? `p.${m.planSheet.pageNumber}`} · {m.geometry.points.length} point{m.geometry.points.length === 1 ? "" : "s"}{m.ptPerFt ? ` · ${m.ptPerFt} pt/ft` : ""} · {m.origin === "MANUAL" ? "drawn by hand" : m.origin.toLowerCase()}{m.createdBy ? ` by ${m.createdBy.firstName}` : ""}</p>
+      <p className="text-xs text-muted-foreground">{m.planSheet.sheetNumber ?? `p.${m.planSheet.pageNumber}`} · {m.geometry.points.length} point{m.geometry.points.length === 1 ? "" : "s"}{m.ptPerFt ? ` · ${m.ptPerFt} pt/ft` : ""} · {m.origin === "MANUAL" ? "drawn by hand" : m.origin === "AI" ? "AI proposal — measured by code from the lines the model named" : m.origin.toLowerCase()}{m.createdBy ? ` by ${m.createdBy.firstName}` : ""}</p>
       {m.evidence?.summary ? <p className="rounded bg-muted px-2 py-1 text-xs">{String(m.evidence.summary)}</p> : null}
       {canEdit ? (
         <>

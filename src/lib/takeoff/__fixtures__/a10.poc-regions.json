@@ -1,0 +1,363 @@
+{
+  "regions": [
+    {
+      "name": "Upper-left roof field",
+      "kind": "ROOF_FIELD",
+      "polygonPx": [
+        {
+          "x": 394,
+          "y": 334
+        },
+        {
+          "x": 617,
+          "y": 334
+        },
+        {
+          "x": 617,
+          "y": 414
+        },
+        {
+          "x": 665,
+          "y": 414
+        },
+        {
+          "x": 665,
+          "y": 644
+        },
+        {
+          "x": 394,
+          "y": 644
+        }
+      ],
+      "slopeText": "1/4\" / 1'-0\", 3/8\" / 1'-0\"",
+      "boundedBySegmentIds": [
+        "s163",
+        "s147",
+        "s159",
+        "s76"
+      ],
+      "confidence": "MEDIUM",
+      "evidence": "Parapet on N/W; primary drain t43 with 1/4\" and 3/8\" slope arrows"
+    },
+    {
+      "name": "Upper-center roof field",
+      "kind": "ROOF_FIELD",
+      "polygonPx": [
+        {
+          "x": 680,
+          "y": 352
+        },
+        {
+          "x": 898,
+          "y": 352
+        },
+        {
+          "x": 898,
+          "y": 410
+        },
+        {
+          "x": 906,
+          "y": 410
+        },
+        {
+          "x": 906,
+          "y": 334
+        },
+        {
+          "x": 982,
+          "y": 334
+        },
+        {
+          "x": 982,
+          "y": 644
+        },
+        {
+          "x": 680,
+          "y": 644
+        }
+      ],
+      "slopeText": "1/4\" / 1'-0\", 3/8\" / 1'-0\"",
+      "boundedBySegmentIds": [
+        "s91",
+        "s66",
+        "s71",
+        "s60"
+      ],
+      "confidence": "MEDIUM",
+      "evidence": "Primary drain t57 and emergency drain t131 with slope arrows"
+    },
+    {
+      "name": "Upper-right roof field",
+      "kind": "ROOF_FIELD",
+      "polygonPx": [
+        {
+          "x": 996,
+          "y": 334
+        },
+        {
+          "x": 1261,
+          "y": 334
+        },
+        {
+          "x": 1261,
+          "y": 523
+        },
+        {
+          "x": 996,
+          "y": 523
+        }
+      ],
+      "slopeText": "3/8\" / 1'-0\", 1/2\" / 1'-0\"",
+      "boundedBySegmentIds": [
+        "s85",
+        "s187",
+        "s86",
+        "s188"
+      ],
+      "confidence": "HIGH",
+      "evidence": "Primary drain t132 and emergency drain t134"
+    },
+    {
+      "name": "Mid-right roof field",
+      "kind": "ROOF_FIELD",
+      "polygonPx": [
+        {
+          "x": 996,
+          "y": 523
+        },
+        {
+          "x": 1261,
+          "y": 523
+        },
+        {
+          "x": 1261,
+          "y": 728
+        },
+        {
+          "x": 996,
+          "y": 728
+        }
+      ],
+      "slopeText": "3/8\" / 1'-0\"",
+      "boundedBySegmentIds": [
+        "s87",
+        "s174",
+        "s88",
+        "s175"
+      ],
+      "confidence": "HIGH",
+      "evidence": "Primary drain t59 with 3/8\" slopes"
+    },
+    {
+      "name": "Lower-right roof field",
+      "kind": "ROOF_FIELD",
+      "polygonPx": [
+        {
+          "x": 921,
+          "y": 728
+        },
+        {
+          "x": 1261,
+          "y": 728
+        },
+        {
+          "x": 1261,
+          "y": 1054
+        },
+        {
+          "x": 921,
+          "y": 1054
+        }
+      ],
+      "slopeText": "1/4\" / 1'-0\"",
+      "boundedBySegmentIds": [
+        "s50",
+        "s55",
+        "s51",
+        "s64"
+      ],
+      "confidence": "HIGH",
+      "evidence": "Primary drain t60 with 1/4\" slopes"
+    },
+    {
+      "name": "Center lower roof (scupper drained)",
+      "kind": "ROOF_FIELD",
+      "polygonPx": [
+        {
+          "x": 676,
+          "y": 655
+        },
+        {
+          "x": 911,
+          "y": 655
+        },
+        {
+          "x": 911,
+          "y": 1014
+        },
+        {
+          "x": 676,
+          "y": 1014
+        }
+      ],
+      "slopeText": "1/4\" / 1'-0\"",
+      "boundedBySegmentIds": [
+        "s154",
+        "s43",
+        "s153",
+        "s37"
+      ],
+      "confidence": "MEDIUM",
+      "evidence": "Walled area drained by two 2\" roof scuppers t149/t151 on west side"
+    },
+    {
+      "name": "Mid-left roof field",
+      "kind": "ROOF_FIELD",
+      "polygonPx": [
+        {
+          "x": 394,
+          "y": 644
+        },
+        {
+          "x": 665,
+          "y": 644
+        },
+        {
+          "x": 665,
+          "y": 861
+        },
+        {
+          "x": 394,
+          "y": 861
+        }
+      ],
+      "slopeText": "3/8\" / 1'-0\", 1/4\" / 1'-0\"",
+      "boundedBySegmentIds": [
+        "s77",
+        "s167",
+        "s79",
+        "s168"
+      ],
+      "confidence": "HIGH",
+      "evidence": "Primary drain t58 with slope arrows"
+    },
+    {
+      "name": "Lower-left roof field",
+      "kind": "ROOF_FIELD",
+      "polygonPx": [
+        {
+          "x": 394,
+          "y": 861
+        },
+        {
+          "x": 665,
+          "y": 861
+        },
+        {
+          "x": 665,
+          "y": 1027
+        },
+        {
+          "x": 621,
+          "y": 1027
+        },
+        {
+          "x": 621,
+          "y": 1066
+        },
+        {
+          "x": 394,
+          "y": 1066
+        }
+      ],
+      "slopeText": "3/8\" / 1'-0\", 1/4\" / 1'-0\"",
+      "boundedBySegmentIds": [
+        "s78",
+        "s218",
+        "s219",
+        "s80",
+        "s170"
+      ],
+      "confidence": "MEDIUM",
+      "evidence": "Primary drain t61 with slope arrows"
+    }
+  ],
+  "parapetSegmentIds": [
+    "s15",
+    "s19",
+    "s24",
+    "s144",
+    "s147",
+    "s22",
+    "s29",
+    "s27",
+    "s45",
+    "s46",
+    "s72",
+    "s80",
+    "s176",
+    "s163",
+    "s85",
+    "s187"
+  ],
+  "drains": [
+    {
+      "textId": "t43",
+      "kind": "PRIMARY",
+      "sizeText": null
+    },
+    {
+      "textId": "t57",
+      "kind": "PRIMARY",
+      "sizeText": null
+    },
+    {
+      "textId": "t131",
+      "kind": "EMERGENCY_OVERFLOW",
+      "sizeText": null
+    },
+    {
+      "textId": "t132",
+      "kind": "PRIMARY",
+      "sizeText": null
+    },
+    {
+      "textId": "t134",
+      "kind": "EMERGENCY_OVERFLOW",
+      "sizeText": null
+    },
+    {
+      "textId": "t59",
+      "kind": "PRIMARY",
+      "sizeText": null
+    },
+    {
+      "textId": "t60",
+      "kind": "PRIMARY",
+      "sizeText": null
+    },
+    {
+      "textId": "t58",
+      "kind": "PRIMARY",
+      "sizeText": null
+    },
+    {
+      "textId": "t61",
+      "kind": "PRIMARY",
+      "sizeText": null
+    },
+    {
+      "textId": "t149",
+      "kind": "SCUPPER",
+      "sizeText": "2\""
+    },
+    {
+      "textId": "t151",
+      "kind": "SCUPPER",
+      "sizeText": "2\""
+    }
+  ],
+  "cricketCount": 0,
+  "assemblyIdentifiedOnThisSheet": false,
+  "notes": "Flat concrete roof with concrete parapets, multiple drained fields with tapered slopes (1/4\", 3/8\", 1/2\" per ft). Roofing membrane/material is not named on this sheet. No crickets drawn. Note 'less than 4\" overflow perimeter' on west parapet."
+}

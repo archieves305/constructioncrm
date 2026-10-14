@@ -11,7 +11,7 @@ import { useCreateTakeoff, useTakeoffs } from "./use-takeoff";
 /**
  * One card per trade on a plan set: the takeoff that exists (with its count
  * and what is left to review) or the button that starts one. Analysis (M3)
- * will sit on these cards too.
+ * is started from the workspace.
  */
 export function TradeCards({ leadId, planSetId, canEdit }: { leadId: string; planSetId: string; canEdit: boolean }) {
   const router = useRouter();
@@ -30,7 +30,7 @@ export function TradeCards({ leadId, planSetId, canEdit }: { leadId: string; pla
               {t ? (
                 <>
                   <p><span className="font-mono text-muted-foreground">{t.number}</span> · {t.measurementCount} measurement{t.measurementCount === 1 ? "" : "s"} on {t.sheets.length} sheet{t.sheets.length === 1 ? "" : "s"}</p>
-                  <p className="text-xs text-muted-foreground">{toReview ? `${toReview} to review` : t.measurementCount ? "Nothing waiting for review" : "Nothing measured yet — open it and draw, or run the analysis once it ships"}{t.stale ? " · the plan set has newer documents" : ""}</p>
+                  <p className="text-xs text-muted-foreground">{toReview ? `${toReview} to review` : t.measurementCount ? "Nothing waiting for review" : "Nothing measured yet — open it and draw, or analyze it with AI"}{t.stale ? " · the plan set has newer documents" : ""}</p>
                   <Link href={`/takeoff/${t.id}`} className={buttonVariants({ size: "sm" })}>Open takeoff</Link>
                 </>
               ) : (
