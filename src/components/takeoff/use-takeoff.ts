@@ -121,7 +121,7 @@ export function useCalibrate(planSetId: string) {
 export function useAnalyze(takeoffId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => fetchJson<{ job: AnalysisJob }>(`/api/takeoffs/${takeoffId}/analyze`, { method: "POST" }),
+    mutationFn: (planSheetIds?: string[]) => fetchJson<{ job: AnalysisJob }>(`/api/takeoffs/${takeoffId}/analyze`, { ...json(planSheetIds ? { planSheetIds } : {}), method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: takeoffKeys.one(takeoffId) }),
     onError: (err) => toast.error(errorText(err)),
   });

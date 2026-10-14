@@ -12,6 +12,7 @@ import { useIsPhone } from "@/components/shared/use-media-query";
 import { useSearchParamState } from "@/components/shared/use-search-param-state";
 import { CalibrationBadge } from "@/components/takeoff/badges";
 import { MeasurementInspector, MeasurementList } from "@/components/takeoff/measurements/measurement-list";
+import { AnalyzeDialog } from "@/components/takeoff/analyze-dialog";
 import { SpecsCard } from "@/components/takeoff/specs-card";
 import { errorText, useSheets, type Sheet } from "@/components/takeoff/use-plan-sets";
 import { useAnalysisJob, useAnalyze, useCalibrate, useCreateMeasurement, useDeleteMeasurement, useMeasurements, useRecompute, useSetAssembly, useSheetSnapIndex, useTakeoff, useUpdateMeasurement } from "@/components/takeoff/use-takeoff";
@@ -66,9 +67,14 @@ export default function TakeoffPage({ params }: { params: Promise<{ takeoffId: s
   const [pending, setPending] = useState<Pending | null>(null);
   const [calibrateMode, setCalibrateMode] = useState<{ mode: "auto" | "manual"; points?: [Pt, Pt] } | null>(null);
   const [dragging, setDragging] = useState<{ id: string; points: Pt[] } | null>(null);
+  const [analyzeOpen, setAnalyzeOpen] = useState(false);
 
   const selectedSheetIds = useMemo(() => new Set(takeoff.data?.sheets.map((s) => s.planSheetId) ?? []), [takeoff.data]);
   const allSheets = useMemo(() => sheets.data ?? [], [sheets.data]);
+  const roofPlans = useMemo(() => {
+    const ids = new Set(takeoff.data?.sheets.filter((s) => s.role === "roof_plan").map((s) => s.planSheetId) ?? []);
+    return allSheets.filter((s) => ids.has(s.id));
+  }, [allSheets, takeoff.data]);
   const railSheets = useMemo(() => (showAll ? allSheets : allSheets.filter((s) => selectedSheetIds.has(s.id))), [allSheets, selectedSheetIds, showAll]);
   const sheetId = getUrl("sheet");
   const current: Sheet | null = allSheets.find((s) => s.id === sheetId) ?? railSheets[0] ?? allSheets[0] ?? null;
@@ -139,13 +145,14 @@ export default function TakeoffPage({ params }: { params: Promise<{ takeoffId: s
         t.analysis.running ? (
           <span className="flex items-center gap-1 rounded-full bg-tone-info-soft px-2 py-0.5 text-xs text-tone-info-fg" data-testid="analysis-progress"><Loader2 className="h-3 w-3 animate-spin" /> {analysisJob.data?.progress ?? t.analysis.job?.progress ?? "Starting the analysis"}</span>
         ) : canEdit ? (
-          <Button size="sm" variant="outline" disabled={!t.analysis.available || analyze.isPending} title={t.analysis.available ? "Read the specifications and label the roof plans with AI; every result is a proposal to review" : "AI analysis is not set up on this server"} onClick={() => analyze.mutate()} data-testid="analyze">
+          <Button size="sm" variant="outline" disabled={!t.analysis.available || analyze.isPending} title={t.analysis.available ? "Read the specifications and label the roof plans with AI; every result is a proposal to review" : "AI analysis is not set up on this server"} onClick={() => setAnalyzeOpen(true)} data-testid="analyze">
             <Sparkles className="mr-1 h-3 w-3" /> {t.analysis.calls ? "Analyze again" : "Analyze with AI"}
           </Button>
         ) : null
       )}
       {!t.analysis.running && t.analysis.job?.status === "FAILED" && <span className="rounded-full bg-tone-danger-soft px-2 py-0.5 text-xs text-tone-danger-fg" title={t.analysis.job.error ?? undefined}>Analysis stopped</span>}
       {t.analysis.spentUsd > 0 && <span className="text-xs text-muted-foreground" title="What the AI analysis has cost on this takeoff">AI ${t.analysis.spentUsd.toFixed(2)}</span>}
+      {analyzeOpen && <AnalyzeDialog open onOpenChange={setAnalyzeOpen} roofPlans={roofPlans} otherSheets={allSheets.filter((s) => !s.isRaster && !roofPlans.includes(s))} sheetsRead={t.analysis.sheetsRead} pending={analyze.isPending} onStart={(ids) => analyze.mutate(ids, { onSuccess: () => setAnalyzeOpen(false) })} />}
       {current && (
         <div className="ml-auto flex items-center gap-1 text-sm">
           <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Previous sheet" disabled={index <= 0} onClick={() => setUrl("sheet", railSheets[index - 1].id)}><ChevronLeft className="h-4 w-4" /></Button>

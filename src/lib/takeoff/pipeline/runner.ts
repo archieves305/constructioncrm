@@ -36,10 +36,10 @@ export async function createIndexJob(tx: Prisma.TransactionClient, planDocumentI
  * roof plan the takeoff selected. The takeoff is ANALYZING until the job
  * settles. Returns null when the takeoff has no sheet the analysis can use.
  */
-export async function createAnalyzeJob(takeoffId: string, userId: string) {
+export async function createAnalyzeJob(takeoffId: string, userId: string, onlySheetIds?: readonly string[]) {
   const takeoff = await prisma.takeoff.findUnique({ where: { id: takeoffId }, select: { id: true, trade: true, sheets: { select: { planSheetId: true, role: true } } } });
   if (!takeoff) return null;
-  const roofPlans = takeoff.sheets.filter((s) => s.role === "roof_plan").map((s) => s.planSheetId);
+  const roofPlans = takeoff.sheets.filter((s) => s.role === "roof_plan" && (!onlySheetIds || onlySheetIds.includes(s.planSheetId))).map((s) => s.planSheetId);
   const steps = analyzeSteps(roofPlans, true);
   if (!steps.length) return null;
   return prisma.$transaction(async (tx) => {

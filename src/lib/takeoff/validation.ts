@@ -96,6 +96,9 @@ export const calibrateSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("clear") }),
 ]);
 
+/** Which roof plans to analyse; omitted = every roof plan of the takeoff. */
+export const analyzeTakeoffSchema = z.object({ planSheetIds: z.array(z.string().min(1).max(40)).min(1).max(40).optional() });
+
 export type CreateMeasurementInput = z.infer<typeof createMeasurementSchema>;
 export type PatchMeasurementInput = z.infer<typeof patchMeasurementSchema>;
 export type CalibrateInput = z.infer<typeof calibrateSchema>;

@@ -51,9 +51,10 @@ type TakeoffRow = Prisma.TakeoffGetPayload<{ include: typeof TAKEOFF_INCLUDE }>;
 async function presentTakeoff(t: TakeoffRow) {
   const { planSet, _count, jobs, ...rest } = t;
   const pinned = (t.pinnedDocumentIds as string[]) ?? [];
-  const [counts, spent] = await Promise.all([
+  const [counts, spent, readSheets] = await Promise.all([
     prisma.takeoffMeasurement.groupBy({ by: ["reviewStatus"], where: { takeoffId: t.id }, _count: { _all: true } }),
     prisma.planAiCall.aggregate({ where: { takeoffId: t.id }, _sum: { costUsd: true } }),
+    prisma.planAiCall.findMany({ where: { takeoffId: t.id, purpose: "roof_regions", status: "OK", planSheetId: { not: null } }, distinct: ["planSheetId"], select: { planSheetId: true } }),
   ]);
   const job = jobs[0] ?? null;
   return {
@@ -70,6 +71,8 @@ async function presentTakeoff(t: TakeoffRow) {
       job: job ? { id: job.id, status: job.status, error: job.error, progress: describeAnalyzeProgress(job.steps as StepState[]), createdAt: job.createdAt, finishedAt: job.finishedAt } : null,
       running: !!job && (job.status === "PENDING" || job.status === "RUNNING"),
       calls: _count.aiCalls,
+      // roof plans the model has already labelled: a re-run on an unchanged sheet reuses that answer
+      sheetsRead: readSheets.map((r) => r.planSheetId as string),
       spentUsd: Math.round((spent._sum.costUsd ?? 0) * 100) / 100,
     },
   };
@@ -206,16 +209,32 @@ export async function replaceAiMeasurements(takeoffId: string, planSheetId: stri
   return { created: rows.length, replaced: replaced.count, skipped };
 }
 
-/** Start an analysis job on the takeoff: one at a time, roofing only until M4. */
-export async function startAnalysis(takeoffId: string, userId: string) {
-  const takeoff = await prisma.takeoff.findUnique({ where: { id: takeoffId }, select: { id: true, trade: true, jobs: { where: { status: { in: ["PENDING", "RUNNING"] } }, select: { id: true }, take: 1 } } });
+/**
+ * Start an analysis job on the takeoff: one at a time, roofing only until M4.
+ * `planSheetIds` names the roof plans to read (else every roof plan of the
+ * takeoff); a sheet of the plan set that is not one yet becomes one — the
+ * person's choice, recorded as such.
+ */
+export async function startAnalysis(takeoffId: string, userId: string, planSheetIds?: string[]) {
+  const takeoff = await prisma.takeoff.findUnique({ where: { id: takeoffId }, select: { id: true, trade: true, planSetId: true, jobs: { where: { status: { in: ["PENDING", "RUNNING"] } }, select: { id: true }, take: 1 } } });
   if (!takeoff) return null;
   if (takeoff.trade !== "ROOFING") return { error: "Plumbing analysis is not available yet" as const, status: 400 as const };
   if (takeoff.jobs.length) return { error: "An analysis is already running on this takeoff" as const, status: 409 as const };
+  if (planSheetIds?.length) {
+    const inSet = await prisma.planSheet.count({ where: { id: { in: planSheetIds }, planDocument: { planSetId: takeoff.planSetId } } });
+    if (inSet !== new Set(planSheetIds).size) return { error: "A chosen sheet is not in this takeoff's plan set" as const, status: 400 as const };
+    await prisma.$transaction(planSheetIds.map((planSheetId) => prisma.takeoffSheet.upsert({
+      where: { takeoffId_planSheetId: { takeoffId, planSheetId } },
+      create: { takeoffId, planSheetId, selectedBy: "user", role: "roof_plan" },
+      update: {},
+    })));
+    // a NOT on the role alone would skip the sheets that have none
+    await prisma.takeoffSheet.updateMany({ where: { takeoffId, planSheetId: { in: planSheetIds }, OR: [{ role: null }, { role: { not: "roof_plan" } }] }, data: { role: "roof_plan", selectedBy: "user" } });
+  }
   const { createAnalyzeJob } = await import("./pipeline/runner");
-  const job = await createAnalyzeJob(takeoffId, userId);
+  const job = await createAnalyzeJob(takeoffId, userId, planSheetIds);
   if (!job) return { error: "This takeoff has no roof plan selected — pick the roof plan sheets first" as const, status: 400 as const };
-  await recordAudit({ actorUserId: userId, entityType: "takeoff", entityId: takeoffId, action: "analyze", after: { jobId: job.id } });
+  await recordAudit({ actorUserId: userId, entityType: "takeoff", entityId: takeoffId, action: "analyze", after: { jobId: job.id, planSheetIds: planSheetIds ?? "all roof plans" } });
   return { jobId: job.id };
 }
 
