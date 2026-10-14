@@ -60,7 +60,7 @@ async function main() {
   const target = await prisma.job.findUnique({ where: { jobNumber: MOVE.to }, select: { id: true } });
   console.log(`  ${mv?.job.jobNumber} ${usd(Number(mv?.amount))} ${mv?.status} 6/2 BNW posting${mv?.coveredByLaborPaymentId ? " (already covered)" : ""} → ${MOVE.to}  ⇄  labor payment ${usd(Number(deposit?.amount))} (5/22 deposit + draw)`);
   if (!mv || !deposit || !target || Number(mv.amount) !== MOVE.amount || Number(deposit.amount) !== MOVE.paid || deposit.laborContract.job.jobNumber !== MOVE.to || mv.billable || mv.commitmentId || ![MOVE.from, MOVE.to].includes(mv.job.jobNumber)) throw new Error("6/2 posting differs from the findings; stop");
-  const contract = await prisma.laborContract.findFirst({ where: { job: { jobNumber: SPLIT.jobNumber }, crew: { name: SPLIT.crew } }, select: { id: true, job: { select: { leadId: true } } } });
+  const contract = await prisma.laborContract.findFirst({ where: { job: { jobNumber: SPLIT.jobNumber }, OR: [{ crew: { name: SPLIT.crew } }, { label: SPLIT.crew }] }, select: { id: true, job: { select: { leadId: true } } } });
   if (!contract) throw new Error(`${SPLIT.crew} has no labor contract on ${SPLIT.jobNumber}`);
   const splitDone = await prisma.laborPayment.findFirst({ where: { laborContractId: contract.id, amount: SPLIT.amount, paidDate: new Date(`${SPLIT.date}T00:00:00Z`) }, select: { id: true } });
   console.log(`  ${SPLIT.jobNumber}: ${usd(SPLIT.amount)} payment to ${SPLIT.crew} on ${SPLIT.date} — ${splitDone ? "already recorded" : "to record"}`);
