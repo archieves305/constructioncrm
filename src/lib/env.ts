@@ -77,16 +77,15 @@ const schema = z.object({
   // ADMIN is mailed. Off by default for the same SPF reason as tasks.
   VIOLATION_ESCALATION_DAYS: z.string().regex(/^\d+(,\d+)*$/).default("1,3,7"),
   VIOLATION_ESCALATIONS_ENABLED: z.string().default("0"),
-  // Customer follow-up + nurture cadence (src/lib/nurture). "1" lets the
-  // daily cron send; the DB NurtureSettings.enabled switch must be on too.
-  // Off by default for the SPF reason above. MAX_PER_RUN is the throttle.
   // Plan takeoff AI. Unset: the analysis answers 503 and the manual tools
   // work alone. The model and the per-takeoff cost cap (US dollars) have
   // defaults; the key lives only in /etc/knuco/env.
   ANTHROPIC_API_KEY: z.string().optional(),
   TAKEOFF_AI_MODEL: z.string().default("claude-opus-5-5"),
   TAKEOFF_AI_MAX_USD: z.string().regex(/^\d+(\.\d+)?$/).default("25"),
-
+  // Customer follow-up + nurture cadence (src/lib/nurture). "1" lets the
+  // daily cron send; the DB NurtureSettings.enabled switch must be on too.
+  // Off by default for the SPF reason above. MAX_PER_RUN is the throttle.
   NURTURE_ENABLED: z.string().default("0"),
   NURTURE_MAX_PER_RUN: z.string().regex(/^\d+$/).default("50"),
   // Notifications v2 (src/lib/notifications). "1" records a Notification row

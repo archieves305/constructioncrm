@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { ZodType } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
@@ -24,7 +24,7 @@ export type AiCallSpec<T> = {
   /** Everything the answer depends on besides the prompt version: hashed as the cache key. */
   inputs: unknown;
   system: string;
-  content: Anthropic.MessageParam["content"];
+  content: Anthropic.Beta.BetaMessageParam["content"];
   effort?: "low" | "medium" | "high";
   maxTokens?: number;
   userId?: string | null;
@@ -55,15 +55,19 @@ export async function runAiCall<T>(spec: AiCallSpec<T>): Promise<AiCallResult<T>
   const started = Date.now();
   const base = { takeoffId: spec.takeoffId, planSheetId: spec.planSheetId ?? null, purpose: spec.purpose, promptVersion: spec.promptVersion, model: AI_MODEL, inputHash: hash, requestedByUserId: spec.userId ?? null };
   try {
-    const res = await client.messages.parse({
+    // a request the model's safeguards decline is re-run on the fallback the server picks, inside the same call
+    const res = await client.beta.messages.parse({
       model: AI_MODEL,
       max_tokens: spec.maxTokens ?? 16_000,
       system: [{ type: "text", text: spec.system, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: spec.content }],
-      output_config: { effort: spec.effort ?? "high", format: zodOutputFormat(spec.schema) },
+      output_config: { effort: spec.effort ?? "high", format: betaZodOutputFormat(spec.schema) },
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
     });
     const usage = usageFrom(res.usage);
-    const costUsd = estimateCostUsd(AI_MODEL, usage);
+    // priced on the model that answered: a fallback bills at its own rate
+    const costUsd = estimateCostUsd(res.model, usage);
     const durationMs = Date.now() - started;
     const counts = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cacheReadTokens: usage.cacheReadTokens, cacheWriteTokens: usage.cacheWriteTokens, costUsd, durationMs };
     if (res.stop_reason === "refusal") {
@@ -75,7 +79,7 @@ export async function runAiCall<T>(spec: AiCallSpec<T>): Promise<AiCallResult<T>
       await prisma.planAiCall.create({ data: { ...base, ...counts, status: "FAILED", error: res.stop_reason === "max_tokens" ? "answer cut off at max_tokens" : "answer did not match the schema" } });
       throw new Error(res.stop_reason === "max_tokens" ? "The model's answer was cut off" : "The model's answer did not match what was asked");
     }
-    const row = await prisma.planAiCall.create({ data: { ...base, ...counts, status: "OK", output: res.parsed_output as Prisma.InputJsonValue }, select: { id: true } });
+    const row = await prisma.planAiCall.create({ data: { ...base, model: res.model, ...counts, status: "OK", output: res.parsed_output as Prisma.InputJsonValue }, select: { id: true } });
     logger.info("takeoff ai call", { takeoffId: spec.takeoffId, purpose: spec.purpose, ...counts, cacheHit: usage.cacheReadTokens > 0 });
     return { output: res.parsed_output, callId: row.id, cached: false, costUsd, durationMs };
   } catch (err) {
