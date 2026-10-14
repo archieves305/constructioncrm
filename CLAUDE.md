@@ -519,9 +519,14 @@ contract. Gate: typecheck clean, lint 5/22, 1723 tests (+10), build clean.
 Dev QA: API 22/23 (the miss was the script's own sum — a $42 row it posted),
 headless Chromium 16/16 at 400 and 1440 px; dev DB restored from a dump.
 **Deploy carries a migration; then run the script on prod (dry run, then
-`--yes`).** Left for Richard: JOB-00011's 6/2 BNW bank posting $25,760.74 is
-an expense with no labor payment (it would overpay the 2192 contract — may
-belong to 2188), and a JOB-00011 labor payment is dated year 0009. Note for
+`--yes`).** Richard ruled the same day: JOB-00011's 6/2 BNW bank posting
+$25,760.74 "is for the initial deposit for 2188" — 2188's 5/22 labor payment
+($41,189.40, "Deposit $25,987 and Draw $15,202.40") already holds it, so the
+script also moves that posting to JOB-00010 and counts it through the 5/22
+payment (cc-allocator's bank row still names JOB-00011). Richard is finding
+the right date for the JOB-00011 payment dated year 0009. Prod changed during
+the session: BNW's 2188 contract is now $259,870 and a 10/5 $14,032.99
+payment was added. Note for
 the takeoff merge: its migration `20261028…` sorts before this one.
 
 ### 2026-10-13 — GC Partnerships Phase 8a: prequalification package (built + dev-QA'd on `partners-s8`, on `main`, not deployed)
