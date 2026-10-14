@@ -1924,6 +1924,7 @@ model LaborPayment {
   laborContract LaborContract        @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
   createdBy     User                 @relation(fields: [createdByUserId], references: [id])
   request       LaborPaymentRequest?
+  coveredExpenses JobExpense[]
 
   @@index([laborContractId])
   @@map("labor_payments")
@@ -2070,6 +2071,12 @@ model JobExpense {
   // such expenses are excluded from cost-plus contract rollups (the labor
   // cost already flows through the field-labor stream until paid).
   payrollPaymentId String?        @map("payroll_payment_id")
+  // Set when this charge is the same money as a payment already recorded on a
+  // crew's labor contract (lib/expenses/labor-cover.ts). Such a row is
+  // REJECTED — the labor payment carries the cost — and never moves money.
+  coveredByLaborPaymentId String?   @map("covered_by_labor_payment_id")
+  // A person confirmed it is a cost of its own, not a crew payment counted twice.
+  laborClearedAt   DateTime?      @map("labor_cleared_at")
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
@@ -2087,6 +2094,7 @@ model JobExpense {
   payrollPayment    PayrollPayment?    @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
   vendorRecord      Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   commitment        Commitment?        @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+  coveredByLaborPayment LaborPayment?  @relation(fields: [coveredByLaborPaymentId], references: [id], onDelete: SetNull)
   receipts          File[]
   budgetAllocations BudgetAllocation[]
 
@@ -2095,6 +2103,7 @@ model JobExpense {
   @@index([payrollPaymentId])
   @@index([vendorId])
   @@index([commitmentId])
+  @@index([coveredByLaborPaymentId])
   // Drives the review queue: "everything still pending, oldest first".
   @@index([status, incurredDate])
   @@map("job_expenses")

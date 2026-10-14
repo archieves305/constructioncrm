@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { recordAudit } from "@/lib/audit/record";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
+import { releaseCoveredExpenses } from "@/lib/expenses/labor-cover";
 
 export async function DELETE(
   _request: NextRequest,
@@ -17,6 +18,8 @@ export async function DELETE(
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // A bank charge this payment accounted for goes back to the review queue.
+  await releaseCoveredExpenses([id], session.user.id);
   await prisma.laborPayment.delete({ where: { id } });
   await recordAudit({ actorUserId: session.user.id, entityType: "LaborPayment", entityId: id, action: "delete", before: existing });
   return NextResponse.json({ ok: true });

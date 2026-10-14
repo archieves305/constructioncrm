@@ -485,6 +485,45 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-14 — Crew payments counted twice: 2188 Windtrace fixed + a guard (built + dev-QA'd on `labor-twins`, not deployed)
+
+Richard: "on 2188 Windtrace it is showing 90,979 in labor contracts but i do
+not see that anywhere". JOB-00010 ("2188 (street TBD)"): $90,979.48 is BNW's
+$233,883 labor contract less $142,903.52 paid, i.e. the unpaid part, shown
+only as a figure. Found while checking it: three BNW payments were in the job
+twice, once as labor payments and once as cc-allocator bank postings
+(7/2 $11,694.15, 8/17 $13,199.15, 9/16 $33,913.04 = $58,806.34, every
+approved expense on the job). The 2026-09-24 cleanup had already deleted two
+more of the same kind by hand (BNW $14,029.76 on JOB-00011, $10,524.74 on
+JOB-00010). Read-only checks: both $33,913.04 wires (8/24, 9/16) are real
+bank rows; the 8/17 ACH carried $1,505 for 2192 Wind Trace (the payment's
+own note). Prod-wide scan: no other labor payment has a bank twin.
+**Built:** migration `20261029120000_labor_payment_cover`
+(`job_expenses.covered_by_labor_payment_id` FK SET NULL + `labor_cleared_at`);
+pure `lib/expenses/labor-twins.ts` (same job, ±3 days, amount within
+max($50, 1 %) or the payee names the crew — distinctive words of the crew /
+label / vendor name; crew paid only as an expense; notes);
+`lib/expenses/labor-cover.ts` (`coverWithLaborPayment` → REJECTED + linked,
+reverses a billable increment / recomputes a rollup, audited;
+`recordAsLaborPayment`; `clearLaborCheck` approves a held row;
+`releaseCoveredExpenses` before a labor payment or contract is deleted;
+`laborHoldNote` for intake; `expensesTwinningPayment`); the cc-allocator
+intake holds such postings PENDING; `POST /api/labor-contracts/[id]/payments`
+returns `possibleDuplicates` and the Labor panel opens
+`CrewPaymentTwinDialog`; `POST /api/expenses/[id]/labor-payment`
+(`same_money` / `record` / `separate`; ADMIN / MANAGER / OFFICE_STAFF); Cost
+Reconciliation → **Crew payments** card; the expense row reads "Counted as a
+crew payment: …". `scripts/fix-bnw-windtrace-twins-2026-10.ts` (dry run by
+default) covers the three rows and records the $1,505 on JOB-00011's BNW
+contract. Gate: typecheck clean, lint 5/22, 1723 tests (+10), build clean.
+Dev QA: API 22/23 (the miss was the script's own sum — a $42 row it posted),
+headless Chromium 16/16 at 400 and 1440 px; dev DB restored from a dump.
+**Deploy carries a migration; then run the script on prod (dry run, then
+`--yes`).** Left for Richard: JOB-00011's 6/2 BNW bank posting $25,760.74 is
+an expense with no labor payment (it would overpay the 2192 contract — may
+belong to 2188), and a JOB-00011 labor payment is dated year 0009. Note for
+the takeoff merge: its migration `20261028…` sorts before this one.
+
 ### 2026-10-13 — GC Partnerships Phase 8a: prequalification package (built + dev-QA'd on `partners-s8`, on `main`, not deployed)
 
 "go to next recommended phase". Phases 5b (BuildingConnected: Bid Board Pro +
@@ -2991,6 +3030,14 @@ Notification Digests).
   file, and RESTRICTED only for someone who may open it and asked for it —
   each such file audited as a `document_view`. The contents sheet the GC sees
   never states internal reasons.
+- **A crew payment is counted once, on its labor contract.** The cost
+  summary counts a labor contract in full from the day it is signed, so the
+  same money arriving as an expense (a bank posting to the crew) is counted
+  twice. Such an expense is REJECTED with `coveredByLaborPaymentId`
+  (`lib/expenses/labor-cover.ts`); the intake holds a posting that matches a
+  labor payment or pays a crew with a contract on the job; Cost
+  Reconciliation → Crew payments decides. Never delete the bank row — it is
+  cc-allocator's record.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.

@@ -5,6 +5,7 @@ import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 import { settleRequestOnPayment } from "@/lib/labor/payment-requests";
 import { recordAudit } from "@/lib/audit/record";
+import { expensesTwinningPayment } from "@/lib/expenses/labor-cover";
 
 const METHODS = [
   "CHECK",
@@ -80,5 +81,9 @@ export async function POST(
   }
   await recordAudit({ actorUserId: session.user.id, entityType: "LaborPayment", entityId: payment.id, action: "create", after: { laborContractId: id, amount: parsed.data.amount, requestId: parsed.data.requestId ?? null } });
 
-  return NextResponse.json(payment, { status: 201 });
+  // The same money may already be on the job from the bank feed; the panel
+  // asks the person to count it once (lib/expenses/labor-cover.ts).
+  const possibleDuplicates = await expensesTwinningPayment(payment.id);
+
+  return NextResponse.json({ ...payment, possibleDuplicates }, { status: 201 });
 }

@@ -44,6 +44,7 @@ import { LaborPaymentRequests, paymentRequestKeys, type PaymentRequestRow } from
 import { useInvalidateTasks } from "@/components/tasks/use-tasks";
 import { useSession } from "@/lib/auth/session-client";
 import { canManageJobMoney } from "@/lib/money/access";
+import { CrewPaymentTwinDialog, type PossibleDuplicate, type TwinCheck } from "./crew-payment-twin-dialog";
 
 const METHODS = [
   "CHECK",
@@ -360,6 +361,9 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
     setPayingContract(c);
   };
 
+  // Set after a payment is recorded when the same money is already an expense on the job.
+  const [twinCheck, setTwinCheck] = useState<TwinCheck | null>(null);
+
   const recordPayment = useMutation({
     mutationFn: async () => {
       if (!payingContract) return;
@@ -384,9 +388,12 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (saved?: { id: string; amount: string; possibleDuplicates?: PossibleDuplicate[] }) => {
       qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
       if (payingContract) qc.invalidateQueries({ queryKey: paymentRequestKeys.contract(payingContract.id) });
+      if (saved?.possibleDuplicates?.length && payingContract) {
+        setTwinCheck({ paymentId: saved.id, crew: payingContract.crew?.name ?? payingContract.label ?? "the crew", amount: Number(saved.amount), rows: saved.possibleDuplicates });
+      }
       // The job's cost summary and overview read crew payments; a settled request also closes its task.
       invalidateTasks([["job", jobId]]);
       toast.success(payRequest ? "Payment recorded — the request and its task are closed" : "Payment recorded");
@@ -1466,6 +1473,8 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CrewPaymentTwinDialog check={twinCheck} jobId={jobId} onClose={() => setTwinCheck(null)} />
 
       {/* Task & payment schedule dialog */}
       {taskContract && (

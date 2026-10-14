@@ -73,6 +73,8 @@ type Expense = {
   externalId: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
   reviewNote: string | null;
+  /** Set when this charge is the same money as a crew payment on a labor contract. */
+  coveredByLaborPaymentId?: string | null;
   createdBy: { firstName: string; lastName: string };
 };
 
@@ -1052,7 +1054,8 @@ export function ExpensesPanel({
                     </div>
                     {rejected && e.reviewNote && (
                       <div className="mt-1 text-xs text-muted-foreground">
-                        Rejected: {e.reviewNote}
+                        {e.coveredByLaborPaymentId ? "Counted as a crew payment: " : "Rejected: "}
+                        {e.reviewNote}
                       </div>
                     )}
                     {(e.paidMethod || e.paidFrom) && (
