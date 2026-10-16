@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterGallery, mergeGallery, type FilePhotoRow, type LogPhotoRow } from "./gallery";
+import { filterGallery, groupByDay, mergeGallery, type FilePhotoRow, type LogPhotoRow } from "./gallery";
 
 const by = { firstName: "Frank", lastName: "Picado" };
 const log = (over: Partial<LogPhotoRow>): LogPhotoRow => ({
@@ -50,5 +50,43 @@ describe("filterGallery", () => {
   it("filters to the missing", () => {
     expect(filterGallery(items, { missingOnly: true }).map((i) => i.key)).toEqual(["log:p2"]);
     expect(filterGallery(items, {})).toHaveLength(3);
+  });
+});
+
+describe("mergeGallery, oldest first (Project photos)", () => {
+  it("runs from the first day to the last, and within a day by time", () => {
+    const items = mergeGallery(
+      "j1",
+      [log({ id: "a", photoDate: "2026-09-03", createdAt: "2026-09-03T15:00:00.000Z" }), log({ id: "b", photoDate: "2026-09-03", createdAt: "2026-09-03T12:00:00.000Z" })],
+      [file({ id: "c", day: "2026-09-01" })],
+      "oldest",
+    );
+    expect(items.map((i) => i.key)).toEqual(["file:c", "log:b", "log:a"]);
+  });
+
+  it("a photo with a capture time is placed by it, not by its upload", () => {
+    const items = mergeGallery(
+      "j1",
+      [log({ id: "a", photoDate: "2026-09-03", createdAt: "2026-09-03T15:00:00.000Z" })],
+      [file({ id: "c", day: "2026-09-03", createdAt: "2026-09-03T20:00:00.000Z", takenAt: "2026-09-03T13:00:00.000Z" })],
+      "oldest",
+    );
+    expect(items.map((i) => i.key)).toEqual(["file:c", "log:a"]);
+    expect(items[0].at).toBe("2026-09-03T13:00:00.000Z");
+  });
+
+  it("groups by day in the order given", () => {
+    const items = mergeGallery("j1", [log({ id: "a", photoDate: "2026-09-03" })], [file({ id: "c", day: "2026-09-01" }), file({ id: "d", day: "2026-09-01" })], "oldest");
+    expect(groupByDay(items).map((g) => [g.day, g.items.length])).toEqual([["2026-09-01", 2], ["2026-09-03", 1]]);
+  });
+});
+
+describe("completion photos on crew payments", () => {
+  it("names the crew and amount, and opens Field → Labor", () => {
+    const [paid] = mergeGallery("j1", [], [file({ task: null, taskId: null, crewPayment: { crew: "BNW", amount: 13199.15, paid: true } })]);
+    expect(paid.origin).toBe("Crew payment · BNW · $13,199.15");
+    expect(paid.href).toBe("/jobs/j1?tab=field&sub=labor");
+    const [asked] = mergeGallery("j1", [], [file({ task: null, taskId: null, crewPayment: { crew: "BNW", amount: 5000, paid: false } })]);
+    expect(asked.origin).toBe("Payment request · BNW · $5,000");
   });
 });

@@ -45,6 +45,7 @@ import { useInvalidateTasks } from "@/components/tasks/use-tasks";
 import { useSession } from "@/lib/auth/session-client";
 import { canManageJobMoney } from "@/lib/money/access";
 import { CrewPaymentTwinDialog, type PossibleDuplicate, type TwinCheck } from "./crew-payment-twin-dialog";
+import { attachCompletionPhotos, CompletionPhotoPicker, CompletionPhotosButton, type CompletionPhoto } from "./completion-photos";
 
 const METHODS = [
   "CHECK",
@@ -63,6 +64,7 @@ type LaborPayment = {
   method: (typeof METHODS)[number] | null;
   reference: string | null;
   notes: string | null;
+  photos?: CompletionPhoto[];
 };
 
 type LaborChangeOrder = {
@@ -346,6 +348,8 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
   const [payNotes, setPayNotes] = useState("");
   // The payment request being answered, when the dialog was opened from one.
   const [payRequest, setPayRequest] = useState<PaymentRequestRow | null>(null);
+  // Optional completion photos, stored on the payment once it is saved.
+  const [payPhotos, setPayPhotos] = useState<File[]>([]);
   const invalidateTasks = useInvalidateTasks();
   // Recording a payment is the office's; anyone on the job may request one.
   const { data: session } = useSession();
@@ -358,7 +362,14 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
     setPayReference("");
     setPayNotes(request?.note ?? "");
     setPayRequest(request);
+    setPayPhotos([]);
     setPayingContract(c);
+  };
+
+  const refreshPhotos = () => {
+    qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+    qc.invalidateQueries({ queryKey: ["job-files", jobId] });
+    qc.invalidateQueries({ queryKey: ["job-photos", jobId] });
   };
 
   // Set after a payment is recorded when the same money is already an expense on the job.
@@ -388,8 +399,9 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
       }
       return res.json();
     },
-    onSuccess: (saved?: { id: string; amount: string; possibleDuplicates?: PossibleDuplicate[] }) => {
-      qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+    onSuccess: async (saved?: { id: string; amount: string; possibleDuplicates?: PossibleDuplicate[] }) => {
+      const picked = payPhotos;
+      setPayPhotos([]);
       if (payingContract) qc.invalidateQueries({ queryKey: paymentRequestKeys.contract(payingContract.id) });
       if (saved?.possibleDuplicates?.length && payingContract) {
         setTwinCheck({ paymentId: saved.id, crew: payingContract.crew?.name ?? payingContract.label ?? "the crew", amount: Number(saved.amount), rows: saved.possibleDuplicates });
@@ -399,6 +411,12 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
       toast.success(payRequest ? "Payment recorded — the request and its task are closed" : "Payment recorded");
       setPayingContract(null);
       setPayRequest(null);
+      // The payment stands whatever happens to a photo; a failed one is named in a toast.
+      if (saved && picked.length > 0) {
+        const n = await attachCompletionPhotos({ laborPaymentId: saved.id }, picked);
+        if (n > 0) toast.success(`${n} completion photo${n === 1 ? "" : "s"} attached`);
+      }
+      refreshPhotos();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -1081,6 +1099,12 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                                 · {p.notes}
                               </span>
                             )}
+                            <CompletionPhotosButton
+                              photos={p.photos ?? []}
+                              target={{ laborPaymentId: p.id }}
+                              canAdd={canRecord}
+                              onChanged={refreshPhotos}
+                            />
                           </div>
                           <button
                             type="button"
@@ -1331,6 +1355,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                 onChange={(e) => setPayNotes(e.target.value)}
               />
             </div>
+            <CompletionPhotoPicker files={payPhotos} onChange={setPayPhotos} existing={payRequest?.photos ?? []} />
           </div>
           <DialogFooter>
             <Button

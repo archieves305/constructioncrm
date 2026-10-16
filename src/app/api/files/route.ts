@@ -9,6 +9,8 @@ import { fileReadWhere } from "@/lib/files/access";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
 import { guardJob } from "@/lib/access/records";
 import { canEnterJobCosts, getCostGrants, COST_DENIED_MESSAGE } from "@/lib/expenses/permissions";
+import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
+import { parseTakenAt } from "@/lib/files/taken-at";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -123,6 +125,36 @@ export async function POST(request: NextRequest) {
     jobId = expense.jobId;
     leadId = expense.job.leadId;
   }
+  // Completion photos on a crew payment request: anyone who may raise the
+  // request may add them. On a recorded crew payment: the money roles that
+  // record payments. Either way the photo takes the contract's job and lead.
+  const requestIdRaw = form.get("laborPaymentRequestId");
+  const paymentIdRaw = form.get("laborPaymentId");
+  const laborPaymentRequestId = typeof requestIdRaw === "string" && requestIdRaw ? requestIdRaw : null;
+  let laborPaymentId = typeof paymentIdRaw === "string" && paymentIdRaw ? paymentIdRaw : null;
+  if (laborPaymentRequestId || laborPaymentId) {
+    const contractJob = { select: { jobId: true, job: { select: { leadId: true } } } } as const;
+    let contract: { jobId: string; job: { leadId: string } } | null = null;
+    if (laborPaymentRequestId) {
+      const req = await prisma.laborPaymentRequest.findUnique({ where: { id: laborPaymentRequestId }, select: { laborPaymentId: true, laborContract: contractJob } });
+      if (!req) return badRequest("payment request not found");
+      const denied = await guardJob(session.user, req.laborContract.jobId, "write");
+      if (denied) return denied;
+      contract = req.laborContract;
+      // A request already paid: the photo goes on the payment too.
+      laborPaymentId = req.laborPaymentId ?? laborPaymentId;
+    } else if (laborPaymentId) {
+      if (!canManageJobMoney(session.user.role)) return NextResponse.json({ error: MONEY_DENIED_MESSAGE }, { status: 403 });
+      const pay = await prisma.laborPayment.findUnique({ where: { id: laborPaymentId }, select: { laborContract: contractJob } });
+      if (!pay) return badRequest("payment not found");
+      const denied = await guardJob(session.user, pay.laborContract.jobId, "read");
+      if (denied) return denied;
+      contract = pay.laborContract;
+    }
+    if (!file.type.startsWith("image/")) return badRequest("completion photos must be images");
+    jobId = contract!.jobId;
+    leadId = contract!.job.leadId;
+  }
   if (!leadId && !taskId) return badRequest("leadId is required");
 
   if (file.size === 0) return badRequest("file is empty");
@@ -135,7 +167,9 @@ export async function POST(request: NextRequest) {
 
   const category = expenseId
     ? FileCategory.RECEIPT
-    : typeof categoryRaw === "string" && categoryRaw in FileCategory
+    : laborPaymentRequestId || laborPaymentId
+      ? FileCategory.PHOTOS
+      : typeof categoryRaw === "string" && categoryRaw in FileCategory
       ? (categoryRaw as FileCategory)
       : FileCategory.OTHER;
 
@@ -162,6 +196,9 @@ export async function POST(request: NextRequest) {
       violationCaseId,
       violationItemId,
       expenseId,
+      laborPaymentRequestId,
+      laborPaymentId,
+      takenAt: file.type.startsWith("image/") ? parseTakenAt(form.get("takenAt")) : null,
     },
     include: FILE_LIST_INCLUDE,
   });

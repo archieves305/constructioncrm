@@ -1103,11 +1103,22 @@ model File {
   // A receipt on a job expense. The file also carries the expense's job, so
   // it stays on the job's Files tab if the expense is deleted.
   expenseId        String?      @map("expense_id")
+  // Completion photos on a crew payment request, and on the crew payment
+  // itself (a request's photos are stamped with the payment once it is
+  // recorded). The file carries the contract's job, so it is on the job's
+  // Files tab and in its photos too.
+  laborPaymentRequestId String? @map("labor_payment_request_id")
+  laborPaymentId   String?      @map("labor_payment_id")
+  // When the photo was taken, read from the camera's EXIF on upload. Null when
+  // the image carried no date (screenshots, edited copies, PDFs).
+  takenAt          DateTime?    @map("taken_at")
   createdAt        DateTime     @default(now()) @map("created_at")
 
   lead               Lead?               @relation(fields: [leadId], references: [id], onDelete: Cascade)
   job                Job?                @relation(fields: [jobId], references: [id], onDelete: SetNull)
   expense            JobExpense?         @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  laborPaymentRequest LaborPaymentRequest? @relation(fields: [laborPaymentRequestId], references: [id], onDelete: SetNull)
+  laborPayment       LaborPayment?       @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
   uploadedBy         User                @relation(fields: [uploadedByUserId], references: [id])
   doorKnock          PropertyDoorKnock?  @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
   task               Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
@@ -1121,6 +1132,8 @@ model File {
   @@index([leadId])
   @@index([jobId])
   @@index([expenseId])
+  @@index([laborPaymentRequestId])
+  @@index([laborPaymentId])
   @@index([doorKnockId])
   @@index([taskId])
   @@index([violationCaseId])
@@ -1925,6 +1938,7 @@ model LaborPayment {
   createdBy     User                 @relation(fields: [createdByUserId], references: [id])
   request       LaborPaymentRequest?
   coveredExpenses JobExpense[]
+  photos        File[]
 
   @@index([laborContractId])
   @@map("labor_payments")
@@ -1960,6 +1974,7 @@ model LaborPaymentRequest {
   task          Task?               @relation("LaborPaymentRequestLink", fields: [taskId], references: [id], onDelete: SetNull)
   laborPayment  LaborPayment?       @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
   lines         LaborContractTask[]
+  photos        File[]
 
   @@index([laborContractId])
   @@map("labor_payment_requests")

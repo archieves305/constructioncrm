@@ -30,3 +30,31 @@ export async function presentFiles(rows: readonly Row[]) {
 }
 
 export type PresentedFile = Awaited<ReturnType<typeof presentFiles>>[number];
+
+/** Completion photos as a request or payment row carries them. */
+export const PHOTO_SELECT = {
+  id: true,
+  fileName: true,
+  fileType: true,
+  fileSize: true,
+  storageKey: true,
+  takenAt: true,
+  createdAt: true,
+} satisfies Prisma.FileSelect;
+
+type PhotoRow = Prisma.FileGetPayload<{ select: typeof PHOTO_SELECT }>;
+
+/** Photos for a screen: `missing` added, the storage key kept on the server. */
+export async function presentPhotos(rows: readonly PhotoRow[]) {
+  const present = await Promise.all(rows.map((r) => fileExists(r.storageKey)));
+  return rows.map((r, i) => {
+    const { storageKey: _key, ...rest } = r;
+    void _key;
+    return { ...rest, missing: !present[i] };
+  });
+}
+
+/** Give each record its photos in presented form, keeping everything else. */
+export async function withPresentedPhotos<T extends { photos: PhotoRow[] }>(rows: readonly T[]) {
+  return Promise.all(rows.map(async (r) => ({ ...r, photos: await presentPhotos(r.photos) })));
+}

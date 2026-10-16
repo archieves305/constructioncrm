@@ -18,6 +18,7 @@ import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { canManageJobMoney } from "@/lib/money/access";
 import { toneClasses, type Tone } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
+import { attachCompletionPhotos, CompletionPhotoPicker, CompletionPhotosButton, type CompletionPhoto } from "./completion-photos";
 
 type Person = { id: string; firstName: string; lastName: string };
 
@@ -32,6 +33,8 @@ export type PaymentRequestRow = {
   task: { id: string; status: string; assignedTo: Person | null } | null;
   laborPayment: { id: string; amount: string; paidDate: string } | null;
   lines: { id: string; name: string }[];
+  /** Completion photos sent with the request (they move onto the payment once it is recorded). */
+  photos: CompletionPhoto[];
 };
 
 type Listing = { requests: PaymentRequestRow[]; defaultAssigneeId: string | null };
@@ -114,6 +117,8 @@ export function LaborPaymentRequests({
   const [neededBy, setNeededBy] = useState("");
   const [note, setNote] = useState("");
   const [assignee, setAssignee] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [sendingPhotos, setSendingPhotos] = useState(false);
 
   const request = useRequestPayment(jobId, contractId);
   const cancel = useMutation({
@@ -135,10 +140,36 @@ export function LaborPaymentRequests({
     setNeededBy(new Date().toISOString().slice(0, 10));
     setNote("");
     setAssignee(defaultAssigneeId);
+    setPhotos([]);
     setOpen(true);
   }
 
   const valid = Number(amount) > 0 && Boolean(assignee);
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: paymentRequestKeys.contract(contractId) });
+    qc.invalidateQueries({ queryKey: ["job-files", jobId] });
+    qc.invalidateQueries({ queryKey: ["job-photos", jobId] });
+  };
+  const mayAddPhotos = Boolean(session?.user) && session?.user.role !== "READ_ONLY";
+
+  function submit() {
+    const picked = photos;
+    request.mutate(
+      { amount: Number(amount), neededBy: neededBy || null, note: note || null, assignedUserId: assignee },
+      {
+        onSuccess: async (created) => {
+          setOpen(false);
+          if (picked.length === 0) return;
+          // The request stands whatever happens to a photo; a failed one is named in a toast.
+          setSendingPhotos(true);
+          const n = await attachCompletionPhotos({ laborPaymentRequestId: created.id }, picked);
+          setSendingPhotos(false);
+          if (n > 0) toast.success(`${n} completion photo${n === 1 ? "" : "s"} attached`);
+          refresh();
+        },
+      },
+    );
+  }
 
   return (
     <div className="space-y-1.5 border-t pt-2">
@@ -171,27 +202,35 @@ export function LaborPaymentRequests({
                     </span>
                   )}
                 </span>
-                {r.status === "REQUESTED" && (
-                  <span className="flex shrink-0 items-center gap-1">
-                    {canRecord && (
-                      <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => onRecord(r)}>
-                        Record payment
-                      </Button>
-                    )}
-                    {(canRecord || r.requestedBy.id === session?.user.id) && (
-                      <button
-                        type="button"
-                        className="rounded p-1 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
-                        title="Withdraw this request"
-                        aria-label="Withdraw this request"
-                        disabled={cancel.isPending}
-                        onClick={() => cancel.mutate(r.id)}
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    )}
-                  </span>
-                )}
+                <span className="flex shrink-0 items-center gap-1">
+                  <CompletionPhotosButton
+                    photos={r.photos ?? []}
+                    target={{ laborPaymentRequestId: r.id }}
+                    canAdd={mayAddPhotos && (r.status === "REQUESTED" || r.status === "PAID")}
+                    onChanged={refresh}
+                  />
+                  {r.status === "REQUESTED" && (
+                    <>
+                      {canRecord && (
+                        <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => onRecord(r)}>
+                          Record payment
+                        </Button>
+                      )}
+                      {(canRecord || r.requestedBy.id === session?.user.id) && (
+                        <button
+                          type="button"
+                          className="rounded p-1 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+                          title="Withdraw this request"
+                          aria-label="Withdraw this request"
+                          disabled={cancel.isPending}
+                          onClick={() => cancel.mutate(r.id)}
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </span>
               </li>
             );
           })}
@@ -237,18 +276,14 @@ export function LaborPaymentRequests({
               <Label className="text-xs">What it is for (optional)</Label>
               <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Second draw — tile and cabinets complete" />
             </div>
+            <CompletionPhotoPicker files={photos} onChange={setPhotos} />
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
             <Button
               size="sm"
-              disabled={!valid || request.isPending}
-              onClick={() =>
-                request.mutate(
-                  { amount: Number(amount), neededBy: neededBy || null, note: note || null, assignedUserId: assignee },
-                  { onSuccess: () => setOpen(false) },
-                )
-              }
+              disabled={!valid || request.isPending || sendingPhotos}
+              onClick={submit}
             >
               {request.isPending ? "Sending…" : "Request payment"}
             </Button>

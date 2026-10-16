@@ -6,6 +6,7 @@ import { validateBody } from "@/lib/validation/body";
 import { guardJob } from "@/lib/access/records";
 import { createPaymentRequest, PaymentRequestError, REQUEST_INCLUDE } from "@/lib/labor/payment-requests";
 import { userForJobRole } from "@/lib/workflows/roles";
+import { withPresentedPhotos } from "@/lib/files/list";
 
 const createSchema = z.object({
   amount: z.number().positive("Enter the amount to pay"),
@@ -36,7 +37,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     prisma.laborPaymentRequest.findMany({ where: { laborContractId: id }, orderBy: { createdAt: "desc" }, include: REQUEST_INCLUDE }),
     userForJobRole(jobId, "ACCOUNTING"),
   ]);
-  return NextResponse.json({ requests, defaultAssigneeId });
+  return NextResponse.json({ requests: await withPresentedPhotos(requests), defaultAssigneeId });
 }
 
 // POST — ask for a payment. Anyone who may change the job may ask; recording the payment stays with the money roles.
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (!parsed.ok) return parsed.response;
   try {
     const created = await createPaymentRequest({ contractId: id, ...parsed.data, actorUserId: session.user.id });
-    return NextResponse.json(created, { status: 201 });
+    return NextResponse.json((await withPresentedPhotos([created]))[0], { status: 201 });
   } catch (err) {
     if (err instanceof PaymentRequestError) return NextResponse.json({ error: err.message }, { status: err.status });
     throw err;

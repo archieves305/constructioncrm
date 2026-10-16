@@ -28,11 +28,16 @@ export async function GET(request: NextRequest, context: Context) {
   const to = searchParams.get("to");
   const fromOk = from && isIsoDate(from) ? from : null;
   const toOk = to && isIsoDate(to) ? to : null;
+  // `?order=oldest` is the Files tab's Project photos: the job from its first day.
+  const order = searchParams.get("order") === "oldest" ? "oldest" : "newest";
+  const dir = order === "oldest" ? "asc" : "desc";
+  const inRange = { ...(fromOk ? { gte: startOfDayIn(fromOk) } : {}), ...(toOk ? { lte: endOfDayIn(toOk) } : {}) };
+  const crewOf = { select: { crew: { select: { name: true } }, label: true } } as const;
 
   const [logPhotos, files] = await Promise.all([
     prisma.fieldPhoto.findMany({
       where: { jobId, ...(fromOk || toOk ? { photoDate: { ...(fromOk ? { gte: toDbDate(fromOk) } : {}), ...(toOk ? { lte: toDbDate(toOk) } : {}) } } : {}) },
-      orderBy: [{ photoDate: "desc" }, { createdAt: "desc" }],
+      orderBy: [{ photoDate: dir }, { createdAt: dir }],
       take: TAKE,
       select: {
         id: true, photoDate: true, createdAt: true, category: true, caption: true, areaText: true, fileName: true, dailyLogId: true, storageKey: true,
@@ -45,15 +50,18 @@ export async function GET(request: NextRequest, context: Context) {
         AND: [
           // A photographed receipt belongs with its expense, not in the job's photos.
           { jobId, fileType: { startsWith: "image/" }, category: { not: "RECEIPT" } },
-          fromOk || toOk ? { createdAt: { ...(fromOk ? { gte: startOfDayIn(fromOk) } : {}), ...(toOk ? { lte: endOfDayIn(toOk) } : {}) } } : {},
+          // A file's day is the day it was taken when the camera said so, else its upload day.
+          fromOk || toOk ? { OR: [{ takenAt: inRange }, { takenAt: null, createdAt: inRange }] } : {},
           fileReadWhere(ctx.session.user),
         ],
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: dir },
       take: TAKE,
       select: {
-        id: true, fileName: true, createdAt: true, taskId: true, storageKey: true,
+        id: true, fileName: true, createdAt: true, takenAt: true, taskId: true, storageKey: true,
         task: { select: { id: true, title: true } },
+        laborPayment: { select: { amount: true, laborContract: crewOf } },
+        laborPaymentRequest: { select: { amount: true, laborContract: crewOf } },
         uploadedBy: { select: { firstName: true, lastName: true } },
       },
     }),
@@ -67,7 +75,15 @@ export async function GET(request: NextRequest, context: Context) {
   const items = mergeGallery(
     jobId,
     logPhotos.map(({ storageKey: _k, ...p }, i) => (void _k, { ...p, photoDate: fromDbDate(p.photoDate), missing: !logThere[i] })),
-    files.map(({ storageKey: _k, ...f }, i) => (void _k, { ...f, day: dayKey(f.createdAt), missing: !fileThere[i] })),
+    files.map(({ storageKey: _k, laborPayment, laborPaymentRequest, ...f }, i) => {
+      void _k;
+      const pay = laborPayment ?? laborPaymentRequest;
+      const crewPayment = pay
+        ? { crew: pay.laborContract.crew?.name ?? pay.laborContract.label ?? "Crew", amount: Number(pay.amount), paid: Boolean(laborPayment) }
+        : null;
+      return { ...f, day: dayKey(f.takenAt ?? f.createdAt), crewPayment, missing: !fileThere[i] };
+    }),
+    order,
   );
   return NextResponse.json({ items, canWrite: ctx.access === "write" });
 }

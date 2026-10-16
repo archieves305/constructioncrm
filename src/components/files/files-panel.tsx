@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { AlertTriangle, Camera, FileText, FolderOpen, Image as ImageIcon, MoreHorizontal, Search, Upload } from "lucide-react";
+import { AlertTriangle, Camera, ChevronLeft, ChevronRight, FileText, FolderOpen, Image as ImageIcon, MoreHorizontal, Search, Upload } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
@@ -19,7 +19,8 @@ import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { formatFileSize, uploadProblem } from "@/lib/files/limits";
 import { CATEGORY_LABEL, UPLOAD_CATEGORIES, categoryCounts, categoryLabel, filterFiles, groupByCategory, isImageType, type FileCategoryName } from "@/lib/files/scope";
 import { jobLabel, type JobLabelInput } from "@/lib/labels/job";
-import { preparedUpload } from "@/components/workflows/use-task-file-upload";
+import { uploadForm } from "@/components/workflows/use-task-file-upload";
+import { JobPhotoGallery, jobPhotosQuery } from "@/components/photos/job-photo-gallery";
 import { FilePreviewDialog } from "./file-preview";
 
 export type FileRecord = {
@@ -72,6 +73,10 @@ export function FilesPanel(props: { leadId: string; scope?: FilesScope } | { sco
   const [preview, setPreview] = useState<{ files: FileRecord[]; index: number } | null>(null);
   const [editing, setEditing] = useState<FileRecord | null>(null);
   const [removing, setRemoving] = useState<FileRecord | null>(null);
+  // The Project photos folder (jobs only): every photo of the job, oldest first.
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const projectPhotos = useQuery({ ...jobPhotosQuery(scope.jobId ?? "", { order: "oldest" }), enabled: Boolean(scope.jobId) });
+  const photoCount = projectPhotos.data?.items.length ?? 0;
 
   const { key, url } = scopeQuery(scope);
   const { data, isLoading, error, refetch } = useQuery<Listing>({
@@ -108,14 +113,15 @@ export function FilesPanel(props: { leadId: string; scope?: FilesScope } | { sco
         toast.error(problem);
         continue;
       }
-      const form = new FormData();
-      // Photos are downscaled before they are sent, as they are everywhere else.
-      form.append("file", await preparedUpload(f));
-      form.append("leadId", scope.leadId);
-      if (scope.jobId) form.append("jobId", scope.jobId);
-      if (scope.violationCaseId) form.append("violationCaseId", scope.violationCaseId);
-      if (scope.violationItemId) form.append("violationItemId", scope.violationItemId);
-      form.append("category", uploadCategory);
+      // Photos are downscaled before they are sent, as they are everywhere
+      // else, and carry the day they were taken.
+      const form = await uploadForm(f, {
+        leadId: scope.leadId,
+        ...(scope.jobId ? { jobId: scope.jobId } : {}),
+        ...(scope.violationCaseId ? { violationCaseId: scope.violationCaseId } : {}),
+        ...(scope.violationItemId ? { violationItemId: scope.violationItemId } : {}),
+        category: uploadCategory,
+      });
       try {
         await fetchJson("/api/files", { method: "POST", body: form });
         ok += 1;
@@ -214,8 +220,46 @@ export function FilesPanel(props: { leadId: string; scope?: FilesScope } | { sco
       </section>
     ));
 
+  if (scope.jobId && photosOpen) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" size="sm" className="-ml-2" onClick={() => setPhotosOpen(false)}>
+            <ChevronLeft className="mr-1 size-4" />
+            All files
+          </Button>
+          <h3 className="text-sm font-medium">Project photos</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Every photo of this job in the order it was built: daily logs, tasks, crew payments and uploads, oldest first by the day each was taken.
+        </p>
+        <JobPhotoGallery jobId={scope.jobId} order="oldest" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      {/* Project photos folder */}
+      {scope.jobId && (
+        <button
+          type="button"
+          onClick={() => setPhotosOpen(true)}
+          className="flex w-full items-center gap-3 rounded-lg border bg-white p-3 text-left hover:bg-gray-50"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-sky-50 text-sky-700">
+            <ImageIcon className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium">
+              Project photos{projectPhotos.data ? <span className="font-normal text-muted-foreground"> · {photoCount}</span> : null}
+            </span>
+            <span className="block truncate text-xs text-muted-foreground">The job from its first day, oldest first</span>
+          </span>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+      )}
+
       {/* Upload */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="min-w-0 flex-1 space-y-1 sm:max-w-xs">

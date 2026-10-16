@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { downscalePhoto } from "@/lib/photo-utils";
-import { filterGallery, type GalleryItem, type GallerySource } from "@/lib/photos/gallery";
+import { filterGallery, groupByDay, type GalleryItem, type GalleryOrder, type GallerySource } from "@/lib/photos/gallery";
 import { PHOTO_CATEGORIES } from "@/components/field/photo-section";
 
 const SOURCES: { value: GallerySource | ""; label: string }[] = [
@@ -27,16 +27,35 @@ const SOURCES: { value: GallerySource | ""; label: string }[] = [
 
 const categoryLabel = (value: string) => PHOTO_CATEGORIES.find(([v]) => v === value)?.[1] ?? value;
 const longDay = (day: string) => format(new Date(`${day}T12:00:00`), "EEE, MMM d, yyyy");
+const monthOf = (day: string) => format(new Date(`${day}T12:00:00`), "MMMM yyyy");
+const isCrewPayment = (p: GalleryItem) => p.origin.startsWith("Crew payment") || p.origin.startsWith("Payment request");
+
+/** The gallery query: shared with the Files tab's folder card, which shows its count. */
+export function jobPhotosQuery(jobId: string, opts: { from?: string; to?: string; order?: GalleryOrder } = {}) {
+  const params = new URLSearchParams();
+  if (opts.from) params.set("from", opts.from);
+  if (opts.to) params.set("to", opts.to);
+  if (opts.order === "oldest") params.set("order", "oldest");
+  return {
+    queryKey: ["job-photos", jobId, opts.from ?? "", opts.to ?? "", opts.order ?? "newest"] as const,
+    queryFn: () => fetchJson<{ items: GalleryItem[]; canWrite: boolean }>(`/api/jobs/${jobId}/gallery?${params.toString()}`),
+    retry: retryServerErrors,
+  };
+}
 
 /**
  * Every photo of a job in one place: daily-log photos and the images attached
- * to its tasks or uploaded to its files, newest first. Nothing is moved —
+ * to its tasks, its crew payments or uploaded to its files. Nothing is moved —
  * each photo stays where it was taken and says where that is.
+ *
+ * `order="newest"` (the Photos tab) is one grid, newest first.
+ * `order="oldest"` (the Files tab's Project photos) is the project as it was
+ * built: oldest first, under month and day headings.
  *
  * `readOnly` hides delete and upload-again — for the gallery shown on a
  * code-violation case, where the photos belong to the job.
  */
-export function JobPhotoGallery({ jobId, readOnly = false }: { jobId: string; readOnly?: boolean }) {
+export function JobPhotoGallery({ jobId, readOnly = false, order = "newest" }: { jobId: string; readOnly?: boolean; order?: GalleryOrder }) {
   const qc = useQueryClient();
   const [source, setSource] = useState<GallerySource | "">("");
   const [category, setCategory] = useState("");
@@ -47,15 +66,7 @@ export function JobPhotoGallery({ jobId, readOnly = false }: { jobId: string; re
   const [removing, setRemoving] = useState<GalleryItem | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
-  const params = new URLSearchParams();
-  if (from) params.set("from", from);
-  if (to) params.set("to", to);
-
-  const { data, isLoading, error, refetch } = useQuery<{ items: GalleryItem[]; canWrite: boolean }>({
-    queryKey: ["job-photos", jobId, from, to],
-    queryFn: () => fetchJson(`/api/jobs/${jobId}/gallery?${params.toString()}`),
-    retry: retryServerErrors,
-  });
+  const { data, isLoading, error, refetch } = useQuery(jobPhotosQuery(jobId, { from, to, order }));
 
   const all = data?.items ?? [];
   const photos = filterGallery(all, { source: source || null, category: category || null, missingOnly });
@@ -96,6 +107,23 @@ export function JobPhotoGallery({ jobId, readOnly = false }: { jobId: string; re
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const tile = (photo: GalleryItem) => (
+    <button key={photo.key} type="button" onClick={() => setOpenKey(photo.key)} className="group relative aspect-square overflow-hidden rounded-md" aria-label={`${photo.origin} — ${photo.fileName}`}>
+      {photo.missing ? (
+        <span className="flex size-full flex-col items-center justify-center gap-1 border border-dashed border-amber-300 bg-amber-50 text-amber-800">
+          <ImageOff className="size-5" />
+          <span className="text-[10px] font-medium">Photo missing</span>
+        </span>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- an authenticated API response
+        <img src={photo.url} alt={photo.caption ?? photo.fileName} loading="lazy" className="size-full object-cover" />
+      )}
+      <span className="absolute right-1 bottom-1 max-w-[90%] truncate rounded bg-black/60 px-1 py-0.5 text-[10px] text-white">
+        {photo.source === "log" ? categoryLabel(photo.category ?? "") : isCrewPayment(photo) ? "Crew payment" : photo.taskId ? "Task" : "Uploaded"}
+      </span>
+    </button>
+  );
 
   return (
     <div className="space-y-4">
@@ -145,24 +173,23 @@ export function JobPhotoGallery({ jobId, readOnly = false }: { jobId: string; re
       ) : photos.length === 0 ? (
         <EmptyState icon={ImageOff} title="No photos match these filters" action={<Button variant="outline" onClick={() => { setSource(""); setCategory(""); setMissingOnly(false); }}>Clear filters</Button>} />
       ) : (
-        <div className="grid grid-cols-3 gap-2 md:grid-cols-5">
-          {photos.map((photo) => (
-            <button key={photo.key} type="button" onClick={() => setOpenKey(photo.key)} className="group relative aspect-square overflow-hidden rounded-md" aria-label={`${photo.origin} — ${photo.fileName}`}>
-              {photo.missing ? (
-                <span className="flex size-full flex-col items-center justify-center gap-1 border border-dashed border-amber-300 bg-amber-50 text-amber-800">
-                  <ImageOff className="size-5" />
-                  <span className="text-[10px] font-medium">Photo missing</span>
-                </span>
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element -- an authenticated API response
-                <img src={photo.url} alt={photo.caption ?? photo.fileName} loading="lazy" className="size-full object-cover" />
-              )}
-              <span className="absolute right-1 bottom-1 max-w-[90%] truncate rounded bg-black/60 px-1 py-0.5 text-[10px] text-white">
-                {photo.source === "log" ? categoryLabel(photo.category ?? "") : photo.taskId ? "Task" : "Uploaded"}
-              </span>
-            </button>
-          ))}
-        </div>
+        order === "oldest" ? (
+          <div className="space-y-5">
+            {groupByDay(photos).map((g, i, groups) => (
+              <section key={g.day} className="space-y-2">
+                {(i === 0 || monthOf(groups[i - 1].day) !== monthOf(g.day)) && (
+                  <h3 className="border-b pb-1 text-sm font-semibold">{monthOf(g.day)}</h3>
+                )}
+                <p className="text-xs font-medium text-muted-foreground">
+                  {longDay(g.day)} · {g.items.length} photo{g.items.length === 1 ? "" : "s"}
+                </p>
+                <div className="grid grid-cols-3 gap-2 md:grid-cols-5">{g.items.map(tile)}</div>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 md:grid-cols-5">{photos.map(tile)}</div>
+        )
       )}
 
       <Dialog open={current !== null} onOpenChange={(o) => !o && setOpenKey(null)}>
@@ -228,7 +255,7 @@ export function JobPhotoGallery({ jobId, readOnly = false }: { jobId: string; re
                 </div>
                 {current.href && (
                   <Link href={current.href} className={buttonVariants({ variant: "outline", size: "sm" })}>
-                    {current.source === "log" ? "Open log" : current.taskId ? "Open task" : "Open files"}
+                    {current.source === "log" ? "Open log" : isCrewPayment(current) ? "Open labor" : current.taskId ? "Open task" : "Open files"}
                   </Link>
                 )}
                 {!current.missing && (

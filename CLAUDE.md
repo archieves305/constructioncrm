@@ -485,6 +485,34 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-16 — Completion photos on crew payments + a "Project photos" folder (built + dev-QA'd on `payment-photos`, on `main`, not deployed)
+
+Richard (plan `~/.claude/plans/when-i-request-payments-idempotent-locket.md`):
+optional completion photos when a crew payment is requested and when it is
+recorded, and a Files-tab folder showing the project's photos in the order
+they happened. Built: migration `20261030120000_labor_payment_photos`
+(`files.labor_payment_request_id` / `labor_payment_id` FKs SET NULL +
+`taken_at`); `POST /api/files` branches (a request: `guardJob` write, as
+raising one; a payment: `canManageJobMoney`; images only, category PHOTOS,
+job + lead from the contract; a photo added to a paid request is stamped with
+the payment too); `settleRequestOnPayment` moves the request's photos onto the
+payment; `uploadForm` / `photoTakenAt` read EXIF `DateTimeOriginal` with
+`exifr` (MIT, new dependency) before the downscale strips it, on every upload
+path; pure `parseTakenAt` drops dates before 2000 or more than a day ahead;
+`completion-photos.tsx` (picker in both dialogs, the row count opening the
+preview, "Add photos"); gallery `?order=oldest` by `takenAt` → log day →
+upload day, origin "Crew payment · QA Crew · $4,000" / "Payment request · …";
+**Project photos** folder card on a job's Files tab opening the oldest-first
+timeline under month and day headings (the Photos tab is unchanged). Gate:
+typecheck clean, lint 5/22, 1730 tests, build clean. Dev QA: API (request
+photos 201, text file 400, future date dropped, recording moves the photos,
+SALES_REP 201 on a request / 403 on a payment / 404 on another job's
+request), headless Chromium 16/16 at 1280 and 400 px (count opens the
+preview, the dialog picker's photo stored with its EXIF date read in the
+browser, months oldest first, no page errors); QA uploads deleted, dev DB
+restored. **Deploy carries a migration** (and so does the crew-payment-twins
+work already on `main`).
+
 ### 2026-10-14 — Crew payments counted twice: 2188 Windtrace fixed + a guard (built + dev-QA'd on `labor-twins`, not deployed)
 
 Richard: "on 2188 Windtrace it is showing 90,979 in labor contracts but i do
