@@ -59,7 +59,15 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    tasks + resubmission task, AI email drafts sent only by a click, the
    response letter PDF, outcomes on the next review, "Suggest a type", the
    Permit Library (`/permits/library`, full text). **Deploy carries the
-   migration**; no seed, no cron. Open rulings in the design doc §19. Notes:
+   migration**; no seed, no cron. **Stage 3 (form filling) built + dev-QA'd
+   2026-10-18 on `permit-corrections`, fast-forwarded to `main`, not
+   deployed**: migration `20261103120000_permit_forms` + `pdf-lib`; the Palm
+   Beach County universal application (fillable, 132 fields) mapped by the AI
+   ($0.20), checked and published under Admin → Permits → Forms, filled per
+   permit from the records (licences / qualifier records-only, signatures by
+   hand), written as editable + flattened PDFs, finalised; parcel number +
+   legal description on the lead; the lead PATCH no longer resets defaults or
+   clears the email. Open rulings in the design doc §19. Notes:
    [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
    2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
@@ -518,6 +526,41 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-18 — AI Permit Intelligence, Stage 3: form filling (built + dev-QA'd on `permit-corrections`, on `main`, not deployed)
+
+"continue to stage 3". No sample forms in the repo, so the public ones were
+checked first: Palm Beach County cities use the *Universal County-Wide /
+Municipal Building Permit Application* (Jan 2024, fillable, 132 fields, the
+PCN as 17 one-character boxes); Boynton Beach's NOC is fillable, its re-roof
+affidavit a flat scan; the City of Miami has no PDF application (iBuild /
+ePlan). Migration `20261103120000_permit_forms` (templates per exact file —
+jurisdiction or county, versioned; field maps; fills; `leads.parcel_number` +
+`legal_description`), `pdf-lib` 1.17.1 (MIT). Pure `data-dictionary.ts` (49
+keys, protected licence / qualifier keys from records only, owner conflict),
+`field-fill.ts` (key / literal / when, transforms incl. `char:n` and `map:`,
+statuses, `acceptMapping` — the AI's fixed values only as a choice field's own
+option — and `nearestLabel`), `form-pdf.ts` (inventory with labels, fill,
+flatten, XFA / flat refused), prompt `form_map` (no job data). Services
+`forms.ts` (upload, AI mapping in `after()`, hand edits kept, publish retires
+the older version, edit = new version) and `fills.ts` (values re-read from the
+records on open, overrides, editable + flattened PDFs as
+`completed_application`, finalise refused while records disagree). UI: Admin →
+Permits → Forms + the template editor (mapping dialog, Try on a permit),
+the permit's Forms tab (needs-a-person view, conflict picks, parcel number
+saved on the property). Fixed on the way: `updateLeadSchema` kept the
+create defaults (a partial PATCH reset state / property type / three flags)
+and cleared the email when none was sent; wrapped tab lists overlapped the
+content (permit, lead, partner pages). Gate: typecheck clean, lint 5/22, 1808
+tests (+27), build clean. Dev QA: the real universal form mapped in 61 s for
+$0.20 — 48 of 132 fields, PCN boxes in order, trade and contractor choices,
+licence / qualifier keys, every signature / notary / fee / office field left
+for a person, one wrong call ("Permit Type" in the office header) cleared in
+the editor; API 52/52 + SALES_REP 8/8; the filled PDF read back with every
+value in its box; headless Chromium 28/28 at 1280 / 400 px. Dev DB restored,
+QA files removed. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+**Deploy carries the migration** and the new `pdf-lib` dependency.
 
 ### 2026-10-18 — AI Permit Intelligence, Stage 2: corrections (built + dev-QA'd on `permit-corrections`, on `main`, not deployed)
 
@@ -3237,6 +3280,14 @@ Notification Digests).
   it (`messages.ts`), from the company sender with reply-to the person, and is
   recorded on the job's lead. The response letter is built from confirmed
   items only and refuses a blank response.
+- **A permit form is filled from records, never from the model**
+  (`lib/permit-intel/field-fill.ts`, `data-dictionary.ts`): the AI only says
+  which dictionary key a blank form's field means, and a fixed value it
+  proposes is kept only as one of a choice field's own options. Licence and
+  qualifier fields come from the permit's QUALIFIER party or the company
+  profile, else stay blank; signatures and notary blocks are never filled. A
+  template belongs to its exact file and never changes once published (edit =
+  next version). A fill is finalised only when no two records disagree.
 - **Every model call goes through `runAiCall`** (`src/lib/ai/calls.ts`): it is
   recorded as an `AiCall`, held to the per-subject and monthly caps, has no
   tools, and must match a zod schema. Document text goes in through
@@ -3247,6 +3298,19 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **AI Permit Intelligence Stage 3 (form filling) is on `main` with Stage 2,
+> neither deployed; the deploy carries migrations
+> `20261102120000_permit_corrections` and `20261103120000_permit_forms` and the
+> new `pdf-lib` dependency.** After it: Admin → Permits → Forms → upload the
+> Palm Beach County universal application (county "Palm Beach", from
+> discover.pbc.gov) → Map with AI → check "Check these" and clear the
+> office-use header → Publish; set each Palm Beach County jurisdiction's
+> county; add the qualifier under a permit's Parties; on a permit → Forms →
+> Fill → add the parcel number → Write the PDF → Finalise. Next build:
+> **Stage 4** (product approvals: FL PA / Miami-Dade NOA repository, AI
+> extraction, expiry alerts, compatibility flags) — no samples needed beyond
+> one real NOA and one FL PA PDF, which can be downloaded publicly.
 
 > **AI Permit Intelligence Stage 2 (corrections) is on `main`, not deployed;
 > the deploy carries migration `20261102120000_permit_corrections`** (no seed,

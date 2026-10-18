@@ -502,6 +502,10 @@ model User {
   permitSubmissions                 PermitSubmission[]        @relation("PermitSubmissionBy")
   permitKnowledgeCreated            PermitKnowledge[]         @relation("PermitKnowledgeCreatedBy")
   correctionNoticesCreated          PermitCorrectionNotice[]  @relation("CorrectionNoticeCreatedBy")
+  permitFormsCreated                PermitFormTemplate[]      @relation("PermitFormCreatedBy")
+  permitFormsPublished              PermitFormTemplate[]      @relation("PermitFormPublishedBy")
+  permitFormFillsCreated            PermitFormFill[]          @relation("PermitFormFillCreatedBy")
+  permitFormFillsFinalized          PermitFormFill[]          @relation("PermitFormFillFinalizedBy")
   correctionNoticesConfirmed        PermitCorrectionNotice[]  @relation("CorrectionNoticeConfirmedBy")
   permitMessagesCreated             PermitMessage[]           @relation("PermitMessageCreatedBy")
   permitMessagesSent                PermitMessage[]           @relation("PermitMessageSentBy")
@@ -634,6 +638,11 @@ model Lead {
   mailingAddress2        String?      @map("mailing_address_2")
   city                   String
   county                 String?
+  // Permit Intelligence: the parcel control number (PCN / folio) and the
+  // legal description, as a person entered them from the property appraiser
+  // or the survey. Permit forms read them; nothing fills them by itself.
+  parcelNumber           String?      @map("parcel_number")
+  legalDescription       String?      @map("legal_description") @db.Text
   state                  String       @default("FL")
   zipCode                String       @map("zip_code")
   propertyType           PropertyType @default(RESIDENTIAL) @map("property_type")
@@ -1158,6 +1167,8 @@ model File {
   permitSubmissions   PermitSubmissionFile[]
   correctionNotices   PermitCorrectionNotice[]
   correctionItemFiles PermitCorrectionItemFile[]
+  formFillOutputs     PermitFormFill[]           @relation("FormFillOutput")
+  formFillFlattened   PermitFormFill[]           @relation("FormFillFlattened")
 
   @@index([leadId])
   @@index([jobId])
@@ -1536,6 +1547,7 @@ model JobPermit {
   correctionNotices  PermitCorrectionNotice[]
   correctionItems    PermitCorrectionItem[]
   messages           PermitMessage[]
+  formFills          PermitFormFill[]
 
   @@index([jobId])
   @@index([status])
@@ -5923,9 +5935,10 @@ model Jurisdiction {
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  permits      JobPermit[]
-  knowledge    PermitKnowledge[]
+  organization  Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  permits       JobPermit[]
+  knowledge     PermitKnowledge[]
+  formTemplates PermitFormTemplate[]
 
   @@map("jurisdictions")
 }
@@ -6321,4 +6334,128 @@ model PermitMessage {
 
   @@index([permitId, status])
   @@map("permit_messages")
+}
+
+// ─── Permit Intelligence, Stage 3: forms ───────────────────────────────────
+// A municipal application is filled field by field from KNU's records; the
+// layout is never redrawn. A blank form becomes a template once its fields
+// are mapped to data-dictionary keys (the AI proposes, a person confirms and
+// publishes). A template belongs to its exact file: a changed form (another
+// sha256) is a new template. Licence, qualifier, signature and notary fields
+// come from records or stay blank — never from the model.
+
+enum PermitFormKind {
+  ACROFORM
+  // refused: dynamic XFA forms cannot be filled field by field
+  XFA
+  // no fields: a flat scan; filling it needs text placed by position (later stage)
+  FLAT
+}
+
+enum PermitFormStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+enum PermitFormMapState {
+  IDLE
+  MAPPING
+  FAILED
+}
+
+model PermitFormTemplate {
+  id                String             @id @default(cuid())
+  name              String
+  // Where it is used: one jurisdiction, or every jurisdiction in a county
+  // (the Palm Beach County universal application), or anywhere when both are null.
+  jurisdictionId    String?            @map("jurisdiction_id")
+  county            String?
+  // The permit types it is for; empty = every type.
+  permitTypeKeys    String[]           @map("permit_type_keys")
+  // The blank form, stored once and never changed.
+  fileName          String             @map("file_name")
+  storageKey        String             @map("storage_key")
+  sha256            String
+  // A published template never changes: editing one makes the next version of the same file.
+  version           Int                @default(1)
+  sizeBytes         Int                @map("size_bytes")
+  pageCount         Int                @map("page_count")
+  formKind          PermitFormKind     @map("form_kind")
+  // [{ name, type, page, rect, options, maxLen, label }]
+  fieldInventory    Json               @map("field_inventory")
+  status            PermitFormStatus   @default(DRAFT)
+  mapState          PermitFormMapState @default(IDLE) @map("map_state")
+  mapError          String?            @map("map_error")
+  mapStartedAt      DateTime?          @map("map_started_at")
+  aiCallId          String?            @map("ai_call_id")
+  notes             String?            @db.Text
+  createdByUserId   String             @map("created_by_user_id")
+  publishedByUserId String?            @map("published_by_user_id")
+  publishedAt       DateTime?          @map("published_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  jurisdiction Jurisdiction?        @relation(fields: [jurisdictionId], references: [id], onDelete: SetNull)
+  createdBy    User                 @relation("PermitFormCreatedBy", fields: [createdByUserId], references: [id])
+  publishedBy  User?                @relation("PermitFormPublishedBy", fields: [publishedByUserId], references: [id], onDelete: SetNull)
+  fields       PermitFormFieldMap[]
+  fills        PermitFormFill[]
+
+  @@index([status])
+  @@index([sha256])
+  @@map("permit_form_templates")
+}
+
+model PermitFormFieldMap {
+  id          String   @id @default(cuid())
+  templateId  String   @map("template_id")
+  fieldName   String   @map("field_name")
+  // A data-dictionary key, "literal:<text>", "when:<key>=<value>" (a box
+  // ticked when the key has that value), or null = left for a person.
+  dataKey     String?  @map("data_key")
+  // "upper" | "date" | "phone" | "money" | "digits" | "char:<n>"
+  transform   String?
+  aiSuggested Boolean  @default(false) @map("ai_suggested")
+  confidence  Float?
+  rationale   String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  template PermitFormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, fieldName])
+  @@map("permit_form_field_maps")
+}
+
+enum PermitFormFillStatus {
+  DRAFT
+  FINAL
+}
+
+model PermitFormFill {
+  id                String               @id @default(cuid())
+  permitId          String               @map("permit_id")
+  templateId        String               @map("template_id")
+  // [{ field, label, type, value, status, source, protected }] as of the last refresh
+  values            Json
+  // A person's own values by field name, kept over every refresh.
+  overrides         Json                 @default("{}")
+  outputFileId      String?              @map("output_file_id")
+  flattenedFileId   String?              @map("flattened_file_id")
+  status            PermitFormFillStatus @default(DRAFT)
+  createdByUserId   String               @map("created_by_user_id")
+  finalizedByUserId String?              @map("finalized_by_user_id")
+  finalizedAt       DateTime?            @map("finalized_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  permit        JobPermit          @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  template      PermitFormTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  outputFile    File?              @relation("FormFillOutput", fields: [outputFileId], references: [id], onDelete: SetNull)
+  flattenedFile File?              @relation("FormFillFlattened", fields: [flattenedFileId], references: [id], onDelete: SetNull)
+  createdBy     User               @relation("PermitFormFillCreatedBy", fields: [createdByUserId], references: [id])
+  finalizedBy   User?              @relation("PermitFormFillFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([permitId])
+  @@map("permit_form_fills")
 }

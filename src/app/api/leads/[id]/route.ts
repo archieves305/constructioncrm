@@ -111,7 +111,8 @@ export async function PATCH(
     data: {
       ...updateData,
       ...fullNameUpdate,
-      email: updateData.email || null,
+      // an update that does not mention the email leaves it alone; an empty one clears it
+      email: updateData.email === undefined ? undefined : updateData.email || null,
       nextFollowUpAt: updateData.nextFollowUpAt ? new Date(updateData.nextFollowUpAt) : undefined,
     },
     include: {

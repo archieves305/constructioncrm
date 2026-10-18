@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { permitIntelKeys, useJurisdictions, usePermitTypes, type JurisdictionOption } from "@/components/permit-intel/use-permit-intel";
 import { METHOD_LABEL } from "@/components/permit-intel/types";
+import { FormTemplates } from "@/components/permit-intel/forms/form-templates";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { PERMIT_DOC_TYPES, permitDocLabel } from "@/lib/permit-intel/doc-types";
 
@@ -58,20 +59,24 @@ const DOC_ITEMS = [{ value: ANY, label: "No document — a note to check" }, ...
  */
 export default function PermitSettingsPage() {
   const url = useSearchParamState();
-  const tab = url.get("tab") === "requirements" ? "requirements" : "jurisdictions";
+  const tab = url.get("tab") === "requirements" ? "requirements" : url.get("tab") === "forms" ? "forms" : "jurisdictions";
   return (
     <div className="space-y-4">
-      <PageHeader title="Permits" description="The building departments KNU files with, and the documents each one asks for." />
+      <PageHeader title="Permits" description="The building departments KNU files with, the documents each one asks for, and their application forms." />
       <Tabs value={tab} onValueChange={(v) => v && url.set("tab", v === "jurisdictions" ? null : String(v))}>
         <TabsList>
           <TabsTrigger value="jurisdictions">Jurisdictions</TabsTrigger>
           <TabsTrigger value="requirements">Requirements</TabsTrigger>
+          <TabsTrigger value="forms">Forms</TabsTrigger>
         </TabsList>
         <TabsContent value="jurisdictions" className="mt-4">
           <Jurisdictions />
         </TabsContent>
         <TabsContent value="requirements" className="mt-4">
           <Requirements />
+        </TabsContent>
+        <TabsContent value="forms" className="mt-4">
+          <FormTemplates />
         </TabsContent>
       </Tabs>
     </div>

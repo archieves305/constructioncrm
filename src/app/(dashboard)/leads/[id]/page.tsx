@@ -362,7 +362,7 @@ export default function LeadDetailPage() {
         {/* Right column: tabs */}
         <div className="min-w-0 lg:col-span-2">
           <Tabs value={tab} onValueChange={(v) => v && setUrl("tab", v === defaultTab ? null : String(v))}>
-            <TabsList className="h-auto w-full flex-wrap justify-start">
+            <TabsList className="h-auto w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto">
               {bid && <TabsTrigger value="bid">Bid</TabsTrigger>}
               <TabsTrigger value="activity">Activity</TabsTrigger>
               <TabsTrigger value="tasks">Tasks ({leadTasks.length})</TabsTrigger>

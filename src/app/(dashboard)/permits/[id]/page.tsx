@@ -16,6 +16,7 @@ import { expiryNotice, formatDay, PERMIT_STATUS_LABEL, PERMIT_STATUS_TONE, type 
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 import { PermitCorrections } from "@/components/permit-intel/corrections/permit-corrections";
 import { PermitCycles } from "@/components/permit-intel/permit-cycles";
+import { PermitForms } from "@/components/permit-intel/forms/permit-forms";
 import { PermitDocuments } from "@/components/permit-intel/permit-documents";
 import { PermitParties } from "@/components/permit-intel/permit-parties";
 import { OUTCOME_LABEL, type HistoryRow, type PermitDetail } from "@/components/permit-intel/types";
@@ -25,7 +26,7 @@ import { jobLabel } from "@/lib/labels/job";
 import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 
-const TABS = ["overview", "documents", "parties", "submissions", "corrections", "tasks", "inspections", "history"] as const;
+const TABS = ["overview", "documents", "forms", "parties", "submissions", "corrections", "tasks", "inspections", "history"] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -80,9 +81,10 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
         }
       />
       <Tabs value={tab} onValueChange={(v) => v && url.set("tab", v === "overview" ? null : String(v))}>
-        <TabsList className="h-auto w-full flex-wrap justify-start">
+        <TabsList className="h-auto w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="documents">Documents ({data.files.length})</TabsTrigger>
+          <TabsTrigger value="forms">Forms</TabsTrigger>
           <TabsTrigger value="parties">Parties ({permit.parties.length})</TabsTrigger>
           <TabsTrigger value="submissions">Submissions ({permit.cycles.length})</TabsTrigger>
           <TabsTrigger value="corrections">Corrections{data.openCorrections ? ` (${data.openCorrections} open)` : ""}</TabsTrigger>
@@ -95,6 +97,9 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
         </TabsContent>
         <TabsContent value="documents" className="mt-4">
           <PermitDocuments detail={data} onChanged={invalidate} />
+        </TabsContent>
+        <TabsContent value="forms" className="mt-4">
+          <PermitForms detail={data} />
         </TabsContent>
         <TabsContent value="parties" className="mt-4">
           <PermitParties detail={data} />
@@ -220,6 +225,11 @@ const ACTION_LABEL: Record<string, string> = {
   permit_message_draft: "Email drafted",
   permit_message_discard: "Email draft discarded",
   permit_message_sent: "Email sent",
+  form_fill_create: "Form started",
+  form_fill_override: "Form value typed",
+  form_fill_render: "Form written to PDF",
+  form_fill_finalize: "Form finalised",
+  form_fill_delete: "Form draft removed",
 };
 
 function describe(row: HistoryRow): string {
