@@ -25,7 +25,7 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { AlertTriangle, Download, ExternalLink } from "lucide-react";
+import { AlertTriangle, Download, ExternalLink, Library } from "lucide-react";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { toneClasses } from "@/lib/ui/tones";
@@ -142,6 +142,11 @@ export default function PermitCenterPage() {
         title="Permit Center"
         description={`${allPermits.length} permits tracked`}
         actions={
+          <div className="flex flex-wrap gap-2">
+          <Button variant="outline" render={<Link href="/permits/library" />} nativeButton={false}>
+            <Library className="mr-2 h-4 w-4" />
+            Library
+          </Button>
           <Button
             variant="outline"
             onClick={() => {
@@ -187,6 +192,7 @@ export default function PermitCenterPage() {
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
+          </div>
         }
       />
 

@@ -24,8 +24,10 @@ type Row = Prisma.FileGetPayload<{ include: typeof FILE_LIST_INCLUDE }>;
 export async function presentFiles(rows: readonly Row[]) {
   const present = await Promise.all(rows.map((r) => fileExists(r.storageKey)));
   return rows.map((r, i) => {
-    const { storageKey: _key, _count, ...rest } = r;
+    // the storage key never leaves the server; the extracted text is the library's, and can be a whole plan set
+    const { storageKey: _key, extractedText: _text, _count, ...rest } = r;
     void _key;
+    void _text;
     return {
       ...rest,
       expense: rest.expense ? { ...rest.expense, amount: Number(rest.expense.amount) } : null,

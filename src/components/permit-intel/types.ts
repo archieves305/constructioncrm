@@ -73,7 +73,8 @@ export type PermitDetail = {
   steps: InspectionStep[];
   checklist: ChecklistLine[];
   checklistSummary: { required: number; requiredMet: number; optional: number; optionalMet: number };
-  permissions: { canEdit: boolean; canSubmit: boolean; canManageSettings: boolean };
+  openCorrections: number;
+  permissions: { canEdit: boolean; canSubmit: boolean; canManageSettings: boolean; aiReady: boolean };
 };
 
 export const PARTY_ROLE_LABEL: Record<string, string> = {

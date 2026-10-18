@@ -21,3 +21,20 @@ export function canSubmitPermit(viewer: Viewer, permit: { assignedUserId: string
   if (viewer.role === "ADMIN" || viewer.role === "MANAGER" || viewer.role === "OFFICE_STAFF") return true;
   return !!permit.assignedUserId && permit.assignedUserId === viewer.id;
 }
+
+/**
+ * Confirming a correction notice (its items become the permit's open
+ * corrections and the permit moves to corrections): the same people who may
+ * submit — not yet ruled, proposed.
+ */
+export const canConfirmCorrections = canSubmitPermit;
+
+/**
+ * Sending a drafted email about a permit. Ruled 2026-10-18: anyone involved
+ * with the job (the "My jobs" rule, `jobsInvolvingUserWhere`), and the office
+ * roles. `involved` is that rule's answer for this viewer and job.
+ */
+export function canSendPermitMessage(viewer: Viewer, involved: boolean): boolean {
+  if (viewer.role === "READ_ONLY" || viewer.role === "CREW_LEAD") return false;
+  return viewer.role === "ADMIN" || viewer.role === "MANAGER" || viewer.role === "OFFICE_STAFF" || involved;
+}

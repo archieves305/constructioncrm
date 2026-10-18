@@ -7,6 +7,7 @@ import { canWriteProduction } from "@/lib/access/roles";
 import { canManagePermitSettings, canSubmitPermit } from "@/lib/permit-intel/access";
 import { loadPermitDetail } from "@/lib/permit-intel/service";
 import { permitInScope } from "@/lib/permit-intel/route";
+import { isAiConfigured } from "@/lib/ai/client";
 
 /** One permit's whole record: the permit, its parties, cycles and submissions, documents with the requirement checklist, tasks, inspections and history. */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,7 +21,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const canEdit = canWriteProduction(session.user.role);
   return NextResponse.json({
     ...detail,
-    permissions: { canEdit, canSubmit: canEdit && canSubmitPermit(session.user, detail.permit), canManageSettings: canManagePermitSettings(session.user.role) },
+    permissions: { canEdit, canSubmit: canEdit && canSubmitPermit(session.user, detail.permit), canManageSettings: canManagePermitSettings(session.user.role), aiReady: isAiConfigured() },
   });
 }
 

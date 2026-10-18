@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 
 type SendEmailArgs = {
   to: string | string[];
+  cc?: string[];
   subject: string;
   html: string;
   text?: string;
@@ -49,6 +50,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<{ id: string } | n
     .setSubject(args.subject)
     .setHtml(args.html);
 
+  if (args.cc?.length) params.setCc(toRecipients(args.cc));
   if (args.text) params.setText(args.text);
   if (args.replyTo) params.setReplyTo(new Recipient(args.replyTo));
   if (args.attachments?.length) {

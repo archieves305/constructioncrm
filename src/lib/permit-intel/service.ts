@@ -7,6 +7,7 @@ import { TASK_LIST_INCLUDE } from "@/lib/tasks/include";
 import { inspectionStepsForJob, updatePermit } from "@/lib/permits/service";
 import { jurisdictionKey, jurisdictionKindFor, tidyJurisdictionName } from "./catalog";
 import { applicableRequirements, checklistSummary, requirementChecklist, type RequirementRow } from "./requirements";
+import { onCycleApproved } from "./corrections";
 import { statusForOutcome } from "./submission-plan";
 import type { CycleOutcomeInput, JurisdictionInput, PartyInput, RequirementInput } from "./validation";
 
@@ -80,7 +81,7 @@ export async function loadPermitDetail(id: string) {
   });
   if (!permit) return null;
 
-  const [fileRows, tasks, history, requirements, steps] = await Promise.all([
+  const [fileRows, tasks, history, requirements, steps, openCorrections] = await Promise.all([
     prisma.file.findMany({ where: { permitId: id }, orderBy: { createdAt: "desc" }, include: FILE_LIST_INCLUDE }),
     prisma.task.findMany({ where: { permitId: id }, orderBy: [{ status: "asc" }, { dueAt: "asc" }], include: TASK_LIST_INCLUDE, take: 100 }),
     prisma.auditEvent.findMany({
@@ -91,10 +92,11 @@ export async function loadPermitDetail(id: string) {
     }),
     loadRequirementsFor(permit),
     inspectionStepsForJob(permit.jobId),
+    prisma.permitCorrectionItem.count({ where: { permitId: id, status: { in: ["OPEN", "WAITING_THIRD_PARTY", "DISPUTED"] } } }),
   ]);
   const files = await presentFiles(fileRows);
   const checklist = requirementChecklist(requirements, files);
-  return { permit, files, tasks, history, steps, checklist, checklistSummary: checklistSummary(checklist) };
+  return { permit, files, tasks, history, steps, checklist, checklistSummary: checklistSummary(checklist), openCorrections };
 }
 
 // ─── Parties ────────────────────────────────────────────────────────────────
@@ -146,6 +148,7 @@ export async function recordCycleOutcome(cycleId: string, input: CycleOutcomeInp
     data: { outcome: input.outcome, outcomeAt, reviewerName: input.reviewerName ?? cycle.reviewerName, notes: input.notes ?? cycle.notes },
   });
   await audit(actor, "JobPermit", cycle.permitId, "cycle_outcome", { cycle: cycle.number, outcome: cycle.outcome }, { cycle: cycle.number, outcome: updated.outcome, outcomeAt, reviewerName: updated.reviewerName });
+  if (input.outcome === "APPROVED") await onCycleApproved(cycle.permitId, cycle.number);
   const next = statusForOutcome(input.outcome);
   if (next && next !== cycle.permit.status) {
     await updatePermit(cycle.permitId, { status: next, ...(next === "ISSUED" && input.permitNumber ? { permitNumber: input.permitNumber } : {}), ...(next === "ISSUED" && outcomeAt ? { approvedDate: outcomeAt.toISOString() } : {}) }, actor);

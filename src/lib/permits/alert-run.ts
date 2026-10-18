@@ -40,7 +40,8 @@ const PERMIT_SELECT = {
   job: { select: { projectManagerId: true } },
 } as const;
 
-type Owner = { jobId: string; permitId: string; assignedUserId: string | null; projectManagerId: string | null };
+export type PermitTaskOwner = Owner;
+export type Owner = { jobId: string; permitId: string; assignedUserId: string | null; projectManagerId: string | null };
 
 async function fallbackAdmin(): Promise<string | null> {
   const u = await prisma.user.findFirst({ where: { isActive: true, role: { name: "ADMIN" } }, orderBy: { createdAt: "asc" }, select: { id: true } });
@@ -48,7 +49,7 @@ async function fallbackAdmin(): Promise<string | null> {
 }
 
 /** Who an alert goes to. The permit's coordinator, the job's roles, and failing all of them the oldest admin. */
-async function assigneeFor(audience: PlannedAlert["audience"], o: Owner): Promise<string | null> {
+export async function assigneeFor(audience: PlannedAlert["audience"], o: Owner): Promise<string | null> {
   const coordinator = async () => o.assignedUserId ?? (await userForJobRole(o.jobId, "PERMIT_COORDINATOR"));
   const manager = async () => o.projectManagerId ?? (await userForJobRole(o.jobId, "PROJECT_MANAGER"));
   const order =

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CheckCircle2, CircleAlert, CircleDashed, FileText, Lock, Upload } from "lucide-react";
+import { CheckCircle2, CircleAlert, CircleDashed, FileText, Lock, Sparkles, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -162,7 +162,12 @@ export function PermitDocuments({ detail, onChanged }: { detail: PermitDetail; o
                             <Lock className="size-3" /> {f.permitLock === "submitted" ? "Submitted" : "Issued"}
                           </span>
                         ) : (
-                          permissions.canEdit && <DocTypeSelect value={f.permitDocType} onChange={(t) => classify(f, t)} className="w-[200px]" />
+                          permissions.canEdit && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {!f.permitDocType && permissions.aiReady && f.fileType === "application/pdf" && !f.missing && <SuggestType file={f} onAccept={(t) => classify(f, t)} />}
+                              <DocTypeSelect value={f.permitDocType} onChange={(t) => classify(f, t)} className="w-[200px]" />
+                            </div>
+                          )
                         )}
                       </li>
                     ))}
@@ -204,5 +209,35 @@ function ChecklistRow({ line, canEdit, onUpload }: { line: ChecklistLine; canEdi
         </Button>
       )}
     </li>
+  );
+}
+
+type Suggestion = { docType: string; label: string; confidence: number; reason: string };
+
+/** The AI's guess at an unclassified PDF's type, from its text. Shown, never applied until accepted. */
+function SuggestType({ file, onAccept }: { file: PermitFile; onAccept: (type: string) => void }) {
+  const [state, setState] = useState<"idle" | "busy" | Suggestion>("idle");
+  const ask = async () => {
+    setState("busy");
+    try {
+      setState(await fetchJson<Suggestion>(`/api/files/${file.id}/classify`, { method: "POST" }));
+    } catch (e) {
+      toast.error((e as Error).message);
+      setState("idle");
+    }
+  };
+  if (state === "idle" || state === "busy")
+    return (
+      <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={state === "busy"} onClick={ask}>
+        <Sparkles className="size-3" /> {state === "busy" ? "Reading…" : "Suggest a type"}
+      </Button>
+    );
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-[11px]" title={state.reason}>
+      Looks like: <strong className="font-medium">{state.label}</strong> · {Math.round(state.confidence * 100)}%
+      <button type="button" className="ml-1 font-medium text-primary hover:underline" onClick={() => onAccept(state.docType)}>
+        Accept
+      </button>
+    </span>
   );
 }

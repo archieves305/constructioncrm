@@ -50,8 +50,16 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (jurisdictions, type catalog, requirement checklist, parties, review
    cycles, frozen submissions + locked files, `File.permitId` /
    `permitDocType`, `Task.permitId`, statuses PREPARING / CORRECTIONS),
-   `/permits/[id]`, Admin → Permits, upload byte check. Next: **Stage 2**
-   (corrections) on `permit-corrections`. Open rulings in the design doc §19. Notes:
+   `/permits/[id]`, Admin → Permits, upload byte check. **Stage 2
+   (corrections) built + dev-QA'd 2026-10-18 on `permit-corrections`,
+   fast-forwarded to `main`, not deployed**: migration
+   `20261102120000_permit_corrections` (notices, items, item files, permit
+   emails, `files.extracted_text` + a generated tsvector), the AI reads a
+   letter (PDF / picture / paste) into proposed items, a person confirms →
+   tasks + resubmission task, AI email drafts sent only by a click, the
+   response letter PDF, outcomes on the next review, "Suggest a type", the
+   Permit Library (`/permits/library`, full text). **Deploy carries the
+   migration**; no seed, no cron. Open rulings in the design doc §19. Notes:
    [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
    2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
@@ -510,6 +518,38 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-18 — AI Permit Intelligence, Stage 2: corrections (built + dev-QA'd on `permit-corrections`, on `main`, not deployed)
+
+"go to stage 2", after finishing Stage 1's deploy (below). Migration
+`20261102120000_permit_corrections`: `PermitCorrectionNotice`,
+`PermitCorrectionItem`, `PermitCorrectionItemFile`, `PermitMessage`;
+`files.extracted_text` + `files.search_vector` (generated tsvector, GIN —
+hand-written; Prisma's diff then shows a `DROP DEFAULT` to leave out). Pure
+`corrections-plan.ts` (answer schema, clamped mapping, party match, stated
+deadline, task titles, outcomes, letter lines, stale reading); prompts
+`correction_extract` (Opus 5.5, the PDF itself as a document block — scans
+included), `correction_email` (Sonnet 5.5), `file_classify` (Haiku 5.5);
+services `corrections.ts`, `messages.ts`, `response-letter.ts`, `library.ts`;
+the reading runs in `after()` (no queue change — that stays with takeoff-m3)
+and a cut-off reading restarts on the next page load. Confirming = office
+roles + the coordinator (proposed); sending = office roles or anyone involved
+with the job (ruled). UI: the permit's Corrections tab, emails, response
+letter, "Suggest a type" on Documents, open-corrections warning in the freeze
+dialog, the Permit Library. Gate: typecheck clean, lint 5/22, 1781 tests
+(+21), build clean. Dev QA with real AI calls ($0.07 total): a QA Palm Beach
+letter read in 12 s for $0.054 — six comments verbatim with numbers, pages,
+deadline, reviewer and parties, a planted instruction ignored; API 79/79
+across the loop (confirm → permit CORRECTIONS + tasks, resolve / waive /
+reopen, AI draft + one real send to Richard's address "QA test (please
+ignore)", letter, resubmission, repeat comment linked, outcomes, approval
+settling the open items, library, suggestion); SALES_REP 9/9; headless
+Chromium 1280 / 400 px 46/48 (both misses the check's selector). Fixed in QA:
+task wording, the letter's header and line spacing, earlier comments' tasks
+left open after the next review, the library on a phone, the tab text while a
+notice waits. Dev DB restored, QA uploads removed. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+**Deploy carries the migration.**
 
 ### 2026-10-18 — AI Permit Intelligence, Stage 1: the permit record (deployed `acdf728`)
 
@@ -3187,6 +3227,16 @@ Notification Digests).
   answer to a review cycle through `updatePermit`. Requirements are rows in
   `PermitKnowledge`, the most specific per document type winning; retired,
   never deleted. A PATCH schema never carries zod defaults.
+- **A correction notice moves nothing until a person confirms it**
+  (`lib/permit-intel/corrections.ts`): the AI's items are PROPOSED; confirming
+  makes them tasks, answers the review cycle with corrections (the permit
+  follows through `recordCycleOutcome`) and sets the resubmission due. An item
+  is waived, never deleted, once confirmed; its task follows its status. The
+  next review settles the earlier items (accepted, or carried by the comment
+  that repeats them). An email about a permit is a draft until a person sends
+  it (`messages.ts`), from the company sender with reply-to the person, and is
+  recorded on the job's lead. The response letter is built from confirmed
+  items only and refuses a blank response.
 - **Every model call goes through `runAiCall`** (`src/lib/ai/calls.ts`): it is
   recorded as an `AiCall`, held to the per-subject and monthly caps, has no
   tools, and must match a zod schema. Document text goes in through
@@ -3197,6 +3247,19 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **AI Permit Intelligence Stage 2 (corrections) is on `main`, not deployed;
+> the deploy carries migration `20261102120000_permit_corrections`** (no seed,
+> no cron). After Richard's push + deploy (if the `!` deploy's build is cut off
+> again: rebuild on the droplet with `/etc/knuco/env` loaded and
+> `ssh -n … < /dev/null`, then restart). Click-through: a permit with a
+> submission → Corrections → Add a correction notice (a real letter) → check
+> the items, Confirm → tick items → Email about… → Write the response letter →
+> Submissions → Submit again; Documents → Suggest a type; Permits → Library.
+> Next build: **Stage 3** (form filling) — needs Richard's sample blank
+> applications (Palm Beach, Boynton Beach, Miami). Ruling still open: who may
+> confirm a notice / freeze a submission (proposed: office roles + the
+> permit's coordinator).
 
 > **AI Permit Intelligence Stage 1 (permit record) is on prod (`acdf728`,
 > BUILD_ID `3SyklAeo2NGYbawokTWey`), seeded and backfilled (3 permits linked

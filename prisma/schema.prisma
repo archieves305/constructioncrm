@@ -501,6 +501,10 @@ model User {
   aiCallsRequested                  AiCall[]                  @relation("AiCallRequestedBy")
   permitSubmissions                 PermitSubmission[]        @relation("PermitSubmissionBy")
   permitKnowledgeCreated            PermitKnowledge[]         @relation("PermitKnowledgeCreatedBy")
+  correctionNoticesCreated          PermitCorrectionNotice[]  @relation("CorrectionNoticeCreatedBy")
+  correctionNoticesConfirmed        PermitCorrectionNotice[]  @relation("CorrectionNoticeConfirmedBy")
+  permitMessagesCreated             PermitMessage[]           @relation("PermitMessageCreatedBy")
+  permitMessagesSent                PermitMessage[]           @relation("PermitMessageSentBy")
   permitKnowledgeDecided            PermitKnowledge[]         @relation("PermitKnowledgeDecidedBy")
   planSheetsCalibrated              PlanSheet[]               @relation("PlanSheetCalibratedBy")
   takeoffsCreated                   Takeoff[]                 @relation("TakeoffCreatedBy")
@@ -863,24 +867,25 @@ model Task {
   inspectionResult      PermitInspectionResult? @map("inspection_result")
   inspectionRecordedAt  DateTime?               @map("inspection_recorded_at")
 
-  lead                Lead?                @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  job                 Job?                 @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  estimate            Estimate?            @relation(fields: [estimateId], references: [id], onDelete: SetNull)
-  invoice             Invoice?             @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  prospect            Prospect?            @relation(fields: [prospectId], references: [id], onDelete: SetNull)
-  dailyLog            DailyLog?            @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
-  vendor              Vendor?              @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  violationCase       CodeViolationCase?   @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
-  violationItem       CodeViolationItem?   @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
-  organization        Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  permit              JobPermit?           @relation(fields: [permitId], references: [id], onDelete: SetNull)
-  assignedTo          User?                @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
-  createdBy           User                 @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
-  completedBy         User?                @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
-  remindSetBy         User?                @relation("TaskRemindSetBy", fields: [remindSetByUserId], references: [id])
+  lead                Lead?                  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  job                 Job?                   @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  estimate            Estimate?              @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+  invoice             Invoice?               @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  prospect            Prospect?              @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  dailyLog            DailyLog?              @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  vendor              Vendor?                @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  violationCase       CodeViolationCase?     @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  violationItem       CodeViolationItem?     @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
+  organization        Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  permit              JobPermit?             @relation(fields: [permitId], references: [id], onDelete: SetNull)
+  correctionItems     PermitCorrectionItem[]
+  assignedTo          User?                  @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
+  createdBy           User                   @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
+  completedBy         User?                  @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
+  remindSetBy         User?                  @relation("TaskRemindSetBy", fields: [remindSetByUserId], references: [id])
   fieldIssue          FieldIssue?
-  laborPaymentRequest LaborPaymentRequest? @relation("LaborPaymentRequestLink")
-  laborContractTask   LaborContractTask?   @relation("LaborContractTaskLink")
+  laborPaymentRequest LaborPaymentRequest?   @relation("LaborPaymentRequestLink")
+  laborContractTask   LaborContractTask?     @relation("LaborContractTaskLink")
   events              TaskEvent[]
   watchers            TaskWatcher[]
 
@@ -1090,63 +1095,69 @@ model PermitLookupRun {
 // ─── Files ──────────────────────────────────────────────────────────────────
 
 model File {
-  id                    String       @id @default(cuid())
+  id                    String                   @id @default(cuid())
   // Null only for a file on a task that has no lead (a task raised with no job).
-  leadId                String?      @map("lead_id")
+  leadId                String?                  @map("lead_id")
   // The job the file belongs to. Null = a lead document (an estimate,
   // something uploaded before the job existed): it shows on the lead, and on
   // the lead's jobs in a group of its own. Anything written for something on
   // a job sets this.
-  jobId                 String?      @map("job_id")
-  fileName              String       @map("file_name")
-  fileType              String       @map("file_type")
-  storageKey            String       @map("storage_key")
-  fileSize              Int          @map("file_size")
-  category              FileCategory @default(OTHER)
-  uploadedByUserId      String       @map("uploaded_by_user_id")
-  doorKnockId           String?      @map("door_knock_id")
+  jobId                 String?                  @map("job_id")
+  fileName              String                   @map("file_name")
+  fileType              String                   @map("file_type")
+  storageKey            String                   @map("storage_key")
+  fileSize              Int                      @map("file_size")
+  category              FileCategory             @default(OTHER)
+  uploadedByUserId      String                   @map("uploaded_by_user_id")
+  doorKnockId           String?                  @map("door_knock_id")
   // A file on a task (workflow evidence or an ordinary attachment). leadId is
   // copied from the task when it has one, so the lead's Files tab lists it.
-  taskId                String?      @map("task_id")
+  taskId                String?                  @map("task_id")
   // Documents and photos on a code-violation case / item. leadId is copied
   // from the case, so the lead's Files tab lists them.
-  violationCaseId       String?      @map("violation_case_id")
-  violationItemId       String?      @map("violation_item_id")
+  violationCaseId       String?                  @map("violation_case_id")
+  violationItemId       String?                  @map("violation_item_id")
   // A receipt on a job expense. The file also carries the expense's job, so
   // it stays on the job's Files tab if the expense is deleted.
-  expenseId             String?      @map("expense_id")
+  expenseId             String?                  @map("expense_id")
   // Completion photos on a crew payment request, and on the crew payment
   // itself (a request's photos are stamped with the payment once it is
   // recorded). The file carries the contract's job, so it is on the job's
   // Files tab and in its photos too.
-  laborPaymentRequestId String?      @map("labor_payment_request_id")
-  laborPaymentId        String?      @map("labor_payment_id")
+  laborPaymentRequestId String?                  @map("labor_payment_request_id")
+  laborPaymentId        String?                  @map("labor_payment_id")
   // When the photo was taken, read from the camera's EXIF on upload. Null when
   // the image carried no date (screenshots, edited copies, PDFs).
-  takenAt               DateTime?    @map("taken_at")
+  takenAt               DateTime?                @map("taken_at")
   // A permit's document (Permit Intelligence): the permit, and its type from
   // the code list in lib/permit-intel/doc-types.ts. The file also carries the
   // permit's job and lead, so it shows on the job's Files tab.
-  permitId              String?      @map("permit_id")
-  permitDocType         String?      @map("permit_doc_type")
-  createdAt             DateTime     @default(now()) @map("created_at")
+  permitId              String?                  @map("permit_id")
+  permitDocType         String?                  @map("permit_doc_type")
+  // The text read from a permit PDF (pdfjs), for the Permit Library's
+  // full-text search; `searchVector` is generated from it by the database.
+  extractedText         String?                  @map("extracted_text") @db.Text
+  searchVector          Unsupported("tsvector")? @map("search_vector")
+  createdAt             DateTime                 @default(now()) @map("created_at")
 
-  lead                Lead?                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  job                 Job?                   @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  expense             JobExpense?            @relation(fields: [expenseId], references: [id], onDelete: SetNull)
-  laborPaymentRequest LaborPaymentRequest?   @relation(fields: [laborPaymentRequestId], references: [id], onDelete: SetNull)
-  laborPayment        LaborPayment?          @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
-  permit              JobPermit?             @relation(fields: [permitId], references: [id], onDelete: SetNull)
-  uploadedBy          User                   @relation(fields: [uploadedByUserId], references: [id])
-  doorKnock           PropertyDoorKnock?     @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
-  task                Task?                  @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  violationCase       CodeViolationCase?     @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
-  violationItem       CodeViolationItem?     @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
+  lead                Lead?                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job                 Job?                       @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  expense             JobExpense?                @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  laborPaymentRequest LaborPaymentRequest?       @relation(fields: [laborPaymentRequestId], references: [id], onDelete: SetNull)
+  laborPayment        LaborPayment?              @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
+  permit              JobPermit?                 @relation(fields: [permitId], references: [id], onDelete: SetNull)
+  uploadedBy          User                       @relation(fields: [uploadedByUserId], references: [id])
+  doorKnock           PropertyDoorKnock?         @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
+  task                Task?                      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  violationCase       CodeViolationCase?         @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  violationItem       CodeViolationItem?         @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
   generatedDocuments  GeneratedDocument[]
   roofMeasurement     RoofMeasurement?
   planDocument        PlanDocument?
   bidSubmissions      BidSubmission[]
   permitSubmissions   PermitSubmissionFile[]
+  correctionNotices   PermitCorrectionNotice[]
+  correctionItemFiles PermitCorrectionItemFile[]
 
   @@index([leadId])
   @@index([jobId])
@@ -1154,6 +1165,7 @@ model File {
   @@index([laborPaymentRequestId])
   @@index([laborPaymentId])
   @@index([permitId])
+  @@index([searchVector], type: Gin)
   @@index([doorKnockId])
   @@index([taskId])
   @@index([violationCaseId])
@@ -1511,9 +1523,9 @@ model JobPermit {
   valuation         Decimal? @db.Decimal(12, 2)
   currentCycle      Int      @default(0) @map("current_cycle")
 
-  job                Job                   @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  assignedTo         User?                 @relation("PermitAssignedUser", fields: [assignedUserId], references: [id])
-  jurisdiction       Jurisdiction?         @relation(fields: [jurisdictionId], references: [id], onDelete: SetNull)
+  job                Job                      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  assignedTo         User?                    @relation("PermitAssignedUser", fields: [assignedUserId], references: [id])
+  jurisdiction       Jurisdiction?            @relation(fields: [jurisdictionId], references: [id], onDelete: SetNull)
   followUpExecutions FollowUpExecution[]
   inspections        JobPermitInspection[]
   parties            PermitParty[]
@@ -1521,6 +1533,9 @@ model JobPermit {
   submissions        PermitSubmission[]
   files              File[]
   tasks              Task[]
+  correctionNotices  PermitCorrectionNotice[]
+  correctionItems    PermitCorrectionItem[]
+  messages           PermitMessage[]
 
   @@index([jobId])
   @@index([status])
@@ -6012,10 +6027,12 @@ model PermitParty {
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
-  permit       JobPermit     @relation(fields: [permitId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  vendor       Vendor?       @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  permit          JobPermit              @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  organization    Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact         Contact?               @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  vendor          Vendor?                @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  correctionItems PermitCorrectionItem[]
+  messages        PermitMessage[]
 
   @@index([permitId])
   @@map("permit_parties")
@@ -6042,8 +6059,9 @@ model PermitReviewCycle {
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
-  permit     JobPermit         @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  permit     JobPermit                @relation(fields: [permitId], references: [id], onDelete: Cascade)
   submission PermitSubmission?
+  notices    PermitCorrectionNotice[]
 
   @@unique([permitId, number])
   @@map("permit_review_cycles")
@@ -6096,4 +6114,211 @@ model PermitSubmissionFile {
   @@id([submissionId, fileId])
   @@index([fileId])
   @@map("permit_submission_files")
+}
+
+// ─── Permit Intelligence, Stage 2: corrections ─────────────────────────────
+// A building department's correction notice (a letter, a marked-up set, text
+// pasted from the portal) is read by the AI into PROPOSED items; nothing the
+// model said counts until a person confirms the notice. Confirmed items become
+// tasks and the lines of the response letter. Sealed documents are never
+// altered here: an item is answered by a revised file linked to it.
+
+enum CorrectionNoticeSource {
+  UPLOAD
+  PASTE
+}
+
+enum CorrectionNoticeStatus {
+  // the AI is reading it
+  EXTRACTING
+  // items proposed, waiting on a person
+  REVIEW
+  CONFIRMED
+  // the reading failed; the notice can be read again or its items typed by hand
+  FAILED
+}
+
+enum CorrectionCategory {
+  ADMINISTRATIVE
+  TECHNICAL
+  ARCHITECTURAL
+  ENGINEERING
+  CONTRACTOR
+  ZONING
+  FEE
+  OTHER
+}
+
+enum CorrectionTarget {
+  FORM
+  PLAN_SHEET
+  PRODUCT_APPROVAL
+  SUPPORTING_DOCUMENT
+  FEE
+  SITE
+  OTHER
+}
+
+enum ResponsibleParty {
+  KNU
+  ARCHITECT
+  ENGINEER
+  OWNER
+  SUBCONTRACTOR
+  MANUFACTURER
+  MUNICIPALITY
+  OTHER
+}
+
+enum CorrectionStatus {
+  PROPOSED
+  OPEN
+  WAITING_THIRD_PARTY
+  RESOLVED
+  DISPUTED
+  WAIVED
+}
+
+enum CorrectionOutcome {
+  ACCEPTED
+  RECOMMENTED
+}
+
+model PermitCorrectionNotice {
+  id                String                 @id @default(cuid())
+  permitId          String                 @map("permit_id")
+  // The review cycle the department answered with corrections.
+  cycleId           String                 @map("cycle_id")
+  // The letter or marked-up set (a permit file of type correction_notice); null for a paste.
+  fileId            String?                @map("file_id")
+  source            CorrectionNoticeSource
+  receivedAt        DateTime               @map("received_at")
+  // Pasted text, kept as received.
+  rawText           String?                @map("raw_text") @db.Text
+  reviewerName      String?                @map("reviewer_name")
+  // When the corrected package is due back: the date the notice states, or one a person set.
+  responseDueAt     DateTime?              @map("response_due_at")
+  status            CorrectionNoticeStatus @default(EXTRACTING)
+  // The model's one-paragraph reading of the notice, shown above the items.
+  summary           String?                @db.Text
+  aiCallId          String?                @map("ai_call_id")
+  error             String?
+  attempts          Int                    @default(0)
+  extractStartedAt  DateTime?              @map("extract_started_at")
+  createdByUserId   String                 @map("created_by_user_id")
+  confirmedByUserId String?                @map("confirmed_by_user_id")
+  confirmedAt       DateTime?              @map("confirmed_at")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  permit      JobPermit              @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  cycle       PermitReviewCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  file        File?                  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  createdBy   User                   @relation("CorrectionNoticeCreatedBy", fields: [createdByUserId], references: [id])
+  confirmedBy User?                  @relation("CorrectionNoticeConfirmedBy", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
+  items       PermitCorrectionItem[]
+
+  @@index([permitId])
+  @@index([cycleId])
+  @@map("permit_correction_notices")
+}
+
+model PermitCorrectionItem {
+  id                 String             @id @default(cuid())
+  noticeId           String             @map("notice_id")
+  permitId           String             @map("permit_id")
+  sortOrder          Int                @default(0) @map("sort_order")
+  // "B-3", "Zoning 2" — the department's own number
+  reviewerItemNumber String?            @map("reviewer_item_number")
+  // "Building", "Structural", "Zoning", "Fire"
+  reviewerDiscipline String?            @map("reviewer_discipline")
+  // Verbatim from the notice.
+  text               String             @db.Text
+  sourcePage         Int?               @map("source_page")
+  category           CorrectionCategory @default(OTHER)
+  affects            CorrectionTarget   @default(OTHER)
+  // "A-2.1", "NOA 21-0412.03", "Owner authorization"
+  affectsRef         String?            @map("affects_ref")
+  responsibleParty   ResponsibleParty   @default(KNU)
+  partyId            String?            @map("party_id")
+  // The model's confidence; cleared once a person edits the row.
+  confidence         Float?
+  // True for a row the AI proposed (kept after edits, for the eval).
+  fromAi             Boolean            @default(false) @map("from_ai")
+  status             CorrectionStatus   @default(PROPOSED)
+  // The line for the response letter.
+  response           String?            @db.Text
+  dueAt              DateTime?          @map("due_at")
+  taskId             String?            @map("task_id")
+  resolvedAt         DateTime?          @map("resolved_at")
+  // The same comment made again on the next review.
+  previousItemId     String?            @map("previous_item_id")
+  // Set when the department's next review came back.
+  reviewOutcome      CorrectionOutcome? @map("review_outcome")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  notice       PermitCorrectionNotice     @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  permit       JobPermit                  @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  party        PermitParty?               @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  task         Task?                      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  previousItem PermitCorrectionItem?      @relation("CorrectionRepeat", fields: [previousItemId], references: [id], onDelete: SetNull)
+  repeats      PermitCorrectionItem[]     @relation("CorrectionRepeat")
+  files        PermitCorrectionItemFile[]
+
+  @@index([permitId, status])
+  @@index([noticeId])
+  @@map("permit_correction_items")
+}
+
+/// A revised document that answers an item.
+model PermitCorrectionItemFile {
+  itemId    String   @map("item_id")
+  fileId    String   @map("file_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  item PermitCorrectionItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  file File                 @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, fileId])
+  @@index([fileId])
+  @@map("permit_correction_item_files")
+}
+
+enum PermitMessageStatus {
+  DRAFT
+  SENT
+  DISCARDED
+}
+
+/// An email about a permit: an editable draft until a person sends it, then
+/// correspondence (a Communication on the job's lead).
+model PermitMessage {
+  id                String              @id @default(cuid())
+  permitId          String              @map("permit_id")
+  partyId           String?             @map("party_id")
+  toEmails          String[]            @map("to_emails")
+  ccEmails          String[]            @map("cc_emails")
+  subject           String
+  body              String              @db.Text
+  // "correction_request" | "resubmission_notice" | "status_inquiry" | "other"
+  purpose           String
+  correctionItemIds String[]            @map("correction_item_ids")
+  attachmentFileIds String[]            @map("attachment_file_ids")
+  status            PermitMessageStatus @default(DRAFT)
+  aiCallId          String?             @map("ai_call_id")
+  createdByUserId   String              @map("created_by_user_id")
+  sentByUserId      String?             @map("sent_by_user_id")
+  sentAt            DateTime?           @map("sent_at")
+  communicationId   String?             @map("communication_id")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  permit    JobPermit    @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  party     PermitParty? @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  createdBy User         @relation("PermitMessageCreatedBy", fields: [createdByUserId], references: [id])
+  sentBy    User?        @relation("PermitMessageSentBy", fields: [sentByUserId], references: [id], onDelete: SetNull)
+
+  @@index([permitId, status])
+  @@map("permit_messages")
 }

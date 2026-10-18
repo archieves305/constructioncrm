@@ -7,6 +7,7 @@ import { readFile, saveFile } from "@/lib/files/storage";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
 import { logger } from "@/lib/logger";
 import { updatePermit } from "@/lib/permits/service";
+import { onResubmitted } from "./corrections";
 import { PermitIntelError } from "./service";
 import { nextCycle, planManifest, type ManifestEntry } from "./submission-plan";
 import type { SubmissionInput } from "./validation";
@@ -118,6 +119,7 @@ export async function freezeSubmission(permitId: string, input: SubmissionInput,
   });
   // in review from today: the waiting clock, the alerts and the gates follow
   await updatePermit(permitId, { status: "APPLIED", submittedDate: submittedAt.toISOString() }, actor);
+  await onResubmitted(permitId, next.number, actor.id);
   return submission;
 }
 

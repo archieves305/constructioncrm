@@ -167,6 +167,11 @@ function FreezeForm({ detail, onClose }: { detail: PermitDetail; onClose: () => 
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
+        {detail.openCorrections > 0 && (
+          <Callout tone="warning" title={`${detail.openCorrections} correction${detail.openCorrections === 1 ? " is" : "s are"} still open`}>
+            Resolve or waive them on the Corrections tab, and include the response letter. You can still submit.
+          </Callout>
+        )}
         {gaps.length > 0 && (
           <Callout tone="warning" title="Not everything the checklist asks for is in the package">
             {gaps.map((g) => g.requirement.title).join(", ")}. You can still submit.

@@ -14,6 +14,7 @@ import { PermitEditor } from "@/components/permits/permit-editor";
 import { PermitInspections } from "@/components/permits/permit-inspections";
 import { expiryNotice, formatDay, PERMIT_STATUS_LABEL, PERMIT_STATUS_TONE, type AssignableUser } from "@/components/permits/shared";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
+import { PermitCorrections } from "@/components/permit-intel/corrections/permit-corrections";
 import { PermitCycles } from "@/components/permit-intel/permit-cycles";
 import { PermitDocuments } from "@/components/permit-intel/permit-documents";
 import { PermitParties } from "@/components/permit-intel/permit-parties";
@@ -24,7 +25,7 @@ import { jobLabel } from "@/lib/labels/job";
 import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 
-const TABS = ["overview", "documents", "parties", "submissions", "tasks", "inspections", "history"] as const;
+const TABS = ["overview", "documents", "parties", "submissions", "corrections", "tasks", "inspections", "history"] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -84,6 +85,7 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
           <TabsTrigger value="documents">Documents ({data.files.length})</TabsTrigger>
           <TabsTrigger value="parties">Parties ({permit.parties.length})</TabsTrigger>
           <TabsTrigger value="submissions">Submissions ({permit.cycles.length})</TabsTrigger>
+          <TabsTrigger value="corrections">Corrections{data.openCorrections ? ` (${data.openCorrections} open)` : ""}</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="inspections">Inspections ({permit.inspections.length})</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
@@ -99,6 +101,9 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
         </TabsContent>
         <TabsContent value="submissions" className="mt-4">
           <PermitCycles detail={data} />
+        </TabsContent>
+        <TabsContent value="corrections" className="mt-4">
+          <PermitCorrections detail={data} />
         </TabsContent>
         <TabsContent value="tasks" className="mt-4">
           <EntityTaskPanel context={{ permitId: permit.id, jobId: permit.jobId, label: title, href: `/permits/${permit.id}` }} invalidateKeys={[permitIntelKeys.permit(id)]} emptyText="No tasks on this permit." />
@@ -201,6 +206,20 @@ const ACTION_LABEL: Record<string, string> = {
   cycle_recorded: "Submission recorded",
   submission_freeze: "Package frozen as submitted",
   submission_download: "Package downloaded",
+  correction_notice_add: "Correction notice added",
+  correction_notice_update: "Correction notice edited",
+  correction_notice_delete: "Correction notice removed",
+  correction_notice_reread: "Correction notice read again",
+  correction_notice_confirm: "Corrections confirmed",
+  correction_item_add: "Correction added",
+  correction_item_update: "Correction updated",
+  correction_item_delete: "Proposed correction deleted",
+  correction_item_file_link: "Revised file linked to a correction",
+  correction_item_file_unlink: "Revised file unlinked",
+  correction_response_letter: "Response letter written",
+  permit_message_draft: "Email drafted",
+  permit_message_discard: "Email draft discarded",
+  permit_message_sent: "Email sent",
 };
 
 function describe(row: HistoryRow): string {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { ALLOWED_MIME, MAX_UPLOAD_BYTES, fileExists, saveFile } from "@/lib/files/storage";
@@ -6,6 +6,7 @@ import { canEditFile, fileReadWhere, permitLockOf } from "@/lib/files/access";
 import { contentMatchesType } from "@/lib/files/sniff";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
 import { recordAudit } from "@/lib/audit/record";
+import { indexPermitFileText } from "@/lib/permit-intel/library";
 
 /**
  * "Upload again": put a new file onto a record whose data is gone from the
@@ -43,7 +44,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const stored = await saveFile(buffer, file.name);
   const updated = await prisma.file.update({
     where: { id },
-    data: { storageKey: stored.storageKey, fileName: file.name, fileType: file.type, fileSize: stored.bytes },
+    // the text read from the old bytes no longer describes the file
+    data: { storageKey: stored.storageKey, fileName: file.name, fileType: file.type, fileSize: stored.bytes, extractedText: null },
     include: FILE_LIST_INCLUDE,
   });
   await recordAudit({
@@ -54,5 +56,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     before: { fileName: existing.fileName, fileType: existing.fileType, fileSize: existing.fileSize, storageKey: existing.storageKey },
     after: { fileName: updated.fileName, fileType: updated.fileType, fileSize: updated.fileSize, storageKey: stored.storageKey },
   });
+  if (updated.permitId && updated.fileType === "application/pdf") after(() => indexPermitFileText(id));
   return NextResponse.json((await presentFiles([updated]))[0]);
 }

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest, forbidden } from "@/lib/auth/helpers";
 import { recordTaskEvent } from "@/lib/tasks/events";
@@ -6,6 +6,7 @@ import { FileCategory } from "@/generated/prisma/client";
 import { saveFile, MAX_UPLOAD_BYTES, ALLOWED_MIME } from "@/lib/files/storage";
 import { contentMatchesType } from "@/lib/files/sniff";
 import { isPermitDocType } from "@/lib/permit-intel/doc-types";
+import { indexPermitFileText } from "@/lib/permit-intel/library";
 import { taskRightsFor } from "@/lib/workflows/visibility";
 import { fileReadWhere } from "@/lib/files/access";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
@@ -226,6 +227,8 @@ export async function POST(request: NextRequest) {
     },
     include: FILE_LIST_INCLUDE,
   });
+  // a permit PDF's text is read once, after the answer, for the Permit Library's search
+  if (permitId && file.type === "application/pdf") after(() => indexPermitFileText(record.id));
   if (taskId) {
     await recordTaskEvent({ taskId, actorUserId: session.user.id, type: "EVIDENCE_ATTACHED", toValue: record.id, body: record.fileName });
   }
