@@ -27,6 +27,21 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+00000000000. 🔴 **AI Permit Intelligence** — plan approved 2026-10-18
+   (`~/.claude/plans/reactive-tickling-pony.md`); full design in
+   `CAREYOS_PERMIT_INTELLIGENCE_DESIGN.md` (repo root). Stages: 0 shared AI
+   layer · 1 permit record (jurisdictions, parties, cycles, frozen submissions,
+   `/permits/[id]`) · 2 corrections (AI extraction → confirmed items → tasks,
+   drafts, response letter) · 3 AcroForm filling (pdf-lib) · 4 product
+   approvals (FL PA / NOA) · 5 preflight · 6 lessons + metrics. Prod had 3
+   permits, so history is captured as structured records first; no vector
+   search. **`ANTHROPIC_API_KEY` placed on prod 2026-10-18** (`/etc/knuco/env`,
+   200 from the droplet; not yet read by deployed code). **Stage 0 built +
+   dev-QA'd 2026-10-18 on `permit-ai-foundation`, not deployed**: `src/lib/ai`
+   (`runAiCall`, caps per subject + per month, untrusted-document framing,
+   pricing), `AiCall` (migration `20261031120000_ai_calls`), Admin → AI Usage.
+   Open rulings in the design doc §19. Notes:
+   [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
    2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
    `CAREYOS_GC_PARTNERSHIPS_IMPLEMENTATION_PLAN.md`, build-ready spec in
@@ -484,6 +499,30 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-18 — AI Permit Intelligence: plan, design, prod AI key, Stage 0 (built + dev-QA'd on `permit-ai-foundation`, not deployed)
+
+Richard pasted a 12-phase brief for an AI permit module (forms, NOAs,
+preflight, corrections, knowledge base, dashboard). Read-only prod check: 3
+permits ever (three jurisdictions), 0 inspections, no AI key → plan to extend
+`JobPermit` / tasks / files / vault / `Organization` and capture structured
+history before any vector search; approved. Design written to
+`CAREYOS_PERMIT_INTELLIGENCE_DESIGN.md` (schema, routes, UI, prompts, risks,
+10 decisions). Richard pasted the Anthropic key; it answered 200, his own `!`
+run wrote the literal placeholder `<KEY>`, and at his request the session
+replaced that line with the real key (one line, file `knuco:knuco 600`, copy
+`/etc/knuco/env.bak-20261018-ai`; no restart — nothing deployed reads it).
+**Stage 0:** `@anthropic-ai/sdk ^0.132.1`; `src/lib/ai/*` lifted from
+takeoff-m3 and generalised to a polymorphic subject; `AiCall`; caps
+`AI_MAX_USD_PER_SUBJECT` / `AI_MONTHLY_MAX_USD`; `UNTRUSTED_RULE` on every
+system prompt and `untrustedDocument` framing (QA caught that `</ document`
+still read as a closing tag — the bracket is escaped now); server fallback
+only for Opus / Sonnet / Fable; `GET /api/admin/ai-usage` + Admin → AI Usage.
+The queue change was moved to Stage 2. Gate: typecheck clean, lint 5/22, 1746
+tests (+16), build clean. Dev QA: real Haiku + Opus calls ($0.0044 total, a
+planted instruction ignored, repeat cached), headless Chromium at 1280 / 400
+px, SALES_REP 403. **Deploy carries a migration.** takeoff-m3 must switch to
+`runAiCall` before it deploys (feature doc).
 
 ### 2026-10-16 — Completion photos on crew payments + a "Project photos" folder (built + dev-QA'd on `payment-photos`, on `main`, not deployed)
 
@@ -2846,6 +2885,9 @@ lives outside the app folder; unset = `./uploads`),
 `MAILERSEND_INBOUND_SECRET` (signing secret of the MailerSend inbound route
 that forwards bid invitations; unset = `/api/integrations/mailersend/inbound`
 503s, pasting on Bid intake still works),
+`ANTHROPIC_API_KEY` (shared AI layer `src/lib/ai`; unset = every AI action
+503s "AI is not set up"), `AI_MODEL` (default `claude-opus-5-5`),
+`AI_MAX_USD_PER_SUBJECT` (default `5`), `AI_MONTHLY_MAX_USD` (default `100`),
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
 `ZYLOW_API_KEY`, `ZYLOW_API_BASE`, `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`,
 `NURTURE_ENABLED` (default `0`; `1` after SPF — the DB switch under
@@ -3072,11 +3114,24 @@ Notification Digests).
   labor payment or pays a crew with a contract on the job; Cost
   Reconciliation → Crew payments decides. Never delete the bank row — it is
   cc-allocator's record.
+- **Every model call goes through `runAiCall`** (`src/lib/ai/calls.ts`): it is
+  recorded as an `AiCall`, held to the per-subject and monthly caps, has no
+  tools, and must match a zod schema. Document text goes in through
+  `untrustedDocument`. What the model returns is a proposal a person confirms —
+  never a status change, a sent message, a licence number or a signature.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **AI Permit Intelligence Stage 0 (shared AI layer) is built + dev-QA'd on
+> `permit-ai-foundation`, not merged, not deployed. Deploy carries migration
+> `20261031120000_ai_calls`.** Merge: `git switch main && git merge --ff-only
+> permit-ai-foundation`; Richard pushes and deploys from `!`. After it: Admin →
+> AI Usage shows "configured" and $0. Next build: **Stage 1** (permit record,
+> no AI) per the design doc — and the §19 rulings (Palm Beach name, statuses,
+> approver roles, sample forms and correction letters).
 
 > **GC Partnerships Phase 8a (prequalification package) is on `main`, not
 > deployed (no migration; `npm ci` picks up `fflate`).** After Richard's push +

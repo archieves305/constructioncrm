@@ -400,18 +400,18 @@ model User {
   // unsubscribe link — but a user who mutes here stops receiving it. The
   // pressure valve exists so nobody resorts to a mail-client filter, which
   // would be invisible to us and would swallow genuinely urgent assignments.
-  taskEmailsEnabled       Boolean      @default(true) @map("task_emails_enabled")
+  taskEmailsEnabled       Boolean                @default(true) @map("task_emails_enabled")
   // Sub-channels under the master switch above. All three are moot when it
   // is off; each can be muted alone when it is on.
-  escalationEmailsEnabled Boolean      @default(true) @map("escalation_emails_enabled")
-  reminderDigestEnabled   Boolean      @default(true) @map("reminder_digest_enabled")
-  nudgeEmailsEnabled      Boolean      @default(true) @map("nudge_emails_enabled")
+  escalationEmailsEnabled Boolean                @default(true) @map("escalation_emails_enabled")
+  reminderDigestEnabled   Boolean                @default(true) @map("reminder_digest_enabled")
+  nudgeEmailsEnabled      Boolean                @default(true) @map("nudge_emails_enabled")
   // What the jobs/leads lists and boards open on; every page has a Mine/All
   // toggle that writes back here. Floored roles (SALES_REP, CREW_LEAD) are
   // pinned to their own rows server-side whatever this says.
-  defaultListScope        ListScope    @default(MINE) @map("default_list_scope")
-  boardDensity            BoardDensity @default(COMFORTABLE) @map("board_density")
-  defaultCalendarView     CalendarView @default(WEEK) @map("default_calendar_view")
+  defaultListScope        ListScope              @default(MINE) @map("default_list_scope")
+  boardDensity            BoardDensity           @default(COMFORTABLE) @map("board_density")
+  defaultCalendarView     CalendarView           @default(WEEK) @map("default_calendar_view")
   // Notifications v2 (see docs/project-memory/features/notifications.md).
   // DIGEST is the default for everyone; IMMEDIATE is the legacy one-mail-
   // per-event behaviour as an explicit opt-in; IN_APP_ONLY keeps the bell.
@@ -464,8 +464,8 @@ model User {
   prospectsAssigned                 Prospect[]                @relation("ProspectAssignedTo")
   laborContractsCreated             LaborContract[]
   laborPaymentsCreated              LaborPayment[]
-  laborPaymentRequests              LaborPaymentRequest[] @relation("LaborPaymentRequester")
-  laborContractTasksAssigned        LaborContractTask[]   @relation("LaborContractTaskAssignee")
+  laborPaymentRequests              LaborPaymentRequest[]     @relation("LaborPaymentRequester")
+  laborContractTasksAssigned        LaborContractTask[]       @relation("LaborContractTaskAssignee")
   laborChangeOrdersCreated          LaborChangeOrder[]
   changeOrdersCreated               ChangeOrder[]
   generatedDocuments                GeneratedDocument[]
@@ -494,6 +494,7 @@ model User {
   planDocumentsUploaded             PlanDocument[]            @relation("PlanDocumentUploadedBy")
   planSheetsCorrected               PlanSheet[]               @relation("PlanSheetCorrectedBy")
   planJobsRequested                 PlanJob[]                 @relation("PlanJobRequestedBy")
+  aiCallsRequested                  AiCall[]                  @relation("AiCallRequestedBy")
   planSheetsCalibrated              PlanSheet[]               @relation("PlanSheetCalibratedBy")
   takeoffsCreated                   Takeoff[]                 @relation("TakeoffCreatedBy")
   takeoffMeasurementsCreated        TakeoffMeasurement[]      @relation("TakeoffMeasurementCreatedBy")
@@ -511,7 +512,7 @@ model User {
   qualificationsCreated             Qualification[]           @relation("QualificationCreatedBy")
   bidsCreated                       BidInvitation[]           @relation("BidCreatedBy")
   bidsDecided                       BidInvitation[]           @relation("BidDecidedBy")
-  bidIntakesResolved BidIntake[] @relation("BidIntakeResolvedBy")
+  bidIntakesResolved                BidIntake[]               @relation("BidIntakeResolvedBy")
   bidsEstimating                    BidInvitation[]           @relation("BidEstimator")
   bidSubmissionsMade                BidSubmission[]           @relation("BidSubmittedBy")
   roofMaterialPricesCreated         RoofMaterialPrice[]       @relation("RoofMaterialPriceCreatedBy")
@@ -580,10 +581,10 @@ model ServiceCategory {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  parent            ServiceCategory?                  @relation("ServiceHierarchy", fields: [parentId], references: [id])
-  children          ServiceCategory[]                 @relation("ServiceHierarchy")
-  leadServices      LeadService[]
-  workflowTemplates WorkflowTemplateServiceCategory[]
+  parent             ServiceCategory?                  @relation("ServiceHierarchy", fields: [parentId], references: [id])
+  children           ServiceCategory[]                 @relation("ServiceHierarchy")
+  leadServices       LeadService[]
+  workflowTemplates  WorkflowTemplateServiceCategory[]
   organizationTrades OrganizationTrade[]
 
   @@map("service_categories")
@@ -654,10 +655,10 @@ model Lead {
   createdAt              DateTime     @default(now()) @map("created_at")
   updatedAt              DateTime     @updatedAt @map("updated_at")
 
-  source       LeadSource? @relation(fields: [sourceId], references: [id])
-  assignedUser User?       @relation("AssignedUser", fields: [assignedUserId], references: [id])
-  currentStage LeadStage   @relation(fields: [currentStageId], references: [id])
-  createdBy    User        @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+  source       LeadSource?   @relation(fields: [sourceId], references: [id])
+  assignedUser User?         @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  currentStage LeadStage     @relation(fields: [currentStageId], references: [id])
+  createdBy    User          @relation("CreatedByUser", fields: [createdByUserId], references: [id])
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
@@ -853,31 +854,31 @@ model Task {
   inspectionResult      PermitInspectionResult? @map("inspection_result")
   inspectionRecordedAt  DateTime?               @map("inspection_recorded_at")
 
-  lead          Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  job           Job?               @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  estimate      Estimate?          @relation(fields: [estimateId], references: [id], onDelete: SetNull)
-  invoice       Invoice?           @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  prospect      Prospect?          @relation(fields: [prospectId], references: [id], onDelete: SetNull)
-  dailyLog      DailyLog?          @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
-  vendor        Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  violationCase CodeViolationCase? @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
-  violationItem CodeViolationItem? @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
-  organization  Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  assignedTo    User?              @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
-  createdBy     User               @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
-  completedBy   User?              @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
-  remindSetBy   User?              @relation("TaskRemindSetBy", fields: [remindSetByUserId], references: [id])
-  fieldIssue    FieldIssue?
+  lead                Lead?                @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  job                 Job?                 @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  estimate            Estimate?            @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+  invoice             Invoice?             @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  prospect            Prospect?            @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  dailyLog            DailyLog?            @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  vendor              Vendor?              @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  violationCase       CodeViolationCase?   @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  violationItem       CodeViolationItem?   @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
+  organization        Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  assignedTo          User?                @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
+  createdBy           User                 @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
+  completedBy         User?                @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
+  remindSetBy         User?                @relation("TaskRemindSetBy", fields: [remindSetByUserId], references: [id])
+  fieldIssue          FieldIssue?
   laborPaymentRequest LaborPaymentRequest? @relation("LaborPaymentRequestLink")
   laborContractTask   LaborContractTask?   @relation("LaborContractTaskLink")
-  events        TaskEvent[]
-  watchers      TaskWatcher[]
+  events              TaskEvent[]
+  watchers            TaskWatcher[]
 
-  workflowInstance JobWorkflowInstance? @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
-  dependencies     TaskDependency[]     @relation("TaskDependencyTask")
-  dependents       TaskDependency[]     @relation("TaskDependencyOn")
-  files            File[]
-  notificationRows Notification[]
+  workflowInstance  JobWorkflowInstance?  @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
+  dependencies      TaskDependency[]      @relation("TaskDependencyTask")
+  dependents        TaskDependency[]      @relation("TaskDependencyOn")
+  files             File[]
+  notificationRows  Notification[]
   permitInspections JobPermitInspection[] @relation("PermitInspectionTask")
 
   @@unique([workflowInstanceId, workflowTaskKey])
@@ -1078,56 +1079,56 @@ model PermitLookupRun {
 // ─── Files ──────────────────────────────────────────────────────────────────
 
 model File {
-  id               String       @id @default(cuid())
+  id                    String       @id @default(cuid())
   // Null only for a file on a task that has no lead (a task raised with no job).
-  leadId           String?      @map("lead_id")
+  leadId                String?      @map("lead_id")
   // The job the file belongs to. Null = a lead document (an estimate,
   // something uploaded before the job existed): it shows on the lead, and on
   // the lead's jobs in a group of its own. Anything written for something on
   // a job sets this.
-  jobId            String?      @map("job_id")
-  fileName         String       @map("file_name")
-  fileType         String       @map("file_type")
-  storageKey       String       @map("storage_key")
-  fileSize         Int          @map("file_size")
-  category         FileCategory @default(OTHER)
-  uploadedByUserId String       @map("uploaded_by_user_id")
-  doorKnockId      String?      @map("door_knock_id")
+  jobId                 String?      @map("job_id")
+  fileName              String       @map("file_name")
+  fileType              String       @map("file_type")
+  storageKey            String       @map("storage_key")
+  fileSize              Int          @map("file_size")
+  category              FileCategory @default(OTHER)
+  uploadedByUserId      String       @map("uploaded_by_user_id")
+  doorKnockId           String?      @map("door_knock_id")
   // A file on a task (workflow evidence or an ordinary attachment). leadId is
   // copied from the task when it has one, so the lead's Files tab lists it.
-  taskId           String?      @map("task_id")
+  taskId                String?      @map("task_id")
   // Documents and photos on a code-violation case / item. leadId is copied
   // from the case, so the lead's Files tab lists them.
-  violationCaseId  String?      @map("violation_case_id")
-  violationItemId  String?      @map("violation_item_id")
+  violationCaseId       String?      @map("violation_case_id")
+  violationItemId       String?      @map("violation_item_id")
   // A receipt on a job expense. The file also carries the expense's job, so
   // it stays on the job's Files tab if the expense is deleted.
-  expenseId        String?      @map("expense_id")
+  expenseId             String?      @map("expense_id")
   // Completion photos on a crew payment request, and on the crew payment
   // itself (a request's photos are stamped with the payment once it is
   // recorded). The file carries the contract's job, so it is on the job's
   // Files tab and in its photos too.
-  laborPaymentRequestId String? @map("labor_payment_request_id")
-  laborPaymentId   String?      @map("labor_payment_id")
+  laborPaymentRequestId String?      @map("labor_payment_request_id")
+  laborPaymentId        String?      @map("labor_payment_id")
   // When the photo was taken, read from the camera's EXIF on upload. Null when
   // the image carried no date (screenshots, edited copies, PDFs).
-  takenAt          DateTime?    @map("taken_at")
-  createdAt        DateTime     @default(now()) @map("created_at")
+  takenAt               DateTime?    @map("taken_at")
+  createdAt             DateTime     @default(now()) @map("created_at")
 
-  lead               Lead?               @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  job                Job?                @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  expense            JobExpense?         @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  lead                Lead?                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job                 Job?                 @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  expense             JobExpense?          @relation(fields: [expenseId], references: [id], onDelete: SetNull)
   laborPaymentRequest LaborPaymentRequest? @relation(fields: [laborPaymentRequestId], references: [id], onDelete: SetNull)
-  laborPayment       LaborPayment?       @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
-  uploadedBy         User                @relation(fields: [uploadedByUserId], references: [id])
-  doorKnock          PropertyDoorKnock?  @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
-  task               Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  violationCase      CodeViolationCase?  @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
-  violationItem      CodeViolationItem?  @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
-  generatedDocuments GeneratedDocument[]
-  roofMeasurement    RoofMeasurement?
-  planDocument       PlanDocument?
-  bidSubmissions     BidSubmission[]
+  laborPayment        LaborPayment?        @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
+  uploadedBy          User                 @relation(fields: [uploadedByUserId], references: [id])
+  doorKnock           PropertyDoorKnock?   @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
+  task                Task?                @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  violationCase       CodeViolationCase?   @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  violationItem       CodeViolationItem?   @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
+  generatedDocuments  GeneratedDocument[]
+  roofMeasurement     RoofMeasurement?
+  planDocument        PlanDocument?
+  bidSubmissions      BidSubmission[]
 
   @@index([leadId])
   @@index([jobId])
@@ -1343,56 +1344,56 @@ model JobTaskTemplate {
 }
 
 model Job {
-  id                    String          @id @default(cuid())
-  leadId                String          @map("lead_id")
-  jobNumber             String          @unique @map("job_number")
-  title                 String
-  serviceType           String          @map("service_type")
-  jobType               JobType         @default(FIXED_PRICE) @map("job_type")
-  laborCost             Decimal?        @map("labor_cost") @db.Decimal(12, 2)
-  marginType            MarginType?     @map("margin_type")
-  marginValue           Decimal?        @map("margin_value") @db.Decimal(12, 2)
-  contractAmount        Decimal         @map("contract_amount") @db.Decimal(12, 2)
+  id                     String          @id @default(cuid())
+  leadId                 String          @map("lead_id")
+  jobNumber              String          @unique @map("job_number")
+  title                  String
+  serviceType            String          @map("service_type")
+  jobType                JobType         @default(FIXED_PRICE) @map("job_type")
+  laborCost              Decimal?        @map("labor_cost") @db.Decimal(12, 2)
+  marginType             MarginType?     @map("margin_type")
+  marginValue            Decimal?        @map("margin_value") @db.Decimal(12, 2)
+  contractAmount         Decimal         @map("contract_amount") @db.Decimal(12, 2)
   // The signed base, before change orders and billable add-ons. Set when a
   // customer contract is signed; null until then (the cost summary derives it).
-  originalContractAmount Decimal?       @map("original_contract_amount") @db.Decimal(12, 2)
-  depositRequired       Decimal         @default(0) @map("deposit_required") @db.Decimal(12, 2)
-  depositReceived       Decimal         @default(0) @map("deposit_received") @db.Decimal(12, 2)
-  depositReceivedDate   DateTime?       @map("deposit_received_date")
-  financingRequired     Boolean         @default(false) @map("financing_required")
-  financingProvider     String?         @map("financing_provider")
-  financingStatus       FinancingStatus @default(NOT_NEEDED) @map("financing_status")
-  financingApprovedDate DateTime?       @map("financing_approved_date")
-  balanceDue            Decimal         @default(0) @map("balance_due") @db.Decimal(12, 2)
+  originalContractAmount Decimal?        @map("original_contract_amount") @db.Decimal(12, 2)
+  depositRequired        Decimal         @default(0) @map("deposit_required") @db.Decimal(12, 2)
+  depositReceived        Decimal         @default(0) @map("deposit_received") @db.Decimal(12, 2)
+  depositReceivedDate    DateTime?       @map("deposit_received_date")
+  financingRequired      Boolean         @default(false) @map("financing_required")
+  financingProvider      String?         @map("financing_provider")
+  financingStatus        FinancingStatus @default(NOT_NEEDED) @map("financing_status")
+  financingApprovedDate  DateTime?       @map("financing_approved_date")
+  balanceDue             Decimal         @default(0) @map("balance_due") @db.Decimal(12, 2)
   // Progress billing (see BillingMethod). retainagePercent is the job-level
   // rate; each application snapshots the rate it was issued under.
-  billingMethod         BillingMethod   @default(LUMP_SUM) @map("billing_method")
-  retainagePercent      Decimal         @default(0) @map("retainage_percent") @db.Decimal(5, 2)
-  finalPaymentReceived  Boolean         @default(false) @map("final_payment_received")
-  finalPaymentDate      DateTime?       @map("final_payment_date")
-  projectManagerId      String?         @map("project_manager_id")
-  salesRepId            String?         @map("sales_rep_id")
-  currentStageId        String          @map("current_stage_id")
-  nextAction            String?         @map("next_action")
-  targetStartDate       DateTime?       @map("target_start_date")
-  scheduledDate         DateTime?       @map("scheduled_date")
-  completionDate        DateTime?       @map("completion_date")
-  isRentalTurnover      Boolean         @default(false) @map("is_rental_turnover")
-  priorTenantName       String?         @map("prior_tenant_name")
-  turnoverStartedAt     DateTime?       @map("turnover_started_at")
-  turnoverCompletedAt   DateTime?       @map("turnover_completed_at")
+  billingMethod          BillingMethod   @default(LUMP_SUM) @map("billing_method")
+  retainagePercent       Decimal         @default(0) @map("retainage_percent") @db.Decimal(5, 2)
+  finalPaymentReceived   Boolean         @default(false) @map("final_payment_received")
+  finalPaymentDate       DateTime?       @map("final_payment_date")
+  projectManagerId       String?         @map("project_manager_id")
+  salesRepId             String?         @map("sales_rep_id")
+  currentStageId         String          @map("current_stage_id")
+  nextAction             String?         @map("next_action")
+  targetStartDate        DateTime?       @map("target_start_date")
+  scheduledDate          DateTime?       @map("scheduled_date")
+  completionDate         DateTime?       @map("completion_date")
+  isRentalTurnover       Boolean         @default(false) @map("is_rental_turnover")
+  priorTenantName        String?         @map("prior_tenant_name")
+  turnoverStartedAt      DateTime?       @map("turnover_started_at")
+  turnoverCompletedAt    DateTime?       @map("turnover_completed_at")
   // Jobsite coordinates for weather autofill; geocoded once from the lead
   // address, or set manually by ADMIN/MANAGER.
-  latitude              Decimal?        @db.Decimal(10, 7)
-  longitude             Decimal?        @db.Decimal(10, 7)
+  latitude               Decimal?        @db.Decimal(10, 7)
+  longitude              Decimal?        @db.Decimal(10, 7)
   // Approved daily reports auto-email their cost-free PDF to these addresses
   // (owner, GC, super…). Office-managed on the job's Daily Logs tab.
-  dailyReportRecipients String[]        @default([]) @map("daily_report_recipients")
+  dailyReportRecipients  String[]        @default([]) @map("daily_report_recipients")
   // Permitting authority ("City of Boston ISD"). Free text; set from the
   // Apply Workflow dialog or the job header.
-  jurisdiction          String?
-  createdAt             DateTime        @default(now()) @map("created_at")
-  updatedAt             DateTime        @updatedAt @map("updated_at")
+  jurisdiction           String?
+  createdAt              DateTime        @default(now()) @map("created_at")
+  updatedAt              DateTime        @updatedAt @map("updated_at")
 
   lead           Lead     @relation(fields: [leadId], references: [id])
   currentStage   JobStage @relation(fields: [currentStageId], references: [id])
@@ -1503,7 +1504,7 @@ model JobPermitInspection {
 
   /// The workflow inspection step this result was recorded against, so the
   /// permit's record and the step's are one entry, not two.
-  taskId        String?                @map("task_id")
+  taskId String? @map("task_id")
 
   permit             JobPermit           @relation(fields: [permitId], references: [id], onDelete: Cascade)
   task               Task?               @relation("PermitInspectionTask", fields: [taskId], references: [id], onDelete: SetNull)
@@ -1662,10 +1663,10 @@ model Commitment {
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
-  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  vendor     Vendor      @relation(fields: [vendorId], references: [id])
-  budgetLine BudgetLine? @relation(fields: [budgetLineId], references: [id], onDelete: SetNull)
-  createdBy  User        @relation("CommitmentCreatedBy", fields: [createdByUserId], references: [id])
+  job        Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  vendor     Vendor       @relation(fields: [vendorId], references: [id])
+  budgetLine BudgetLine?  @relation(fields: [budgetLineId], references: [id], onDelete: SetNull)
+  createdBy  User         @relation("CommitmentCreatedBy", fields: [createdByUserId], references: [id])
   expenses   JobExpense[]
 
   @@unique([jobId, number])
@@ -1729,10 +1730,10 @@ model LaborContract {
   createdAt               DateTime  @default(now()) @map("created_at")
   updatedAt               DateTime  @updatedAt @map("updated_at")
 
-  job                  Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  crew                 Crew?               @relation(fields: [crewId], references: [id])
+  job                  Job                   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  crew                 Crew?                 @relation(fields: [crewId], references: [id])
   vendor               Vendor?               @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  createdBy            User                @relation(fields: [createdByUserId], references: [id])
+  createdBy            User                  @relation(fields: [createdByUserId], references: [id])
   payments             LaborPayment[]
   changeOrders         LaborChangeOrder[]
   customerChangeOrders ChangeOrder[]
@@ -1934,11 +1935,11 @@ model LaborPayment {
   createdByUserId String         @map("created_by_user_id")
   createdAt       DateTime       @default(now()) @map("created_at")
 
-  laborContract LaborContract        @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
-  createdBy     User                 @relation(fields: [createdByUserId], references: [id])
-  request       LaborPaymentRequest?
+  laborContract   LaborContract        @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
+  createdBy       User                 @relation(fields: [createdByUserId], references: [id])
+  request         LaborPaymentRequest?
   coveredExpenses JobExpense[]
-  photos        File[]
+  photos          File[]
 
   @@index([laborContractId])
   @@map("labor_payments")
@@ -2064,36 +2065,36 @@ enum ExpenseStatus {
 }
 
 model JobExpense {
-  id               String         @id @default(cuid())
-  jobId            String         @map("job_id")
-  type             JobExpenseType @default(OTHER)
+  id                      String         @id @default(cuid())
+  jobId                   String         @map("job_id")
+  type                    JobExpenseType @default(OTHER)
   // The payee as it arrived (typed, or the bank memo). `vendorId` is the match.
-  vendor           String?
-  vendorId         String?        @map("vendor_id")
+  vendor                  String?
+  vendorId                String?        @map("vendor_id")
   // The commitment this expense draws down, if any.
-  commitmentId     String?        @map("commitment_id")
-  description      String?        @db.Text
-  amount           Decimal        @db.Decimal(12, 2)
-  incurredDate     DateTime       @default(now()) @map("incurred_date")
-  paidMethod       PaymentMethod? @map("paid_method")
-  paidFrom         String?        @map("paid_from")
-  billable         Boolean        @default(false)
-  createdByUserId  String         @map("created_by_user_id")
+  commitmentId            String?        @map("commitment_id")
+  description             String?        @db.Text
+  amount                  Decimal        @db.Decimal(12, 2)
+  incurredDate            DateTime       @default(now()) @map("incurred_date")
+  paidMethod              PaymentMethod? @map("paid_method")
+  paidFrom                String?        @map("paid_from")
+  billable                Boolean        @default(false)
+  createdByUserId         String         @map("created_by_user_id")
   // Idempotency key for upstream integrations (cc-allocator sends txn.id).
   // Nullable so manually-created expenses are unaffected.
-  externalId       String?        @unique @map("external_id")
+  externalId              String?        @unique @map("external_id")
   // Set when this expense was posted automatically by a payroll payment;
   // such expenses are excluded from cost-plus contract rollups (the labor
   // cost already flows through the field-labor stream until paid).
-  payrollPaymentId String?        @map("payroll_payment_id")
+  payrollPaymentId        String?        @map("payroll_payment_id")
   // Set when this charge is the same money as a payment already recorded on a
   // crew's labor contract (lib/expenses/labor-cover.ts). Such a row is
   // REJECTED — the labor payment carries the cost — and never moves money.
-  coveredByLaborPaymentId String?   @map("covered_by_labor_payment_id")
+  coveredByLaborPaymentId String?        @map("covered_by_labor_payment_id")
   // A person confirmed it is a cost of its own, not a crew payment counted twice.
-  laborClearedAt   DateTime?      @map("labor_cleared_at")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+  laborClearedAt          DateTime?      @map("labor_cleared_at")
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
 
   status           ExpenseStatus @default(APPROVED)
   approvedByUserId String?       @map("approved_by_user_id")
@@ -2103,15 +2104,15 @@ model JobExpense {
   /// a real cost someone needs to re-file.
   reviewNote       String?       @map("review_note") @db.Text
 
-  job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  createdBy         User               @relation(fields: [createdByUserId], references: [id])
-  approvedBy        User?              @relation("ExpenseApprovedBy", fields: [approvedByUserId], references: [id])
-  payrollPayment    PayrollPayment?    @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
-  vendorRecord      Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  commitment        Commitment?        @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
-  coveredByLaborPayment LaborPayment?  @relation(fields: [coveredByLaborPaymentId], references: [id], onDelete: SetNull)
-  receipts          File[]
-  budgetAllocations BudgetAllocation[]
+  job                   Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdBy             User               @relation(fields: [createdByUserId], references: [id])
+  approvedBy            User?              @relation("ExpenseApprovedBy", fields: [approvedByUserId], references: [id])
+  payrollPayment        PayrollPayment?    @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
+  vendorRecord          Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  commitment            Commitment?        @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+  coveredByLaborPayment LaborPayment?      @relation(fields: [coveredByLaborPaymentId], references: [id], onDelete: SetNull)
+  receipts              File[]
+  budgetAllocations     BudgetAllocation[]
 
   @@index([jobId])
   @@index([type])
@@ -2746,20 +2747,20 @@ model RoofRule {
 /// One thing the company buys for roofs. `category` is what ties it to a
 /// takeoff rule ("Shingles", "Drip Edge"); `roofType` null = any roof.
 model RoofMaterialItem {
-  id           String   @id @default(cuid())
-  category     String
-  name         String
-  sku          String?
+  id          String   @id @default(cuid())
+  category    String
+  name        String
+  sku         String?
   // SHINGLE | TILE | METAL; null = used on any roof type.
-  roofType     String?  @map("roof_type")
-  unitType     String   @map("unit_type")
-  vendorId     String?  @map("vendor_id")
+  roofType    String?  @map("roof_type")
+  unitType    String   @map("unit_type")
+  vendorId    String?  @map("vendor_id")
   // The one the takeoff uses when several items share a category and roof type.
-  isPreferred  Boolean  @default(false) @map("is_preferred")
-  isActive     Boolean  @default(true) @map("is_active")
-  notes        String?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  isPreferred Boolean  @default(false) @map("is_preferred")
+  isActive    Boolean  @default(true) @map("is_active")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   vendor Vendor?             @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   prices RoofMaterialPrice[]
@@ -4123,17 +4124,17 @@ model CodeViolationCase {
   createdBy   User  @relation("ViolationCaseCreatedBy", fields: [createdByUserId], references: [id])
   closedBy    User? @relation("ViolationCaseClosedBy", fields: [closedByUserId], references: [id])
 
-  workflow       JobWorkflowInstance?
-  items          CodeViolationItem[]
-  hearings       CodeViolationHearing[]
-  inspections    CodeViolationInspection[]
-  extensions     CodeViolationExtension[]
-  fineEntries    CodeViolationFineEntry[]
-  events         CodeViolationEvent[]
-  reminderLogs   CodeViolationReminderLog[]
-  tasks          Task[]
-  files          File[]
-  communications Communication[]
+  workflow         JobWorkflowInstance?
+  items            CodeViolationItem[]
+  hearings         CodeViolationHearing[]
+  inspections      CodeViolationInspection[]
+  extensions       CodeViolationExtension[]
+  fineEntries      CodeViolationFineEntry[]
+  events           CodeViolationEvent[]
+  reminderLogs     CodeViolationReminderLog[]
+  tasks            Task[]
+  files            File[]
+  communications   Communication[]
   notificationRows Notification[]
 
   @@index([leadId])
@@ -4564,50 +4565,50 @@ enum DigestStatus {
 }
 
 model Notification {
-  id                 String                @id @default(cuid())
-  recipientUserId    String                @map("recipient_user_id")
-  actorUserId        String?               @map("actor_user_id")
+  id                 String               @id @default(cuid())
+  recipientUserId    String               @map("recipient_user_id")
+  actorUserId        String?              @map("actor_user_id")
   kind               String
   category           NotificationCategory
   // assignee | assignor | watcher | mentioned | manager | owner | actor | reminder-setter
-  recipientReason    String                @map("recipient_reason")
+  recipientReason    String               @map("recipient_reason")
   // The fine subject: task, job, lead, violation_case, violation_item,
   // case_inspection, case_hearing, daily_log, contract, none.
-  subjectType        String                @map("subject_type")
-  subjectId          String?               @map("subject_id")
-  taskId             String?               @map("task_id")
-  jobId              String?               @map("job_id")
-  leadId             String?               @map("lead_id")
-  violationCaseId    String?               @map("violation_case_id")
+  subjectType        String               @map("subject_type")
+  subjectId          String?              @map("subject_id")
+  taskId             String?              @map("task_id")
+  jobId              String?              @map("job_id")
+  leadId             String?              @map("lead_id")
+  violationCaseId    String?              @map("violation_case_id")
   title              String
-  body               String?               @db.Text
+  body               String?              @db.Text
   // Office path (no host). Role-specific links are resolved at render time.
   href               String
-  priority           Priority              @default(MEDIUM)
-  actionRequired     Boolean               @default(false) @map("action_required")
+  priority           Priority             @default(MEDIUM)
+  actionRequired     Boolean              @default(false) @map("action_required")
   // {blocking, emergency, severity, dueAt, taskPriority, inspectionResult, ...}
   signals            Json?
   // Rows born from one engine run (an apply, an activation sweep, a role
   // back-fill) share a key so the digest can collapse them to one line.
-  batchKey           String?               @map("batch_key")
-  dedupeKey          String                @map("dedupe_key")
-  occurrences        Int                   @default(1)
-  lastOccurredAt     DateTime              @default(now()) @map("last_occurred_at")
-  deliveryClass      DeliveryClass         @map("delivery_class")
-  classifyReason     String                @map("classify_reason")
-  demotedFrom        DeliveryClass?        @map("demoted_from")
-  demotedReason      String?               @map("demoted_reason")
+  batchKey           String?              @map("batch_key")
+  dedupeKey          String               @map("dedupe_key")
+  occurrences        Int                  @default(1)
+  lastOccurredAt     DateTime             @default(now()) @map("last_occurred_at")
+  deliveryClass      DeliveryClass        @map("delivery_class")
+  classifyReason     String               @map("classify_reason")
+  demotedFrom        DeliveryClass?       @map("demoted_from")
+  demotedReason      String?              @map("demoted_reason")
   // "YYYY-MM-DD:HH:MM" in the company time zone; DIGEST rows only.
-  scheduledWindowKey String?               @map("scheduled_window_key")
-  state              NotificationState     @default(PENDING)
-  digestId           String?               @map("digest_id")
-  attempts           Int                   @default(0)
-  lastError          String?               @map("last_error")
-  emailedAt          DateTime?             @map("emailed_at")
-  providerMessageId  String?               @map("provider_message_id")
-  readAt             DateTime?             @map("read_at")
-  createdAt          DateTime              @default(now()) @map("created_at")
-  updatedAt          DateTime              @updatedAt @map("updated_at")
+  scheduledWindowKey String?              @map("scheduled_window_key")
+  state              NotificationState    @default(PENDING)
+  digestId           String?              @map("digest_id")
+  attempts           Int                  @default(0)
+  lastError          String?              @map("last_error")
+  emailedAt          DateTime?            @map("emailed_at")
+  providerMessageId  String?              @map("provider_message_id")
+  readAt             DateTime?            @map("read_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
 
   recipient     User                @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
   task          Task?               @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -4912,14 +4913,14 @@ model PlanSheet {
 
   // What the page holds. A page with almost no text and no drawn lines is a scan:
   // nothing automatic runs on it, a person calibrates and measures by hand.
-  isRaster       Boolean @default(false) @map("is_raster")
-  textItemCount  Int     @default(0) @map("text_item_count")
-  segmentCount   Int     @default(0) @map("segment_count")
+  isRaster      Boolean @default(false) @map("is_raster")
+  textItemCount Int     @default(0) @map("text_item_count")
+  segmentCount  Int     @default(0) @map("segment_count")
   // Storage keys (under UPLOADS_DIR) of the page's extracted text, geometry and renders.
-  textKey        String? @map("text_key")
-  geometryKey    String? @map("geometry_key")
-  renderKey72    String? @map("render_key_72")
-  renderKey144   String? @map("render_key_144")
+  textKey       String? @map("text_key")
+  geometryKey   String? @map("geometry_key")
+  renderKey72   String? @map("render_key_72")
+  renderKey144  String? @map("render_key_144")
 
   // Calibration in force: PDF points per real foot. AUTO = the printed scale, not yet
   // confirmed; AUTO_VERIFIED = agrees with the drawn dimensions; MANUAL = two clicks and a distance.
@@ -4936,11 +4937,11 @@ model PlanSheet {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  planDocument PlanDocument @relation(fields: [planDocumentId], references: [id], onDelete: Cascade)
-  correctedBy  User?        @relation("PlanSheetCorrectedBy", fields: [indexCorrectedByUserId], references: [id])
-  calibratedBy User?        @relation("PlanSheetCalibratedBy", fields: [calibratedByUserId], references: [id])
-  supersededBy PlanSheet?   @relation("SheetSupersedes", fields: [supersededBySheetId], references: [id], onDelete: SetNull)
-  supersedes   PlanSheet[]  @relation("SheetSupersedes")
+  planDocument  PlanDocument         @relation(fields: [planDocumentId], references: [id], onDelete: Cascade)
+  correctedBy   User?                @relation("PlanSheetCorrectedBy", fields: [indexCorrectedByUserId], references: [id])
+  calibratedBy  User?                @relation("PlanSheetCalibratedBy", fields: [calibratedByUserId], references: [id])
+  supersededBy  PlanSheet?           @relation("SheetSupersedes", fields: [supersededBySheetId], references: [id], onDelete: SetNull)
+  supersedes    PlanSheet[]          @relation("SheetSupersedes")
   takeoffSheets TakeoffSheet[]
   measurements  TakeoffMeasurement[]
 
@@ -5050,25 +5051,25 @@ enum TakeoffConfidence {
 }
 
 model Takeoff {
-  id                String         @id @default(cuid())
+  id                String               @id @default(cuid())
   // "TK-0007": a sequence, never reused (a supplier will quote against it).
-  number            String         @unique
-  leadId            String         @map("lead_id")
-  jobId             String?        @map("job_id")
-  planSetId         String         @map("plan_set_id")
+  number            String               @unique
+  leadId            String               @map("lead_id")
+  jobId             String?              @map("job_id")
+  planSetId         String               @map("plan_set_id")
   trade             TakeoffTrade
-  status            TakeoffStatus  @default(DRAFT)
+  status            TakeoffStatus        @default(DRAFT)
   // The documents the takeoff was built from; stale once the set has others.
-  pinnedDocumentIds Json           @map("pinned_document_ids")
+  pinnedDocumentIds Json                 @map("pinned_document_ids")
   // Specifications read from the plans or chosen by a person (M3+).
   specs             Json?
   specsReviewStatus TakeoffReviewStatus? @map("specs_review_status")
   settings          Json?
-  createdByUserId   String         @map("created_by_user_id")
-  approvedByUserId  String?        @map("approved_by_user_id")
-  approvedAt        DateTime?      @map("approved_at")
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
+  createdByUserId   String               @map("created_by_user_id")
+  approvedByUserId  String?              @map("approved_by_user_id")
+  approvedAt        DateTime?            @map("approved_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
 
   lead         Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
   job          Job?                 @relation(fields: [jobId], references: [id], onDelete: SetNull)
@@ -5099,36 +5100,36 @@ model TakeoffSheet {
 }
 
 model TakeoffMeasurement {
-  id          String            @id @default(cuid())
-  takeoffId   String            @map("takeoff_id")
-  planSheetId String            @map("plan_sheet_id")
-  kind        MeasurementKind
+  id               String              @id @default(cuid())
+  takeoffId        String              @map("takeoff_id")
+  planSheetId      String              @map("plan_sheet_id")
+  kind             MeasurementKind
   // What the engine reads: "roof.flatArea", "roof.parapet", "roof.drain", "pipe.san.3", "fixture.WC" …
-  metricKey   String            @map("metric_key")
-  label       String
+  metricKey        String              @map("metric_key")
+  label            String
   // { system, sizeIn, material, assemblyId, fixtureTag, slope … }
-  attributes  Json?
+  attributes       Json?
   // { points: [{x,y}…] } in sheet points; a COUNT holds one point.
-  geometry    Json
+  geometry         Json
   // The calibration the value was computed with. Null for a COUNT.
-  ptPerFt     Float?            @map("pt_per_ft")
+  ptPerFt          Float?              @map("pt_per_ft")
   // Feet, square feet or a count — computed by code, never by a model.
-  valueRaw    Float             @map("value_raw")
+  valueRaw         Float               @map("value_raw")
   // "LF" | "SF" | "EA"
-  unit        String
+  unit             String
   // The first replaced value, when a person changed what was measured.
-  previousValue Float?          @map("previous_value")
-  origin      MeasurementOrigin
-  confidence  TakeoffConfidence
-  confidenceScore Float?        @map("confidence_score")
-  reviewStatus TakeoffReviewStatus @default(AI_GENERATED) @map("review_status")
+  previousValue    Float?              @map("previous_value")
+  origin           MeasurementOrigin
+  confidence       TakeoffConfidence
+  confidenceScore  Float?              @map("confidence_score")
+  reviewStatus     TakeoffReviewStatus @default(AI_GENERATED) @map("review_status")
   // { sourceText, textItemIds, chainIds, snapped, summary, aiCallId } — never a prompt or reasoning.
-  evidence    Json?
-  reviewedByUserId String?      @map("reviewed_by_user_id")
-  reviewedAt  DateTime?         @map("reviewed_at")
-  createdByUserId String?       @map("created_by_user_id")
-  createdAt   DateTime          @default(now()) @map("created_at")
-  updatedAt   DateTime          @updatedAt @map("updated_at")
+  evidence         Json?
+  reviewedByUserId String?             @map("reviewed_by_user_id")
+  reviewedAt       DateTime?           @map("reviewed_at")
+  createdByUserId  String?             @map("created_by_user_id")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
 
   takeoff    Takeoff   @relation(fields: [takeoffId], references: [id], onDelete: Cascade)
   planSheet  PlanSheet @relation(fields: [planSheetId], references: [id], onDelete: Restrict)
@@ -5274,12 +5275,12 @@ model Organization {
   createdAt              DateTime              @default(now()) @map("created_at")
   updatedAt              DateTime              @updatedAt @map("updated_at")
 
-  owner        User?   @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  createdBy    User    @relation("OrganizationCreatedBy", fields: [createdByUserId], references: [id])
-  vendor       Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  trades       OrganizationTrade[]
-  contacts     Contact[]
-  interactions Interaction[]
+  owner          User?                 @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy      User                  @relation("OrganizationCreatedBy", fields: [createdByUserId], references: [id])
+  vendor         Vendor?               @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  trades         OrganizationTrade[]
+  contacts       Contact[]
+  interactions   Interaction[]
   stageHistory   PartnerStageHistory[]
   qualifications Qualification[]
   leads          Lead[]
@@ -5330,12 +5331,12 @@ model Contact {
   createdAt            DateTime    @default(now()) @map("created_at")
   updatedAt            DateTime    @updatedAt @map("updated_at")
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy    User          @relation("ContactCreatedBy", fields: [createdByUserId], references: [id])
-  interactions Interaction[]
-  leads        Lead[]
-  bidInvitations BidInvitation[]
-  bidIntakes     BidIntake[]
+  organization        Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy           User            @relation("ContactCreatedBy", fields: [createdByUserId], references: [id])
+  interactions        Interaction[]
+  leads               Lead[]
+  bidInvitations      BidInvitation[]
+  bidIntakes          BidIntake[]
   submissionsReceived BidSubmission[] @relation("BidSubmissionRecipient")
 
   @@index([organizationId])
@@ -5390,45 +5391,45 @@ model PartnerStageHistory {
 
 // Singleton (id "default"): follow-up thresholds, the fallback owner, markets.
 model PartnerSettings {
-  id                 String   @id @default("default")
+  id                         String   @id @default("default")
   // Working days a TARGET may sit with no interaction before its owner is nudged.
-  newTargetDays      Int      @default(5) @map("new_target_days")
+  newTargetDays              Int      @default(5) @map("new_target_days")
   // Days an unanswered outbound touch waits before a follow-up task.
-  noResponseDays     Int      @default(7) @map("no_response_days")
+  noResponseDays             Int      @default(7) @map("no_response_days")
   // Days a submitted qualification waits before "check status" (Stage 2).
-  qualSubmittedDays  Int      @default(14) @map("qual_submitted_days")
+  qualSubmittedDays          Int      @default(14) @map("qual_submitted_days")
   // Days a prequalified account may go without bid activity (Stage 2/3).
-  prequalNoBidDays   Int      @default(30) @map("prequal_no_bid_days")
+  prequalNoBidDays           Int      @default(30) @map("prequal_no_bid_days")
   // Days an ACTIVE partner may go quiet before a check-in task.
-  activeQuietDays    Int      @default(60) @map("active_quiet_days")
+  activeQuietDays            Int      @default(60) @map("active_quiet_days")
   // No interaction for this long caps the health score (Stage 4).
-  dormantAfterDays   Int      @default(180) @map("dormant_after_days")
-  defaultOwnerUserId String?  @map("default_owner_user_id")
-  markets            String[] @default([])
+  dormantAfterDays           Int      @default(180) @map("dormant_after_days")
+  defaultOwnerUserId         String?  @map("default_owner_user_id")
+  markets                    String[] @default([])
   // Who gets the vault's expiry tasks (else the Accounting default, else the oldest admin).
-  vaultOwnerUserId   String?  @map("vault_owner_user_id")
+  vaultOwnerUserId           String?  @map("vault_owner_user_id")
   // CompanyDocumentType keys a new qualification starts with.
   defaultRequirementTypeKeys String[] @default([]) @map("default_requirement_type_keys")
   // ── Bid / no-bid scoring (lib/partners/bid-score.ts) ───────────────────
   // Weights as JSON (zod-validated, DEFAULT_BID_WEIGHTS when null); the
   // version is snapshotted into every decision so a later edit never
   // rewrites history.
-  scoreWeights       Json?    @map("score_weights")
-  scoreWeightsVersion Int     @default(1) @map("score_weights_version")
+  scoreWeights               Json?    @map("score_weights")
+  scoreWeightsVersion        Int      @default(1) @map("score_weights_version")
   // ServiceCategory ids KNU bids; counties it calls home / can reach.
-  ourTradeIds        String[] @default([]) @map("our_trade_ids")
-  homeCounties       String[] @default([]) @map("home_counties")
-  adjacentCounties   String[] @default([]) @map("adjacent_counties")
+  ourTradeIds                String[] @default([]) @map("our_trade_ids")
+  homeCounties               String[] @default([]) @map("home_counties")
+  adjacentCounties           String[] @default([]) @map("adjacent_counties")
   // { [serviceCategoryId]: { min, max } } — the contract size KNU is built for, per trade.
-  typicalRange       Json?    @map("typical_range")
-  bondingCapacity    Decimal? @map("bonding_capacity") @db.Decimal(12, 2)
+  typicalRange               Json?    @map("typical_range")
+  bondingCapacity            Decimal? @map("bonding_capacity") @db.Decimal(12, 2)
   // ── Relationship health + scorecard (lib/partners/health.ts) ───────────
-  healthWeights        Json?   @map("health_weights")
-  healthWeightsVersion Int     @default(1) @map("health_weights_version")
+  healthWeights              Json?    @map("health_weights")
+  healthWeightsVersion       Int      @default(1) @map("health_weights_version")
   // "Preferred": at least this many awards at this projected margin or better.
-  preferredMinAwards   Int     @default(2) @map("preferred_min_awards")
-  preferredMinMargin   Decimal @default(0.20) @map("preferred_min_margin") @db.Decimal(5, 4)
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  preferredMinAwards         Int      @default(2) @map("preferred_min_awards")
+  preferredMinMargin         Decimal  @default(0.20) @map("preferred_min_margin") @db.Decimal(5, 4)
+  updatedAt                  DateTime @updatedAt @map("updated_at")
 
   defaultOwner User? @relation("PartnerDefaultOwner", fields: [defaultOwnerUserId], references: [id], onDelete: SetNull)
   vaultOwner   User? @relation("PartnerVaultOwner", fields: [vaultOwnerUserId], references: [id], onDelete: SetNull)
@@ -5468,7 +5469,7 @@ model CompanyDocumentType {
   id                    String   @id @default(cuid())
   key                   String   @unique
   name                  String
-  category              String   // insurance | licensing | safety | financial | company
+  category              String // insurance | licensing | safety | financial | company
   defaultValidityMonths Int?     @map("default_validity_months")
   isActive              Boolean  @default(true) @map("is_active")
   sortOrder             Int      @default(0) @map("sort_order")
@@ -5505,10 +5506,10 @@ model CompanyDocument {
   createdAt           DateTime                @default(now()) @map("created_at")
   updatedAt           DateTime                @updatedAt @map("updated_at")
 
-  documentType CompanyDocumentType @relation(fields: [documentTypeId], references: [id])
-  supersedes   CompanyDocument?    @relation("DocVersions", fields: [supersedesId], references: [id], onDelete: SetNull)
-  newer        CompanyDocument[]   @relation("DocVersions")
-  uploadedBy   User                @relation("CompanyDocumentUploadedBy", fields: [uploadedByUserId], references: [id])
+  documentType CompanyDocumentType        @relation(fields: [documentTypeId], references: [id])
+  supersedes   CompanyDocument?           @relation("DocVersions", fields: [supersedesId], references: [id], onDelete: SetNull)
+  newer        CompanyDocument[]          @relation("DocVersions")
+  uploadedBy   User                       @relation("CompanyDocumentUploadedBy", fields: [uploadedByUserId], references: [id])
   requirements QualificationRequirement[]
 
   @@unique([documentTypeId, version])
@@ -5535,9 +5536,9 @@ model Qualification {
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  owner        User?        @relation("QualificationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  createdBy    User         @relation("QualificationCreatedBy", fields: [createdByUserId], references: [id])
+  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?                      @relation("QualificationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy    User                       @relation("QualificationCreatedBy", fields: [createdByUserId], references: [id])
   requirements QualificationRequirement[]
 
   @@index([organizationId, status])
@@ -5640,67 +5641,67 @@ enum BidSubmissionMethod {
 }
 
 model BidInvitation {
-  id                 String        @id @default(cuid())
-  leadId             String        @unique @map("lead_id")
-  organizationId     String        @map("organization_id")
-  contactId          String?       @map("contact_id")
-  number             String        @unique                       // BID-00001 from bid_invitation_number_seq
-  projectName        String        @map("project_name")
-  projectType        String?       @map("project_type")
-  scopeSummary       String?       @map("scope_summary") @db.Text
-  invitedAt          DateTime?     @map("invited_at")
-  bidDueAt           DateTime?     @map("bid_due_at")
-  siteWalkAt         DateTime?     @map("site_walk_at")
-  preBidMeetingAt    DateTime?     @map("pre_bid_meeting_at")
-  rfiDueAt           DateTime?     @map("rfi_due_at")
-  addendaDeadlineAt  DateTime?     @map("addenda_deadline_at")
-  interviewAt        DateTime?     @map("interview_at")
-  expectedAwardAt    DateTime?     @map("expected_award_at")
-  addendaCount       Int           @default(0) @map("addenda_count")
-  specsReceived      Boolean       @default(false) @map("specs_received")
-  estimatorUserId    String?       @map("estimator_user_id")
-  siteVisitRequired  Boolean       @default(false) @map("site_visit_required")
-  bondRequired       Boolean       @default(false) @map("bond_required")
-  prevailingWage     Boolean       @default(false) @map("prevailing_wage")
-  unionRequired      Boolean       @default(false) @map("union_required")
-  insuranceNotes     String?       @map("insurance_notes") @db.Text
-  scheduleNotes      String?       @map("schedule_notes") @db.Text
-  platform           BidPlatform   @default(EMAIL)
-  platformUrl        String?       @map("platform_url")
-  platformRef        String?       @map("platform_ref")
-  status             BidStatus     @default(INVITED)
+  id                 String         @id @default(cuid())
+  leadId             String         @unique @map("lead_id")
+  organizationId     String         @map("organization_id")
+  contactId          String?        @map("contact_id")
+  number             String         @unique // BID-00001 from bid_invitation_number_seq
+  projectName        String         @map("project_name")
+  projectType        String?        @map("project_type")
+  scopeSummary       String?        @map("scope_summary") @db.Text
+  invitedAt          DateTime?      @map("invited_at")
+  bidDueAt           DateTime?      @map("bid_due_at")
+  siteWalkAt         DateTime?      @map("site_walk_at")
+  preBidMeetingAt    DateTime?      @map("pre_bid_meeting_at")
+  rfiDueAt           DateTime?      @map("rfi_due_at")
+  addendaDeadlineAt  DateTime?      @map("addenda_deadline_at")
+  interviewAt        DateTime?      @map("interview_at")
+  expectedAwardAt    DateTime?      @map("expected_award_at")
+  addendaCount       Int            @default(0) @map("addenda_count")
+  specsReceived      Boolean        @default(false) @map("specs_received")
+  estimatorUserId    String?        @map("estimator_user_id")
+  siteVisitRequired  Boolean        @default(false) @map("site_visit_required")
+  bondRequired       Boolean        @default(false) @map("bond_required")
+  prevailingWage     Boolean        @default(false) @map("prevailing_wage")
+  unionRequired      Boolean        @default(false) @map("union_required")
+  insuranceNotes     String?        @map("insurance_notes") @db.Text
+  scheduleNotes      String?        @map("schedule_notes") @db.Text
+  platform           BidPlatform    @default(EMAIL)
+  platformUrl        String?        @map("platform_url")
+  platformRef        String?        @map("platform_ref")
+  status             BidStatus      @default(INVITED)
   // "supplier quote", "sub pricing" — a note while ESTIMATING, never a state.
-  waitingOn          String?       @map("waiting_on")
-  decision           BidDecision   @default(UNDECIDED)
-  decisionScore      Int?          @map("decision_score")            // CHECK 0..100
+  waitingOn          String?        @map("waiting_on")
+  decision           BidDecision    @default(UNDECIDED)
+  decisionScore      Int?           @map("decision_score") // CHECK 0..100
   // { weightsVersion, inputs, breakdown, reasons, concerns, gates, recommendation }
-  decisionFactors    Json?         @map("decision_factors")
-  decisionReason     String?       @map("decision_reason") @db.Text
-  decidedByUserId    String?       @map("decided_by_user_id")
-  decidedAt          DateTime?     @map("decided_at")
-  submittedAt        DateTime?     @map("submitted_at")
-  estimatingHours    Decimal?      @map("estimating_hours") @db.Decimal(6, 1)
+  decisionFactors    Json?          @map("decision_factors")
+  decisionReason     String?        @map("decision_reason") @db.Text
+  decidedByUserId    String?        @map("decided_by_user_id")
+  decidedAt          DateTime?      @map("decided_at")
+  submittedAt        DateTime?      @map("submitted_at")
+  estimatingHours    Decimal?       @map("estimating_hours") @db.Decimal(6, 1)
   outcome            BidOutcome?
   lossReason         BidLossReason? @map("loss_reason")
-  winningContractor  String?       @map("winning_contractor")
-  winningPrice       Decimal?      @map("winning_price") @db.Decimal(12, 2)
-  outcomeNotes       String?       @map("outcome_notes") @db.Text
-  outcomeAt          DateTime?     @map("outcome_at")
-  awardedAmount      Decimal?      @map("awarded_amount") @db.Decimal(12, 2)
-  contractReceivedAt DateTime?     @map("contract_received_at")
+  winningContractor  String?        @map("winning_contractor")
+  winningPrice       Decimal?       @map("winning_price") @db.Decimal(12, 2)
+  outcomeNotes       String?        @map("outcome_notes") @db.Text
+  outcomeAt          DateTime?      @map("outcome_at")
+  awardedAmount      Decimal?       @map("awarded_amount") @db.Decimal(12, 2)
+  contractReceivedAt DateTime?      @map("contract_received_at")
   // Set by an automated intake (Phase 5/6) until a person confirms it.
-  needsReview        Boolean       @default(false) @map("needs_review")
-  signalSource       String?       @map("signal_source")
-  createdByUserId    String        @map("created_by_user_id")
-  createdAt          DateTime      @default(now()) @map("created_at")
-  updatedAt          DateTime      @updatedAt @map("updated_at")
+  needsReview        Boolean        @default(false) @map("needs_review")
+  signalSource       String?        @map("signal_source")
+  createdByUserId    String         @map("created_by_user_id")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
 
-  lead         Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  organization Organization  @relation(fields: [organizationId], references: [id])
-  contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  estimator    User?         @relation("BidEstimator", fields: [estimatorUserId], references: [id], onDelete: SetNull)
-  decidedBy    User?         @relation("BidDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
-  createdBy    User          @relation("BidCreatedBy", fields: [createdByUserId], references: [id])
+  lead         Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  contact      Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  estimator    User?           @relation("BidEstimator", fields: [estimatorUserId], references: [id], onDelete: SetNull)
+  decidedBy    User?           @relation("BidDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  createdBy    User            @relation("BidCreatedBy", fields: [createdByUserId], references: [id])
   submissions  BidSubmission[]
   intakes      BidIntake[]
 
@@ -5724,30 +5725,30 @@ enum BidIntakeStatus {
 model BidIntake {
   id                  String          @id @default(cuid())
   inboundEmailEventId String          @unique @map("inbound_email_event_id")
-  channel             String                                              // manual | mailersend | outlook
+  channel             String // manual | mailersend | outlook
   receivedAt          DateTime        @map("received_at")
-  forwardedBy         String?         @map("forwarded_by")                // the outer sender's address
+  forwardedBy         String?         @map("forwarded_by") // the outer sender's address
   subject             String
   platform            BidPlatform     @default(EMAIL)
   // ParsedItb from src/lib/partners/itb-parse.ts, as read on arrival.
   parsed              Json
   organizationId      String?         @map("organization_id")
   contactId           String?         @map("contact_id")
-  matchedBy           String?         @map("matched_by")                  // contact email | email domain | name | person
-  existingBidId       String?         @map("existing_bid_id")             // the reader's suggestion
+  matchedBy           String?         @map("matched_by") // contact email | email domain | name | person
+  existingBidId       String?         @map("existing_bid_id") // the reader's suggestion
   status              BidIntakeStatus @default(NEW)
-  bidInvitationId     String?         @map("bid_invitation_id")           // what it became (CREATED / ATTACHED)
+  bidInvitationId     String?         @map("bid_invitation_id") // what it became (CREATED / ATTACHED)
   dismissReason       String?         @map("dismiss_reason")
   resolvedByUserId    String?         @map("resolved_by_user_id")
   resolvedAt          DateTime?       @map("resolved_at")
   createdAt           DateTime        @default(now()) @map("created_at")
   updatedAt           DateTime        @updatedAt @map("updated_at")
 
-  email          InboundEmailEvent @relation(fields: [inboundEmailEventId], references: [id], onDelete: Cascade)
-  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  contact        Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  bidInvitation  BidInvitation?    @relation(fields: [bidInvitationId], references: [id], onDelete: SetNull)
-  resolvedBy     User?             @relation("BidIntakeResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  email         InboundEmailEvent @relation(fields: [inboundEmailEventId], references: [id], onDelete: Cascade)
+  organization  Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact       Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  bidInvitation BidInvitation?    @relation(fields: [bidInvitationId], references: [id], onDelete: SetNull)
+  resolvedBy    User?             @relation("BidIntakeResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([status, receivedAt])
   @@index([organizationId])
@@ -5758,11 +5759,11 @@ model BidIntake {
 model BidSubmission {
   id                   String              @id @default(cuid())
   bidInvitationId      String              @map("bid_invitation_id")
-  version              Int                                                   // CHECK >= 1
+  version              Int // CHECK >= 1
   kind                 BidSubmissionKind   @default(ORIGINAL)
   amount               Decimal             @db.Decimal(12, 2)
   estimateId           String?             @map("estimate_id")
-  roofEstimateId       String?             @map("roof_estimate_id")        // CHECK at most one source
+  roofEstimateId       String?             @map("roof_estimate_id") // CHECK at most one source
   snapshotTotalPrice   Decimal?            @map("snapshot_total_price") @db.Decimal(12, 2)
   snapshotSubtotalCost Decimal?            @map("snapshot_subtotal_cost") @db.Decimal(12, 2)
   submittedAt          DateTime            @map("submitted_at")
@@ -5784,4 +5785,43 @@ model BidSubmission {
 
   @@unique([bidInvitationId, version])
   @@map("bid_submissions")
+}
+
+// ─── Shared AI layer (Stage 0 of Permit Intelligence) ────────────────────────
+
+enum AiCallStatus {
+  OK
+  FAILED
+}
+
+/// One call to the model, recorded whichever way it ended (src/lib/ai/calls.ts).
+/// The subject is polymorphic and carries no foreign key: a permit, a
+/// correction notice, a takeoff… Only the parsed output and the counts are
+/// stored — never the prompt, the document or any reasoning.
+model AiCall {
+  id                String       @id @default(cuid())
+  // "permit" | "permit_file" | "correction_notice" | "form_template" | "product_approval" | "preflight" | "takeoff"
+  subjectType       String       @map("subject_type")
+  subjectId         String       @map("subject_id")
+  purpose           String
+  promptVersion     String       @map("prompt_version")
+  model             String
+  inputHash         String       @map("input_hash")
+  status            AiCallStatus @default(OK)
+  inputTokens       Int          @default(0) @map("input_tokens")
+  outputTokens      Int          @default(0) @map("output_tokens")
+  cacheReadTokens   Int          @default(0) @map("cache_read_tokens")
+  cacheWriteTokens  Int          @default(0) @map("cache_write_tokens")
+  costUsd           Float        @default(0) @map("cost_usd")
+  durationMs        Int          @default(0) @map("duration_ms")
+  output            Json?
+  error             String?
+  requestedByUserId String?      @map("requested_by_user_id")
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  requestedBy User? @relation("AiCallRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([subjectType, subjectId, purpose, inputHash])
+  @@index([createdAt])
+  @@map("ai_calls")
 }

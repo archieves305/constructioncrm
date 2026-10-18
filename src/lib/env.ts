@@ -126,6 +126,16 @@ const schema = z.object({
   // when the key is unset. Base defaults to the public v1 path.
   ZYLOW_API_KEY: z.string().optional(),
   ZYLOW_API_BASE: z.string().url().default("https://zylow.net/api/public"),
+
+  // Anthropic, through the shared AI layer (src/lib/ai). Optional at boot:
+  // every AI action answers 503 "AI is not set up" without it and the manual
+  // paths keep working. AI_MODEL is the default model; a purpose may name a
+  // cheaper one. The two caps stop spending per subject (one permit, one
+  // notice…) and per calendar month across the whole app.
+  ANTHROPIC_API_KEY: z.string().optional(),
+  AI_MODEL: z.string().default("claude-opus-5-5"),
+  AI_MAX_USD_PER_SUBJECT: z.coerce.number().positive().default(5),
+  AI_MONTHLY_MAX_USD: z.coerce.number().positive().default(100),
 });
 
 const parsed = schema.safeParse(process.env);
