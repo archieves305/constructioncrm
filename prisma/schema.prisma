@@ -316,7 +316,11 @@ enum DoorKnockStopStatus {
 }
 
 enum PermitStatus {
+  // Not yet submitted: the package is being put together (Permit Intelligence).
+  PREPARING
   APPLIED
+  // The building department asked for corrections; the clock is on KNU.
+  CORRECTIONS
   ISSUED
   IN_PROGRESS
   FINAL
@@ -495,6 +499,9 @@ model User {
   planSheetsCorrected               PlanSheet[]               @relation("PlanSheetCorrectedBy")
   planJobsRequested                 PlanJob[]                 @relation("PlanJobRequestedBy")
   aiCallsRequested                  AiCall[]                  @relation("AiCallRequestedBy")
+  permitSubmissions                 PermitSubmission[]        @relation("PermitSubmissionBy")
+  permitKnowledgeCreated            PermitKnowledge[]         @relation("PermitKnowledgeCreatedBy")
+  permitKnowledgeDecided            PermitKnowledge[]         @relation("PermitKnowledgeDecidedBy")
   planSheetsCalibrated              PlanSheet[]               @relation("PlanSheetCalibratedBy")
   takeoffsCreated                   Takeoff[]                 @relation("TakeoffCreatedBy")
   takeoffMeasurementsCreated        TakeoffMeasurement[]      @relation("TakeoffMeasurementCreatedBy")
@@ -775,6 +782,8 @@ model Task {
   violationItemId String?    @map("violation_item_id")
   // A strategic account (Business Development): a follow-up on a GC relationship.
   organizationId  String?    @map("organization_id")
+  // A permit's follow-up (Permit Intelligence); the task carries the permit's job too.
+  permitId        String?    @map("permit_id")
   title           String
   description     String?    @db.Text
   assignedUserId  String?    @map("assigned_user_id")
@@ -864,6 +873,7 @@ model Task {
   violationCase       CodeViolationCase?   @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
   violationItem       CodeViolationItem?   @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
   organization        Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  permit              JobPermit?           @relation(fields: [permitId], references: [id], onDelete: SetNull)
   assignedTo          User?                @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
   createdBy           User                 @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
   completedBy         User?                @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
@@ -890,6 +900,7 @@ model Task {
   @@index([status])
   @@index([leadId])
   @@index([jobId])
+  @@index([permitId])
   @@index([estimateId])
   @@index([invoiceId])
   @@index([prospectId])
@@ -1113,28 +1124,36 @@ model File {
   // When the photo was taken, read from the camera's EXIF on upload. Null when
   // the image carried no date (screenshots, edited copies, PDFs).
   takenAt               DateTime?    @map("taken_at")
+  // A permit's document (Permit Intelligence): the permit, and its type from
+  // the code list in lib/permit-intel/doc-types.ts. The file also carries the
+  // permit's job and lead, so it shows on the job's Files tab.
+  permitId              String?      @map("permit_id")
+  permitDocType         String?      @map("permit_doc_type")
   createdAt             DateTime     @default(now()) @map("created_at")
 
-  lead                Lead?                @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  job                 Job?                 @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  expense             JobExpense?          @relation(fields: [expenseId], references: [id], onDelete: SetNull)
-  laborPaymentRequest LaborPaymentRequest? @relation(fields: [laborPaymentRequestId], references: [id], onDelete: SetNull)
-  laborPayment        LaborPayment?        @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
-  uploadedBy          User                 @relation(fields: [uploadedByUserId], references: [id])
-  doorKnock           PropertyDoorKnock?   @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
-  task                Task?                @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  violationCase       CodeViolationCase?   @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
-  violationItem       CodeViolationItem?   @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
+  lead                Lead?                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job                 Job?                   @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  expense             JobExpense?            @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  laborPaymentRequest LaborPaymentRequest?   @relation(fields: [laborPaymentRequestId], references: [id], onDelete: SetNull)
+  laborPayment        LaborPayment?          @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
+  permit              JobPermit?             @relation(fields: [permitId], references: [id], onDelete: SetNull)
+  uploadedBy          User                   @relation(fields: [uploadedByUserId], references: [id])
+  doorKnock           PropertyDoorKnock?     @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
+  task                Task?                  @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  violationCase       CodeViolationCase?     @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  violationItem       CodeViolationItem?     @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
   generatedDocuments  GeneratedDocument[]
   roofMeasurement     RoofMeasurement?
   planDocument        PlanDocument?
   bidSubmissions      BidSubmission[]
+  permitSubmissions   PermitSubmissionFile[]
 
   @@index([leadId])
   @@index([jobId])
   @@index([expenseId])
   @@index([laborPaymentRequestId])
   @@index([laborPaymentId])
+  @@index([permitId])
   @@index([doorKnockId])
   @@index([taskId])
   @@index([violationCaseId])
@@ -1480,13 +1499,32 @@ model JobPermit {
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
 
+  // Permit Intelligence. `municipality` stays the text on file; the
+  // jurisdiction record is the structured one. `permitNumber` is the issued
+  // number; `applicationNumber` the one the department gives a submission.
+  // `submittedDate` is the latest submission (the review clock); the first is
+  // cycle 1's.
+  jurisdictionId    String?  @map("jurisdiction_id")
+  permitTypeKey     String?  @map("permit_type_key")
+  applicationNumber String?  @map("application_number")
+  scopeDescription  String?  @map("scope_description") @db.Text
+  valuation         Decimal? @db.Decimal(12, 2)
+  currentCycle      Int      @default(0) @map("current_cycle")
+
   job                Job                   @relation(fields: [jobId], references: [id], onDelete: Cascade)
   assignedTo         User?                 @relation("PermitAssignedUser", fields: [assignedUserId], references: [id])
+  jurisdiction       Jurisdiction?         @relation(fields: [jurisdictionId], references: [id], onDelete: SetNull)
   followUpExecutions FollowUpExecution[]
   inspections        JobPermitInspection[]
+  parties            PermitParty[]
+  cycles             PermitReviewCycle[]
+  submissions        PermitSubmission[]
+  files              File[]
+  tasks              Task[]
 
   @@index([jobId])
   @@index([status])
+  @@index([jurisdictionId])
   @@map("job_permits")
 }
 
@@ -1571,6 +1609,7 @@ model Vendor {
   documents      VendorDocument[]
   tasks          Task[]
   commitments    Commitment[]
+  permitParties  PermitParty[]
   roofMaterials  RoofMaterialItem[]
   organizations  Organization[]
 
@@ -5285,6 +5324,8 @@ model Organization {
   qualifications Qualification[]
   leads          Lead[]
   tasks          Task[]
+  jurisdictions  Jurisdiction[]
+  permitParties  PermitParty[]
   bidInvitations BidInvitation[]
   bidIntakes     BidIntake[]
 
@@ -5334,6 +5375,7 @@ model Contact {
   organization        Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy           User            @relation("ContactCreatedBy", fields: [createdByUserId], references: [id])
   interactions        Interaction[]
+  permitParties       PermitParty[]
   leads               Lead[]
   bidInvitations      BidInvitation[]
   bidIntakes          BidIntake[]
@@ -5824,4 +5866,234 @@ model AiCall {
   @@index([subjectType, subjectId, purpose, inputHash])
   @@index([createdAt])
   @@map("ai_calls")
+}
+
+// ─── Permit Intelligence, Stage 1: the permit record ─────────────────────────
+
+enum JurisdictionKind {
+  CITY
+  TOWN
+  VILLAGE
+  COUNTY
+  STATE
+  OTHER
+}
+
+enum SubmissionMethod {
+  PORTAL
+  EMAIL
+  IN_PERSON
+  MAIL
+  UNKNOWN
+}
+
+/// A building department that issues permits. `JobPermit.municipality` keeps
+/// the text typed before this existed; `jurisdictionId` is the record.
+model Jurisdiction {
+  id               String           @id @default(cuid())
+  key              String           @unique
+  name             String
+  kind             JurisdictionKind @default(CITY)
+  county           String?
+  state            String           @default("FL")
+  // High-Velocity Hurricane Zone (Miami-Dade, Broward): product approvals are read against it.
+  hvhz             Boolean          @default(false)
+  organizationId   String?          @map("organization_id")
+  portalUrl        String?          @map("portal_url")
+  submissionMethod SubmissionMethod @default(UNKNOWN) @map("submission_method")
+  // Days in review before a permit counts as waiting too long; null = the 7 / 14 defaults.
+  reviewDaysTarget Int?             @map("review_days_target")
+  notes            String?          @db.Text
+  isActive         Boolean          @default(true) @map("is_active")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  permits      JobPermit[]
+  knowledge    PermitKnowledge[]
+
+  @@map("jurisdictions")
+}
+
+/// The permit-type catalog. `JobPermit.permitType` keeps the text on file;
+/// `permitTypeKey` points here.
+model PermitTypeDef {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("permit_type_defs")
+}
+
+enum KnowledgeKind {
+  REQUIREMENT
+  LESSON
+  TIP
+}
+
+enum KnowledgeReliability {
+  // A published rule of the jurisdiction (with its source).
+  OFFICIAL
+  // KNU's own practice.
+  INTERNAL
+  // Seen in reviews: reviewers have asked for this before.
+  OBSERVED
+}
+
+enum KnowledgeStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+  RETIRED
+}
+
+/// What a jurisdiction × permit type asks for. Stage 1 uses REQUIREMENT rows
+/// (the documents checklist); Stage 6 adds LESSON rows from closed reviews.
+/// A null jurisdiction or permit type means "every one".
+model PermitKnowledge {
+  id              String               @id @default(cuid())
+  kind            KnowledgeKind
+  jurisdictionId  String?              @map("jurisdiction_id")
+  permitTypeKey   String?              @map("permit_type_key")
+  title           String
+  body            String?              @db.Text
+  // A PERMIT_DOC_TYPES key the requirement is met by.
+  documentType    String?              @map("document_type")
+  // At preflight: a blocker when true, a warning when false.
+  required        Boolean              @default(true)
+  reliability     KnowledgeReliability @default(INTERNAL)
+  sourceUrl       String?              @map("source_url")
+  effectiveFrom   DateTime?            @map("effective_from")
+  effectiveTo     DateTime?            @map("effective_to")
+  status          KnowledgeStatus      @default(APPROVED)
+  occurrences     Int                  @default(0)
+  lastSeenAt      DateTime?            @map("last_seen_at")
+  sortOrder       Int                  @default(0) @map("sort_order")
+  createdByUserId String?              @map("created_by_user_id")
+  decidedByUserId String?              @map("decided_by_user_id")
+  decidedAt       DateTime?            @map("decided_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  jurisdiction Jurisdiction? @relation(fields: [jurisdictionId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation("PermitKnowledgeCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  decidedBy    User?         @relation("PermitKnowledgeDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([kind, status, jurisdictionId, permitTypeKey])
+  @@map("permit_knowledge")
+}
+
+enum PermitPartyRole {
+  OWNER
+  APPLICANT
+  QUALIFIER
+  ARCHITECT
+  ENGINEER_OF_RECORD
+  SUBCONTRACTOR
+  OTHER
+}
+
+/// Who is on a permit application. A licence number is the one a person
+/// recorded, never one the AI read.
+model PermitParty {
+  id             String          @id @default(cuid())
+  permitId       String          @map("permit_id")
+  role           PermitPartyRole
+  organizationId String?         @map("organization_id")
+  contactId      String?         @map("contact_id")
+  vendorId       String?         @map("vendor_id")
+  name           String
+  email          String?
+  phone          String?
+  licenseNumber  String?         @map("license_number")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  permit       JobPermit     @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  vendor       Vendor?       @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  @@index([permitId])
+  @@map("permit_parties")
+}
+
+enum CycleOutcome {
+  PENDING
+  APPROVED
+  CORRECTIONS
+  DENIED
+  WITHDRAWN
+}
+
+/// One round with the building department: a submission and what came back.
+model PermitReviewCycle {
+  id           String       @id @default(cuid())
+  permitId     String       @map("permit_id")
+  number       Int
+  submittedAt  DateTime?    @map("submitted_at")
+  outcome      CycleOutcome @default(PENDING)
+  outcomeAt    DateTime?    @map("outcome_at")
+  reviewerName String?      @map("reviewer_name")
+  notes        String?      @db.Text
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  permit     JobPermit         @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  submission PermitSubmission?
+
+  @@unique([permitId, number])
+  @@map("permit_review_cycles")
+}
+
+enum SubmissionKind {
+  INITIAL
+  RESUBMISSION
+  REVISION
+}
+
+/// A frozen package: the zip of exactly what was sent, with its sha256 and a
+/// manifest. Never updated; the files in it can no longer be deleted,
+/// renamed or replaced.
+model PermitSubmission {
+  id                String           @id @default(cuid())
+  permitId          String           @map("permit_id")
+  cycleId           String           @unique @map("cycle_id")
+  kind              SubmissionKind
+  storageKey        String           @map("storage_key")
+  sha256            String
+  sizeBytes         Int              @map("size_bytes")
+  // [{ fileId, name, docType, sha256, bytes, entry }]
+  manifest          Json
+  method            SubmissionMethod
+  confirmationRef   String?          @map("confirmation_ref")
+  notes             String?          @db.Text
+  submittedAt       DateTime         @map("submitted_at")
+  submittedByUserId String           @map("submitted_by_user_id")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  permit      JobPermit              @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  cycle       PermitReviewCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  submittedBy User                   @relation("PermitSubmissionBy", fields: [submittedByUserId], references: [id])
+  files       PermitSubmissionFile[]
+
+  @@index([permitId])
+  @@map("permit_submissions")
+}
+
+model PermitSubmissionFile {
+  submissionId String @map("submission_id")
+  fileId       String @map("file_id")
+  sha256       String
+
+  submission PermitSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  // Restrict: a file in a frozen package cannot be deleted under it.
+  file       File             @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@id([submissionId, fileId])
+  @@index([fileId])
+  @@map("permit_submission_files")
 }

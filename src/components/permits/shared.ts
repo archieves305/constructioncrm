@@ -36,6 +36,13 @@ export type PermitRecord = {
   assignedUserId: string | null;
   assignedTo?: { id?: string; firstName: string; lastName: string } | null;
   inspections?: PermitInspection[];
+  // Permit Intelligence
+  jurisdictionId?: string | null;
+  permitTypeKey?: string | null;
+  applicationNumber?: string | null;
+  scopeDescription?: string | null;
+  valuation?: string | null;
+  currentCycle?: number;
 };
 
 /** A permit-fee charge on the job's costs (from the bank feed or entered under Money). */
@@ -47,10 +54,12 @@ export type AssignableUser = { id: string; firstName: string; lastName: string }
 
 export const jobPermitsKey = (jobId: string) => ["job", jobId, "permits"] as const;
 
-export const PERMIT_STATUS_OPTIONS = ["APPLIED", "IN_PROGRESS", "ISSUED", "FINAL", "EXPIRED", "DENIED"] as const;
+export const PERMIT_STATUS_OPTIONS = ["PREPARING", "APPLIED", "CORRECTIONS", "IN_PROGRESS", "ISSUED", "FINAL", "EXPIRED", "DENIED"] as const;
 
 export const PERMIT_STATUS_LABEL: Record<string, string> = {
+  PREPARING: "Preparing",
   APPLIED: "Applied",
+  CORRECTIONS: "Corrections",
   IN_PROGRESS: "In progress",
   ISSUED: "Issued",
   FINAL: "Final",
@@ -60,7 +69,9 @@ export const PERMIT_STATUS_LABEL: Record<string, string> = {
 };
 
 export const PERMIT_STATUS_TONE: Record<string, Tone> = {
+  PREPARING: "neutral",
   APPLIED: "info",
+  CORRECTIONS: "warning",
   IN_PROGRESS: "info",
   ISSUED: "success",
   FINAL: "success",

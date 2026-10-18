@@ -43,6 +43,7 @@ export type TaskListFilters = {
   dailyLogId?: string;
   violationCaseId?: string;
   violationItemId?: string;
+  permitId?: string;
   // Workflow filters (see lib/tasks/query.ts)
   source?: "manual" | "workflow";
   workflowInstanceId?: string;

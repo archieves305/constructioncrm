@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
+import { permitLockOf } from "./access";
 import { fileExists } from "./storage";
 
 /** What every file list loads: who uploaded it, the job and task it sits on, and whether the CRM generated it. */
@@ -9,7 +10,7 @@ export const FILE_LIST_INCLUDE = {
   task: { select: { id: true, title: true } },
   // A receipt says which expense it is for.
   expense: { select: { id: true, vendor: true, amount: true, incurredDate: true } },
-  _count: { select: { generatedDocuments: true } },
+  _count: { select: { generatedDocuments: true, permitSubmissions: true } },
 } satisfies Prisma.FileInclude;
 
 type Row = Prisma.FileGetPayload<{ include: typeof FILE_LIST_INCLUDE }>;
@@ -25,7 +26,14 @@ export async function presentFiles(rows: readonly Row[]) {
   return rows.map((r, i) => {
     const { storageKey: _key, _count, ...rest } = r;
     void _key;
-    return { ...rest, expense: rest.expense ? { ...rest.expense, amount: Number(rest.expense.amount) } : null, missing: !present[i], generated: _count.generatedDocuments > 0 };
+    return {
+      ...rest,
+      expense: rest.expense ? { ...rest.expense, amount: Number(rest.expense.amount) } : null,
+      missing: !present[i],
+      generated: _count.generatedDocuments > 0,
+      // a permit document sent in a frozen package, or issued by the department: kept as it is
+      permitLock: permitLockOf({ permitDocType: rest.permitDocType, permitSubmissionCount: _count.permitSubmissions }),
+    };
   });
 }
 

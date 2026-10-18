@@ -36,10 +36,20 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    approvals (FL PA / NOA) · 5 preflight · 6 lessons + metrics. Prod had 3
    permits, so history is captured as structured records first; no vector
    search. **`ANTHROPIC_API_KEY` placed on prod 2026-10-18** (`/etc/knuco/env`,
-   200 from the droplet; not yet read by deployed code). **Stage 0 built +
-   dev-QA'd 2026-10-18 on `permit-ai-foundation`, not deployed**: `src/lib/ai`
+   200 from the droplet). **Stage 0 built + dev-QA'd 2026-10-18 on
+   `permit-ai-foundation`, deployed 2026-10-18 as `c82f906`** (BUILD_ID
+   `GzGAthoH8VxKu08PW3y4b`, migration applied, the process carries the key,
+   zero journal errors, backup `postgres-2026-10-18-213941.dump`): `src/lib/ai`
    (`runAiCall`, caps per subject + per month, untrusted-document framing,
    pricing), `AiCall` (migration `20261031120000_ai_calls`), Admin → AI Usage.
+   **Stage 1 (permit record, no AI) built + dev-QA'd 2026-10-18 on
+   `permit-record`, not deployed**: migration `20261101120000_permit_record`
+   (jurisdictions, type catalog, requirement checklist, parties, review
+   cycles, frozen submissions + locked files, `File.permitId` /
+   `permitDocType`, `Task.permitId`, statuses PREPARING / CORRECTIONS),
+   `/permits/[id]`, Admin → Permits, upload byte check. **Deploy carries the
+   migration**; then seed `prisma/seed-permit-intel.ts` and run
+   `scripts/backfill-permit-records-2026-10.ts` (dry run → `--apply`).
    Open rulings in the design doc §19. Notes:
    [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
@@ -500,7 +510,35 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-18 — AI Permit Intelligence: plan, design, prod AI key, Stage 0 (built + dev-QA'd on `permit-ai-foundation`, not deployed)
+### 2026-10-18 — AI Permit Intelligence, Stage 1: the permit record (built + dev-QA'd on `permit-record`, not deployed)
+
+"start stage 1". No AI. Migration `20261101120000_permit_record`:
+`Jurisdiction`, `PermitTypeDef`, `PermitKnowledge` (requirements now, lessons
+in Stage 6), `PermitParty`, `PermitReviewCycle`, `PermitSubmission` +
+`PermitSubmissionFile`; `JobPermit` + jurisdiction / type key / application
+number / scope / valuation / current cycle; `File.permitId` +
+`permitDocType`; `Task.permitId`; statuses PREPARING and CORRECTIONS. Pure
+`lib/permit-intel/{doc-types,catalog,requirements,submission-plan,access,validation}.ts`
+(tested); `service.ts`, `submissions.ts` (fflate zip + contents sheet +
+sha256 per document and for the zip; the files lock — `permitLockOf` in
+`lib/files/access.ts`; the download refuses a zip whose hash moved);
+`recordFields` in `updatePermit`; the department's answer moves the status
+through `updatePermit`; magic-byte check on every upload
+(`lib/files/sniff.ts`). UI: `/permits/[id]` (Overview · Documents with the
+checklist · Parties · Submissions · Tasks · Inspections · History), Admin →
+Permits (Jurisdictions · Requirements), pickers on the job's Permits tab,
+links from the job tab and Permit Center. Found before QA: zod `partial()`
+keeps `.default()`, so PATCH schemas are built without defaults. Found in QA:
+a resubmission pre-ticked the superseded NOC. Gate: typecheck clean, lint
+5/22, 1760 tests (+14), build clean. Dev QA: API 45/45 on stand-ins for the
+three prod permits (backfill dry run / apply / unchanged, freeze, locks,
+hash-checked download, corrections → resubmission → issued), cron tasks
+carry `permitId`, SALES_REP 404 off their jobs and 403 on submit / settings,
+headless Chromium at 1280 / 400 px; dev DB restored. Permit Library moved to
+Stage 2 (needs full-text search). **Deploy carries a migration**, then the
+seed and the backfill.
+
+### 2026-10-18 — AI Permit Intelligence: plan, design, prod AI key, Stage 0 (deployed `c82f906`)
 
 Richard pasted a 12-phase brief for an AI permit module (forms, NOAs,
 preflight, corrections, knowledge base, dashboard). Read-only prod check: 3
@@ -522,7 +560,14 @@ The queue change was moved to Stage 2. Gate: typecheck clean, lint 5/22, 1746
 tests (+16), build clean. Dev QA: real Haiku + Opus calls ($0.0044 total, a
 planted instruction ignored, repeat cached), headless Chromium at 1280 / 400
 px, SALES_REP 403. **Deploy carries a migration.** takeoff-m3 must switch to
-`runAiCall` before it deploys (feature doc).
+`runAiCall` before it deploys (feature doc). Richard pushed and deployed from
+`!` (background, 277 s, exit 0): BUILD_ID `9mpkCwcWFxbhIUhysJapH` →
+`GzGAthoH8VxKu08PW3y4b`, migration `20261031120000_ai_calls` applied, the
+process carries `ANTHROPIC_API_KEY`, 0 `ai_calls` rows, zero journal errors,
+backup `postgres-2026-10-18-213941.dump`. Rulings the same day: the
+jurisdiction is "City of Palm Beach"; statuses PREPARING and CORRECTIONS
+approved; anyone involved with the job may approve sending a drafted email;
+sample forms and letters to follow.
 
 ### 2026-10-16 — Completion photos on crew payments + a "Project photos" folder (built + dev-QA'd on `payment-photos`, on `main`, not deployed)
 
@@ -2838,6 +2883,10 @@ ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd 
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-partners-coastal-choice.ts"'
 # JOB-00009's award as a bid record (dry run by default; --apply writes; idempotent)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-partners-bid-job00009.ts"'
+# Permit Intelligence seed (idempotent; type catalog + the completed-application requirement, create-only)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-permit-intel.ts"'
+# Link pre-existing permits to jurisdictions / types / cycle 1 (dry run by default; --apply writes; idempotent)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-permit-records-2026-10.ts"'
 # Vault + qualification expiry cron, by hand (droplet; each alert is raised once)
 ssh knuco-droplet '/home/knuco/crm-cron/company-document-alerts.sh; tail -1 /home/knuco/crm-cron/company-document-alerts.log'
 # Partner follow-up cron, by hand (droplet; each follow-up is raised once per period; ?dryRun=1 plans only)
@@ -3114,6 +3163,14 @@ Notification Digests).
   labor payment or pays a crew with a contract on the job; Cost
   Reconciliation → Crew payments decides. Never delete the bank row — it is
   cc-allocator's record.
+- **A permit's submissions are frozen** (`lib/permit-intel/submissions.ts`): a
+  package is a zip of exactly what was sent, with a sha256 per document and for
+  the zip, and the files in it are locked (`permitLockOf`) — as are the
+  approved permit and stamped plans. A correction is a new file in the next
+  submission, never an edit. The permit's status follows the department's
+  answer to a review cycle through `updatePermit`. Requirements are rows in
+  `PermitKnowledge`, the most specific per document type winning; retired,
+  never deleted. A PATCH schema never carries zod defaults.
 - **Every model call goes through `runAiCall`** (`src/lib/ai/calls.ts`): it is
   recorded as an `AiCall`, held to the per-subject and monthly caps, has no
   tools, and must match a zod schema. Document text goes in through
@@ -3125,13 +3182,18 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **AI Permit Intelligence Stage 0 (shared AI layer) is built + dev-QA'd on
-> `permit-ai-foundation`, not merged, not deployed. Deploy carries migration
-> `20261031120000_ai_calls`.** Merge: `git switch main && git merge --ff-only
-> permit-ai-foundation`; Richard pushes and deploys from `!`. After it: Admin →
-> AI Usage shows "configured" and $0. Next build: **Stage 1** (permit record,
-> no AI) per the design doc — and the §19 rulings (Palm Beach name, statuses,
-> approver roles, sample forms and correction letters).
+> **AI Permit Intelligence Stage 1 (permit record) is on `main`, not deployed;
+> the deploy carries migration `20261101120000_permit_record`.** After
+> Richard's push + deploy: run `prisma/seed-permit-intel.ts`, then the
+> backfill dry run and `--apply` (expect City of Boynton Beach / City of Miami
+> / City of Palm Beach, types interior_renovation / building / reroof, three
+> cycle-1 rows). Click-through: Admin → Permits (county, HVHZ, the real
+> requirements); a job → Permits → Open the permit record → Documents
+> (upload with a type) → Submissions → Submit. Next build: **Stage 2**
+> (corrections: AI extraction of a correction letter → confirmed items →
+> tasks, drafts, response letter) — the queue change and the Permit Library
+> come with it. Ruling still open: who may freeze a submission (proposed:
+> office roles + the permit's coordinator).
 
 > **GC Partnerships Phase 8a (prequalification package) is on `main`, not
 > deployed (no migration; `npm ci` picks up `fflate`).** After Richard's push +

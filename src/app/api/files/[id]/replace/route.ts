@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { ALLOWED_MIME, MAX_UPLOAD_BYTES, fileExists, saveFile } from "@/lib/files/storage";
-import { canEditFile, fileReadWhere } from "@/lib/files/access";
+import { canEditFile, fileReadWhere, permitLockOf } from "@/lib/files/access";
+import { contentMatchesType } from "@/lib/files/sniff";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
 import { recordAudit } from "@/lib/audit/record";
 
@@ -18,9 +19,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const existing = await prisma.file.findFirst({ where: { AND: [{ id }, fileReadWhere(session.user)] }, include: { _count: { select: { generatedDocuments: true } } } });
+  const existing = await prisma.file.findFirst({ where: { AND: [{ id }, fileReadWhere(session.user)] }, include: { _count: { select: { generatedDocuments: true, permitSubmissions: true } } } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const verdict = canEditFile(session.user, { ...existing, generated: existing._count.generatedDocuments > 0 });
+  const verdict = canEditFile(session.user, {
+    ...existing,
+    generated: existing._count.generatedDocuments > 0,
+    permitLock: permitLockOf({ permitDocType: existing.permitDocType, permitSubmissionCount: existing._count.permitSubmissions }),
+  });
   if (!verdict.ok) return NextResponse.json({ error: verdict.reason }, { status: 403 });
   if (await fileExists(existing.storageKey)) {
     return NextResponse.json({ error: "This file is not missing. Delete it and upload the new one if it should be replaced." }, { status: 409 });
@@ -33,7 +38,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (file.size > MAX_UPLOAD_BYTES) return badRequest(`file exceeds ${MAX_UPLOAD_BYTES / 1024 / 1024}MB limit`);
   if (!ALLOWED_MIME.has(file.type)) return badRequest(`unsupported file type: ${file.type || "unknown"}`);
 
-  const stored = await saveFile(Buffer.from(await file.arrayBuffer()), file.name);
+  const buffer = Buffer.from(await file.arrayBuffer());
+  if (!contentMatchesType(file.type, buffer.subarray(0, 8192))) return badRequest(`${file.name} is not a real ${file.type} file`);
+  const stored = await saveFile(buffer, file.name);
   const updated = await prisma.file.update({
     where: { id },
     data: { storageKey: stored.storageKey, fileName: file.name, fileType: file.type, fileSize: stored.bytes },

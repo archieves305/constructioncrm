@@ -8,7 +8,7 @@ import { jobText, jobTextWithCustomer, jobLabel, type EntityLabel, type JobLabel
  * job); the address leads whenever one is reachable.
  */
 
-export type SubjectKind = "violation" | "invoice" | "estimate" | "dailyLog" | "prospect" | "job" | "lead" | "vendor" | "organization";
+export type SubjectKind = "violation" | "invoice" | "estimate" | "dailyLog" | "prospect" | "permit" | "job" | "lead" | "vendor" | "organization";
 
 export type SubjectTaskInput = {
   violationCase?: { id: string; caseNumber: string } | null;
@@ -23,6 +23,8 @@ export type SubjectTaskInput = {
   vendor?: { id: string; name: string } | null;
   /** A task about a strategic account (a GC follow-up); it has no lead. */
   organization?: { id: string; name: string } | null;
+  /** A permit's follow-up: it is about the job's address, and opens the permit. */
+  permit?: { id: string; permitType: string | null; permitNumber: string | null } | null;
 };
 
 export type SubjectLabel = EntityLabel & { kind: SubjectKind; href: string | null };
@@ -66,6 +68,11 @@ export function subjectLabel(task: SubjectTaskInput): SubjectLabel | null {
   }
   if (task.prospect) {
     return { kind: "prospect", href: "/canvassing/prospects", primary: `${task.prospect.propertyAddress1}, ${task.prospect.city}`, secondary: null, code: null, placeholder: false };
+  }
+  if (task.permit && task.job) {
+    const p = task.permit;
+    const what = `${p.permitType ? `${p.permitType} permit` : "Permit"}${p.permitNumber ? ` #${p.permitNumber}` : ""}`;
+    return { kind: "permit", href: `/permits/${p.id}`, ...withAddress(formatAddressLine(task.job.lead), what, what, task.job.jobNumber ?? null) };
   }
   if (task.job) return { kind: "job", href: `/jobs/${task.job.id}`, ...jobLabel(task.job) };
   if (task.lead) {

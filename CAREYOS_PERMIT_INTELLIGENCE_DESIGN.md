@@ -619,8 +619,8 @@ A "session" is one build + dev QA day, as in previous plans.
 | Stage | Contents | Migration | Depends on | Effort |
 |---|---|---|---|---|
 | **0** | `src/lib/ai` (client, calls, hash, pricing, untrusted framing, caps), `AiCall`, Admin → AI usage; takeoff M3 switched to it before M3 deploys. **Built 2026-10-18** (the queue change moved to Stage 2) | yes | — | 1 |
-| **1** | Jurisdictions, permit types, requirements, parties, cycles, statuses PREPARING / CORRECTIONS, `File.permitId` / `permitDocType` / `sha256`, `Task.permitId`, `/permits/[id]`, Permit Library, frozen submissions, sniffing, backfill of the 3 permits, admin pages | yes | — | 2 |
-| **2** | Queue generalised (subject on `PlanJob`); correction notices and items (AI extract + confirm), item tasks, resubmission task, drafts + send, response letter, resubmission, outcomes, file classify, full text; 2b: email intake with attachments | yes | 0 | 2 (+1 for 2b) |
+| **1** | Jurisdictions, permit types, requirements, parties, cycles, statuses PREPARING / CORRECTIONS, `File.permitId` / `permitDocType`, `Task.permitId`, `/permits/[id]`, frozen submissions, sniffing, backfill of the 3 permits, admin pages. **Built 2026-10-18** (the Permit Library moved to Stage 2 with full-text search; per-file sha256 lives in the submission manifest) | yes | — | 2 |
+| **2** | Queue generalised (subject on `PlanJob`); Permit Library; correction notices and items (AI extract + confirm), item tasks, resubmission task, drafts + send, response letter, resubmission, outcomes, file classify, full text; 2b: email intake with attachments | yes | 0 | 2 (+1 for 2b) |
 | **3** | pdf-lib inventory, data dictionary, AI mapping, template publish, deterministic fill, review, finalise; `Lead.parcelNumber`; document facts | yes | 0, 1, sample forms | 2 |
 | **4** | Product approvals, extraction, verify view, links, expiry cron, compatibility check | yes | 0 | 1–2 |
 | **5** | Preflight engine, AI review, report PDF, ready gate, workflow held fact | yes (one table) | 1 (better with 3, 4) | 1 |
@@ -677,10 +677,10 @@ A "session" is one build + dev QA day, as in previous plans.
 1. **Prod AI key and models.** Set `ANTHROPIC_API_KEY` on prod. Models as in §13 (Opus 5.5 for reading letters, forms and approvals; Haiku 5.5 for classification). Caps: $5 per subject, $100 a month.
 2. **Order.** Corrections (Stage 2) before forms (Stage 3) — recommended.
 3. **Samples.** 2–3 blank applications (Palm Beach, Boynton Beach, Miami) and any correction letters KNU has received, plus one NOA and one FL PA, to put in `permit-fixtures/`.
-4. **Who approves.** Proposed approvers for sending a draft, freezing a submission, finalising a form, publishing a template and confirming a notice: ADMIN / MANAGER / OFFICE_STAFF + the permit's coordinator.
+4. **Who approves.** **Ruled 2026-10-18 for drafted emails:** anyone involved with the job (the "My jobs" rule, `jobsInvolvingUserWhere`) may approve sending one. Still proposed for freezing a submission, finalising a form, publishing a template and confirming a notice: ADMIN / MANAGER / OFFICE_STAFF + the permit's coordinator.
 5. **No vector search in the MVP.**
-6. **"City of Palm Beach".** Is it the Town of Palm Beach, or Palm Beach County? This decides how the backfill names the jurisdiction.
-7. **Statuses.** New statuses `PREPARING` and `CORRECTIONS` (the waiting clock counts from the latest submission).
+6. ~~"City of Palm Beach"~~ — **ruled 2026-10-18:** the jurisdiction is named "City of Palm Beach".
+7. ~~Statuses~~ — **ruled 2026-10-18:** `PREPARING` and `CORRECTIONS` approved.
 8. **Sending.** Mail goes from the company sender with reply-to the person — the nurture pattern — rather than through the person's own mailbox.
 9. **Online verification.** FL PA / NOA online verification is deferred until each site's terms are read.
 10. **Antivirus.** Deferred (ClamAV needs ~1 GB RAM on the shared droplet); magic-byte checks meanwhile.

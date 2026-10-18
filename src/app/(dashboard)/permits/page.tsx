@@ -467,6 +467,9 @@ function PermitDetailDrawer({
             </button>
             {" · "}{permit.job.lead.fullName}{" · "}<span className="font-mono text-xs">{permit.job.jobNumber}</span>
           </div>
+          <Link href={`/permits/${permit.id}`} className="text-xs font-medium text-primary hover:underline">
+            Open the permit record — documents, parties, submissions and review cycles
+          </Link>
         </SheetHeader>
 
         <div className="space-y-4 px-4 pb-6">

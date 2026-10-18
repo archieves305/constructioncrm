@@ -14,7 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Callout } from "@/components/shared/callout";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
-import { PermitEditor, usePermitRefresh } from "@/components/permits/permit-editor";
+import { JurisdictionPicker, PermitEditor, usePermitRefresh } from "@/components/permits/permit-editor";
+import { useJurisdictions, usePermitTypes } from "@/components/permit-intel/use-permit-intel";
 import { PermitInspections } from "@/components/permits/permit-inspections";
 import {
   expiryNotice,
@@ -36,9 +37,13 @@ import { cn } from "@/lib/utils";
 
 const emptyPermitForm = {
   municipality: "",
+  jurisdictionId: "",
   permitType: "",
+  permitTypeKey: "",
+  applicationNumber: "",
   permitNumber: "",
-  status: "APPLIED",
+  // a permit is usually added while its package is being put together
+  status: "PREPARING",
   submittedDate: new Date().toISOString().slice(0, 10),
   expectedApprovalDate: "",
   expirationDate: "",
@@ -80,6 +85,9 @@ export function JobPermitsPanel({ jobId }: { jobId: string }) {
 
       {permits.map((p) => (
         <PermitCard key={p.id} permit={p} open={openId === p.id} onToggle={() => setOpen(openId === p.id ? "" : p.id)}>
+          <Link href={`/permits/${p.id}`} className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+            Open the permit record — documents, parties, submissions and review cycles
+          </Link>
           <PermitEditor permit={p} users={users} canEdit={canEdit} />
           <div className="mt-4 border-t pt-4">
             <PermitInspections jobId={jobId} permitId={p.id} inspections={p.inspections ?? []} steps={steps} canEdit={canEdit} />
@@ -89,7 +97,7 @@ export function JobPermitsPanel({ jobId }: { jobId: string }) {
 
       {(permits.length > 0 || feeCharges.length > 0) && <PermitFeesPaid jobId={jobId} permits={permits} charges={feeCharges} />}
 
-      {permits.length === 0 && !canEdit && <EmptyState icon={Shield} title="No permits on this job" description="The office adds a permit here once it is submitted." />}
+      {permits.length === 0 && !canEdit && <EmptyState icon={Shield} title="No permits on this job" description="The office adds a permit here when the application is being prepared." />}
     </div>
   );
 }
@@ -176,12 +184,24 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
   const refresh = usePermitRefresh(jobId);
   const [form, setForm] = useState(emptyPermitForm);
   const set = (k: keyof typeof emptyPermitForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const { data: jurisdictions = [] } = useJurisdictions();
+  const { data: permitTypes = [] } = usePermitTypes();
+  const preparing = form.status === "PREPARING";
   const add = useMutation({
     mutationFn: () =>
       fetchJson(`/api/jobs/${jobId}/permits`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, assignedUserId: form.assignedUserId || null, permitFee: form.permitFee || null, expectedApprovalDate: form.expectedApprovalDate || null, expirationDate: form.expirationDate || null }),
+        body: JSON.stringify({
+          ...form,
+          jurisdictionId: form.jurisdictionId || null,
+          permitTypeKey: form.permitTypeKey || null,
+          submittedDate: preparing ? null : form.submittedDate,
+          assignedUserId: form.assignedUserId || null,
+          permitFee: form.permitFee || null,
+          expectedApprovalDate: form.expectedApprovalDate || null,
+          expirationDate: form.expirationDate || null,
+        }),
       }),
     onSuccess: () => {
       refresh();
@@ -200,14 +220,39 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <Label className="text-[11px]">Jurisdiction *</Label>
-            <Input value={form.municipality} onChange={(e) => set("municipality", e.target.value)} placeholder="City of Boca Raton" />
+            <JurisdictionPicker
+              jurisdictions={jurisdictions}
+              jurisdictionId={form.jurisdictionId || null}
+              typed={form.municipality}
+              onPick={(id) => setForm((f) => ({ ...f, jurisdictionId: id, municipality: jurisdictions.find((j) => j.id === id)?.name ?? f.municipality }))}
+              onType={(text) => setForm((f) => ({ ...f, municipality: text, jurisdictionId: "" }))}
+            />
           </div>
           <div>
             <Label className="text-[11px]">Permit type</Label>
-            <Input value={form.permitType} onChange={(e) => set("permitType", e.target.value)} placeholder="Re-roof, Electrical, …" />
+            <Select
+              items={permitTypes.map((t) => ({ value: t.key, label: t.name }))}
+              value={form.permitTypeKey || undefined}
+              onValueChange={(v: string | null) => v && setForm((f) => ({ ...f, permitTypeKey: v, permitType: permitTypes.find((t) => t.key === v)?.name ?? f.permitType }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Re-roof, Building, …" />
+              </SelectTrigger>
+              <SelectContent>
+                {permitTypes.map((t) => (
+                  <SelectItem key={t.key} value={t.key}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
-            <Label className="text-[11px]">Permit #</Label>
+            <Label className="text-[11px]">Application #</Label>
+            <Input value={form.applicationNumber} onChange={(e) => set("applicationNumber", e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-[11px]">Permit # (once issued)</Label>
             <Input value={form.permitNumber} onChange={(e) => set("permitNumber", e.target.value)} />
           </div>
           <div>
@@ -225,10 +270,12 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label className="text-[11px]">Submitted</Label>
-            <Input type="date" value={form.submittedDate} onChange={(e) => set("submittedDate", e.target.value)} />
-          </div>
+          {!preparing && (
+            <div>
+              <Label className="text-[11px]">Submitted</Label>
+              <Input type="date" value={form.submittedDate} onChange={(e) => set("submittedDate", e.target.value)} />
+            </div>
+          )}
           <div>
             <Label className="text-[11px]">Expected approval</Label>
             <Input type="date" value={form.expectedApprovalDate} onChange={(e) => set("expectedApprovalDate", e.target.value)} />
@@ -273,7 +320,7 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
               Cancel
             </Button>
           )}
-          <Button size="sm" disabled={!form.municipality.trim() || add.isPending} onClick={() => add.mutate()}>
+          <Button size="sm" disabled={(!form.municipality.trim() && !form.jurisdictionId) || add.isPending} onClick={() => add.mutate()}>
             {add.isPending ? "Adding…" : "Add permit"}
           </Button>
         </div>

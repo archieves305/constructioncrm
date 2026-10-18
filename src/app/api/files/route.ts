@@ -4,6 +4,8 @@ import { getSession, unauthorized, badRequest, forbidden } from "@/lib/auth/help
 import { recordTaskEvent } from "@/lib/tasks/events";
 import { FileCategory } from "@/generated/prisma/client";
 import { saveFile, MAX_UPLOAD_BYTES, ALLOWED_MIME } from "@/lib/files/storage";
+import { contentMatchesType } from "@/lib/files/sniff";
+import { isPermitDocType } from "@/lib/permit-intel/doc-types";
 import { taskRightsFor } from "@/lib/workflows/visibility";
 import { fileReadWhere } from "@/lib/files/access";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
@@ -155,6 +157,22 @@ export async function POST(request: NextRequest) {
     jobId = contract!.jobId;
     leadId = contract!.job.leadId;
   }
+  // A permit's document: it carries the permit's job and lead, so the job's
+  // Files tab lists it too. Writing to the permit is writing to its job.
+  const permitIdRaw = form.get("permitId");
+  const permitDocTypeRaw = form.get("permitDocType");
+  const permitId = typeof permitIdRaw === "string" && permitIdRaw ? permitIdRaw : null;
+  const permitDocType = typeof permitDocTypeRaw === "string" && permitDocTypeRaw ? permitDocTypeRaw : null;
+  if (permitDocType && !permitId) return badRequest("permitDocType needs a permitId");
+  if (permitDocType && !isPermitDocType(permitDocType)) return badRequest("permitDocType is not a permit document type");
+  if (permitId) {
+    const permit = await prisma.jobPermit.findUnique({ where: { id: permitId }, select: { jobId: true, job: { select: { leadId: true } } } });
+    if (!permit) return badRequest("permit not found");
+    const denied = await guardJob(session.user, permit.jobId, "write");
+    if (denied) return denied;
+    jobId = permit.jobId;
+    leadId = permit.job.leadId;
+  }
   if (!leadId && !taskId) return badRequest("leadId is required");
 
   if (file.size === 0) return badRequest("file is empty");
@@ -171,6 +189,8 @@ export async function POST(request: NextRequest) {
       ? FileCategory.PHOTOS
       : typeof categoryRaw === "string" && categoryRaw in FileCategory
       ? (categoryRaw as FileCategory)
+      : permitId
+      ? FileCategory.PERMIT
       : FileCategory.OTHER;
 
   if (leadId) {
@@ -179,6 +199,8 @@ export async function POST(request: NextRequest) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
+  // the type comes from the file name; the bytes must agree with it
+  if (!contentMatchesType(file.type, buffer.subarray(0, 8192))) return badRequest(`${file.name} is not a real ${file.type} file`);
   const stored = await saveFile(buffer, file.name);
 
   const record = await prisma.file.create({
@@ -198,6 +220,8 @@ export async function POST(request: NextRequest) {
       expenseId,
       laborPaymentRequestId,
       laborPaymentId,
+      permitId,
+      permitDocType,
       takenAt: file.type.startsWith("image/") ? parseTakenAt(form.get("takenAt")) : null,
     },
     include: FILE_LIST_INCLUDE,
