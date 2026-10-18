@@ -43,14 +43,15 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (`runAiCall`, caps per subject + per month, untrusted-document framing,
    pricing), `AiCall` (migration `20261031120000_ai_calls`), Admin → AI Usage.
    **Stage 1 (permit record, no AI) built + dev-QA'd 2026-10-18 on
-   `permit-record`, not deployed**: migration `20261101120000_permit_record`
+   `permit-record`, deployed 2026-10-18 as `acdf728`** (BUILD_ID
+   `3SyklAeo2NGYbawokTWey`, migration applied, smoke 307 ×2, journal clean,
+   backup `postgres-2026-10-18-221510.dump`; seed unchanged, backfill applied:
+   3 jurisdictions, 3 types, 3 cycle-1 rows, re-run 0): migration `20261101120000_permit_record`
    (jurisdictions, type catalog, requirement checklist, parties, review
    cycles, frozen submissions + locked files, `File.permitId` /
    `permitDocType`, `Task.permitId`, statuses PREPARING / CORRECTIONS),
-   `/permits/[id]`, Admin → Permits, upload byte check. **Deploy carries the
-   migration**; then seed `prisma/seed-permit-intel.ts` and run
-   `scripts/backfill-permit-records-2026-10.ts` (dry run → `--apply`).
-   Open rulings in the design doc §19. Notes:
+   `/permits/[id]`, Admin → Permits, upload byte check. Next: **Stage 2**
+   (corrections) on `permit-corrections`. Open rulings in the design doc §19. Notes:
    [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
    2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
@@ -510,7 +511,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-18 — AI Permit Intelligence, Stage 1: the permit record (built + dev-QA'd on `permit-record`, not deployed)
+### 2026-10-18 — AI Permit Intelligence, Stage 1: the permit record (deployed `acdf728`)
 
 "start stage 1". No AI. Migration `20261101120000_permit_record`:
 `Jurisdiction`, `PermitTypeDef`, `PermitKnowledge` (requirements now, lessons
@@ -535,8 +536,23 @@ three prod permits (backfill dry run / apply / unchanged, freeze, locks,
 hash-checked download, corrections → resubmission → issued), cron tasks
 carry `permitId`, SALES_REP 404 off their jobs and 403 on submit / settings,
 headless Chromium at 1280 / 400 px; dev DB restored. Permit Library moved to
-Stage 2 (needs full-text search). **Deploy carries a migration**, then the
-seed and the backfill.
+Stage 2 (needs full-text search).
+Richard pushed and deployed from `!`: backup `postgres-2026-10-18-221510.dump`,
+rsync, migration `20261101120000_permit_record` applied (22:16 UTC) — then the
+remote build was cut off by the `!` shell timeout (no `BUILD_ID`, old process
+still serving). Finished from `!`: a detached rebuild (the first attempt
+failed collecting page data because the command had not loaded
+`/etc/knuco/env`; the second, with `set -a; . /etc/knuco/env; set +a` and
+`ssh -n … < /dev/null`, built clean), restart, `.deploy-sha` `acdf728`.
+BUILD_ID `GzGAthoH8VxKu08PW3y4b` → `3SyklAeo2NGYbawokTWey`, smoke 307 ×2
+(local and public), zero journal errors since the restart. Seed: every type
+and the requirement unchanged (already present). Backfill dry run → `--apply`:
+City of Miami / JOB-00002 building ISSUED (cycle 1 2025-09-01 → APPROVED),
+City of Boynton Beach / JOB-00021 interior_renovation ISSUED (2026-09-28 →
+APPROVED), City of Palm Beach / JOB-00018 reroof APPLIED (2026-09-29 →
+PENDING); re-run 0 / 0 / 0. **Lesson: a hand-run build on the droplet must
+load `/etc/knuco/env` first, and `ssh -n` with stdin from `/dev/null` keeps
+`!` from hanging on the detached job.**
 
 ### 2026-10-18 — AI Permit Intelligence: plan, design, prod AI key, Stage 0 (deployed `c82f906`)
 
@@ -3182,12 +3198,9 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **AI Permit Intelligence Stage 1 (permit record) is on `main`, not deployed;
-> the deploy carries migration `20261101120000_permit_record`.** After
-> Richard's push + deploy: run `prisma/seed-permit-intel.ts`, then the
-> backfill dry run and `--apply` (expect City of Boynton Beach / City of Miami
-> / City of Palm Beach, types interior_renovation / building / reroof, three
-> cycle-1 rows). Click-through: Admin → Permits (county, HVHZ, the real
+> **AI Permit Intelligence Stage 1 (permit record) is on prod (`acdf728`,
+> BUILD_ID `3SyklAeo2NGYbawokTWey`), seeded and backfilled (3 permits linked
+> to their jurisdictions, types and cycle 1).** Click-through: Admin → Permits (county, HVHZ, the real
 > requirements); a job → Permits → Open the permit record → Documents
 > (upload with a type) → Submissions → Submit. Next build: **Stage 2**
 > (corrections: AI extraction of a correction letter → confirmed items →
