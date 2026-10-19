@@ -44,6 +44,7 @@ type ChangeOrder = {
   description: string | null;
   customerPrice: string;
   crewCost: string | null;
+  materialCost: string | null;
   status: "DRAFT" | "SENT" | "APPROVED" | "REJECTED" | "VOID";
   token: string | null;
   sentAt: string | null;
@@ -113,6 +114,7 @@ export function ChangeOrdersPanel({
   const [description, setDescription] = useState("");
   const [customerPrice, setCustomerPrice] = useState("");
   const [crewCost, setCrewCost] = useState("");
+  const [materialCost, setMaterialCost] = useState("");
   const [laborContractId, setLaborContractId] = useState<string>(NO_CREW);
 
   const { data: changeOrders = [], isLoading } = useQuery<ChangeOrder[]>({
@@ -136,6 +138,7 @@ export function ChangeOrdersPanel({
     setDescription("");
     setCustomerPrice("");
     setCrewCost("");
+    setMaterialCost("");
     setLaborContractId(NO_CREW);
   }
 
@@ -150,6 +153,7 @@ export function ChangeOrdersPanel({
     setDescription(co.description ?? "");
     setCustomerPrice(co.customerPrice);
     setCrewCost(co.crewCost ?? "");
+    setMaterialCost(co.materialCost ?? "");
     setLaborContractId(co.laborContractId ?? NO_CREW);
     setDialogOpen(true);
   }
@@ -161,6 +165,7 @@ export function ChangeOrdersPanel({
         description: description.trim() || null,
         customerPrice: Number(customerPrice),
         crewCost: crewCost.trim() ? Number(crewCost) : null,
+        materialCost: materialCost.trim() ? Number(materialCost) : null,
         laborContractId: laborContractId === NO_CREW ? null : laborContractId,
       };
       const url = editing
@@ -465,6 +470,16 @@ export function ChangeOrdersPanel({
                     </div>
                   </div>
                 )}
+                {viewing.materialCost != null && (
+                  <div>
+                    <div className="text-xs uppercase text-gray-400">
+                      Other cost
+                    </div>
+                    <div className="font-semibold text-gray-900">
+                      {money(viewing.materialCost)}
+                    </div>
+                  </div>
+                )}
                 {viewing.laborContract && (
                   <div>
                     <div className="text-xs uppercase text-gray-400">Crew</div>
@@ -665,6 +680,16 @@ export function ChangeOrdersPanel({
                   onChange={(e) => setCrewCost(e.target.value)}
                   placeholder="optional"
                 />
+              </div>
+              <div className="col-span-2">
+                <Label>Other cost — materials, subs (internal)</Label>
+                <Input
+                  inputMode="decimal"
+                  value={materialCost}
+                  onChange={(e) => setMaterialCost(e.target.value)}
+                  placeholder="optional"
+                />
+                <p className="mt-1 text-xs text-gray-400">Once approved, crew and other cost are added to the job&apos;s expected cost.</p>
               </div>
             </div>
             <div>

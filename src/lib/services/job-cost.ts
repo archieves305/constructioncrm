@@ -43,6 +43,7 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
       jobType: true,
       contractAmount: true,
       originalContractAmount: true,
+      estimatedCostSnapshot: true,
       laborCost: true,
       currentStage: { select: { isClosed: true } },
       lead: { select: { propertyAddress1: true, propertyAddress2: true, city: true } },
@@ -52,7 +53,7 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
   const jobId = { in: jobs.map((j) => j.id) };
 
   const [changeOrders, expenses, billable, budgets, laborPayments, fieldLabor, invoices, payments, contracts, commitmentsBy] = await Promise.all([
-    prisma.changeOrder.groupBy({ by: ["jobId"], where: { jobId, status: "APPROVED" }, _sum: { customerPrice: true } }),
+    prisma.changeOrder.groupBy({ by: ["jobId"], where: { jobId, status: "APPROVED" }, _sum: { customerPrice: true, crewCost: true, materialCost: true } }),
     prisma.jobExpense.groupBy({ by: ["jobId"], where: { jobId, status: "APPROVED" }, _sum: { amount: true } }),
     prisma.jobExpense.groupBy({ by: ["jobId"], where: { jobId, status: "APPROVED", billable: true }, _sum: { amount: true } }),
     prisma.budgetLine.groupBy({ by: ["jobId"], where: { jobId }, _sum: { amount: true } }),
@@ -75,6 +76,8 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
   ]);
 
   const coBy = sumBy(changeOrders, (r) => r._sum.customerPrice);
+  // What approved change orders add to the cost the job was expected to take: their crew and other cost.
+  const coCostBy = sumBy(changeOrders, (r) => num(r._sum.crewCost) + num(r._sum.materialCost));
   const expBy = sumBy(expenses, (r) => r._sum.amount);
   const billBy = sumBy(billable, (r) => r._sum.amount);
   const budgetBy = sumBy(budgets, (r) => r._sum.amount);
@@ -102,7 +105,9 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
       approvedChangeOrders: coBy.get(j.id) ?? 0,
       approvedBillableAddOns: billBy.get(j.id) ?? 0,
       budgetTotal: budgetBy.has(j.id) ? budgetBy.get(j.id)! : null,
-      estimateCost: estimateBy.get(j.id) ?? null,
+      // The cost frozen when the price came from an estimate; else (older jobs) the signed estimate's cost.
+      estimateCost: j.estimatedCostSnapshot !== null ? num(j.estimatedCostSnapshot) : (estimateBy.get(j.id) ?? null),
+      changeOrderCost: coCostBy.get(j.id) ?? 0,
       laborContracts: num(j.laborCost),
       laborPaid: laborPaidBy.get(j.id) ?? 0,
       fieldLaborUnposted: fieldBy.get(j.id) ?? 0,

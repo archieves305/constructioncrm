@@ -7,6 +7,9 @@ import { onLeadStageChanged } from "@/lib/nurture/hooks";
 import { recordAudit } from "@/lib/audit/record";
 import { logger } from "@/lib/logger";
 import { guardLead } from "@/lib/access/records";
+import { z } from "zod";
+
+const estimateRefSchema = z.object({ kind: z.enum(["GENERIC", "ROOF"]), id: z.string().min(1) });
 
 export async function POST(
   request: NextRequest,
@@ -18,7 +21,12 @@ export async function POST(
   const { id } = await params;
   const denied = await guardLead(session.user, id, "write");
   if (denied) return denied;
-  const { stageId, reason } = await request.json();
+  const body = (await request.json().catch(() => ({}))) as { stageId?: string; reason?: string; estimate?: unknown };
+  const { stageId, reason } = body;
+  // At Won, the estimate the job's price and cost come from (the Won dialog's pick):
+  // { kind, id }, or null for none. Absent: the one estimate marked Accepted, if exactly one is.
+  const estimate = body.estimate === undefined ? undefined : body.estimate === null ? null : estimateRefSchema.safeParse(body.estimate);
+  if (estimate && "success" in estimate && !estimate.success) return badRequest("estimate must be { kind: GENERIC | ROOF, id }");
 
   if (!stageId) return badRequest("stageId is required");
 
@@ -85,13 +93,18 @@ export async function POST(
 
   // Auto-create job when lead is Won
   let job = null;
+  let jobError: string | null = null;
   if (newStage.isWon) {
     try {
-      job = await createJobFromLead(id, session.user.id);
+      job = await createJobFromLead(id, session.user.id, {
+        fromEstimate: estimate === undefined ? undefined : estimate === null ? null : estimate.data,
+      });
     } catch (err) {
       logger.exception(err, { where: "createJobFromLead", leadId: id });
+      // The lead is Won either way; say so, so nobody assumes the job exists.
+      jobError = err instanceof Error ? err.message : "The job could not be created";
     }
   }
 
-  return NextResponse.json({ ...updated, job });
+  return NextResponse.json({ ...updated, job, jobError });
 }

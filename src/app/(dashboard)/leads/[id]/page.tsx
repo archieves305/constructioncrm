@@ -39,6 +39,8 @@ import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 import { CaseListMini } from "@/components/violations/case-list-mini";
 import { useTasks } from "@/components/tasks/use-tasks";
 import { fetchJson, HttpError, retryServerErrors } from "@/lib/fetch-json";
+import { WonEstimatePicker } from "@/components/leads/won-estimate-picker";
+import type { EstimateRef } from "@/lib/estimates/job-from-estimate";
 import { useSearchParamState } from "@/components/shared/use-search-param-state";
 import { ContactCard } from "@/components/shared/contact-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -90,16 +92,23 @@ export default function LeadDetailPage() {
   // Scoped through /api/tasks so the count matches what this viewer may see.
   const { data: leadTasks = [] } = useTasks({ leadId: id });
 
+  // The Won confirmation's estimate pick (undefined until the picker has loaded).
+  const [wonEstimate, setWonEstimate] = useState<EstimateRef | null | undefined>(undefined);
   const changeStage = useMutation({
-    mutationFn: (stageId: string) =>
-      fetchJson(`/api/leads/${id}/stage`, {
+    mutationFn: (stageId: string) => {
+      const toWon = stages?.find((s: { id: string; isWon?: boolean }) => s.id === stageId)?.isWon;
+      return fetchJson(`/api/leads/${id}/stage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stageId }),
-      }),
-    onSuccess: (updated: { job?: { id: string; jobNumber: string } | null }) => {
+        body: JSON.stringify({ stageId, ...(toWon && wonEstimate !== undefined ? { estimate: wonEstimate } : {}) }),
+      });
+    },
+    onSuccess: (updated: { job?: { id: string; jobNumber: string } | null; jobError?: string | null }) => {
       queryClient.invalidateQueries({ queryKey: ["lead", id] });
-      if (updated?.job) {
+      setWonEstimate(undefined);
+      if (updated?.jobError) {
+        toast.error(`The lead is Won, but its job was not created: ${updated.jobError}`, { duration: 15_000 });
+      } else if (updated?.job) {
         // Won → a job exists. The workflow is the next thing to set up on it.
         const job = updated.job;
         toast.success(`Job created — ${formatAddressLine(lead) || job.jobNumber}`, {
@@ -258,7 +267,19 @@ export default function LeadDetailPage() {
             entityLabel={lead.fullName}
             disabled={changeStage.isPending}
             onChange={(stageId) => changeStage.mutate(stageId)}
-            confirmNote={(_from, to) => (to.isWon ? "Marking a lead Won creates its job, with its workflow." : null)}
+            confirmNote={(_from, to) =>
+              to.isWon ? (
+                <div className="space-y-3">
+                  <p>Marking a lead Won creates its job, with its workflow.</p>
+                  <WonEstimatePicker
+                    leadId={id}
+                    leadValue={lead.estimatedJobValue != null ? Number(lead.estimatedJobValue) : null}
+                    value={wonEstimate}
+                    onChange={setWonEstimate}
+                  />
+                </div>
+              ) : null
+            }
           />
         )}
       </EntityHeader>

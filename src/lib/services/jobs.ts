@@ -9,6 +9,8 @@ import { env } from "@/lib/env";
 import { logOutboundCommunication } from "@/lib/communications/log";
 import { recomputeJobBalance } from "@/lib/services/job-pricing";
 import { syncInvoiceStatus } from "@/lib/services/invoices";
+import { applyEstimateToNewJob, autoWonEstimateFor, loadEstimatePricing } from "@/lib/estimates/job-from-estimate-load";
+import type { EstimateRef } from "@/lib/estimates/job-from-estimate";
 
 let jobCounter: number | null = null;
 
@@ -36,6 +38,14 @@ export type CreateJobOptions = {
   skipDepositTask?: boolean;
   title?: string;
   contractAmount?: number;
+  /**
+   * The estimate the job's price and cost come from. Undefined: the one
+   * estimate marked Accepted, if exactly one is (a Won with no dialog);
+   * null: none — the price typed on the lead, as before.
+   */
+  fromEstimate?: EstimateRef | null;
+  /** Cost to freeze as the baseline, ahead of the estimate's own (an awarded bid's submission snapshot). */
+  estimatedCost?: number;
 };
 
 export async function createJobFromLead(leadId: string, userId: string, opts: CreateJobOptions = {}) {
@@ -59,7 +69,11 @@ export async function createJobFromLead(leadId: string, userId: string, opts: Cr
   const depositNeededStage = await prisma.jobStage.findFirst({ where: { name: "Deposit Needed" } });
 
   const serviceType = lead.services.map((s) => s.serviceCategory.name).join(", ") || "General";
-  const contractAmount = opts.contractAmount ?? Number(lead.estimatedJobValue || 0);
+  // The price and cost from the estimate, when there is one (audit roadmap Stage B).
+  const source = opts.fromEstimate === undefined ? await autoWonEstimateFor(leadId) : opts.fromEstimate;
+  const priced = source ? await loadEstimatePricing(leadId, source) : null;
+  if (source && !priced) throw new Error("That estimate is not on this lead");
+  const contractAmount = opts.contractAmount ?? priced?.pricing.price ?? Number(lead.estimatedJobValue || 0);
   const depositRequired = opts.depositRequired ?? (gcBid ? 0 : Number(contractAmount) * 0.5); // Default 50% deposit on a customer job
   const billingMethod = opts.billingMethod ?? (gcBid ? "PROGRESS" : "LUMP_SUM");
   const retainagePercent = opts.retainagePercent ?? (gcBid ? 10 : 0);
@@ -79,11 +93,17 @@ export async function createJobFromLead(leadId: string, userId: string, opts: Cr
       salesRepId: lead.assignedUserId,
       currentStageId: depositRequired > 0 ? depositNeededStage?.id || wonStage.id : wonStage.id,
       nextAction: depositRequired > 0 ? "Collect deposit" : gcBid ? "Return the signed subcontract" : null,
+      // A cost the caller froze earlier (a bid submission's snapshot) wins over the estimate's cost today.
+      estimatedCostSnapshot: opts.estimatedCost ?? priced?.pricing.cost ?? null,
+      sourceEstimateId: source?.kind === "GENERIC" ? source.id : null,
+      sourceRoofEstimateId: source?.kind === "ROOF" ? source.id : null,
       financingRequired: lead.financingNeeded,
       financingStatus: lead.financingNeeded ? "PENDING_APPLICATION" : "NOT_NEEDED",
     },
     include: { currentStage: true },
   });
+
+  if (source && priced) await applyEstimateToNewJob(job.id, source, priced.pricing, priced.status, userId);
 
   // Create stage history
   await prisma.jobStageHistory.create({
@@ -130,7 +150,7 @@ export async function createJobFromLead(leadId: string, userId: string, opts: Cr
       leadId,
       activityType: "JOB_CREATED",
       title: `Job ${job.jobNumber} created`,
-      description: `Contract: $${Number(contractAmount).toLocaleString()} | Service: ${serviceType}${applied ? ` | Workflow applied (${["Core", ...applied.trades].join(", ")})` : ""}`,
+      description: `Contract: $${Number(contractAmount).toLocaleString()}${priced ? ` from estimate ${priced.estimateNumber} (cost $${priced.pricing.cost.toLocaleString()})` : ""} | Service: ${serviceType}${applied ? ` | Workflow applied (${["Core", ...applied.trades].join(", ")})` : ""}`,
       createdByUserId: userId,
     },
   });

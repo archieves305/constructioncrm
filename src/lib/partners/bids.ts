@@ -438,7 +438,23 @@ async function awardBid(bid: BidRow, actorUserId: string): Promise<{ id: string;
   await prisma.lead.update({ where: { id: bid.leadId }, data: { estimatedJobValue: amount } });
   await moveLeadStage(bid.leadId, "won", actorUserId, `Awarded ${bid.number}`);
   const trades = bid.lead.services.map((s) => s.serviceCategory.name).join(", ") || "Subcontract";
-  const job = await createJobFromLead(bid.leadId, actorUserId, { billingMethod: "PROGRESS", retainagePercent: 10, depositRequired: 0, skipDepositTask: true, contractAmount: amount, title: `${trades} — ${bid.projectName}` });
+  // The cost behind what was bid: the latest submission's snapshot, and its estimate for the budget lines.
+  const submission = await prisma.bidSubmission.findFirst({
+    where: { bidInvitationId: bid.id },
+    orderBy: { version: "desc" },
+    select: { estimateId: true, roofEstimateId: true, snapshotSubtotalCost: true },
+  });
+  const fromEstimate = submission?.estimateId ? ({ kind: "GENERIC", id: submission.estimateId } as const) : submission?.roofEstimateId ? ({ kind: "ROOF", id: submission.roofEstimateId } as const) : null;
+  const job = await createJobFromLead(bid.leadId, actorUserId, {
+    billingMethod: "PROGRESS",
+    retainagePercent: 10,
+    depositRequired: 0,
+    skipDepositTask: true,
+    contractAmount: amount,
+    title: `${trades} — ${bid.projectName}`,
+    fromEstimate,
+    estimatedCost: submission?.snapshotSubtotalCost != null ? Number(submission.snapshotSubtotalCost) : undefined,
+  });
   await recordAudit({ actorUserId, entityType: "BidInvitation", entityId: bid.id, action: "bid_award", after: { jobId: job.id, jobNumber: job.jobNumber, awardedAmount: amount } });
   return { id: job.id, jobNumber: job.jobNumber };
 }

@@ -17,6 +17,7 @@ const updateSchema = z.object({
   description: z.string().max(8000).nullable().optional(),
   customerPrice: z.number().positive().optional(),
   crewCost: z.number().nullable().optional(),
+  materialCost: z.number().min(0).nullable().optional(),
   laborContractId: z.string().nullable().optional(),
 });
 
@@ -56,6 +57,7 @@ export async function PATCH(
   if (d.description !== undefined) data.description = d.description?.trim() || null;
   if (d.customerPrice !== undefined) data.customerPrice = d.customerPrice;
   if (d.crewCost !== undefined) data.crewCost = d.crewCost;
+  if (d.materialCost !== undefined) data.materialCost = d.materialCost;
   if (d.laborContractId !== undefined)
     data.laborContractId = d.laborContractId || null;
 

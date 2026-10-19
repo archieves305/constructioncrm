@@ -3,6 +3,7 @@
 // certificate page, and the conditional status write makes signing
 // single-use under concurrent submits.
 
+import { loadEstimatePricing } from "@/lib/estimates/job-from-estimate-load";
 import { FileCategory, GeneratedDocumentType, type Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit/record";
@@ -177,6 +178,9 @@ export async function signContract(token: string, input: SignInput, meta: SignMe
 
   let estimateFrom: string | null = null;
   let sovSkipped = false;
+  // The cost behind what was signed, options the customer chose included: the job's baseline from now on.
+  const sourceRef = c.estimateId ? ({ kind: "GENERIC", id: c.estimateId } as const) : c.roofEstimateId ? ({ kind: "ROOF", id: c.roofEstimateId } as const) : null;
+  const signedPricing = sourceRef ? await loadEstimatePricing(c.leadId, sourceRef, new Set(snapshot.source.includeOptionalItemIds ?? [])) : null;
   let jobMeta: { projectManagerId: string | null; salesRepId: string | null } = { projectManagerId: null, salesRepId: null };
 
   const outcome = await prisma.$transaction(async (tx) => {
@@ -239,8 +243,30 @@ export async function signContract(token: string, input: SignInput, meta: SignMe
     await tx.job.update({
       where: { id: c.jobId },
       // The signed price is the job's original contract: change orders and billable add-ons sit on top of it.
-      data: { depositRequired: effect.depositRequired, ...(effect.contractAmount != null ? { contractAmount: effect.contractAmount, originalContractAmount: Number(c.contractAmount) } : {}) },
+      data: {
+        depositRequired: effect.depositRequired,
+        ...(effect.contractAmount != null ? { contractAmount: effect.contractAmount, originalContractAmount: Number(c.contractAmount) } : {}),
+        ...(signedPricing && sourceRef
+          ? {
+              estimatedCostSnapshot: signedPricing.pricing.cost,
+              sourceEstimateId: sourceRef.kind === "GENERIC" ? sourceRef.id : null,
+              sourceRoofEstimateId: sourceRef.kind === "ROOF" ? sourceRef.id : null,
+            }
+          : {}),
+      },
     });
+    // The budget follows the signed estimate: its lines replace the estimate-made ones
+    // (a budget someone typed or imported is never touched).
+    if (signedPricing) {
+      const lines = await tx.budgetLine.findMany({ where: { jobId: c.jobId }, select: { source: true, _count: { select: { allocations: true } } } });
+      const onlyEstimateLines = lines.every((l) => l.source === "estimate" && l._count.allocations === 0);
+      if (onlyEstimateLines) {
+        await tx.budgetLine.deleteMany({ where: { jobId: c.jobId, source: "estimate" } });
+        if (signedPricing.pricing.budgetLines.length > 0) {
+          await tx.budgetLine.createMany({ data: signedPricing.pricing.budgetLines.map((l, i) => ({ jobId: c.jobId, category: l.category, name: l.name, amount: l.amount, sortOrder: i, source: "estimate" })) });
+        }
+      }
+    }
     if (effect.sov.action === "create") {
       await tx.sovLine.create({ data: { jobId: c.jobId, itemNo: effect.sov.itemNo, description: effect.sov.description, scheduledValue: effect.sov.scheduledValue, sortOrder: effect.sov.itemNo - 1 } });
     } else if (effect.sov.action === "update") {

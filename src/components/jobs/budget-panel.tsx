@@ -34,6 +34,7 @@ type BudgetLine = {
   id: string;
   category: string | null;
   name: string;
+  source?: string | null;
   amount: string;
   allocations: Allocation[];
 };
@@ -425,6 +426,7 @@ export function BudgetPanel({
                   <div className="flex items-center gap-2">
                     {l.category && <Badge variant="outline" className="text-[10px]">{l.category}</Badge>}
                     <span className="text-sm font-medium">{l.name}</span>
+                    {l.source === "estimate" && <span className="ml-2 rounded-full bg-gray-100 px-1.5 text-[11px] text-gray-600" title="Made from the estimate the job's price came from">from estimate</span>}
                   </div>
                   <div className="flex items-center gap-1">
                     <button type="button" className="rounded p-1.5 text-muted-foreground hover:bg-gray-100 hover:text-foreground" title="Edit line" onClick={() => startEdit(l)}>

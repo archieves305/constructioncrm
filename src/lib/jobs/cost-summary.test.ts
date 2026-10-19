@@ -19,6 +19,11 @@ const base: CostSummaryInput = {
 };
 
 describe("computeCostSummary", () => {
+  it("adds approved change orders' cost to the expected cost, from a budget or an estimate, and never invents one", () => {
+    expect(computeCostSummary({ ...base, changeOrderCost: 9_000 }).estimatedCost).toBe(81_000);
+    expect(computeCostSummary({ ...base, budgetTotal: null, estimateCost: 60_000, changeOrderCost: 9_000 }).estimatedCost).toBe(69_000);
+    expect(computeCostSummary({ ...base, budgetTotal: null, estimateCost: null, changeOrderCost: 9_000 }).estimatedCost).toBeNull();
+  });
   it("reproduces the owner's nine figures", () => {
     const s = computeCostSummary(base);
     expect(s.originalContract).toBe(100_000);

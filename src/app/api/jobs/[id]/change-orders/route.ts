@@ -11,6 +11,7 @@ const createSchema = z.object({
   description: z.string().max(8000).nullable().optional(),
   customerPrice: z.number().positive("Customer price must be greater than zero"),
   crewCost: z.number().nullable().optional(),
+  materialCost: z.number().min(0).nullable().optional(),
   laborContractId: z.string().nullable().optional(),
 });
 
@@ -78,6 +79,7 @@ export async function POST(
         description: d.description?.trim() || null,
         customerPrice: d.customerPrice,
         crewCost: d.crewCost ?? null,
+        materialCost: d.materialCost ?? null,
         laborContractId: d.laborContractId || null,
         createdByUserId: session.user.id,
       },

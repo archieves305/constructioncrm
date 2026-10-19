@@ -27,8 +27,10 @@ export type CostSummaryInput = {
   approvedBillableAddOns: number;
   /** Σ budget lines; null when the job has none. */
   budgetTotal: number | null;
-  /** Cost behind the signed estimate, as a fallback when there is no budget; null when unknown. */
+  /** The cost frozen from the estimate the price came from (else the signed estimate's), as a fallback when there is no budget; null when unknown. */
   estimateCost: number | null;
+  /** Approved change orders' crew and other cost: added to the expected cost, whichever it comes from. */
+  changeOrderCost?: number;
   /** Job.laborCost: crew labor contracts plus their change orders (or the single manual figure). */
   laborContracts: number;
   /** Σ payments made against those labor contracts. */
@@ -110,7 +112,8 @@ export function computeCostSummary(i: CostSummaryInput): CostSummary {
     i.storedOriginalContract ??
     (i.jobType === "FIXED_PRICE" ? round2(i.revisedContract - i.approvedChangeOrders - i.approvedBillableAddOns) : null);
 
-  const estimatedCost = i.budgetTotal ?? i.estimateCost;
+  const base = i.budgetTotal ?? i.estimateCost;
+  const estimatedCost = base === null ? null : round2(base + (i.changeOrderCost ?? 0));
   const estimatedCostSource = i.budgetTotal !== null ? "budget" : i.estimateCost !== null ? "estimate" : null;
 
   const spent = round2(i.laborPaid + i.fieldLaborUnposted + i.expenses);

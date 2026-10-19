@@ -571,7 +571,33 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-19 — Audit roadmap Stage A: security + money-integrity repairs (built + dev-QA'd on `repairs-a`, not deployed)
+### 2026-10-19 — Audit roadmap Stage B: the estimate drives the job (built + dev-QA'd on `estimate-job`, not deployed)
+
+Migration `20261109120000_estimate_drives_job` (additive: `jobs.estimated_cost_snapshot`,
+`source_estimate_id`, `source_roof_estimate_id`, `change_orders.material_cost`,
+`budget_lines.source`). Pure `lib/estimates/job-from-estimate.ts` (price, cost and
+budget lines per section at cost from either estimate kind, chosen options counted;
+`preselectWonEstimate` = accepted, else latest sent; `autoWonEstimate` = exactly one
+accepted) + `job-from-estimate-load.ts`. `createJobFromLead` takes `fromEstimate`
+(undefined = the auto rule for the board / bulk; null = the lead's value, as before)
+and `estimatedCost` (a caller's frozen cost wins): price, 50% deposit, the frozen cost
+and the source on the job; budget lines from the estimate when the job has none; the
+estimate marked Accepted. The stage route takes `estimate` and returns `jobError`
+instead of swallowing a failed job; `GET /api/leads/[id]/won-estimates`; the Won
+confirmation on the lead page carries `WonEstimatePicker`. Signing freezes the cost of
+what was signed (chosen options included) and refreshes estimate-made budget lines
+that carry no allocations. An award takes the latest submission's cost snapshot and
+estimate. The cost summary reads the frozen cost before the live signed-estimate cost
+and adds approved change orders' crew + other cost (`materialCost`, new on the CO
+form). Budget lines show "from estimate". Gate: typecheck clean, lint 5/22, 1919 tests
+(+6), build clean. Dev QA: API 14/14 (a 250 / 200 estimate → JOB at $250, deposit
+$125, baseline $200, one "Walls" budget line, estimate Accepted and then 409 on edit,
+a CO with $100 crew + $150 other cost → expected cost $450; another lead's estimate
+refused and reported; no estimate → the lead's $12,000), and the Won dialog in
+headless Chromium at 1280 / 400 px (sent estimate preselected, roofing estimates
+offered, Move to Won → $250 / $200). Dev DB restored. **Deploy carries the migration.**
+
+### 2026-10-19 — Audit roadmap Stage A: security + money-integrity repairs (deployed `53871b5`)
 
 Richard took the audit's first four 90-day items, each deployed after QA;
 rulings: job money = office roles + READ_ONLY + the job's PM in full, sales
@@ -604,7 +630,10 @@ delete audited; an ACCEPTED estimate is refused on save (409) and offers
 MARKETING (two misses in the first run were the script's own payload and a
 job whose PM was the QA user); headless Chromium at 1440 / 400 px: admin full,
 rep price-only panels, marketing no Money tab; found + fixed the Crews crash.
-No migration. Dev DB restored.
+No migration. Dev DB restored. Richard pushed and deployed from `!` (background, exit 0):
+BUILD_ID `U90VFCrDknZ6GfCb-zWQr` → `IpNJHFIDtpmxU4_QSV4JA`, no pending migrations,
+smoke 307 ×2, journal clean, backup `postgres-2026-10-19-152720.dump`; the deployed
+`urlProblem` run on the droplet refuses `[::ffff:169.254.169.254]` and a bare IP.
 
 ### 2026-10-19 — Rulings
 
@@ -3330,6 +3359,12 @@ Notification Digests).
   marketing. Money reads use `guardJobMoney(viewer, jobId, "price" | "full")`;
   a record carrying money goes out through `redactJobMoney` / `redactOverview`.
   `src/app/api/route-guards.test.ts` fails on a new session-only handler.
+- **A job's price and cost come from its estimate** when one is picked at Won
+  (or signed, or bid): `createJobFromLead` freezes the cost on the job
+  (`estimatedCostSnapshot`), budgets each section at cost (`source "estimate"`,
+  never over a typed budget) and marks the estimate Accepted. The cost summary
+  reads the frozen cost, never a live estimate, and adds approved change orders'
+  crew + other cost. With no estimate the lead's typed value is used, as before.
 - **Money records change only with a trace.** An approved expense's amount,
   date, type or billable flag is changed by the money roles only; a sent
   invoice's amount is fixed (void and reissue); a change-order decision claims
@@ -3595,13 +3630,12 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Audit roadmap Stage A (security + money repairs) is on `repairs-a`, not
-> merged or deployed; no migration.** After Richard's push + deploy: check as
-> a sales rep that a job shows price but no cost, and that an accepted estimate
-> offers Revise. Next build: **Stage B — the estimate drives the job** (Won
-> dialog picks the estimate; job price, cost snapshot and budget lines from
-> it; change-order cost; awarded bid baseline). Then C (owner command center)
-> and D (overdue control + lead call list).
+> **Audit roadmap: Stage A is on prod (`53871b5`); Stage B (the estimate drives
+> the job) is on `main`, not deployed — the deploy carries migration
+> `20261109120000_estimate_drives_job`.** After it: mark a lead Won from its page
+> and pick the estimate; the job's Money → Budget shows the "from estimate" lines.
+> Next build: **Stage C — owner command center**, then D (overdue control + lead
+> call list).
 
 > **Plan takeoff M3 is on prod (`166a362`, BUILD_ID
 > `U90VFCrDknZ6GfCb-zWQr`).** Click-through: a lead
