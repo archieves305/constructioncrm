@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Check, CopyX, Scale } from "lucide-react";
+import { Check, CopyX, HardHat, Scale } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Callout } from "@/components/shared/callout";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -80,7 +80,12 @@ type Allocator =
         acknowledged: { count: number; amount: number };
       };
     };
-type Payload = { allocator: Allocator; pairs: Pair[]; summary: { pairs: number; exact: number; amount: number }; decisions: Decision[] };
+type CrewExpense = { id: string; jobId: string; jobNumber: string | null; jobAddress: string | null; amount: number; incurredDate: string; vendor: string | null; status: "PENDING" | "APPROVED"; fromBank: boolean };
+type Crew = {
+  twins: { expense: CrewExpense; payment: { id: string; amount: number; paidDate: string; crew: string }; difference: number; gapDays: number; reason: "amount" | "payee" }[];
+  crewPaidAsExpense: { expense: CrewExpense; contract: { id: string; crew: string } }[];
+};
+type Payload = { allocator: Allocator; crew: Crew; pairs: Pair[]; summary: { pairs: number; exact: number; amount: number }; decisions: Decision[] };
 
 const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const day = (iso: string) => format(new Date(`${iso.slice(0, 10)}T12:00:00`), "MMM d, yyyy");
@@ -227,6 +232,8 @@ export default function JobCostReconciliationPage() {
               )}
             </CardContent>
           </Card>
+
+          <CrewPaymentsSection crew={data.crew} />
 
           <AllocatorSection a={data.allocator} />
 
@@ -461,5 +468,141 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="text-xl font-semibold tabular-nums">{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
+  );
+}
+
+/**
+ * Crew payments counted twice. A labor contract counts in full from the day
+ * it is signed, so a payment to the crew that also arrives from the bank as
+ * an expense is cost twice (lib/expenses/labor-twins.ts).
+ */
+function CrewPaymentsSection({ crew }: { crew: Crew }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState<string | null>(null);
+  const decide = useMutation({
+    mutationFn: ({ expenseId, body }: { expenseId: string; body: Record<string, string> }) => {
+      setBusy(expenseId);
+      return fetchJson(`/api/expenses/${expenseId}/labor-payment`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    },
+    onSuccess: (_r, v) => {
+      toast.success(v.body.action === "separate" ? "Kept as a cost of its own" : v.body.action === "record" ? "Recorded on the labor contract — counted once" : "Counted once, through the crew payment");
+      qc.invalidateQueries({ queryKey: ["job-cost-reconciliation"] });
+      qc.invalidateQueries({ queryKey: ["job"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setBusy(null),
+  });
+  const total = crew.twins.length + crew.crewPaidAsExpense.length;
+  const job = (e: CrewExpense) => (
+    <>
+      <Link href={`/jobs/${e.jobId}?tab=money&sub=expenses`} className="text-xs font-medium hover:underline">
+        {e.jobAddress ?? e.jobNumber}
+      </Link>
+      {e.jobAddress && e.jobNumber && <span className="ml-1 font-mono text-[10px] text-muted-foreground">{e.jobNumber}</span>}
+    </>
+  );
+  const charge = (e: CrewExpense) => (
+    <div className="min-w-0">
+      <div className="font-medium tabular-nums">{money(e.amount)} · {day(e.incurredDate)}</div>
+      <div className="max-w-[260px] truncate text-xs text-muted-foreground" title={e.vendor ?? ""}>{e.vendor ?? "no payee"}</div>
+      <div className="text-[10px] text-muted-foreground">{e.fromBank ? "bank / card feed" : "typed in"}{e.status === "PENDING" ? " · held for review" : ""}</div>
+    </div>
+  );
+  const separate = (e: CrewExpense) => (
+    <Button size="sm" variant="outline" disabled={busy === e.id} onClick={() => decide.mutate({ expenseId: e.id, body: { action: "separate" } })}>
+      A cost of its own
+    </Button>
+  );
+  return (
+    <Card data-testid="crew-payments">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <HardHat className="size-4 text-muted-foreground" /> Crew payments
+          {total > 0 && <Badge variant="secondary" className="text-[10px]">{total}</Badge>}
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          A labor contract counts in full from the day it is signed, so a payment to the crew must be recorded on the contract — not also as an expense.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4 p-0 pb-2">
+        {total === 0 && (
+          <div className="p-6">
+            <EmptyState icon={Check} title="No crew payment counted twice" description="Bank postings that match a crew payment, or pay a crew with a labor contract on the job, arrive as Pending and show here." />
+          </div>
+        )}
+        {crew.twins.length > 0 && (
+          <div className="overflow-x-auto">
+            <p className="px-4 text-xs font-medium">Same money as a recorded crew payment?</p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job</TableHead>
+                  <TableHead>Charge</TableHead>
+                  <TableHead>Crew payment</TableHead>
+                  <TableHead className="w-[280px] text-right">Decision</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {crew.twins.map((t) => (
+                  <TableRow key={t.expense.id} data-testid="crew-twin">
+                    <TableCell>{job(t.expense)}</TableCell>
+                    <TableCell>{charge(t.expense)}</TableCell>
+                    <TableCell>
+                      <div className="font-medium tabular-nums">{money(t.payment.amount)} · {day(t.payment.paidDate)}</div>
+                      <div className="text-xs text-muted-foreground">{t.payment.crew}{t.gapDays ? ` · ${t.gapDays}d apart` : " · same day"}</div>
+                      {Math.abs(t.difference) >= 0.01 && (
+                        <div className="text-[10px] text-tone-warning-fg">
+                          {t.difference > 0 ? `Bank sent ${money(t.difference)} more — file that part where it belongs` : `Bank sent ${money(-t.difference)} less`}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {separate(t.expense)}
+                        <Button size="sm" disabled={busy === t.expense.id} onClick={() => decide.mutate({ expenseId: t.expense.id, body: { action: "same_money", laborPaymentId: t.payment.id } })}>
+                          {busy === t.expense.id ? "Working…" : "Same money — count once"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        {crew.crewPaidAsExpense.length > 0 && (
+          <div className="overflow-x-auto">
+            <p className="px-4 text-xs font-medium">Paid to a crew with a labor contract on the job, but not recorded on the contract</p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job</TableHead>
+                  <TableHead>Charge</TableHead>
+                  <TableHead>Labor contract</TableHead>
+                  <TableHead className="w-[280px] text-right">Decision</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {crew.crewPaidAsExpense.map((c) => (
+                  <TableRow key={c.expense.id} data-testid="crew-unrecorded">
+                    <TableCell>{job(c.expense)}</TableCell>
+                    <TableCell>{charge(c.expense)}</TableCell>
+                    <TableCell className="text-xs">{c.contract.crew}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {separate(c.expense)}
+                        <Button size="sm" disabled={busy === c.expense.id} onClick={() => decide.mutate({ expenseId: c.expense.id, body: { action: "record", laborContractId: c.contract.id } })}>
+                          {busy === c.expense.id ? "Working…" : "Record on the contract"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

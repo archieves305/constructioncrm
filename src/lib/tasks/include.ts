@@ -21,6 +21,7 @@ export const TASK_LIST_INCLUDE = {
   dailyLog: { select: { id: true, jobId: true, logDate: true } },
   vendor: { select: { id: true, name: true } },
   organization: { select: { id: true, name: true } },
+  permit: { select: { id: true, permitType: true, permitNumber: true, municipality: true } },
   violationCase: { select: { id: true, caseNumber: true, agencyCaseNumber: true, leadId: true } },
   violationItem: { select: { id: true, itemNumber: true, caseId: true } },
   assignedTo: { select: { id: true, firstName: true, lastName: true } },

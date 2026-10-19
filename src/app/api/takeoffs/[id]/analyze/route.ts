@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
-import { AI_NOT_CONFIGURED, isAiConfigured } from "@/lib/takeoff/ai/client";
+import { AI_NOT_CONFIGURED, isAiConfigured } from "@/lib/ai/client";
 import { guardTakeoff } from "@/lib/takeoff/route-guards";
 import { getJob } from "@/lib/takeoff/service";
 import { startAnalysis } from "@/lib/takeoff/takeoff-service";

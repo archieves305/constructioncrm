@@ -7,6 +7,7 @@ import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { recomputeJobLabor } from "@/lib/services/job-pricing";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 import { guardJob } from "@/lib/access/records";
+import { PHOTO_SELECT, withPresentedPhotos } from "@/lib/files/list";
 
 const createSchema = z
   .object({
@@ -36,7 +37,10 @@ export async function GET(
       crew: { select: { id: true, name: true, vendor: { select: { id: true, name: true } } } },
       vendor: { select: { id: true, name: true } },
       createdBy: { select: { firstName: true, lastName: true } },
-      payments: { orderBy: { paidDate: "desc" } },
+      payments: {
+        orderBy: { paidDate: "desc" },
+        include: { photos: { select: PHOTO_SELECT, orderBy: { createdAt: "asc" } } },
+      },
       changeOrders: { orderBy: { changeDate: "asc" } },
       tasks: { orderBy: { sortOrder: "asc" } },
       generatedDocuments: {
@@ -56,7 +60,13 @@ export async function GET(
   // What to warn about where the contractor is paid: derived on read, never blocking.
   const compliance = await complianceForVendors(contracts.map((c) => c.vendor?.id ?? c.crew?.vendor?.id ?? ""));
   return NextResponse.json(
-    contracts.map((c) => ({ ...c, vendorCompliance: summarise(compliance.get(c.vendor?.id ?? c.crew?.vendor?.id ?? "")) })),
+    await Promise.all(
+      contracts.map(async (c) => ({
+        ...c,
+        payments: await withPresentedPhotos(c.payments),
+        vendorCompliance: summarise(compliance.get(c.vendor?.id ?? c.crew?.vendor?.id ?? "")),
+      })),
+    ),
   );
 }
 

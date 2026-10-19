@@ -52,6 +52,46 @@ const text = (v: unknown): string | null | undefined => (v === undefined ? undef
 
 // ─── Permit ─────────────────────────────────────────────────────────────────
 
+function readMoney(v: unknown, field: string): string | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null || v === "") return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) throw new PermitError(400, `${field} must be an amount of zero or more`);
+  return n.toFixed(2);
+}
+
+/**
+ * The Permit Intelligence fields of a permit. Picking a jurisdiction or a
+ * catalog type also writes its name into the text the rest of the CRM reads
+ * (`municipality`, `permitType`), so the two never disagree.
+ */
+export async function recordFields(body: Record<string, unknown>): Promise<Prisma.JobPermitUncheckedUpdateInput> {
+  const out: Prisma.JobPermitUncheckedUpdateInput = {
+    applicationNumber: text(body.applicationNumber),
+    scopeDescription: text(body.scopeDescription),
+    valuation: readMoney(body.valuation, "valuation"),
+  };
+  if (body.jurisdictionId !== undefined) {
+    if (body.jurisdictionId === null || body.jurisdictionId === "") out.jurisdictionId = null;
+    else {
+      const j = await prisma.jurisdiction.findUnique({ where: { id: String(body.jurisdictionId) }, select: { id: true, name: true } });
+      if (!j) throw new PermitError(400, "That jurisdiction does not exist");
+      out.jurisdictionId = j.id;
+      out.municipality = j.name;
+    }
+  }
+  if (body.permitTypeKey !== undefined) {
+    if (body.permitTypeKey === null || body.permitTypeKey === "") out.permitTypeKey = null;
+    else {
+      const t = await prisma.permitTypeDef.findUnique({ where: { key: String(body.permitTypeKey) }, select: { key: true, name: true } });
+      if (!t) throw new PermitError(400, "That permit type does not exist");
+      out.permitTypeKey = t.key;
+      if (body.permitType === undefined) out.permitType = t.name;
+    }
+  }
+  return out;
+}
+
 export async function updatePermit(id: string, body: Record<string, unknown>, actor: Actor) {
   const previous = await prisma.jobPermit.findUnique({ where: { id }, select: { status: true, approvedDate: true, finalPassedDate: true, jobId: true } });
   if (!previous) throw new PermitError(404, "Permit not found");
@@ -73,6 +113,8 @@ export async function updatePermit(id: string, body: Record<string, unknown>, ac
     inspectorName: text(body.inspectorName),
     permitFee: readFee(body.permitFee),
     notes: text(body.notes),
+    // last: a jurisdiction or catalog type picked wins over typed text
+    ...(await recordFields(body)),
   };
   const changed = status !== undefined && status !== previous.status;
   if (changed) {

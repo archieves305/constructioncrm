@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { fetchJson } from "@/lib/fetch-json";
 import { workflowKeys } from "@/components/workflows/use-workflow";
+import { useJurisdictions, usePermitTypes } from "@/components/permit-intel/use-permit-intel";
 import { dayOf, PERMIT_STATUS_LABEL, PERMIT_STATUS_OPTIONS, type AssignableUser, type PermitRecord } from "./shared";
 
 /** Refresh everything that shows a permit after it changed — the gates it settles included. */
@@ -18,6 +19,7 @@ export function usePermitRefresh(jobId: string) {
   return () => {
     qc.invalidateQueries({ queryKey: ["job", jobId] });
     qc.invalidateQueries({ queryKey: ["permits"] });
+    qc.invalidateQueries({ queryKey: ["permit"] });
     qc.invalidateQueries({ queryKey: workflowKeys.job(jobId) });
   };
 }
@@ -59,6 +61,8 @@ type Draft = Partial<Record<FieldKey, string | null>>;
 export function PermitEditor({ permit, users, canEdit, onSaved }: { permit: PermitRecord; users: AssignableUser[]; canEdit: boolean; onSaved?: () => void }) {
   const [draft, setDraft] = useState<Draft>({});
   const update = useUpdatePermit(permit.jobId);
+  const { data: jurisdictions = [] } = useJurisdictions();
+  const { data: permitTypes = [] } = usePermitTypes();
   const set = (k: FieldKey, v: string | null) => setDraft((d) => ({ ...d, [k]: v }));
   const val = (k: FieldKey): string => {
     const v = k in draft ? draft[k] : (permit[k] as string | null);
@@ -76,12 +80,37 @@ export function PermitEditor({ permit, users, canEdit, onSaved }: { permit: Perm
     <fieldset disabled={!canEdit} className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Jurisdiction">
-          <Input value={val("municipality")} onChange={(e) => set("municipality", e.target.value)} />
+          <JurisdictionPicker
+            jurisdictions={jurisdictions}
+            jurisdictionId={val("jurisdictionId") || null}
+            typed={val("municipality")}
+            onPick={(id) => set("jurisdictionId", id)}
+            onType={(text) => set("municipality", text)}
+          />
         </Field>
         <Field label="Permit type">
-          <Input value={val("permitType")} onChange={(e) => set("permitType", e.target.value)} placeholder="Re-roof, Electrical, …" />
+          <Select
+            items={[...permitTypes.map((t) => ({ value: t.key, label: t.name })), ...(val("permitTypeKey") ? [] : [{ value: "__typed", label: val("permitType") || "Pick a type" }])]}
+            value={val("permitTypeKey") || "__typed"}
+            onValueChange={(v: string | null) => v && v !== "__typed" && set("permitTypeKey", v)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {!val("permitTypeKey") && <SelectItem value="__typed">{val("permitType") || "Pick a type"}</SelectItem>}
+              {permitTypes.map((t) => (
+                <SelectItem key={t.key} value={t.key}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
-        <Field label="Permit #">
+        <Field label="Application #">
+          <Input value={val("applicationNumber")} onChange={(e) => set("applicationNumber", e.target.value)} placeholder="The department's number for the submission" />
+        </Field>
+        <Field label="Permit # (once issued)">
           <Input value={val("permitNumber")} onChange={(e) => set("permitNumber", e.target.value)} />
         </Field>
         <Field label="Status">
@@ -103,6 +132,9 @@ export function PermitEditor({ permit, users, canEdit, onSaved }: { permit: Perm
             <Input type="date" value={dayOf(val(key))} onChange={(e) => set(key, e.target.value || null)} />
           </Field>
         ))}
+        <Field label="Valuation">
+          <Input value={val("valuation")} inputMode="decimal" placeholder="Construction value on the application" onChange={(e) => set("valuation", e.target.value)} />
+        </Field>
         <Field label="Permit fee quoted">
           <Input value={val("permitFee")} inputMode="decimal" placeholder="0.00" onChange={(e) => set("permitFee", e.target.value)} />
         </Field>
@@ -129,6 +161,9 @@ export function PermitEditor({ permit, users, canEdit, onSaved }: { permit: Perm
             </SelectContent>
           </Select>
         </Field>
+        <Field label="Scope of work" wide>
+          <Textarea rows={2} value={val("scopeDescription")} onChange={(e) => set("scopeDescription", e.target.value)} placeholder="As written on the application" />
+        </Field>
         <Field label="Notes" wide>
           <Textarea rows={3} value={val("notes")} onChange={(e) => set("notes", e.target.value)} placeholder="Conditions of approval, conversations with the building department…" />
         </Field>
@@ -143,7 +178,7 @@ export function PermitEditor({ permit, users, canEdit, onSaved }: { permit: Perm
           )}
           <Button
             size="sm"
-            disabled={!dirty || update.isPending || !val("municipality").trim()}
+            disabled={!dirty || update.isPending || (!val("municipality").trim() && !val("jurisdictionId"))}
             onClick={() =>
               update.mutate(
                 { id: permit.id, ...draft },
@@ -162,5 +197,61 @@ export function PermitEditor({ permit, users, canEdit, onSaved }: { permit: Perm
         </div>
       )}
     </fieldset>
+  );
+}
+
+/**
+ * A jurisdiction from the list, or — for a permit typed before the list
+ * existed, or a department nobody has added yet — the name as typed. Picking
+ * one writes its name into the permit's text too (server side).
+ */
+export function JurisdictionPicker({
+  jurisdictions,
+  jurisdictionId,
+  typed,
+  onPick,
+  onType,
+}: {
+  jurisdictions: { id: string; name: string }[];
+  jurisdictionId: string | null;
+  typed: string;
+  onPick: (id: string) => void;
+  onType: (text: string) => void;
+}) {
+  const [typing, setTyping] = useState(!jurisdictionId && !!typed && !jurisdictions.some((j) => j.name === typed));
+  if (typing || jurisdictions.length === 0) {
+    return (
+      <div className="flex gap-1">
+        <Input value={typed} onChange={(e) => onType(e.target.value)} placeholder="City of …" />
+        {jurisdictions.length > 0 && (
+          <Button type="button" size="sm" variant="ghost" onClick={() => setTyping(false)}>
+            List
+          </Button>
+        )}
+      </div>
+    );
+  }
+  const items = jurisdictions.map((j) => ({ value: j.id, label: j.name }));
+  return (
+    <Select
+      items={[...items, { value: "__type", label: "Not on the list — type it" }]}
+      value={jurisdictionId ?? undefined}
+      onValueChange={(v: string | null) => {
+        if (v === "__type") setTyping(true);
+        else if (v) onPick(v);
+      }}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder={typed || "Pick the building department"} />
+      </SelectTrigger>
+      <SelectContent>
+        {jurisdictions.map((j) => (
+          <SelectItem key={j.id} value={j.id}>
+            {j.name}
+          </SelectItem>
+        ))}
+        <SelectItem value="__type">Not on the list — type it</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }

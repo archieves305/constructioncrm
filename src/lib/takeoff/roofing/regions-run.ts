@@ -1,6 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { runAiCall } from "../ai/calls";
+import { runAiCall } from "@/lib/ai/calls";
 import { PROMPT_SEGMENTS, roofCandidates } from "../ai/candidates";
 import { buildRoofRegionsPrompt, ROOF_REGIONS_PROMPT_VERSION, ROOF_REGIONS_SYSTEM } from "../ai/prompts";
 import { aiImageFor } from "../ai/render";
@@ -44,8 +44,8 @@ export async function runRoofRegions(takeoffId: string, planSheetId: string, use
     segments: listed.map((s) => ({ id: s.id, x1Px: px(s.x1), y1Px: px(s.y1), x2Px: px(s.x2), y2Px: px(s.y2), lenFt: s.len / sheet.ptPerFt! })),
   });
   const res = await runAiCall({
-    takeoffId,
-    planSheetId,
+    subjectType: "takeoff",
+    subjectId: takeoffId,
     purpose: "roof_regions",
     promptVersion: ROOF_REGIONS_PROMPT_VERSION,
     schema: RoofRegionsSchema,

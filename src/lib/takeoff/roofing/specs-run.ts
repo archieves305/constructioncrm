@@ -1,7 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { formatAddressLine } from "@/lib/labels/address";
-import { runAiCall } from "../ai/calls";
+import { runAiCall } from "@/lib/ai/calls";
 import { buildRoofSpecsInput, MAX_SPEC_SHEETS, ROOF_SPECS_PROMPT_VERSION, ROOF_SPECS_SYSTEM, type SpecsSheetInput } from "../ai/prompts";
 import { RoofSpecsSchema } from "../ai/schemas";
 import { readSheetText } from "../sheet-cache";
@@ -40,7 +40,8 @@ export async function runRoofSpecs(takeoffId: string, userId: string): Promise<P
   const address = formatAddressLine(takeoff.lead);
   const input = buildRoofSpecsInput(sheets, { address });
   const res = await runAiCall({
-    takeoffId,
+    subjectType: "takeoff",
+    subjectId: takeoffId,
     purpose: "roof_specs",
     promptVersion: ROOF_SPECS_PROMPT_VERSION,
     schema: RoofSpecsSchema,

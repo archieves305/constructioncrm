@@ -56,6 +56,10 @@ export type HeldFacts = {
   permitsClosed: boolean;
   /** A crew is assigned to the job with an install date. */
   crewInstallSet: boolean;
+  /** A permit on the job has a finalised application form (Permit Intelligence). */
+  permitApplicationFinal?: boolean;
+  /** A permit on the job is marked ready to submit after its preflight. */
+  permitReady?: boolean;
 };
 
 const FACT_LINES: { test: RegExp; holds: (f: HeldFacts) => boolean }[] = [
@@ -65,12 +69,19 @@ const FACT_LINES: { test: RegExp; holds: (f: HeldFacts) => boolean }[] = [
   { test: /^Permit added on the Permits tab/i, holds: (f) => f.permitOnFile },
   { test: /^Permit closed on the Permits tab/i, holds: (f) => f.permitsClosed },
   { test: /^Crew and install date set/i, holds: (f) => f.crewInstallSet },
+  // "Roofing permit application completed", "Building permit application completed"…
+  { test: /permit application completed$/i, holds: (f) => !!f.permitApplicationFinal },
   // Completing "Close the job" moves the stage itself (stage-sync.ts), so there is nothing left to confirm.
   { test: /^Job moved to the Closed stage/i, holds: () => true },
 ];
 
-/** Keys of the unticked lines whose fact is now true. */
-export function linesToTick(checklist: { key: string; label: string; done: boolean }[], facts: HeldFacts): string[] {
+/**
+ * Keys of the unticked lines whose fact is now true. A permit marked ready
+ * after its preflight is the whole of "Assemble … permit documents": every
+ * line of that step ticks.
+ */
+export function linesToTick(checklist: { key: string; label: string; done: boolean }[], facts: HeldFacts, stepKey?: string | null): string[] {
+  if (facts.permitReady && stepKey && /(^|:)\w*permit_documents$/.test(stepKey)) return checklist.filter((c) => !c.done).map((c) => c.key);
   return checklist.filter((c) => !c.done && FACT_LINES.some((l) => l.test.test(c.label) && l.holds(facts))).map((c) => c.key);
 }
 
@@ -83,7 +94,7 @@ export async function tickHeldFacts(jobId: string, actorUserId: string): Promise
       select: {
         projectManagerId: true,
         targetStartDate: true,
-        permits: { select: { status: true, submittedDate: true } },
+        permits: { select: { status: true, submittedDate: true, readyAt: true, formFills: { where: { status: "FINAL" }, select: { id: true }, take: 1 } } },
         crewAssignments: { where: { installDate: { not: null } }, select: { id: true }, take: 1 },
         workflow: { select: { id: true, status: true, permitStatus: true, team: { select: { role: true } } } },
       },
@@ -96,13 +107,15 @@ export async function tickHeldFacts(jobId: string, actorUserId: string): Promise
       permitOnFile: job.permits.some((p) => p.submittedDate !== null),
       permitsClosed: job.workflow.permitStatus === "NOT_REQUIRED" || (job.permits.length > 0 && job.permits.every((p) => p.status === "FINAL")),
       crewInstallSet: job.crewAssignments.length > 0,
+      permitApplicationFinal: job.permits.some((p) => p.formFills.length > 0),
+      permitReady: job.permits.some((p) => p.readyAt !== null),
     };
     const steps = await prisma.task.findMany({
       where: { workflowInstanceId: job.workflow.id, workflowTaskKey: { not: null }, status: { in: ["PENDING", "IN_PROGRESS"] }, activatedAt: { not: null } },
-      select: { id: true, checklist: true },
+      select: { id: true, checklist: true, workflowTaskKey: true },
     });
     for (const s of steps) {
-      const keys = linesToTick(readChecklist(s.checklist), facts);
+      const keys = linesToTick(readChecklist(s.checklist), facts, s.workflowTaskKey);
       if (keys.length === 0) continue;
       await updateTask({ id: s.id, input: { checklist: keys.map((key) => ({ key, done: true })) }, actorUserId, notify: "none" });
       ticked += keys.length;

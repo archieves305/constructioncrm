@@ -7,6 +7,8 @@ import { canApproveJobCosts } from "@/lib/expenses/permissions";
 import { pairCandidates, pairKey } from "@/lib/expenses/reconcile";
 import { classifyAllocatorPostings } from "@/lib/expenses/reconcile-allocator";
 import { fetchAllocatorPostings } from "@/lib/integrations/cc-allocator/postings";
+import { reviewLaborExpenses, contractName } from "@/lib/expenses/labor-twins";
+import { LABOR_CONTRACT_NAME_SELECT, LABOR_EXPENSE_SELECT, toContractRow, toExpenseRow } from "@/lib/expenses/labor-cover";
 
 /**
  * Manual charges that look like a cc-allocator posting on the same job —
@@ -124,8 +126,11 @@ export async function GET() {
     };
   });
 
+  const crew = await loadCrewPayments();
+
   return NextResponse.json({
     allocator: allocatorOut,
+    crew,
     pairs,
     summary: {
       pairs: pairs.length,
@@ -146,4 +151,59 @@ export async function GET() {
       decidedBy: d.decidedBy ? `${d.decidedBy.firstName} ${d.decidedBy.lastName}`.trim() : null,
     })),
   });
+}
+
+/**
+ * Crew payments counted twice: charges that look like a payment already on
+ * a crew's labor contract, and charges paid to a crew with a labor contract
+ * on the job but no payment recorded (lib/expenses/labor-twins.ts).
+ */
+async function loadCrewPayments() {
+  const contracts = await prisma.laborContract.findMany({ select: LABOR_CONTRACT_NAME_SELECT });
+  if (!contracts.length) return { twins: [], crewPaidAsExpense: [] };
+  const jobIds = Array.from(new Set(contracts.map((c) => c.jobId)));
+  const [expenses, payments, covering, jobs] = await Promise.all([
+    prisma.jobExpense.findMany({
+      where: { jobId: { in: jobIds }, status: { not: "REJECTED" }, amount: { gt: 0 }, payrollPaymentId: null, coveredByLaborPaymentId: null, laborClearedAt: null },
+      select: { ...LABOR_EXPENSE_SELECT, externalId: true },
+    }),
+    prisma.laborPayment.findMany({ where: { laborContractId: { in: contracts.map((c) => c.id) } }, select: { id: true, laborContractId: true, amount: true, paidDate: true } }),
+    prisma.jobExpense.findMany({ where: { coveredByLaborPaymentId: { not: null } }, select: { coveredByLaborPaymentId: true } }),
+    prisma.job.findMany({ where: { id: { in: jobIds } }, select: JOB_LABEL_SELECT }),
+  ]);
+  const jobById = new Map(jobs.map((j) => [j.id, j]));
+  const review = reviewLaborExpenses(
+    expenses.map(toExpenseRow),
+    payments.map((p) => ({ ...p, amount: Number(p.amount) })),
+    contracts.map(toContractRow),
+    new Set(covering.map((c) => c.coveredByLaborPaymentId as string)),
+  );
+  const bankIds = new Set(expenses.filter((e) => e.externalId).map((e) => e.id));
+  const expenseOut = (e: (typeof review.twins)[number]["expense"]) => {
+    const j = jobById.get(e.jobId);
+    return {
+      id: e.id,
+      jobId: e.jobId,
+      jobNumber: j?.jobNumber ?? null,
+      jobAddress: j ? formatAddressLine(j.lead) || null : null,
+      amount: e.amount,
+      incurredDate: e.incurredDate.toISOString().slice(0, 10),
+      vendor: e.vendor,
+      status: e.status,
+      fromBank: bankIds.has(e.id),
+    };
+  };
+  return {
+    twins: review.twins.map(({ expense, twin }) => ({
+      expense: expenseOut(expense),
+      payment: { id: twin.payment.id, amount: twin.payment.amount, paidDate: twin.payment.paidDate.toISOString().slice(0, 10), crew: contractName(twin.contract) },
+      difference: twin.difference,
+      gapDays: twin.gapDays,
+      reason: twin.reason,
+    })),
+    crewPaidAsExpense: review.crewPaidAsExpense.map(({ expense, contract }) => ({
+      expense: expenseOut(expense),
+      contract: { id: contract.id, crew: contractName(contract) },
+    })),
+  };
 }

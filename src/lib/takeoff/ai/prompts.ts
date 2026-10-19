@@ -3,9 +3,12 @@
  * Pure. The system text never changes without a new version string, because
  * the version is part of every call's cache key and the prompt cache prefix.
  * Nothing here decides a quantity: the model names and cites, code measures.
+ * The drawings' own text goes in as an untrusted document (`@/lib/ai/untrusted`).
  */
-export const ROOF_SPECS_PROMPT_VERSION = "roof-specs-1";
-export const ROOF_REGIONS_PROMPT_VERSION = "roof-regions-1";
+import { untrustedDocument } from "@/lib/ai/untrusted";
+
+export const ROOF_SPECS_PROMPT_VERSION = "roof-specs-2";
+export const ROOF_REGIONS_PROMPT_VERSION = "roof-regions-2";
 
 export const ROOF_SPECS_SYSTEM = [
   "You read text extracted from an architectural drawing set for a building in Florida.",
@@ -31,10 +34,12 @@ export function buildRoofSpecsInput(sheets: readonly SpecsSheetInput[], project:
   const parts: string[] = [];
   parts.push(project.address ? `Project: ${project.address}.` : "Project: a building in Florida.");
   parts.push("Identify the roof assembly specified on these sheets.");
+  const text: string[] = [];
   for (const s of sheets.slice(0, MAX_SPEC_SHEETS)) {
-    parts.push("", `=== SHEET ${s.sheetNumber}${s.title ? ` ${s.title}` : ""} ===`);
-    for (const l of s.lines.slice(0, MAX_SPEC_LINES_PER_SHEET)) parts.push(`${s.sheetNumber}:${l.id} ${l.text}`);
+    text.push("", `=== SHEET ${s.sheetNumber}${s.title ? ` ${s.title}` : ""} ===`);
+    for (const l of s.lines.slice(0, MAX_SPEC_LINES_PER_SHEET)) text.push(`${s.sheetNumber}:${l.id} ${l.text}`);
   }
+  parts.push("", untrustedDocument("text of the drawing set", text.join("\n").trimStart()));
   return parts.join("\n");
 }
 
@@ -58,7 +63,7 @@ export function buildRoofRegionsPrompt(i: RegionsPromptInput): string {
     "Label the roof as instructed.",
     "",
     'TEXT ITEMS (id "text" @(x,y) in image px):',
-    ...i.labels.map((l) => `${l.id} "${l.str}" @(${l.xPx},${l.yPx})`),
+    untrustedDocument(`text items of sheet ${i.sheetNumber}`, i.labels.map((l) => `${l.id} "${l.str}" @(${l.xPx},${l.yPx})`).join("\n")),
     "",
     "LONGEST DRAWN SEGMENTS (id (x1,y1)-(x2,y2) length in feet at that scale):",
     ...i.segments.map((s) => `${s.id} (${s.x1Px},${s.y1Px})-(${s.x2Px},${s.y2Px}) len=${s.lenFt.toFixed(1)}ft`),

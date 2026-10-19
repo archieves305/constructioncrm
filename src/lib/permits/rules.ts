@@ -10,7 +10,7 @@ import type { PermitInspectionResult, PermitInspectionType, PermitStatus } from 
  * client-safe; the writers are in `service.ts` and `effects.ts`.
  */
 
-export const PERMIT_STATUSES = ["APPLIED", "IN_PROGRESS", "ISSUED", "FINAL", "EXPIRED", "DENIED", "UNKNOWN"] as const satisfies readonly PermitStatus[];
+export const PERMIT_STATUSES = ["PREPARING", "APPLIED", "CORRECTIONS", "IN_PROGRESS", "ISSUED", "FINAL", "EXPIRED", "DENIED", "UNKNOWN"] as const satisfies readonly PermitStatus[];
 export const INSPECTION_TYPES = ["ROUGH", "FRAMING", "ELECTRICAL", "PLUMBING", "MECHANICAL", "ROOFING_IN_PROGRESS", "ROOFING_FINAL", "FINAL", "OTHER"] as const satisfies readonly PermitInspectionType[];
 export const INSPECTION_RESULTS = ["SCHEDULED", "PASS", "FAIL", "CONDITIONAL", "CANCELLED"] as const satisfies readonly PermitInspectionResult[];
 

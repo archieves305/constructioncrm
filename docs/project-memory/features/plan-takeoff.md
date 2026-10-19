@@ -269,6 +269,34 @@ key unset (`isAiConfigured` only).
 without it the button is disabled and the route answers 503; manual tools
 unaffected). Migration carried.
 
+## 2026-10-19 — M3 moved onto the shared AI layer (on `main`, deploy carries a migration)
+
+`main` (Permit Intelligence) merged into `takeoff-m3`; the M3 call layer was
+retired in favour of `src/lib/ai`, as the permit design asked:
+- `src/lib/takeoff/ai/{client,calls,hash,pricing}.ts` deleted; `specs-run.ts`
+  and `regions-run.ts` call `runAiCall` with `subjectType: "takeoff"`,
+  `subjectId` = the takeoff. Spend shows under Admin → AI Usage; the cap is
+  the shared `AI_MAX_USD_PER_SUBJECT` (5) and the monthly one.
+  `TAKEOFF_AI_MODEL` / `TAKEOFF_AI_MAX_USD` are gone.
+- The drawings' text goes in through `untrustedDocument` (the specs lines and
+  the regions call's text items); prompt versions `roof-specs-2` /
+  `roof-regions-2`.
+- `PlanAiCall` and migration `20261028120000_plan_ai_calls` dropped (never on
+  prod). New migration `20261108120000_takeoff_analyze_jobs` carries only
+  `plan_jobs.takeoff_id` + index + FK. Dev: the old table and its migration
+  row removed, the new one resolved, diff clean (apart from the known
+  `search_vector` default).
+- "Read before" now comes from the takeoff's finished, not-skipped
+  `regions.<sheetId>` steps; the call count and spend from `ai_calls`.
+
+Gate: typecheck clean, lint 5/22, 1897 tests, build clean. Dev QA with real
+calls: A-10 alone, specs $0.21 (assembly null, 7 not specified, 8 sheets) +
+regions $0.13 (8 fields 2,807 SF, parapet 218 LF, 7 + 2 drains + 2 scuppers,
+22 proposals) = $0.34, both rows `subject_type takeoff`; the same run again
+made no call and spent nothing; foreign sheet 400; headless Chromium at 1440
+and 400 px: "AI $0.34", dialog shows "read before" on the three roof plans,
+no page errors, no horizontal scroll.
+
 ## 2026-10-09 — "Choose a PDF" did nothing (fixed on `main`)
 
 The uploader cleared the input's value before `take()` read the live

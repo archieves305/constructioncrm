@@ -79,6 +79,8 @@ export type CreateTaskInput = {
   violationItemId?: string | null;
   /** A strategic account (Business Development): a follow-up on a GC relationship. Has no lead. */
   organizationId?: string | null;
+  /** A permit's follow-up; fills in the permit's job. */
+  permitId?: string | null;
   watcherUserIds?: string[];
   source?: TaskSource;
   /** Automation idempotency key, e.g. "invoice:SENT:<id>". */
@@ -174,6 +176,11 @@ async function resolveParentLinks(
     if (!p) throw new TaskLinkError("prospectId", input.prospectId);
     leadId ??= p.leadId;
   }
+  if (input.permitId) {
+    const permit = await db.jobPermit.findUnique({ where: { id: input.permitId }, select: { jobId: true } });
+    if (!permit) throw new TaskLinkError("permitId", input.permitId);
+    jobId ??= permit.jobId;
+  }
   if (jobId && !leadId) {
     const job = await db.job.findUnique({ where: { id: jobId }, select: { leadId: true } });
     if (!job) throw new TaskLinkError("jobId", jobId);
@@ -216,6 +223,7 @@ export async function createTask(
       violationCaseId: parents.violationCaseId,
       violationItemId: input.violationItemId ?? null,
       organizationId: input.organizationId ?? null,
+      permitId: input.permitId ?? null,
       sourceKey: input.sourceKey ?? null,
       remindAt: input.remindAt ?? null,
       remindSetByUserId: input.remindAt ? (input.remindSetByUserId ?? input.createdByUserId) : null,

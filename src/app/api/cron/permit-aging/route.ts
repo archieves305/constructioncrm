@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCronSecret } from "@/lib/cron/auth";
 import { prisma } from "@/lib/db/prisma";
 import { raisePermitAlerts, settlePermitAlerts } from "@/lib/permits/alert-run";
+import { raiseApprovalAlerts } from "@/lib/permit-intel/approvals";
 import { recordAudit } from "@/lib/audit/record";
 import { dayKey } from "@/lib/time/zone";
 
@@ -33,5 +34,7 @@ export async function POST(request: NextRequest) {
   }
 
   const alerts = await raisePermitAlerts();
-  return NextResponse.json({ expired, ...alerts });
+  // product approvals on open permits that lapse within 30 days (Permit Intelligence)
+  const approvals = await raiseApprovalAlerts();
+  return NextResponse.json({ expired, ...alerts, approvalsExpiring: approvals.raised });
 }

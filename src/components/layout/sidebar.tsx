@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import type { RoleName } from "@/generated/prisma/client";
 import { NotificationBell } from "./notification-bell";
 import { isNavActive } from "./nav-active";
-import { BarChart3, BellRing, Briefcase, Building2, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, FolderLock, Gauge, Gavel, Hammer, Handshake, HardHat, Inbox, Landmark, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Search, Settings, Shield, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
+import { BarChart3, BellRing, Briefcase, Building2, Calendar, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, DollarSign, FileSignature, FolderLock, Gauge, Gavel, Hammer, Handshake, HardHat, Inbox, Landmark, LayoutDashboard, ListChecks, LogOut, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Search, Settings, Shield, Sparkles, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTaskSummary } from "@/components/tasks/use-tasks";
 import { useViolationSummary } from "@/components/violations/use-violations";
@@ -131,7 +131,9 @@ export const navSections: NavSection[] = [
       { href: "/admin/partners", label: "Business Development", icon: Handshake, hint: "Follow-up timing for GC accounts, who gets the tasks by default, and the markets list" },
       { href: "/admin/canvassing-settings", label: "Knock Scoring", icon: Gauge, heading: "Canvassing", hint: "How promising a canvassed door looks, from its history and neighbourhood" },
       { href: "/admin/job-cost-reconciliation", label: "Cost Reconciliation", icon: Scale, heading: "Finance", hint: "Matches card postings from cc-allocator against job expenses" },
+      { href: "/admin/permits", label: "Permits", icon: Landmark, heading: "Permits", hint: "The building departments KNU files with and the documents each one asks for" },
       { href: "/admin/roofing", label: "Roofing Prices & Takeoff", icon: Ruler, hint: "What roofing materials cost and how measurements become a material list" },
+      { href: "/admin/ai-usage", label: "AI Usage", icon: Sparkles, heading: "System", hint: "What the AI features have cost this month, by purpose, and the spending limits" },
     ],
   },
 ];

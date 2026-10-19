@@ -27,6 +27,86 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+00000000000. 🔴 **AI Permit Intelligence** — plan approved 2026-10-18
+   (`~/.claude/plans/reactive-tickling-pony.md`); full design in
+   `CAREYOS_PERMIT_INTELLIGENCE_DESIGN.md` (repo root). Stages: 0 shared AI
+   layer · 1 permit record (jurisdictions, parties, cycles, frozen submissions,
+   `/permits/[id]`) · 2 corrections (AI extraction → confirmed items → tasks,
+   drafts, response letter) · 3 AcroForm filling (pdf-lib) · 4 product
+   approvals (FL PA / NOA) · 5 preflight · 6 lessons + metrics. Prod had 3
+   permits, so history is captured as structured records first; no vector
+   search. **`ANTHROPIC_API_KEY` placed on prod 2026-10-18** (`/etc/knuco/env`,
+   200 from the droplet). **Stage 0 built + dev-QA'd 2026-10-18 on
+   `permit-ai-foundation`, deployed 2026-10-18 as `c82f906`** (BUILD_ID
+   `GzGAthoH8VxKu08PW3y4b`, migration applied, the process carries the key,
+   zero journal errors, backup `postgres-2026-10-18-213941.dump`): `src/lib/ai`
+   (`runAiCall`, caps per subject + per month, untrusted-document framing,
+   pricing), `AiCall` (migration `20261031120000_ai_calls`), Admin → AI Usage.
+   **Stage 1 (permit record, no AI) built + dev-QA'd 2026-10-18 on
+   `permit-record`, deployed 2026-10-18 as `acdf728`** (BUILD_ID
+   `3SyklAeo2NGYbawokTWey`, migration applied, smoke 307 ×2, journal clean,
+   backup `postgres-2026-10-18-221510.dump`; seed unchanged, backfill applied:
+   3 jurisdictions, 3 types, 3 cycle-1 rows, re-run 0): migration `20261101120000_permit_record`
+   (jurisdictions, type catalog, requirement checklist, parties, review
+   cycles, frozen submissions + locked files, `File.permitId` /
+   `permitDocType`, `Task.permitId`, statuses PREPARING / CORRECTIONS),
+   `/permits/[id]`, Admin → Permits, upload byte check. **Stage 2
+   (corrections) built + dev-QA'd 2026-10-18 on `permit-corrections`,
+   fast-forwarded to `main`, not deployed**: migration
+   `20261102120000_permit_corrections` (notices, items, item files, permit
+   emails, `files.extracted_text` + a generated tsvector), the AI reads a
+   letter (PDF / picture / paste) into proposed items, a person confirms →
+   tasks + resubmission task, AI email drafts sent only by a click, the
+   response letter PDF, outcomes on the next review, "Suggest a type", the
+   Permit Library (`/permits/library`, full text). **Deploy carries the
+   migration**; no seed, no cron. **Stage 3 (form filling) built + dev-QA'd
+   2026-10-18 on `permit-corrections`, fast-forwarded to `main`, deployed
+   2026-10-18 as `da551cc`**: migration `20261103120000_permit_forms` + `pdf-lib`; the Palm
+   Beach County universal application (fillable, 132 fields) mapped by the AI
+   ($0.20), checked and published under Admin → Permits → Forms, filled per
+   permit from the records (licences / qualifier records-only, signatures by
+   hand), written as editable + flattened PDFs, finalised; parcel number +
+   legal description on the lead; the lead PATCH no longer resets defaults or
+   clears the email. **Stage 4 (product approvals) built + dev-QA'd
+   2026-10-18, on `main`, deployed 2026-10-18 as `da551cc`**: migration
+   `20261104120000_product_approvals`; FL Product Approvals / Miami-Dade NOAs
+   read by the AI with a page + quote per field and checked by a person
+   (`/permits/products`), linked to roofing materials and to permits (the
+   engineer's required pressures typed in), advisory flags (HVHZ, pressure,
+   expiry, unchecked, not in the documents), the document copied among the
+   permit's files, expiry tasks from the existing permit-aging cron. **Stage 5
+   (preflight) built + dev-QA'd 2026-10-18, deployed 2026-10-19 as
+   `2359e54` with Stage 6**:
+   migration `20261105120000_permit_preflight`; versioned rules over the
+   record, an optional AI look (warnings only, not scored), readiness score,
+   findings → tasks closed by the next passing run, report PDF, "Mark ready to
+   submit" (zero blockers, or ADMIN / MANAGER override with a reason; cleared
+   by freezing), the job's permit-documents step ticks itself. **Stage 6
+   (lessons + metrics) built + dev-QA'd 2026-10-18, deployed 2026-10-19 as
+   `2359e54`** (BUILD_ID `C7dZ4cfftPCjy5oiFvv9z`, both migrations applied,
+   smoke 307 ×2, journal clean, backup `postgres-2026-10-19-010939.dump`): migration `20261106120000_permit_lessons`; accepted corrections
+   → scrubbed, AI-worded PROPOSED lessons grouped by jurisdiction × type ×
+   category × target; Admin → Permits → Knowledge decides them; approved
+   lessons show at preflight; Permit Center metrics strip; attention rows
+   `permit-corrections` / `permit-resubmit-due`. **All seven stages built.**
+   **Document assistant built + dev-QA'd 2026-10-19, deployed 2026-10-19 as
+   `64e3c4d`** (BUILD_ID `TLxVz6KDW9VoRZKRR74nA`, migration applied, smoke 307
+   ×2, journal clean, backup `postgres-2026-10-19-015915.dump`; the droplet
+   reaches the Town of Palm Beach site). **Fillable forms from found
+   documents + printed / scanned forms filled — built + dev-QA'd 2026-10-19,
+   deployed 2026-10-19 as `391efe1`** (BUILD_ID `U5IBZ_zSrPTNhnC0nmT4x`, no
+   migration, smoke 307 ×2, journal clean, backup
+   `postgres-2026-10-19-023754.dump`; the page worker renders on the droplet
+   as `knuco`): "Make a fillable form" on an
+   assistant item; flat forms' blanks found from the rendered pixels
+   (`flat/detect.ts`, own worker process), named by the AI by number, filled
+   by printing on the page. Assistant details: migration `20261107120000_permit_assistant`; drop many
+   documents on a permit → the AI reads each, opens the links worth opening
+   (one hop from a person's document; then only the department's site and the
+   approval sites; 40 pages; a guarded fetcher), looks on the department's
+   website, proposes a type per document against the checklist; a person
+   accepts. Open rulings in the design doc §19. Notes:
+   [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
    2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
    `CAREYOS_GC_PARTNERSHIPS_IMPLEMENTATION_PLAN.md`, build-ready spec in
@@ -106,13 +186,8 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    clean, backup `postgres-2026-10-09-042406.dump`). Richard's
    click-through: a lead → Plan takeoff → upload the 3310 set
    → Start roofing takeoff → Auto calibrate A-10 → draw the roof outline → the
-   count tool on the drains. **M3 (AI-assisted roofing) built + dev-QA'd
-   2026-10-14 on `takeoff-m3`, not merged to `main`, not deployed**: specs
-   call ("assembly not specified" on 3310 ✓), regions call (A-10 8 fields
-   2,848 SF / parapet 220 LF / 11 drains, checked over the drawing), Analyze
-   dialog to pick roof plans, refusal fallbacks on; migration
-   `20261028120000_plan_ai_calls`. **Needs Richard: the prod
-   `ANTHROPIC_API_KEY`**, then merge + deploy. Next after: M4 (plumbing). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
+   count tool on the drains. Next: **M3** (AI-assisted roofing; needs the prod
+   `ANTHROPIC_API_KEY`). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
 00000000. 🔴 **Roofing estimator → CRM** — plan approved 2026-10-03
    (https://claude.ai/code/artifact/8b95fb53-2275-421e-a4ed-842fa7919005):
    native module, engine as a pure library in `src/lib/roofing`. **P0 Stage A
@@ -490,26 +565,362 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-14 — Plan takeoff M3: AI-assisted roofing (built + dev-QA'd on `takeoff-m3`, not deployed)
+### 2026-10-19 — From found documents to filled forms (deployed `391efe1`)
 
-"start on M3". The code had been written on 2026-10-09 and left uncommitted;
-committed as WIP, `main` (GC Partnerships) merged in (one schema conflict —
-both sides appended models — rebuilt from `main` + the M3 hunks to avoid
-format churn), migration renamed `20261022…` → `20261028120000_plan_ai_calls`
-so it sorts after the partner migrations prod already has (dev row renamed by
-SQL, no drift). AI calls moved to `client.beta.messages.parse` with
-`fallbacks: "default"` and priced on the answering model. Checked the earlier
-dev run against the drawing (overlay on the 144 dpi render): specs assembly
-null (correct), A-10 fields follow the drawn drain fields, gaps are walls
-between roof levels, drains all right. Found: A-08 + A-09 draw the same roof
-as A-10, so analysing all three duplicates it → **Analyze dialog** (roof
-plans ticked, other sheets behind a disclosure, "read before" marks; a picked
-sheet becomes a roof plan). Gate: typecheck clean, lint 5/22, 1741 tests,
-build clean. Dev QA: Chromium 8/8 at 1440 and 400 px (fixed: dialog overflow
-at 400 px), API probes 400 / 409 / 404 / 202, SALES_REP 404; one real call
-($0.07) through the new path; dev spend on this takeoff $0.51. Details:
-[features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
-**M5 must guard totals across roof plans.**
+"what happens after docs are identified? are they filled out" → "do both".
+No migration. (1) **Make a fillable form** on a document the assistant found:
+a form template for the permit's jurisdiction, linked back by the file's
+hash. (2) **Flat forms**: `createTemplate` accepts them; `flat/form-worker.mjs`
+renders pages in its own process, pure `flat/detect.ts` finds underlines,
+cell bands and tick boxes from the pixels, prompt `flat_form_map` (Opus, the
+page with numbered boxes) names them and maps them with the shared
+`MAPPING_RULES`; the blanks become ordinary fields `p<page>-<n>`;
+`fillFlatForm` prints values on the page (page content wrapped in q/Q first
+— a scan's OCR layer leaves text invisible otherwise), X in tick boxes,
+never signatures, a value too long reported not cut; preview PDF with the
+fields outlined. Gate: typecheck clean, lint 5/22, 1872 tests (+7), build
+clean. Dev QA on the town's real NOC, 8-page application and scanned
+affidavit: $0.66 once, 88 s, 203 + 21 blanks found and labelled, values on
+their lines in Chrome's PDF viewer, the re-roof boxes ticked; API 21/21,
+headless 12/12, SALES_REP 3/3. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+Richard pushed and deployed from `!` (background, 319 s, exit 0): BUILD_ID
+`TLxVz6KDW9VoRZKRR74nA` → `U5IBZ_zSrPTNhnC0nmT4x`, no pending migrations,
+smoke 307 ×2, journal clean, backup `postgres-2026-10-19-023754.dump`. The
+form worker run on the droplet as `knuco` rendered the town's affidavit (2
+pages, PNG + grayscale), so `@napi-rs/canvas` and pdf.js's standard fonts are
+in place.
+
+### 2026-10-19 — Permit document assistant (deployed `64e3c4d`)
+
+"for the permits i want to be able to upload multiple documents and have the
+AI go through the documents, click links and assist with putting together
+the relavent documents". Plan mode: all three kinds of link; the AI
+proposes, a person confirms (`~/.claude/plans/floofy-questing-lark.md`).
+Migration `20261107120000_permit_assistant` (runs, items, every fetch;
+jurisdiction website + allowed sites). New `web-fetch.ts` (the CRM's first
+outgoing-request guard: connect-time address check, redirects re-checked,
+robots.txt, size / time caps), `links.ts` (PDF annotations, printed URLs,
+page links, `mayFollow`), `assist-plan.ts`, `assist-run.ts`, prompt
+`assist_read` (Sonnet; picks links by number only), three routes, the
+Documents tab's Document assistant, the jurisdiction form's website fields.
+Gate: typecheck clean, lint 5/22, 1865 tests (+18), build clean. Dev QA on
+the real Town of Palm Beach site: 111 s, $0.54, 14 pages, the town's permit
+application packet / NOC form / revision form proposed, no private request,
+API 30/30, SALES_REP 4/4, headless Chromium 18/18. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+Richard pushed and deployed from `!` (background, 317 s, exit 0): BUILD_ID
+`C7dZ4cfftPCjy5oiFvv9z` → `TLxVz6KDW9VoRZKRR74nA`, migration
+`20261107120000_permit_assistant` applied (0 runs, both jurisdiction columns
+present), smoke 307 ×2, journal clean, backup
+`postgres-2026-10-19-015915.dump`. Next: set each department's website.
+
+### 2026-10-19 — Stages 5 + 6 deployed (`2359e54`)
+
+Richard pushed and deployed from `!` (background, 314 s, exit 0): BUILD_ID
+`6KAPwvK3Td9KNoioZBmQr` → `C7dZ4cfftPCjy5oiFvv9z`, migrations
+`20261105120000_permit_preflight` and `20261106120000_permit_lessons` applied
+(both finished; `permit_preflight_runs` empty, the lesson columns present),
+smoke 307 ×2, journal clean, backup `postgres-2026-10-19-010939.dump`. No
+seed, no cron. **All seven Permit Intelligence stages are on prod.**
+
+### 2026-10-18 — AI Permit Intelligence, Stage 6: lessons + metrics (deployed `2359e54`)
+
+"continue to stage 6". Migration `20261106120000_permit_lessons` (lesson
+columns on `permit_knowledge`). Pure `lessons.ts` (scrub, group, retrieve,
+preflight findings) and `metrics.ts`; `knowledge.ts` (`proposeLessonsFor` on
+the department's next answer — Haiku rewrites the scrubbed comments;
+`decideLesson`; `lessonsForPermit`); Admin → Permits → Knowledge; Permit
+Center metrics strip with tiles that filter; attention rows
+`permit-corrections`, `permit-resubmit-due`. Found in QA: the first prompt
+proposed a document check for every lesson (a colour sample as a product
+approval) — the check is now proposed only for a document never submitted,
+and a lesson whose check passes still shows as a note. Gate: typecheck
+clean, lint 5/22, 1847 tests (+8), build clean. Dev QA: API 45/45, roles 5/5
+(one miss was my expectation — the rep is on the job), headless Chromium
+19/19. AI: $0.0004 for three lessons. Dev DB restored. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+**Deploy carries the migration.**
+
+### 2026-10-18 — AI Permit Intelligence, Stage 5: preflight (deployed `2359e54`)
+
+"continue to stage 5". Migration `20261105120000_permit_preflight`
+(`PermitPreflightRun`; the ready mark on `JobPermit`). Pure `preflight.ts`
+(rules `pf-1`: jurisdiction, requirements, forms, signatures, licence /
+qualifier, party licences, parcel, value, product flags, open corrections,
+response letter, sealed documents listed; score from the rules only), prompt
+`preflight_review` (a summary with refs, no contact details, the rule findings
+passed as "already reported"); service `preflight-run.ts` (runs, tasks from
+findings closed by the next passing run, `markReady` with an ADMIN / MANAGER
+override and a reason, cleared on freeze, report PDF); `gates.ts` held facts
+`permitApplicationFinal` and `permitReady`; the editable form copy left out of
+the default package. UI: the permit's Preflight tab, a "Ready to submit"
+chip, a note in the freeze dialog. `typecheck` given a 6 GB heap too (the Mac
+ran out). Gate: typecheck clean, lint 5/22, 1839 tests (+15), build clean.
+Dev QA: API 23 + 2 + 6 (two of my first checks miscounted, the code was
+right), the AI look $0.03–0.04 a run, headless Chromium 18/18. Fixed in QA:
+AI points restating the rules and moving the score, "cycle 0", the editable
+copy in the package. Dev DB restored. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+**Deploy carries the migration.**
+
+### 2026-10-18 — Stages 2–4 deployed (`da551cc`) after a first attempt ran out of heap
+
+Richard's `!` deploy applied the three migrations (`20261102…`, `20261103…`,
+`20261104…`) and then `next build` died in "Running TypeScript" with
+`JavaScript heap out of memory` at Node's 4 GB default (exit 14). The old
+Stage 1 process kept serving from memory (307 local and public); `.next` had
+no `BUILD_ID`, so a restart would have failed. The schema has grown enough
+that the type-check needs more than 4 GB on the droplet (the Mac has more
+headroom). Fix: `"build": "NODE_OPTIONS=--max-old-space-size=6144 next build"`
+in `package.json` (the droplet has ~9.7 GB free); verified locally. Richard
+re-ran the deploy from `!` (background, 312 s, exit 0): BUILD_ID → `6KAPwvK3Td9KNoioZBmQr`,
+`.deploy-sha` `da551cc`, the three migrations recorded, smoke 307 (local and
+public, `/permits/products`, `/permits/library`, `/admin/permits`), zero
+journal errors, backup `postgres-2026-10-19-002128.dump`; `files.search_vector`
+generated (101 files indexed by name), `pdf-lib` installed, the permit-aging
+cron run by hand → `approvalsExpiring: 0`, 200. **Lesson:
+a deploy that fails at the build has already applied its migrations — keep
+every migration additive so the running old code survives it.**
+
+### 2026-10-18 — AI Permit Intelligence, Stage 4: product approvals (built + dev-QA'd, on `main`, not deployed)
+
+"continue to stage 4". Public samples: Miami-Dade NOA 26-0504.06 and
+Florida evaluation reports FL 11842.3 R9 and FL5259-R38 (a Florida report
+states no expiry). Migration `20261104120000_product_approvals`
+(`ProductApproval` with its own stored document and per-field evidence,
+`ProductApprovalMaterial`, `PermitProduct` with the engineer's required
+pressures and the document's copy on the permit). Pure `approvals-plan.ts`
+(answer schema, `approvalFromExtraction`, `checkProduct` advisory flags,
+`approvalAlert`); prompt `approval_extract` (Opus 5.5, never infer expiry /
+pressure / HVHZ); service `approvals.ts` (read in `after()`, check, search incl.
+a model name in part, products on a permit, expiry tasks raised from the
+permit-aging cron and settled on change). UI: Permits → Product approvals,
+the approval page (PDF beside the fields with "p. n: quote"), the permit's
+Products tab. Gate: typecheck clean, lint 5/22, 1824 tests (+16), build clean.
+Dev QA ($0.79 in AI): NOA read in 25 s — dates, HVHZ, and the −67.5 psf
+underlayment-only uplift kept out of the design pressure; FL reports with no
+invented expiry; Polyglass 18 models / 52 systems; API 39/39; SALES_REP 6/6;
+headless Chromium 31/31 at 1280 / 400 px; the PDF frame checked in full
+Chromium. Fixed in QA: model search matched whole names only. Dev DB
+restored, QA files removed. Not built: slope / deck compatibility (no
+structured roof slope in the CRM), online verification (decision 9).
+**Deploy carries the migration.** Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+
+### 2026-10-18 — AI Permit Intelligence, Stage 3: form filling (built + dev-QA'd on `permit-corrections`, on `main`, not deployed)
+
+"continue to stage 3". No sample forms in the repo, so the public ones were
+checked first: Palm Beach County cities use the *Universal County-Wide /
+Municipal Building Permit Application* (Jan 2024, fillable, 132 fields, the
+PCN as 17 one-character boxes); Boynton Beach's NOC is fillable, its re-roof
+affidavit a flat scan; the City of Miami has no PDF application (iBuild /
+ePlan). Migration `20261103120000_permit_forms` (templates per exact file —
+jurisdiction or county, versioned; field maps; fills; `leads.parcel_number` +
+`legal_description`), `pdf-lib` 1.17.1 (MIT). Pure `data-dictionary.ts` (49
+keys, protected licence / qualifier keys from records only, owner conflict),
+`field-fill.ts` (key / literal / when, transforms incl. `char:n` and `map:`,
+statuses, `acceptMapping` — the AI's fixed values only as a choice field's own
+option — and `nearestLabel`), `form-pdf.ts` (inventory with labels, fill,
+flatten, XFA / flat refused), prompt `form_map` (no job data). Services
+`forms.ts` (upload, AI mapping in `after()`, hand edits kept, publish retires
+the older version, edit = new version) and `fills.ts` (values re-read from the
+records on open, overrides, editable + flattened PDFs as
+`completed_application`, finalise refused while records disagree). UI: Admin →
+Permits → Forms + the template editor (mapping dialog, Try on a permit),
+the permit's Forms tab (needs-a-person view, conflict picks, parcel number
+saved on the property). Fixed on the way: `updateLeadSchema` kept the
+create defaults (a partial PATCH reset state / property type / three flags)
+and cleared the email when none was sent; wrapped tab lists overlapped the
+content (permit, lead, partner pages). Gate: typecheck clean, lint 5/22, 1808
+tests (+27), build clean. Dev QA: the real universal form mapped in 61 s for
+$0.20 — 48 of 132 fields, PCN boxes in order, trade and contractor choices,
+licence / qualifier keys, every signature / notary / fee / office field left
+for a person, one wrong call ("Permit Type" in the office header) cleared in
+the editor; API 52/52 + SALES_REP 8/8; the filled PDF read back with every
+value in its box; headless Chromium 28/28 at 1280 / 400 px. Dev DB restored,
+QA files removed. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+**Deploy carries the migration** and the new `pdf-lib` dependency.
+
+### 2026-10-18 — AI Permit Intelligence, Stage 2: corrections (built + dev-QA'd on `permit-corrections`, on `main`, not deployed)
+
+"go to stage 2", after finishing Stage 1's deploy (below). Migration
+`20261102120000_permit_corrections`: `PermitCorrectionNotice`,
+`PermitCorrectionItem`, `PermitCorrectionItemFile`, `PermitMessage`;
+`files.extracted_text` + `files.search_vector` (generated tsvector, GIN —
+hand-written; Prisma's diff then shows a `DROP DEFAULT` to leave out). Pure
+`corrections-plan.ts` (answer schema, clamped mapping, party match, stated
+deadline, task titles, outcomes, letter lines, stale reading); prompts
+`correction_extract` (Opus 5.5, the PDF itself as a document block — scans
+included), `correction_email` (Sonnet 5.5), `file_classify` (Haiku 5.5);
+services `corrections.ts`, `messages.ts`, `response-letter.ts`, `library.ts`;
+the reading runs in `after()` (no queue change — that stays with takeoff-m3)
+and a cut-off reading restarts on the next page load. Confirming = office
+roles + the coordinator (proposed); sending = office roles or anyone involved
+with the job (ruled). UI: the permit's Corrections tab, emails, response
+letter, "Suggest a type" on Documents, open-corrections warning in the freeze
+dialog, the Permit Library. Gate: typecheck clean, lint 5/22, 1781 tests
+(+21), build clean. Dev QA with real AI calls ($0.07 total): a QA Palm Beach
+letter read in 12 s for $0.054 — six comments verbatim with numbers, pages,
+deadline, reviewer and parties, a planted instruction ignored; API 79/79
+across the loop (confirm → permit CORRECTIONS + tasks, resolve / waive /
+reopen, AI draft + one real send to Richard's address "QA test (please
+ignore)", letter, resubmission, repeat comment linked, outcomes, approval
+settling the open items, library, suggestion); SALES_REP 9/9; headless
+Chromium 1280 / 400 px 46/48 (both misses the check's selector). Fixed in QA:
+task wording, the letter's header and line spacing, earlier comments' tasks
+left open after the next review, the library on a phone, the tab text while a
+notice waits. Dev DB restored, QA uploads removed. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+**Deploy carries the migration.**
+
+### 2026-10-18 — AI Permit Intelligence, Stage 1: the permit record (deployed `acdf728`)
+
+"start stage 1". No AI. Migration `20261101120000_permit_record`:
+`Jurisdiction`, `PermitTypeDef`, `PermitKnowledge` (requirements now, lessons
+in Stage 6), `PermitParty`, `PermitReviewCycle`, `PermitSubmission` +
+`PermitSubmissionFile`; `JobPermit` + jurisdiction / type key / application
+number / scope / valuation / current cycle; `File.permitId` +
+`permitDocType`; `Task.permitId`; statuses PREPARING and CORRECTIONS. Pure
+`lib/permit-intel/{doc-types,catalog,requirements,submission-plan,access,validation}.ts`
+(tested); `service.ts`, `submissions.ts` (fflate zip + contents sheet +
+sha256 per document and for the zip; the files lock — `permitLockOf` in
+`lib/files/access.ts`; the download refuses a zip whose hash moved);
+`recordFields` in `updatePermit`; the department's answer moves the status
+through `updatePermit`; magic-byte check on every upload
+(`lib/files/sniff.ts`). UI: `/permits/[id]` (Overview · Documents with the
+checklist · Parties · Submissions · Tasks · Inspections · History), Admin →
+Permits (Jurisdictions · Requirements), pickers on the job's Permits tab,
+links from the job tab and Permit Center. Found before QA: zod `partial()`
+keeps `.default()`, so PATCH schemas are built without defaults. Found in QA:
+a resubmission pre-ticked the superseded NOC. Gate: typecheck clean, lint
+5/22, 1760 tests (+14), build clean. Dev QA: API 45/45 on stand-ins for the
+three prod permits (backfill dry run / apply / unchanged, freeze, locks,
+hash-checked download, corrections → resubmission → issued), cron tasks
+carry `permitId`, SALES_REP 404 off their jobs and 403 on submit / settings,
+headless Chromium at 1280 / 400 px; dev DB restored. Permit Library moved to
+Stage 2 (needs full-text search).
+Richard pushed and deployed from `!`: backup `postgres-2026-10-18-221510.dump`,
+rsync, migration `20261101120000_permit_record` applied (22:16 UTC) — then the
+remote build was cut off by the `!` shell timeout (no `BUILD_ID`, old process
+still serving). Finished from `!`: a detached rebuild (the first attempt
+failed collecting page data because the command had not loaded
+`/etc/knuco/env`; the second, with `set -a; . /etc/knuco/env; set +a` and
+`ssh -n … < /dev/null`, built clean), restart, `.deploy-sha` `acdf728`.
+BUILD_ID `GzGAthoH8VxKu08PW3y4b` → `3SyklAeo2NGYbawokTWey`, smoke 307 ×2
+(local and public), zero journal errors since the restart. Seed: every type
+and the requirement unchanged (already present). Backfill dry run → `--apply`:
+City of Miami / JOB-00002 building ISSUED (cycle 1 2025-09-01 → APPROVED),
+City of Boynton Beach / JOB-00021 interior_renovation ISSUED (2026-09-28 →
+APPROVED), City of Palm Beach / JOB-00018 reroof APPLIED (2026-09-29 →
+PENDING); re-run 0 / 0 / 0. **Lesson: a hand-run build on the droplet must
+load `/etc/knuco/env` first, and `ssh -n` with stdin from `/dev/null` keeps
+`!` from hanging on the detached job.**
+
+### 2026-10-18 — AI Permit Intelligence: plan, design, prod AI key, Stage 0 (deployed `c82f906`)
+
+Richard pasted a 12-phase brief for an AI permit module (forms, NOAs,
+preflight, corrections, knowledge base, dashboard). Read-only prod check: 3
+permits ever (three jurisdictions), 0 inspections, no AI key → plan to extend
+`JobPermit` / tasks / files / vault / `Organization` and capture structured
+history before any vector search; approved. Design written to
+`CAREYOS_PERMIT_INTELLIGENCE_DESIGN.md` (schema, routes, UI, prompts, risks,
+10 decisions). Richard pasted the Anthropic key; it answered 200, his own `!`
+run wrote the literal placeholder `<KEY>`, and at his request the session
+replaced that line with the real key (one line, file `knuco:knuco 600`, copy
+`/etc/knuco/env.bak-20261018-ai`; no restart — nothing deployed reads it).
+**Stage 0:** `@anthropic-ai/sdk ^0.132.1`; `src/lib/ai/*` lifted from
+takeoff-m3 and generalised to a polymorphic subject; `AiCall`; caps
+`AI_MAX_USD_PER_SUBJECT` / `AI_MONTHLY_MAX_USD`; `UNTRUSTED_RULE` on every
+system prompt and `untrustedDocument` framing (QA caught that `</ document`
+still read as a closing tag — the bracket is escaped now); server fallback
+only for Opus / Sonnet / Fable; `GET /api/admin/ai-usage` + Admin → AI Usage.
+The queue change was moved to Stage 2. Gate: typecheck clean, lint 5/22, 1746
+tests (+16), build clean. Dev QA: real Haiku + Opus calls ($0.0044 total, a
+planted instruction ignored, repeat cached), headless Chromium at 1280 / 400
+px, SALES_REP 403. **Deploy carries a migration.** takeoff-m3 must switch to
+`runAiCall` before it deploys (feature doc). Richard pushed and deployed from
+`!` (background, 277 s, exit 0): BUILD_ID `9mpkCwcWFxbhIUhysJapH` →
+`GzGAthoH8VxKu08PW3y4b`, migration `20261031120000_ai_calls` applied, the
+process carries `ANTHROPIC_API_KEY`, 0 `ai_calls` rows, zero journal errors,
+backup `postgres-2026-10-18-213941.dump`. Rulings the same day: the
+jurisdiction is "City of Palm Beach"; statuses PREPARING and CORRECTIONS
+approved; anyone involved with the job may approve sending a drafted email;
+sample forms and letters to follow.
+
+### 2026-10-16 — Completion photos on crew payments + a "Project photos" folder (built + dev-QA'd on `payment-photos`, on `main`, not deployed)
+
+Richard (plan `~/.claude/plans/when-i-request-payments-idempotent-locket.md`):
+optional completion photos when a crew payment is requested and when it is
+recorded, and a Files-tab folder showing the project's photos in the order
+they happened. Built: migration `20261030120000_labor_payment_photos`
+(`files.labor_payment_request_id` / `labor_payment_id` FKs SET NULL +
+`taken_at`); `POST /api/files` branches (a request: `guardJob` write, as
+raising one; a payment: `canManageJobMoney`; images only, category PHOTOS,
+job + lead from the contract; a photo added to a paid request is stamped with
+the payment too); `settleRequestOnPayment` moves the request's photos onto the
+payment; `uploadForm` / `photoTakenAt` read EXIF `DateTimeOriginal` with
+`exifr` (MIT, new dependency) before the downscale strips it, on every upload
+path; pure `parseTakenAt` drops dates before 2000 or more than a day ahead;
+`completion-photos.tsx` (picker in both dialogs, the row count opening the
+preview, "Add photos"); gallery `?order=oldest` by `takenAt` → log day →
+upload day, origin "Crew payment · QA Crew · $4,000" / "Payment request · …";
+**Project photos** folder card on a job's Files tab opening the oldest-first
+timeline under month and day headings (the Photos tab is unchanged). Gate:
+typecheck clean, lint 5/22, 1730 tests, build clean. Dev QA: API (request
+photos 201, text file 400, future date dropped, recording moves the photos,
+SALES_REP 201 on a request / 403 on a payment / 404 on another job's
+request), headless Chromium 16/16 at 1280 and 400 px (count opens the
+preview, the dialog picker's photo stored with its EXIF date read in the
+browser, months oldest first, no page errors); QA uploads deleted, dev DB
+restored. **Deploy carries a migration** (and so does the crew-payment-twins
+work already on `main`).
+
+### 2026-10-14 — Crew payments counted twice: 2188 Windtrace fixed + a guard (built + dev-QA'd on `labor-twins`, not deployed)
+
+Richard: "on 2188 Windtrace it is showing 90,979 in labor contracts but i do
+not see that anywhere". JOB-00010 ("2188 (street TBD)"): $90,979.48 is BNW's
+$233,883 labor contract less $142,903.52 paid, i.e. the unpaid part, shown
+only as a figure. Found while checking it: three BNW payments were in the job
+twice, once as labor payments and once as cc-allocator bank postings
+(7/2 $11,694.15, 8/17 $13,199.15, 9/16 $33,913.04 = $58,806.34, every
+approved expense on the job). The 2026-09-24 cleanup had already deleted two
+more of the same kind by hand (BNW $14,029.76 on JOB-00011, $10,524.74 on
+JOB-00010). Read-only checks: both $33,913.04 wires (8/24, 9/16) are real
+bank rows; the 8/17 ACH carried $1,505 for 2192 Wind Trace (the payment's
+own note). Prod-wide scan: no other labor payment has a bank twin.
+**Built:** migration `20261029120000_labor_payment_cover`
+(`job_expenses.covered_by_labor_payment_id` FK SET NULL + `labor_cleared_at`);
+pure `lib/expenses/labor-twins.ts` (same job, ±3 days, amount within
+max($50, 1 %) or the payee names the crew — distinctive words of the crew /
+label / vendor name; crew paid only as an expense; notes);
+`lib/expenses/labor-cover.ts` (`coverWithLaborPayment` → REJECTED + linked,
+reverses a billable increment / recomputes a rollup, audited;
+`recordAsLaborPayment`; `clearLaborCheck` approves a held row;
+`releaseCoveredExpenses` before a labor payment or contract is deleted;
+`laborHoldNote` for intake; `expensesTwinningPayment`); the cc-allocator
+intake holds such postings PENDING; `POST /api/labor-contracts/[id]/payments`
+returns `possibleDuplicates` and the Labor panel opens
+`CrewPaymentTwinDialog`; `POST /api/expenses/[id]/labor-payment`
+(`same_money` / `record` / `separate`; ADMIN / MANAGER / OFFICE_STAFF); Cost
+Reconciliation → **Crew payments** card; the expense row reads "Counted as a
+crew payment: …". `scripts/fix-bnw-windtrace-twins-2026-10.ts` (dry run by
+default) covers the three rows and records the $1,505 on JOB-00011's BNW
+contract. Gate: typecheck clean, lint 5/22, 1723 tests (+10), build clean.
+Dev QA: API 22/23 (the miss was the script's own sum — a $42 row it posted),
+headless Chromium 16/16 at 400 and 1440 px; dev DB restored from a dump.
+**Deploy carries a migration; then run the script on prod (dry run, then
+`--yes`).** Richard ruled the same day: JOB-00011's 6/2 BNW bank posting
+$25,760.74 "is for the initial deposit for 2188" — 2188's 5/22 labor payment
+($41,189.40, "Deposit $25,987 and Draw $15,202.40") already holds it, so the
+script also moves that posting to JOB-00010 and counts it through the 5/22
+payment (cc-allocator's bank row still names JOB-00011). Richard is finding
+the right date for the JOB-00011 payment dated year 0009. Prod changed during
+the session: BNW's 2188 contract is now $259,870 and a 10/5 $14,032.99
+payment was added. Richard: $259,870 is right — 2188 is built for KNU to sell,
+so cost equal to the job's contract (no profit shown) is expected. Note for
+the takeoff merge: its migration `20261028…` sorts before this one.
 
 ### 2026-10-13 — GC Partnerships Phase 8a: prequalification package (built + dev-QA'd on `partners-s8`, on `main`, not deployed)
 
@@ -2752,6 +3163,10 @@ ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd 
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-partners-coastal-choice.ts"'
 # JOB-00009's award as a bid record (dry run by default; --apply writes; idempotent)
 ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-partners-bid-job00009.ts"'
+# Permit Intelligence seed (idempotent; type catalog + the completed-application requirement, create-only)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx prisma/seed-permit-intel.ts"'
+# Link pre-existing permits to jurisdictions / types / cycle 1 (dry run by default; --apply writes; idempotent)
+ssh knuco-droplet 'sudo -u knuco bash -lc "set -a; . /etc/knuco/env; set +a; cd /opt/knuco && npx tsx scripts/backfill-permit-records-2026-10.ts"'
 # Vault + qualification expiry cron, by hand (droplet; each alert is raised once)
 ssh knuco-droplet '/home/knuco/crm-cron/company-document-alerts.sh; tail -1 /home/knuco/crm-cron/company-document-alerts.log'
 # Partner follow-up cron, by hand (droplet; each follow-up is raised once per period; ?dryRun=1 plans only)
@@ -2799,6 +3214,9 @@ lives outside the app folder; unset = `./uploads`),
 `MAILERSEND_INBOUND_SECRET` (signing secret of the MailerSend inbound route
 that forwards bid invitations; unset = `/api/integrations/mailersend/inbound`
 503s, pasting on Bid intake still works),
+`ANTHROPIC_API_KEY` (shared AI layer `src/lib/ai`; unset = every AI action
+503s "AI is not set up"), `AI_MODEL` (default `claude-opus-5-5`),
+`AI_MAX_USD_PER_SUBJECT` (default `5`), `AI_MONTHLY_MAX_USD` (default `100`),
 `FIELD_ENCRYPTION_KEYS` (SSNs — without it, encrypted rows are unreadable),
 `ZYLOW_API_KEY`, `ZYLOW_API_BASE`, `TASK_ESCALATIONS_ENABLED`, `TASK_AUTO_RULES_DISABLED`,
 `NURTURE_ENABLED` (default `0`; `1` after SPF — the DB switch under
@@ -2807,10 +3225,7 @@ Admin → Customer Nurture must be on too), `NURTURE_MAX_PER_RUN` (default
 records a `Notification` row per staff-facing event and lights the bell —
 shadow mode, legacy mail unchanged; delivery only moves to v2 when
 `NotificationSettings.enabled` is on too — the switch under Admin →
-Notification Digests), `ANTHROPIC_API_KEY` (plan takeoff AI; unset = the
-Analyze button is disabled and the route answers 503), `TAKEOFF_AI_MODEL`
-(default `claude-opus-5-5`), `TAKEOFF_AI_MAX_USD` (per-takeoff cap, default
-`25`).
+Notification Digests).
 
 ## 9. Important Product / Business Rules
 
@@ -3020,21 +3435,129 @@ Analyze button is disabled and the route answers 503), `TAKEOFF_AI_MODEL`
   file, and RESTRICTED only for someone who may open it and asked for it —
   each such file audited as a `document_view`. The contents sheet the GC sees
   never states internal reasons.
+- **A crew payment is counted once, on its labor contract.** The cost
+  summary counts a labor contract in full from the day it is signed, so the
+  same money arriving as an expense (a bank posting to the crew) is counted
+  twice. Such an expense is REJECTED with `coveredByLaborPaymentId`
+  (`lib/expenses/labor-cover.ts`); the intake holds a posting that matches a
+  labor payment or pays a crew with a contract on the job; Cost
+  Reconciliation → Crew payments decides. Never delete the bank row — it is
+  cc-allocator's record.
+- **A permit's submissions are frozen** (`lib/permit-intel/submissions.ts`): a
+  package is a zip of exactly what was sent, with a sha256 per document and for
+  the zip, and the files in it are locked (`permitLockOf`) — as are the
+  approved permit and stamped plans. A correction is a new file in the next
+  submission, never an edit. The permit's status follows the department's
+  answer to a review cycle through `updatePermit`. Requirements are rows in
+  `PermitKnowledge`, the most specific per document type winning; retired,
+  never deleted. A PATCH schema never carries zod defaults.
+- **A correction notice moves nothing until a person confirms it**
+  (`lib/permit-intel/corrections.ts`): the AI's items are PROPOSED; confirming
+  makes them tasks, answers the review cycle with corrections (the permit
+  follows through `recordCycleOutcome`) and sets the resubmission due. An item
+  is waived, never deleted, once confirmed; its task follows its status. The
+  next review settles the earlier items (accepted, or carried by the comment
+  that repeats them). An email about a permit is a draft until a person sends
+  it (`messages.ts`), from the company sender with reply-to the person, and is
+  recorded on the job's lead. The response letter is built from confirmed
+  items only and refuses a blank response.
+- **A permit form is filled from records, never from the model**
+  (`lib/permit-intel/field-fill.ts`, `data-dictionary.ts`): the AI only says
+  which dictionary key a blank form's field means, and a fixed value it
+  proposes is kept only as one of a choice field's own options. Licence and
+  qualifier fields come from the permit's QUALIFIER party or the company
+  profile, else stay blank; signatures and notary blocks are never filled. A
+  template belongs to its exact file and never changes once published (edit =
+  next version). A fill is finalised only when no two records disagree.
+- **A flat form's blanks come from the page, never from the model**
+  (`lib/permit-intel/flat/detect.ts`): the AI only says which numbered blank
+  is which; positions are found in the rendered pixels. Values are printed
+  only from records, signatures and notary blocks never, a value that does
+  not fit is reported rather than cut, and a template is checked against its
+  filled preview before it is published.
+- **A product approval's checks are advice** (`lib/permit-intel/approvals-plan.ts`):
+  every flag carries "not an engineering determination"; the CRM never
+  computes a required pressure (a person types the engineer's), never infers
+  an expiry or HVHZ status, and an approval is relied on only once a person
+  has checked its fields against the document (VERIFIED).
+- **Preflight advises; a person decides** (`lib/permit-intel/preflight.ts`):
+  the readiness score counts the rules only and is never a prediction of
+  approval; the AI look adds warnings, never blockers, and only points that
+  cite the package summary. A permit is marked ready with zero blockers or an
+  ADMIN / MANAGER override with a reason (audited); freezing a package clears
+  the mark. New permit checks are rules in `runPreflight` with a code, never a
+  second engine.
+- **A lesson is learned, never applied, until a person approves it**
+  (`lib/permit-intel/knowledge.ts`): only comments the department accepted
+  propose one, their particulars are scrubbed first, and only APPROVED lessons
+  reach preflight — a warning only when the document its check names is not
+  on the permit. Permit Center tiles carry the ids they count; a new tile is a
+  line in `metrics.ts`, never a second query.
+- **The CRM opens the web only through `safeFetch`** (`lib/permit-intel/web-fetch.ts`):
+  the model never fetches — it picks numbered links, and links the fetcher
+  would refuse are never offered. Every connection is checked at connect
+  time (no private / reserved address), redirects re-checked, robots.txt
+  honoured, every request logged (`PermitAssistFetch`); a fetched web page is
+  never served back from the CRM. What the assistant finds is a proposal: a
+  document joins the permit, with a type, only when a person accepts it.
+- **Every model call goes through `runAiCall`** (`src/lib/ai/calls.ts`): it is
+  recorded as an `AiCall`, held to the per-subject and monthly caps, has no
+  tools, and must match a zod schema. Document text goes in through
+  `untrustedDocument`. What the model returns is a proposal a person confirms —
+  never a status change, a sent message, a licence number or a signature.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
 
-> **Plan takeoff M3 (AI roofing) is built on `takeoff-m3`, not on `main`.**
-> Before merging: Richard decides on the prod `ANTHROPIC_API_KEY` (goes in
-> `/etc/knuco/env`; the feature is inert without it). Then fast-forward
-> `main`, push and deploy (migration `20261028120000_plan_ai_calls`), add the
-> key, restart, and click through on a lead with the 3310 set: Plan takeoff →
-> roofing takeoff → calibrate A-10 → Analyze with AI → tick A-10 only →
-> review the proposals and the Specifications card ("Assembly not
-> specified"). Expect ~$0.35 for that run. GC Phase 8a (`d9f180a`) is on
-> `main` and unpushed — it ships with the same deploy.
+> **AI Permit Intelligence Stages 2, 3 and 4 are on prod (`da551cc`, BUILD_ID
+> `6KAPwvK3Td9KNoioZBmQr`, 2026-10-19 00:26 UTC).** Stage 4 after it: Permits → Product approvals →
+> add the NOAs / FL approvals KNU installs, check each, add them on permits'
+> Products tabs. **Stage 5 (preflight) is on `main`, not deployed** (migration
+> `20261105120000_permit_preflight`); after its deploy: a permit → Preflight →
+> Run (try "with an AI second look") → Create tasks → Mark ready. **Stage 6
+> (lessons + metrics) is on `main` too** (migration
+> `20261106120000_permit_lessons`); after the deploy: Permit Center's tiles;
+> Admin → Permits → Knowledge fills as the department answers resubmissions.
+> **All seven stages are on prod (`2359e54`, BUILD_ID
+> `C7dZ4cfftPCjy5oiFvv9z`, 2026-10-19)**; what remains is the click-throughs
+> and the open ruling below. **The document assistant is on prod (`64e3c4d`,
+> BUILD_ID `TLxVz6KDW9VoRZKRR74nA`)**; next: Admin → Permits → Jurisdictions → each department's website, then a
+> permit → Documents → Document assistant → Sort documents…. **Filling found
+> forms (fillable and printed) is on prod (`391efe1`, BUILD_ID
+> `U5IBZ_zSrPTNhnC0nmT4x`)**:
+> Make a fillable form → check the filled preview → publish → Forms tab. Stage 3 after it: After it: Admin → Permits → Forms → upload the
+> Palm Beach County universal application (county "Palm Beach", from
+> discover.pbc.gov) → Map with AI → check "Check these" and clear the
+> office-use header → Publish; set each Palm Beach County jurisdiction's
+> county; add the qualifier under a permit's Parties; on a permit → Forms →
+> Fill → add the parcel number → Write the PDF → Finalise. Next build:
+> **Stage 5** (preflight: deterministic readiness checks, optional AI review,
+> the ready gate).
+
+> **AI Permit Intelligence Stage 2 (corrections) is on `main`, not deployed;
+> the deploy carries migration `20261102120000_permit_corrections`** (no seed,
+> no cron). After Richard's push + deploy (if the `!` deploy's build is cut off
+> again: rebuild on the droplet with `/etc/knuco/env` loaded and
+> `ssh -n … < /dev/null`, then restart). Click-through: a permit with a
+> submission → Corrections → Add a correction notice (a real letter) → check
+> the items, Confirm → tick items → Email about… → Write the response letter →
+> Submissions → Submit again; Documents → Suggest a type; Permits → Library.
+> Next build: **Stage 3** (form filling) — needs Richard's sample blank
+> applications (Palm Beach, Boynton Beach, Miami). Ruling still open: who may
+> confirm a notice / freeze a submission (proposed: office roles + the
+> permit's coordinator).
+
+> **AI Permit Intelligence Stage 1 (permit record) is on prod (`acdf728`,
+> BUILD_ID `3SyklAeo2NGYbawokTWey`), seeded and backfilled (3 permits linked
+> to their jurisdictions, types and cycle 1).** Click-through: Admin → Permits (county, HVHZ, the real
+> requirements); a job → Permits → Open the permit record → Documents
+> (upload with a type) → Submissions → Submit. Next build: **Stage 2**
+> (corrections: AI extraction of a correction letter → confirmed items →
+> tasks, drafts, response letter) — the queue change and the Permit Library
+> come with it. Ruling still open: who may freeze a submission (proposed:
+> office roles + the permit's coordinator).
 
 > **GC Partnerships Phase 8a (prequalification package) is on `main`, not
 > deployed (no migration; `npm ci` picks up `fflate`).** After Richard's push +

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { recomputeJobLabor } from "@/lib/services/job-pricing";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
+import { releaseCoveredExpenses } from "@/lib/expenses/labor-cover";
 
 const updateSchema = z.object({
   crewId: z.string().nullable().optional(),
@@ -130,6 +131,9 @@ export async function DELETE(
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Bank charges its payments accounted for go back to the review queue.
+  const payments = await prisma.laborPayment.findMany({ where: { laborContractId: id }, select: { id: true } });
+  await releaseCoveredExpenses(payments.map((p) => p.id), session.user.id);
   await prisma.laborContract.delete({ where: { id } });
   await recomputeJobLabor(existing.jobId);
 

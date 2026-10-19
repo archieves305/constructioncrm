@@ -40,7 +40,7 @@ const securityHeaders = [
  * origin and no other. When two entries set the same header for a path, the
  * later one wins, so this list must stay after the site-wide entry.
  */
-const FRAMED_BY_SELF = ["/api/files/:id", "/api/sign/:token/pdf", "/api/company-documents/:id/file"];
+const FRAMED_BY_SELF = ["/api/files/:id", "/api/sign/:token/pdf", "/api/company-documents/:id/file", "/api/product-approvals/:id/file", "/api/permit-forms/:id/file"];
 
 const sameOriginFrameHeaders = securityHeaders.map((h) =>
   h.key === "X-Frame-Options"

@@ -11,6 +11,7 @@ import {
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
 import { findManualTwin, twinReviewNote, TWIN_WINDOW_DAYS } from "@/lib/expenses/reconcile";
+import { laborHoldNote } from "@/lib/expenses/labor-cover";
 
 // POST /api/integrations/cc-allocator/expense
 //
@@ -33,6 +34,11 @@ import { findManualTwin, twinReviewNote, TWIN_WINDOW_DAYS } from "@/lib/expenses
 //     amount, within ±3 days) is created PENDING with a review note instead
 //     of APPROVED. Pending moves no money; the review queue shows it; the
 //     reviewer approves (both real) or deletes the manual twin.
+//   - A posting that looks like a crew payment already recorded on one of the
+//     job's labor contracts — or that pays a crew with a labor contract on the
+//     job at all — is held PENDING the same way (2026-10-14: 2188 Windtrace
+//     counted three BNW payments twice). Cost Reconciliation → Crew payments
+//     takes it from there.
 //   - Negative amounts are accepted from this route only — card refunds and
 //     returns. They flow through the same increments with the opposite
 //     sign, so a credit reduces job cost the way the charge raised it.
@@ -135,13 +141,16 @@ export async function POST(request: NextRequest) {
       nearby.map((r) => ({ ...r, amount: Number(r.amount) })),
     );
   }
-  const status = twin ? "PENDING" : "APPROVED";
+  // A bank memo for a known payee attaches to its vendor; the memo is kept.
+  const vendorId = await resolveVendorId(input.vendor);
+  const laborNote = twin
+    ? null
+    : await laborHoldNote({ jobId: input.jobId, amount: input.amount, incurredDate, vendor: input.vendor ?? null, description: input.description ?? null, vendorId });
+  const status = twin || laborNote ? "PENDING" : "APPROVED";
   // Only an APPROVED charge moves money. Signed, so a credit backs out what
   // a charge of the same size put in.
   const balanceDelta = status === "APPROVED" && !isRollup && effectiveBillable ? input.amount : 0;
 
-  // A bank memo for a known payee attaches to its vendor; the memo is kept.
-  const vendorId = await resolveVendorId(input.vendor);
   // One open commitment for that vendor on this job: the posting draws it down.
   const commitmentId = await autoCommitmentId(input.jobId, vendorId);
 
@@ -162,7 +171,7 @@ export async function POST(request: NextRequest) {
         createdByUserId: CC_ALLOCATOR_SYSTEM_USER_ID,
         externalId: input.externalId,
         status,
-        reviewNote: twin ? twinReviewNote(twin) : null,
+        reviewNote: twin ? twinReviewNote(twin) : laborNote,
       },
       select: { id: true, jobId: true },
     });
@@ -190,5 +199,6 @@ export async function POST(request: NextRequest) {
     alreadyExists: false,
     status,
     suspectedDuplicateOf: twin?.id ?? null,
+    heldForCrewPayment: Boolean(laborNote),
   });
 }

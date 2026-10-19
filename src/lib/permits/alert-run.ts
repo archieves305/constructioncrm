@@ -40,7 +40,8 @@ const PERMIT_SELECT = {
   job: { select: { projectManagerId: true } },
 } as const;
 
-type Owner = { jobId: string; assignedUserId: string | null; projectManagerId: string | null };
+export type PermitTaskOwner = Owner;
+export type Owner = { jobId: string; permitId: string; assignedUserId: string | null; projectManagerId: string | null };
 
 async function fallbackAdmin(): Promise<string | null> {
   const u = await prisma.user.findFirst({ where: { isActive: true, role: { name: "ADMIN" } }, orderBy: { createdAt: "asc" }, select: { id: true } });
@@ -48,7 +49,7 @@ async function fallbackAdmin(): Promise<string | null> {
 }
 
 /** Who an alert goes to. The permit's coordinator, the job's roles, and failing all of them the oldest admin. */
-async function assigneeFor(audience: PlannedAlert["audience"], o: Owner): Promise<string | null> {
+export async function assigneeFor(audience: PlannedAlert["audience"], o: Owner): Promise<string | null> {
   const coordinator = async () => o.assignedUserId ?? (await userForJobRole(o.jobId, "PERMIT_COORDINATOR"));
   const manager = async () => o.projectManagerId ?? (await userForJobRole(o.jobId, "PROJECT_MANAGER"));
   const order =
@@ -76,6 +77,7 @@ async function raise(alert: PlannedAlert, owner: Owner): Promise<boolean> {
       // Nobody raised it but the calendar: the owner is the only person it concerns.
       createdByUserId: assignee,
       jobId: owner.jobId,
+      permitId: owner.permitId,
       source: "auto",
       sourceKey: alert.sourceKey,
     },
@@ -96,7 +98,7 @@ export async function raisePermitAlerts(today: DayKey = todayKey()): Promise<Per
   for (const p of permits) {
     try {
       for (const alert of alertsForPermit(p, today)) {
-        const raised = await raise(alert, { jobId: p.jobId, assignedUserId: p.assignedUserId, projectManagerId: p.job.projectManagerId });
+        const raised = await raise(alert, { jobId: p.jobId, permitId: p.id, assignedUserId: p.assignedUserId, projectManagerId: p.job.projectManagerId });
         if (!raised) continue;
         if (alert.kind === "waiting-14") {
           out.waiting14 += 1;
@@ -125,14 +127,14 @@ export async function raiseInspectionAlerts(today: DayKey = todayKey()): Promise
       type: true,
       result: true,
       scheduledFor: true,
-      permit: { select: { permitType: true, municipality: true, assignedUserId: true, jobId: true, job: { select: { projectManagerId: true } } } },
+      permit: { select: { id: true, permitType: true, municipality: true, assignedUserId: true, jobId: true, job: { select: { projectManagerId: true } } } },
     },
   });
   let raised = 0;
   for (const i of rows) {
     try {
       const alert = alertForInspection(i, today);
-      if (alert && (await raise(alert, { jobId: i.permit.jobId, assignedUserId: i.permit.assignedUserId, projectManagerId: i.permit.job.projectManagerId }))) raised += 1;
+      if (alert && (await raise(alert, { jobId: i.permit.jobId, permitId: i.permit.id, assignedUserId: i.permit.assignedUserId, projectManagerId: i.permit.job.projectManagerId }))) raised += 1;
     } catch (err) {
       logger.exception(err, { where: "permits.raiseInspectionAlerts", inspectionId: i.id });
     }

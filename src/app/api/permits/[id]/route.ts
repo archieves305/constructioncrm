@@ -3,6 +3,27 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { guardJob } from "@/lib/access/records";
 import { PermitError, updatePermit } from "@/lib/permits/service";
+import { canWriteProduction } from "@/lib/access/roles";
+import { canManagePermitSettings, canSubmitPermit } from "@/lib/permit-intel/access";
+import { loadPermitDetail } from "@/lib/permit-intel/service";
+import { permitInScope } from "@/lib/permit-intel/route";
+import { isAiConfigured } from "@/lib/ai/client";
+
+/** One permit's whole record: the permit, its parties, cycles and submissions, documents with the requirement checklist, tasks, inspections and history. */
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session?.user) return unauthorized();
+  const { id } = await params;
+  const scope = await permitInScope(session.user, id, "read");
+  if (scope.denied) return scope.denied;
+  const detail = await loadPermitDetail(id);
+  if (!detail) return NextResponse.json({ error: "Permit not found" }, { status: 404 });
+  const canEdit = canWriteProduction(session.user.role);
+  return NextResponse.json({
+    ...detail,
+    permissions: { canEdit, canSubmit: canEdit && canSubmitPermit(session.user, detail.permit), canManageSettings: canManagePermitSettings(session.user.role), aiReady: isAiConfigured() },
+  });
+}
 
 export async function PATCH(
   request: NextRequest,

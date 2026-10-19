@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { createTask } from "@/lib/tasks/create";
 import { updateTask } from "@/lib/tasks/update";
 import { userForJobRole } from "@/lib/workflows/roles";
+import { PHOTO_SELECT } from "@/lib/files/list";
 
 /**
  * "Please pay this crew $X."
@@ -34,6 +35,7 @@ export const REQUEST_INCLUDE = {
   task: { select: { id: true, status: true, assignedTo: PERSON } },
   laborPayment: { select: { id: true, amount: true, paidDate: true } },
   lines: { select: { id: true, name: true } },
+  photos: { select: PHOTO_SELECT, orderBy: { createdAt: "asc" } },
 } as const;
 
 /** `neededBy` is a day: a bare yyyy-MM-dd pinned to noon UTC so it stays on its day in every zone. */
@@ -134,6 +136,8 @@ export async function settleRequestOnPayment(requestId: string, laborPaymentId: 
   if (!r || r.status !== "REQUESTED") return;
   // Status first: closing the task runs `onRequestTaskClosed`, which must find it already paid.
   await prisma.laborPaymentRequest.update({ where: { id: r.id }, data: { status: "PAID", laborPaymentId, resolvedAt: new Date() } });
+  // The request's completion photos follow the money onto the payment.
+  await prisma.file.updateMany({ where: { laborPaymentRequestId: r.id, laborPaymentId: null }, data: { laborPaymentId } });
   if (r.taskId) await closeTask(r.taskId, "COMPLETED", actorUserId);
   await recordAudit({ actorUserId, entityType: "LaborPaymentRequest", entityId: r.id, action: "paid", after: { laborPaymentId } });
 }

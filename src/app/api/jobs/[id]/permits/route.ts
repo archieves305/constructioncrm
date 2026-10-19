@@ -5,7 +5,8 @@ import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { guardJob } from "@/lib/access/records";
 import { canWriteProduction } from "@/lib/access/roles";
 import { isPermitStatus, statusStamps } from "@/lib/permits/rules";
-import { inspectionStepsForJob } from "@/lib/permits/service";
+import { inspectionStepsForJob, PermitError, recordFields } from "@/lib/permits/service";
+import type { Prisma } from "@/generated/prisma/client";
 
 /** The job's permits with their inspections, and the open workflow inspection steps a result could belong to. */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -46,7 +47,16 @@ export async function POST(
   if (denied) return denied;
   const body = await request.json();
 
-  if (!body.municipality) return badRequest("municipality is required");
+  if (!body.municipality && !body.jurisdictionId) return badRequest("municipality or jurisdictionId is required");
+  let record: Prisma.JobPermitUncheckedUpdateInput;
+  try {
+    record = await recordFields(body);
+  } catch (err) {
+    if (err instanceof PermitError) return NextResponse.json({ error: err.message }, { status: err.status });
+    throw err;
+  }
+  // a permit still being put together has not been submitted
+  const preparing = body.status === "PREPARING";
   const status = body.status || "APPLIED";
   if (!isPermitStatus(status)) return badRequest("status is not a permit status");
   // A permit entered as already issued or final carries today's date unless one is given.
@@ -56,10 +66,10 @@ export async function POST(
   const permit = await prisma.jobPermit.create({
     data: {
       jobId: id,
-      municipality: body.municipality,
-      permitType: body.permitType ?? null,
+      municipality: (record.municipality as string | undefined) ?? String(body.municipality).trim(),
+      permitType: body.permitType || null,
       permitNumber: body.permitNumber?.trim() || null,
-      submittedDate: body.submittedDate ? new Date(body.submittedDate) : new Date(),
+      submittedDate: body.submittedDate ? new Date(body.submittedDate) : preparing ? null : new Date(),
       expectedApprovalDate: body.expectedApprovalDate ? new Date(body.expectedApprovalDate) : null,
       expirationDate: body.expirationDate ? new Date(body.expirationDate) : null,
       approvedDate: approvedDate ?? stamps.approvedDate ?? null,
@@ -69,6 +79,12 @@ export async function POST(
       inspectorName: body.inspectorName ?? null,
       permitFee: body.permitFee != null && body.permitFee !== "" ? body.permitFee : null,
       notes: body.notes ?? null,
+      jurisdictionId: (record.jurisdictionId as string | null | undefined) ?? null,
+      permitTypeKey: (record.permitTypeKey as string | null | undefined) ?? null,
+      applicationNumber: (record.applicationNumber as string | null | undefined) ?? null,
+      scopeDescription: (record.scopeDescription as string | null | undefined) ?? null,
+      valuation: (record.valuation as string | null | undefined) ?? null,
+      ...(record.permitType !== undefined && !body.permitType ? { permitType: record.permitType as string } : {}),
     },
   });
 
@@ -78,8 +94,8 @@ export async function POST(
       data: {
         leadId: job.leadId,
         activityType: "PERMIT_ADDED",
-        title: `Permit submitted: ${body.permitType || "General"}`,
-        description: `Municipality: ${body.municipality}`,
+        title: `${preparing ? "Permit started" : "Permit submitted"}: ${permit.permitType || "General"}`,
+        description: `Municipality: ${permit.municipality}`,
         createdByUserId: session.user.id,
       },
     });

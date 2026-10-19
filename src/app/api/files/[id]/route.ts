@@ -3,18 +3,19 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { readFile, deleteFile, fileExists } from "@/lib/files/storage";
-import { canDeleteFile, canEditFile, fileReadWhere } from "@/lib/files/access";
+import { canDeleteFile, canEditFile, fileReadWhere, permitLockOf } from "@/lib/files/access";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
 import { cleanFileName, UPLOAD_CATEGORIES } from "@/lib/files/scope";
 import { validateBody } from "@/lib/validation/body";
 import { recordAudit } from "@/lib/audit/record";
+import { isPermitDocType } from "@/lib/permit-intel/doc-types";
 
 type Context = { params: Promise<{ id: string }> };
 
 /** The file within the viewer's scope, with whether the CRM generated it. Outside the scope reads as "not found", so ids cannot be probed. */
 async function loadFile(viewer: { id: string; role: Parameters<typeof fileReadWhere>[0]["role"] }, id: string) {
-  const file = await prisma.file.findFirst({ where: { AND: [{ id }, fileReadWhere(viewer)] }, include: { _count: { select: { generatedDocuments: true } } } });
-  return file ? { ...file, generated: file._count.generatedDocuments > 0 } : null;
+  const file = await prisma.file.findFirst({ where: { AND: [{ id }, fileReadWhere(viewer)] }, include: { _count: { select: { generatedDocuments: true, permitSubmissions: true } } } });
+  return file ? { ...file, generated: file._count.generatedDocuments > 0, permitLock: permitLockOf({ permitDocType: file.permitDocType, permitSubmissionCount: file._count.permitSubmissions }) } : null;
 }
 
 export async function GET(request: NextRequest, context: Context) {
@@ -61,6 +62,8 @@ const updateSchema = z.object({
   category: z.enum(UPLOAD_CATEGORIES as [string, ...string[]]).optional(),
   // The job the file belongs to; null makes it a lead document again.
   jobId: z.string().max(60).nullable().optional(),
+  // A permit document's type (lib/permit-intel/doc-types.ts); null leaves it unclassified.
+  permitDocType: z.string().max(60).nullable().optional(),
 });
 
 /** Rename, recategorise, or move a file between a job and its lead. */
@@ -76,7 +79,7 @@ export async function PATCH(request: NextRequest, context: Context) {
 
   const v = await validateBody(request, updateSchema);
   if (!v.ok) return v.response;
-  const data: { fileName?: string; category?: (typeof file)["category"]; jobId?: string | null } = {};
+  const data: { fileName?: string; category?: (typeof file)["category"]; jobId?: string | null; permitDocType?: string | null } = {};
   if (v.data.fileName !== undefined) {
     const name = cleanFileName(v.data.fileName, file.fileName);
     if (!name) return badRequest("Give the file a name");
@@ -87,12 +90,18 @@ export async function PATCH(request: NextRequest, context: Context) {
     if (file.violationCaseId) return badRequest("A file on a code-violation case stays with the case");
     if (file.taskId && v.data.jobId !== file.jobId) return badRequest("A file on a task follows the task's job");
     if (file.expenseId && v.data.jobId !== file.jobId) return badRequest("A receipt stays on its expense's job");
+    if (file.permitId && v.data.jobId !== file.jobId) return badRequest("A permit document stays on its permit's job");
     if (v.data.jobId) {
       // Only onto a job of the same customer.
       const job = await prisma.job.findUnique({ where: { id: v.data.jobId }, select: { leadId: true } });
       if (!job || !file.leadId || job.leadId !== file.leadId) return badRequest("That job belongs to a different customer");
     }
     data.jobId = v.data.jobId || null;
+  }
+  if (v.data.permitDocType !== undefined) {
+    if (!file.permitId) return badRequest("Only a permit's documents have a permit document type");
+    if (v.data.permitDocType !== null && !isPermitDocType(v.data.permitDocType)) return badRequest("permitDocType is not a permit document type");
+    data.permitDocType = v.data.permitDocType;
   }
 
   const updated = await prisma.file.update({ where: { id }, data, include: FILE_LIST_INCLUDE });
@@ -101,8 +110,8 @@ export async function PATCH(request: NextRequest, context: Context) {
     entityType: "File",
     entityId: id,
     action: "update",
-    before: { fileName: file.fileName, category: file.category, jobId: file.jobId },
-    after: { fileName: updated.fileName, category: updated.category, jobId: updated.jobId },
+    before: { fileName: file.fileName, category: file.category, jobId: file.jobId, permitDocType: file.permitDocType },
+    after: { fileName: updated.fileName, category: updated.category, jobId: updated.jobId, permitDocType: updated.permitDocType },
   });
   return NextResponse.json((await presentFiles([updated]))[0]);
 }

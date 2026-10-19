@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, Building2, ClipboardList, FileText, Gavel, MapPin, Receipt, Store, UserRound } from "lucide-react";
+import { Briefcase, Building2, ClipboardList, FileText, Gavel, MapPin, Receipt, Shield, Store, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { subjectLabel, type SubjectKind } from "@/lib/labels/subject";
 import type { TaskEntityContext, TaskListItem } from "./types";
@@ -19,6 +19,7 @@ const ICONS: Record<SubjectKind, React.ElementType> = {
   estimate: FileText,
   dailyLog: ClipboardList,
   prospect: MapPin,
+  permit: Shield,
   job: Briefcase,
   lead: UserRound,
   vendor: Store,

@@ -316,7 +316,11 @@ enum DoorKnockStopStatus {
 }
 
 enum PermitStatus {
+  // Not yet submitted: the package is being put together (Permit Intelligence).
+  PREPARING
   APPLIED
+  // The building department asked for corrections; the clock is on KNU.
+  CORRECTIONS
   ISSUED
   IN_PROGRESS
   FINAL
@@ -400,18 +404,18 @@ model User {
   // unsubscribe link — but a user who mutes here stops receiving it. The
   // pressure valve exists so nobody resorts to a mail-client filter, which
   // would be invisible to us and would swallow genuinely urgent assignments.
-  taskEmailsEnabled       Boolean      @default(true) @map("task_emails_enabled")
+  taskEmailsEnabled       Boolean                @default(true) @map("task_emails_enabled")
   // Sub-channels under the master switch above. All three are moot when it
   // is off; each can be muted alone when it is on.
-  escalationEmailsEnabled Boolean      @default(true) @map("escalation_emails_enabled")
-  reminderDigestEnabled   Boolean      @default(true) @map("reminder_digest_enabled")
-  nudgeEmailsEnabled      Boolean      @default(true) @map("nudge_emails_enabled")
+  escalationEmailsEnabled Boolean                @default(true) @map("escalation_emails_enabled")
+  reminderDigestEnabled   Boolean                @default(true) @map("reminder_digest_enabled")
+  nudgeEmailsEnabled      Boolean                @default(true) @map("nudge_emails_enabled")
   // What the jobs/leads lists and boards open on; every page has a Mine/All
   // toggle that writes back here. Floored roles (SALES_REP, CREW_LEAD) are
   // pinned to their own rows server-side whatever this says.
-  defaultListScope        ListScope    @default(MINE) @map("default_list_scope")
-  boardDensity            BoardDensity @default(COMFORTABLE) @map("board_density")
-  defaultCalendarView     CalendarView @default(WEEK) @map("default_calendar_view")
+  defaultListScope        ListScope              @default(MINE) @map("default_list_scope")
+  boardDensity            BoardDensity           @default(COMFORTABLE) @map("board_density")
+  defaultCalendarView     CalendarView           @default(WEEK) @map("default_calendar_view")
   // Notifications v2 (see docs/project-memory/features/notifications.md).
   // DIGEST is the default for everyone; IMMEDIATE is the legacy one-mail-
   // per-event behaviour as an explicit opt-in; IN_APP_ONLY keeps the bell.
@@ -464,8 +468,8 @@ model User {
   prospectsAssigned                 Prospect[]                @relation("ProspectAssignedTo")
   laborContractsCreated             LaborContract[]
   laborPaymentsCreated              LaborPayment[]
-  laborPaymentRequests              LaborPaymentRequest[] @relation("LaborPaymentRequester")
-  laborContractTasksAssigned        LaborContractTask[]   @relation("LaborContractTaskAssignee")
+  laborPaymentRequests              LaborPaymentRequest[]     @relation("LaborPaymentRequester")
+  laborContractTasksAssigned        LaborContractTask[]       @relation("LaborContractTaskAssignee")
   laborChangeOrdersCreated          LaborChangeOrder[]
   changeOrdersCreated               ChangeOrder[]
   generatedDocuments                GeneratedDocument[]
@@ -494,7 +498,22 @@ model User {
   planDocumentsUploaded             PlanDocument[]            @relation("PlanDocumentUploadedBy")
   planSheetsCorrected               PlanSheet[]               @relation("PlanSheetCorrectedBy")
   planJobsRequested                 PlanJob[]                 @relation("PlanJobRequestedBy")
-  planAiCallsRequested              PlanAiCall[]              @relation("PlanAiCallRequestedBy")
+  aiCallsRequested                  AiCall[]                  @relation("AiCallRequestedBy")
+  permitSubmissions                 PermitSubmission[]        @relation("PermitSubmissionBy")
+  permitKnowledgeCreated            PermitKnowledge[]         @relation("PermitKnowledgeCreatedBy")
+  correctionNoticesCreated          PermitCorrectionNotice[]  @relation("CorrectionNoticeCreatedBy")
+  permitFormsCreated                PermitFormTemplate[]      @relation("PermitFormCreatedBy")
+  permitFormsPublished              PermitFormTemplate[]      @relation("PermitFormPublishedBy")
+  permitFormFillsCreated            PermitFormFill[]          @relation("PermitFormFillCreatedBy")
+  permitFormFillsFinalized          PermitFormFill[]          @relation("PermitFormFillFinalizedBy")
+  productApprovalsCreated           ProductApproval[]         @relation("ApprovalCreatedBy")
+  productApprovalsVerified          ProductApproval[]         @relation("ApprovalVerifiedBy")
+  preflightRuns                     PermitPreflightRun[]      @relation("PreflightRanBy")
+  permitsMarkedReady                JobPermit[]               @relation("PermitReadyBy")
+  correctionNoticesConfirmed        PermitCorrectionNotice[]  @relation("CorrectionNoticeConfirmedBy")
+  permitMessagesCreated             PermitMessage[]           @relation("PermitMessageCreatedBy")
+  permitMessagesSent                PermitMessage[]           @relation("PermitMessageSentBy")
+  permitKnowledgeDecided            PermitKnowledge[]         @relation("PermitKnowledgeDecidedBy")
   planSheetsCalibrated              PlanSheet[]               @relation("PlanSheetCalibratedBy")
   takeoffsCreated                   Takeoff[]                 @relation("TakeoffCreatedBy")
   takeoffMeasurementsCreated        TakeoffMeasurement[]      @relation("TakeoffMeasurementCreatedBy")
@@ -512,7 +531,7 @@ model User {
   qualificationsCreated             Qualification[]           @relation("QualificationCreatedBy")
   bidsCreated                       BidInvitation[]           @relation("BidCreatedBy")
   bidsDecided                       BidInvitation[]           @relation("BidDecidedBy")
-  bidIntakesResolved BidIntake[] @relation("BidIntakeResolvedBy")
+  bidIntakesResolved                BidIntake[]               @relation("BidIntakeResolvedBy")
   bidsEstimating                    BidInvitation[]           @relation("BidEstimator")
   bidSubmissionsMade                BidSubmission[]           @relation("BidSubmittedBy")
   roofMaterialPricesCreated         RoofMaterialPrice[]       @relation("RoofMaterialPriceCreatedBy")
@@ -533,8 +552,10 @@ model User {
   violationInspectionsAttending     CodeViolationInspection[] @relation("ViolationInspectionAttendee")
   violationEvents                   CodeViolationEvent[]      @relation("ViolationEventActor")
 
-  signatureHtml String? @map("signature_html") @db.Text
-  signatureText String? @map("signature_text") @db.Text
+  signatureHtml         String?            @map("signature_html") @db.Text
+  signatureText         String?            @map("signature_text") @db.Text
+  permitAssistRuns      PermitAssistRun[]  @relation("PermitAssistRunStartedBy")
+  permitAssistDecisions PermitAssistItem[] @relation("PermitAssistItemDecidedBy")
 
   @@map("users")
 }
@@ -581,10 +602,10 @@ model ServiceCategory {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  parent            ServiceCategory?                  @relation("ServiceHierarchy", fields: [parentId], references: [id])
-  children          ServiceCategory[]                 @relation("ServiceHierarchy")
-  leadServices      LeadService[]
-  workflowTemplates WorkflowTemplateServiceCategory[]
+  parent             ServiceCategory?                  @relation("ServiceHierarchy", fields: [parentId], references: [id])
+  children           ServiceCategory[]                 @relation("ServiceHierarchy")
+  leadServices       LeadService[]
+  workflowTemplates  WorkflowTemplateServiceCategory[]
   organizationTrades OrganizationTrade[]
 
   @@map("service_categories")
@@ -623,6 +644,11 @@ model Lead {
   mailingAddress2        String?      @map("mailing_address_2")
   city                   String
   county                 String?
+  // Permit Intelligence: the parcel control number (PCN / folio) and the
+  // legal description, as a person entered them from the property appraiser
+  // or the survey. Permit forms read them; nothing fills them by itself.
+  parcelNumber           String?      @map("parcel_number")
+  legalDescription       String?      @map("legal_description") @db.Text
   state                  String       @default("FL")
   zipCode                String       @map("zip_code")
   propertyType           PropertyType @default(RESIDENTIAL) @map("property_type")
@@ -655,10 +681,10 @@ model Lead {
   createdAt              DateTime     @default(now()) @map("created_at")
   updatedAt              DateTime     @updatedAt @map("updated_at")
 
-  source       LeadSource? @relation(fields: [sourceId], references: [id])
-  assignedUser User?       @relation("AssignedUser", fields: [assignedUserId], references: [id])
-  currentStage LeadStage   @relation(fields: [currentStageId], references: [id])
-  createdBy    User        @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+  source       LeadSource?   @relation(fields: [sourceId], references: [id])
+  assignedUser User?         @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  currentStage LeadStage     @relation(fields: [currentStageId], references: [id])
+  createdBy    User          @relation("CreatedByUser", fields: [createdByUserId], references: [id])
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
@@ -775,6 +801,8 @@ model Task {
   violationItemId String?    @map("violation_item_id")
   // A strategic account (Business Development): a follow-up on a GC relationship.
   organizationId  String?    @map("organization_id")
+  // A permit's follow-up (Permit Intelligence); the task carries the permit's job too.
+  permitId        String?    @map("permit_id")
   title           String
   description     String?    @db.Text
   assignedUserId  String?    @map("assigned_user_id")
@@ -854,31 +882,33 @@ model Task {
   inspectionResult      PermitInspectionResult? @map("inspection_result")
   inspectionRecordedAt  DateTime?               @map("inspection_recorded_at")
 
-  lead          Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  job           Job?               @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  estimate      Estimate?          @relation(fields: [estimateId], references: [id], onDelete: SetNull)
-  invoice       Invoice?           @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  prospect      Prospect?          @relation(fields: [prospectId], references: [id], onDelete: SetNull)
-  dailyLog      DailyLog?          @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
-  vendor        Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  violationCase CodeViolationCase? @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
-  violationItem CodeViolationItem? @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
-  organization  Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  assignedTo    User?              @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
-  createdBy     User               @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
-  completedBy   User?              @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
-  remindSetBy   User?              @relation("TaskRemindSetBy", fields: [remindSetByUserId], references: [id])
-  fieldIssue    FieldIssue?
-  laborPaymentRequest LaborPaymentRequest? @relation("LaborPaymentRequestLink")
-  laborContractTask   LaborContractTask?   @relation("LaborContractTaskLink")
-  events        TaskEvent[]
-  watchers      TaskWatcher[]
+  lead                Lead?                  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  job                 Job?                   @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  estimate            Estimate?              @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+  invoice             Invoice?               @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  prospect            Prospect?              @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  dailyLog            DailyLog?              @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  vendor              Vendor?                @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  violationCase       CodeViolationCase?     @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  violationItem       CodeViolationItem?     @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
+  organization        Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  permit              JobPermit?             @relation(fields: [permitId], references: [id], onDelete: SetNull)
+  correctionItems     PermitCorrectionItem[]
+  assignedTo          User?                  @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
+  createdBy           User                   @relation("TaskCreatedByUser", fields: [createdByUserId], references: [id])
+  completedBy         User?                  @relation("TaskCompletedByUser", fields: [completedByUserId], references: [id])
+  remindSetBy         User?                  @relation("TaskRemindSetBy", fields: [remindSetByUserId], references: [id])
+  fieldIssue          FieldIssue?
+  laborPaymentRequest LaborPaymentRequest?   @relation("LaborPaymentRequestLink")
+  laborContractTask   LaborContractTask?     @relation("LaborContractTaskLink")
+  events              TaskEvent[]
+  watchers            TaskWatcher[]
 
-  workflowInstance JobWorkflowInstance? @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
-  dependencies     TaskDependency[]     @relation("TaskDependencyTask")
-  dependents       TaskDependency[]     @relation("TaskDependencyOn")
-  files            File[]
-  notificationRows Notification[]
+  workflowInstance  JobWorkflowInstance?  @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
+  dependencies      TaskDependency[]      @relation("TaskDependencyTask")
+  dependents        TaskDependency[]      @relation("TaskDependencyOn")
+  files             File[]
+  notificationRows  Notification[]
   permitInspections JobPermitInspection[] @relation("PermitInspectionTask")
 
   @@unique([workflowInstanceId, workflowTaskKey])
@@ -890,6 +920,7 @@ model Task {
   @@index([status])
   @@index([leadId])
   @@index([jobId])
+  @@index([permitId])
   @@index([estimateId])
   @@index([invoiceId])
   @@index([prospectId])
@@ -1079,49 +1110,81 @@ model PermitLookupRun {
 // ─── Files ──────────────────────────────────────────────────────────────────
 
 model File {
-  id               String       @id @default(cuid())
+  id                    String                   @id @default(cuid())
   // Null only for a file on a task that has no lead (a task raised with no job).
-  leadId           String?      @map("lead_id")
+  leadId                String?                  @map("lead_id")
   // The job the file belongs to. Null = a lead document (an estimate,
   // something uploaded before the job existed): it shows on the lead, and on
   // the lead's jobs in a group of its own. Anything written for something on
   // a job sets this.
-  jobId            String?      @map("job_id")
-  fileName         String       @map("file_name")
-  fileType         String       @map("file_type")
-  storageKey       String       @map("storage_key")
-  fileSize         Int          @map("file_size")
-  category         FileCategory @default(OTHER)
-  uploadedByUserId String       @map("uploaded_by_user_id")
-  doorKnockId      String?      @map("door_knock_id")
+  jobId                 String?                  @map("job_id")
+  fileName              String                   @map("file_name")
+  fileType              String                   @map("file_type")
+  storageKey            String                   @map("storage_key")
+  fileSize              Int                      @map("file_size")
+  category              FileCategory             @default(OTHER)
+  uploadedByUserId      String                   @map("uploaded_by_user_id")
+  doorKnockId           String?                  @map("door_knock_id")
   // A file on a task (workflow evidence or an ordinary attachment). leadId is
   // copied from the task when it has one, so the lead's Files tab lists it.
-  taskId           String?      @map("task_id")
+  taskId                String?                  @map("task_id")
   // Documents and photos on a code-violation case / item. leadId is copied
   // from the case, so the lead's Files tab lists them.
-  violationCaseId  String?      @map("violation_case_id")
-  violationItemId  String?      @map("violation_item_id")
+  violationCaseId       String?                  @map("violation_case_id")
+  violationItemId       String?                  @map("violation_item_id")
   // A receipt on a job expense. The file also carries the expense's job, so
   // it stays on the job's Files tab if the expense is deleted.
-  expenseId        String?      @map("expense_id")
-  createdAt        DateTime     @default(now()) @map("created_at")
+  expenseId             String?                  @map("expense_id")
+  // Completion photos on a crew payment request, and on the crew payment
+  // itself (a request's photos are stamped with the payment once it is
+  // recorded). The file carries the contract's job, so it is on the job's
+  // Files tab and in its photos too.
+  laborPaymentRequestId String?                  @map("labor_payment_request_id")
+  laborPaymentId        String?                  @map("labor_payment_id")
+  // When the photo was taken, read from the camera's EXIF on upload. Null when
+  // the image carried no date (screenshots, edited copies, PDFs).
+  takenAt               DateTime?                @map("taken_at")
+  // A permit's document (Permit Intelligence): the permit, and its type from
+  // the code list in lib/permit-intel/doc-types.ts. The file also carries the
+  // permit's job and lead, so it shows on the job's Files tab.
+  permitId              String?                  @map("permit_id")
+  permitDocType         String?                  @map("permit_doc_type")
+  // The text read from a permit PDF (pdfjs), for the Permit Library's
+  // full-text search; `searchVector` is generated from it by the database.
+  extractedText         String?                  @map("extracted_text") @db.Text
+  searchVector          Unsupported("tsvector")? @map("search_vector")
+  createdAt             DateTime                 @default(now()) @map("created_at")
 
-  lead               Lead?               @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  job                Job?                @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  expense            JobExpense?         @relation(fields: [expenseId], references: [id], onDelete: SetNull)
-  uploadedBy         User                @relation(fields: [uploadedByUserId], references: [id])
-  doorKnock          PropertyDoorKnock?  @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
-  task               Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  violationCase      CodeViolationCase?  @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
-  violationItem      CodeViolationItem?  @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
-  generatedDocuments GeneratedDocument[]
-  roofMeasurement    RoofMeasurement?
-  planDocument       PlanDocument?
-  bidSubmissions     BidSubmission[]
+  lead                Lead?                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job                 Job?                       @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  expense             JobExpense?                @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  laborPaymentRequest LaborPaymentRequest?       @relation(fields: [laborPaymentRequestId], references: [id], onDelete: SetNull)
+  laborPayment        LaborPayment?              @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
+  permit              JobPermit?                 @relation(fields: [permitId], references: [id], onDelete: SetNull)
+  uploadedBy          User                       @relation(fields: [uploadedByUserId], references: [id])
+  doorKnock           PropertyDoorKnock?         @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
+  task                Task?                      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  violationCase       CodeViolationCase?         @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  violationItem       CodeViolationItem?         @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
+  generatedDocuments  GeneratedDocument[]
+  roofMeasurement     RoofMeasurement?
+  planDocument        PlanDocument?
+  bidSubmissions      BidSubmission[]
+  permitSubmissions   PermitSubmissionFile[]
+  correctionNotices   PermitCorrectionNotice[]
+  correctionItemFiles PermitCorrectionItemFile[]
+  formFillOutputs     PermitFormFill[]           @relation("FormFillOutput")
+  formFillFlattened   PermitFormFill[]           @relation("FormFillFlattened")
+  permitProducts      PermitProduct[]            @relation("PermitProductDocument")
+  assistItems         PermitAssistItem[]
 
   @@index([leadId])
   @@index([jobId])
   @@index([expenseId])
+  @@index([laborPaymentRequestId])
+  @@index([laborPaymentId])
+  @@index([permitId])
+  @@index([searchVector], type: Gin)
   @@index([doorKnockId])
   @@index([taskId])
   @@index([violationCaseId])
@@ -1331,56 +1394,56 @@ model JobTaskTemplate {
 }
 
 model Job {
-  id                    String          @id @default(cuid())
-  leadId                String          @map("lead_id")
-  jobNumber             String          @unique @map("job_number")
-  title                 String
-  serviceType           String          @map("service_type")
-  jobType               JobType         @default(FIXED_PRICE) @map("job_type")
-  laborCost             Decimal?        @map("labor_cost") @db.Decimal(12, 2)
-  marginType            MarginType?     @map("margin_type")
-  marginValue           Decimal?        @map("margin_value") @db.Decimal(12, 2)
-  contractAmount        Decimal         @map("contract_amount") @db.Decimal(12, 2)
+  id                     String          @id @default(cuid())
+  leadId                 String          @map("lead_id")
+  jobNumber              String          @unique @map("job_number")
+  title                  String
+  serviceType            String          @map("service_type")
+  jobType                JobType         @default(FIXED_PRICE) @map("job_type")
+  laborCost              Decimal?        @map("labor_cost") @db.Decimal(12, 2)
+  marginType             MarginType?     @map("margin_type")
+  marginValue            Decimal?        @map("margin_value") @db.Decimal(12, 2)
+  contractAmount         Decimal         @map("contract_amount") @db.Decimal(12, 2)
   // The signed base, before change orders and billable add-ons. Set when a
   // customer contract is signed; null until then (the cost summary derives it).
-  originalContractAmount Decimal?       @map("original_contract_amount") @db.Decimal(12, 2)
-  depositRequired       Decimal         @default(0) @map("deposit_required") @db.Decimal(12, 2)
-  depositReceived       Decimal         @default(0) @map("deposit_received") @db.Decimal(12, 2)
-  depositReceivedDate   DateTime?       @map("deposit_received_date")
-  financingRequired     Boolean         @default(false) @map("financing_required")
-  financingProvider     String?         @map("financing_provider")
-  financingStatus       FinancingStatus @default(NOT_NEEDED) @map("financing_status")
-  financingApprovedDate DateTime?       @map("financing_approved_date")
-  balanceDue            Decimal         @default(0) @map("balance_due") @db.Decimal(12, 2)
+  originalContractAmount Decimal?        @map("original_contract_amount") @db.Decimal(12, 2)
+  depositRequired        Decimal         @default(0) @map("deposit_required") @db.Decimal(12, 2)
+  depositReceived        Decimal         @default(0) @map("deposit_received") @db.Decimal(12, 2)
+  depositReceivedDate    DateTime?       @map("deposit_received_date")
+  financingRequired      Boolean         @default(false) @map("financing_required")
+  financingProvider      String?         @map("financing_provider")
+  financingStatus        FinancingStatus @default(NOT_NEEDED) @map("financing_status")
+  financingApprovedDate  DateTime?       @map("financing_approved_date")
+  balanceDue             Decimal         @default(0) @map("balance_due") @db.Decimal(12, 2)
   // Progress billing (see BillingMethod). retainagePercent is the job-level
   // rate; each application snapshots the rate it was issued under.
-  billingMethod         BillingMethod   @default(LUMP_SUM) @map("billing_method")
-  retainagePercent      Decimal         @default(0) @map("retainage_percent") @db.Decimal(5, 2)
-  finalPaymentReceived  Boolean         @default(false) @map("final_payment_received")
-  finalPaymentDate      DateTime?       @map("final_payment_date")
-  projectManagerId      String?         @map("project_manager_id")
-  salesRepId            String?         @map("sales_rep_id")
-  currentStageId        String          @map("current_stage_id")
-  nextAction            String?         @map("next_action")
-  targetStartDate       DateTime?       @map("target_start_date")
-  scheduledDate         DateTime?       @map("scheduled_date")
-  completionDate        DateTime?       @map("completion_date")
-  isRentalTurnover      Boolean         @default(false) @map("is_rental_turnover")
-  priorTenantName       String?         @map("prior_tenant_name")
-  turnoverStartedAt     DateTime?       @map("turnover_started_at")
-  turnoverCompletedAt   DateTime?       @map("turnover_completed_at")
+  billingMethod          BillingMethod   @default(LUMP_SUM) @map("billing_method")
+  retainagePercent       Decimal         @default(0) @map("retainage_percent") @db.Decimal(5, 2)
+  finalPaymentReceived   Boolean         @default(false) @map("final_payment_received")
+  finalPaymentDate       DateTime?       @map("final_payment_date")
+  projectManagerId       String?         @map("project_manager_id")
+  salesRepId             String?         @map("sales_rep_id")
+  currentStageId         String          @map("current_stage_id")
+  nextAction             String?         @map("next_action")
+  targetStartDate        DateTime?       @map("target_start_date")
+  scheduledDate          DateTime?       @map("scheduled_date")
+  completionDate         DateTime?       @map("completion_date")
+  isRentalTurnover       Boolean         @default(false) @map("is_rental_turnover")
+  priorTenantName        String?         @map("prior_tenant_name")
+  turnoverStartedAt      DateTime?       @map("turnover_started_at")
+  turnoverCompletedAt    DateTime?       @map("turnover_completed_at")
   // Jobsite coordinates for weather autofill; geocoded once from the lead
   // address, or set manually by ADMIN/MANAGER.
-  latitude              Decimal?        @db.Decimal(10, 7)
-  longitude             Decimal?        @db.Decimal(10, 7)
+  latitude               Decimal?        @db.Decimal(10, 7)
+  longitude              Decimal?        @db.Decimal(10, 7)
   // Approved daily reports auto-email their cost-free PDF to these addresses
   // (owner, GC, super…). Office-managed on the job's Daily Logs tab.
-  dailyReportRecipients String[]        @default([]) @map("daily_report_recipients")
+  dailyReportRecipients  String[]        @default([]) @map("daily_report_recipients")
   // Permitting authority ("City of Boston ISD"). Free text; set from the
   // Apply Workflow dialog or the job header.
-  jurisdiction          String?
-  createdAt             DateTime        @default(now()) @map("created_at")
-  updatedAt             DateTime        @updatedAt @map("updated_at")
+  jurisdiction           String?
+  createdAt              DateTime        @default(now()) @map("created_at")
+  updatedAt              DateTime        @updatedAt @map("updated_at")
 
   lead           Lead     @relation(fields: [leadId], references: [id])
   currentStage   JobStage @relation(fields: [currentStageId], references: [id])
@@ -1467,13 +1530,47 @@ model JobPermit {
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
 
-  job                Job                   @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  assignedTo         User?                 @relation("PermitAssignedUser", fields: [assignedUserId], references: [id])
+  // Permit Intelligence. `municipality` stays the text on file; the
+  // jurisdiction record is the structured one. `permitNumber` is the issued
+  // number; `applicationNumber` the one the department gives a submission.
+  // `submittedDate` is the latest submission (the review clock); the first is
+  // cycle 1's.
+  jurisdictionId    String?   @map("jurisdiction_id")
+  permitTypeKey     String?   @map("permit_type_key")
+  applicationNumber String?   @map("application_number")
+  scopeDescription  String?   @map("scope_description") @db.Text
+  valuation         Decimal?  @db.Decimal(12, 2)
+  currentCycle      Int       @default(0) @map("current_cycle")
+  // Marked ready to submit after a preflight (Stage 5): cleared when a package
+  // is frozen, so every submission is checked again. An override with blockers
+  // carries its reason.
+  readyAt           DateTime? @map("ready_at")
+  readyByUserId     String?   @map("ready_by_user_id")
+  readyRunId        String?   @map("ready_run_id")
+  readyOverride     String?   @map("ready_override")
+
+  job                Job                      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  assignedTo         User?                    @relation("PermitAssignedUser", fields: [assignedUserId], references: [id])
+  readyBy            User?                    @relation("PermitReadyBy", fields: [readyByUserId], references: [id], onDelete: SetNull)
+  preflightRuns      PermitPreflightRun[]
+  jurisdiction       Jurisdiction?            @relation(fields: [jurisdictionId], references: [id], onDelete: SetNull)
   followUpExecutions FollowUpExecution[]
   inspections        JobPermitInspection[]
+  parties            PermitParty[]
+  cycles             PermitReviewCycle[]
+  submissions        PermitSubmission[]
+  files              File[]
+  tasks              Task[]
+  correctionNotices  PermitCorrectionNotice[]
+  correctionItems    PermitCorrectionItem[]
+  messages           PermitMessage[]
+  formFills          PermitFormFill[]
+  products           PermitProduct[]
+  assistRuns         PermitAssistRun[]
 
   @@index([jobId])
   @@index([status])
+  @@index([jurisdictionId])
   @@map("job_permits")
 }
 
@@ -1491,7 +1588,7 @@ model JobPermitInspection {
 
   /// The workflow inspection step this result was recorded against, so the
   /// permit's record and the step's are one entry, not two.
-  taskId        String?                @map("task_id")
+  taskId String? @map("task_id")
 
   permit             JobPermit           @relation(fields: [permitId], references: [id], onDelete: Cascade)
   task               Task?               @relation("PermitInspectionTask", fields: [taskId], references: [id], onDelete: SetNull)
@@ -1558,6 +1655,7 @@ model Vendor {
   documents      VendorDocument[]
   tasks          Task[]
   commitments    Commitment[]
+  permitParties  PermitParty[]
   roofMaterials  RoofMaterialItem[]
   organizations  Organization[]
 
@@ -1650,10 +1748,10 @@ model Commitment {
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
-  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  vendor     Vendor      @relation(fields: [vendorId], references: [id])
-  budgetLine BudgetLine? @relation(fields: [budgetLineId], references: [id], onDelete: SetNull)
-  createdBy  User        @relation("CommitmentCreatedBy", fields: [createdByUserId], references: [id])
+  job        Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  vendor     Vendor       @relation(fields: [vendorId], references: [id])
+  budgetLine BudgetLine?  @relation(fields: [budgetLineId], references: [id], onDelete: SetNull)
+  createdBy  User         @relation("CommitmentCreatedBy", fields: [createdByUserId], references: [id])
   expenses   JobExpense[]
 
   @@unique([jobId, number])
@@ -1717,10 +1815,10 @@ model LaborContract {
   createdAt               DateTime  @default(now()) @map("created_at")
   updatedAt               DateTime  @updatedAt @map("updated_at")
 
-  job                  Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  crew                 Crew?               @relation(fields: [crewId], references: [id])
+  job                  Job                   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  crew                 Crew?                 @relation(fields: [crewId], references: [id])
   vendor               Vendor?               @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  createdBy            User                @relation(fields: [createdByUserId], references: [id])
+  createdBy            User                  @relation(fields: [createdByUserId], references: [id])
   payments             LaborPayment[]
   changeOrders         LaborChangeOrder[]
   customerChangeOrders ChangeOrder[]
@@ -1922,9 +2020,11 @@ model LaborPayment {
   createdByUserId String         @map("created_by_user_id")
   createdAt       DateTime       @default(now()) @map("created_at")
 
-  laborContract LaborContract        @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
-  createdBy     User                 @relation(fields: [createdByUserId], references: [id])
-  request       LaborPaymentRequest?
+  laborContract   LaborContract        @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
+  createdBy       User                 @relation(fields: [createdByUserId], references: [id])
+  request         LaborPaymentRequest?
+  coveredExpenses JobExpense[]
+  photos          File[]
 
   @@index([laborContractId])
   @@map("labor_payments")
@@ -1960,6 +2060,7 @@ model LaborPaymentRequest {
   task          Task?               @relation("LaborPaymentRequestLink", fields: [taskId], references: [id], onDelete: SetNull)
   laborPayment  LaborPayment?       @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
   lines         LaborContractTask[]
+  photos        File[]
 
   @@index([laborContractId])
   @@map("labor_payment_requests")
@@ -2049,30 +2150,36 @@ enum ExpenseStatus {
 }
 
 model JobExpense {
-  id               String         @id @default(cuid())
-  jobId            String         @map("job_id")
-  type             JobExpenseType @default(OTHER)
+  id                      String         @id @default(cuid())
+  jobId                   String         @map("job_id")
+  type                    JobExpenseType @default(OTHER)
   // The payee as it arrived (typed, or the bank memo). `vendorId` is the match.
-  vendor           String?
-  vendorId         String?        @map("vendor_id")
+  vendor                  String?
+  vendorId                String?        @map("vendor_id")
   // The commitment this expense draws down, if any.
-  commitmentId     String?        @map("commitment_id")
-  description      String?        @db.Text
-  amount           Decimal        @db.Decimal(12, 2)
-  incurredDate     DateTime       @default(now()) @map("incurred_date")
-  paidMethod       PaymentMethod? @map("paid_method")
-  paidFrom         String?        @map("paid_from")
-  billable         Boolean        @default(false)
-  createdByUserId  String         @map("created_by_user_id")
+  commitmentId            String?        @map("commitment_id")
+  description             String?        @db.Text
+  amount                  Decimal        @db.Decimal(12, 2)
+  incurredDate            DateTime       @default(now()) @map("incurred_date")
+  paidMethod              PaymentMethod? @map("paid_method")
+  paidFrom                String?        @map("paid_from")
+  billable                Boolean        @default(false)
+  createdByUserId         String         @map("created_by_user_id")
   // Idempotency key for upstream integrations (cc-allocator sends txn.id).
   // Nullable so manually-created expenses are unaffected.
-  externalId       String?        @unique @map("external_id")
+  externalId              String?        @unique @map("external_id")
   // Set when this expense was posted automatically by a payroll payment;
   // such expenses are excluded from cost-plus contract rollups (the labor
   // cost already flows through the field-labor stream until paid).
-  payrollPaymentId String?        @map("payroll_payment_id")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+  payrollPaymentId        String?        @map("payroll_payment_id")
+  // Set when this charge is the same money as a payment already recorded on a
+  // crew's labor contract (lib/expenses/labor-cover.ts). Such a row is
+  // REJECTED — the labor payment carries the cost — and never moves money.
+  coveredByLaborPaymentId String?        @map("covered_by_labor_payment_id")
+  // A person confirmed it is a cost of its own, not a crew payment counted twice.
+  laborClearedAt          DateTime?      @map("labor_cleared_at")
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
 
   status           ExpenseStatus @default(APPROVED)
   approvedByUserId String?       @map("approved_by_user_id")
@@ -2082,20 +2189,22 @@ model JobExpense {
   /// a real cost someone needs to re-file.
   reviewNote       String?       @map("review_note") @db.Text
 
-  job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  createdBy         User               @relation(fields: [createdByUserId], references: [id])
-  approvedBy        User?              @relation("ExpenseApprovedBy", fields: [approvedByUserId], references: [id])
-  payrollPayment    PayrollPayment?    @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
-  vendorRecord      Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  commitment        Commitment?        @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
-  receipts          File[]
-  budgetAllocations BudgetAllocation[]
+  job                   Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdBy             User               @relation(fields: [createdByUserId], references: [id])
+  approvedBy            User?              @relation("ExpenseApprovedBy", fields: [approvedByUserId], references: [id])
+  payrollPayment        PayrollPayment?    @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
+  vendorRecord          Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  commitment            Commitment?        @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+  coveredByLaborPayment LaborPayment?      @relation(fields: [coveredByLaborPaymentId], references: [id], onDelete: SetNull)
+  receipts              File[]
+  budgetAllocations     BudgetAllocation[]
 
   @@index([jobId])
   @@index([type])
   @@index([payrollPaymentId])
   @@index([vendorId])
   @@index([commitmentId])
+  @@index([coveredByLaborPaymentId])
   // Drives the review queue: "everything still pending, oldest first".
   @@index([status, incurredDate])
   @@map("job_expenses")
@@ -2723,23 +2832,24 @@ model RoofRule {
 /// One thing the company buys for roofs. `category` is what ties it to a
 /// takeoff rule ("Shingles", "Drip Edge"); `roofType` null = any roof.
 model RoofMaterialItem {
-  id           String   @id @default(cuid())
-  category     String
-  name         String
-  sku          String?
+  id          String   @id @default(cuid())
+  category    String
+  name        String
+  sku         String?
   // SHINGLE | TILE | METAL; null = used on any roof type.
-  roofType     String?  @map("roof_type")
-  unitType     String   @map("unit_type")
-  vendorId     String?  @map("vendor_id")
+  roofType    String?  @map("roof_type")
+  unitType    String   @map("unit_type")
+  vendorId    String?  @map("vendor_id")
   // The one the takeoff uses when several items share a category and roof type.
-  isPreferred  Boolean  @default(false) @map("is_preferred")
-  isActive     Boolean  @default(true) @map("is_active")
-  notes        String?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  isPreferred Boolean  @default(false) @map("is_preferred")
+  isActive    Boolean  @default(true) @map("is_active")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  vendor Vendor?             @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  prices RoofMaterialPrice[]
+  vendor    Vendor?                   @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  approvals ProductApprovalMaterial[]
+  prices    RoofMaterialPrice[]
 
   @@index([category])
   @@index([vendorId])
@@ -4100,17 +4210,17 @@ model CodeViolationCase {
   createdBy   User  @relation("ViolationCaseCreatedBy", fields: [createdByUserId], references: [id])
   closedBy    User? @relation("ViolationCaseClosedBy", fields: [closedByUserId], references: [id])
 
-  workflow       JobWorkflowInstance?
-  items          CodeViolationItem[]
-  hearings       CodeViolationHearing[]
-  inspections    CodeViolationInspection[]
-  extensions     CodeViolationExtension[]
-  fineEntries    CodeViolationFineEntry[]
-  events         CodeViolationEvent[]
-  reminderLogs   CodeViolationReminderLog[]
-  tasks          Task[]
-  files          File[]
-  communications Communication[]
+  workflow         JobWorkflowInstance?
+  items            CodeViolationItem[]
+  hearings         CodeViolationHearing[]
+  inspections      CodeViolationInspection[]
+  extensions       CodeViolationExtension[]
+  fineEntries      CodeViolationFineEntry[]
+  events           CodeViolationEvent[]
+  reminderLogs     CodeViolationReminderLog[]
+  tasks            Task[]
+  files            File[]
+  communications   Communication[]
   notificationRows Notification[]
 
   @@index([leadId])
@@ -4541,50 +4651,50 @@ enum DigestStatus {
 }
 
 model Notification {
-  id                 String                @id @default(cuid())
-  recipientUserId    String                @map("recipient_user_id")
-  actorUserId        String?               @map("actor_user_id")
+  id                 String               @id @default(cuid())
+  recipientUserId    String               @map("recipient_user_id")
+  actorUserId        String?              @map("actor_user_id")
   kind               String
   category           NotificationCategory
   // assignee | assignor | watcher | mentioned | manager | owner | actor | reminder-setter
-  recipientReason    String                @map("recipient_reason")
+  recipientReason    String               @map("recipient_reason")
   // The fine subject: task, job, lead, violation_case, violation_item,
   // case_inspection, case_hearing, daily_log, contract, none.
-  subjectType        String                @map("subject_type")
-  subjectId          String?               @map("subject_id")
-  taskId             String?               @map("task_id")
-  jobId              String?               @map("job_id")
-  leadId             String?               @map("lead_id")
-  violationCaseId    String?               @map("violation_case_id")
+  subjectType        String               @map("subject_type")
+  subjectId          String?              @map("subject_id")
+  taskId             String?              @map("task_id")
+  jobId              String?              @map("job_id")
+  leadId             String?              @map("lead_id")
+  violationCaseId    String?              @map("violation_case_id")
   title              String
-  body               String?               @db.Text
+  body               String?              @db.Text
   // Office path (no host). Role-specific links are resolved at render time.
   href               String
-  priority           Priority              @default(MEDIUM)
-  actionRequired     Boolean               @default(false) @map("action_required")
+  priority           Priority             @default(MEDIUM)
+  actionRequired     Boolean              @default(false) @map("action_required")
   // {blocking, emergency, severity, dueAt, taskPriority, inspectionResult, ...}
   signals            Json?
   // Rows born from one engine run (an apply, an activation sweep, a role
   // back-fill) share a key so the digest can collapse them to one line.
-  batchKey           String?               @map("batch_key")
-  dedupeKey          String                @map("dedupe_key")
-  occurrences        Int                   @default(1)
-  lastOccurredAt     DateTime              @default(now()) @map("last_occurred_at")
-  deliveryClass      DeliveryClass         @map("delivery_class")
-  classifyReason     String                @map("classify_reason")
-  demotedFrom        DeliveryClass?        @map("demoted_from")
-  demotedReason      String?               @map("demoted_reason")
+  batchKey           String?              @map("batch_key")
+  dedupeKey          String               @map("dedupe_key")
+  occurrences        Int                  @default(1)
+  lastOccurredAt     DateTime             @default(now()) @map("last_occurred_at")
+  deliveryClass      DeliveryClass        @map("delivery_class")
+  classifyReason     String               @map("classify_reason")
+  demotedFrom        DeliveryClass?       @map("demoted_from")
+  demotedReason      String?              @map("demoted_reason")
   // "YYYY-MM-DD:HH:MM" in the company time zone; DIGEST rows only.
-  scheduledWindowKey String?               @map("scheduled_window_key")
-  state              NotificationState     @default(PENDING)
-  digestId           String?               @map("digest_id")
-  attempts           Int                   @default(0)
-  lastError          String?               @map("last_error")
-  emailedAt          DateTime?             @map("emailed_at")
-  providerMessageId  String?               @map("provider_message_id")
-  readAt             DateTime?             @map("read_at")
-  createdAt          DateTime              @default(now()) @map("created_at")
-  updatedAt          DateTime              @updatedAt @map("updated_at")
+  scheduledWindowKey String?              @map("scheduled_window_key")
+  state              NotificationState    @default(PENDING)
+  digestId           String?              @map("digest_id")
+  attempts           Int                  @default(0)
+  lastError          String?              @map("last_error")
+  emailedAt          DateTime?            @map("emailed_at")
+  providerMessageId  String?              @map("provider_message_id")
+  readAt             DateTime?            @map("read_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
 
   recipient     User                @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
   task          Task?               @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -4889,14 +4999,14 @@ model PlanSheet {
 
   // What the page holds. A page with almost no text and no drawn lines is a scan:
   // nothing automatic runs on it, a person calibrates and measures by hand.
-  isRaster       Boolean @default(false) @map("is_raster")
-  textItemCount  Int     @default(0) @map("text_item_count")
-  segmentCount   Int     @default(0) @map("segment_count")
+  isRaster      Boolean @default(false) @map("is_raster")
+  textItemCount Int     @default(0) @map("text_item_count")
+  segmentCount  Int     @default(0) @map("segment_count")
   // Storage keys (under UPLOADS_DIR) of the page's extracted text, geometry and renders.
-  textKey        String? @map("text_key")
-  geometryKey    String? @map("geometry_key")
-  renderKey72    String? @map("render_key_72")
-  renderKey144   String? @map("render_key_144")
+  textKey       String? @map("text_key")
+  geometryKey   String? @map("geometry_key")
+  renderKey72   String? @map("render_key_72")
+  renderKey144  String? @map("render_key_144")
 
   // Calibration in force: PDF points per real foot. AUTO = the printed scale, not yet
   // confirmed; AUTO_VERIFIED = agrees with the drawn dimensions; MANUAL = two clicks and a distance.
@@ -4913,14 +5023,13 @@ model PlanSheet {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  planDocument PlanDocument @relation(fields: [planDocumentId], references: [id], onDelete: Cascade)
-  correctedBy  User?        @relation("PlanSheetCorrectedBy", fields: [indexCorrectedByUserId], references: [id])
-  calibratedBy User?        @relation("PlanSheetCalibratedBy", fields: [calibratedByUserId], references: [id])
-  supersededBy PlanSheet?   @relation("SheetSupersedes", fields: [supersededBySheetId], references: [id], onDelete: SetNull)
-  supersedes   PlanSheet[]  @relation("SheetSupersedes")
+  planDocument  PlanDocument         @relation(fields: [planDocumentId], references: [id], onDelete: Cascade)
+  correctedBy   User?                @relation("PlanSheetCorrectedBy", fields: [indexCorrectedByUserId], references: [id])
+  calibratedBy  User?                @relation("PlanSheetCalibratedBy", fields: [calibratedByUserId], references: [id])
+  supersededBy  PlanSheet?           @relation("SheetSupersedes", fields: [supersededBySheetId], references: [id], onDelete: SetNull)
+  supersedes    PlanSheet[]          @relation("SheetSupersedes")
   takeoffSheets TakeoffSheet[]
   measurements  TakeoffMeasurement[]
-  aiCalls       PlanAiCall[]
 
   @@unique([planDocumentId, pageNumber])
   @@index([sheetNumber])
@@ -5032,25 +5141,25 @@ enum TakeoffConfidence {
 }
 
 model Takeoff {
-  id                String         @id @default(cuid())
+  id                String               @id @default(cuid())
   // "TK-0007": a sequence, never reused (a supplier will quote against it).
-  number            String         @unique
-  leadId            String         @map("lead_id")
-  jobId             String?        @map("job_id")
-  planSetId         String         @map("plan_set_id")
+  number            String               @unique
+  leadId            String               @map("lead_id")
+  jobId             String?              @map("job_id")
+  planSetId         String               @map("plan_set_id")
   trade             TakeoffTrade
-  status            TakeoffStatus  @default(DRAFT)
+  status            TakeoffStatus        @default(DRAFT)
   // The documents the takeoff was built from; stale once the set has others.
-  pinnedDocumentIds Json           @map("pinned_document_ids")
+  pinnedDocumentIds Json                 @map("pinned_document_ids")
   // Specifications read from the plans or chosen by a person (M3+).
   specs             Json?
   specsReviewStatus TakeoffReviewStatus? @map("specs_review_status")
   settings          Json?
-  createdByUserId   String         @map("created_by_user_id")
-  approvedByUserId  String?        @map("approved_by_user_id")
-  approvedAt        DateTime?      @map("approved_at")
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
+  createdByUserId   String               @map("created_by_user_id")
+  approvedByUserId  String?              @map("approved_by_user_id")
+  approvedAt        DateTime?            @map("approved_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
 
   lead         Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
   job          Job?                 @relation(fields: [jobId], references: [id], onDelete: SetNull)
@@ -5059,7 +5168,6 @@ model Takeoff {
   sheets       TakeoffSheet[]
   measurements TakeoffMeasurement[]
   jobs         PlanJob[]
-  aiCalls      PlanAiCall[]
 
   @@index([leadId])
   @@index([planSetId])
@@ -5083,36 +5191,36 @@ model TakeoffSheet {
 }
 
 model TakeoffMeasurement {
-  id          String            @id @default(cuid())
-  takeoffId   String            @map("takeoff_id")
-  planSheetId String            @map("plan_sheet_id")
-  kind        MeasurementKind
+  id               String              @id @default(cuid())
+  takeoffId        String              @map("takeoff_id")
+  planSheetId      String              @map("plan_sheet_id")
+  kind             MeasurementKind
   // What the engine reads: "roof.flatArea", "roof.parapet", "roof.drain", "pipe.san.3", "fixture.WC" …
-  metricKey   String            @map("metric_key")
-  label       String
+  metricKey        String              @map("metric_key")
+  label            String
   // { system, sizeIn, material, assemblyId, fixtureTag, slope … }
-  attributes  Json?
+  attributes       Json?
   // { points: [{x,y}…] } in sheet points; a COUNT holds one point.
-  geometry    Json
+  geometry         Json
   // The calibration the value was computed with. Null for a COUNT.
-  ptPerFt     Float?            @map("pt_per_ft")
+  ptPerFt          Float?              @map("pt_per_ft")
   // Feet, square feet or a count — computed by code, never by a model.
-  valueRaw    Float             @map("value_raw")
+  valueRaw         Float               @map("value_raw")
   // "LF" | "SF" | "EA"
-  unit        String
+  unit             String
   // The first replaced value, when a person changed what was measured.
-  previousValue Float?          @map("previous_value")
-  origin      MeasurementOrigin
-  confidence  TakeoffConfidence
-  confidenceScore Float?        @map("confidence_score")
-  reviewStatus TakeoffReviewStatus @default(AI_GENERATED) @map("review_status")
+  previousValue    Float?              @map("previous_value")
+  origin           MeasurementOrigin
+  confidence       TakeoffConfidence
+  confidenceScore  Float?              @map("confidence_score")
+  reviewStatus     TakeoffReviewStatus @default(AI_GENERATED) @map("review_status")
   // { sourceText, textItemIds, chainIds, snapped, summary, aiCallId } — never a prompt or reasoning.
-  evidence    Json?
-  reviewedByUserId String?      @map("reviewed_by_user_id")
-  reviewedAt  DateTime?         @map("reviewed_at")
-  createdByUserId String?       @map("created_by_user_id")
-  createdAt   DateTime          @default(now()) @map("created_at")
-  updatedAt   DateTime          @updatedAt @map("updated_at")
+  evidence         Json?
+  reviewedByUserId String?             @map("reviewed_by_user_id")
+  reviewedAt       DateTime?           @map("reviewed_at")
+  createdByUserId  String?             @map("created_by_user_id")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
 
   takeoff    Takeoff   @relation(fields: [takeoffId], references: [id], onDelete: Cascade)
   planSheet  PlanSheet @relation(fields: [planSheetId], references: [id], onDelete: Restrict)
@@ -5122,44 +5230,6 @@ model TakeoffMeasurement {
   @@index([takeoffId])
   @@index([planSheetId])
   @@map("takeoff_measurements")
-}
-
-enum PlanAiCallStatus {
-  OK
-  FAILED
-}
-
-/// One call to the model on behalf of a takeoff: what was asked (by purpose,
-/// prompt version and a hash of the inputs — the cache key), what it cost,
-/// and the structured output. Never the prompt text or any reasoning.
-model PlanAiCall {
-  id                String           @id @default(cuid())
-  takeoffId         String           @map("takeoff_id")
-  planSheetId       String?          @map("plan_sheet_id")
-  // "roof_specs" | "roof_regions" (M4 adds the plumbing purposes)
-  purpose           String
-  promptVersion     String           @map("prompt_version")
-  model             String
-  inputHash         String           @map("input_hash")
-  status            PlanAiCallStatus @default(OK)
-  inputTokens       Int              @default(0) @map("input_tokens")
-  outputTokens      Int              @default(0) @map("output_tokens")
-  cacheReadTokens   Int              @default(0) @map("cache_read_tokens")
-  cacheWriteTokens  Int              @default(0) @map("cache_write_tokens")
-  costUsd           Float            @default(0) @map("cost_usd")
-  durationMs        Int              @default(0) @map("duration_ms")
-  // The parsed structured output (the schema of the purpose), or null when it failed.
-  output            Json?
-  error             String?
-  requestedByUserId String?          @map("requested_by_user_id")
-  createdAt         DateTime         @default(now()) @map("created_at")
-
-  takeoff     Takeoff    @relation(fields: [takeoffId], references: [id], onDelete: Cascade)
-  planSheet   PlanSheet? @relation(fields: [planSheetId], references: [id], onDelete: SetNull)
-  requestedBy User?      @relation("PlanAiCallRequestedBy", fields: [requestedByUserId], references: [id])
-
-  @@index([takeoffId, purpose, inputHash])
-  @@map("plan_ai_calls")
 }
 
 // ============================================================================
@@ -5296,16 +5366,18 @@ model Organization {
   createdAt              DateTime              @default(now()) @map("created_at")
   updatedAt              DateTime              @updatedAt @map("updated_at")
 
-  owner        User?   @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  createdBy    User    @relation("OrganizationCreatedBy", fields: [createdByUserId], references: [id])
-  vendor       Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  trades       OrganizationTrade[]
-  contacts     Contact[]
-  interactions Interaction[]
+  owner          User?                 @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy      User                  @relation("OrganizationCreatedBy", fields: [createdByUserId], references: [id])
+  vendor         Vendor?               @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  trades         OrganizationTrade[]
+  contacts       Contact[]
+  interactions   Interaction[]
   stageHistory   PartnerStageHistory[]
   qualifications Qualification[]
   leads          Lead[]
   tasks          Task[]
+  jurisdictions  Jurisdiction[]
+  permitParties  PermitParty[]
   bidInvitations BidInvitation[]
   bidIntakes     BidIntake[]
 
@@ -5352,12 +5424,13 @@ model Contact {
   createdAt            DateTime    @default(now()) @map("created_at")
   updatedAt            DateTime    @updatedAt @map("updated_at")
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy    User          @relation("ContactCreatedBy", fields: [createdByUserId], references: [id])
-  interactions Interaction[]
-  leads        Lead[]
-  bidInvitations BidInvitation[]
-  bidIntakes     BidIntake[]
+  organization        Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy           User            @relation("ContactCreatedBy", fields: [createdByUserId], references: [id])
+  interactions        Interaction[]
+  permitParties       PermitParty[]
+  leads               Lead[]
+  bidInvitations      BidInvitation[]
+  bidIntakes          BidIntake[]
   submissionsReceived BidSubmission[] @relation("BidSubmissionRecipient")
 
   @@index([organizationId])
@@ -5412,45 +5485,45 @@ model PartnerStageHistory {
 
 // Singleton (id "default"): follow-up thresholds, the fallback owner, markets.
 model PartnerSettings {
-  id                 String   @id @default("default")
+  id                         String   @id @default("default")
   // Working days a TARGET may sit with no interaction before its owner is nudged.
-  newTargetDays      Int      @default(5) @map("new_target_days")
+  newTargetDays              Int      @default(5) @map("new_target_days")
   // Days an unanswered outbound touch waits before a follow-up task.
-  noResponseDays     Int      @default(7) @map("no_response_days")
+  noResponseDays             Int      @default(7) @map("no_response_days")
   // Days a submitted qualification waits before "check status" (Stage 2).
-  qualSubmittedDays  Int      @default(14) @map("qual_submitted_days")
+  qualSubmittedDays          Int      @default(14) @map("qual_submitted_days")
   // Days a prequalified account may go without bid activity (Stage 2/3).
-  prequalNoBidDays   Int      @default(30) @map("prequal_no_bid_days")
+  prequalNoBidDays           Int      @default(30) @map("prequal_no_bid_days")
   // Days an ACTIVE partner may go quiet before a check-in task.
-  activeQuietDays    Int      @default(60) @map("active_quiet_days")
+  activeQuietDays            Int      @default(60) @map("active_quiet_days")
   // No interaction for this long caps the health score (Stage 4).
-  dormantAfterDays   Int      @default(180) @map("dormant_after_days")
-  defaultOwnerUserId String?  @map("default_owner_user_id")
-  markets            String[] @default([])
+  dormantAfterDays           Int      @default(180) @map("dormant_after_days")
+  defaultOwnerUserId         String?  @map("default_owner_user_id")
+  markets                    String[] @default([])
   // Who gets the vault's expiry tasks (else the Accounting default, else the oldest admin).
-  vaultOwnerUserId   String?  @map("vault_owner_user_id")
+  vaultOwnerUserId           String?  @map("vault_owner_user_id")
   // CompanyDocumentType keys a new qualification starts with.
   defaultRequirementTypeKeys String[] @default([]) @map("default_requirement_type_keys")
   // ── Bid / no-bid scoring (lib/partners/bid-score.ts) ───────────────────
   // Weights as JSON (zod-validated, DEFAULT_BID_WEIGHTS when null); the
   // version is snapshotted into every decision so a later edit never
   // rewrites history.
-  scoreWeights       Json?    @map("score_weights")
-  scoreWeightsVersion Int     @default(1) @map("score_weights_version")
+  scoreWeights               Json?    @map("score_weights")
+  scoreWeightsVersion        Int      @default(1) @map("score_weights_version")
   // ServiceCategory ids KNU bids; counties it calls home / can reach.
-  ourTradeIds        String[] @default([]) @map("our_trade_ids")
-  homeCounties       String[] @default([]) @map("home_counties")
-  adjacentCounties   String[] @default([]) @map("adjacent_counties")
+  ourTradeIds                String[] @default([]) @map("our_trade_ids")
+  homeCounties               String[] @default([]) @map("home_counties")
+  adjacentCounties           String[] @default([]) @map("adjacent_counties")
   // { [serviceCategoryId]: { min, max } } — the contract size KNU is built for, per trade.
-  typicalRange       Json?    @map("typical_range")
-  bondingCapacity    Decimal? @map("bonding_capacity") @db.Decimal(12, 2)
+  typicalRange               Json?    @map("typical_range")
+  bondingCapacity            Decimal? @map("bonding_capacity") @db.Decimal(12, 2)
   // ── Relationship health + scorecard (lib/partners/health.ts) ───────────
-  healthWeights        Json?   @map("health_weights")
-  healthWeightsVersion Int     @default(1) @map("health_weights_version")
+  healthWeights              Json?    @map("health_weights")
+  healthWeightsVersion       Int      @default(1) @map("health_weights_version")
   // "Preferred": at least this many awards at this projected margin or better.
-  preferredMinAwards   Int     @default(2) @map("preferred_min_awards")
-  preferredMinMargin   Decimal @default(0.20) @map("preferred_min_margin") @db.Decimal(5, 4)
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  preferredMinAwards         Int      @default(2) @map("preferred_min_awards")
+  preferredMinMargin         Decimal  @default(0.20) @map("preferred_min_margin") @db.Decimal(5, 4)
+  updatedAt                  DateTime @updatedAt @map("updated_at")
 
   defaultOwner User? @relation("PartnerDefaultOwner", fields: [defaultOwnerUserId], references: [id], onDelete: SetNull)
   vaultOwner   User? @relation("PartnerVaultOwner", fields: [vaultOwnerUserId], references: [id], onDelete: SetNull)
@@ -5490,7 +5563,7 @@ model CompanyDocumentType {
   id                    String   @id @default(cuid())
   key                   String   @unique
   name                  String
-  category              String   // insurance | licensing | safety | financial | company
+  category              String // insurance | licensing | safety | financial | company
   defaultValidityMonths Int?     @map("default_validity_months")
   isActive              Boolean  @default(true) @map("is_active")
   sortOrder             Int      @default(0) @map("sort_order")
@@ -5527,10 +5600,10 @@ model CompanyDocument {
   createdAt           DateTime                @default(now()) @map("created_at")
   updatedAt           DateTime                @updatedAt @map("updated_at")
 
-  documentType CompanyDocumentType @relation(fields: [documentTypeId], references: [id])
-  supersedes   CompanyDocument?    @relation("DocVersions", fields: [supersedesId], references: [id], onDelete: SetNull)
-  newer        CompanyDocument[]   @relation("DocVersions")
-  uploadedBy   User                @relation("CompanyDocumentUploadedBy", fields: [uploadedByUserId], references: [id])
+  documentType CompanyDocumentType        @relation(fields: [documentTypeId], references: [id])
+  supersedes   CompanyDocument?           @relation("DocVersions", fields: [supersedesId], references: [id], onDelete: SetNull)
+  newer        CompanyDocument[]          @relation("DocVersions")
+  uploadedBy   User                       @relation("CompanyDocumentUploadedBy", fields: [uploadedByUserId], references: [id])
   requirements QualificationRequirement[]
 
   @@unique([documentTypeId, version])
@@ -5557,9 +5630,9 @@ model Qualification {
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  owner        User?        @relation("QualificationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  createdBy    User         @relation("QualificationCreatedBy", fields: [createdByUserId], references: [id])
+  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?                      @relation("QualificationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy    User                       @relation("QualificationCreatedBy", fields: [createdByUserId], references: [id])
   requirements QualificationRequirement[]
 
   @@index([organizationId, status])
@@ -5662,67 +5735,67 @@ enum BidSubmissionMethod {
 }
 
 model BidInvitation {
-  id                 String        @id @default(cuid())
-  leadId             String        @unique @map("lead_id")
-  organizationId     String        @map("organization_id")
-  contactId          String?       @map("contact_id")
-  number             String        @unique                       // BID-00001 from bid_invitation_number_seq
-  projectName        String        @map("project_name")
-  projectType        String?       @map("project_type")
-  scopeSummary       String?       @map("scope_summary") @db.Text
-  invitedAt          DateTime?     @map("invited_at")
-  bidDueAt           DateTime?     @map("bid_due_at")
-  siteWalkAt         DateTime?     @map("site_walk_at")
-  preBidMeetingAt    DateTime?     @map("pre_bid_meeting_at")
-  rfiDueAt           DateTime?     @map("rfi_due_at")
-  addendaDeadlineAt  DateTime?     @map("addenda_deadline_at")
-  interviewAt        DateTime?     @map("interview_at")
-  expectedAwardAt    DateTime?     @map("expected_award_at")
-  addendaCount       Int           @default(0) @map("addenda_count")
-  specsReceived      Boolean       @default(false) @map("specs_received")
-  estimatorUserId    String?       @map("estimator_user_id")
-  siteVisitRequired  Boolean       @default(false) @map("site_visit_required")
-  bondRequired       Boolean       @default(false) @map("bond_required")
-  prevailingWage     Boolean       @default(false) @map("prevailing_wage")
-  unionRequired      Boolean       @default(false) @map("union_required")
-  insuranceNotes     String?       @map("insurance_notes") @db.Text
-  scheduleNotes      String?       @map("schedule_notes") @db.Text
-  platform           BidPlatform   @default(EMAIL)
-  platformUrl        String?       @map("platform_url")
-  platformRef        String?       @map("platform_ref")
-  status             BidStatus     @default(INVITED)
+  id                 String         @id @default(cuid())
+  leadId             String         @unique @map("lead_id")
+  organizationId     String         @map("organization_id")
+  contactId          String?        @map("contact_id")
+  number             String         @unique // BID-00001 from bid_invitation_number_seq
+  projectName        String         @map("project_name")
+  projectType        String?        @map("project_type")
+  scopeSummary       String?        @map("scope_summary") @db.Text
+  invitedAt          DateTime?      @map("invited_at")
+  bidDueAt           DateTime?      @map("bid_due_at")
+  siteWalkAt         DateTime?      @map("site_walk_at")
+  preBidMeetingAt    DateTime?      @map("pre_bid_meeting_at")
+  rfiDueAt           DateTime?      @map("rfi_due_at")
+  addendaDeadlineAt  DateTime?      @map("addenda_deadline_at")
+  interviewAt        DateTime?      @map("interview_at")
+  expectedAwardAt    DateTime?      @map("expected_award_at")
+  addendaCount       Int            @default(0) @map("addenda_count")
+  specsReceived      Boolean        @default(false) @map("specs_received")
+  estimatorUserId    String?        @map("estimator_user_id")
+  siteVisitRequired  Boolean        @default(false) @map("site_visit_required")
+  bondRequired       Boolean        @default(false) @map("bond_required")
+  prevailingWage     Boolean        @default(false) @map("prevailing_wage")
+  unionRequired      Boolean        @default(false) @map("union_required")
+  insuranceNotes     String?        @map("insurance_notes") @db.Text
+  scheduleNotes      String?        @map("schedule_notes") @db.Text
+  platform           BidPlatform    @default(EMAIL)
+  platformUrl        String?        @map("platform_url")
+  platformRef        String?        @map("platform_ref")
+  status             BidStatus      @default(INVITED)
   // "supplier quote", "sub pricing" — a note while ESTIMATING, never a state.
-  waitingOn          String?       @map("waiting_on")
-  decision           BidDecision   @default(UNDECIDED)
-  decisionScore      Int?          @map("decision_score")            // CHECK 0..100
+  waitingOn          String?        @map("waiting_on")
+  decision           BidDecision    @default(UNDECIDED)
+  decisionScore      Int?           @map("decision_score") // CHECK 0..100
   // { weightsVersion, inputs, breakdown, reasons, concerns, gates, recommendation }
-  decisionFactors    Json?         @map("decision_factors")
-  decisionReason     String?       @map("decision_reason") @db.Text
-  decidedByUserId    String?       @map("decided_by_user_id")
-  decidedAt          DateTime?     @map("decided_at")
-  submittedAt        DateTime?     @map("submitted_at")
-  estimatingHours    Decimal?      @map("estimating_hours") @db.Decimal(6, 1)
+  decisionFactors    Json?          @map("decision_factors")
+  decisionReason     String?        @map("decision_reason") @db.Text
+  decidedByUserId    String?        @map("decided_by_user_id")
+  decidedAt          DateTime?      @map("decided_at")
+  submittedAt        DateTime?      @map("submitted_at")
+  estimatingHours    Decimal?       @map("estimating_hours") @db.Decimal(6, 1)
   outcome            BidOutcome?
   lossReason         BidLossReason? @map("loss_reason")
-  winningContractor  String?       @map("winning_contractor")
-  winningPrice       Decimal?      @map("winning_price") @db.Decimal(12, 2)
-  outcomeNotes       String?       @map("outcome_notes") @db.Text
-  outcomeAt          DateTime?     @map("outcome_at")
-  awardedAmount      Decimal?      @map("awarded_amount") @db.Decimal(12, 2)
-  contractReceivedAt DateTime?     @map("contract_received_at")
+  winningContractor  String?        @map("winning_contractor")
+  winningPrice       Decimal?       @map("winning_price") @db.Decimal(12, 2)
+  outcomeNotes       String?        @map("outcome_notes") @db.Text
+  outcomeAt          DateTime?      @map("outcome_at")
+  awardedAmount      Decimal?       @map("awarded_amount") @db.Decimal(12, 2)
+  contractReceivedAt DateTime?      @map("contract_received_at")
   // Set by an automated intake (Phase 5/6) until a person confirms it.
-  needsReview        Boolean       @default(false) @map("needs_review")
-  signalSource       String?       @map("signal_source")
-  createdByUserId    String        @map("created_by_user_id")
-  createdAt          DateTime      @default(now()) @map("created_at")
-  updatedAt          DateTime      @updatedAt @map("updated_at")
+  needsReview        Boolean        @default(false) @map("needs_review")
+  signalSource       String?        @map("signal_source")
+  createdByUserId    String         @map("created_by_user_id")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
 
-  lead         Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  organization Organization  @relation(fields: [organizationId], references: [id])
-  contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  estimator    User?         @relation("BidEstimator", fields: [estimatorUserId], references: [id], onDelete: SetNull)
-  decidedBy    User?         @relation("BidDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
-  createdBy    User          @relation("BidCreatedBy", fields: [createdByUserId], references: [id])
+  lead         Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  contact      Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  estimator    User?           @relation("BidEstimator", fields: [estimatorUserId], references: [id], onDelete: SetNull)
+  decidedBy    User?           @relation("BidDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  createdBy    User            @relation("BidCreatedBy", fields: [createdByUserId], references: [id])
   submissions  BidSubmission[]
   intakes      BidIntake[]
 
@@ -5746,30 +5819,30 @@ enum BidIntakeStatus {
 model BidIntake {
   id                  String          @id @default(cuid())
   inboundEmailEventId String          @unique @map("inbound_email_event_id")
-  channel             String                                              // manual | mailersend | outlook
+  channel             String // manual | mailersend | outlook
   receivedAt          DateTime        @map("received_at")
-  forwardedBy         String?         @map("forwarded_by")                // the outer sender's address
+  forwardedBy         String?         @map("forwarded_by") // the outer sender's address
   subject             String
   platform            BidPlatform     @default(EMAIL)
   // ParsedItb from src/lib/partners/itb-parse.ts, as read on arrival.
   parsed              Json
   organizationId      String?         @map("organization_id")
   contactId           String?         @map("contact_id")
-  matchedBy           String?         @map("matched_by")                  // contact email | email domain | name | person
-  existingBidId       String?         @map("existing_bid_id")             // the reader's suggestion
+  matchedBy           String?         @map("matched_by") // contact email | email domain | name | person
+  existingBidId       String?         @map("existing_bid_id") // the reader's suggestion
   status              BidIntakeStatus @default(NEW)
-  bidInvitationId     String?         @map("bid_invitation_id")           // what it became (CREATED / ATTACHED)
+  bidInvitationId     String?         @map("bid_invitation_id") // what it became (CREATED / ATTACHED)
   dismissReason       String?         @map("dismiss_reason")
   resolvedByUserId    String?         @map("resolved_by_user_id")
   resolvedAt          DateTime?       @map("resolved_at")
   createdAt           DateTime        @default(now()) @map("created_at")
   updatedAt           DateTime        @updatedAt @map("updated_at")
 
-  email          InboundEmailEvent @relation(fields: [inboundEmailEventId], references: [id], onDelete: Cascade)
-  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  contact        Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  bidInvitation  BidInvitation?    @relation(fields: [bidInvitationId], references: [id], onDelete: SetNull)
-  resolvedBy     User?             @relation("BidIntakeResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  email         InboundEmailEvent @relation(fields: [inboundEmailEventId], references: [id], onDelete: Cascade)
+  organization  Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact       Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  bidInvitation BidInvitation?    @relation(fields: [bidInvitationId], references: [id], onDelete: SetNull)
+  resolvedBy    User?             @relation("BidIntakeResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([status, receivedAt])
   @@index([organizationId])
@@ -5780,11 +5853,11 @@ model BidIntake {
 model BidSubmission {
   id                   String              @id @default(cuid())
   bidInvitationId      String              @map("bid_invitation_id")
-  version              Int                                                   // CHECK >= 1
+  version              Int // CHECK >= 1
   kind                 BidSubmissionKind   @default(ORIGINAL)
   amount               Decimal             @db.Decimal(12, 2)
   estimateId           String?             @map("estimate_id")
-  roofEstimateId       String?             @map("roof_estimate_id")        // CHECK at most one source
+  roofEstimateId       String?             @map("roof_estimate_id") // CHECK at most one source
   snapshotTotalPrice   Decimal?            @map("snapshot_total_price") @db.Decimal(12, 2)
   snapshotSubtotalCost Decimal?            @map("snapshot_subtotal_cost") @db.Decimal(12, 2)
   submittedAt          DateTime            @map("submitted_at")
@@ -5806,4 +5879,892 @@ model BidSubmission {
 
   @@unique([bidInvitationId, version])
   @@map("bid_submissions")
+}
+
+// ─── Shared AI layer (Stage 0 of Permit Intelligence) ────────────────────────
+
+enum AiCallStatus {
+  OK
+  FAILED
+}
+
+/// One call to the model, recorded whichever way it ended (src/lib/ai/calls.ts).
+/// The subject is polymorphic and carries no foreign key: a permit, a
+/// correction notice, a takeoff… Only the parsed output and the counts are
+/// stored — never the prompt, the document or any reasoning.
+model AiCall {
+  id                String       @id @default(cuid())
+  // "permit" | "permit_file" | "correction_notice" | "form_template" | "product_approval" | "preflight" | "takeoff"
+  subjectType       String       @map("subject_type")
+  subjectId         String       @map("subject_id")
+  purpose           String
+  promptVersion     String       @map("prompt_version")
+  model             String
+  inputHash         String       @map("input_hash")
+  status            AiCallStatus @default(OK)
+  inputTokens       Int          @default(0) @map("input_tokens")
+  outputTokens      Int          @default(0) @map("output_tokens")
+  cacheReadTokens   Int          @default(0) @map("cache_read_tokens")
+  cacheWriteTokens  Int          @default(0) @map("cache_write_tokens")
+  costUsd           Float        @default(0) @map("cost_usd")
+  durationMs        Int          @default(0) @map("duration_ms")
+  output            Json?
+  error             String?
+  requestedByUserId String?      @map("requested_by_user_id")
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  requestedBy User? @relation("AiCallRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([subjectType, subjectId, purpose, inputHash])
+  @@index([createdAt])
+  @@map("ai_calls")
+}
+
+// ─── Permit Intelligence, Stage 1: the permit record ─────────────────────────
+
+enum JurisdictionKind {
+  CITY
+  TOWN
+  VILLAGE
+  COUNTY
+  STATE
+  OTHER
+}
+
+enum SubmissionMethod {
+  PORTAL
+  EMAIL
+  IN_PERSON
+  MAIL
+  UNKNOWN
+}
+
+/// A building department that issues permits. `JobPermit.municipality` keeps
+/// the text typed before this existed; `jurisdictionId` is the record.
+model Jurisdiction {
+  id               String           @id @default(cuid())
+  key              String           @unique
+  name             String
+  kind             JurisdictionKind @default(CITY)
+  county           String?
+  state            String           @default("FL")
+  // High-Velocity Hurricane Zone (Miami-Dade, Broward): product approvals are read against it.
+  hvhz             Boolean          @default(false)
+  organizationId   String?          @map("organization_id")
+  portalUrl        String?          @map("portal_url")
+  // The building department's own pages: where the permit assistant starts
+  // looking, and the other sites it may open from there (hostnames).
+  websiteUrl       String?          @map("website_url")
+  allowedHosts     String[]         @map("allowed_hosts")
+  submissionMethod SubmissionMethod @default(UNKNOWN) @map("submission_method")
+  // Days in review before a permit counts as waiting too long; null = the 7 / 14 defaults.
+  reviewDaysTarget Int?             @map("review_days_target")
+  notes            String?          @db.Text
+  isActive         Boolean          @default(true) @map("is_active")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  organization  Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  permits       JobPermit[]
+  knowledge     PermitKnowledge[]
+  formTemplates PermitFormTemplate[]
+
+  @@map("jurisdictions")
+}
+
+/// The permit-type catalog. `JobPermit.permitType` keeps the text on file;
+/// `permitTypeKey` points here.
+model PermitTypeDef {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("permit_type_defs")
+}
+
+enum KnowledgeKind {
+  REQUIREMENT
+  LESSON
+  TIP
+}
+
+enum KnowledgeReliability {
+  // A published rule of the jurisdiction (with its source).
+  OFFICIAL
+  // KNU's own practice.
+  INTERNAL
+  // Seen in reviews: reviewers have asked for this before.
+  OBSERVED
+}
+
+enum KnowledgeStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+  RETIRED
+}
+
+/// What a jurisdiction × permit type asks for. Stage 1 uses REQUIREMENT rows
+/// (the documents checklist); Stage 6 adds LESSON rows from closed reviews.
+/// A null jurisdiction or permit type means "every one".
+model PermitKnowledge {
+  id              String               @id @default(cuid())
+  kind            KnowledgeKind
+  jurisdictionId  String?              @map("jurisdiction_id")
+  permitTypeKey   String?              @map("permit_type_key")
+  title           String
+  body            String?              @db.Text
+  // A PERMIT_DOC_TYPES key the requirement is met by.
+  documentType    String?              @map("document_type")
+  // At preflight: a blocker when true, a warning when false.
+  required        Boolean              @default(true)
+  reliability     KnowledgeReliability @default(INTERNAL)
+  sourceUrl       String?              @map("source_url")
+  effectiveFrom   DateTime?            @map("effective_from")
+  effectiveTo     DateTime?            @map("effective_to")
+  status          KnowledgeStatus      @default(APPROVED)
+  occurrences     Int                  @default(0)
+  lastSeenAt      DateTime?            @map("last_seen_at")
+  // LESSON rows (Stage 6): learned from corrections the department accepted
+  // once answered. Grouped by jurisdiction × type × category × what it
+  // affects; the comments it came from; an optional machine check run at
+  // preflight ({ "requiresDocType": "<doc type key>" }).
+  category        String?
+  target          String?
+  groupKey        String?              @map("group_key")
+  sourceItemIds   String[]             @map("source_item_ids")
+  check           Json?
+  aiCallId        String?              @map("ai_call_id")
+  sortOrder       Int                  @default(0) @map("sort_order")
+  createdByUserId String?              @map("created_by_user_id")
+  decidedByUserId String?              @map("decided_by_user_id")
+  decidedAt       DateTime?            @map("decided_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  jurisdiction Jurisdiction? @relation(fields: [jurisdictionId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation("PermitKnowledgeCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  decidedBy    User?         @relation("PermitKnowledgeDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([kind, status, jurisdictionId, permitTypeKey])
+  @@index([groupKey])
+  @@map("permit_knowledge")
+}
+
+enum PermitPartyRole {
+  OWNER
+  APPLICANT
+  QUALIFIER
+  ARCHITECT
+  ENGINEER_OF_RECORD
+  SUBCONTRACTOR
+  OTHER
+}
+
+/// Who is on a permit application. A licence number is the one a person
+/// recorded, never one the AI read.
+model PermitParty {
+  id             String          @id @default(cuid())
+  permitId       String          @map("permit_id")
+  role           PermitPartyRole
+  organizationId String?         @map("organization_id")
+  contactId      String?         @map("contact_id")
+  vendorId       String?         @map("vendor_id")
+  name           String
+  email          String?
+  phone          String?
+  licenseNumber  String?         @map("license_number")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  permit          JobPermit              @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  organization    Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact         Contact?               @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  vendor          Vendor?                @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  correctionItems PermitCorrectionItem[]
+  messages        PermitMessage[]
+
+  @@index([permitId])
+  @@map("permit_parties")
+}
+
+enum CycleOutcome {
+  PENDING
+  APPROVED
+  CORRECTIONS
+  DENIED
+  WITHDRAWN
+}
+
+/// One round with the building department: a submission and what came back.
+model PermitReviewCycle {
+  id           String       @id @default(cuid())
+  permitId     String       @map("permit_id")
+  number       Int
+  submittedAt  DateTime?    @map("submitted_at")
+  outcome      CycleOutcome @default(PENDING)
+  outcomeAt    DateTime?    @map("outcome_at")
+  reviewerName String?      @map("reviewer_name")
+  notes        String?      @db.Text
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  permit     JobPermit                @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  submission PermitSubmission?
+  notices    PermitCorrectionNotice[]
+
+  @@unique([permitId, number])
+  @@map("permit_review_cycles")
+}
+
+enum SubmissionKind {
+  INITIAL
+  RESUBMISSION
+  REVISION
+}
+
+/// A frozen package: the zip of exactly what was sent, with its sha256 and a
+/// manifest. Never updated; the files in it can no longer be deleted,
+/// renamed or replaced.
+model PermitSubmission {
+  id                String           @id @default(cuid())
+  permitId          String           @map("permit_id")
+  cycleId           String           @unique @map("cycle_id")
+  kind              SubmissionKind
+  storageKey        String           @map("storage_key")
+  sha256            String
+  sizeBytes         Int              @map("size_bytes")
+  // [{ fileId, name, docType, sha256, bytes, entry }]
+  manifest          Json
+  method            SubmissionMethod
+  confirmationRef   String?          @map("confirmation_ref")
+  notes             String?          @db.Text
+  submittedAt       DateTime         @map("submitted_at")
+  submittedByUserId String           @map("submitted_by_user_id")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  permit      JobPermit              @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  cycle       PermitReviewCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  submittedBy User                   @relation("PermitSubmissionBy", fields: [submittedByUserId], references: [id])
+  files       PermitSubmissionFile[]
+
+  @@index([permitId])
+  @@map("permit_submissions")
+}
+
+model PermitSubmissionFile {
+  submissionId String @map("submission_id")
+  fileId       String @map("file_id")
+  sha256       String
+
+  submission PermitSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  // Restrict: a file in a frozen package cannot be deleted under it.
+  file       File             @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@id([submissionId, fileId])
+  @@index([fileId])
+  @@map("permit_submission_files")
+}
+
+// ─── Permit Intelligence, Stage 2: corrections ─────────────────────────────
+// A building department's correction notice (a letter, a marked-up set, text
+// pasted from the portal) is read by the AI into PROPOSED items; nothing the
+// model said counts until a person confirms the notice. Confirmed items become
+// tasks and the lines of the response letter. Sealed documents are never
+// altered here: an item is answered by a revised file linked to it.
+
+enum CorrectionNoticeSource {
+  UPLOAD
+  PASTE
+}
+
+enum CorrectionNoticeStatus {
+  // the AI is reading it
+  EXTRACTING
+  // items proposed, waiting on a person
+  REVIEW
+  CONFIRMED
+  // the reading failed; the notice can be read again or its items typed by hand
+  FAILED
+}
+
+enum CorrectionCategory {
+  ADMINISTRATIVE
+  TECHNICAL
+  ARCHITECTURAL
+  ENGINEERING
+  CONTRACTOR
+  ZONING
+  FEE
+  OTHER
+}
+
+enum CorrectionTarget {
+  FORM
+  PLAN_SHEET
+  PRODUCT_APPROVAL
+  SUPPORTING_DOCUMENT
+  FEE
+  SITE
+  OTHER
+}
+
+enum ResponsibleParty {
+  KNU
+  ARCHITECT
+  ENGINEER
+  OWNER
+  SUBCONTRACTOR
+  MANUFACTURER
+  MUNICIPALITY
+  OTHER
+}
+
+enum CorrectionStatus {
+  PROPOSED
+  OPEN
+  WAITING_THIRD_PARTY
+  RESOLVED
+  DISPUTED
+  WAIVED
+}
+
+enum CorrectionOutcome {
+  ACCEPTED
+  RECOMMENTED
+}
+
+model PermitCorrectionNotice {
+  id                String                 @id @default(cuid())
+  permitId          String                 @map("permit_id")
+  // The review cycle the department answered with corrections.
+  cycleId           String                 @map("cycle_id")
+  // The letter or marked-up set (a permit file of type correction_notice); null for a paste.
+  fileId            String?                @map("file_id")
+  source            CorrectionNoticeSource
+  receivedAt        DateTime               @map("received_at")
+  // Pasted text, kept as received.
+  rawText           String?                @map("raw_text") @db.Text
+  reviewerName      String?                @map("reviewer_name")
+  // When the corrected package is due back: the date the notice states, or one a person set.
+  responseDueAt     DateTime?              @map("response_due_at")
+  status            CorrectionNoticeStatus @default(EXTRACTING)
+  // The model's one-paragraph reading of the notice, shown above the items.
+  summary           String?                @db.Text
+  aiCallId          String?                @map("ai_call_id")
+  error             String?
+  attempts          Int                    @default(0)
+  extractStartedAt  DateTime?              @map("extract_started_at")
+  createdByUserId   String                 @map("created_by_user_id")
+  confirmedByUserId String?                @map("confirmed_by_user_id")
+  confirmedAt       DateTime?              @map("confirmed_at")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  permit      JobPermit              @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  cycle       PermitReviewCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  file        File?                  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  createdBy   User                   @relation("CorrectionNoticeCreatedBy", fields: [createdByUserId], references: [id])
+  confirmedBy User?                  @relation("CorrectionNoticeConfirmedBy", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
+  items       PermitCorrectionItem[]
+
+  @@index([permitId])
+  @@index([cycleId])
+  @@map("permit_correction_notices")
+}
+
+model PermitCorrectionItem {
+  id                 String             @id @default(cuid())
+  noticeId           String             @map("notice_id")
+  permitId           String             @map("permit_id")
+  sortOrder          Int                @default(0) @map("sort_order")
+  // "B-3", "Zoning 2" — the department's own number
+  reviewerItemNumber String?            @map("reviewer_item_number")
+  // "Building", "Structural", "Zoning", "Fire"
+  reviewerDiscipline String?            @map("reviewer_discipline")
+  // Verbatim from the notice.
+  text               String             @db.Text
+  sourcePage         Int?               @map("source_page")
+  category           CorrectionCategory @default(OTHER)
+  affects            CorrectionTarget   @default(OTHER)
+  // "A-2.1", "NOA 21-0412.03", "Owner authorization"
+  affectsRef         String?            @map("affects_ref")
+  responsibleParty   ResponsibleParty   @default(KNU)
+  partyId            String?            @map("party_id")
+  // The model's confidence; cleared once a person edits the row.
+  confidence         Float?
+  // True for a row the AI proposed (kept after edits, for the eval).
+  fromAi             Boolean            @default(false) @map("from_ai")
+  status             CorrectionStatus   @default(PROPOSED)
+  // The line for the response letter.
+  response           String?            @db.Text
+  dueAt              DateTime?          @map("due_at")
+  taskId             String?            @map("task_id")
+  resolvedAt         DateTime?          @map("resolved_at")
+  // The same comment made again on the next review.
+  previousItemId     String?            @map("previous_item_id")
+  // Set when the department's next review came back.
+  reviewOutcome      CorrectionOutcome? @map("review_outcome")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  notice       PermitCorrectionNotice     @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  permit       JobPermit                  @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  party        PermitParty?               @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  task         Task?                      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  previousItem PermitCorrectionItem?      @relation("CorrectionRepeat", fields: [previousItemId], references: [id], onDelete: SetNull)
+  repeats      PermitCorrectionItem[]     @relation("CorrectionRepeat")
+  files        PermitCorrectionItemFile[]
+
+  @@index([permitId, status])
+  @@index([noticeId])
+  @@map("permit_correction_items")
+}
+
+/// A revised document that answers an item.
+model PermitCorrectionItemFile {
+  itemId    String   @map("item_id")
+  fileId    String   @map("file_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  item PermitCorrectionItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  file File                 @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, fileId])
+  @@index([fileId])
+  @@map("permit_correction_item_files")
+}
+
+enum PermitMessageStatus {
+  DRAFT
+  SENT
+  DISCARDED
+}
+
+/// An email about a permit: an editable draft until a person sends it, then
+/// correspondence (a Communication on the job's lead).
+model PermitMessage {
+  id                String              @id @default(cuid())
+  permitId          String              @map("permit_id")
+  partyId           String?             @map("party_id")
+  toEmails          String[]            @map("to_emails")
+  ccEmails          String[]            @map("cc_emails")
+  subject           String
+  body              String              @db.Text
+  // "correction_request" | "resubmission_notice" | "status_inquiry" | "other"
+  purpose           String
+  correctionItemIds String[]            @map("correction_item_ids")
+  attachmentFileIds String[]            @map("attachment_file_ids")
+  status            PermitMessageStatus @default(DRAFT)
+  aiCallId          String?             @map("ai_call_id")
+  createdByUserId   String              @map("created_by_user_id")
+  sentByUserId      String?             @map("sent_by_user_id")
+  sentAt            DateTime?           @map("sent_at")
+  communicationId   String?             @map("communication_id")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  permit    JobPermit    @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  party     PermitParty? @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  createdBy User         @relation("PermitMessageCreatedBy", fields: [createdByUserId], references: [id])
+  sentBy    User?        @relation("PermitMessageSentBy", fields: [sentByUserId], references: [id], onDelete: SetNull)
+
+  @@index([permitId, status])
+  @@map("permit_messages")
+}
+
+// ─── Permit Intelligence, Stage 3: forms ───────────────────────────────────
+// A municipal application is filled field by field from KNU's records; the
+// layout is never redrawn. A blank form becomes a template once its fields
+// are mapped to data-dictionary keys (the AI proposes, a person confirms and
+// publishes). A template belongs to its exact file: a changed form (another
+// sha256) is a new template. Licence, qualifier, signature and notary fields
+// come from records or stay blank — never from the model.
+
+enum PermitFormKind {
+  ACROFORM
+  // refused: dynamic XFA forms cannot be filled field by field
+  XFA
+  // no fields: a flat scan; filling it needs text placed by position (later stage)
+  FLAT
+}
+
+enum PermitFormStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+enum PermitFormMapState {
+  IDLE
+  MAPPING
+  FAILED
+}
+
+model PermitFormTemplate {
+  id                String             @id @default(cuid())
+  name              String
+  // Where it is used: one jurisdiction, or every jurisdiction in a county
+  // (the Palm Beach County universal application), or anywhere when both are null.
+  jurisdictionId    String?            @map("jurisdiction_id")
+  county            String?
+  // The permit types it is for; empty = every type.
+  permitTypeKeys    String[]           @map("permit_type_keys")
+  // The blank form, stored once and never changed.
+  fileName          String             @map("file_name")
+  storageKey        String             @map("storage_key")
+  sha256            String
+  // A published template never changes: editing one makes the next version of the same file.
+  version           Int                @default(1)
+  sizeBytes         Int                @map("size_bytes")
+  pageCount         Int                @map("page_count")
+  formKind          PermitFormKind     @map("form_kind")
+  // [{ name, type, page, rect, options, maxLen, label }]
+  fieldInventory    Json               @map("field_inventory")
+  status            PermitFormStatus   @default(DRAFT)
+  mapState          PermitFormMapState @default(IDLE) @map("map_state")
+  mapError          String?            @map("map_error")
+  mapStartedAt      DateTime?          @map("map_started_at")
+  aiCallId          String?            @map("ai_call_id")
+  notes             String?            @db.Text
+  createdByUserId   String             @map("created_by_user_id")
+  publishedByUserId String?            @map("published_by_user_id")
+  publishedAt       DateTime?          @map("published_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  jurisdiction Jurisdiction?        @relation(fields: [jurisdictionId], references: [id], onDelete: SetNull)
+  createdBy    User                 @relation("PermitFormCreatedBy", fields: [createdByUserId], references: [id])
+  publishedBy  User?                @relation("PermitFormPublishedBy", fields: [publishedByUserId], references: [id], onDelete: SetNull)
+  fields       PermitFormFieldMap[]
+  fills        PermitFormFill[]
+
+  @@index([status])
+  @@index([sha256])
+  @@map("permit_form_templates")
+}
+
+model PermitFormFieldMap {
+  id          String   @id @default(cuid())
+  templateId  String   @map("template_id")
+  fieldName   String   @map("field_name")
+  // A data-dictionary key, "literal:<text>", "when:<key>=<value>" (a box
+  // ticked when the key has that value), or null = left for a person.
+  dataKey     String?  @map("data_key")
+  // "upper" | "date" | "phone" | "money" | "digits" | "char:<n>"
+  transform   String?
+  aiSuggested Boolean  @default(false) @map("ai_suggested")
+  confidence  Float?
+  rationale   String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  template PermitFormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, fieldName])
+  @@map("permit_form_field_maps")
+}
+
+enum PermitFormFillStatus {
+  DRAFT
+  FINAL
+}
+
+model PermitFormFill {
+  id                String               @id @default(cuid())
+  permitId          String               @map("permit_id")
+  templateId        String               @map("template_id")
+  // [{ field, label, type, value, status, source, protected }] as of the last refresh
+  values            Json
+  // A person's own values by field name, kept over every refresh.
+  overrides         Json                 @default("{}")
+  outputFileId      String?              @map("output_file_id")
+  flattenedFileId   String?              @map("flattened_file_id")
+  status            PermitFormFillStatus @default(DRAFT)
+  createdByUserId   String               @map("created_by_user_id")
+  finalizedByUserId String?              @map("finalized_by_user_id")
+  finalizedAt       DateTime?            @map("finalized_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  permit        JobPermit          @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  template      PermitFormTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  outputFile    File?              @relation("FormFillOutput", fields: [outputFileId], references: [id], onDelete: SetNull)
+  flattenedFile File?              @relation("FormFillFlattened", fields: [flattenedFileId], references: [id], onDelete: SetNull)
+  createdBy     User               @relation("PermitFormFillCreatedBy", fields: [createdByUserId], references: [id])
+  finalizedBy   User?              @relation("PermitFormFillFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([permitId])
+  @@map("permit_form_fills")
+}
+
+// ─── Permit Intelligence, Stage 4: product approvals ───────────────────────
+// A Florida Product Approval or a Miami-Dade NOA, kept once and linked to the
+// permits that use it and the roofing materials it covers. The AI reads the
+// document into fields, each with the page and quote it came from; a person
+// checks them against the document. Checks against a permit are advisory —
+// never an engineering determination.
+
+enum ApprovalAuthority {
+  FL_PRODUCT_APPROVAL
+  MIAMI_DADE_NOA
+  OTHER
+}
+
+enum ProductCategory {
+  UNDERLAYMENT
+  ROOF_COVERING
+  ROOF_ASSEMBLY
+  WINDOW
+  EXTERIOR_DOOR
+  GARAGE_DOOR
+  SHUTTER
+  SKYLIGHT
+  OTHER
+}
+
+enum ApprovalReadState {
+  EXTRACTING
+  REVIEW
+  VERIFIED
+  FAILED
+}
+
+model ProductApproval {
+  id                String            @id @default(cuid())
+  authority         ApprovalAuthority @default(OTHER)
+  // "FL11842.3", "26-0504.06" — as printed
+  approvalNumber    String?           @map("approval_number")
+  revision          String?
+  manufacturer      String?
+  productName       String?           @map("product_name")
+  models            String[]
+  category          ProductCategory   @default(OTHER)
+  hvhzApproved      Boolean?          @map("hvhz_approved")
+  nonHvhzApproved   Boolean?          @map("non_hvhz_approved")
+  // psf, as the document states them (negative = uplift)
+  designPressurePos Decimal?          @map("design_pressure_pos") @db.Decimal(7, 2)
+  designPressureNeg Decimal?          @map("design_pressure_neg") @db.Decimal(7, 2)
+  impactRated       Boolean?          @map("impact_rated")
+  limitations       String?           @db.Text
+  // [{ deck, slope, underlayment, fastening, maxDesignPressure }] as summarised from the document
+  configurations    Json?
+  issuedAt          DateTime?         @map("issued_at")
+  expiresAt         DateTime?         @map("expires_at")
+  // { field: { page, quote } } — where the reading found each value
+  evidence          Json?
+  // the document itself, stored once
+  fileName          String            @map("file_name")
+  storageKey        String            @map("storage_key")
+  sha256            String
+  sizeBytes         Int               @map("size_bytes")
+  readState         ApprovalReadState @default(EXTRACTING) @map("read_state")
+  readError         String?           @map("read_error")
+  readStartedAt     DateTime?         @map("read_started_at")
+  attempts          Int               @default(0)
+  aiCallId          String?           @map("ai_call_id")
+  createdByUserId   String            @map("created_by_user_id")
+  verifiedByUserId  String?           @map("verified_by_user_id")
+  verifiedAt        DateTime?         @map("verified_at")
+  isActive          Boolean           @default(true) @map("is_active")
+  notes             String?           @db.Text
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  createdBy  User                      @relation("ApprovalCreatedBy", fields: [createdByUserId], references: [id])
+  verifiedBy User?                     @relation("ApprovalVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  materials  ProductApprovalMaterial[]
+  permits    PermitProduct[]
+
+  @@index([sha256])
+  @@index([approvalNumber])
+  @@index([expiresAt])
+  @@map("product_approvals")
+}
+
+model ProductApprovalMaterial {
+  approvalId         String @map("approval_id")
+  roofMaterialItemId String @map("roof_material_item_id")
+
+  approval ProductApproval  @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  item     RoofMaterialItem @relation(fields: [roofMaterialItemId], references: [id], onDelete: Cascade)
+
+  @@id([approvalId, roofMaterialItemId])
+  @@map("product_approval_materials")
+}
+
+/// A product used on a permit, with the pressures the engineer's wind-load
+/// document requires — entered by a person, never computed.
+model PermitProduct {
+  id                  String   @id @default(cuid())
+  permitId            String   @map("permit_id")
+  approvalId          String   @map("approval_id")
+  // "underlayment", "field tile", "front door"
+  usedAs              String   @default("") @map("used_as")
+  requiredPressurePos Decimal? @map("required_pressure_pos") @db.Decimal(7, 2)
+  requiredPressureNeg Decimal? @map("required_pressure_neg") @db.Decimal(7, 2)
+  notes               String?
+  // The copy of the approval document among the permit's documents, for the package.
+  documentFileId      String?  @map("document_file_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  permit       JobPermit       @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  approval     ProductApproval @relation(fields: [approvalId], references: [id], onDelete: Restrict)
+  documentFile File?           @relation("PermitProductDocument", fields: [documentFileId], references: [id], onDelete: SetNull)
+
+  @@unique([permitId, approvalId, usedAs])
+  @@index([approvalId])
+  @@map("permit_products")
+}
+
+// ─── Permit Intelligence, Stage 5: preflight ───────────────────────────────
+
+/// One readiness check of a permit's package: deterministic rules (versioned)
+/// and, when asked, an AI review that only adds warnings. The score is a
+/// readiness score — never a prediction of approval.
+model PermitPreflightRun {
+  id           String   @id @default(cuid())
+  permitId     String   @map("permit_id")
+  cycleNumber  Int      @map("cycle_number")
+  rulesVersion String   @map("rules_version")
+  score        Int
+  blockers     Int
+  warnings     Int
+  // [{ code, severity, message, suggestion, evidence: [{ kind, ref, label }], source }]
+  findings     Json
+  aiCallId     String?  @map("ai_call_id")
+  ranByUserId  String?  @map("ran_by_user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  permit JobPermit @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  ranBy  User?     @relation("PreflightRanBy", fields: [ranByUserId], references: [id], onDelete: SetNull)
+
+  @@index([permitId, createdAt])
+  @@map("permit_preflight_runs")
+}
+
+// ─── Permit document assistant ────────────────────────────────────────────
+
+enum PermitAssistRunStatus {
+  RUNNING
+  DONE
+}
+
+enum PermitAssistSource {
+  // a document a person uploaded (or one already on the permit)
+  UPLOAD
+  // opened from a link inside a document
+  LINK
+  // the building department's website, or a page found there
+  SITE
+}
+
+enum PermitAssistItemStatus {
+  QUEUED
+  READING
+  // read; waiting on a person
+  PROPOSED
+  ACCEPTED
+  REJECTED
+  // a web page read for its links — never a document of the permit
+  PAGE
+  FAILED
+}
+
+/// One pass of the assistant over a permit's documents: read each, follow the
+/// links worth following, propose types against the checklist. Nothing is
+/// filed until a person accepts an item.
+model PermitAssistRun {
+  id              String                @id @default(cuid())
+  permitId        String                @map("permit_id")
+  status          PermitAssistRunStatus @default(RUNNING)
+  searchSite      Boolean               @default(false) @map("search_site")
+  fetchCount      Int                   @default(0) @map("fetch_count")
+  startedByUserId String?               @map("started_by_user_id")
+  finishedAt      DateTime?             @map("finished_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  permit    JobPermit           @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  startedBy User?               @relation("PermitAssistRunStartedBy", fields: [startedByUserId], references: [id], onDelete: SetNull)
+  items     PermitAssistItem[]
+  fetches   PermitAssistFetch[]
+
+  @@index([permitId, createdAt])
+  @@map("permit_assist_runs")
+}
+
+model PermitAssistItem {
+  id              String                 @id @default(cuid())
+  runId           String                 @map("run_id")
+  permitId        String                 @map("permit_id")
+  source          PermitAssistSource
+  parentItemId    String?                @map("parent_item_id")
+  depth           Int                    @default(0)
+  // why it was opened (the AI's reason, or "the building department's website")
+  reason          String?
+  linkText        String?                @map("link_text")
+  url             String?
+  finalUrl        String?                @map("final_url")
+  // an uploaded document's file; a fetched one's once accepted
+  fileId          String?                @map("file_id")
+  // a fetched document's bytes until it is accepted or rejected
+  storageKey      String?                @map("storage_key")
+  fileName        String?                @map("file_name")
+  fileType        String?                @map("file_type")
+  sizeBytes       Int?                   @map("size_bytes")
+  sha256          String?
+  status          PermitAssistItemStatus @default(QUEUED)
+  attempts        Int                    @default(0)
+  startedAt       DateTime?              @map("started_at")
+  error           String?
+  suggestedType   String?                @map("suggested_type")
+  title           String?
+  summary         String?                @db.Text
+  // what the document asks for, approval numbers, deadlines — each with page + quote
+  findings        Json?
+  // the links found in it (numbered as the AI saw them)
+  links           Json?
+  aiCallId        String?                @map("ai_call_id")
+  approvalId      String?                @map("approval_id")
+  decidedType     String?                @map("decided_type")
+  decidedByUserId String?                @map("decided_by_user_id")
+  decidedAt       DateTime?              @map("decided_at")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  run       PermitAssistRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  parent    PermitAssistItem?  @relation("PermitAssistItemParent", fields: [parentItemId], references: [id], onDelete: SetNull)
+  children  PermitAssistItem[] @relation("PermitAssistItemParent")
+  file      File?              @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  decidedBy User?              @relation("PermitAssistItemDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([runId, status])
+  @@index([permitId])
+  @@map("permit_assist_items")
+}
+
+/// Every request the assistant made, allowed or refused: the audit trail of
+/// what it opened on the web and why.
+model PermitAssistFetch {
+  id          String   @id @default(cuid())
+  runId       String   @map("run_id")
+  itemId      String?  @map("item_id")
+  url         String
+  finalUrl    String?  @map("final_url")
+  httpStatus  Int?     @map("http_status")
+  contentType String?  @map("content_type")
+  bytes       Int?
+  // OK, REFUSED (the policy), ERROR (the site)
+  outcome     String
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  run PermitAssistRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@map("permit_assist_fetches")
 }

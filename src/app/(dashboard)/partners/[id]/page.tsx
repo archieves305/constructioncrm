@@ -166,7 +166,7 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
       {header}
 
       <Tabs value={tab} onValueChange={(v) => v && url.set("tab", v === "overview" ? null : String(v))}>
-        <TabsList className="h-auto w-full flex-wrap justify-start">
+        <TabsList className="h-auto w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({activeContacts.length})</TabsTrigger>

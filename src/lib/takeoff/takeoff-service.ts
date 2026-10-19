@@ -7,13 +7,13 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit/record";
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
-import { isAiConfigured } from "./ai/client";
+import { isAiConfigured } from "@/lib/ai/client";
 import type { RoofAssemblyType, RoofSpecsOutput } from "./ai/schemas";
 import type { Pt } from "./geometry";
 import { calibrationFrom, manualCalibration, verifyScale, type Verification } from "./geometry/calibrate";
 import { computeValue } from "./measurement-value";
 import { metricFor, type TradeName } from "./metrics";
-import { describeAnalyzeProgress } from "./pipeline/analyze-plan";
+import { describeAnalyzeProgress, sheetOfRegionStep } from "./pipeline/analyze-plan";
 import type { StepState } from "./pipeline/plan";
 import type { AiMeasurementInput } from "./roofing/analyze";
 import { readSheetGeometry, readSheetText } from "./sheet-cache";
@@ -43,7 +43,7 @@ const TAKEOFF_INCLUDE = {
   createdBy: PERSON,
   sheets: { select: { planSheetId: true, selectedBy: true, role: true } },
   jobs: { select: { id: true, status: true, error: true, createdAt: true, finishedAt: true, steps: { select: { stepKey: true, status: true, dependsOn: true } } }, orderBy: { createdAt: "desc" as const }, take: 1 },
-  _count: { select: { measurements: true, aiCalls: true } },
+  _count: { select: { measurements: true } },
 } satisfies Prisma.TakeoffInclude;
 
 type TakeoffRow = Prisma.TakeoffGetPayload<{ include: typeof TAKEOFF_INCLUDE }>;
@@ -51,11 +51,13 @@ type TakeoffRow = Prisma.TakeoffGetPayload<{ include: typeof TAKEOFF_INCLUDE }>;
 async function presentTakeoff(t: TakeoffRow) {
   const { planSet, _count, jobs, ...rest } = t;
   const pinned = (t.pinnedDocumentIds as string[]) ?? [];
-  const [counts, spent, readSheets] = await Promise.all([
+  const [counts, spent, regionSteps] = await Promise.all([
     prisma.takeoffMeasurement.groupBy({ by: ["reviewStatus"], where: { takeoffId: t.id }, _count: { _all: true } }),
-    prisma.planAiCall.aggregate({ where: { takeoffId: t.id }, _sum: { costUsd: true } }),
-    prisma.planAiCall.findMany({ where: { takeoffId: t.id, purpose: "roof_regions", status: "OK", planSheetId: { not: null } }, distinct: ["planSheetId"], select: { planSheetId: true } }),
+    prisma.aiCall.aggregate({ where: { subjectType: "takeoff", subjectId: t.id }, _sum: { costUsd: true }, _count: { _all: true } }),
+    // a regions step that finished without skipping is a roof plan the model has labelled
+    prisma.planJobStep.findMany({ where: { job: { takeoffId: t.id }, stepKey: { startsWith: "regions." }, status: "DONE" }, select: { stepKey: true, result: true } }),
   ]);
+  const readSheets = [...new Set(regionSteps.filter((s) => !(s.result && typeof s.result === "object" && "skipped" in s.result)).map((s) => sheetOfRegionStep(s.stepKey)).filter((id): id is string => !!id))];
   const job = jobs[0] ?? null;
   return {
     ...rest,
@@ -70,9 +72,9 @@ async function presentTakeoff(t: TakeoffRow) {
       available: isAiConfigured(),
       job: job ? { id: job.id, status: job.status, error: job.error, progress: describeAnalyzeProgress(job.steps as StepState[]), createdAt: job.createdAt, finishedAt: job.finishedAt } : null,
       running: !!job && (job.status === "PENDING" || job.status === "RUNNING"),
-      calls: _count.aiCalls,
+      calls: spent._count._all,
       // roof plans the model has already labelled: a re-run on an unchanged sheet reuses that answer
-      sheetsRead: readSheets.map((r) => r.planSheetId as string),
+      sheetsRead: readSheets,
       spentUsd: Math.round((spent._sum.costUsd ?? 0) * 100) / 100,
     },
   };
