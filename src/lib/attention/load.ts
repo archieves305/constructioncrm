@@ -8,13 +8,15 @@ import { CASE_LABEL_SELECT, JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/la
 import type { ListScope } from "@/lib/lists/scope";
 import { dashboardTaskWhere } from "@/lib/reports/dashboard-scope";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
-import { RESUBMIT_DUE_DAYS, BIDS_DUE_DAYS } from "./rows";
+import { RESUBMIT_DUE_DAYS, BIDS_DUE_DAYS, UNCONTACTED_AFTER_HOURS, type OwnerSummary } from "./rows";
+import { deriveJobHealth } from "@/lib/jobs/health";
+import { getJobCostRows } from "@/lib/services/job-cost";
 
 /** A prequalification this close to its expiry is on the list. */
 const QUALIFICATION_EXPIRING_DAYS = 90;
 /** A vault document this close to its expiry — the same window the vault alerts use. */
 const VAULT_EXPIRING_DAYS = 30;
-import { APP_TIME_ZONE, dayKey } from "@/lib/time/zone";
+import { APP_TIME_ZONE, dayKey, diffDayKeys, startOfDayIn } from "@/lib/time/zone";
 import { vendorsNeedingDocuments } from "@/lib/vendors/compliance-load";
 import { violationVisibilityFilter } from "@/lib/violations/access";
 import { OPEN_CASE_STATUSES } from "@/lib/violations/rules";
@@ -159,6 +161,70 @@ export function overdueFollowUpsWhere(ctx: AttentionContext): Prisma.LeadWhereIn
   };
 }
 
+const leadScope = (ctx: AttentionContext): Prisma.LeadWhereInput => (ctx.scope === "mine" ? leadsInvolvingUserWhere(ctx.user.id) : leadAccessWhere(ctx.user));
+
+/** Open customer leads past the grace period with nothing logged: no call, email, text or note. */
+export function leadsUncontactedWhere(ctx: AttentionContext): Prisma.LeadWhereInput {
+  const before = new Date(ctx.now.getTime() - UNCONTACTED_AFTER_HOURS * 3_600_000);
+  return { AND: [{ kind: "CUSTOMER", lastContactAt: null, createdAt: { lt: before }, currentStage: { isClosed: false } }, leadScope(ctx)] };
+}
+
+/** Sectioned estimates marked sent, on open customer leads, not yet answered. */
+export function estimatesOutstandingWhere(ctx: AttentionContext): Prisma.EstimateWhereInput {
+  return { status: "SENT", lead: { AND: [{ kind: "CUSTOMER", currentStage: { isClosed: false } }, leadScope(ctx)] } };
+}
+
+/**
+ * Open jobs whose health is Delayed — the job page's own rule (`deriveJobHealth`):
+ * a failed inspection waiting on corrections, a blocked task, a task 7+ days
+ * overdue, or an expired permit. Computed, so the counter and the list share it.
+ */
+async function delayedJobs(ctx: AttentionContext) {
+  const jobs = await prisma.job.findMany({ where: openJobInScope(ctx), select: { ...JOB_LABEL_SELECT, currentStage: { select: { name: true } } } });
+  if (jobs.length === 0) return [];
+  const jobId = { in: jobs.map((j) => j.id) };
+  const [overdue, blocked, corrections, expired] = await Promise.all([
+    prisma.task.groupBy({ by: ["jobId"], where: { AND: [overdueWhere(ctx.now), ACTIVE_OPEN_WHERE, { jobId }] }, _min: { dueAt: true }, _count: { _all: true } }),
+    prisma.task.groupBy({ by: ["jobId"], where: { AND: [ACTIVE_OPEN_WHERE, { jobId, status: "BLOCKED" }] }, _count: { _all: true } }),
+    prisma.task.groupBy({
+      by: ["jobId"],
+      where: { jobId, OR: [{ workflowTaskKey: { not: null }, status: "BLOCKED", inspectionResult: "FAIL" }, { sourceKey: { startsWith: "permit-inspection:", endsWith: ":correction" }, status: { in: [...OPEN_TASK_STATUSES] } }] },
+      _count: { _all: true },
+    }),
+    prisma.jobPermit.groupBy({ by: ["jobId"], where: { jobId, OR: [{ status: "EXPIRED" }, { status: { in: ["ISSUED", "IN_PROGRESS"] }, expirationDate: { lt: ctx.now } }] }, _count: { _all: true } }),
+  ]);
+  const by = <T extends { jobId: string | null }>(rows: T[]) => new Map(rows.filter((r) => r.jobId).map((r) => [r.jobId as string, r]));
+  const o = by(overdue), b = by(blocked), c = by(corrections), e = by(expired);
+  const today = dayKey(ctx.now);
+  return jobs
+    .map((j) => {
+      const od = o.get(j.id);
+      const oldest = od?._min.dueAt ? Math.max(0, diffDayKeys(dayKey(od._min.dueAt), today)) : 0;
+      const health = deriveJobHealth({
+        closed: false,
+        hasWorkflow: true,
+        openTasks: 1,
+        overdueTasks: od?._count._all ?? 0,
+        oldestOverdueDays: oldest,
+        blockedTasks: b.get(j.id)?._count._all ?? 0,
+        failedInspections: c.get(j.id)?._count._all ?? 0,
+        permitExpiresInDays: e.has(j.id) ? -1 : null,
+      });
+      return { job: j, health, oldest };
+    })
+    .filter((x) => x.health.level === "delayed")
+    .sort((a, b2) => b2.oldest - a.oldest);
+}
+
+/** Open jobs whose committed cost has passed their expected cost (the one cost calculation). */
+async function overBudgetJobs(ctx: AttentionContext) {
+  const rows = await getJobCostRows(openJobInScope(ctx));
+  return rows
+    .filter((r) => r.summary.overBudget && r.summary.estimatedCost !== null)
+    .map((r) => ({ row: r, over: r.summary.committed - (r.summary.estimatedCost ?? 0) }))
+    .sort((a, b) => b.over - a.over);
+}
+
 export function changeOrdersAwaitingWhere(ctx: AttentionContext): Prisma.ChangeOrderWhereInput {
   return { status: "SENT", job: jobScope(ctx) };
 }
@@ -222,6 +288,10 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "company-docs-expiring": async (ctx) => (await expiringVaultDocuments(ctx.now)).length,
   "bids-due": (ctx) => prisma.bidInvitation.count({ where: bidsDueWhere(ctx) }),
   "bids-awaiting-decision": (ctx) => prisma.bidInvitation.count({ where: bidsAwaitingDecisionWhere(ctx) }),
+  "leads-uncontacted": (ctx) => prisma.lead.count({ where: leadsUncontactedWhere(ctx) }),
+  "estimates-outstanding": (ctx) => prisma.estimate.count({ where: estimatesOutstandingWhere(ctx) }),
+  "jobs-delayed": async (ctx) => (await delayedJobs(ctx)).length,
+  "jobs-over-budget": async (ctx) => (await overBudgetJobs(ctx)).length,
 };
 
 /** The current version of each document type that has expired or expires inside 30 days. */
@@ -474,6 +544,36 @@ const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionCon
     const rows = await expiringVaultDocuments(ctx.now);
     return rows.slice(0, take).map((d) => item(d.id, { primary: d.documentType.name, secondary: d.title, code: null, placeholder: false }, d.expiresAt! < ctx.now ? `expired ${day(d.expiresAt)}` : `expires ${day(d.expiresAt)}`, d.expiresAt, "/partners/vault"));
   },
+  "leads-uncontacted": async (ctx) => {
+    const rows = await prisma.lead.findMany({
+      where: leadsUncontactedWhere(ctx),
+      orderBy: { createdAt: "asc" },
+      take,
+      select: { ...LEAD_LABEL_SELECT, createdAt: true, currentStage: { select: { name: true } }, source: { select: { name: true } } },
+    });
+    return rows.map((l) => {
+      const label: EntityLabel = { primary: customerName(l) || "Unnamed lead", secondary: formatAddressLine(l) || null, code: null, placeholder: false };
+      return item(l.id, label, `${l.currentStage.name}${l.source?.name ? ` · ${l.source.name}` : ""} · arrived ${day(l.createdAt)}, nothing logged since`, l.createdAt, `/leads/${l.id}`);
+    });
+  },
+  "estimates-outstanding": async (ctx) => {
+    const rows = await prisma.estimate.findMany({
+      where: estimatesOutstandingWhere(ctx),
+      orderBy: { updatedAt: "asc" },
+      take,
+      select: { id: true, estimateNumber: true, name: true, totalPrice: true, updatedAt: true, lead: { select: { ...LEAD_LABEL_SELECT, id: true } } },
+    });
+    return rows.map((e) => {
+      const label: EntityLabel = { primary: customerName(e.lead) || "Unnamed lead", secondary: formatAddressLine(e.lead) || null, code: e.estimateNumber, placeholder: false };
+      return item(e.id, label, `${e.name} · ${money(e.totalPrice)} · sent, last changed ${day(e.updatedAt)}`, e.updatedAt, `/leads/${e.lead.id}?tab=estimates`);
+    });
+  },
+  "jobs-delayed": async (ctx) =>
+    (await delayedJobs(ctx)).slice(0, take).map(({ job, health }) => item(job.id, jobLabel(job), `${job.currentStage.name} · ${health.reasons.join("; ")}`, null, `/jobs/${job.id}`)),
+  "jobs-over-budget": async (ctx) =>
+    (await overBudgetJobs(ctx)).slice(0, take).map(({ row, over }) =>
+      item(row.jobId, { primary: row.address || row.title, secondary: row.title, code: row.jobNumber, placeholder: false }, `${money(row.summary.committed)} committed against ${money(row.summary.estimatedCost)} expected — ${money(over)} over`, null, `/jobs/${row.jobId}?tab=money&sub=budget`),
+    ),
   "partner-follow-ups": async (ctx) => {
     const rows = await prisma.task.findMany({
       where: partnerFollowUpsWhere(ctx),
@@ -498,4 +598,39 @@ export async function loadAttentionList(ctx: AttentionContext, key: Exclude<Atte
   const def = attentionRow(key);
   const [count, items] = await Promise.all([COUNTERS[key](ctx), LISTERS[key](ctx)]);
   return { key, label: def.label, description: def.description, scope: ctx.scope, count, items };
+}
+
+// ── The owner's strip ───────────────────────────────────────────────────────
+
+
+/**
+ * The few numbers the owner reads first, each from the same rule as the row
+ * or list it summarises: leads from the lead scope, estimates from
+ * `estimatesOutstandingWhere`, profit from the one cost calculation.
+ */
+export async function loadOwnerSummary(ctx: AttentionContext): Promise<OwnerSummary> {
+  const start = startOfDayIn(dayKey(ctx.now));
+  const openLeads: Prisma.LeadWhereInput = { AND: [{ kind: "CUSTOMER", currentStage: { isClosed: false, isWon: false } }, leadScope(ctx)] };
+  const [newLeadsToday, uncontacted, pipeline, estimates, activeJobs, costRows] = await Promise.all([
+    prisma.lead.count({ where: { AND: [{ kind: "CUSTOMER", createdAt: { gte: start } }, leadScope(ctx)] } }),
+    prisma.lead.count({ where: leadsUncontactedWhere(ctx) }),
+    prisma.lead.aggregate({ where: openLeads, _count: { _all: true }, _sum: { estimatedJobValue: true } }),
+    prisma.estimate.aggregate({ where: estimatesOutstandingWhere(ctx), _count: { _all: true }, _sum: { totalPrice: true } }),
+    prisma.job.count({ where: openJobInScope(ctx) }),
+    getJobCostRows(openJobInScope(ctx)),
+  ]);
+  const billable = costRows.filter((r) => r.summary.billable);
+  const measured = billable.filter((r) => r.summary.estimatedCost !== null && r.summary.projectedProfit !== null);
+  return {
+    newLeadsToday,
+    uncontacted,
+    pipeline: { leads: pipeline._count._all, value: Number(pipeline._sum.estimatedJobValue ?? 0) },
+    estimatesOut: { count: estimates._count._all, total: Number(estimates._sum.totalPrice ?? 0) },
+    activeJobs,
+    expectedGrossProfit: {
+      total: Math.round(measured.reduce((s, r) => s + (r.summary.projectedProfit ?? 0), 0) * 100) / 100,
+      jobs: measured.length,
+      jobsWithoutBaseline: billable.length - measured.length,
+    },
+  };
 }

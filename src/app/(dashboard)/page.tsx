@@ -7,6 +7,7 @@ import { MyTasksWidget } from "@/components/tasks/my-tasks-widget";
 import { TodayWidget } from "@/components/calendar/today-widget";
 import { WorkflowHealthWidget } from "@/components/dashboard/workflow-health-widget";
 import { NeedsAttention } from "@/components/dashboard/needs-attention";
+import { OwnerStrip } from "@/components/dashboard/owner-strip";
 import { BusinessDevelopmentStrip } from "@/components/partners/bd-strip";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { useListScope } from "@/components/shared/use-list-scope";
@@ -90,6 +91,7 @@ export default function DashboardPage() {
         actions={scopeToggle}
       />
 
+      <OwnerStrip scope={scope} />
       <NeedsAttention scope={scope} />
       <BusinessDevelopmentStrip />
 

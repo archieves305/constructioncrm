@@ -571,7 +571,25 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-19 — Audit roadmap Stage B: the estimate drives the job (built + dev-QA'd on `estimate-job`, not deployed)
+### 2026-10-19 — Audit roadmap Stage C: owner command center (built + dev-QA'd on `command-center`, not deployed)
+
+No migration. Four attention rows (`lib/attention/rows.ts` + `load.ts`, count and list
+from one rule each): **Leads never contacted** (open customer leads > 24 h with no
+contact logged; sales roles + marketing), **Estimates awaiting an answer** (sectioned
+estimates SENT on open leads), **Delayed jobs** (the job page's `deriveJobHealth`
+"delayed" over batched facts: failed-inspection corrections, blocked tasks, a task 7+
+days overdue, an expired permit), **Jobs over budget** (the one cost calculation's
+`overBudget`; office roles + READ_ONLY). Owner strip on the dashboard
+(`loadOwnerSummary`, `GET /api/attention/owner`, `canViewCompanyFinancials`): new leads
+today, never contacted, pipeline (Σ typed value of open customer leads), estimates
+out, active jobs, expected gross profit (Σ projected profit of open billable jobs with
+an expected cost; the rest counted, not guessed). Gate: typecheck clean, lint 5/22,
+1919 tests, build clean. Dev QA: each new row's count = its list (1 / 1 / 4 / 1),
+owner summary read back, dashboard in headless Chromium at 1440 / 400 px (no errors, no
+overflow), SALES_REP: strip refused (403) and hidden, over-budget refused, the three
+other rows shown. Dev DB restored. "Who is behind" (overdue by person) is Stage D.
+
+### 2026-10-19 — Audit roadmap Stage B: the estimate drives the job (deployed `c1c6539`)
 
 Migration `20261109120000_estimate_drives_job` (additive: `jobs.estimated_cost_snapshot`,
 `source_estimate_id`, `source_roof_estimate_id`, `change_orders.material_cost`,
@@ -595,7 +613,9 @@ $125, baseline $200, one "Walls" budget line, estimate Accepted and then 409 on 
 a CO with $100 crew + $150 other cost → expected cost $450; another lead's estimate
 refused and reported; no estimate → the lead's $12,000), and the Won dialog in
 headless Chromium at 1280 / 400 px (sent estimate preselected, roofing estimates
-offered, Move to Won → $250 / $200). Dev DB restored. **Deploy carries the migration.**
+offered, Move to Won → $250 / $200). Dev DB restored. Richard pushed and deployed from `!` (exit 0): BUILD_ID
+`IpNJHFIDtpmxU4_QSV4JA` → `bvEDAv3KnV-JYcUXuW0Zu`, migration applied (5 columns
+present), journal clean, backup `postgres-2026-10-19-154923.dump`.
 
 ### 2026-10-19 — Audit roadmap Stage A: security + money-integrity repairs (deployed `53871b5`)
 
@@ -3634,8 +3654,10 @@ Notification Digests).
 > the job) is on `main`, not deployed — the deploy carries migration
 > `20261109120000_estimate_drives_job`.** After it: mark a lead Won from its page
 > and pick the estimate; the job's Money → Budget shows the "from estimate" lines.
-> Next build: **Stage C — owner command center**, then D (overdue control + lead
-> call list).
+> **Stage B is on prod (`c1c6539`).** **Stage C (owner command center) is on `main`,
+> not deployed (no migration).** After it: the dashboard's owner strip and the new
+> rows (never contacted, estimates out, delayed, over budget). Next build: **Stage D —
+> overdue control (by person, unowned steps, clean-up) + the lead call list.**
 
 > **Plan takeoff M3 is on prod (`166a362`, BUILD_ID
 > `U90VFCrDknZ6GfCb-zWQr`).** Click-through: a lead

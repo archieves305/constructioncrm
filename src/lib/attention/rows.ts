@@ -33,6 +33,10 @@ export const ATTENTION_KEYS = [
   "company-docs-expiring",
   "bids-due",
   "bids-awaiting-decision",
+  "leads-uncontacted",
+  "estimates-outstanding",
+  "jobs-delayed",
+  "jobs-over-budget",
 ] as const;
 export type AttentionKey = (typeof ATTENTION_KEYS)[number];
 
@@ -47,6 +51,9 @@ export const PERMIT_WAITING_DAYS = 14;
 /** An open job nobody has touched for this long. */
 export const QUIET_JOB_DAYS = 14;
 
+/** A new lead nobody has contacted after this many hours is on the list. */
+export const UNCONTACTED_AFTER_HOURS = 24;
+
 /** A bid due inside this many days (or past due) is on the list. */
 export const BIDS_DUE_DAYS = 7;
 
@@ -54,6 +61,8 @@ const ADMIN_MANAGER: readonly RoleName[] = ["ADMIN", "MANAGER"];
 const OFFICE: readonly RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF"];
 const PRODUCTION: readonly RoleName[] = [...OFFICE, "SALES_REP"];
 const PRODUCTION_VIEW: readonly RoleName[] = [...PRODUCTION, "READ_ONLY"];
+/** Who sees a job's cost and profit across jobs (`jobMoneyView` "full" by role). */
+const MONEY_VIEW: readonly RoleName[] = [...OFFICE, "READ_ONLY"];
 const EVERYONE: readonly RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "READ_ONLY", "CREW_LEAD"];
 
 export type AttentionRowDef = {
@@ -200,6 +209,34 @@ export const ATTENTION_ROWS: readonly AttentionRowDef[] = [
     tone: "warning",
     roles: ADMIN_MANAGER,
   },
+  {
+    key: "leads-uncontacted",
+    label: "Leads never contacted",
+    description: `Open customer leads more than ${UNCONTACTED_AFTER_HOURS} hours old with no call, email, text or note logged.`,
+    tone: "danger",
+    roles: [...PRODUCTION, "MARKETING"],
+  },
+  {
+    key: "estimates-outstanding",
+    label: "Estimates awaiting an answer",
+    description: "Estimates marked sent to the customer on open leads, not yet accepted or declined — oldest first.",
+    tone: "warning",
+    roles: PRODUCTION_VIEW,
+  },
+  {
+    key: "jobs-delayed",
+    label: "Delayed jobs",
+    description: "Open jobs the job page calls Delayed: a failed inspection waiting on corrections, a blocked task, a task 7 or more days overdue, or an expired permit.",
+    tone: "danger",
+    roles: PRODUCTION_VIEW,
+  },
+  {
+    key: "jobs-over-budget",
+    label: "Jobs over budget",
+    description: "Open jobs whose committed cost (spent plus promised) has passed the cost they were expected to take.",
+    tone: "danger",
+    roles: MONEY_VIEW,
+  },
 ];
 
 export function isAttentionKey(s: unknown): s is AttentionKey {
@@ -265,3 +302,14 @@ export function visibleAttention(rows: AttentionCount[]): AttentionCount[] {
     .sort((a, b) => rank[a.r.tone] - rank[b.r.tone] || a.i - b.i)
     .map(({ r }) => r);
 }
+
+/** The dashboard's owner strip (`loadOwnerSummary`). */
+export type OwnerSummary = {
+  newLeadsToday: number;
+  uncontacted: number;
+  pipeline: { leads: number; value: number };
+  estimatesOut: { count: number; total: number };
+  activeJobs: number;
+  /** Σ projected profit of open billable jobs that have an expected cost; the rest are counted, not guessed. */
+  expectedGrossProfit: { total: number; jobs: number; jobsWithoutBaseline: number };
+};

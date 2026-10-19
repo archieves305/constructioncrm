@@ -26,7 +26,9 @@ describe("attention rows", () => {
   });
 
   it("gives marketing and crew leads only what they work", () => {
-    expect(keys("MARKETING")).toEqual(["overdue-tasks", "overdue-follow-ups"]);
+    expect(keys("MARKETING")).toEqual(["overdue-tasks", "overdue-follow-ups", "leads-uncontacted"]);
+    expect(keys("SALES_REP")).not.toContain("jobs-over-budget");
+    expect(keys("READ_ONLY")).toContain("jobs-over-budget");
     expect(keys("CREW_LEAD")).toEqual(["overdue-tasks"]);
     expect(keys(null)).toEqual([]);
   });
