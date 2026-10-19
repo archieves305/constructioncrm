@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { Callout } from "@/components/shared/callout";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PermitEditor } from "@/components/permits/permit-editor";
+import { PermitMetricsStrip, usePermitMetrics } from "@/components/permit-intel/permit-metrics";
 import { PermitInspections } from "@/components/permits/permit-inspections";
 import {
   expiryNotice,
@@ -128,6 +129,11 @@ export default function PermitCenterPage() {
   });
 
   const allPermits: PermitRow[] = permits || [];
+  // a metrics tile narrows the board and the list to the permits it counts
+  const metric = getUrl("metric");
+  const { data: tiles } = usePermitMetrics();
+  const metricIds = metric ? new Set(tiles?.find((t) => t.key === metric)?.ids ?? []) : null;
+  const shownPermits = metricIds ? allPermits.filter((p) => metricIds.has(p.id)) : allPermits;
   const municipalities = useMemo(
     () => [...new Set(allPermits.map((p) => p.municipality))].sort(),
     [allPermits],
@@ -220,6 +226,7 @@ export default function PermitCenterPage() {
         </Select>
       </div>
 
+      <PermitMetricsStrip active={metric} onPick={(k) => setUrl({ metric: k })} />
       <Tabs value={tab} onValueChange={(v) => setTab(v ? String(v) : null)}>
         <TabsList>
           <TabsTrigger value="board">Board</TabsTrigger>
@@ -231,7 +238,7 @@ export default function PermitCenterPage() {
         <TabsContent value="board" className="mt-4">
           <div className="flex gap-3 overflow-x-auto pb-4">
             {BOARD_STATUSES.map((status) => {
-              const statusPermits = allPermits.filter((p) => p.status === status);
+              const statusPermits = shownPermits.filter((p) => p.status === status);
               return (
                 <div key={status} className="flex-shrink-0 w-[300px] rounded-lg border bg-gray-50">
                   <div className="flex items-center justify-between border-b bg-white px-3 py-2 rounded-t-lg">
@@ -342,7 +349,7 @@ export default function PermitCenterPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allPermits.map((p) => (
+                {shownPermits.map((p) => (
                   <TableRow
                     key={p.id}
                     className="cursor-pointer hover:bg-gray-50"

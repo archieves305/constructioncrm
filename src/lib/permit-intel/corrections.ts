@@ -32,6 +32,7 @@ import {
 } from "./corrections-plan";
 import type { ItemCreateInput, ItemPatchInput, NoticeCreateInput } from "./correction-validation";
 import * as extract from "./prompts/correction-extract";
+import { proposeLessonsFor } from "./knowledge";
 import { PermitIntelError, recordCycleOutcome } from "./service";
 
 /**
@@ -435,6 +436,8 @@ export async function confirmNotice(noticeId: string, actor: Actor) {
     select: { id: true, status: true, reviewOutcome: true },
   });
   await settleEarlier(earlierOutcomes(earlier.map((e) => ({ ...e, status: e.status as CorrectionStatus })), repeated, false), actor.id, n.cycle.number);
+  // the comments the department accepted are something its reviewers ask for: a lesson
+  await proposeLessonsFor(n.permitId);
 
   for (const i of n.items) {
     try {
@@ -491,6 +494,7 @@ export async function onCycleApproved(permitId: string, cycleNumber: number): Pr
   try {
     const earlier = await prisma.permitCorrectionItem.findMany({ where: { permitId, reviewOutcome: null, status: { not: "PROPOSED" }, notice: { cycle: { number: { lt: cycleNumber } } } }, select: { id: true, status: true, reviewOutcome: true } });
     await settleEarlier(earlierOutcomes(earlier.map((e) => ({ ...e, status: e.status as CorrectionStatus })), new Set(), true), null, cycleNumber);
+    await proposeLessonsFor(permitId);
   } catch (err) {
     logger.exception(err, { where: "corrections.onCycleApproved", permitId });
   }

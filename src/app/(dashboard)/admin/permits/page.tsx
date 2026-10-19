@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { permitIntelKeys, useJurisdictions, usePermitTypes, type JurisdictionOption } from "@/components/permit-intel/use-permit-intel";
 import { METHOD_LABEL } from "@/components/permit-intel/types";
 import { FormTemplates } from "@/components/permit-intel/forms/form-templates";
+import { KnowledgeAdmin } from "@/components/permit-intel/knowledge-admin";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { PERMIT_DOC_TYPES, permitDocLabel } from "@/lib/permit-intel/doc-types";
 
@@ -59,7 +60,7 @@ const DOC_ITEMS = [{ value: ANY, label: "No document — a note to check" }, ...
  */
 export default function PermitSettingsPage() {
   const url = useSearchParamState();
-  const tab = url.get("tab") === "requirements" ? "requirements" : url.get("tab") === "forms" ? "forms" : "jurisdictions";
+  const tab = (["requirements", "forms", "knowledge"] as const).find((t) => t === url.get("tab")) ?? "jurisdictions";
   return (
     <div className="space-y-4">
       <PageHeader title="Permits" description="The building departments KNU files with, the documents each one asks for, and their application forms." />
@@ -68,6 +69,7 @@ export default function PermitSettingsPage() {
           <TabsTrigger value="jurisdictions">Jurisdictions</TabsTrigger>
           <TabsTrigger value="requirements">Requirements</TabsTrigger>
           <TabsTrigger value="forms">Forms</TabsTrigger>
+          <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
         </TabsList>
         <TabsContent value="jurisdictions" className="mt-4">
           <Jurisdictions />
@@ -77,6 +79,9 @@ export default function PermitSettingsPage() {
         </TabsContent>
         <TabsContent value="forms" className="mt-4">
           <FormTemplates />
+        </TabsContent>
+        <TabsContent value="knowledge" className="mt-4">
+          <KnowledgeAdmin />
         </TabsContent>
       </Tabs>
     </div>

@@ -80,7 +80,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    record, an optional AI look (warnings only, not scored), readiness score,
    findings → tasks closed by the next passing run, report PDF, "Mark ready to
    submit" (zero blockers, or ADMIN / MANAGER override with a reason; cleared
-   by freezing), the job's permit-documents step ticks itself. Open rulings in the design doc §19. Notes:
+   by freezing), the job's permit-documents step ticks itself. **Stage 6
+   (lessons + metrics) built + dev-QA'd 2026-10-18, on `main`, not
+   deployed**: migration `20261106120000_permit_lessons`; accepted corrections
+   → scrubbed, AI-worded PROPOSED lessons grouped by jurisdiction × type ×
+   category × target; Admin → Permits → Knowledge decides them; approved
+   lessons show at preflight; Permit Center metrics strip; attention rows
+   `permit-corrections` / `permit-resubmit-due`. **All seven stages built.** Open rulings in the design doc §19. Notes:
    [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
    2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
@@ -539,6 +545,24 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-18 — AI Permit Intelligence, Stage 6: lessons + metrics (built + dev-QA'd, on `main`, not deployed)
+
+"continue to stage 6". Migration `20261106120000_permit_lessons` (lesson
+columns on `permit_knowledge`). Pure `lessons.ts` (scrub, group, retrieve,
+preflight findings) and `metrics.ts`; `knowledge.ts` (`proposeLessonsFor` on
+the department's next answer — Haiku rewrites the scrubbed comments;
+`decideLesson`; `lessonsForPermit`); Admin → Permits → Knowledge; Permit
+Center metrics strip with tiles that filter; attention rows
+`permit-corrections`, `permit-resubmit-due`. Found in QA: the first prompt
+proposed a document check for every lesson (a colour sample as a product
+approval) — the check is now proposed only for a document never submitted,
+and a lesson whose check passes still shows as a note. Gate: typecheck
+clean, lint 5/22, 1847 tests (+8), build clean. Dev QA: API 45/45, roles 5/5
+(one miss was my expectation — the rep is on the job), headless Chromium
+19/19. AI: $0.0004 for three lessons. Dev DB restored. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+**Deploy carries the migration.**
 
 ### 2026-10-18 — AI Permit Intelligence, Stage 5: preflight (built + dev-QA'd, on `main`, not deployed)
 
@@ -3379,6 +3403,12 @@ Notification Digests).
   ADMIN / MANAGER override with a reason (audited); freezing a package clears
   the mark. New permit checks are rules in `runPreflight` with a code, never a
   second engine.
+- **A lesson is learned, never applied, until a person approves it**
+  (`lib/permit-intel/knowledge.ts`): only comments the department accepted
+  propose one, their particulars are scrubbed first, and only APPROVED lessons
+  reach preflight — a warning only when the document its check names is not
+  on the permit. Permit Center tiles carry the ids they count; a new tile is a
+  line in `metrics.ts`, never a second query.
 - **Every model call goes through `runAiCall`** (`src/lib/ai/calls.ts`): it is
   recorded as an `AiCall`, held to the per-subject and monthly caps, has no
   tools, and must match a zod schema. Document text goes in through
@@ -3395,9 +3425,12 @@ Notification Digests).
 > add the NOAs / FL approvals KNU installs, check each, add them on permits'
 > Products tabs. **Stage 5 (preflight) is on `main`, not deployed** (migration
 > `20261105120000_permit_preflight`); after its deploy: a permit → Preflight →
-> Run (try "with an AI second look") → Create tasks → Mark ready. Next build:
-> **Stage 6** (lessons from closed correction cycles, admin decisions,
-> lessons shown at preflight, Permit Center metrics). Stage 3 after it: After it: Admin → Permits → Forms → upload the
+> Run (try "with an AI second look") → Create tasks → Mark ready. **Stage 6
+> (lessons + metrics) is on `main` too** (migration
+> `20261106120000_permit_lessons`); after the deploy: Permit Center's tiles;
+> Admin → Permits → Knowledge fills as the department answers resubmissions.
+> **All seven stages are built**; what remains is the click-throughs and the
+> open ruling below. Stage 3 after it: After it: Admin → Permits → Forms → upload the
 > Palm Beach County universal application (county "Palm Beach", from
 > discover.pbc.gov) → Map with AI → check "Check these" and clear the
 > office-use header → Publish; set each Palm Beach County jurisdiction's

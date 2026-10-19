@@ -18,6 +18,8 @@ export const ATTENTION_KEYS = [
   "violation-deadlines",
   "permits-expiring",
   "permits-waiting",
+  "permit-corrections",
+  "permit-resubmit-due",
   "vendor-compliance",
   "overdue-follow-ups",
   "change-orders-awaiting",
@@ -38,6 +40,8 @@ export type AttentionKey = (typeof ATTENTION_KEYS)[number];
 export const VIOLATION_DEADLINE_DAYS = 14;
 /** A permit in force that lapses within this many days — the same window the permit alerts use. */
 export const PERMIT_EXPIRING_DAYS = 30;
+/** A corrected package due within this many days (or overdue) is on the resubmissions row. */
+export const RESUBMIT_DUE_DAYS = 3;
 /** A permit still not issued this long after it was submitted. */
 export const PERMIT_WAITING_DAYS = 14;
 /** An open job nobody has touched for this long. */
@@ -89,6 +93,20 @@ export const ATTENTION_ROWS: readonly AttentionRowDef[] = [
     label: "Permits not issued",
     description: `Permits on open jobs submitted more than ${PERMIT_WAITING_DAYS} days ago and still not issued.`,
     tone: "warning",
+    roles: PRODUCTION_VIEW,
+  },
+  {
+    key: "permit-corrections",
+    label: "Permits with corrections",
+    description: "Permits on open jobs that the building department sent back with corrections, until the corrected package is submitted.",
+    tone: "warning",
+    roles: PRODUCTION_VIEW,
+  },
+  {
+    key: "permit-resubmit-due",
+    label: "Resubmissions due",
+    description: `Permits with corrections whose corrected package is due within ${RESUBMIT_DUE_DAYS} days, or overdue.`,
+    tone: "danger",
     roles: PRODUCTION_VIEW,
   },
   {

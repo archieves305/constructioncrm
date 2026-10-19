@@ -8,7 +8,7 @@ import { CASE_LABEL_SELECT, JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/la
 import type { ListScope } from "@/lib/lists/scope";
 import { dashboardTaskWhere } from "@/lib/reports/dashboard-scope";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
-import { BIDS_DUE_DAYS } from "./rows";
+import { RESUBMIT_DUE_DAYS, BIDS_DUE_DAYS } from "./rows";
 
 /** A prequalification this close to its expiry is on the list. */
 const QUALIFICATION_EXPIRING_DAYS = 90;
@@ -141,6 +141,15 @@ export function permitsWaitingWhere(ctx: AttentionContext): Prisma.JobPermitWher
   return { job: openJobInScope(ctx), status: { in: ["APPLIED", "IN_PROGRESS"] }, approvedDate: null, submittedDate: { lt: since } };
 }
 
+export function permitCorrectionsWhere(ctx: AttentionContext): Prisma.JobPermitWhereInput {
+  return { job: openJobInScope(ctx), status: "CORRECTIONS" };
+}
+
+export function permitResubmitDueWhere(ctx: AttentionContext): Prisma.JobPermitWhereInput {
+  const until = new Date(ctx.now.getTime() + RESUBMIT_DUE_DAYS * DAY);
+  return { job: openJobInScope(ctx), status: "CORRECTIONS", correctionNotices: { some: { status: "CONFIRMED", responseDueAt: { lte: until } } } };
+}
+
 export function overdueFollowUpsWhere(ctx: AttentionContext): Prisma.LeadWhereInput {
   return {
     AND: [
@@ -196,6 +205,8 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "violation-deadlines": (ctx) => prisma.codeViolationCase.count({ where: violationDeadlinesWhere(ctx) }),
   "permits-expiring": (ctx) => prisma.jobPermit.count({ where: permitsExpiringWhere(ctx) }),
   "permits-waiting": (ctx) => prisma.jobPermit.count({ where: permitsWaitingWhere(ctx) }),
+  "permit-corrections": (ctx) => prisma.jobPermit.count({ where: permitCorrectionsWhere(ctx) }),
+  "permit-resubmit-due": (ctx) => prisma.jobPermit.count({ where: permitResubmitDueWhere(ctx) }),
   // Company-wide, so Mine and All agree: a vendor belongs to no one job.
   "vendor-compliance": async (ctx) => (await vendorsNeedingDocuments(dayKey(ctx.now))).length,
   "overdue-follow-ups": (ctx) => prisma.lead.count({ where: overdueFollowUpsWhere(ctx) }),
@@ -310,6 +321,26 @@ const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionCon
       const where = p.municipality ? ` · ${p.municipality}` : "";
       return item(p.id, jobLabel(p.job), `${permitName(p)}${where} · submitted ${pinDay(p.submittedDate)}, ${days} days ago`, p.submittedDate, `/jobs/${p.job.id}?tab=permits`);
     });
+  },
+  "permit-corrections": async (ctx) => {
+    const rows = await prisma.jobPermit.findMany({
+      where: permitCorrectionsWhere(ctx),
+      orderBy: { updatedAt: "asc" },
+      take,
+      select: { id: true, permitType: true, permitNumber: true, municipality: true, updatedAt: true, job: { select: JOB_LABEL_SELECT }, correctionItems: { where: { status: { in: ["OPEN", "WAITING_THIRD_PARTY", "DISPUTED"] } }, select: { id: true } } },
+    });
+    return rows.map((p) => item(p.id, jobLabel(p.job), `${permitName(p)} · ${p.municipality} · ${p.correctionItems.length} correction${p.correctionItems.length === 1 ? "" : "s"} open`, p.updatedAt, `/permits/${p.id}?tab=corrections`));
+  },
+  "permit-resubmit-due": async (ctx) => {
+    const rows = await prisma.jobPermit.findMany({
+      where: permitResubmitDueWhere(ctx),
+      take,
+      select: { id: true, permitType: true, permitNumber: true, municipality: true, job: { select: JOB_LABEL_SELECT }, correctionNotices: { where: { status: "CONFIRMED" }, orderBy: { receivedAt: "desc" }, take: 1, select: { responseDueAt: true } } },
+    });
+    return rows
+      .map((p) => ({ p, due: p.correctionNotices[0]?.responseDueAt ?? null }))
+      .sort((a, b) => (a.due?.getTime() ?? 0) - (b.due?.getTime() ?? 0))
+      .map(({ p, due }) => item(p.id, jobLabel(p.job), `${permitName(p)} · ${p.municipality} · corrected package due ${pinDay(due)}${due && due < ctx.now ? " (overdue)" : ""}`, due, `/permits/${p.id}?tab=corrections`));
   },
   "overdue-follow-ups": async (ctx) => {
     const rows = await prisma.lead.findMany({

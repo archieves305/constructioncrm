@@ -624,7 +624,7 @@ A "session" is one build + dev QA day, as in previous plans.
 | **3** | pdf-lib inventory, data dictionary, AI mapping, template publish, deterministic fill, review, finalise; `Lead.parcelNumber`; document facts. **Built 2026-10-18** against the public Palm Beach County universal application (templates per file, by jurisdiction or county; document facts and flat forms not built) | yes | 0, 1, sample forms | 2 |
 | **4** | Product approvals, extraction, verify view, links, expiry cron, compatibility check. **Built 2026-10-18** (expiry tasks from the permit-aging cron; slope / deck compatibility not built — no structured roof slope) | yes | 0 | 1–2 |
 | **5** | Preflight engine, AI review, report PDF, ready gate, workflow held fact. **Built 2026-10-18** (score from the rules only; the address / owner cross-checks of §7 reduced to what the records hold — no plan cover-sheet facts yet) | yes (one table) | 1 (better with 3, 4) | 1 |
-| **6** | Lessons, admin decisions, retrieval at preflight, metrics strip and attention rows, effectiveness | no | 2, 5 | 1 |
+| **6** | Lessons, admin decisions, retrieval at preflight, metrics strip and attention rows, effectiveness. **Built 2026-10-18** (similar past permits, lesson full-text search and the before / after repeat rate deferred — three permits on prod; per-lesson "asked since approval" instead) | yes (six columns on `permit_knowledge`) | 2, 5 | 1 |
 
 **MVP = Stages 0–6**, about 10–11 sessions. **Deferred:** automated portal submission, online approval verification, vector search, prediction of approval times, AV scanning, flat (non-fillable) forms, DOCX reading.
 

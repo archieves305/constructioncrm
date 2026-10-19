@@ -6015,6 +6015,16 @@ model PermitKnowledge {
   status          KnowledgeStatus      @default(APPROVED)
   occurrences     Int                  @default(0)
   lastSeenAt      DateTime?            @map("last_seen_at")
+  // LESSON rows (Stage 6): learned from corrections the department accepted
+  // once answered. Grouped by jurisdiction × type × category × what it
+  // affects; the comments it came from; an optional machine check run at
+  // preflight ({ "requiresDocType": "<doc type key>" }).
+  category        String?
+  target          String?
+  groupKey        String?              @map("group_key")
+  sourceItemIds   String[]             @map("source_item_ids")
+  check           Json?
+  aiCallId        String?              @map("ai_call_id")
   sortOrder       Int                  @default(0) @map("sort_order")
   createdByUserId String?              @map("created_by_user_id")
   decidedByUserId String?              @map("decided_by_user_id")
@@ -6027,6 +6037,7 @@ model PermitKnowledge {
   decidedBy    User?         @relation("PermitKnowledgeDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
 
   @@index([kind, status, jurisdictionId, permitTypeKey])
+  @@index([groupKey])
   @@map("permit_knowledge")
 }
 

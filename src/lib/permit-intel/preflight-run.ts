@@ -12,6 +12,8 @@ import { addDayKeys, pinAllDay, todayKey } from "@/lib/time/zone";
 import { tickHeldFacts } from "@/lib/workflows/gates";
 import { listPermitProducts } from "./approvals";
 import { dictKey } from "./data-dictionary";
+import { lessonsForPermit } from "./knowledge";
+import { lessonFindings } from "./lessons";
 import { listFills, loadFormContext } from "./fills";
 import { aiFindings, preflightTaskKey, PREFLIGHT_RULES_VERSION, runPreflight, score, type Finding, type PreflightContext } from "./preflight";
 import * as review from "./prompts/preflight-review";
@@ -85,6 +87,8 @@ async function buildContext(permitId: string) {
 export async function runPermitPreflight(permitId: string, opts: { ai?: boolean }, actor: Actor) {
   const { ctx, reviewInput, permit } = await buildContext(permitId);
   const findings: Finding[] = runPreflight(ctx);
+  // what this department's reviewers have asked for before (approved lessons)
+  findings.push(...lessonFindings(await lessonsForPermit({ jurisdictionId: permit.jurisdictionId, permitTypeKey: permit.permitTypeKey }), ctx.documentTypes));
   let aiCallId: string | null = null;
   if (opts.ai) {
     if (!isAiConfigured()) {
