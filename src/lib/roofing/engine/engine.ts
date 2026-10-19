@@ -1,4 +1,4 @@
-import type { EstimateResult, MaterialLineDraft, Measurements, RoofType } from "../types";
+import type { EstimateResult, LaborLineDraft, MaterialLineDraft, Measurements, RoofType } from "../types";
 import type { RuleKind } from "./defaults";
 import { round2, round4 } from "../round";
 
@@ -194,11 +194,17 @@ export function generateEstimate(
     0.1;
 
   const items: MaterialLineDraft[] = [];
+  const labor: LaborLineDraft[] = [];
   // Track computed field-tile quantity so the screws rule can derive from it.
   let fieldTileQty = 0;
 
   for (const rule of rules) {
     if (rule.kind === "waste_pct") continue;
+    if (rule.kind === "labor_per_square") {
+      const squares = round2(rule.inputMetric ? metrics[rule.inputMetric] ?? 0 : 0);
+      if (squares > 0) labor.push({ label: rule.label, ruleKey: rule.key, squares, ratePerSquare: rule.value, lineTotal: round2(squares * rule.value), area: rule.inputMetric === "flatSquares" ? "low-slope" : "steep" });
+      continue;
+    }
     if (rule.category === "Battens" && !options.battenInstall) continue;
 
     let base = 0;
@@ -266,6 +272,7 @@ export function generateEstimate(
     roofType,
     wasteFactorPct: wasteFactor,
     items,
+    labor,
     subtotal,
     total: subtotal,
     confidence: scoreConfidence(measurements, items, materials, options),

@@ -12,6 +12,8 @@ import {
   type GenericEstimateBreakdown,
   UNIT_LABELS,
   CATEGORY_LABELS,
+  COST_TYPES,
+  COST_TYPE_LABELS,
 } from "@/lib/estimates/generic-calc";
 import type { EstimateBrand } from "@/lib/pdf/brand";
 
@@ -709,6 +711,18 @@ function InternalDoc({ data }: { data: GenericEstimatePdfData }) {
             <Text style={styles.bold}>Subtotal cost</Text>
             <Text style={styles.bold}>{money(b.subtotalCost)}</Text>
           </View>
+          {COST_TYPES.filter((t) => b.costByType[t] > 0 && b.costByType[t] !== b.subtotalCost).map((t) => (
+            <View key={t} style={styles.totalsRow}>
+              <Text style={styles.muted}>  {COST_TYPE_LABELS[t]}</Text>
+              <Text style={styles.muted}>{money(b.costByType[t])}</Text>
+            </View>
+          ))}
+          {b.overheadAmount > 0 ? (
+            <View style={styles.totalsRow}>
+              <Text>Overhead ({pct(b.overheadPercent)})</Text>
+              <Text>{money(b.overheadAmount)}</Text>
+            </View>
+          ) : null}
           <View style={styles.totalsRow}>
             <Text>Margin ({pct(b.marginPercent)})</Text>
             <Text>{money(b.marginAmount)}</Text>

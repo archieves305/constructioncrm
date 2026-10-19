@@ -77,6 +77,7 @@ export async function PUT(
         name: input.name,
         status: input.status ?? existing.status,
         marginPercent: input.marginPercent,
+        overheadPercent: input.overheadPercent,
         discountEnabled: input.discountEnabled,
         discountPercent: input.discountPercent,
         salesTaxPercent: input.salesTaxPercent,

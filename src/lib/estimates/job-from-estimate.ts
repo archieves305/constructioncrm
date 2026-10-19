@@ -16,6 +16,7 @@ export type GenericEstimateForJob = {
   id: string;
   estimateNumber: string;
   marginPercent: number;
+  overheadPercent?: number;
   discountEnabled: boolean;
   discountPercent: number;
   salesTaxPercent: number;
@@ -40,6 +41,7 @@ export function pricingFromGeneric(e: GenericEstimateForJob, chosenOptionalIds: 
   const b = calculateGenericEstimate({
     sections,
     marginPercent: e.marginPercent,
+    overheadPercent: e.overheadPercent ?? 0,
     discountEnabled: e.discountEnabled,
     discountPercent: e.discountPercent,
     salesTaxPercent: e.salesTaxPercent,

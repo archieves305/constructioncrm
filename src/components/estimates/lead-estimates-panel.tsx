@@ -127,11 +127,9 @@ export function LeadEstimatesPanel({
 
   const decision = decideEstimateRoute(services);
 
+  // Roofing is a sectioned estimate too (MVP 5): its section is built from a
+  // roof measurement inside the builder. The older roof estimates stay below as history.
   function startCategory(category: EstimateTemplateCategory) {
-    if (category === "ROOFING") {
-      roofingRef.current?.openCreate();
-      return;
-    }
     setDialogMode({ kind: "create", category });
     setDialogOpen(true);
   }

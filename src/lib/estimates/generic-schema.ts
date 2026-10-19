@@ -12,7 +12,10 @@ export const ESTIMATE_UNIT_TYPES = [
   "ROOM",
   "LUMP_SUM",
   "LABOR_HOUR",
+  "SQUARE",
 ] as const;
+
+export const ESTIMATE_COST_TYPES = ["LABOR", "MATERIAL", "SUB", "EQUIPMENT", "OTHER"] as const;
 
 export const ESTIMATE_TEMPLATE_CATEGORIES = [
   "ROOFING",
@@ -46,6 +49,7 @@ export const genericLineItemSchema = z.object({
   unitType: z.enum(ESTIMATE_UNIT_TYPES),
   quantity: money,
   unitPrice: money,
+  costType: z.enum(ESTIMATE_COST_TYPES).default("OTHER"),
   isOptional: z.boolean().default(false),
   notes: z.string().trim().max(4000).nullish(),
   sortOrder: z.number().int().min(0).max(10_000).default(0),
@@ -54,6 +58,7 @@ export const genericLineItemSchema = z.object({
 export const genericSectionSchema = z.object({
   title: z.string().trim().min(1, "Section title required").max(300),
   sortOrder: z.number().int().min(0).max(10_000).default(0),
+  roofMeasurementId: z.string().min(1).nullish(),
   items: z.array(genericLineItemSchema).max(200).default([]),
 });
 
@@ -71,6 +76,7 @@ export const genericEstimateInputSchema = z.object({
     .min(0, "margin must be ≥ 0")
     .max(99.999, "margin must be < 100")
     .default(0),
+  overheadPercent: percent,
   discountEnabled: z.boolean().default(false),
   discountPercent: percent,
   salesTaxPercent: percent,

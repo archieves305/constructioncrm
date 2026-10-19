@@ -171,6 +171,7 @@ async function loadSource(
         notes: e.notes,
         exclusions: e.exclusions,
         marginPercent: Number(e.marginPercent),
+        overheadPercent: Number(e.overheadPercent),
         discountEnabled: e.discountEnabled,
         discountPercent: Number(e.discountPercent),
         salesTaxPercent: Number(e.salesTaxPercent),

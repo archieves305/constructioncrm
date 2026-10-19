@@ -172,6 +172,20 @@ database removed. Gate: typecheck clean, lint 5/22, 1525 tests (+8), build
 clean. **Not exercised:** the real estimator database and its storage folder
 (first done by the prod dry run), and whether `knuco` can read them.
 
+## MVP 5 — the roofing estimate is a sectioned estimate (built 2026-10-19 on `estimate-one-system`)
+
+New roofing estimates open the sectioned builder; "Add roofing section from
+measurement" runs `previewTakeoff` on one of the lead's measurements and
+`roofSectionFromTakeoff` turns it into lines: one LABOR line per area
+(`labor_per_square` rules: `shingle/tile/metal.labor.per_square` on the steep
+squares, `flat.labor.per_square` on the low-slope squares; defaults 140 / 280 /
+320 / 160 from prod's roof estimates) and one MATERIAL line per ordered item at
+the price book's unit cost, the engine's arithmetic in the note. A material with
+no catalog item or price is a $0 line and the toast counts them. The section
+keeps `roofMeasurementId`. Roofr's waste is offered ("Use n%"), never prefilled.
+`RoofEstimate` POST / PUT → 410; the panel shows the old ones read-only. The
+import gained `--skip=<report id>`.
+
 ## Still open (Richard)
 
 Who sees cost and margin; labor basis; price source; when a budget is seeded

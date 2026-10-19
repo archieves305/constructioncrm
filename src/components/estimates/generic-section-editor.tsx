@@ -89,7 +89,13 @@ export function GenericSectionEditor({
                 }
                 className="font-medium"
                 placeholder="Section title"
+                aria-label="Section title"
               />
+              {section.roofMeasurementId && (
+                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground" title="Made from a roof measurement with the price book; edit any line as needed">
+                  From measurement
+                </span>
+              )}
               <Button
                 type="button"
                 size="icon"

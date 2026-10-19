@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Copy, Trash2, ChevronUp, ChevronDown } from "lucide-react";
-import type { EstimateUnitType } from "@/generated/prisma/enums";
-import { UNIT_LABELS, lineTotalOf } from "@/lib/estimates/generic-calc";
+import type { EstimateCostType, EstimateUnitType } from "@/generated/prisma/enums";
+import { COST_TYPE_LABELS, UNIT_LABELS, lineTotalOf } from "@/lib/estimates/generic-calc";
 import {
   type FormItem,
   num,
@@ -20,6 +20,7 @@ import {
 } from "@/components/estimates/generic-estimate-types";
 
 const UNIT_OPTIONS = Object.entries(UNIT_LABELS) as [EstimateUnitType, string][];
+const COST_TYPE_OPTIONS = Object.entries(COST_TYPE_LABELS) as [EstimateCostType, string][];
 
 export function GenericLineItemRow({
   item,
@@ -60,12 +61,13 @@ export function GenericLineItemRow({
         </div>
         <div className="col-span-4 sm:col-span-2">
           <Select
+            items={UNIT_OPTIONS.map(([value, label]) => ({ value, label }))}
             value={item.unitType}
             onValueChange={(v) =>
-              onChange({ ...item, unitType: v as EstimateUnitType })
+              v && onChange({ ...item, unitType: v as EstimateUnitType })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label="Unit">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -91,7 +93,8 @@ export function GenericLineItemRow({
           <Input
             type="number"
             inputMode="decimal"
-            placeholder="Unit price"
+            placeholder="Unit cost"
+            aria-label="Unit cost"
             value={item.unitPrice}
             disabled={item.isOptional}
             onChange={(e) => onChange({ ...item, unitPrice: e.target.value })}
@@ -100,6 +103,18 @@ export function GenericLineItemRow({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
+        <Select items={COST_TYPE_OPTIONS.map(([value, label]) => ({ value, label }))} value={item.costType} onValueChange={(v) => v && onChange({ ...item, costType: v as EstimateCostType })}>
+          <SelectTrigger className="h-8 w-[140px]" aria-label="Cost type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {COST_TYPE_OPTIONS.map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Checkbox
             checked={item.isOptional}

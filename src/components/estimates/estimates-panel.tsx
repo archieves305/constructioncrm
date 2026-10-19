@@ -30,7 +30,6 @@ import {
   FileText,
   Plus,
   Trash2,
-  Pencil,
   Download,
   Building2,
   X,
@@ -180,51 +179,6 @@ type BrandDefaults = {
   defaultManufacturerWarranty: string | null;
 };
 
-function recordToForm(r: EstimateRecord): FormState {
-  return {
-    roofTypes: r.roofTypesJson.map((rt) => ({
-      material: rt.material,
-      squares: String(rt.squares),
-      laborRatePerSquare: String(rt.laborRatePerSquare),
-    })),
-    materialCost: String(Number(r.materialCost)),
-    materialSelection: r.materialSelection ?? "",
-    existingRoofType: r.existingRoofType ?? "",
-    proposedRoofTypeOverride: r.proposedRoofTypeOverride ?? "",
-    underlaymentType: r.underlaymentType ?? "",
-    permitIncluded: r.permitIncluded,
-    projectDurationText: r.projectDurationText ?? "",
-    plywoodSheetsIncluded:
-      r.plywoodSheetsIncluded != null ? String(r.plywoodSheetsIncluded) : "",
-    additionalPlywoodPrice:
-      r.additionalPlywoodPrice != null
-        ? String(Number(r.additionalPlywoodPrice))
-        : "",
-    workmanshipWarrantyYears:
-      r.workmanshipWarrantyYears != null
-        ? String(r.workmanshipWarrantyYears)
-        : "",
-    manufacturerWarranty: r.manufacturerWarranty ?? "",
-    isEstimateOnly: r.isEstimateOnly,
-    permitFee: String(Number(r.permitFee)),
-    dumpsterFee: String(Number(r.dumpsterFee)),
-    tearOffFee: String(Number(r.tearOffFee)),
-    deckingFee: String(Number(r.deckingFee)),
-    underlaymentFee: String(Number(r.underlaymentFee)),
-    flashingVentFee: String(Number(r.flashingVentFee)),
-    skylightChimneyFee: String(Number(r.skylightChimneyFee)),
-    guttersFee: String(Number(r.guttersFee)),
-    miscLabel: r.miscLabel ?? "",
-    miscFee: String(Number(r.miscFee)),
-    marginPercent: String(Number(r.marginPercent)),
-    discountEnabled: r.discountEnabled,
-    discountPercent: String(Number(r.discountPercent)),
-    salesTaxPercent: String(Number(r.salesTaxPercent)),
-    validityDays: String(r.validityDays),
-    specialTerms: r.specialTerms ?? "",
-  };
-}
-
 const num = (s: string) => {
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
@@ -354,12 +308,6 @@ export const EstimatesPanel = forwardRef<
   }
 
   useImperativeHandle(ref, () => ({ openCreate }));
-
-  function openEdit(r: EstimateRecord) {
-    setEditingId(r.id);
-    setForm(recordToForm(r));
-    setDialogOpen(true);
-  }
 
   const save = useMutation({
     mutationFn: async () => {
@@ -517,14 +465,10 @@ export const EstimatesPanel = forwardRef<
                     <Building2 className="mr-1 h-3.5 w-3.5" />
                     Internal PDF
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => openEdit(est)}
-                  >
-                    <Pencil className="mr-1 h-3.5 w-3.5" />
-                    Edit
-                  </Button>
+                  {/* Roof estimates are kept as history (MVP 5): new roofing work is a sectioned estimate. */}
+                  <span className="self-center text-xs text-muted-foreground" title="New roofing estimates use New estimate → Roofing, built from a measurement">
+                    Earlier roof estimate · read-only
+                  </span>
                   {onGenerateContract && (
                     <Button
                       size="sm"

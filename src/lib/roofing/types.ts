@@ -91,10 +91,23 @@ export interface MaterialLineDraft {
   materialItemId?: string | null;
 }
 
+/** Crew labor from a `labor_per_square` rule: squares × the rate. */
+export interface LaborLineDraft {
+  label: string;
+  ruleKey: string;
+  squares: number;
+  ratePerSquare: number;
+  lineTotal: number;
+  /** "steep" for the roof type's own squares, "low-slope" for the membrane section. */
+  area: "steep" | "low-slope";
+}
+
 export interface EstimateResult {
   roofType: RoofType;
   wasteFactorPct: number;
   items: MaterialLineDraft[];
+  /** Labor lines (never in `subtotal`, which stays the material total). */
+  labor: LaborLineDraft[];
   subtotal: number;
   total: number;
   confidence: number;

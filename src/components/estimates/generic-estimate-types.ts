@@ -1,4 +1,4 @@
-import type { EstimateUnitType } from "@/generated/prisma/enums";
+import type { EstimateCostType, EstimateUnitType } from "@/generated/prisma/enums";
 import type { EstimateStatusValue } from "@/lib/estimates/estimate-status";
 
 // Client-side form shapes for the generic estimate builder. Money/percent fields
@@ -9,7 +9,9 @@ export type FormItem = {
   description: string;
   unitType: EstimateUnitType;
   quantity: string;
+  /** The unit COST; the estimate's overhead and margin make the price. */
   unitPrice: string;
+  costType: EstimateCostType;
   isOptional: boolean;
   notes: string;
 };
@@ -17,6 +19,8 @@ export type FormItem = {
 export type FormSection = {
   uid: string;
   title: string;
+  /** Set when the section was generated from a roof measurement. */
+  roofMeasurementId?: string | null;
   items: FormItem[];
 };
 
@@ -27,6 +31,7 @@ export type GenericFormState = {
   templateCategory: string;
   templateId: string | null;
   marginPercent: string;
+  overheadPercent: string;
   discountEnabled: boolean;
   discountPercent: string;
   salesTaxPercent: string;
@@ -49,6 +54,7 @@ export function emptyItem(unitType: EstimateUnitType = "EACH"): FormItem {
     unitType,
     quantity: "",
     unitPrice: "",
+    costType: unitType === "LABOR_HOUR" ? "LABOR" : "OTHER",
     isOptional: false,
     notes: "",
   };

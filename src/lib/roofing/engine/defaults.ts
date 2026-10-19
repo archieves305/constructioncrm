@@ -13,6 +13,8 @@ import type { RoofType } from "../types";
 //   per_facet       qty = metric * value
 //   fixed           qty = value
 //   waste_pct       roof-level waste factor (0..1), not a line item
+//   labor_per_square crew labor in dollars per square of `inputMetric` — a
+//                    labor line, not a material (MVP 5, ruled 2026-10-19)
 
 export type RuleKind =
   | "per_square"
@@ -22,7 +24,8 @@ export type RuleKind =
   | "per_count"
   | "per_facet"
   | "fixed"
-  | "waste_pct";
+  | "waste_pct"
+  | "labor_per_square";
 
 export interface RuleDef {
   key: string;
@@ -42,6 +45,15 @@ export const DEFAULT_RULES: RuleDef[] = [
   { key: "shingle.waste_pct", roofType: "SHINGLE", label: "Shingle waste factor", category: "Waste", kind: "waste_pct", value: 0.1, description: "Default 10%; steeper/cut-up roofs trend higher." },
   { key: "tile.waste_pct", roofType: "TILE", label: "Tile waste factor", category: "Waste", kind: "waste_pct", value: 0.12 },
   { key: "metal.waste_pct", roofType: "METAL", label: "Metal waste factor", category: "Waste", kind: "waste_pct", value: 0.08 },
+
+  // ── Labor (dollars per square) ───────────────────────────────────────────
+  // Defaults are the rates on KNU's own roof estimates on prod (2026-10-19:
+  // shingle 140, tile 280 ×7, metal 320 ×2, flat 160). Steep-slope labor runs
+  // on the steep squares; the low-slope section has its own rate.
+  { key: "shingle.labor.per_square", roofType: "SHINGLE", label: "Shingle labor ($ per square)", category: "Labor", kind: "labor_per_square", inputMetric: "totalSquares", value: 140, unit: "sq", description: "Crew labor per square of steep-slope roof." },
+  { key: "tile.labor.per_square", roofType: "TILE", label: "Tile labor ($ per square)", category: "Labor", kind: "labor_per_square", inputMetric: "totalSquares", value: 280, unit: "sq", description: "Crew labor per square of steep-slope roof." },
+  { key: "metal.labor.per_square", roofType: "METAL", label: "Metal labor ($ per square)", category: "Labor", kind: "labor_per_square", inputMetric: "totalSquares", value: 320, unit: "sq", description: "Crew labor per square of steep-slope roof." },
+  { key: "flat.labor.per_square", roofType: null, label: "Low-slope labor ($ per square)", category: "Labor", kind: "labor_per_square", inputMetric: "flatSquares", value: 160, unit: "sq", description: "Crew labor per square of the low-slope (membrane) section of any roof." },
 
   // ── Shingle ────────────────────────────────────────────────────────────
   // Coefficients calibrated against 20+ KNU/SRS Roofr reports + supplier orders

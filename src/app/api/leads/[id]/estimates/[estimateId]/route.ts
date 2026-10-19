@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
-import { validateBody } from "@/lib/validation/body";
-import { estimateInputSchema } from "@/lib/estimates/schema";
-import { calculateEstimate } from "@/lib/estimates/calc";
 import { guardLead } from "@/lib/access/records";
 
 export async function GET(
@@ -28,69 +25,13 @@ export async function GET(
   return NextResponse.json(estimate);
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string; estimateId: string }> },
-) {
-  const session = await getSession();
-  if (!session?.user) return unauthorized();
-  const { id, estimateId } = await params;
-  const denied = await guardLead(session.user, id, "write");
-  if (denied) return denied;
-
-  const existing = await prisma.roofEstimate.findFirst({
-    where: { id: estimateId, leadId: id },
-    select: { id: true },
-  });
-  if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const result = await validateBody(request, estimateInputSchema);
-  if (!result.ok) return result.response;
-  const input = result.data;
-  const breakdown = calculateEstimate(input);
-
-  const updated = await prisma.roofEstimate.update({
-    where: { id: estimateId },
-    data: {
-      roofTypesJson: input.roofTypes,
-      materialCost: input.materialCost,
-      materialSelection: input.materialSelection ?? null,
-      permitFee: input.permitFee,
-      dumpsterFee: input.dumpsterFee,
-      tearOffFee: input.tearOffFee,
-      deckingFee: input.deckingFee,
-      underlaymentFee: input.underlaymentFee,
-      flashingVentFee: input.flashingVentFee,
-      skylightChimneyFee: input.skylightChimneyFee,
-      guttersFee: input.guttersFee,
-      miscLabel: input.miscLabel ?? null,
-      miscFee: input.miscFee,
-      marginPercent: input.marginPercent,
-      discountEnabled: input.discountEnabled,
-      discountPercent: input.discountPercent,
-      salesTaxPercent: input.salesTaxPercent,
-      validityDays: input.validityDays,
-      specialTerms: input.specialTerms ?? null,
-      existingRoofType: input.existingRoofType ?? null,
-      proposedRoofTypeOverride: input.proposedRoofTypeOverride ?? null,
-      underlaymentType: input.underlaymentType ?? null,
-      permitIncluded: input.permitIncluded,
-      projectDurationText: input.projectDurationText ?? null,
-      plywoodSheetsIncluded: input.plywoodSheetsIncluded ?? null,
-      additionalPlywoodPrice: input.additionalPlywoodPrice ?? null,
-      workmanshipWarrantyYears: input.workmanshipWarrantyYears ?? null,
-      manufacturerWarranty: input.manufacturerWarranty ?? null,
-      isEstimateOnly: input.isEstimateOnly,
-      subtotalCost: breakdown.subtotalCost,
-      totalPrice: breakdown.totalPrice,
-    },
-    include: {
-      createdBy: { select: { id: true, firstName: true, lastName: true } },
-    },
-  });
-  return NextResponse.json(updated);
+/**
+ * Roof estimates are kept as history (audit roadmap MVP 5, ruled 2026-10-19):
+ * new roofing work is a sectioned estimate with a section built from a roof
+ * measurement. Existing ones are still read, printed and picked at Won.
+ */
+export async function PUT() {
+  return NextResponse.json({ error: "Roof estimates are kept as history. Start a new estimate (Roofing) and add a section from the roof measurement." }, { status: 410 });
 }
 
 export async function DELETE(

@@ -26,6 +26,7 @@ export type EstimateForContract = {
   notes: string | null;
   exclusions: string | null;
   marginPercent: number;
+  overheadPercent?: number;
   discountEnabled: boolean;
   discountPercent: number;
   salesTaxPercent: number;
@@ -94,6 +95,7 @@ export function buildScopeFromEstimate(
       })),
     })),
     marginPercent: e.marginPercent,
+    overheadPercent: e.overheadPercent ?? 0,
     discountEnabled: e.discountEnabled,
     discountPercent: e.discountPercent,
     salesTaxPercent: e.salesTaxPercent,

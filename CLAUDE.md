@@ -571,6 +571,40 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-19 — MVP 5: one estimate system, the roofing estimate from measurements (built + dev-QA'd on `estimate-one-system`, on `main`, not deployed)
+
+"continue to MVP 5". Rulings: labor per square by roof type (rates in Admin →
+Roofing, defaults from KNU's own roof estimates on prod: shingle 140, tile 280,
+metal 320, low-slope 160); the estimator import applied before the deploy,
+Pierce Drive checked; old roof estimates read-only history. Migration
+`20261110120000_estimate_one_system` (additive: `EstimateCostType`,
+`estimate_line_items.cost_type` default OTHER, `EstimateUnitType.SQUARE`,
+`estimates.overhead_percent`, `estimate_sections.roof_measurement_id` FK SET
+NULL). `generic-calc`: overhead on the cost before the margin (not a job cost —
+the frozen job cost stays the direct cost), `costByType`. Rule kind
+`labor_per_square` (four rules; the engine returns `labor` lines). Pure
+`lib/estimates/roof-section.ts` (engine result → a section: labor per area +
+materials at unit cost, the engine's arithmetic as each line's note);
+`POST /api/leads/[id]/roof-section` (lead write; the measurement must be the
+lead's; writes nothing); builder: cost type per line, "Unit cost", Overhead %,
+cost-type subtotals, `RoofSectionPicker` ("Add roofing section from
+measurement"; Roofr's waste offered as "Use n%", never prefilled); internal PDF
+shows the split and overhead. New roofing estimates open the builder; roof
+estimate POST / PUT answer 410, the old ones stay listed, printable and pickable
+at Won. Import script gained `--skip=<report id>`; the dry run prints ids.
+Gate: typecheck clean, lint 5/22, 1932 tests (+9), build clean. Dev QA with the
+real 1061 NW 108th Ter Roofr report: API 17/18 (the miss was my check — that
+roof has no valleys), section 25.3 sq × $140 + 6.3 sq × $160 + 13 materials
+(flat rolls 4 / 4 / 8 = KNU's real order), $12,963 cost → $19,012.40 at 10 %
+overhead / 25 % margin, both PDFs, Won → JOB with that price, cost baseline
+$12,963 and one budget line per section; headless Chromium 16/16 at 1440 / 400
+px; SALES_REP 404 off their lead and on another lead's measurement, 403 on the
+price book. Dev DB restored (migration re-applied), QA uploads removed. Prod
+import dry run again: both Pierce Drive entries are the **same PDF** (same
+checksum); Aug 16 carries a typed 42 sq (≈ 38.1 + 10 % waste), Aug 20 the
+report's 38.1 + waste 5 % — and the import's file-name check would have kept
+the Aug 16 one. Proposed: `--yes --skip=cmsvrxuha0004h607q2shgnrl`.
+
 ### 2026-10-19 — Audit roadmap Stage D: overdue control + lead call list (deployed `384ef12`)
 
 No migration. **Unowned steps:** `resolveAssignee` falls back to the subject's
@@ -3421,6 +3455,13 @@ Notification Digests).
   never over a typed budget) and marks the estimate Accepted. The cost summary
   reads the frozen cost, never a live estimate, and adds approved change orders'
   crew + other cost. With no estimate the lead's typed value is used, as before.
+- **One estimate system** (MVP 5, 2026-10-19): new estimates of every trade are
+  sectioned `Estimate`s; a line's amount is a COST typed by what it buys
+  (`costType`); overhead then margin make the price, and overhead is never a job
+  cost. A roofing section comes from a roof measurement through the takeoff
+  engine (`lib/estimates/roof-section.ts`, labor = `labor_per_square` rules);
+  Roofr's waste is offered, never prefilled. `RoofEstimate` is read-only history
+  (POST / PUT 410) — still listed, printed and picked at Won.
 - **Money records change only with a trace.** An approved expense's amount,
   date, type or billable flag is changed by the money roles only; a sent
   invoice's amount is fixed (void and reissue); a change-order decision claims
@@ -3685,6 +3726,16 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **MVP 5 (one estimate system, roofing from measurements) is built on
+> `estimate-one-system`, fast-forwarded to `main`, not deployed; the deploy carries migration
+> `20261110120000_estimate_one_system`.** Before the deploy, on Richard's word:
+> fresh backup, then the estimator import on prod with
+> `--yes --skip=cmsvrxuha0004h607q2shgnrl` (the Aug 16 Pierce Drive upload with
+> the typed 42 sq) — fills the price book (40 materials + prices). After it:
+> Admin → Roofing → Takeoff rules → the four labor rates; a lead with a Roofr
+> report → Estimates → New estimate → Roofing → Add roofing section from
+> measurement. Then MVP 6 (proposal online).
 
 > **Audit roadmap: Stage A is on prod (`53871b5`); Stage B (the estimate drives
 > the job) is on `main`, not deployed — the deploy carries migration

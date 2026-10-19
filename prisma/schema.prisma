@@ -2810,12 +2810,13 @@ model RoofMeasurement {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  lead       Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  job        Job?        @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  file       File?       @relation(fields: [fileId], references: [id], onDelete: SetNull)
-  roofrOrder RoofrOrder? @relation(fields: [roofrOrderId], references: [id], onDelete: SetNull)
-  createdBy  User        @relation("RoofMeasurementCreatedBy", fields: [createdByUserId], references: [id])
-  reviewedBy User?       @relation("RoofMeasurementReviewedBy", fields: [reviewedByUserId], references: [id])
+  lead             Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job              Job?              @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  file             File?             @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  roofrOrder       RoofrOrder?       @relation(fields: [roofrOrderId], references: [id], onDelete: SetNull)
+  createdBy        User              @relation("RoofMeasurementCreatedBy", fields: [createdByUserId], references: [id])
+  reviewedBy       User?             @relation("RoofMeasurementReviewedBy", fields: [reviewedByUserId], references: [id])
+  estimateSections EstimateSection[]
 
   @@index([leadId])
   @@index([jobId])
@@ -3057,6 +3058,17 @@ enum EstimateUnitType {
   ROOM
   LUMP_SUM
   LABOR_HOUR
+  /// A roofing square (100 sq ft).
+  SQUARE
+}
+
+/// What a line's unit cost buys (MVP 5): subtotals per kind on the estimate.
+enum EstimateCostType {
+  LABOR
+  MATERIAL
+  SUB
+  EQUIPMENT
+  OTHER
 }
 
 enum EstimateStatus {
@@ -3126,6 +3138,8 @@ model Estimate {
   name             String
   status           EstimateStatus           @default(DRAFT)
   marginPercent    Decimal                  @default(0) @map("margin_percent") @db.Decimal(6, 3)
+  /// Company overhead added to the cost before the margin (MVP 5). Not a job cost.
+  overheadPercent  Decimal                  @default(0) @map("overhead_percent") @db.Decimal(6, 3)
   discountEnabled  Boolean                  @default(false) @map("discount_enabled")
   discountPercent  Decimal                  @default(0) @map("discount_percent") @db.Decimal(6, 3)
   salesTaxPercent  Decimal                  @default(0) @map("sales_tax_percent") @db.Decimal(6, 3)
@@ -3153,15 +3167,18 @@ model Estimate {
 }
 
 model EstimateSection {
-  id         String   @id @default(cuid())
-  estimateId String   @map("estimate_id")
-  title      String
-  sortOrder  Int      @default(0) @map("sort_order")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(cuid())
+  estimateId        String   @map("estimate_id")
+  title             String
+  sortOrder         Int      @default(0) @map("sort_order")
+  /// Set when the section was generated from a roof measurement (MVP 5).
+  roofMeasurementId String?  @map("roof_measurement_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  estimate Estimate           @relation(fields: [estimateId], references: [id], onDelete: Cascade)
-  items    EstimateLineItem[]
+  estimate        Estimate           @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  roofMeasurement RoofMeasurement?   @relation(fields: [roofMeasurementId], references: [id], onDelete: SetNull)
+  items           EstimateLineItem[]
 
   @@index([estimateId])
   @@map("estimate_sections")
@@ -3175,6 +3192,7 @@ model EstimateLineItem {
   quantity    Decimal          @default(0) @db.Decimal(12, 2)
   unitPrice   Decimal          @default(0) @map("unit_price") @db.Decimal(12, 2)
   lineTotal   Decimal          @default(0) @map("line_total") @db.Decimal(12, 2)
+  costType    EstimateCostType @default(OTHER) @map("cost_type")
   isOptional  Boolean          @default(false) @map("is_optional")
   notes       String?          @db.Text
   sortOrder   Int              @default(0) @map("sort_order")

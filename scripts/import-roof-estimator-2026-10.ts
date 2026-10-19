@@ -19,7 +19,9 @@
  * nowhere for them until the estimate builder exists.
  *
  * Dry run by default (reads both databases, writes nothing); `--yes` applies.
- * Idempotent: a second run creates nothing.
+ * Idempotent: a second run creates nothing. `--skip=<report id>[,<id>]` leaves
+ * named Roofr reports out (e.g. one of two uploads of the same PDF — the
+ * dry run prints each report's id).
  *
  *   ROOF_SOURCE_DATABASE_URL  the estimator's DATABASE_URL
  *   ROOF_SOURCE_STORAGE_DIR   the estimator's STORAGE_DIR
@@ -39,6 +41,7 @@ type Row = Record<string, unknown>;
 
 async function main() {
   const apply = process.argv.includes("--yes");
+  const skipIds = new Set(process.argv.filter((a) => a.startsWith("--skip=")).flatMap((a) => a.slice(7).split(",")).filter(Boolean));
   const sourceUrl = process.env.ROOF_SOURCE_DATABASE_URL;
   const storageDir = process.env.ROOF_SOURCE_STORAGE_DIR;
   if (!sourceUrl || !storageDir) throw new Error("Set ROOF_SOURCE_DATABASE_URL and ROOF_SOURCE_STORAGE_DIR");
@@ -97,7 +100,8 @@ async function main() {
   let created = 0, skipped = 0, held = 0;
   console.log(`\nRoofr reports: ${reports.length} in the estimator`);
   for (const r of reports) {
-    const where = [r.addressLine1, r.city, r.postalCode].filter(Boolean).join(", ") || "(no property)";
+    const where = `${[r.addressLine1, r.city, r.postalCode].filter(Boolean).join(", ") || "(no property)"} [${r.id}]`;
+    if (skipIds.has(r.id as string)) { skipped++; console.log(`  SKIP  ${where}: left out (--skip)`); continue; }
     const file = files.find((f) => f.roofrReportId === r.id && (f.mimeType === "application/pdf" || String(f.originalName).toLowerCase().endsWith(".pdf")));
     if (!r.propertyId || !r.addressLine1) { held++; console.log(`  HELD  ${where}: the report has no property`); continue; }
     const match = matchProperty({ id: r.propertyId as string, addressLine1: r.addressLine1 as string, city: r.city as string | null, state: r.state as string | null, postalCode: r.postalCode as string | null } satisfies SourceProperty, leads);

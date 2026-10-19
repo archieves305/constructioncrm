@@ -44,9 +44,9 @@ const NOTES_SECTION: TemplateSectionDef = {
   ],
 };
 
-// ── Roofing: routing placeholder only ───────────────────────────────────────
-// Roofing leads open the existing specialized roofing form, so this template is
-// never rendered in the generic builder — it exists for the picker label.
+// ── Roofing ─────────────────────────────────────────────────────────────────
+// One empty section: the roofing lines come from "Add roofing section from
+// measurement" in the builder (MVP 5), which replaces the empty section.
 const ROOFING: TemplateDef = {
   key: "roofing",
   category: "ROOFING",

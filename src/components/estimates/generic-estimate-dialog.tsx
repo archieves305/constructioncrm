@@ -17,9 +17,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { GenericSectionEditor } from "@/components/estimates/generic-section-editor";
+import { RoofSectionPicker } from "@/components/estimates/roof-section-picker";
 import {
   calculateGenericEstimate,
   CATEGORY_LABELS,
+  COST_TYPES,
+  COST_TYPE_LABELS,
 } from "@/lib/estimates/generic-calc";
 import {
   ESTIMATE_STATUS_LABEL,
@@ -28,7 +31,7 @@ import {
 } from "@/lib/estimates/estimate-status";
 import { toneClasses } from "@/lib/ui/tones";
 import { describeEstimateValidationErrors } from "@/lib/estimates/validation-messages";
-import type { EstimateUnitType } from "@/generated/prisma/enums";
+import type { EstimateCostType, EstimateUnitType } from "@/generated/prisma/enums";
 import {
   type GenericFormState,
   type FormSection,
@@ -69,6 +72,7 @@ type EstimateResponse = {
   templateId: string | null;
   templateCategory: string;
   marginPercent: string;
+  overheadPercent: string;
   discountEnabled: boolean;
   discountPercent: string;
   salesTaxPercent: string;
@@ -77,11 +81,13 @@ type EstimateResponse = {
   exclusions: string | null;
   sections: Array<{
     title: string;
+    roofMeasurementId: string | null;
     items: Array<{
       description: string;
       unitType: EstimateUnitType;
       quantity: string;
       unitPrice: string;
+      costType: EstimateCostType;
       isOptional: boolean;
       notes: string | null;
     }>;
@@ -95,6 +101,7 @@ function baseForm(category: string): GenericFormState {
     templateCategory: category,
     templateId: null,
     marginPercent: "0",
+    overheadPercent: "0",
     discountEnabled: false,
     discountPercent: "0",
     salesTaxPercent: "0",
@@ -118,6 +125,7 @@ function templateToForm(t: TemplateResponse): GenericFormState {
             quantity: i.defaultQuantity != null ? String(Number(i.defaultQuantity)) : "",
             unitPrice:
               i.defaultUnitPrice != null ? String(Number(i.defaultUnitPrice)) : "",
+            costType: i.unitType === "LABOR_HOUR" ? "LABOR" : "OTHER",
             isOptional: i.isOptional,
             notes: i.defaultNotes ?? "",
           }))
@@ -129,6 +137,7 @@ function templateToForm(t: TemplateResponse): GenericFormState {
     templateCategory: t.category,
     templateId: t.id,
     marginPercent: "0",
+    overheadPercent: "0",
     discountEnabled: false,
     discountPercent: "0",
     salesTaxPercent: "0",
@@ -146,6 +155,7 @@ function estimateToForm(e: EstimateResponse): GenericFormState {
     templateCategory: e.templateCategory,
     templateId: e.templateId,
     marginPercent: String(Number(e.marginPercent)),
+    overheadPercent: String(Number(e.overheadPercent ?? 0)),
     discountEnabled: e.discountEnabled,
     discountPercent: String(Number(e.discountPercent)),
     salesTaxPercent: String(Number(e.salesTaxPercent)),
@@ -155,12 +165,14 @@ function estimateToForm(e: EstimateResponse): GenericFormState {
     sections: e.sections.map((s) => ({
       uid: uid(),
       title: s.title,
+      roofMeasurementId: s.roofMeasurementId,
       items: s.items.map((i) => ({
         uid: uid(),
         description: i.description,
         unitType: i.unitType,
         quantity: String(Number(i.quantity)),
         unitPrice: String(Number(i.unitPrice)),
+        costType: i.costType ?? "OTHER",
         isOptional: i.isOptional,
         notes: i.notes ?? "",
       })),
@@ -177,6 +189,7 @@ function formToPayload(form: GenericFormState) {
     sections: form.sections.map((s, sIdx) => ({
       title: s.title.trim() || `Section ${sIdx + 1}`,
       sortOrder: sIdx,
+      roofMeasurementId: s.roofMeasurementId ?? null,
       items: s.items
         .filter((i) => i.description.trim() !== "")
         .map((i, iIdx) => ({
@@ -184,12 +197,14 @@ function formToPayload(form: GenericFormState) {
           unitType: i.unitType,
           quantity: num(i.quantity),
           unitPrice: num(i.unitPrice),
+          costType: i.costType,
           isOptional: i.isOptional,
           notes: i.notes.trim() || null,
           sortOrder: iIdx,
         })),
     })),
     marginPercent: num(form.marginPercent),
+    overheadPercent: num(form.overheadPercent),
     discountEnabled: form.discountEnabled,
     discountPercent: num(form.discountPercent),
     salesTaxPercent: num(form.salesTaxPercent),
@@ -269,11 +284,13 @@ export function GenericEstimateDialog({
           unitType: i.unitType,
           quantity: num(i.quantity),
           unitPrice: num(i.unitPrice),
+          costType: i.costType,
           isOptional: i.isOptional,
           notes: i.notes,
         })),
       })),
       marginPercent: num(form.marginPercent),
+      overheadPercent: num(form.overheadPercent),
       discountEnabled: form.discountEnabled,
       discountPercent: num(form.discountPercent),
       salesTaxPercent: num(form.salesTaxPercent),
@@ -376,13 +393,38 @@ export function GenericEstimateDialog({
                 sections={form.sections}
                 onChange={(sections) => setForm({ ...form, sections })}
               />
+              <div className="mt-3">
+                <RoofSectionPicker
+                  leadId={leadId}
+                  onAdd={(section) =>
+                    setForm((f) => {
+                      if (!f) return f;
+                      // A fresh estimate's empty first section gives way to the roof.
+                      const blank = (s: FormSection) => s.items.every((i) => i.description.trim() === "");
+                      const kept = f.sections.length === 1 && blank(f.sections[0]) ? [] : f.sections;
+                      return { ...f, sections: [...kept, section] };
+                    })
+                  }
+                />
+              </div>
             </div>
 
             <Separator />
 
             <div>
               <h3 className="mb-2 text-sm font-semibold">Pricing</h3>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-4">
+                <div className="space-y-1">
+                  <Label className="text-xs">Overhead %</Label>
+                  <Input
+                    type="number"
+                    aria-label="Overhead percent"
+                    value={form.overheadPercent}
+                    onChange={(e) =>
+                      setForm({ ...form, overheadPercent: e.target.value })
+                    }
+                  />
+                </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Margin %</Label>
                   <Input
@@ -454,6 +496,18 @@ export function GenericEstimateDialog({
                 <span>Subtotal cost</span>
                 <span>{money(breakdown.subtotalCost)}</span>
               </div>
+              {COST_TYPES.filter((t) => breakdown.costByType[t] > 0 && breakdown.costByType[t] !== breakdown.subtotalCost).map((t) => (
+                <div key={t} className="flex justify-between pl-3 text-xs text-muted-foreground">
+                  <span>{COST_TYPE_LABELS[t]}</span>
+                  <span>{money(breakdown.costByType[t])}</span>
+                </div>
+              ))}
+              {breakdown.overheadAmount > 0 ? (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Overhead ({breakdown.overheadPercent}%)</span>
+                  <span>{money(breakdown.overheadAmount)}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between text-muted-foreground">
                 <span>Margin ({breakdown.marginPercent}%)</span>
                 <span>{money(breakdown.marginAmount)}</span>

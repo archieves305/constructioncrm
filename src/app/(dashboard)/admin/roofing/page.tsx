@@ -219,7 +219,7 @@ function MaterialDialog({ open, onClose, onSaved, categories }: { open: boolean;
   const [f, setF] = useState(empty);
   const rules = useQuery<Rule[]>({ queryKey: ["roof-rules"], queryFn: () => fetchJson("/api/roofing/rules"), enabled: open });
   const vendors = useQuery<{ id: string; name: string }[]>({ queryKey: ["vendor-options"], queryFn: () => fetchJson("/api/vendors/options"), enabled: open });
-  const allCategories = useMemo(() => [...new Set([...(rules.data ?? []).filter((r) => r.kind !== "waste_pct").map((r) => r.category), ...categories])].sort(), [rules.data, categories]);
+  const allCategories = useMemo(() => [...new Set([...(rules.data ?? []).filter((r) => r.kind !== "waste_pct" && r.kind !== "labor_per_square").map((r) => r.category), ...categories])].sort(), [rules.data, categories]);
   const save = useMutation({
     mutationFn: () =>
       fetchJson("/api/roofing/materials", json("POST", { name: f.name, category: f.category, sku: f.sku || null, roofType: f.roofType || null, unitType: f.unitType, vendorId: f.vendorId || null, unitCost: f.unitCost === "" ? null : Number(f.unitCost) })),
@@ -324,6 +324,7 @@ const KIND_HINT: Record<string, string> = {
   lf_per_unit: "feet covered by one",
   fixed: "fixed quantity",
   waste_pct: "fraction (0.10 = 10%)",
+  labor_per_square: "dollars per square",
 };
 
 function Rules() {

@@ -29,11 +29,13 @@ export function dtoToBreakdownInput(
         unitType: i.unitType,
         quantity: i.quantity,
         unitPrice: i.unitPrice,
+        costType: i.costType,
         isOptional: i.isOptional,
         notes: i.notes ?? null,
       })),
     })),
     marginPercent: dto.marginPercent,
+    overheadPercent: dto.overheadPercent,
     discountEnabled: dto.discountEnabled,
     discountPercent: dto.discountPercent,
     salesTaxPercent: dto.salesTaxPercent,
@@ -47,6 +49,7 @@ export function buildSectionsCreate(dto: GenericEstimateInputDto) {
   const sections = dto.sections.map((section, sIdx) => ({
     title: section.title,
     sortOrder: sIdx,
+    roofMeasurementId: section.roofMeasurementId ?? null,
     items: {
       create: section.items.map((item, iIdx) => ({
         description: item.description,
@@ -54,6 +57,7 @@ export function buildSectionsCreate(dto: GenericEstimateInputDto) {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         lineTotal: breakdown.sections[sIdx].items[iIdx].lineTotal,
+        costType: item.costType,
         isOptional: item.isOptional,
         notes: item.notes ?? null,
         sortOrder: iIdx,

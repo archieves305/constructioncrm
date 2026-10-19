@@ -62,6 +62,7 @@ export async function POST(
       name: input.name,
       status: input.status,
       marginPercent: input.marginPercent,
+      overheadPercent: input.overheadPercent,
       discountEnabled: input.discountEnabled,
       discountPercent: input.discountPercent,
       salesTaxPercent: input.salesTaxPercent,

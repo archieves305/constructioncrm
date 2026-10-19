@@ -6,13 +6,16 @@
 // Interior Renovation, Windows & Doors, and any future trade. It deliberately
 // mirrors the roofing margin → discount → tax pipeline for consistency.
 
-import type { EstimateUnitType } from "@/generated/prisma/enums";
+import type { EstimateCostType, EstimateUnitType } from "@/generated/prisma/enums";
 
 export type GenericLineInput = {
   description: string;
   unitType: EstimateUnitType;
   quantity: number;
+  /** The unit COST (what KNU pays); the margin turns the total into a price. */
   unitPrice: number;
+  /** What the cost buys; untyped lines count as OTHER. */
+  costType?: EstimateCostType;
   // Optional/informational lines (e.g. exclusions, notes) render but never sum.
   isOptional?: boolean;
   notes?: string | null;
@@ -26,10 +29,14 @@ export type GenericSectionInput = {
 export type GenericEstimateInput = {
   sections: GenericSectionInput[];
   marginPercent: number;
+  /** Company overhead on top of the cost, before the margin. Defaults to 0. */
+  overheadPercent?: number;
   discountEnabled: boolean;
   discountPercent: number;
   salesTaxPercent: number;
 };
+
+export const COST_TYPES: readonly EstimateCostType[] = ["LABOR", "MATERIAL", "SUB", "EQUIPMENT", "OTHER"];
 
 export type GenericLineBreakdown = GenericLineInput & { lineTotal: number };
 
@@ -42,6 +49,12 @@ export type GenericSectionBreakdown = {
 export type GenericEstimateBreakdown = {
   sections: GenericSectionBreakdown[];
   subtotalCost: number;
+  /** subtotalCost split by what it buys. */
+  costByType: Record<EstimateCostType, number>;
+  overheadPercent: number;
+  overheadAmount: number;
+  /** subtotalCost + overhead: what the margin is taken on. */
+  costWithOverhead: number;
   marginPercent: number;
   marginAmount: number;
   priceWithMargin: number;
@@ -79,12 +92,20 @@ export function calculateGenericEstimate(
     sections.reduce((sum, s) => sum + s.sectionSubtotal, 0),
   );
 
+  const costByType = Object.fromEntries(COST_TYPES.map((t) => [t, 0])) as Record<EstimateCostType, number>;
+  for (const s of sections) for (const l of s.items) costByType[l.costType ?? "OTHER"] = round2(costByType[l.costType ?? "OTHER"] + l.lineTotal);
+
+  // Overhead is added to the cost first; it is the company's, not the job's.
+  const overheadPct = Math.min(Math.max(input.overheadPercent ?? 0, 0), 100);
+  const overheadAmount = round2(subtotalCost * (overheadPct / 100));
+  const costWithOverhead = round2(subtotalCost + overheadAmount);
+
   // True margin: price = cost / (1 - m%). 0% margin -> price equals cost.
   // Clamp margin so we never divide by zero (>= 100% would imply infinite price).
   const marginPct = Math.min(Math.max(input.marginPercent, 0), 99.999);
   const priceWithMargin =
-    subtotalCost > 0 ? round2(subtotalCost / (1 - marginPct / 100)) : 0;
-  const marginAmount = round2(priceWithMargin - subtotalCost);
+    costWithOverhead > 0 ? round2(costWithOverhead / (1 - marginPct / 100)) : 0;
+  const marginAmount = round2(priceWithMargin - costWithOverhead);
 
   // Discount applied AFTER margin, then sales tax on top.
   const discountPct = input.discountEnabled
@@ -100,6 +121,10 @@ export function calculateGenericEstimate(
   return {
     sections,
     subtotalCost,
+    costByType,
+    overheadPercent: overheadPct,
+    overheadAmount,
+    costWithOverhead,
     marginPercent: marginPct,
     marginAmount,
     priceWithMargin,
@@ -122,6 +147,15 @@ export const UNIT_LABELS: Record<EstimateUnitType, string> = {
   ROOM: "room",
   LUMP_SUM: "lump sum",
   LABOR_HOUR: "hr",
+  SQUARE: "sq",
+};
+
+export const COST_TYPE_LABELS: Record<EstimateCostType, string> = {
+  LABOR: "Labor",
+  MATERIAL: "Material",
+  SUB: "Subcontract",
+  EQUIPMENT: "Equipment",
+  OTHER: "Other",
 };
 
 // Human label for each template category — used by the picker, cards, and PDFs.
