@@ -89,8 +89,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    category × target; Admin → Permits → Knowledge decides them; approved
    lessons show at preflight; Permit Center metrics strip; attention rows
    `permit-corrections` / `permit-resubmit-due`. **All seven stages built.**
-   **Document assistant built + dev-QA'd 2026-10-19, on `main`, not
-   deployed**: migration `20261107120000_permit_assistant`; drop many
+   **Document assistant built + dev-QA'd 2026-10-19, deployed 2026-10-19 as
+   `64e3c4d`** (BUILD_ID `TLxVz6KDW9VoRZKRR74nA`, migration applied, smoke 307
+   ×2, journal clean, backup `postgres-2026-10-19-015915.dump`; the droplet
+   reaches the Town of Palm Beach site): migration `20261107120000_permit_assistant`; drop many
    documents on a permit → the AI reads each, opens the links worth opening
    (one hop from a person's document; then only the department's site and the
    approval sites; 40 pages; a guarded fetcher), looks on the department's
@@ -555,7 +557,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-19 — Permit document assistant (built + dev-QA'd, on `main`, not deployed)
+### 2026-10-19 — Permit document assistant (deployed `64e3c4d`)
 
 "for the permits i want to be able to upload multiple documents and have the
 AI go through the documents, click links and assist with putting together
@@ -573,7 +575,11 @@ the real Town of Palm Beach site: 111 s, $0.54, 14 pages, the town's permit
 application packet / NOC form / revision form proposed, no private request,
 API 30/30, SALES_REP 4/4, headless Chromium 18/18. Details:
 [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
-**Deploy carries the migration**; then set each department's website.
+Richard pushed and deployed from `!` (background, 317 s, exit 0): BUILD_ID
+`C7dZ4cfftPCjy5oiFvv9z` → `TLxVz6KDW9VoRZKRR74nA`, migration
+`20261107120000_permit_assistant` applied (0 runs, both jurisdiction columns
+present), smoke 307 ×2, journal clean, backup
+`postgres-2026-10-19-015915.dump`. Next: set each department's website.
 
 ### 2026-10-19 — Stages 5 + 6 deployed (`2359e54`)
 
@@ -3476,9 +3482,8 @@ Notification Digests).
 > Admin → Permits → Knowledge fills as the department answers resubmissions.
 > **All seven stages are on prod (`2359e54`, BUILD_ID
 > `C7dZ4cfftPCjy5oiFvv9z`, 2026-10-19)**; what remains is the click-throughs
-> and the open ruling below. **The document assistant is on `main`, not
-> deployed** (migration `20261107120000_permit_assistant`); after the
-> deploy: Admin → Permits → Jurisdictions → each department's website, then a
+> and the open ruling below. **The document assistant is on prod (`64e3c4d`,
+> BUILD_ID `TLxVz6KDW9VoRZKRR74nA`)**; next: Admin → Permits → Jurisdictions → each department's website, then a
 > permit → Documents → Document assistant → Sort documents…. Stage 3 after it: After it: Admin → Permits → Forms → upload the
 > Palm Beach County universal application (county "Palm Beach", from
 > discover.pbc.gov) → Map with AI → check "Check these" and clear the
