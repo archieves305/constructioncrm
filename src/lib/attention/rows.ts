@@ -37,6 +37,7 @@ export const ATTENTION_KEYS = [
   "estimates-outstanding",
   "jobs-delayed",
   "jobs-over-budget",
+  "overdue-by-person",
 ] as const;
 export type AttentionKey = (typeof ATTENTION_KEYS)[number];
 
@@ -236,6 +237,13 @@ export const ATTENTION_ROWS: readonly AttentionRowDef[] = [
     description: "Open jobs whose committed cost (spent plus promised) has passed the cost they were expected to take.",
     tone: "danger",
     roles: MONEY_VIEW,
+  },
+  {
+    key: "overdue-by-person",
+    label: "People with overdue work",
+    description: "Everyone with an active task past its day, most overdue first, with how many and the oldest. Opens their overdue tasks.",
+    tone: "warning",
+    roles: ADMIN_MANAGER,
   },
 ];
 

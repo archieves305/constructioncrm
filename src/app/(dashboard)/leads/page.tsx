@@ -81,6 +81,8 @@ export default function LeadsPage() {
   const [sourceId, setSourceId] = useState(getUrl("sourceId") ?? "");
   const [assigneeFilter, setAssigneeFilter] = useState(getUrl("assignedUserId") ?? "");
   const [includeClosed, setIncludeClosed] = useState(getUrl("includeClosed") === "true");
+  // The call list: follow-up due today or earlier, or never contacted — most overdue first.
+  const [callList, setCallList] = useState(getUrl("callList") === "1");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAssignTo, setBulkAssignTo] = useState<string>("");
@@ -93,6 +95,7 @@ export default function LeadsPage() {
   if (sourceId) params.set("sourceId", sourceId);
   if (assigneeFilter) params.set("assignedUserId", assigneeFilter);
   if (includeClosed) params.set("includeClosed", "true");
+  if (callList) params.set("callList", "1");
   params.set("page", String(page));
   params.set("withTaskCounts", "true");
 
@@ -102,7 +105,7 @@ export default function LeadsPage() {
     page: number;
     totalPages: number;
   }>({
-    queryKey: ["leads", scope, search, stageId, sourceId, assigneeFilter, includeClosed, page, "withCounts"],
+    queryKey: ["leads", scope, search, stageId, sourceId, assigneeFilter, includeClosed, callList, page, "withCounts"],
     queryFn: () => fetchJson(`/api/leads?${params.toString()}`),
     retry: retryServerErrors,
     enabled: scopeReady && view === "table",
@@ -420,6 +423,18 @@ export default function LeadsPage() {
             }}
           />
           Show won/lost
+        </label>
+        <label className="flex items-center gap-2 text-sm font-medium" title="Open leads with a follow-up due today or earlier, or never contacted — most overdue first">
+          <input
+            type="checkbox"
+            checked={callList}
+            onChange={(e) => {
+              setCallList(e.target.checked);
+              setUrl({ callList: e.target.checked ? "1" : null });
+              setPage(1);
+            }}
+          />
+          Call list
         </label>
       </div>
 

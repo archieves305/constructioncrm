@@ -216,6 +216,28 @@ async function delayedJobs(ctx: AttentionContext) {
     .sort((a, b2) => b2.oldest - a.oldest);
 }
 
+/**
+ * Overdue work per person — the same tasks as the "Overdue tasks" row (active,
+ * past their day), grouped by owner; nobody's tasks are one more line.
+ * Always company-wide: it is the manager's view of who is behind.
+ */
+async function overdueByPerson(ctx: AttentionContext) {
+  const where = { AND: [overdueWhere(ctx.now), ACTIVE_OPEN_WHERE] };
+  const groups = await prisma.task.groupBy({ by: ["assignedUserId"], where, _count: { _all: true }, _min: { dueAt: true } });
+  const users = await prisma.user.findMany({ where: { id: { in: groups.map((g) => g.assignedUserId).filter((x): x is string => !!x) } }, select: { id: true, firstName: true, lastName: true, isActive: true } });
+  const name = new Map(users.map((u) => [u.id, `${u.firstName} ${u.lastName}${u.isActive ? "" : " (inactive)"}`]));
+  const today = dayKey(ctx.now);
+  return groups
+    .map((g) => ({
+      userId: g.assignedUserId,
+      name: g.assignedUserId ? (name.get(g.assignedUserId) ?? "Unknown person") : "Nobody (unassigned)",
+      count: g._count._all,
+      oldestDays: g._min.dueAt ? Math.max(0, diffDayKeys(dayKey(g._min.dueAt), today)) : 0,
+      oldest: g._min.dueAt,
+    }))
+    .sort((a, b) => b.count - a.count || b.oldestDays - a.oldestDays);
+}
+
 /** Open jobs whose committed cost has passed their expected cost (the one cost calculation). */
 async function overBudgetJobs(ctx: AttentionContext) {
   const rows = await getJobCostRows(openJobInScope(ctx));
@@ -292,6 +314,7 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "estimates-outstanding": (ctx) => prisma.estimate.count({ where: estimatesOutstandingWhere(ctx) }),
   "jobs-delayed": async (ctx) => (await delayedJobs(ctx)).length,
   "jobs-over-budget": async (ctx) => (await overBudgetJobs(ctx)).length,
+  "overdue-by-person": async (ctx) => (await overdueByPerson(ctx)).length,
 };
 
 /** The current version of each document type that has expired or expires inside 30 days. */
@@ -568,6 +591,16 @@ const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionCon
       return item(e.id, label, `${e.name} · ${money(e.totalPrice)} · sent, last changed ${day(e.updatedAt)}`, e.updatedAt, `/leads/${e.lead.id}?tab=estimates`);
     });
   },
+  "overdue-by-person": async (ctx) =>
+    (await overdueByPerson(ctx)).map((p) =>
+      item(
+        p.userId ?? "unassigned",
+        { primary: p.name, secondary: null, code: null, placeholder: false },
+        `${p.count} overdue · the oldest ${p.oldestDays} day${p.oldestDays === 1 ? "" : "s"} past its day`,
+        p.oldest,
+        p.userId ? `/tasks?overdue=1&assignedUserId=${p.userId}` : "/tasks?overdue=1&scope=all&unassigned=1",
+      ),
+    ),
   "jobs-delayed": async (ctx) =>
     (await delayedJobs(ctx)).slice(0, take).map(({ job, health }) => item(job.id, jobLabel(job), `${job.currentStage.name} · ${health.reasons.join("; ")}`, null, `/jobs/${job.id}`)),
   "jobs-over-budget": async (ctx) =>

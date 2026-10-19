@@ -26,7 +26,7 @@ beforeEach(() => {
 });
 
 describe("reassignUnresolved", () => {
-  it("assigns every open PM step, but only the active ones notify, and they share one batch", async () => {
+  it("assigns every open step it can (an unfilled role falls to the PM), only the active ones notify, one batch", async () => {
     db.task.findMany.mockReset().mockResolvedValue([
       { id: "t-active-1", workflowRole: "PROJECT_MANAGER", activatedAt: new Date() },
       { id: "t-active-2", workflowRole: "PROJECT_MANAGER", activatedAt: new Date() },
@@ -34,17 +34,19 @@ describe("reassignUnresolved", () => {
       { id: "t-nobody", workflowRole: "PERMIT_COORDINATOR", activatedAt: new Date() },
     ]);
     const n = await reassignUnresolved("inst-1", "u-actor");
-    expect(n).toBe(3);
+    expect(n).toBe(4);
     const calls = updateTask.mock.calls.map((c) => c[0]);
     expect(calls.map((c) => [c.id, c.notify])).toEqual([
       ["t-active-1", "after"],
       ["t-active-2", "after"],
       ["t-waiting", "none"],
+      ["t-nobody", "after"],
     ]);
+    expect(calls[3].input).toEqual({ assignedUserId: "u-pm" });
     expect(calls[0].input).toEqual({ assignedUserId: "u-pm" });
     const keys = new Set(calls.map((c) => c.notifyBatch.key));
     expect(keys.size).toBe(1);
     expect([...keys][0]).toMatch(/^wf-reassign:inst-1:\d+$/);
-    expect(calls[0].notifyBatch.size).toBe(2);
+    expect(calls[0].notifyBatch.size).toBe(3);
   });
 });

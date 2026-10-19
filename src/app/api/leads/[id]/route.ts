@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { updateLeadSchema, leadIssuesMessage } from "@/lib/validators/lead";
 import { guardLead } from "@/lib/access/records";
+import { assignLead, canAssignLeads } from "@/lib/leads/assign";
 
 export async function GET(
   _request: NextRequest,
@@ -95,7 +96,19 @@ export async function PATCH(
   }
 
   const input = parsed.data;
-  const { serviceCategoryIds, ...updateData } = input;
+  const { serviceCategoryIds, assignedUserId, ...updateData } = input;
+
+  // A change of owner goes through the one assignment path (history row, activity, event),
+  // and only for the roles that may reassign; the same owner re-sent is no change.
+  if (assignedUserId !== undefined) {
+    const current = await prisma.lead.findUnique({ where: { id }, select: { assignedUserId: true } });
+    if ((current?.assignedUserId ?? null) !== (assignedUserId ?? null)) {
+      if (!canAssignLeads(session.user.role)) {
+        return NextResponse.json({ error: "Reassigning a lead is done by an admin or manager." }, { status: 403 });
+      }
+      await assignLead(id, assignedUserId ?? null, session.user.id, "Changed on the lead form");
+    }
+  }
 
   // Update fullName if name fields changed
   const fullNameUpdate: Record<string, string> = {};

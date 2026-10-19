@@ -1,3 +1,4 @@
+import { leadIdsWithPhone } from "@/lib/leads/phone";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
@@ -19,7 +20,8 @@ export async function GET(request: NextRequest) {
 
   // One pure builder (src/lib/leads/query.ts): every filter ANDed, the
   // sales-rep floor included, scope=mine|all resolved against the role.
-  const where = buildLeadListWhere(parseLeadListParams(searchParams), { user: session.user });
+  const params = parseLeadListParams(searchParams);
+  const where = buildLeadListWhere(params, { user: session.user });
 
   const [data, total] = await Promise.all([
     prisma.lead.findMany({
@@ -31,7 +33,8 @@ export async function GET(request: NextRequest) {
         services: { include: { serviceCategory: true } },
         stageHistory: { orderBy: { changedAt: "desc" }, take: 1, select: { changedAt: true } },
       },
-      orderBy: { createdAt: "desc" },
+      // The call list runs most overdue first, never-contacted (no date) at the top.
+      orderBy: params.callListBefore ? [{ nextFollowUpAt: { sort: "asc", nulls: "first" } }, { createdAt: "asc" }] : { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -104,11 +107,13 @@ export async function POST(request: NextRequest) {
   });
   if (!defaultStage) return badRequest("Default stage not configured");
 
-  // Duplicate check
+  // Duplicate check — the phone in any format (lib/leads/phone.ts)
+  const samePhone = await leadIdsWithPhone(input.primaryPhone);
   const duplicates = await prisma.lead.findMany({
     where: {
       OR: [
         { primaryPhone: input.primaryPhone },
+        ...(samePhone.length ? [{ id: { in: samePhone } }] : []),
         ...(input.email ? [{ email: input.email }] : []),
         {
           propertyAddress1: { equals: input.propertyAddress1, mode: "insensitive" as const },

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { forbidden, getSession, unauthorized } from "@/lib/auth/helpers";
 import { canWriteLeads } from "@/lib/access/roles";
 import { leadAccessWhere } from "@/lib/access/records";
+import { leadIdsWithPhone } from "@/lib/leads/phone";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -27,6 +28,9 @@ export async function GET(request: NextRequest) {
   if (phoneReady) {
     orClauses.push({ primaryPhone: phoneRaw });
     if (phoneRaw !== phoneDigits) orClauses.push({ primaryPhone: phoneDigits });
+    // the same number however it was typed: "(305) 555-1212" = "+13055551212"
+    const samePhone = await leadIdsWithPhone(phoneRaw);
+    if (samePhone.length) orClauses.push({ id: { in: samePhone } });
   }
   if (emailReady) {
     orClauses.push({ email: { equals: emailRaw, mode: "insensitive" as const } });

@@ -53,6 +53,8 @@ export type TaskListFilters = {
   waiting?: boolean;
   blocked?: boolean;
   includeInactive?: boolean;
+  /** Tasks nobody owns (the attention list's "Nobody" line links here). */
+  unassigned?: boolean;
 };
 
 function toQuery(filters: TaskListFilters): string {

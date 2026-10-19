@@ -64,6 +64,24 @@ describe("buildLeadListWhere", () => {
   });
 });
 
+describe("the call list", () => {
+  it("is open leads not Won, follow-up due by the cut-off or never contacted", () => {
+    const before = new Date("2026-10-19T23:59:59-04:00");
+    const where = buildLeadListWhere({ callListBefore: before }, admin) as { AND: unknown[] };
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        { currentStage: { isWon: false } },
+        { OR: [{ nextFollowUpAt: { lte: before } }, { lastContactAt: null }] },
+      ]),
+    );
+  });
+  it("is read from ?callList=1 as the end of today", () => {
+    const p = parseLeadListParams(new URLSearchParams("callList=1"));
+    expect(p.callListBefore).toBeInstanceOf(Date);
+    expect(parseLeadListParams(new URLSearchParams("")).callListBefore).toBeUndefined();
+  });
+});
+
 describe("the GC bid fence", () => {
   it("customer lists exclude bid packages unless asked", () => {
     expect(clauses(buildLeadListWhere({}, admin))).toContainEqual({ kind: "CUSTOMER" });

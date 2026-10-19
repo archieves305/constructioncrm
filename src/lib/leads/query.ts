@@ -1,3 +1,4 @@
+import { endOfDayIn, todayKey } from "@/lib/time/zone";
 import type { Prisma, RoleName } from "@/generated/prisma/client";
 import { jobsInvolvingUserWhere, leadsInvolvingUserWhere } from "@/lib/jobs/involvement";
 import { effectiveListScope, parseListScope, type ListScope } from "@/lib/lists/scope";
@@ -27,6 +28,11 @@ export type LeadListParams = {
    * Development. ALL: both — for pickers that must find any lead.
    */
   kind?: "CUSTOMER" | "GC_BID" | "ALL";
+  /**
+   * The call list: open leads (not Won) whose follow-up falls on or before
+   * this instant — the end of today — or that nobody has contacted yet.
+   */
+  callListBefore?: Date;
 };
 
 export type LeadListContext = { user: { id: string; role: RoleName } };
@@ -47,6 +53,7 @@ export function parseLeadListParams(searchParams: URLSearchParams): LeadListPara
     scope: parseListScope(searchParams.get("scope")),
     involvesUserId: s("involvesUserId"),
     kind: parseLeadKind(searchParams.get("kind")),
+    callListBefore: searchParams.get("callList") === "1" ? endOfDayIn(todayKey()) : undefined,
   };
 }
 
@@ -80,6 +87,11 @@ export function buildLeadListWhere(params: LeadListParams, ctx: LeadListContext)
         { bidInvitation: { OR: [{ number: { contains: params.search, mode: "insensitive" } }, { projectName: { contains: params.search, mode: "insensitive" } }] } },
       ],
     });
+  }
+
+  if (params.callListBefore) {
+    and.push({ currentStage: { isWon: false } });
+    and.push({ OR: [{ nextFollowUpAt: { lte: params.callListBefore } }, { lastContactAt: null }] });
   }
 
   if (params.stageId) and.push({ currentStageId: params.stageId });

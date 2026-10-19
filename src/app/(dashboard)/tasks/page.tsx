@@ -22,6 +22,7 @@ import { useSession } from "@/lib/auth/session-client";
 import { TaskDetailSheet } from "@/components/tasks/task-detail-sheet";
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
 import { TaskCard } from "@/components/tasks/task-card";
+import { BulkOverduePanel } from "@/components/tasks/bulk-overdue-panel";
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import { STATUS_LABEL, STATUS_TONE, TASK_PRIORITIES, TASK_STATUSES } from "@/components/tasks/task-colors";
 import { useAssignableUsers, useCreateTask, useTaskSummary, useTasks, useUpdateTask } from "@/components/tasks/use-tasks";
@@ -128,6 +129,7 @@ export default function TasksPage() {
       ready: readyOnly || undefined,
       blocked: blockedOnly || undefined,
       includeInactive: showInactive || undefined,
+      unassigned: flagOn("unassigned") || undefined,
     },
   );
 
@@ -499,6 +501,10 @@ export default function TasksPage() {
           onOpen={setOpenTaskId}
         />
       ) : (
+        <>
+        {overdueOnly && (session?.user.role === "ADMIN" || session?.user.role === "MANAGER") && (
+          <BulkOverduePanel taskIds={buckets.overdue.map((t) => t.id)} users={users} />
+        )}
         <ListView
           buckets={buckets}
           completed={stageFilteredTasks.filter((t) => t.status === "COMPLETED" || t.status === "CANCELLED")}
@@ -509,6 +515,7 @@ export default function TasksPage() {
           onUpdate={(id, patch) => updateTask.mutate({ id, patch })}
           onOpen={setOpenTaskId}
         />
+        </>
       )}
 
       <TaskDetailSheet

@@ -19,8 +19,10 @@ describe("resolveAssignee", () => {
     expect(resolveAssignee("SUPERINTENDENT", ctx)).toBe("u-sup");
     expect(resolveAssignee("PROJECT_MANAGER", ctx)).toBe("u-pm");
     expect(resolveAssignee("ACCOUNTING", ctx)).toBe("u-acc");
-    expect(resolveAssignee("SALES_REP", ctx)).toBeNull();
-    expect(resolveAssignee("PERMIT_COORDINATOR", ctx)).toBeNull();
+    // nobody fills these roles themselves: their steps fall to the job's project manager
+    expect(resolveAssignee("SALES_REP", ctx)).toBe("u-pm");
+    expect(resolveAssignee("PERMIT_COORDINATOR", ctx)).toBe("u-pm");
+    expect(resolveAssignee("PERMIT_COORDINATOR", { ...ctx, projectManagerId: null })).toBeNull();
   });
 
   it("lists the roles a plan uses that resolve to nobody, in a stable order", () => {
@@ -38,6 +40,8 @@ describe("resolveAssignee — violation cases", () => {
     expect(resolveAssignee("CASE_MANAGER", { ...base, caseManagerId: null })).toBe("u-default-cm");
     expect(resolveAssignee("CASE_MANAGER", { ...base, caseManagerId: null, defaults: {} })).toBeNull();
     expect(resolveAssignee("CASE_MANAGER", { ...base, team: { CASE_MANAGER: "u-slot" } })).toBe("u-slot");
+    // on a case, a role nobody fills falls to the case manager first
+    expect(resolveAssignee("ACCOUNTING", { ...base, projectManagerId: "u-job-pm" })).toBe("u-cm");
     // A case's PROJECT_MANAGER steps come from the linked job's PM, carried on the same context.
     expect(resolveAssignee("PROJECT_MANAGER", { ...base, projectManagerId: "u-job-pm" })).toBe("u-job-pm");
     expect(unassignedRoles(["CASE_MANAGER", "PROJECT_MANAGER"], base)).toEqual(["PROJECT_MANAGER"]);

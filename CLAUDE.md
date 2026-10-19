@@ -571,7 +571,32 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-19 — Audit roadmap Stage C: owner command center (built + dev-QA'd on `command-center`, not deployed)
+### 2026-10-19 — Audit roadmap Stage D: overdue control + lead call list (built + dev-QA'd on `overdue-control`, not deployed)
+
+No migration. **Unowned steps:** `resolveAssignee` falls back to the subject's
+coordinator (case manager, else the job's PM) when no slot, field or default fills a
+role (`resolveRoleOwner` keeps the apply dialog's "nobody fills" warning);
+`scripts/assign-unowned-steps-2026-10.ts` applies it to existing open steps through
+`reassignUnresolved` (dry run by default, `--yes`). **Overdue by person:** attention row
+`overdue-by-person` (ADMIN / MANAGER), one line per owner + "Nobody", opening their
+overdue tasks (`unassigned=1` now forwarded by the Tasks page). **Clean-up:**
+`POST /api/tasks/bulk` (reschedule to a day / assign / close with a reason; ADMIN /
+MANAGER; each task through `updateTask`, refusals reported, one audit row) and
+`BulkOverduePanel` on /tasks with the Overdue filter. **Call list:** `/leads?callList=1`
+(open leads not Won with a follow-up due by the end of today or never contacted, most
+overdue first, never-contacted on top) + a "Call list" toggle. **Phones:**
+`lib/leads/phone.ts` matches the last ten digits in SQL, used by the duplicate check
+and the contact lookup ("(913) 963-9800" = "9139639800"). **Assignment:** one path
+`lib/leads/assign.ts` (history row, activity, LEAD_ASSIGNED) for the assign route and
+the edit form; changing the owner on the form is ADMIN / MANAGER only. Not done: one
+lead-create path for the dormant intakes (phone routing, Outlook). Gate: typecheck
+clean, lint 5/22 (the one "used before declared" is the old rich-text editor), 1923
+tests (+4), build clean. Dev QA: API 9/9 (overdue-by-person count = list, bulk move 2
+tasks, reason required, call list, duplicate across formats, rep 403 on bulk and on a
+changed owner, 200 on the same owner), headless Chromium 1440 / 400 px (clean-up panel,
+Call list), unowned-steps dry run on dev. Dev DB restored.
+
+### 2026-10-19 — Audit roadmap Stage C: owner command center (deployed `c24bbc0`)
 
 No migration. Four attention rows (`lib/attention/rows.ts` + `load.ts`, count and list
 from one rule each): **Leads never contacted** (open customer leads > 24 h with no
@@ -587,7 +612,12 @@ an expected cost; the rest counted, not guessed). Gate: typecheck clean, lint 5/
 1919 tests, build clean. Dev QA: each new row's count = its list (1 / 1 / 4 / 1),
 owner summary read back, dashboard in headless Chromium at 1440 / 400 px (no errors, no
 overflow), SALES_REP: strip refused (403) and hidden, over-budget refused, the three
-other rows shown. Dev DB restored. "Who is behind" (overdue by person) is Stage D.
+other rows shown. Dev DB restored. "Who is behind" (overdue by person) is Stage D. Richard deployed from
+`!`: BUILD_ID `bvEDAv3KnV-JYcUXuW0Zu` → `ZHlkJWkImUUtlAZOH66vC`, journal clean. Read-only
+prod load through the deployed loaders: never contacted 19, pipeline $179,040 (20
+leads), estimates out $0 (the 7 leads at "Estimate Sent" have roofing estimates or
+drafts, none marked Sent), active jobs 19, expected gross profit $0 from the 1 job with
+a baseline (16 without one), delayed jobs 10, overdue tasks 69.
 
 ### 2026-10-19 — Audit roadmap Stage B: the estimate drives the job (deployed `c1c6539`)
 
@@ -3654,10 +3684,12 @@ Notification Digests).
 > the job) is on `main`, not deployed — the deploy carries migration
 > `20261109120000_estimate_drives_job`.** After it: mark a lead Won from its page
 > and pick the estimate; the job's Money → Budget shows the "from estimate" lines.
-> **Stage B is on prod (`c1c6539`).** **Stage C (owner command center) is on `main`,
-> not deployed (no migration).** After it: the dashboard's owner strip and the new
-> rows (never contacted, estimates out, delayed, over budget). Next build: **Stage D —
-> overdue control (by person, unowned steps, clean-up) + the lead call list.**
+> **Stages A–C are on prod (`c24bbc0`). Stage D (overdue control + call list) is on
+> `main`, not deployed (no migration).** After the deploy: run
+> `scripts/assign-unowned-steps-2026-10.ts` on prod as a dry run and show Richard who
+> would get which steps; `--yes` only on his word. That completes the four 90-day items
+> Richard chose; MVP 5 (one estimate system, roofing from measurements) and MVP 6
+> (proposal online) are next on the roadmap.
 
 > **Plan takeoff M3 is on prod (`166a362`, BUILD_ID
 > `U90VFCrDknZ6GfCb-zWQr`).** Click-through: a lead

@@ -10,8 +10,11 @@ import { loadSubject, loadSubjectForInstance, type WorkflowSubject } from "./sub
  * Order of resolution: an explicit team slot on the workflow, then the
  * subject's own fields for the roles it already has (a job's project manager
  * and sales rep; a violation case's case manager, and its linked job's PM),
- * then the company-wide default, then nobody — an unassigned task with a
- * warning is more honest than guessing.
+ * then the company-wide default. A role nobody fills falls to whoever
+ * coordinates the subject — the case manager, else the job's project manager
+ * (audit roadmap Stage D, 2026-10-19: unowned steps sat unworked) — and only
+ * with neither is the step left unassigned. The apply dialog still warns
+ * about roles with no owner of their own (`unassignedRoles`).
  */
 
 export { WORKFLOW_ROLES, WORKFLOW_ROLE_LABEL } from "./role-labels";
@@ -25,7 +28,8 @@ export type RoleContext = {
   defaults: Partial<Record<WorkflowRole, string>>;
 };
 
-export function resolveAssignee(role: WorkflowRole, ctx: RoleContext): string | null {
+/** The person who fills the role itself: its team slot, the subject's own field, the company default. */
+export function resolveRoleOwner(role: WorkflowRole, ctx: RoleContext): string | null {
   const slot = ctx.team[role];
   if (slot) return slot;
   if (role === "PROJECT_MANAGER" && ctx.projectManagerId) return ctx.projectManagerId;
@@ -34,10 +38,15 @@ export function resolveAssignee(role: WorkflowRole, ctx: RoleContext): string | 
   return ctx.defaults[role] ?? null;
 }
 
-/** Roles used by the plan that resolve to nobody, in a stable order. */
+/** Who a step for this role goes to: its owner, else the subject's coordinator (case manager, else PM), else nobody. */
+export function resolveAssignee(role: WorkflowRole, ctx: RoleContext): string | null {
+  return resolveRoleOwner(role, ctx) ?? ctx.caseManagerId ?? ctx.projectManagerId ?? null;
+}
+
+/** Roles used by the plan that no one fills themselves (their steps fall to the coordinator), in a stable order. */
 export function unassignedRoles(roles: Iterable<WorkflowRole>, ctx: RoleContext): WorkflowRole[] {
   const used = new Set(roles);
-  return WORKFLOW_ROLES.filter((r) => used.has(r) && resolveAssignee(r, ctx) === null);
+  return WORKFLOW_ROLES.filter((r) => used.has(r) && resolveRoleOwner(r, ctx) === null);
 }
 
 type Db = Prisma.TransactionClient | typeof prisma;
