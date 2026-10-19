@@ -534,6 +534,19 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-18 — First deploy of Stages 2–4 failed: the build ran out of heap
+
+Richard's `!` deploy applied the three migrations (`20261102…`, `20261103…`,
+`20261104…`) and then `next build` died in "Running TypeScript" with
+`JavaScript heap out of memory` at Node's 4 GB default (exit 14). The old
+Stage 1 process kept serving from memory (307 local and public); `.next` had
+no `BUILD_ID`, so a restart would have failed. The schema has grown enough
+that the type-check needs more than 4 GB on the droplet (the Mac has more
+headroom). Fix: `"build": "NODE_OPTIONS=--max-old-space-size=6144 next build"`
+in `package.json` (the droplet has ~9.7 GB free); verified locally. **Lesson:
+a deploy that fails at the build has already applied its migrations — keep
+every migration additive so the running old code survives it.**
+
 ### 2026-10-18 — AI Permit Intelligence, Stage 4: product approvals (built + dev-QA'd, on `main`, not deployed)
 
 "continue to stage 4". Public samples: Miami-Dade NOA 26-0504.06 and
