@@ -94,7 +94,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    ×2, journal clean, backup `postgres-2026-10-19-015915.dump`; the droplet
    reaches the Town of Palm Beach site). **Fillable forms from found
    documents + printed / scanned forms filled — built + dev-QA'd 2026-10-19,
-   on `main`, not deployed (no migration)**: "Make a fillable form" on an
+   deployed 2026-10-19 as `391efe1`** (BUILD_ID `U5IBZ_zSrPTNhnC0nmT4x`, no
+   migration, smoke 307 ×2, journal clean, backup
+   `postgres-2026-10-19-023754.dump`; the page worker renders on the droplet
+   as `knuco`): "Make a fillable form" on an
    assistant item; flat forms' blanks found from the rendered pixels
    (`flat/detect.ts`, own worker process), named by the AI by number, filled
    by printing on the page. Assistant details: migration `20261107120000_permit_assistant`; drop many
@@ -562,7 +565,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-19 — From found documents to filled forms (built + dev-QA'd, on `main`, not deployed)
+### 2026-10-19 — From found documents to filled forms (deployed `391efe1`)
 
 "what happens after docs are identified? are they filled out" → "do both".
 No migration. (1) **Make a fillable form** on a document the assistant found:
@@ -581,6 +584,12 @@ affidavit: $0.66 once, 88 s, 203 + 21 blanks found and labelled, values on
 their lines in Chrome's PDF viewer, the re-roof boxes ticked; API 21/21,
 headless 12/12, SALES_REP 3/3. Details:
 [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+Richard pushed and deployed from `!` (background, 319 s, exit 0): BUILD_ID
+`TLxVz6KDW9VoRZKRR74nA` → `U5IBZ_zSrPTNhnC0nmT4x`, no pending migrations,
+smoke 307 ×2, journal clean, backup `postgres-2026-10-19-023754.dump`. The
+form worker run on the droplet as `knuco` rendered the town's affidavit (2
+pages, PNG + grayscale), so `@napi-rs/canvas` and pdf.js's standard fonts are
+in place.
 
 ### 2026-10-19 — Permit document assistant (deployed `64e3c4d`)
 
@@ -3516,7 +3525,8 @@ Notification Digests).
 > and the open ruling below. **The document assistant is on prod (`64e3c4d`,
 > BUILD_ID `TLxVz6KDW9VoRZKRR74nA`)**; next: Admin → Permits → Jurisdictions → each department's website, then a
 > permit → Documents → Document assistant → Sort documents…. **Filling found
-> forms (fillable and printed) is on `main`, not deployed (no migration)**:
+> forms (fillable and printed) is on prod (`391efe1`, BUILD_ID
+> `U5IBZ_zSrPTNhnC0nmT4x`)**:
 > Make a fillable form → check the filled preview → publish → Forms tab. Stage 3 after it: After it: Admin → Permits → Forms → upload the
 > Palm Beach County universal application (county "Palm Beach", from
 > discover.pbc.gov) → Map with AI → check "Check these" and clear the
