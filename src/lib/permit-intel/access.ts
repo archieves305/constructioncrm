@@ -38,3 +38,12 @@ export function canSendPermitMessage(viewer: Viewer, involved: boolean): boolean
   if (viewer.role === "READ_ONLY" || viewer.role === "CREW_LEAD") return false;
   return viewer.role === "ADMIN" || viewer.role === "MANAGER" || viewer.role === "OFFICE_STAFF" || involved;
 }
+
+/**
+ * The product approval repository: adding an approval, checking its fields
+ * against the document, linking materials. The office roles — the approvals
+ * serve every job. Reading is open to everyone who works permits.
+ */
+export function canManageApprovals(role: RoleName | string | null | undefined): boolean {
+  return role === "ADMIN" || role === "MANAGER" || role === "OFFICE_STAFF";
+}

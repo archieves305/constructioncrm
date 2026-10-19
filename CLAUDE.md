@@ -67,7 +67,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    permit from the records (licences / qualifier records-only, signatures by
    hand), written as editable + flattened PDFs, finalised; parcel number +
    legal description on the lead; the lead PATCH no longer resets defaults or
-   clears the email. Open rulings in the design doc §19. Notes:
+   clears the email. **Stage 4 (product approvals) built + dev-QA'd
+   2026-10-18, on `main`, not deployed**: migration
+   `20261104120000_product_approvals`; FL Product Approvals / Miami-Dade NOAs
+   read by the AI with a page + quote per field and checked by a person
+   (`/permits/products`), linked to roofing materials and to permits (the
+   engineer's required pressures typed in), advisory flags (HVHZ, pressure,
+   expiry, unchecked, not in the documents), the document copied among the
+   permit's files, expiry tasks from the existing permit-aging cron. Open rulings in the design doc §19. Notes:
    [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
    2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
@@ -526,6 +533,31 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-18 — AI Permit Intelligence, Stage 4: product approvals (built + dev-QA'd, on `main`, not deployed)
+
+"continue to stage 4". Public samples: Miami-Dade NOA 26-0504.06 and
+Florida evaluation reports FL 11842.3 R9 and FL5259-R38 (a Florida report
+states no expiry). Migration `20261104120000_product_approvals`
+(`ProductApproval` with its own stored document and per-field evidence,
+`ProductApprovalMaterial`, `PermitProduct` with the engineer's required
+pressures and the document's copy on the permit). Pure `approvals-plan.ts`
+(answer schema, `approvalFromExtraction`, `checkProduct` advisory flags,
+`approvalAlert`); prompt `approval_extract` (Opus 5.5, never infer expiry /
+pressure / HVHZ); service `approvals.ts` (read in `after()`, check, search incl.
+a model name in part, products on a permit, expiry tasks raised from the
+permit-aging cron and settled on change). UI: Permits → Product approvals,
+the approval page (PDF beside the fields with "p. n: quote"), the permit's
+Products tab. Gate: typecheck clean, lint 5/22, 1824 tests (+16), build clean.
+Dev QA ($0.79 in AI): NOA read in 25 s — dates, HVHZ, and the −67.5 psf
+underlayment-only uplift kept out of the design pressure; FL reports with no
+invented expiry; Polyglass 18 models / 52 systems; API 39/39; SALES_REP 6/6;
+headless Chromium 31/31 at 1280 / 400 px; the PDF frame checked in full
+Chromium. Fixed in QA: model search matched whole names only. Dev DB
+restored, QA files removed. Not built: slope / deck compatibility (no
+structured roof slope in the CRM), online verification (decision 9).
+**Deploy carries the migration.** Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 
 ### 2026-10-18 — AI Permit Intelligence, Stage 3: form filling (built + dev-QA'd on `permit-corrections`, on `main`, not deployed)
 
@@ -3288,6 +3320,11 @@ Notification Digests).
   profile, else stay blank; signatures and notary blocks are never filled. A
   template belongs to its exact file and never changes once published (edit =
   next version). A fill is finalised only when no two records disagree.
+- **A product approval's checks are advice** (`lib/permit-intel/approvals-plan.ts`):
+  every flag carries "not an engineering determination"; the CRM never
+  computes a required pressure (a person types the engineer's), never infers
+  an expiry or HVHZ status, and an approval is relied on only once a person
+  has checked its fields against the document (VERIFIED).
 - **Every model call goes through `runAiCall`** (`src/lib/ai/calls.ts`): it is
   recorded as an `AiCall`, held to the per-subject and monthly caps, has no
   tools, and must match a zod schema. Document text goes in through
@@ -3299,18 +3336,19 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **AI Permit Intelligence Stage 3 (form filling) is on `main` with Stage 2,
-> neither deployed; the deploy carries migrations
-> `20261102120000_permit_corrections` and `20261103120000_permit_forms` and the
-> new `pdf-lib` dependency.** After it: Admin → Permits → Forms → upload the
+> **AI Permit Intelligence Stages 2, 3 and 4 are on `main`, none deployed;
+> the deploy carries migrations `20261102120000_permit_corrections`,
+> `20261103120000_permit_forms`, `20261104120000_product_approvals` and the
+> new `pdf-lib` dependency.** Stage 4 after it: Permits → Product approvals →
+> add the NOAs / FL approvals KNU installs, check each, add them on permits'
+> Products tabs. Stage 3 after it: After it: Admin → Permits → Forms → upload the
 > Palm Beach County universal application (county "Palm Beach", from
 > discover.pbc.gov) → Map with AI → check "Check these" and clear the
 > office-use header → Publish; set each Palm Beach County jurisdiction's
 > county; add the qualifier under a permit's Parties; on a permit → Forms →
 > Fill → add the parcel number → Write the PDF → Finalise. Next build:
-> **Stage 4** (product approvals: FL PA / Miami-Dade NOA repository, AI
-> extraction, expiry alerts, compatibility flags) — no samples needed beyond
-> one real NOA and one FL PA PDF, which can be downloaded publicly.
+> **Stage 5** (preflight: deterministic readiness checks, optional AI review,
+> the ready gate).
 
 > **AI Permit Intelligence Stage 2 (corrections) is on `main`, not deployed;
 > the deploy carries migration `20261102120000_permit_corrections`** (no seed,

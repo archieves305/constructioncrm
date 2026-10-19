@@ -506,6 +506,8 @@ model User {
   permitFormsPublished              PermitFormTemplate[]      @relation("PermitFormPublishedBy")
   permitFormFillsCreated            PermitFormFill[]          @relation("PermitFormFillCreatedBy")
   permitFormFillsFinalized          PermitFormFill[]          @relation("PermitFormFillFinalizedBy")
+  productApprovalsCreated           ProductApproval[]         @relation("ApprovalCreatedBy")
+  productApprovalsVerified          ProductApproval[]         @relation("ApprovalVerifiedBy")
   correctionNoticesConfirmed        PermitCorrectionNotice[]  @relation("CorrectionNoticeConfirmedBy")
   permitMessagesCreated             PermitMessage[]           @relation("PermitMessageCreatedBy")
   permitMessagesSent                PermitMessage[]           @relation("PermitMessageSentBy")
@@ -1169,6 +1171,7 @@ model File {
   correctionItemFiles PermitCorrectionItemFile[]
   formFillOutputs     PermitFormFill[]           @relation("FormFillOutput")
   formFillFlattened   PermitFormFill[]           @relation("FormFillFlattened")
+  permitProducts      PermitProduct[]            @relation("PermitProductDocument")
 
   @@index([leadId])
   @@index([jobId])
@@ -1548,6 +1551,7 @@ model JobPermit {
   correctionItems    PermitCorrectionItem[]
   messages           PermitMessage[]
   formFills          PermitFormFill[]
+  products           PermitProduct[]
 
   @@index([jobId])
   @@index([status])
@@ -2828,8 +2832,9 @@ model RoofMaterialItem {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  vendor Vendor?             @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  prices RoofMaterialPrice[]
+  vendor    Vendor?                   @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  approvals ProductApprovalMaterial[]
+  prices    RoofMaterialPrice[]
 
   @@index([category])
   @@index([vendorId])
@@ -6458,4 +6463,124 @@ model PermitFormFill {
 
   @@index([permitId])
   @@map("permit_form_fills")
+}
+
+// ─── Permit Intelligence, Stage 4: product approvals ───────────────────────
+// A Florida Product Approval or a Miami-Dade NOA, kept once and linked to the
+// permits that use it and the roofing materials it covers. The AI reads the
+// document into fields, each with the page and quote it came from; a person
+// checks them against the document. Checks against a permit are advisory —
+// never an engineering determination.
+
+enum ApprovalAuthority {
+  FL_PRODUCT_APPROVAL
+  MIAMI_DADE_NOA
+  OTHER
+}
+
+enum ProductCategory {
+  UNDERLAYMENT
+  ROOF_COVERING
+  ROOF_ASSEMBLY
+  WINDOW
+  EXTERIOR_DOOR
+  GARAGE_DOOR
+  SHUTTER
+  SKYLIGHT
+  OTHER
+}
+
+enum ApprovalReadState {
+  EXTRACTING
+  REVIEW
+  VERIFIED
+  FAILED
+}
+
+model ProductApproval {
+  id                String            @id @default(cuid())
+  authority         ApprovalAuthority @default(OTHER)
+  // "FL11842.3", "26-0504.06" — as printed
+  approvalNumber    String?           @map("approval_number")
+  revision          String?
+  manufacturer      String?
+  productName       String?           @map("product_name")
+  models            String[]
+  category          ProductCategory   @default(OTHER)
+  hvhzApproved      Boolean?          @map("hvhz_approved")
+  nonHvhzApproved   Boolean?          @map("non_hvhz_approved")
+  // psf, as the document states them (negative = uplift)
+  designPressurePos Decimal?          @map("design_pressure_pos") @db.Decimal(7, 2)
+  designPressureNeg Decimal?          @map("design_pressure_neg") @db.Decimal(7, 2)
+  impactRated       Boolean?          @map("impact_rated")
+  limitations       String?           @db.Text
+  // [{ deck, slope, underlayment, fastening, maxDesignPressure }] as summarised from the document
+  configurations    Json?
+  issuedAt          DateTime?         @map("issued_at")
+  expiresAt         DateTime?         @map("expires_at")
+  // { field: { page, quote } } — where the reading found each value
+  evidence          Json?
+  // the document itself, stored once
+  fileName          String            @map("file_name")
+  storageKey        String            @map("storage_key")
+  sha256            String
+  sizeBytes         Int               @map("size_bytes")
+  readState         ApprovalReadState @default(EXTRACTING) @map("read_state")
+  readError         String?           @map("read_error")
+  readStartedAt     DateTime?         @map("read_started_at")
+  attempts          Int               @default(0)
+  aiCallId          String?           @map("ai_call_id")
+  createdByUserId   String            @map("created_by_user_id")
+  verifiedByUserId  String?           @map("verified_by_user_id")
+  verifiedAt        DateTime?         @map("verified_at")
+  isActive          Boolean           @default(true) @map("is_active")
+  notes             String?           @db.Text
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  createdBy  User                      @relation("ApprovalCreatedBy", fields: [createdByUserId], references: [id])
+  verifiedBy User?                     @relation("ApprovalVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  materials  ProductApprovalMaterial[]
+  permits    PermitProduct[]
+
+  @@index([sha256])
+  @@index([approvalNumber])
+  @@index([expiresAt])
+  @@map("product_approvals")
+}
+
+model ProductApprovalMaterial {
+  approvalId         String @map("approval_id")
+  roofMaterialItemId String @map("roof_material_item_id")
+
+  approval ProductApproval  @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  item     RoofMaterialItem @relation(fields: [roofMaterialItemId], references: [id], onDelete: Cascade)
+
+  @@id([approvalId, roofMaterialItemId])
+  @@map("product_approval_materials")
+}
+
+/// A product used on a permit, with the pressures the engineer's wind-load
+/// document requires — entered by a person, never computed.
+model PermitProduct {
+  id                  String   @id @default(cuid())
+  permitId            String   @map("permit_id")
+  approvalId          String   @map("approval_id")
+  // "underlayment", "field tile", "front door"
+  usedAs              String   @default("") @map("used_as")
+  requiredPressurePos Decimal? @map("required_pressure_pos") @db.Decimal(7, 2)
+  requiredPressureNeg Decimal? @map("required_pressure_neg") @db.Decimal(7, 2)
+  notes               String?
+  // The copy of the approval document among the permit's documents, for the package.
+  documentFileId      String?  @map("document_file_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  permit       JobPermit       @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  approval     ProductApproval @relation(fields: [approvalId], references: [id], onDelete: Restrict)
+  documentFile File?           @relation("PermitProductDocument", fields: [documentFileId], references: [id], onDelete: SetNull)
+
+  @@unique([permitId, approvalId, usedAs])
+  @@index([approvalId])
+  @@map("permit_products")
 }
