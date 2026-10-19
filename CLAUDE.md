@@ -60,15 +60,15 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    response letter PDF, outcomes on the next review, "Suggest a type", the
    Permit Library (`/permits/library`, full text). **Deploy carries the
    migration**; no seed, no cron. **Stage 3 (form filling) built + dev-QA'd
-   2026-10-18 on `permit-corrections`, fast-forwarded to `main`, not
-   deployed**: migration `20261103120000_permit_forms` + `pdf-lib`; the Palm
+   2026-10-18 on `permit-corrections`, fast-forwarded to `main`, deployed
+   2026-10-18 as `da551cc`**: migration `20261103120000_permit_forms` + `pdf-lib`; the Palm
    Beach County universal application (fillable, 132 fields) mapped by the AI
    ($0.20), checked and published under Admin → Permits → Forms, filled per
    permit from the records (licences / qualifier records-only, signatures by
    hand), written as editable + flattened PDFs, finalised; parcel number +
    legal description on the lead; the lead PATCH no longer resets defaults or
    clears the email. **Stage 4 (product approvals) built + dev-QA'd
-   2026-10-18, on `main`, not deployed**: migration
+   2026-10-18, on `main`, deployed 2026-10-18 as `da551cc`**: migration
    `20261104120000_product_approvals`; FL Product Approvals / Miami-Dade NOAs
    read by the AI with a page + quote per field and checked by a person
    (`/permits/products`), linked to roofing materials and to permits (the
@@ -534,7 +534,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-18 — First deploy of Stages 2–4 failed: the build ran out of heap
+### 2026-10-18 — Stages 2–4 deployed (`da551cc`) after a first attempt ran out of heap
 
 Richard's `!` deploy applied the three migrations (`20261102…`, `20261103…`,
 `20261104…`) and then `next build` died in "Running TypeScript" with
@@ -543,7 +543,13 @@ Stage 1 process kept serving from memory (307 local and public); `.next` had
 no `BUILD_ID`, so a restart would have failed. The schema has grown enough
 that the type-check needs more than 4 GB on the droplet (the Mac has more
 headroom). Fix: `"build": "NODE_OPTIONS=--max-old-space-size=6144 next build"`
-in `package.json` (the droplet has ~9.7 GB free); verified locally. **Lesson:
+in `package.json` (the droplet has ~9.7 GB free); verified locally. Richard
+re-ran the deploy from `!` (background, 312 s, exit 0): BUILD_ID → `6KAPwvK3Td9KNoioZBmQr`,
+`.deploy-sha` `da551cc`, the three migrations recorded, smoke 307 (local and
+public, `/permits/products`, `/permits/library`, `/admin/permits`), zero
+journal errors, backup `postgres-2026-10-19-002128.dump`; `files.search_vector`
+generated (101 files indexed by name), `pdf-lib` installed, the permit-aging
+cron run by hand → `approvalsExpiring: 0`, 200. **Lesson:
 a deploy that fails at the build has already applied its migrations — keep
 every migration additive so the running old code survives it.**
 
@@ -3349,10 +3355,8 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **AI Permit Intelligence Stages 2, 3 and 4 are on `main`, none deployed;
-> the deploy carries migrations `20261102120000_permit_corrections`,
-> `20261103120000_permit_forms`, `20261104120000_product_approvals` and the
-> new `pdf-lib` dependency.** Stage 4 after it: Permits → Product approvals →
+> **AI Permit Intelligence Stages 2, 3 and 4 are on prod (`da551cc`, BUILD_ID
+> `6KAPwvK3Td9KNoioZBmQr`, 2026-10-19 00:26 UTC).** Stage 4 after it: Permits → Product approvals →
 > add the NOAs / FL approvals KNU installs, check each, add them on permits'
 > Products tabs. Stage 3 after it: After it: Admin → Permits → Forms → upload the
 > Palm Beach County universal application (county "Palm Beach", from
