@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { canDecideChangeOrder } from "@/lib/access/roles";
 import { validateBody } from "@/lib/validation/body";
+import { recordAudit } from "@/lib/audit/record";
 import { decideChangeOrderById } from "@/lib/services/change-orders";
 
 const schema = z.object({
@@ -36,6 +37,7 @@ export async function POST(
     v.data.decision,
     name,
     v.data.reason,
+    session.user.id,
   );
 
   if (!result.ok) {
@@ -48,5 +50,12 @@ export async function POST(
     return NextResponse.json({ error: result.reason }, { status });
   }
 
+  await recordAudit({
+    actorUserId: session.user.id,
+    entityType: "change_order",
+    entityId: id,
+    action: "change_order_decision",
+    after: { decision: v.data.decision, name, reason: v.data.reason ?? null, billing: result.ok ? (result as { billing?: string }).billing ?? null : null },
+  });
   return NextResponse.json(result);
 }

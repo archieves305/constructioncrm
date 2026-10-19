@@ -9,6 +9,7 @@ import {
   updateApplication,
 } from "@/lib/services/progress-billing";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
+import { recordAudit } from "@/lib/audit/record";
 
 const updateSchema = z.object({
   retainagePercent: z.number().min(0).max(100).optional(),
@@ -41,7 +42,7 @@ export async function PATCH(
 
   const existing = await prisma.invoice.findUnique({
     where: { id },
-    select: { applicationNumber: true, status: true },
+    select: { applicationNumber: true, status: true, amount: true, dueDate: true, notes: true, _count: { select: { payments: true } } },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -63,8 +64,15 @@ export async function PATCH(
           { status: result.reason === "not_found" ? 404 : 400 },
         );
     }
+  } else if (parsed.data.amount !== undefined && Number(parsed.data.amount) !== Number(existing.amount) && (existing.status === "SENT" || existing.status === "PAID")) {
+    // What the customer was sent is a record: a different amount is a new invoice.
+    return badRequest("A sent invoice's amount is fixed. Void it and issue a new one.");
   } else if (parsed.data.lines !== undefined || parsed.data.periodTo !== undefined || parsed.data.retainagePercent !== undefined) {
     return badRequest("Only a payment application has a period and lines");
+  }
+
+  if (parsed.data.status === "VOID" && existing.status !== "VOID" && existing._count.payments > 0) {
+    return badRequest("Payments are recorded against this invoice. Move or delete them before voiding it.");
   }
 
   const data: Record<string, unknown> = {};
@@ -78,6 +86,15 @@ export async function PATCH(
     .update({ where: { id }, data })
     .catch(() => null);
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await recordAudit({
+    actorUserId: session.user.id,
+    entityType: "invoice",
+    entityId: id,
+    action: "invoice_update",
+    before: { status: existing.status, amount: Number(existing.amount), dueDate: existing.dueDate, notes: existing.notes },
+    after: parsed.data,
+  });
 
   // A manual status change raises or retires the collect-payment task.
   if (parsed.data.status !== undefined && parsed.data.status !== existing.status) {

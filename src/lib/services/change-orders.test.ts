@@ -10,6 +10,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const co = {
   findUnique: vi.fn(),
   update: vi.fn(),
+  // the claim each decision makes inside its transaction (count 0 = someone decided first)
+  updateMany: vi.fn(async () => ({ count: 1 })),
   delete: vi.fn(),
 };
 const invoice = { create: vi.fn(), delete: vi.fn() };
@@ -117,6 +119,21 @@ describe("approve on a LUMP_SUM job", () => {
     expect(sovLine.create).not.toHaveBeenCalled();
     expect(co.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ invoiceId: "inv1" }) }));
     expect(ensureAutoTask).toHaveBeenCalledWith({ kind: "invoice.sent", invoiceId: "inv1" }, "u1");
+  });
+
+  it("records the person who decided internally, not the change order's author", async () => {
+    co.findUnique.mockResolvedValue(changeOrder("LUMP_SUM"));
+    await decideChangeOrderById("co1", "APPROVE", "Ann Owner", null, "staff-9");
+    expect(activityLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ createdByUserId: "staff-9" }) }));
+  });
+
+  it("a second approval that loses the race bills nothing", async () => {
+    co.findUnique.mockResolvedValue(changeOrder("LUMP_SUM"));
+    co.updateMany.mockResolvedValueOnce({ count: 0 });
+    const result = await decideChangeOrderById("co1", "APPROVE", "Ann Owner");
+    expect(result).toEqual({ ok: false, reason: "already_decided" });
+    expect(invoice.create).not.toHaveBeenCalled();
+    expect(recomputeJobBalance).not.toHaveBeenCalled();
   });
 });
 

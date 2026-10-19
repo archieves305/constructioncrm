@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchJson } from "@/lib/fetch-json";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,14 +51,14 @@ export function JobPersonnelScopePanel({ jobId }: { jobId: string }) {
   const [payType, setPayType] = useState(INHERIT);
   const [workDescription, setWorkDescription] = useState("");
 
-  const { data: scopes = [] } = useQuery<ScopeRow[]>({
+  const { data: scopes = [], isError: scopesRefused } = useQuery<ScopeRow[]>({
     queryKey: ["job-personnel-scope", jobId],
-    queryFn: () => fetch(`/api/jobs/${jobId}/personnel-scope`).then((r) => r.json()),
+    queryFn: () => fetchJson<ScopeRow[]>(`/api/jobs/${jobId}/personnel-scope`),
   });
 
-  const { data: roster = [] } = useQuery<Person[]>({
+  const { data: roster = [], isError: rosterRefused } = useQuery<Person[]>({
     queryKey: ["personnel", "scope-picker"],
-    queryFn: () => fetch("/api/personnel?activeOnly=true").then((r) => r.json()),
+    queryFn: () => fetchJson<Person[]>("/api/personnel?activeOnly=true"),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -92,6 +93,9 @@ export function JobPersonnelScopePanel({ jobId }: { jobId: string }) {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Pay and scope per person are for roles that may read personnel; for anyone else the section is left out.
+  if (scopesRefused || rosterRefused) return null;
 
   return (
     <Card>

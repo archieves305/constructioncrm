@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { guardCanvassing } from "@/lib/access/records";
 import { zylowErrorResponse } from "@/lib/services/zylow/http";
 import { getOrEnrich } from "@/lib/services/canvassing/repository";
 
@@ -10,6 +11,8 @@ export async function POST(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardCanvassing(session.user);
+  if (denied) return denied;
 
   const { reapiId } = await params;
   const canvasserName =

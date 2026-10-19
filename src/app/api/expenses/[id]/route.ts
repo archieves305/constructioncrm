@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { deleteExpense } from "@/lib/expenses/delete";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { recordAudit } from "@/lib/audit/record";
+import { canManageJobMoney } from "@/lib/money/access";
 import {
   canDeleteExpense,
   canEnterJobCosts,
@@ -90,6 +92,13 @@ export async function PATCH(
   // sides of the delta — which makes editing a pending charge automatically
   // free of ledger effects, with no special case.
   const counts = existing.status === "APPROVED";
+  // An approved charge already moves the job's numbers: its amount, date,
+  // type and billable flag are changed by the money roles only, never by the
+  // cost-entry grant alone.
+  const touchesMoney = ["amount", "billable", "type", "incurredDate"].some((k) => (parsed.data as Record<string, unknown>)[k] !== undefined);
+  if (counts && touchesMoney && !canManageJobMoney(session.user.role)) {
+    return NextResponse.json({ error: "An approved charge is changed by an admin, a manager or office staff." }, { status: 403 });
+  }
   const prevBillableAmount = counts && prevBillable ? prevAmount : 0;
   const nextBillableAmount = counts && nextBillable ? nextAmount : 0;
   const delta = isCostPlus ? 0 : nextBillableAmount - prevBillableAmount;
@@ -138,6 +147,15 @@ export async function PATCH(
         ]
       : []),
   ]);
+
+  await recordAudit({
+    actorUserId: session.user.id,
+    entityType: "job_expense",
+    entityId: id,
+    action: "expense_update",
+    before: Object.fromEntries(Object.keys(data).map((k) => [k, (existing as Record<string, unknown>)[k] ?? null])),
+    after: { ...data, status: existing.status, jobId: existing.jobId, contractDelta: delta },
+  });
 
   // balanceDue is derived — recompute it via the single writer. Rollup jobs
   // recompute only when this row actually feeds the contract; an edit to a

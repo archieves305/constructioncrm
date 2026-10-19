@@ -320,14 +320,26 @@ export function LeadEstimatesPanel({
                       <Building2 className="mr-1 h-3.5 w-3.5" />
                       Internal PDF
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => editGeneric(est.id)}
-                    >
-                      <Pencil className="mr-1 h-3.5 w-3.5" />
-                      Edit
-                    </Button>
+                    {est.status === "ACCEPTED" ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        title="An accepted estimate is kept as it was accepted; a revision is a new draft"
+                        onClick={() => { setDialogMode({ kind: "revise", estimateId: est.id }); setDialogOpen(true); }}
+                      >
+                        <Pencil className="mr-1 h-3.5 w-3.5" />
+                        Revise
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => editGeneric(est.id)}
+                      >
+                        <Pencil className="mr-1 h-3.5 w-3.5" />
+                        Edit
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => setTaskFor(est)}>
                       <ListChecks className="mr-1 h-3.5 w-3.5" />
                       Add task

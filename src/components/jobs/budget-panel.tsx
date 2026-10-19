@@ -151,11 +151,12 @@ export function BudgetPanel({
         const err = await res.json().catch(() => ({ error: "Import failed" }));
         throw new Error(err.error || "Import failed");
       }
-      return res.json() as Promise<{ count: number }>;
+      return res.json() as Promise<{ count: number; kept: number; created: number; removed: number; removedAllocations: number }>;
     },
     onSuccess: (r) => {
       invalidateAll();
-      toast.success(`Imported ${r.count} budget line${r.count === 1 ? "" : "s"}`);
+      const parts = [r.kept ? `${r.kept} kept` : null, r.created ? `${r.created} added` : null, r.removed ? `${r.removed} removed${r.removedAllocations ? ` (${r.removedAllocations} allocation${r.removedAllocations === 1 ? "" : "s"} with them)` : ""}` : null].filter(Boolean);
+      toast.success(`Imported ${r.count} budget line${r.count === 1 ? "" : "s"}${parts.length ? ` — ${parts.join(", ")}` : ""}`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -164,7 +165,7 @@ export function BudgetPanel({
     if (
       lines.length > 0 &&
       !confirm(
-        "Uploading replaces the current budget and clears its allocations. Continue?",
+        "Uploading makes the file the budget. Lines still in it keep their allocations; lines not in it are removed with theirs. Continue?",
       )
     ) {
       if (fileRef.current) fileRef.current.value = "";

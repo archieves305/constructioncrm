@@ -215,6 +215,19 @@ export type DecisionResult =
 
 type DecisionSource = "customer" | "internal";
 
+/** A second decision that lost the race for the same change order. */
+class AlreadyDecided extends Error {}
+
+/**
+ * Take the change order for this decision inside its transaction. The update
+ * waits on the row, so when a customer's approval and an internal one land
+ * together the second finds it decided and changes nothing.
+ */
+async function claimForDecision(tx: Prisma.TransactionClient, id: string): Promise<void> {
+  const claimed = await tx.changeOrder.updateMany({ where: { id, status: { in: ["DRAFT", "SENT"] } }, data: { decidedAt: new Date() } });
+  if (claimed.count === 0) throw new AlreadyDecided();
+}
+
 /**
  * Apply a customer's decision via the emailed no-login link. Requires the change
  * order to be SENT and the token unexpired. Idempotent: re-submitting after a
@@ -251,6 +264,7 @@ export async function decideChangeOrderById(
   decision: "APPROVE" | "REJECT",
   name: string,
   reason?: string | null,
+  actorUserId?: string | null,
 ): Promise<DecisionResult> {
   const co = await getChangeOrderById(id);
   if (!co) return { ok: false, reason: "not_found" };
@@ -258,7 +272,7 @@ export async function decideChangeOrderById(
     return { ok: false, reason: "already_decided" };
   if (co.status === "VOID") return { ok: false, reason: "not_found" };
 
-  return applyDecision(co, decision, name, null, reason, "internal");
+  return applyDecision(co, decision, name, null, reason, "internal", actorUserId ?? null);
 }
 
 export type DeleteResult =
@@ -411,11 +425,33 @@ async function applyDecision(
   ip: string | null,
   reason: string | null | undefined,
   source: DecisionSource,
+  actorUserId: string | null = null,
 ): Promise<DecisionResult> {
   const by = source === "internal" ? "internally" : "by customer";
+  // Who the activity is recorded under: the person who decided, else (the customer's link has no session) the CO's author.
+  const actor = actorUserId ?? co.createdByUserId;
+  try {
+    return await applyDecisionClaimed(co, decision, name, ip, reason, source, by, actor);
+  } catch (err) {
+    if (err instanceof AlreadyDecided) return { ok: false, reason: "already_decided" };
+    throw err;
+  }
+}
+
+async function applyDecisionClaimed(
+  co: ChangeOrderWithContext,
+  decision: "APPROVE" | "REJECT",
+  name: string,
+  ip: string | null,
+  reason: string | null | undefined,
+  source: DecisionSource,
+  by: string,
+  actor: string,
+): Promise<DecisionResult> {
 
   if (decision === "REJECT") {
     await prisma.$transaction(async (tx) => {
+      await claimForDecision(tx, co.id);
       await tx.changeOrder.update({
         where: { id: co.id },
         data: {
@@ -432,14 +468,14 @@ async function applyDecision(
           activityType: "NOTE",
           title: `Change order CO-${co.number} rejected ${by}`,
           description: `${name}${reason?.trim() ? `: ${reason.trim()}` : ""}`,
-          createdByUserId: co.createdByUserId,
+          createdByUserId: actor,
         },
       });
     });
     runAfterResponse(
       () =>
         closeAutoTask(sourceKeyFor({ kind: "change-order.sent", changeOrderId: co.id }), {
-          actorUserId: source === "internal" ? co.createdByUserId : null,
+          actorUserId: source === "internal" ? actor : null,
           outcome: "CANCELLED",
           because: `rejected ${by}`,
         }).then(() => undefined),
@@ -457,6 +493,7 @@ async function applyDecision(
   const isProgress = co.job.billingMethod === "PROGRESS";
 
   const result = await prisma.$transaction(async (tx) => {
+    await claimForDecision(tx, co.id);
     // 1. Crew-side cost delta (keeps internal labor rollup correct).
     let laborChangeOrderId: string | null = null;
     if (crewCost != null && co.laborContractId) {
@@ -545,7 +582,7 @@ async function applyDecision(
         activityType: "NOTE",
         title: `Change order CO-${co.number} approved ${by}`,
         description: `${name} approved ${money(customerPrice)}. ${billedAs}`,
-        createdByUserId: co.createdByUserId,
+        createdByUserId: actor,
       },
     });
 
@@ -564,12 +601,12 @@ async function applyDecision(
   runAfterResponse(
     async () => {
       await closeAutoTask(sourceKeyFor({ kind: "change-order.sent", changeOrderId: co.id }), {
-        actorUserId: source === "internal" ? co.createdByUserId : null,
+        actorUserId: source === "internal" ? actor : null,
         outcome: "COMPLETED",
         because: `approved ${by}`,
       });
       if (result.invoiceId) {
-        await ensureAutoTask({ kind: "invoice.sent", invoiceId: result.invoiceId }, co.createdByUserId);
+        await ensureAutoTask({ kind: "invoice.sent", invoiceId: result.invoiceId }, actor);
       }
     },
     { where: "change-orders.approve", changeOrderId: co.id },

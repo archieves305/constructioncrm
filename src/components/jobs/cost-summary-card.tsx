@@ -10,8 +10,9 @@ import type { CostSummary } from "@/lib/jobs/cost-summary";
 const money = (n: number) => { const r = Math.round(n); return `${r < 0 ? "-" : ""}$${Math.abs(r).toLocaleString("en-US")}`; };
 const pct = (f: number) => `${(f * 100).toFixed(1)}%`;
 
-export function useJobCostSummary(jobId: string) {
+export function useJobCostSummary(jobId: string, enabled = true) {
   return useQuery<CostSummary>({
+    enabled,
     // Under ["job", id]: payments, expenses, labor and contract changes all invalidate the job.
     queryKey: ["job", jobId, "cost-summary"],
     queryFn: () => fetchJson<CostSummary>(`/api/jobs/${jobId}/cost-summary`),

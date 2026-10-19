@@ -13,7 +13,7 @@ import {
   recomputeJobBalance,
   rollsExpensesIntoContract,
 } from "@/lib/services/job-pricing";
-import { guardJob } from "@/lib/access/records";
+import { guardJobMoney } from "@/lib/access/records";
 import { fileExists } from "@/lib/files/storage";
 import { resolveVendorId } from "@/lib/vendors/service";
 import { autoCommitmentId } from "@/lib/vendors/commitment-service";
@@ -57,7 +57,7 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const denied = await guardJob(session.user, id, "read");
+  const denied = await guardJobMoney(session.user, id, "full");
   if (denied) return denied;
   const expenses = await prisma.jobExpense.findMany({
     where: { jobId: id },

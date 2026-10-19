@@ -6,7 +6,7 @@ import { complianceForVendors, summarise } from "@/lib/vendors/compliance-load";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { recomputeJobLabor } from "@/lib/services/job-pricing";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
-import { guardJob } from "@/lib/access/records";
+import { guardJobMoney } from "@/lib/access/records";
 import { PHOTO_SELECT, withPresentedPhotos } from "@/lib/files/list";
 
 const createSchema = z
@@ -28,7 +28,7 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const denied = await guardJob(session.user, id, "read");
+  const denied = await guardJobMoney(session.user, id, "full");
   if (denied) return denied;
   const contracts = await prisma.laborContract.findMany({
     where: { jobId: id },

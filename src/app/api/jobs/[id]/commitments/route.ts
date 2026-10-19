@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
-import { guardJob } from "@/lib/access/records";
+import { guardJobMoney } from "@/lib/access/records";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 import { validateBody } from "@/lib/validation/body";
 import { createCommitment, listJobCommitments } from "@/lib/vendors/commitment-service";
@@ -21,7 +21,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id } = await context.params;
-  const denied = await guardJob(session.user, id, "read");
+  const denied = await guardJobMoney(session.user, id, "full");
   if (denied) return denied;
   return NextResponse.json({ ...(await listJobCommitments(id)), canManage: canManageJobMoney(session.user.role) });
 }

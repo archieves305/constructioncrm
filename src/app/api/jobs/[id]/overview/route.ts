@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
-import { guardJob } from "@/lib/access/records";
-import { loadJobOverview } from "@/lib/jobs/overview";
+import { guardJob, jobMoneyViewFor } from "@/lib/access/records";
+import { loadJobOverview, redactOverview } from "@/lib/jobs/overview";
 
 // GET /api/jobs/[id]/overview — the job's state on one screen.
 export async function GET(
@@ -16,6 +16,7 @@ export async function GET(
   if (denied) return denied;
 
   const overview = await loadJobOverview(id);
-  if (!overview) return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  return NextResponse.json(overview);
+  const view = await jobMoneyViewFor(session.user, id);
+  if (!overview || !view) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  return NextResponse.json(redactOverview(overview, view));
 }

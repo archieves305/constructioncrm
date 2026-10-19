@@ -78,7 +78,6 @@ export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: session } = useSession();
-  const { data: costSummary } = useJobCostSummary(id);
   const canEditRecord = canEditJobRecord(session?.user.role);
   const moneyViewOnly = Boolean(session?.user) && !canManageJobMoney(session?.user.role);
   const qc = useQueryClient();
@@ -110,6 +109,10 @@ export default function JobDetailPage() {
     retry: retryServerErrors,
   });
 
+  // What of the job's money this viewer may see: the route trims the record to it (lib/money/redact.ts).
+  const moneyView: "full" | "price" | "none" = job?.moneyView ?? "full";
+  const { data: costSummary } = useJobCostSummary(id, Boolean(job) && moneyView === "full");
+
   const { data: stages } = useQuery({
     queryKey: ["jobStages"],
     queryFn: () => fetchJson("/api/jobs/stages"),
@@ -128,7 +131,7 @@ export default function JobDetailPage() {
   const { data: budgetLines = [] } = useQuery<{ amount: string }[]>({
     queryKey: ["budget", id],
     queryFn: () => fetchJson(`/api/jobs/${id}/budget`),
-    enabled: Boolean(job),
+    enabled: Boolean(job) && moneyView === "full",
   });
   const totalBudget = budgetLines.reduce((s, l) => s + Number(l.amount), 0);
 
@@ -290,8 +293,8 @@ export default function JobDetailPage() {
         )}
       </EntityHeader>
 
-      {/* Financial summary cards */}
-      {job.jobType === "OWNED_REHAB" ? (
+      {/* Financial summary cards — the cost cards only for a full money view, none at all without one */}
+      {moneyView === "none" || (job.jobType === "OWNED_REHAB" && moneyView !== "full") ? null : job.jobType === "OWNED_REHAB" ? (
         <div className={`grid gap-4 mb-6 ${totalBudget > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
           <Card>
             <CardContent className="pt-4">
@@ -456,7 +459,7 @@ export default function JobDetailPage() {
             </Callout>
           )}
           {(() => {
-            const MONEY = [
+            const MONEY_ALL = [
               { value: "estimates", label: "Estimates" },
               { value: "takeoff", label: "Plan takeoff" },
               { value: "payments", label: `Payments (${job.payments?.length || 0})` },
@@ -467,19 +470,25 @@ export default function JobDetailPage() {
               { value: "budget", label: "Budget" },
               { value: "commitments", label: "Commitments" },
             ];
-            const FIELD = [
+            // Cost panels (expenses, budget, commitments, crew labor) only for a full money view.
+            const COST_PANELS = new Set(["expenses", "budget", "commitments", "labor"]);
+            const MONEY = moneyView === "full" ? MONEY_ALL : MONEY_ALL.filter((m) => !COST_PANELS.has(m.value));
+            const moneyDefault = MONEY.some((m) => m.value === moneyNext.panel) ? moneyNext.panel : MONEY[0].value;
+            const FIELD_ALL = [
               { value: "labor", label: "Labor" },
               { value: "crews", label: "Crews" },
               { value: "daily-logs", label: "Daily logs" },
               { value: "photos", label: "Photos" },
             ];
+            const FIELD = moneyView === "full" ? FIELD_ALL : FIELD_ALL.filter((f) => !COST_PANELS.has(f.value));
             const overdueTasks = jobTasks.filter(
               (t) => isPastDue(t.dueAt, t.allDay) && t.status !== "COMPLETED" && t.status !== "CANCELLED",
             ).length;
-            const group = tab;
+            // A link into Money from someone who sees none of it lands on the overview.
+            const group = moneyView === "none" && tab === "money" ? "overview" : tab;
             const panel =
-              group === "money" ? (MONEY.some((m) => m.value === sub) ? sub : moneyNext.panel)
-              : group === "field" ? (FIELD.some((f) => f.value === sub) ? sub : "labor")
+              group === "money" ? (MONEY.some((m) => m.value === sub) ? sub : moneyDefault)
+              : group === "field" ? (FIELD.some((f) => f.value === sub) ? sub : FIELD[0].value)
               : group;
             const count = (n: number, tone?: "danger") => (
               <span className={`ml-1 rounded-full px-1.5 text-[11px] tabular-nums ${tone === "danger" ? "bg-tone-danger-soft text-tone-danger-fg" : "bg-gray-100 text-gray-600"}`}>{n}</span>
@@ -505,7 +514,7 @@ export default function JobDetailPage() {
                       </>
                     ),
                   },
-                  { value: "money", label: "Money" },
+                  ...(moneyView === "none" ? [] : [{ value: "money", label: "Money" }]),
                   { value: "field", label: "Field" },
                   { value: "permits", label: <>Permits{count(job.permits?.length || 0)}</> },
                   { value: "tasks", label: <>Tasks{overdueTasks > 0 ? count(overdueTasks, "danger") : count(jobTasks.length)}</> },
@@ -516,7 +525,7 @@ export default function JobDetailPage() {
                   <button
                     key={g.value}
                     type="button"
-                    onClick={() => setTab(g.value, g.value === "money" ? (MONEY.some((m) => m.value === sub) ? sub : moneyNext.panel) : g.value === "field" ? (FIELD.some((f) => f.value === sub) ? sub : "labor") : undefined)}
+                    onClick={() => setTab(g.value, g.value === "money" ? (MONEY.some((m) => m.value === sub) ? sub : moneyDefault) : g.value === "field" ? (FIELD.some((f) => f.value === sub) ? sub : FIELD[0].value) : undefined)}
                     className={`-mb-px inline-flex h-9 items-center border-b-2 px-3 text-sm font-medium transition-colors ${
                       group === g.value ? "border-brand text-gray-900" : "border-transparent text-gray-500 hover:text-gray-900"
                     }`}
@@ -538,7 +547,7 @@ export default function JobDetailPage() {
               ))}
             </TabsList>
 
-            {group === "money" && (
+            {group === "money" && moneyView === "full" && (
               <CostSummaryCard
                 jobId={id}
                 onOpenBudget={() => setTab("money", "budget")}

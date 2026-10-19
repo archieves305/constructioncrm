@@ -1,3 +1,4 @@
+import type { JobMoneyView } from "@/lib/money/access";
 import { prisma } from "@/lib/db/prisma";
 import { isPastDue } from "@/lib/calendar/status";
 import { APP_TIME_ZONE, dayKey, diffDayKeys, addDayKeys, endOfDayIn } from "@/lib/time/zone";
@@ -370,7 +371,43 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
   };
 }
 
-export type JobOverview = NonNullable<Awaited<ReturnType<typeof loadJobOverview>>>;
+type FullOverview = NonNullable<Awaited<ReturnType<typeof loadJobOverview>>>;
+
+/** Timeline kinds that show cost (an expense, crew pay) and those that show any money at all. */
+const COST_EVENTS = new Set<string>(["expense", "labor_payment"]);
+const MONEY_EVENTS = new Set<string>(["payment", "expense", "labor_payment", "invoice", "change_order", "contract"]);
+
+/**
+ * The overview trimmed to the viewer's money view (`jobMoneyView`). Pure.
+ * "price" keeps what the customer pays and drops cost, profit and crew pay;
+ * "none" drops the money block and every money event.
+ */
+export function redactOverview(o: FullOverview, view: JobMoneyView) {
+  const money: Omit<FullOverview["money"], "cost" | "costBreakdown" | "estimatedCost" | "projectedProfit" | "projectedMargin" | "profit" | "margin"> & {
+    cost: number | null;
+    costBreakdown: FullOverview["money"]["costBreakdown"] | null;
+    estimatedCost: number | null;
+    projectedProfit: number | null;
+    projectedMargin: number | null;
+    profit: number | null;
+    margin: number | null;
+  } | null =
+    view === "none"
+      ? null
+      : view === "price"
+        ? { ...o.money, cost: null, costBreakdown: null, profit: null, margin: null, estimatedCost: null, projectedProfit: null, projectedMargin: null, committedOpen: 0, commitmentsOpen: 0, overBudgetBy: 0, pendingExpenses: { count: 0, total: 0 } }
+        : o.money;
+  const hidden = view === "none" ? MONEY_EVENTS : view === "price" ? COST_EVENTS : null;
+  return {
+    ...o,
+    moneyView: view,
+    money,
+    field: view === "full" ? o.field : { ...o.field, crewPaymentRequests: { count: 0, total: 0 } },
+    timeline: hidden ? o.timeline.filter((e) => !hidden.has(e.kind)) : o.timeline,
+  };
+}
+
+export type JobOverview = ReturnType<typeof redactOverview>;
 
 function humanize(s: string): string {
   const t = s.replace(/_/g, " ").toLowerCase();

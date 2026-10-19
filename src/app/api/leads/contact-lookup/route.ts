@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { forbidden, getSession, unauthorized } from "@/lib/auth/helpers";
+import { canWriteLeads } from "@/lib/access/roles";
+import { leadAccessWhere } from "@/lib/access/records";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  // The lookup offers an existing customer's contact details: lead-writing roles
+  // only, and an own-only role sees only the leads its lists show.
+  if (!canWriteLeads(session.user.role)) return forbidden();
 
   const { searchParams } = request.nextUrl;
   const phoneRaw = searchParams.get("phone")?.trim() || "";
@@ -28,7 +33,7 @@ export async function GET(request: NextRequest) {
   }
 
   const leads = await prisma.lead.findMany({
-    where: { OR: orClauses },
+    where: { AND: [{ OR: orClauses }, leadAccessWhere(session.user)] },
     select: {
       id: true,
       firstName: true,

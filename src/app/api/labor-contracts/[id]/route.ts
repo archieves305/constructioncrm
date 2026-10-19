@@ -5,6 +5,7 @@ import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { recomputeJobLabor } from "@/lib/services/job-pricing";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 import { releaseCoveredExpenses } from "@/lib/expenses/labor-cover";
+import { recordAudit } from "@/lib/audit/record";
 
 const updateSchema = z.object({
   crewId: z.string().nullable().optional(),
@@ -48,7 +49,7 @@ export async function PATCH(
 
   const existing = await prisma.laborContract.findUnique({
     where: { id },
-    select: { id: true, jobId: true, crewId: true },
+    select: { id: true, jobId: true, crewId: true, label: true, contractAmount: true, retainagePercent: true, vendorId: true },
   });
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -101,6 +102,14 @@ export async function PATCH(
   }
 
   await prisma.laborContract.update({ where: { id }, data });
+  await recordAudit({
+    actorUserId: session.user.id,
+    entityType: "labor_contract",
+    entityId: id,
+    action: "labor_contract_update",
+    before: Object.fromEntries(Object.keys(data).map((k) => [k, (existing as Record<string, unknown>)[k] ?? null])),
+    after: { ...data, jobId: existing.jobId },
+  });
   await recomputeJobLabor(existing.jobId);
 
   const record = await prisma.laborContract.findUnique({
@@ -126,7 +135,7 @@ export async function DELETE(
   const { id } = await context.params;
   const existing = await prisma.laborContract.findUnique({
     where: { id },
-    select: { jobId: true },
+    select: { jobId: true, label: true, contractAmount: true, crewId: true, _count: { select: { payments: true } } },
   });
   if (!existing)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -135,6 +144,13 @@ export async function DELETE(
   const payments = await prisma.laborPayment.findMany({ where: { laborContractId: id }, select: { id: true } });
   await releaseCoveredExpenses(payments.map((p) => p.id), session.user.id);
   await prisma.laborContract.delete({ where: { id } });
+  await recordAudit({
+    actorUserId: session.user.id,
+    entityType: "labor_contract",
+    entityId: id,
+    action: "labor_contract_delete",
+    before: { jobId: existing.jobId, label: existing.label, contractAmount: Number(existing.contractAmount), crewId: existing.crewId, payments: existing._count.payments },
+  });
   await recomputeJobLabor(existing.jobId);
 
   return NextResponse.json({ ok: true });

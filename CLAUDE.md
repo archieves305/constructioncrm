@@ -571,6 +571,41 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-19 — Audit roadmap Stage A: security + money-integrity repairs (built + dev-QA'd on `repairs-a`, not deployed)
+
+Richard took the audit's first four 90-day items, each deployed after QA;
+rulings: job money = office roles + READ_ONLY + the job's PM in full, sales
+reps the price only, crew leads and marketing none; the Won dialog will pick
+the estimate. **0.1** `web-fetch.ts`: IPv6 read group by group (`v6Groups`),
+every IPv4-carrying IPv6 form refused (mapped, compatible, NAT64, 6to4,
+Teredo), bare-IP links refused. **0.2** `jobMoneyView` + `guardJobMoney`
+(`lib/money/access.ts`, `lib/access/records.ts`) on the job money GETs
+(cost: budget, cost-summary, commitments, expenses, labor contracts + their
+tasks / documents, labor CO documents; price: invoices, payments, change
+orders, billing, invoice PDF, payment receipt); `redactJobMoney` on the job
+GET and `redactOverview` on the overview; the job page hides cost panels /
+the Money group by `moneyView`; contact lookup lead-writers + own scope;
+canvassing + door-knock routes guarded (`guardCanvassing`,
+`guardDoorKnockRoute`, rep list scoped the same); field-assignments, nurture
+card, reviews, intake, response times, follow-up rules read guarded;
+referrals / personnel / field-logs pages show the refusal instead of
+crashing; the Crews tab's personnel section hides itself when refused (it
+crashed for a rep). New `src/app/api/route-guards.test.ts` fails on any
+session-only handler not on its reviewed list. **0.3** approved-expense
+money fields → money roles only, every expense edit audited; a sent / paid
+invoice's amount fixed, a paid invoice not voided, invoice edits audited;
+change-order decisions claim the row in their transaction
+(`claimForDecision`, a lost race → `already_decided`, nothing billed) and
+record the deciding person; budget import keeps matched lines and their
+allocations (`lib/budget/import-plan.ts`), audited; labor contract edit /
+delete audited; an ACCEPTED estimate is refused on save (409) and offers
+**Revise** (a new draft copy). Gate: typecheck clean, lint 5/22, 1913 tests
+(+16), build clean. Dev QA: API 39/39 as ADMIN / SALES_REP / CREW_LEAD /
+MARKETING (two misses in the first run were the script's own payload and a
+job whose PM was the QA user); headless Chromium at 1440 / 400 px: admin full,
+rep price-only panels, marketing no Money tab; found + fixed the Crews crash.
+No migration. Dev DB restored.
+
 ### 2026-10-19 — Rulings
 
 (1) Confirming a correction notice and freezing a submission: office roles +
@@ -3288,6 +3323,18 @@ Notification Digests).
   the same scope; contract documents are never deleted through the file
   route. New routes take a guard from these modules, never a bare session
   check and never `hasMinRole`.
+- **A job's money is shown by `jobMoneyView`** (`lib/money/access.ts`, ruled
+  2026-10-19): "full" for ADMIN / MANAGER / OFFICE_STAFF / READ_ONLY and the
+  job's project manager; "price" (contract, invoices, payments, change orders —
+  never cost, profit or crew pay) for a sales rep; "none" for crew leads and
+  marketing. Money reads use `guardJobMoney(viewer, jobId, "price" | "full")`;
+  a record carrying money goes out through `redactJobMoney` / `redactOverview`.
+  `src/app/api/route-guards.test.ts` fails on a new session-only handler.
+- **Money records change only with a trace.** An approved expense's amount,
+  date, type or billable flag is changed by the money roles only; a sent
+  invoice's amount is fixed (void and reissue); a change-order decision claims
+  the row inside its transaction; an accepted estimate is never edited (Revise
+  makes a draft copy). Each of these writes an AuditEvent.
 - **Job costs are gated by role + the `canEnterJobCosts` grant** —
   ADMIN/MANAGER/OFFICE_STAFF implicitly, anyone else by explicit grant. Use
   **explicit role lists, never `hasMinRole`**, for anything financial:
@@ -3547,6 +3594,14 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **Audit roadmap Stage A (security + money repairs) is on `repairs-a`, not
+> merged or deployed; no migration.** After Richard's push + deploy: check as
+> a sales rep that a job shows price but no cost, and that an accepted estimate
+> offers Revise. Next build: **Stage B — the estimate drives the job** (Won
+> dialog picks the estimate; job price, cost snapshot and budget lines from
+> it; change-order cost; awarded bid baseline). Then C (owner command center)
+> and D (overdue control + lead call list).
 
 > **Plan takeoff M3 is on prod (`166a362`, BUILD_ID
 > `U90VFCrDknZ6GfCb-zWQr`).** Click-through: a lead

@@ -40,7 +40,9 @@ import {
 
 export type DialogMode =
   | { kind: "create"; category: string }
-  | { kind: "edit"; estimateId: string };
+  | { kind: "edit"; estimateId: string }
+  // An accepted estimate is not edited: it is copied to a new draft (the revision).
+  | { kind: "revise"; estimateId: string };
 
 type TemplateResponse = {
   id: string;
@@ -213,6 +215,8 @@ export function GenericEstimateDialog({
   const [problems, setProblems] = useState<string[]>([]);
 
   const isEdit = mode?.kind === "edit";
+  const isRevise = mode?.kind === "revise";
+  const sourceId = mode?.kind === "edit" || mode?.kind === "revise" ? mode.estimateId : null;
 
   // Load the template (create) or the existing estimate (edit) when opened.
   const templateQuery = useQuery<TemplateResponse>({
@@ -227,13 +231,11 @@ export function GenericEstimateDialog({
   });
 
   const estimateQuery = useQuery<EstimateResponse>({
-    queryKey: ["template-estimate", mode?.kind === "edit" ? mode.estimateId : null],
-    enabled: open && mode?.kind === "edit",
+    queryKey: ["template-estimate", sourceId],
+    enabled: open && sourceId !== null,
     queryFn: () =>
       fetch(
-        `/api/leads/${leadId}/template-estimates/${
-          mode?.kind === "edit" ? mode.estimateId : ""
-        }`,
+        `/api/leads/${leadId}/template-estimates/${sourceId ?? ""}`,
       ).then((r) => r.json()),
   });
 
@@ -250,6 +252,9 @@ export function GenericEstimateDialog({
       }
     } else if (mode.kind === "edit" && estimateQuery.data?.id) {
       setForm(estimateToForm(estimateQuery.data));
+    } else if (mode.kind === "revise" && estimateQuery.data?.id) {
+      const f = estimateToForm(estimateQuery.data);
+      setForm({ ...f, name: `${f.name} (revised)`, status: "DRAFT" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mode?.kind, templateQuery.data, templateQuery.isError, estimateQuery.data]);
@@ -299,7 +304,7 @@ export function GenericEstimateDialog({
       return res.json();
     },
     onSuccess: () => {
-      toast.success(isEdit ? "Estimate updated" : "Estimate created");
+      toast.success(isEdit ? "Estimate updated" : isRevise ? "Revision created as a new draft" : "Estimate created");
       queryClient.invalidateQueries({
         queryKey: ["lead-template-estimates", leadId],
       });
@@ -310,7 +315,7 @@ export function GenericEstimateDialog({
 
   const loading =
     (mode?.kind === "create" && templateQuery.isLoading) ||
-    (mode?.kind === "edit" && estimateQuery.isLoading) ||
+    (sourceId !== null && estimateQuery.isLoading) ||
     !form;
 
   const categoryLabel =
@@ -323,7 +328,7 @@ export function GenericEstimateDialog({
       <DialogContent className="w-full max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {isEdit ? "Edit" : "New"} {categoryLabel} estimate
+            {isEdit ? "Edit" : isRevise ? "Revise" : "New"} {categoryLabel} estimate
             {isEdit && form && form.status !== "DRAFT" && (
               <span
                 className={`rounded-full px-2 py-0.5 text-xs font-medium ${toneClasses(ESTIMATE_STATUS_TONE[form.status]).pill}`}

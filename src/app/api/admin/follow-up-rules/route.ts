@@ -28,6 +28,8 @@ const createSchema = z.object({
 export async function GET() {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  // Reading the rules: the roles that may change them.
+  if (!["ADMIN", "MANAGER"].includes(session.user.role)) return forbidden();
 
   const rules = await prisma.followUpRule.findMany({
     orderBy: [{ isActive: "desc" }, { name: "asc" }],

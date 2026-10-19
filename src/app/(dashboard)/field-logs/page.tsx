@@ -1,5 +1,7 @@
 "use client";
 
+import { Callout } from "@/components/shared/callout";
+import { fetchJson } from "@/lib/fetch-json";
 import { useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -51,12 +53,9 @@ const FILTERS = [
 export default function FieldLogsQueuePage() {
   const [status, setStatus] = useState("SUBMITTED");
 
-  const { data: logs = [], isLoading } = useQuery<QueueRow[]>({
+  const { data: logs = [], isLoading, error } = useQuery<QueueRow[]>({
     queryKey: ["field-logs", status],
-    queryFn: () =>
-      fetch(`/api/field-logs${status ? `?status=${status}` : ""}`).then((r) =>
-        r.json(),
-      ),
+    queryFn: () => fetchJson<QueueRow[]>(`/api/field-logs${status ? `?status=${status}` : ""}`),
   });
 
   const hasCost = logs.some((l) => l.totalCost !== undefined);
@@ -87,7 +86,9 @@ export default function FieldLogsQueuePage() {
         </Link>
       </div>
 
-      {isLoading ? (
+      {error ? (
+        <Callout tone="danger" title="Couldn't load the daily logs">{(error as Error).message}</Callout>
+      ) : isLoading ? (
         <ListSkeleton rows={5} />
       ) : logs.length === 0 ? (
         <EmptyState

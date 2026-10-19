@@ -182,11 +182,13 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
           </dl>
         </Block>
 
-        {/* Money */}
+        {/* Money — left out for a viewer who sees none (jobMoneyView) */}
+        {m && (
         <Block title="Money" icon={CircleDollarSign} action={{ label: "Open money", onClick: () => onNavigate("money") }}>
           <dl className="space-y-2 text-sm">
             {m.billable && <Row label="Contract">{money(m.contract)}</Row>}
             {m.billable && <Row label="Paid">{money(m.paid)}{m.balanceDue > 0 ? <span className="text-muted-foreground"> · {money(m.balanceDue)} due</span> : null}</Row>}
+            {m.cost !== null && m.costBreakdown !== null && (
             <Row label="Cost to date">
               {money(m.cost)}
               <span className="block text-xs text-muted-foreground">
@@ -198,6 +200,7 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
                 ].filter(Boolean).join(" · ") || "No costs recorded yet"}
               </span>
             </Row>
+            )}
             {m.estimatedCost !== null && (
               <Row label="Estimated cost">
                 <span className={m.overBudgetBy > 0 ? "text-tone-danger-fg" : undefined}>{money(m.estimatedCost)}</span>
@@ -221,6 +224,7 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
             )}
           </dl>
         </Block>
+        )}
       </div>
 
       {/* Also due this week — beyond what "Next up" already lists */}
@@ -314,10 +318,10 @@ function attentionRows(d: Overview): AttentionRow[] {
     rows.push({ key: "no-pm", tone: "warning", title: "No project manager on this job", detail: "Set one under Edit team on the Workflow tab", tab: "workflow" });
   }
   const m = d.money;
-  if (m.overBudgetBy > 0) {
-    rows.push({ key: "over-budget", tone: "danger", title: `Costs are ${money(m.overBudgetBy)} over the estimated cost`, detail: `${money(m.cost)} against ${money(m.estimatedCost ?? 0)}`, tab: "money", sub: "budget" });
+  if (m && m.overBudgetBy > 0) {
+    rows.push({ key: "over-budget", tone: "danger", title: `Costs are ${money(m.overBudgetBy)} over the estimated cost`, detail: `${money(m.cost ?? 0)} against ${money(m.estimatedCost ?? 0)}`, tab: "money", sub: "budget" });
   }
-  if (m.changeOrdersAwaiting.count > 0) {
+  if (m && m.changeOrdersAwaiting.count > 0) {
     rows.push({
       key: "co",
       tone: "info",
@@ -327,7 +331,7 @@ function attentionRows(d: Overview): AttentionRow[] {
       sub: "change-orders",
     });
   }
-  if (m.pendingExpenses.count > 0) {
+  if (m && m.pendingExpenses.count > 0) {
     rows.push({
       key: "pending-expenses",
       tone: "info",
@@ -357,7 +361,7 @@ function attentionRows(d: Overview): AttentionRow[] {
       sub: "daily-logs",
     });
   }
-  if (m.billable && m.depositRequired > 0 && m.depositReceived < m.depositRequired && d.health.level !== "closed") {
+  if (m && m.billable && m.depositRequired > 0 && m.depositReceived < m.depositRequired && d.health.level !== "closed") {
     rows.push({
       key: "deposit",
       tone: "info",

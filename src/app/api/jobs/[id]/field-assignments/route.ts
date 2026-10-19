@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/helpers";
+import { guardJob } from "@/lib/access/records";
 import { validateBody } from "@/lib/validation/body";
 import { recordAudit } from "@/lib/audit/record";
 
@@ -15,6 +16,8 @@ export async function GET(_request: NextRequest, context: Context) {
   if (!session?.user) return unauthorized();
 
   const { id: jobId } = await context.params;
+  const denied = await guardJob(session.user, jobId, "read");
+  if (denied) return denied;
   const assignments = await prisma.jobFieldAssignment.findMany({
     where: { jobId },
     select: {

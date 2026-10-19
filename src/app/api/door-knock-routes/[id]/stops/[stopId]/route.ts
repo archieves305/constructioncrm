@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { guardDoorKnockRoute } from "@/lib/access/records";
 import { updateRouteStopSchema } from "@/lib/validators/door-knock";
 
 export async function PATCH(
@@ -9,6 +10,8 @@ export async function PATCH(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = await guardDoorKnockRoute(session.user, (await params).id);
+  if (denied) return denied;
 
   const { id, stopId } = await params;
 
@@ -67,6 +70,8 @@ export async function DELETE(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = await guardDoorKnockRoute(session.user, (await params).id);
+  if (denied) return denied;
 
   const { id, stopId } = await params;
 

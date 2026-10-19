@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { guardJobMoney } from "@/lib/access/records";
 import { renderReceiptPdf } from "@/lib/pdf/receipt";
 
 export async function GET(
@@ -33,6 +34,8 @@ export async function GET(
     },
   });
   if (!payment) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const denied = await guardJobMoney(session.user, payment.jobId, "price");
+  if (denied) return denied;
   if (payment.status !== "RECEIVED" || !payment.receivedDate) {
     return NextResponse.json(
       { error: "Payment has not been received yet" },

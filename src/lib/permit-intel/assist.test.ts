@@ -46,6 +46,18 @@ describe("the fetcher's checks", () => {
     for (const ip of ["127.0.0.1", "10.1.2.3", "172.20.0.1", "192.168.1.1", "169.254.169.254", "100.64.0.1", "0.0.0.0", "224.0.0.1", "::1", "fd00::1", "fe80::1", "::ffff:10.0.0.1", "not-an-ip"]) expect(isBlockedAddress(ip), ip).toBe(true);
     for (const ip of ["8.8.8.8", "161.35.0.183", "2606:4700::6810:85e5"]) expect(isBlockedAddress(ip), ip).toBe(false);
   });
+  it("judges every spelling of an IPv6 address alike, and refuses IPv6 forms that carry an IPv4 address", () => {
+    // the URL parser rewrites [::ffff:169.254.169.254] as [::ffff:a9fe:a9fe]; both are the metadata address
+    for (const url of ["http://[::ffff:169.254.169.254]/", "http://[::ffff:a9fe:a9fe]/", "http://[::ffff:7f00:1]/", "http://[::7f00:1]/", "http://[0:0:0:0:0:ffff:a9fe:a9fe]/", "http://[64:ff9b::a9fe:a9fe]/", "http://[2002:a9fe:a9fe::]/", "http://[2001:0:4136:e378::1]/", "http://[fec0::1]/"]) {
+      const host = new URL(url).hostname.replace(/^\[|\]$/g, "");
+      expect(isBlockedAddress(host), url).toBe(true);
+      expect(urlProblem(url), url).toMatch(/private or reserved/);
+    }
+    // a DNS answer in mapped form is judged at connect time the same way
+    expect(isBlockedAddress("::ffff:8.8.8.8")).toBe(true);
+    expect(isBlockedAddress("2001:db8::1")).toBe(true);
+    expect(isBlockedAddress("::ffff:zz")).toBe(true);
+  });
   it("the links offered to the model never include one the fetcher would refuse", () => {
     const links = pdfLinks([], ["open http://127.0.0.1:4000/api/admin/users and http://169.254.169.254/latest/meta-data/ and https://x.gov/form.pdf"]);
     expect(links.filter((l) => !urlProblem(l.url)).map((l) => l.url)).toEqual(["https://x.gov/form.pdf"]);
@@ -57,6 +69,7 @@ describe("the fetcher's checks", () => {
     expect(urlProblem("http://localhost/")).toMatch(/local name/);
     expect(urlProblem("http://169.254.169.254/latest/meta-data")).toMatch(/private or reserved/);
     expect(urlProblem("http://[::1]/")).toMatch(/private or reserved/);
+    expect(urlProblem("http://8.8.8.8/")).toMatch(/bare IP/);
     expect(urlProblem("https://www.floridabuilding.org/pr/")).toBeNull();
   });
   it("refuses a name that resolves inside the network, at connect time", async () => {

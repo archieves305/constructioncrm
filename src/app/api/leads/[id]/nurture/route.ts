@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { forbidden, getSession, unauthorized } from "@/lib/auth/helpers";
+import { guardLead } from "@/lib/access/records";
 import { validateBody } from "@/lib/validation/body";
 import { canActOnLeadNurture } from "@/lib/nurture/access";
 import { onPersonalTouch, setNurtureStatus } from "@/lib/nurture/hooks";
@@ -12,6 +13,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const session = await getSession();
   if (!session?.user) return unauthorized();
   const { id } = await params;
+  const denied = await guardLead(session.user, id, "read");
+  if (denied) return denied;
   const [state, sends, content, settings] = await Promise.all([
     prisma.leadNurtureState.findUnique({ where: { leadId: id } }),
     prisma.leadNurtureSend.findMany({ where: { leadId: id }, orderBy: { createdAt: "desc" }, take: 5, select: { id: true, kind: true, status: true, subject: true, sentAt: true, createdAt: true, error: true } }),

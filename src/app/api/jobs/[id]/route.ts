@@ -4,6 +4,7 @@ import { rescheduleTargetStart } from "@/lib/workflows/reschedule";
 import { reassignUnresolved } from "@/lib/workflows/roles";
 import { parseDueAt } from "@/lib/tasks/dates";
 import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/helpers";
+import { redactJobMoney } from "@/lib/money/redact";
 import {
   recomputeCostPlusJob,
   recomputeJobBalance,
@@ -14,7 +15,7 @@ import {
   defaultRetainagePercent,
   seedSovIfEmpty,
 } from "@/lib/services/progress-billing";
-import { canEditJobRecord, canManageJobMoney, JOB_MONEY_FIELDS, MONEY_DENIED_MESSAGE, touchesJobMoney } from "@/lib/money/access";
+import { canEditJobRecord, canManageJobMoney, JOB_MONEY_FIELDS, jobMoneyView, MONEY_DENIED_MESSAGE, touchesJobMoney } from "@/lib/money/access";
 import { recordAudit } from "@/lib/audit/record";
 import { settleJobGates } from "@/lib/workflows/gates";
 import { guardJob, guardJobDelete } from "@/lib/access/records";
@@ -76,7 +77,8 @@ export async function GET(
   const installTasks = await openInstallTasks(job.crewAssignments.map((a) => a.id));
   const crewAssignments = job.crewAssignments.map((a) => ({ ...a, installTask: installTasks.get(a.id) ?? null }));
 
-  return NextResponse.json({ ...job, crewAssignments });
+  const view = jobMoneyView(session.user, job);
+  return NextResponse.json(redactJobMoney({ ...job, crewAssignments }, view));
 }
 
 export async function PATCH(

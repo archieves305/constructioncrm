@@ -45,22 +45,52 @@ function v4ToInt(ip: string): number | null {
   return ((Number(p[0]) << 24) >>> 0) + (Number(p[1]) << 16) + (Number(p[2]) << 8) + Number(p[3]);
 }
 
-/** Is this an address the assistant must never connect to? Unparseable counts as blocked. */
+/** The eight 16-bit groups of an IPv6 address, in any of its spellings ("::", a dotted IPv4 tail); null if unparseable. */
+export function v6Groups(ip: string): number[] | null {
+  let a = ip.toLowerCase().replace(/%.*$/, "");
+  const dotted = a.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted) {
+    const n = v4ToInt(dotted[2]);
+    if (n === null) return null;
+    a = `${dotted[1]}${(n >>> 16).toString(16)}:${(n & 0xffff).toString(16)}`;
+  }
+  const halves = a.split("::");
+  if (halves.length > 2) return null;
+  const part = (s: string) => (s === "" ? [] : s.split(":"));
+  const head = part(halves[0]);
+  const tail = halves.length === 2 ? part(halves[1]) : [];
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0;
+  if (fill < 0 || (halves.length === 1 && head.length !== 8)) return null;
+  const groups = [...head, ...Array(fill).fill("0"), ...tail];
+  if (groups.length !== 8 || groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return null;
+  return groups.map((g) => parseInt(g, 16));
+}
+
+/**
+ * Is this an address the assistant must never connect to? Unparseable counts as blocked.
+ * IPv6 is read group by group, so every spelling of the same address is judged alike
+ * (`::ffff:169.254.169.254` and `::ffff:a9fe:a9fe` are one address), and every IPv6
+ * form that carries an IPv4 address inside it is refused outright: mapped,
+ * compatible, NAT64, 6to4 and Teredo.
+ */
 export function isBlockedAddress(ip: string): boolean {
   if (net.isIPv4(ip)) {
     const n = v4ToInt(ip)!;
     return V4_BLOCKED.some(([base, bits]) => (n & (bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0)) >>> 0 === base);
   }
   if (net.isIPv6(ip)) {
-    const a = ip.toLowerCase();
-    const mapped = a.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return isBlockedAddress(mapped[1]);
-    if (a === "::" || a === "::1") return true;
-    const first = parseInt(a.split(":")[0] || "0", 16);
-    if ((first & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
-    if ((first & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
-    if ((first & 0xff00) === 0xff00) return true; // multicast
-    if (a.startsWith("64:ff9b:") || a.startsWith("2001:db8:") || a.startsWith("2001:db8::")) return true; // NAT64, documentation
+    const g = v6Groups(ip);
+    if (!g) return true;
+    if (g.slice(0, 5).every((x) => x === 0) && (g[5] === 0 || g[5] === 0xffff)) return true; // ::, ::1, IPv4-compatible, IPv4-mapped
+    if (g[0] === 0x64 && g[1] === 0xff9b) return true; // NAT64 64:ff9b::/96 and /48
+    if (g[0] === 0x2002) return true; // 6to4
+    if (g[0] === 0x2001 && g[1] === 0) return true; // Teredo
+    if (g[0] === 0x2001 && g[1] === 0x0db8) return true; // documentation
+    if (g[0] === 0x0100 && g[1] === 0 && g[2] === 0 && g[3] === 0) return true; // discard 100::/64
+    if ((g[0] & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
+    if ((g[0] & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+    if ((g[0] & 0xffc0) === 0xfec0) return true; // fec0::/10 site-local (deprecated)
+    if ((g[0] & 0xff00) === 0xff00) return true; // multicast
     return false;
   }
   return true;
@@ -97,7 +127,11 @@ export function urlProblem(url: string): string | null {
   if (u.username || u.password) return "addresses with a user name or password are not opened";
   if (u.port && u.port !== "80" && u.port !== "443") return `port ${u.port} is not opened`;
   const host = u.hostname.replace(/^\[|\]$/g, "");
-  if (net.isIP(host) && isBlockedAddress(host)) return "a private or reserved address";
+  if (net.isIP(host)) {
+    if (isBlockedAddress(host)) return "a private or reserved address";
+    // a department's site has a name; a bare address in a document is refused whatever it is
+    return "an address written as a bare IP is not opened";
+  }
   if (/^(localhost|.*\.localhost|.*\.local|.*\.internal)$/i.test(host)) return "a local name";
   return null;
 }

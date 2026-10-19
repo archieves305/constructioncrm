@@ -3,6 +3,7 @@ import type { Prisma, RoleName } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { jobsInvolvingUserWhere, leadsInvolvingUserWhere } from "@/lib/jobs/involvement";
 import { prospectVisibilityWhere } from "@/lib/prospects/access";
+import { COST_HIDDEN_MESSAGE, jobMoneyView, MONEY_HIDDEN_MESSAGE, type JobMoneyView } from "@/lib/money/access";
 import { canDeleteJob, canManageReferrals, canWriteLeads, canWriteProduction, isOwnOnlyRole } from "./roles";
 
 /**
@@ -63,6 +64,43 @@ export async function guardJobs(viewer: Viewer, jobIds: string[]): Promise<NextR
   const ids = [...new Set(jobIds)];
   const n = await prisma.job.count({ where: { AND: [{ id: { in: ids } }, jobAccessWhere(viewer)] } });
   return n === ids.length ? null : forbidden("Some of those jobs are not yours to change.");
+}
+
+/** The job's money as this viewer may see it; null when the job does not exist. */
+export async function jobMoneyViewFor(viewer: Viewer, jobId: string): Promise<JobMoneyView | null> {
+  const job = await prisma.job.findUnique({ where: { id: jobId }, select: { projectManagerId: true } });
+  return job ? jobMoneyView(viewer, job) : null;
+}
+
+/**
+ * A job's money, read: the job must be in the viewer's scope (`guardJob`) and
+ * their money view must reach `need` — "price" for what the customer pays,
+ * "full" for cost, profit and crew pay.
+ */
+export async function guardJobMoney(viewer: Viewer, jobId: string, need: "price" | "full"): Promise<NextResponse | null> {
+  const denied = await guardJob(viewer, jobId, "read");
+  if (denied) return denied;
+  const view = await jobMoneyViewFor(viewer, jobId);
+  if (!view) return notFound("Job");
+  if (view === "full" || (need === "price" && view === "price")) return null;
+  return forbidden(need === "full" && view === "price" ? COST_HIDDEN_MESSAGE : MONEY_HIDDEN_MESSAGE);
+}
+
+/** Canvassing (door-knock routes, property search, paid property refresh): the lead-writing roles. */
+export function guardCanvassing(viewer: Viewer): NextResponse | null {
+  return canWriteLeads(viewer.role) ? null : forbidden("Your role does not use canvassing.");
+}
+
+/** A door-knock route: canvassing roles; a sales rep only a route they made or were given (as their list shows). */
+export async function guardDoorKnockRoute(viewer: Viewer, routeId: string): Promise<NextResponse | null> {
+  const denied = guardCanvassing(viewer);
+  if (denied) return denied;
+  if (viewer.role !== "SALES_REP") return null;
+  const hit = await prisma.doorKnockRoute.findFirst({
+    where: { id: routeId, OR: [{ createdByUserId: viewer.id }, { assignedToUserId: viewer.id }] },
+    select: { id: true },
+  });
+  return hit ? null : notFound("Route");
 }
 
 /** Role-only guard for production records addressed by their own id (a permit, an inspection, a change order). */

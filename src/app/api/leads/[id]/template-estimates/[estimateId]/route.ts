@@ -53,6 +53,13 @@ export async function PUT(
     return NextResponse.json({ error: "Estimate not found" }, { status: 404 });
   }
 
+  // An accepted estimate is what the customer agreed to and what the job's
+  // price and cost come from: it is kept as it was. A change is a revision
+  // (a new draft); only its status moves, through PATCH.
+  if (existing.status === "ACCEPTED") {
+    return NextResponse.json({ error: "This estimate was accepted and is kept as it was. Revise it to make a new draft." }, { status: 409 });
+  }
+
   const result = await validateBody(request, genericEstimateInputSchema);
   if (!result.ok) return result.response;
   const input = result.data;

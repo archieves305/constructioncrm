@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
-import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { forbidden, getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { guardLeadCreate } from "@/lib/access/records";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  // Review requests carry customers' contact details: the office and marketing.
+  if (!["ADMIN", "MANAGER", "OFFICE_STAFF", "MARKETING"].includes(session.user.role)) return forbidden();
 
   const { searchParams } = request.nextUrl;
   const status = searchParams.get("status") || undefined;

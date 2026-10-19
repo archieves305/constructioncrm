@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { guardJobMoney } from "@/lib/access/records";
 import { renderInvoicePdf, type ApplicationPdfData } from "@/lib/pdf/invoice";
 import { getBillingSummary } from "@/lib/services/progress-billing";
 
@@ -36,6 +37,8 @@ export async function GET(
     },
   });
   if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const denied = await guardJobMoney(session.user, invoice.jobId, "price");
+  if (denied) return denied;
 
   const addr = [
     invoice.job.lead.propertyAddress1,

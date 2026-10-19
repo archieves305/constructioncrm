@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { nextChangeOrderNumber } from "@/lib/services/change-orders";
-import { guardJob } from "@/lib/access/records";
+import { guardJob, guardJobMoney } from "@/lib/access/records";
 
 const createSchema = z.object({
   title: z.string().trim().max(200).nullable().optional(),
@@ -22,7 +22,7 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const denied = await guardJob(session.user, id, "read");
+  const denied = await guardJobMoney(session.user, id, "price");
   if (denied) return denied;
   const changeOrders = await prisma.changeOrder.findMany({
     where: { jobId: id },

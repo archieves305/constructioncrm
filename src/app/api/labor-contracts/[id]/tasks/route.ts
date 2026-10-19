@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { guardJobMoney } from "@/lib/access/records";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 import { syncScheduleTask } from "@/lib/labor/schedule-task-link";
 
@@ -31,6 +32,10 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
+  const contract = await prisma.laborContract.findUnique({ where: { id }, select: { jobId: true } });
+  if (!contract) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const denied = await guardJobMoney(session.user, contract.jobId, "full");
+  if (denied) return denied;
   const tasks = await prisma.laborContractTask.findMany({
     where: { laborContractId: id },
     orderBy: { sortOrder: "asc" },

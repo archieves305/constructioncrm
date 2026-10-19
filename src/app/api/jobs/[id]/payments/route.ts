@@ -4,7 +4,7 @@ import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { recordPayment } from "@/lib/services/jobs";
 import { recordAudit } from "@/lib/audit/record";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
-import { guardJob } from "@/lib/access/records";
+import { guardJobMoney } from "@/lib/access/records";
 
 export async function GET(
   _request: NextRequest,
@@ -14,7 +14,7 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
-  const denied = await guardJob(session.user, id, "read");
+  const denied = await guardJobMoney(session.user, id, "price");
   if (denied) return denied;
   const payments = await prisma.payment.findMany({
     where: { jobId: id },

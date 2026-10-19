@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { nextInvoiceNumber } from "@/lib/services/invoices";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
-import { guardJob } from "@/lib/access/records";
+import { guardJobMoney } from "@/lib/access/records";
 
 const createSchema = z.object({
   amount: z.number().min(0).optional(),
@@ -21,7 +21,7 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const denied = await guardJob(session.user, id, "read");
+  const denied = await guardJobMoney(session.user, id, "price");
   if (denied) return denied;
   const invoices = await prisma.invoice.findMany({
     where: { jobId: id },

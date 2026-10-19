@@ -1,5 +1,7 @@
 "use client";
 
+import { Callout } from "@/components/shared/callout";
+import { fetchJson } from "@/lib/fetch-json";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
@@ -97,9 +99,9 @@ export default function PersonnelPage() {
   if (q) params.set("q", q);
   if (activeOnly) params.set("activeOnly", "true");
 
-  const { data: people = [], isLoading } = useQuery<PersonnelRow[]>({
+  const { data: people = [], isLoading, error } = useQuery<PersonnelRow[]>({
     queryKey: ["personnel", q, activeOnly],
-    queryFn: () => fetch(`/api/personnel?${params.toString()}`).then((r) => r.json()),
+    queryFn: () => fetchJson<PersonnelRow[]>(`/api/personnel?${params.toString()}`),
   });
 
   const { data: crews = [] } = useQuery<CrewOption[]>({
@@ -169,7 +171,9 @@ export default function PersonnelPage() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {error ? (
+        <Callout tone="danger" title="Couldn't load personnel">{(error as Error).message}</Callout>
+      ) : isLoading ? (
         <ListSkeleton rows={6} />
       ) : people.length === 0 ? (
         <EmptyState icon={Users} title="No personnel yet" description="Add crew members to start tracking daily labor." />

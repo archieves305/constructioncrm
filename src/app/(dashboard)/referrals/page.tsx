@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchJson } from "@/lib/fetch-json";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -60,9 +61,9 @@ export default function ReferralsPage() {
   const [commission, setCommission] = useState("");
   const [markPaid, setMarkPaid] = useState(false);
 
-  const { data: referrals = [], isLoading } = useQuery<Referral[]>({
+  const { data: referrals = [], isLoading, error } = useQuery<Referral[]>({
     queryKey: ["referrals"],
-    queryFn: () => fetch("/api/referrals").then((r) => r.json()),
+    queryFn: () => fetchJson<Referral[]>("/api/referrals"),
   });
 
   const updateStatus = useMutation({
@@ -180,7 +181,11 @@ export default function ReferralsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {error ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-6 text-sm text-muted-foreground">{(error as Error).message}</TableCell>
+                </TableRow>
+              ) : isLoading ? (
                 <TableRow>
                   <TableCell colSpan={8} className="py-2">
                     <ListSkeleton rows={4} />

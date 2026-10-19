@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { guardCanvassing } from "@/lib/access/records";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardCanvassing(session.user);
+  if (denied) return denied;
 
   const { searchParams } = request.nextUrl;
   const days = parseInt(searchParams.get("days") || "30");

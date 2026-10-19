@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { guardCanvassing } from "@/lib/access/records";
 import { zylowClient } from "@/lib/services/zylow/client";
 import { zylowErrorResponse } from "@/lib/services/zylow/http";
 import {
@@ -18,6 +19,8 @@ import { propertySearchQuerySchema } from "@/lib/validators/canvassing";
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardCanvassing(session.user);
+  if (denied) return denied;
 
   const parsed = propertySearchQuerySchema.safeParse(
     Object.fromEntries(request.nextUrl.searchParams),

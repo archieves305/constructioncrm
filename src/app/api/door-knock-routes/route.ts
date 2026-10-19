@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
+import { guardCanvassing } from "@/lib/access/records";
 import { createDoorKnockRouteSchema } from "@/lib/validators/door-knock";
 import { Prisma } from "@/generated/prisma/client";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardCanvassing(session.user);
+  if (denied) return denied;
 
   const { searchParams } = request.nextUrl;
   const status = searchParams.get("status");
@@ -16,6 +19,8 @@ export async function GET(request: NextRequest) {
 
   const where: Prisma.DoorKnockRouteWhereInput = {
     isDeleted: false,
+    // a sales rep sees the routes they made or were given — the same rule as opening one (guardDoorKnockRoute)
+    ...(session.user.role === "SALES_REP" ? { OR: [{ createdByUserId: session.user.id }, { assignedToUserId: session.user.id }] } : {}),
   };
 
   if (status) {
@@ -79,6 +84,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  const denied = guardCanvassing(session.user);
+  if (denied) return denied;
 
   const body = await request.json();
   const parsed = createDoorKnockRouteSchema.safeParse(body);

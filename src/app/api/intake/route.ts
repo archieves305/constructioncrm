@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { getSession, unauthorized } from "@/lib/auth/helpers";
+import { forbidden, getSession, unauthorized } from "@/lib/auth/helpers";
 
 /**
  * GET /api/intake — List inbound email events for monitoring
@@ -8,6 +8,8 @@ import { getSession, unauthorized } from "@/lib/auth/helpers";
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
+  // Inbound lead emails: the same roles that process them (intake/process).
+  if (!["ADMIN", "MANAGER"].includes(session.user.role)) return forbidden();
 
   const { searchParams } = request.nextUrl;
   const status = searchParams.get("status") || undefined;
