@@ -75,14 +75,16 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    engineer's required pressures typed in), advisory flags (HVHZ, pressure,
    expiry, unchecked, not in the documents), the document copied among the
    permit's files, expiry tasks from the existing permit-aging cron. **Stage 5
-   (preflight) built + dev-QA'd 2026-10-18, on `main`, not deployed**:
+   (preflight) built + dev-QA'd 2026-10-18, deployed 2026-10-19 as
+   `2359e54` with Stage 6**:
    migration `20261105120000_permit_preflight`; versioned rules over the
    record, an optional AI look (warnings only, not scored), readiness score,
    findings → tasks closed by the next passing run, report PDF, "Mark ready to
    submit" (zero blockers, or ADMIN / MANAGER override with a reason; cleared
    by freezing), the job's permit-documents step ticks itself. **Stage 6
-   (lessons + metrics) built + dev-QA'd 2026-10-18, on `main`, not
-   deployed**: migration `20261106120000_permit_lessons`; accepted corrections
+   (lessons + metrics) built + dev-QA'd 2026-10-18, deployed 2026-10-19 as
+   `2359e54`** (BUILD_ID `C7dZ4cfftPCjy5oiFvv9z`, both migrations applied,
+   smoke 307 ×2, journal clean, backup `postgres-2026-10-19-010939.dump`): migration `20261106120000_permit_lessons`; accepted corrections
    → scrubbed, AI-worded PROPOSED lessons grouped by jurisdiction × type ×
    category × target; Admin → Permits → Knowledge decides them; approved
    lessons show at preflight; Permit Center metrics strip; attention rows
@@ -546,7 +548,16 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-18 — AI Permit Intelligence, Stage 6: lessons + metrics (built + dev-QA'd, on `main`, not deployed)
+### 2026-10-19 — Stages 5 + 6 deployed (`2359e54`)
+
+Richard pushed and deployed from `!` (background, 314 s, exit 0): BUILD_ID
+`6KAPwvK3Td9KNoioZBmQr` → `C7dZ4cfftPCjy5oiFvv9z`, migrations
+`20261105120000_permit_preflight` and `20261106120000_permit_lessons` applied
+(both finished; `permit_preflight_runs` empty, the lesson columns present),
+smoke 307 ×2, journal clean, backup `postgres-2026-10-19-010939.dump`. No
+seed, no cron. **All seven Permit Intelligence stages are on prod.**
+
+### 2026-10-18 — AI Permit Intelligence, Stage 6: lessons + metrics (deployed `2359e54`)
 
 "continue to stage 6". Migration `20261106120000_permit_lessons` (lesson
 columns on `permit_knowledge`). Pure `lessons.ts` (scrub, group, retrieve,
@@ -564,7 +575,7 @@ clean, lint 5/22, 1847 tests (+8), build clean. Dev QA: API 45/45, roles 5/5
 [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 **Deploy carries the migration.**
 
-### 2026-10-18 — AI Permit Intelligence, Stage 5: preflight (built + dev-QA'd, on `main`, not deployed)
+### 2026-10-18 — AI Permit Intelligence, Stage 5: preflight (deployed `2359e54`)
 
 "continue to stage 5". Migration `20261105120000_permit_preflight`
 (`PermitPreflightRun`; the ready mark on `JobPermit`). Pure `preflight.ts`
@@ -3429,8 +3440,9 @@ Notification Digests).
 > (lessons + metrics) is on `main` too** (migration
 > `20261106120000_permit_lessons`); after the deploy: Permit Center's tiles;
 > Admin → Permits → Knowledge fills as the department answers resubmissions.
-> **All seven stages are built**; what remains is the click-throughs and the
-> open ruling below. Stage 3 after it: After it: Admin → Permits → Forms → upload the
+> **All seven stages are on prod (`2359e54`, BUILD_ID
+> `C7dZ4cfftPCjy5oiFvv9z`, 2026-10-19)**; what remains is the click-throughs
+> and the open ruling below. Stage 3 after it: After it: Admin → Permits → Forms → upload the
 > Palm Beach County universal application (county "Palm Beach", from
 > discover.pbc.gov) → Map with AI → check "Check these" and clear the
 > office-use header → Publish; set each Palm Beach County jurisdiction's
