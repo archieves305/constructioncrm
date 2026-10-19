@@ -190,3 +190,27 @@ Dev QA (real documents, three AI calls, **$0.79**):
 - Dev DB restored, QA files removed.
 
 **Deploy carries the migration.** No seed, no new cron. After it: Permits → Product approvals → add the NOAs / FL approvals KNU installs → check each against its document → on a permit's Products tab add them with the engineer's pressures → "Add the approval to the permit's documents".
+
+## Stage 5 — preflight (built 2026-10-18)
+
+Migration `20261105120000_permit_preflight`: `PermitPreflightRun` (permit, cycle, rules version, score, blockers, warnings, findings, the AI call, who ran it) and on `JobPermit` the ready mark — `readyAt`, `readyByUserId`, `readyRunId`, `readyOverride` (the reason when marked ready over blockers).
+
+Pure `preflight.ts` (rules `pf-1`, tested): jurisdiction and type set; on a resubmission an unconfirmed notice and open corrections block, no response letter warns; each requirement line (required → blocker, optional → warning, no document type → a note); each published form that applies — not filled / not final → blocker, a final form's blank fields and signatures to collect → warnings; no contractor licence on record → blocker, no qualifier → warning; architect / engineer without a licence → warning; no parcel number, no valuation → warnings; each product's approval flags (danger → blocker, warning → warning); an HVHZ re-roof with no products → warning; sealed documents listed as a note ("the CRM cannot verify a seal"). Score 100 − 25 a blocker − 5 a warning, **rules only** (the AI look is not scored), "Readiness score — not a prediction of approval". `aiFindings`: the AI's points become warnings only when they cite a ref of the summary. Prompt `preflight_review` v1 (Opus 5.5): a summary with refs — documents by type and name, the requirement lines, the forms' state, products and flag codes, party roles (no names, phones or emails), the department's earlier comments on the permit (framed as untrusted), and **the rule findings already reported** so it does not repeat them.
+
+Service `preflight-run.ts`: the context from the permit record, fills, products and the records (licence / qualifier through the data dictionary); `runPermitPreflight` (an AI failure becomes a note, never an error); runs kept; findings → tasks on request (`preflight:<permit>:<code>`, coordinator, blockers HIGH due in 2 days, warnings in 5), closed by the next run that passes the check; `markReady` (a fresh run first; blockers need ADMIN / MANAGER and a reason of a sentence; audited `permit_ready` / `preflight_override`); `clearReady` (a person, or **freezing a package** — every submission is checked again); the readiness report PDF (`lib/pdf/permit-preflight-report.tsx`).
+
+Workflow: `gates.ts` held facts gain `permitApplicationFinal` (a FINAL form fill on a job's permit ticks "… permit application completed") and `permitReady` (a permit marked ready ticks **every** line of the job's `…permit_documents` step). No template change.
+
+Package default (`defaultPackage`): a filled form's editable copy is no longer pre-ticked — the flattened one is sent (the AI look caught both copies being offered).
+
+Routes: `GET|POST /api/permits/[id]/preflight` (`ai: true`), `POST|DELETE /api/permits/[id]/ready` (`overrideReason`), `POST /api/permit-preflight-runs/[id]/tasks`, `GET /api/permit-preflight-runs/[id]/pdf`. Run and tasks: `canWriteProduction`; ready: `canSubmitPermit`; override: ADMIN / MANAGER.
+
+UI: the permit's **Preflight** tab (run, "with an AI second look", score and counts with the AI points marked "not scored", blockers / warnings / notes with "Open <tab>", pick → Create tasks, Report, earlier runs, Mark ready / Mark ready over the blockers…, the ready banner with "Take it off"); a "Ready to submit" chip in the permit header; the freeze dialog notes when the permit is not marked ready.
+
+`package.json`: `typecheck` now also runs with a 6 GB heap — on the Mac the type-check ran out of the default heap during this stage, as the build did on the droplet.
+
+Gate: typecheck clean, lint 5/22, 1839 tests (+15), build clean.
+
+Dev QA (two AI looks, $0.07): on JOB-00001 with a required NOC and the county form published — first run 10 (3 blockers: NOC, the global "completed application" requirement, the form not filled; warnings qualifier / parcel / value); ready refused 409, a one-word override refused 400; three tasks created; NOC + value added → their tasks closed by the next run; form finalised → no blockers, signatures listed; marked ready → the job's roofing permit-documents step ticked all three lines; the AI look 7 points (products, roof plan, re-roof mitigation, Town of Palm Beach architectural review…), none restating the rules after the fix, score unchanged (60 = 60); report PDF; freezing cleared the ready mark; an ADMIN override with a reason kept and printed; every step audited. SALES_REP 6/6 (runs, creates tasks, reads the report; ready / override / clear 403). Headless Chromium 18/18 at 1280 / 400 px. Fixed in QA: AI points restated the rules and moved the score; "review cycle 0" on an unsubmitted permit; the editable form copy in the default package. Dev DB restored, QA files removed.
+
+**Deploy carries the migration.** No seed, no cron.

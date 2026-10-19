@@ -66,6 +66,8 @@ export type PermitDetail = {
     parties: PermitParty[];
     cycles: PermitCycle[];
     inspections: PermitInspection[];
+    readyAt: string | null;
+    readyOverride: string | null;
   };
   files: PermitFile[];
   tasks: TaskListItem[];

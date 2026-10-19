@@ -74,7 +74,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    (`/permits/products`), linked to roofing materials and to permits (the
    engineer's required pressures typed in), advisory flags (HVHZ, pressure,
    expiry, unchecked, not in the documents), the document copied among the
-   permit's files, expiry tasks from the existing permit-aging cron. Open rulings in the design doc §19. Notes:
+   permit's files, expiry tasks from the existing permit-aging cron. **Stage 5
+   (preflight) built + dev-QA'd 2026-10-18, on `main`, not deployed**:
+   migration `20261105120000_permit_preflight`; versioned rules over the
+   record, an optional AI look (warnings only, not scored), readiness score,
+   findings → tasks closed by the next passing run, report PDF, "Mark ready to
+   submit" (zero blockers, or ADMIN / MANAGER override with a reason; cleared
+   by freezing), the job's permit-documents step ticks itself. Open rulings in the design doc §19. Notes:
    [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
    2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
@@ -533,6 +539,28 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-18 — AI Permit Intelligence, Stage 5: preflight (built + dev-QA'd, on `main`, not deployed)
+
+"continue to stage 5". Migration `20261105120000_permit_preflight`
+(`PermitPreflightRun`; the ready mark on `JobPermit`). Pure `preflight.ts`
+(rules `pf-1`: jurisdiction, requirements, forms, signatures, licence /
+qualifier, party licences, parcel, value, product flags, open corrections,
+response letter, sealed documents listed; score from the rules only), prompt
+`preflight_review` (a summary with refs, no contact details, the rule findings
+passed as "already reported"); service `preflight-run.ts` (runs, tasks from
+findings closed by the next passing run, `markReady` with an ADMIN / MANAGER
+override and a reason, cleared on freeze, report PDF); `gates.ts` held facts
+`permitApplicationFinal` and `permitReady`; the editable form copy left out of
+the default package. UI: the permit's Preflight tab, a "Ready to submit"
+chip, a note in the freeze dialog. `typecheck` given a 6 GB heap too (the Mac
+ran out). Gate: typecheck clean, lint 5/22, 1839 tests (+15), build clean.
+Dev QA: API 23 + 2 + 6 (two of my first checks miscounted, the code was
+right), the AI look $0.03–0.04 a run, headless Chromium 18/18. Fixed in QA:
+AI points restating the rules and moving the score, "cycle 0", the editable
+copy in the package. Dev DB restored. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+**Deploy carries the migration.**
 
 ### 2026-10-18 — Stages 2–4 deployed (`da551cc`) after a first attempt ran out of heap
 
@@ -3344,6 +3372,13 @@ Notification Digests).
   computes a required pressure (a person types the engineer's), never infers
   an expiry or HVHZ status, and an approval is relied on only once a person
   has checked its fields against the document (VERIFIED).
+- **Preflight advises; a person decides** (`lib/permit-intel/preflight.ts`):
+  the readiness score counts the rules only and is never a prediction of
+  approval; the AI look adds warnings, never blockers, and only points that
+  cite the package summary. A permit is marked ready with zero blockers or an
+  ADMIN / MANAGER override with a reason (audited); freezing a package clears
+  the mark. New permit checks are rules in `runPreflight` with a code, never a
+  second engine.
 - **Every model call goes through `runAiCall`** (`src/lib/ai/calls.ts`): it is
   recorded as an `AiCall`, held to the per-subject and monthly caps, has no
   tools, and must match a zod schema. Document text goes in through
@@ -3358,7 +3393,11 @@ Notification Digests).
 > **AI Permit Intelligence Stages 2, 3 and 4 are on prod (`da551cc`, BUILD_ID
 > `6KAPwvK3Td9KNoioZBmQr`, 2026-10-19 00:26 UTC).** Stage 4 after it: Permits → Product approvals →
 > add the NOAs / FL approvals KNU installs, check each, add them on permits'
-> Products tabs. Stage 3 after it: After it: Admin → Permits → Forms → upload the
+> Products tabs. **Stage 5 (preflight) is on `main`, not deployed** (migration
+> `20261105120000_permit_preflight`); after its deploy: a permit → Preflight →
+> Run (try "with an AI second look") → Create tasks → Mark ready. Next build:
+> **Stage 6** (lessons from closed correction cycles, admin decisions,
+> lessons shown at preflight, Permit Center metrics). Stage 3 after it: After it: Admin → Permits → Forms → upload the
 > Palm Beach County universal application (county "Palm Beach", from
 > discover.pbc.gov) → Map with AI → check "Check these" and clear the
 > office-use header → Publish; set each Palm Beach County jurisdiction's

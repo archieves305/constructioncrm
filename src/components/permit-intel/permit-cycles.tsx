@@ -33,11 +33,14 @@ const day = (iso: string | null) => (iso ? format(new Date(iso), "MMM d, yyyy") 
  * What a package starts with: every document KNU sends, except what came
  * back from the department, and except a document already sent in an
  * earlier package once a newer one of the same type is on file (the old NOC
- * is not sent beside its replacement). A person can tick anything back.
+ * is not sent beside its replacement), and a filled form's editable copy.
+ * A person can tick anything back.
  */
-export function defaultPackage(files: { id: string; permitDocType: string | null; permitLock: string | null; createdAt: string }[]): string[] {
+export function defaultPackage(files: { id: string; fileName?: string; permitDocType: string | null; permitLock: string | null; createdAt: string }[]): string[] {
   return files
     .filter((f) => !NOT_SENT.has(f.permitDocType ?? ""))
+    // a filled form is written twice; the flattened copy is the one sent, the editable one is KNU's (fills.ts names it so)
+    .filter((f) => !(f.permitDocType === "completed_application" && f.fileName?.endsWith(" (editable).pdf")))
     .filter((f) => !(f.permitLock === "submitted" && f.permitDocType && files.some((g) => g.id !== f.id && g.permitDocType === f.permitDocType && g.createdAt > f.createdAt)))
     .map((f) => f.id);
 }
@@ -167,6 +170,11 @@ function FreezeForm({ detail, onClose }: { detail: PermitDetail; onClose: () => 
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
+        {!detail.permit.readyAt && (
+          <Callout tone="info" title="Not marked ready">
+            Run preflight on the Preflight tab first — it lists what the department is likely to send back. You can still submit.
+          </Callout>
+        )}
         {detail.openCorrections > 0 && (
           <Callout tone="warning" title={`${detail.openCorrections} correction${detail.openCorrections === 1 ? " is" : "s are"} still open`}>
             Resolve or waive them on the Corrections tab, and include the response letter. You can still submit.

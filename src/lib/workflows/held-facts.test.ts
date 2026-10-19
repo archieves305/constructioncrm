@@ -12,6 +12,20 @@ vi.mock("./apply", () => ({ applyWorkflow: vi.fn() }));
 const none: HeldFacts = { projectManagerSet: false, superintendentSet: false, targetStartSet: false, permitOnFile: false, permitsClosed: false, crewInstallSet: false };
 const line = (key: string, label: string, done = false) => ({ key, label, done });
 
+describe("permit held facts (Permit Intelligence)", () => {
+  const docs = [line("a", "Roofing permit application completed"), line("b", "NOAs / Florida Product Approvals for the assembly"), line("c", "Roof plan, fastening calculations and assembly details")];
+  it("a finalised application form ticks the application line of any trade", () => {
+    expect(linesToTick(docs, { ...none, permitApplicationFinal: true }, "roofing:roofing_permit_documents")).toEqual(["a"]);
+    expect(linesToTick([line("x", "Building permit application completed")], { ...none, permitApplicationFinal: true })).toEqual(["x"]);
+  });
+  it("a permit marked ready ticks every line of the permit-documents step, and only that step", () => {
+    expect(linesToTick(docs, { ...none, permitReady: true }, "roofing:roofing_permit_documents")).toEqual(["a", "b", "c"]);
+    expect(linesToTick(docs, { ...none, permitReady: true }, "core:prepare_permit_documents")).toEqual(["a", "b", "c"]);
+    expect(linesToTick(docs, { ...none, permitReady: true }, "core:submit_permit_application")).toEqual([]);
+    expect(linesToTick(docs, { ...none, permitReady: true })).toEqual([]);
+  });
+});
+
 describe("linesToTick", () => {
   const assign = [line("a", "Project manager set on the job"), line("b", "Superintendent / field lead set on the Workflow team")];
 

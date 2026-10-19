@@ -18,6 +18,7 @@ import { PermitCorrections } from "@/components/permit-intel/corrections/permit-
 import { PermitCycles } from "@/components/permit-intel/permit-cycles";
 import { PermitForms } from "@/components/permit-intel/forms/permit-forms";
 import { PermitProducts } from "@/components/permit-intel/approvals/permit-products";
+import { PermitPreflight } from "@/components/permit-intel/permit-preflight";
 import { PermitDocuments } from "@/components/permit-intel/permit-documents";
 import { PermitParties } from "@/components/permit-intel/permit-parties";
 import { OUTCOME_LABEL, type HistoryRow, type PermitDetail } from "@/components/permit-intel/types";
@@ -27,7 +28,7 @@ import { jobLabel } from "@/lib/labels/job";
 import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 
-const TABS = ["overview", "documents", "forms", "products", "parties", "submissions", "corrections", "tasks", "inspections", "history"] as const;
+const TABS = ["overview", "documents", "forms", "products", "preflight", "parties", "submissions", "corrections", "tasks", "inspections", "history"] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -78,6 +79,7 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
           <>
             <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", toneClasses(PERMIT_STATUS_TONE[permit.status] ?? "neutral").pill)}>{PERMIT_STATUS_LABEL[permit.status] ?? permit.status}</span>
             {notice && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", toneClasses(notice.tone).pill)}>{notice.text}</span>}
+            {permit.readyAt && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", toneClasses(permit.readyOverride ? "warning" : "success").pill)}>Ready to submit</span>}
           </>
         }
       />
@@ -87,6 +89,7 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
           <TabsTrigger value="documents">Documents ({data.files.length})</TabsTrigger>
           <TabsTrigger value="forms">Forms</TabsTrigger>
           <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="preflight">Preflight</TabsTrigger>
           <TabsTrigger value="parties">Parties ({permit.parties.length})</TabsTrigger>
           <TabsTrigger value="submissions">Submissions ({permit.cycles.length})</TabsTrigger>
           <TabsTrigger value="corrections">Corrections{data.openCorrections ? ` (${data.openCorrections} open)` : ""}</TabsTrigger>
@@ -105,6 +108,9 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
         </TabsContent>
         <TabsContent value="products" className="mt-4">
           <PermitProducts detail={data} />
+        </TabsContent>
+        <TabsContent value="preflight" className="mt-4">
+          <PermitPreflight detail={data} />
         </TabsContent>
         <TabsContent value="parties" className="mt-4">
           <PermitParties detail={data} />
@@ -239,6 +245,11 @@ const ACTION_LABEL: Record<string, string> = {
   permit_product_update: "Product edited",
   permit_product_remove: "Product removed",
   permit_product_document: "Product approval added to the documents",
+  preflight_run: "Preflight run",
+  preflight_tasks: "Tasks created from preflight",
+  permit_ready: "Marked ready to submit",
+  preflight_override: "Marked ready over its blockers",
+  permit_ready_cleared: "Ready mark taken off",
 };
 
 function describe(row: HistoryRow): string {

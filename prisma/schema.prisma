@@ -508,6 +508,8 @@ model User {
   permitFormFillsFinalized          PermitFormFill[]          @relation("PermitFormFillFinalizedBy")
   productApprovalsCreated           ProductApproval[]         @relation("ApprovalCreatedBy")
   productApprovalsVerified          ProductApproval[]         @relation("ApprovalVerifiedBy")
+  preflightRuns                     PermitPreflightRun[]      @relation("PreflightRanBy")
+  permitsMarkedReady                JobPermit[]               @relation("PermitReadyBy")
   correctionNoticesConfirmed        PermitCorrectionNotice[]  @relation("CorrectionNoticeConfirmedBy")
   permitMessagesCreated             PermitMessage[]           @relation("PermitMessageCreatedBy")
   permitMessagesSent                PermitMessage[]           @relation("PermitMessageSentBy")
@@ -1530,15 +1532,24 @@ model JobPermit {
   // number; `applicationNumber` the one the department gives a submission.
   // `submittedDate` is the latest submission (the review clock); the first is
   // cycle 1's.
-  jurisdictionId    String?  @map("jurisdiction_id")
-  permitTypeKey     String?  @map("permit_type_key")
-  applicationNumber String?  @map("application_number")
-  scopeDescription  String?  @map("scope_description") @db.Text
-  valuation         Decimal? @db.Decimal(12, 2)
-  currentCycle      Int      @default(0) @map("current_cycle")
+  jurisdictionId    String?   @map("jurisdiction_id")
+  permitTypeKey     String?   @map("permit_type_key")
+  applicationNumber String?   @map("application_number")
+  scopeDescription  String?   @map("scope_description") @db.Text
+  valuation         Decimal?  @db.Decimal(12, 2)
+  currentCycle      Int       @default(0) @map("current_cycle")
+  // Marked ready to submit after a preflight (Stage 5): cleared when a package
+  // is frozen, so every submission is checked again. An override with blockers
+  // carries its reason.
+  readyAt           DateTime? @map("ready_at")
+  readyByUserId     String?   @map("ready_by_user_id")
+  readyRunId        String?   @map("ready_run_id")
+  readyOverride     String?   @map("ready_override")
 
   job                Job                      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   assignedTo         User?                    @relation("PermitAssignedUser", fields: [assignedUserId], references: [id])
+  readyBy            User?                    @relation("PermitReadyBy", fields: [readyByUserId], references: [id], onDelete: SetNull)
+  preflightRuns      PermitPreflightRun[]
   jurisdiction       Jurisdiction?            @relation(fields: [jurisdictionId], references: [id], onDelete: SetNull)
   followUpExecutions FollowUpExecution[]
   inspections        JobPermitInspection[]
@@ -6583,4 +6594,30 @@ model PermitProduct {
   @@unique([permitId, approvalId, usedAs])
   @@index([approvalId])
   @@map("permit_products")
+}
+
+// ─── Permit Intelligence, Stage 5: preflight ───────────────────────────────
+
+/// One readiness check of a permit's package: deterministic rules (versioned)
+/// and, when asked, an AI review that only adds warnings. The score is a
+/// readiness score — never a prediction of approval.
+model PermitPreflightRun {
+  id           String   @id @default(cuid())
+  permitId     String   @map("permit_id")
+  cycleNumber  Int      @map("cycle_number")
+  rulesVersion String   @map("rules_version")
+  score        Int
+  blockers     Int
+  warnings     Int
+  // [{ code, severity, message, suggestion, evidence: [{ kind, ref, label }], source }]
+  findings     Json
+  aiCallId     String?  @map("ai_call_id")
+  ranByUserId  String?  @map("ran_by_user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  permit JobPermit @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  ranBy  User?     @relation("PreflightRanBy", fields: [ranByUserId], references: [id], onDelete: SetNull)
+
+  @@index([permitId, createdAt])
+  @@map("permit_preflight_runs")
 }

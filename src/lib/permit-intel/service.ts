@@ -22,7 +22,7 @@ type Actor = { id: string; role: RoleName };
 
 export class PermitIntelError extends Error {
   constructor(
-    public readonly status: 400 | 404 | 409,
+    public readonly status: 400 | 403 | 404 | 409,
     message: string,
   ) {
     super(message);
