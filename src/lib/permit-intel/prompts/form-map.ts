@@ -26,9 +26,11 @@ export const schema = z.object({
 });
 export type FormMapAnswer = z.infer<typeof schema>;
 
-export const SYSTEM = `You map the fields of a blank building-permit application (a fillable PDF) to the keys of a contractor's data dictionary, so the form can be filled from the contractor's records. The contractor is KNU Construction, a licensed general and roofing contractor in Florida; it always applies as the contractor, never as an owner-builder.
+/** Who KNU is on a form: shared with the flat-form prompt. */
+export const CONTRACTOR_LINE = "The contractor is KNU Construction, a licensed general and roofing contractor in Florida; it always applies as the contractor, never as an owner-builder.";
 
-For every field listed, answer one mapping:
+/** How a field is mapped, and the dictionary: shared with the flat-form prompt (`flat_form_map`). */
+export const MAPPING_RULES = `For every field listed, answer one mapping:
 - A dictionary key when the field asks for that piece of information. Owner fields take owner.* keys, the property / project address takes property.* keys, the contractor block takes contractor.* keys.
 - "literal:<option>" only for a radio group, dropdown or checkbox whose answer is the same on every KNU application (for example the "contractor" choice of an owner-builder / contractor question, or "Primary Permit"). The option must be written exactly as listed for the field.
 - "when:<key>=<value>" for a checkbox that should be ticked only when a key has a value (for example a trade box ticked when permit.typeKey=reroof).
@@ -44,6 +46,10 @@ Rules:
 
 Dictionary keys:
 ${DICTIONARY.map((d) => `- ${d.key}: ${d.label} (e.g. ${d.example})${d.protected ? " [licence / qualifier: filled from records only]" : ""}`).join("\n")}`;
+
+export const SYSTEM = `You map the fields of a blank building-permit application (a fillable PDF) to the keys of a contractor's data dictionary, so the form can be filled from the contractor's records. ${CONTRACTOR_LINE}
+
+${MAPPING_RULES}`;
 
 export function content(fields: readonly InventoryField[]): string {
   const lines = fields.map((f) => `${JSON.stringify(f.name)} | ${f.type} | page ${f.page + 1} | label: ${f.label ? JSON.stringify(f.label) : "none"}${f.options?.length ? ` | options: ${f.options.map((o) => JSON.stringify(o)).join(", ")}` : ""}${f.maxLen ? ` | max ${f.maxLen} characters` : ""}`);

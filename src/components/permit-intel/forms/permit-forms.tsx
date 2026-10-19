@@ -80,7 +80,7 @@ export function PermitForms({ detail }: { detail: PermitDetail }) {
       )}
       {data.available.length === 0 && (
         <Callout tone="info" title="No form is published for this permit yet">
-          {permit.jurisdictionId ? "An administrator uploads the department's blank fillable application under Admin → Permits → Forms and publishes it." : "Give the permit its jurisdiction first (Overview), so the right forms are offered."}
+          {permit.jurisdictionId ? "An administrator uploads the department's blank application under Admin → Permits → Forms (or makes one from the Document assistant) and publishes it." : "Give the permit its jurisdiction first (Overview), so the right forms are offered."}
         </Callout>
       )}
       {data.fills.length === 0 ? (

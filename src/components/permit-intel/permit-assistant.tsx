@@ -41,6 +41,7 @@ type Item = {
   approvalId: string | null;
   hasBytes: boolean;
   duplicateOf: string | null;
+  template: { id: string; status: "DRAFT" | "PUBLISHED" | "RETIRED"; mapState: "IDLE" | "MAPPING" | "FAILED"; formKind: "ACROFORM" | "XFA" | "FLAT" } | null;
 };
 type Fetch = { id: string; url: string; finalUrl: string | null; httpStatus: number | null; outcome: string; note: string | null; bytes: number | null };
 type AssistData = {
@@ -49,6 +50,7 @@ type AssistData = {
   untypedOnPermit: number;
   aiReady: boolean;
   canRun: boolean;
+  canMakeForms: boolean;
   run: null | {
     id: string;
     status: "RUNNING" | "DONE";
@@ -108,7 +110,7 @@ export function PermitAssistant({ permitId, onChanged }: { permitId: string; onC
       </CardHeader>
       <CardContent className="space-y-4 pt-0">
         {!data.aiReady && <p className="text-xs text-muted-foreground">AI is not set up on this server.</p>}
-        {run ? <RunView run={run} canDecide={data.canRun} onDecided={refresh} /> : null}
+        {run ? <RunView run={run} canDecide={data.canRun} canMakeForms={data.canMakeForms} onDecided={refresh} /> : null}
       </CardContent>
       <Dialog open={starting} onOpenChange={setStarting}>
         <DialogContent className="sm:max-w-lg">{starting && <StartForm permitId={permitId} data={data} onDone={() => (setStarting(false), refresh())} />}</DialogContent>
@@ -227,7 +229,7 @@ function sourceLine(i: Item, byId: Map<string, Item>): string {
   return `${i.source === "SITE" ? "On the department's site" : "Opened from a link"}${from ? ` in ${from}` : ""}${i.linkText ? ` — “${i.linkText}”` : ""}`;
 }
 
-function RunView({ run, canDecide, onDecided }: { run: NonNullable<AssistData["run"]>; canDecide: boolean; onDecided: () => void }) {
+function RunView({ run, canDecide, canMakeForms, onDecided }: { run: NonNullable<AssistData["run"]>; canDecide: boolean; canMakeForms: boolean; onDecided: () => void }) {
   const byId = new Map(run.items.map((i) => [i.id, i]));
   const proposed = run.items.filter((i) => i.status === "PROPOSED");
   const decided = run.items.filter((i) => i.status === "ACCEPTED" || i.status === "REJECTED");
@@ -258,7 +260,7 @@ function RunView({ run, canDecide, onDecided }: { run: NonNullable<AssistData["r
         ) : (
           <ul className="divide-y">
             {proposed.map((i) => (
-              <ProposedRow key={i.id} item={i} byId={byId} canDecide={canDecide} onDecided={onDecided} />
+              <ProposedRow key={i.id} item={i} byId={byId} canDecide={canDecide} canMakeForms={canMakeForms} onDecided={onDecided} />
             ))}
           </ul>
         )}
@@ -321,6 +323,7 @@ function RunView({ run, canDecide, onDecided }: { run: NonNullable<AssistData["r
                 {i.status === "ACCEPTED" ? <CheckCircle2 className="size-4 text-tone-success-fg" /> : <XCircle className="size-4 text-muted-foreground" />}
                 <span className="truncate">{i.title ?? i.fileName}</span>
                 <span className="text-xs text-muted-foreground">{i.status === "ACCEPTED" ? `on the permit as ${permitDocLabel(i.decidedType)}` : "rejected"}</span>
+                {i.status === "ACCEPTED" && <FormAction item={i} canMakeForms={canMakeForms} onDone={onDecided} />}
               </li>
             ))}
           </ul>
@@ -401,7 +404,44 @@ function Section({ title, open: initial = false, children }: { title: string; op
   );
 }
 
-function ProposedRow({ item: i, byId, canDecide, onDecided }: { item: Item; byId: Map<string, Item>; canDecide: boolean; onDecided: () => void }) {
+const TEMPLATE_STATE = (t: NonNullable<Item["template"]>) =>
+  t.mapState === "MAPPING" ? "being read…" : t.mapState === "FAILED" ? "could not be read — open it" : t.status === "PUBLISHED" ? "published — fills from the Forms tab" : "draft — check it and publish";
+
+/** A blank form made into a fillable form template (Admin → Permits → Forms), or the link to the one it already is. */
+function FormAction({ item: i, canMakeForms, onDone }: { item: Item; canMakeForms: boolean; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  if (i.template)
+    return (
+      <a className="inline-flex items-center gap-1 text-xs text-primary hover:underline" href={`/admin/permits/forms/${i.template.id}`}>
+        Fillable form{i.template.formKind === "FLAT" ? " (printed on)" : ""}: {TEMPLATE_STATE(i.template)}
+      </a>
+    );
+  if (!canMakeForms || i.fileType !== "application/pdf" || !i.hasBytes) return null;
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      disabled={busy}
+      title="Make this blank form fillable for every permit with this department: its fields (or, on a printed form, its blanks) are found and mapped to the CRM's records"
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await fetchJson(`/api/permit-assist-items/${i.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "template" }) });
+          toast.success("Making it a fillable form — the AI is reading its blanks. Check and publish it under Admin → Permits → Forms.");
+          onDone();
+        } catch (e) {
+          toast.error((e as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      Make a fillable form
+    </Button>
+  );
+}
+
+function ProposedRow({ item: i, byId, canDecide, canMakeForms, onDecided }: { item: Item; byId: Map<string, Item>; canDecide: boolean; canMakeForms: boolean; onDecided: () => void }) {
   const [type, setType] = useState<string | null>(i.suggestedType);
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -469,6 +509,7 @@ function ProposedRow({ item: i, byId, canDecide, onDecided }: { item: Item; byId
             Read as a product approval
           </Button>
         )}
+        {(i.template || ["blank_application", "notice_of_commencement", "owner_authorization", "contractor_registration", "other"].includes(type ?? "")) && <FormAction item={i} canMakeForms={canMakeForms} onDone={onDecided} />}
         {i.approvalId && (
           <a className="text-xs text-primary hover:underline" href={`/permits/products/${i.approvalId}`}>
             In Product approvals

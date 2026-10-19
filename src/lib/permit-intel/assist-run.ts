@@ -13,6 +13,7 @@ import { isPermitDocType, permitDocLabel } from "./doc-types";
 import { htmlPage, mayFollow, pdfLinks, siteHostsOf, APPROVAL_HOSTS, hostWithin, type FollowContext, type FoundLink } from "./links";
 import * as read from "./prompts/assist-read";
 import { createApproval } from "./approvals";
+import { createTemplate, requestMapping } from "./forms";
 import { loadRequirementsFor, PermitIntelError } from "./service";
 import { fetchedKind, robotsAllows, robotsFor, safeFetch, urlProblem } from "./web-fetch";
 
@@ -360,6 +361,11 @@ export async function loadAssist(permitId: string) {
   const planReqs = reqs.map((r) => ({ id: r.id, title: r.title, documentType: r.documentType, required: r.required }));
   const dup = duplicateOf(planItems);
   const spend = await prisma.aiCall.aggregate({ where: { subjectType: "permit_assist_run", subjectId: run.id }, _sum: { costUsd: true } });
+  // a document already made into a form template (the same bytes)
+  const hashes = [...new Set(run.items.map((i) => i.sha256).filter(Boolean) as string[])];
+  const templates = hashes.length ? await prisma.permitFormTemplate.findMany({ where: { sha256: { in: hashes }, status: { not: "RETIRED" } }, select: { id: true, sha256: true, status: true, mapState: true, formKind: true }, orderBy: { version: "desc" } }) : [];
+  const templateOf = new Map<string, (typeof templates)[number]>();
+  for (const t of templates) if (!templateOf.has(t.sha256)) templateOf.set(t.sha256, t);
   // open, and nobody is reading an item right now: the work was cut off (or only the closing is left)
   const staleBefore = Date.now() - STALE_MS;
   const restart = run.status === "RUNNING" && !run.items.some((i) => i.status === "READING" && (i.startedAt?.getTime() ?? 0) > staleBefore);
@@ -376,7 +382,10 @@ export async function loadAssist(permitId: string) {
       finishedAt: run.finishedAt,
       startedBy: run.startedBy,
       spentUsd: Number(spend._sum.costUsd ?? 0),
-      items: run.items.map(({ storageKey, ...i }) => ({ ...i, hasBytes: !!storageKey || !!i.fileId, duplicateOf: dup.get(i.id) ?? null })),
+      items: run.items.map(({ storageKey, ...i }) => {
+        const t = i.sha256 ? templateOf.get(i.sha256) : undefined;
+        return { ...i, hasBytes: !!storageKey || !!i.fileId, duplicateOf: dup.get(i.id) ?? null, template: t ? { id: t.id, status: t.status, mapState: t.mapState, formKind: t.formKind } : null };
+      }),
       fetches: run.fetches,
       coverage: coverage(planReqs, files, planItems),
       asks: askedFor(planItems, files, planReqs),
@@ -387,13 +396,13 @@ export async function loadAssist(permitId: string) {
 
 // ─── Deciding ───────────────────────────────────────────────────────────────
 
-export type ItemDecision = { action: "accept"; docType: string } | { action: "reject" } | { action: "approval" };
+export type ItemDecision = { action: "accept"; docType: string } | { action: "reject" } | { action: "approval" } | { action: "template" };
 
 /** Accept (the document joins the permit with the type chosen), reject, or send a product approval to the approvals reader. */
 export async function decideAssistItem(itemId: string, d: ItemDecision, actor: Actor) {
   const item = await prisma.permitAssistItem.findUnique({
     where: { id: itemId },
-    include: { file: { select: { id: true, storageKey: true } }, run: { select: { permit: { select: { id: true, jobId: true, job: { select: { leadId: true } } } } } } },
+    include: { file: { select: { id: true, storageKey: true } }, run: { select: { permit: { select: { id: true, jobId: true, jurisdictionId: true, job: { select: { leadId: true } } } } } } },
   });
   if (!item) throw new PermitIntelError(404, "Item not found");
   const permit = item.run.permit;
@@ -406,6 +415,20 @@ export async function decideAssistItem(itemId: string, d: ItemDecision, actor: A
     await prisma.permitAssistItem.update({ where: { id: itemId }, data: { approvalId: a.id } });
     await audit(actor, permit.id, "assist_approval", { itemId, approvalId: a.id });
     return { item: await prisma.permitAssistItem.findUnique({ where: { id: itemId }, select: ITEM_SELECT }), approval: a };
+  }
+
+  if (d.action === "template") {
+    // a blank form becomes a form template of its jurisdiction: fillable fields are mapped, a flat form's blanks found
+    const key = item.file?.storageKey ?? item.storageKey;
+    if (!key || item.fileType !== "application/pdf") throw new PermitIntelError(400, "Only a PDF form can become a fillable form");
+    const bytes = await readFile(key);
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const same = await prisma.permitFormTemplate.findFirst({ where: { sha256, status: { not: "RETIRED" } }, select: { id: true, mapState: true } });
+    if (same) return { item: await prisma.permitAssistItem.findUnique({ where: { id: itemId }, select: ITEM_SELECT }), template: same, startMapping: false };
+    const t = await createTemplate({ name: item.fileName ?? "form.pdf", bytes }, { name: (item.title ?? item.fileName ?? "Form").replace(/\.pdf$/i, "").slice(0, 120), jurisdictionId: permit.jurisdictionId }, actor);
+    if (t.mapState !== "MAPPING") await requestMapping(t.id, actor);
+    await audit(actor, permit.id, "assist_template", { itemId, templateId: t.id, kind: t.formKind });
+    return { item: await prisma.permitAssistItem.findUnique({ where: { id: itemId }, select: ITEM_SELECT }), template: { id: t.id, mapState: "MAPPING" }, startMapping: true };
   }
 
   if (item.status !== "PROPOSED") throw new PermitIntelError(409, item.status === "ACCEPTED" ? "Already on the permit — change it on the Documents tab" : "Only a proposed document can be decided");

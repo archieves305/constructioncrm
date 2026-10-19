@@ -159,6 +159,11 @@ export function TemplateEditor({ id }: { id: string }) {
         </Callout>
       )}
       {t.mapState === "FAILED" && <Callout tone="danger" title="The mapping did not finish">{t.mapError}</Callout>}
+      {t.formKind === "FLAT" && t.mapState !== "MAPPING" && (
+        <Callout tone="info" title="A printed form">
+          It has no fillable fields: the AI found its blanks on the page, and values are printed on them. Pick a permit under “Try on a permit” and open the filled preview to see where each value lands — a value in the wrong place: clear that field&apos;s mapping and it is left for a person.
+        </Callout>
+      )}
       {!draft && <Callout tone="info">A published form does not change, so fills already made stay as they were. “Edit (new version)” copies it as a draft; publishing that retires this one.</Callout>}
 
       <Card className="min-w-0">
@@ -191,6 +196,11 @@ export function TemplateEditor({ id }: { id: string }) {
                 ))}
               </SelectContent>
             </Select>
+            {permitId && (
+              <a className="shrink-0 text-xs text-primary hover:underline" href={`/api/permit-forms/${t.id}/preview?permitId=${permitId}&pdf=1&boxes=1`} target="_blank" rel="noreferrer">
+                Open the filled preview
+              </a>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4 pt-0">

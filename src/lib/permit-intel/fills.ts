@@ -7,7 +7,7 @@ import { logger } from "@/lib/logger";
 import { loadEstimateBrand } from "@/lib/pdf/brand";
 import type { FormContext } from "./data-dictionary";
 import { finalizeProblems, planFill, summarize, type FieldMap, type FillValue } from "./field-fill";
-import { fillForm } from "./form-pdf";
+import { fillFlatForm, fillForm } from "./form-pdf";
 import { inventoryOf, templatesForPermit } from "./forms";
 import { indexPermitFileText } from "./library";
 import { PermitIntelError } from "./service";
@@ -162,14 +162,16 @@ export async function renderFill(fillId: string, actor: Actor) {
   const f = await draftOf(fillId);
   const permit = await prisma.jobPermit.findUniqueOrThrow({ where: { id: f.permitId }, select: { id: true, jobId: true, job: { select: { leadId: true, lead: { select: { propertyAddress1: true, propertyAddress2: true, city: true, state: true, zipCode: true } } } } } });
   const values = planFill(inventoryOf(f.template), f.template.fields as FieldMap[], await loadFormContext(f.permitId), overridesOf(f));
-  const t = await prisma.permitFormTemplate.findUniqueOrThrow({ where: { id: f.templateId }, select: { storageKey: true } });
+  const t = await prisma.permitFormTemplate.findUniqueOrThrow({ where: { id: f.templateId }, select: { storageKey: true, formKind: true } });
   let blank: Buffer;
   try {
     blank = await readFile(t.storageKey);
   } catch {
     throw new PermitIntelError(409, "The blank form is missing from the store; upload it again under Admin → Permits → Forms");
   }
-  const out = await fillForm(new Uint8Array(blank), values);
+  // a flat form is printed on: one PDF, no editable copy
+  const flat = t.formKind === "FLAT";
+  const out = flat ? await fillFlatForm(new Uint8Array(blank), values, inventoryOf(f.template)) : await fillForm(new Uint8Array(blank), values);
   const address = (permit.job.lead.propertyAddress1 || formatAddressLine(permit.job.lead) || "permit").replace(/[\\/:*?"<>|]+/g, " ").trim();
   const base = `${f.template.name} - ${address}`.slice(0, 150);
   const save = async (bytes: Uint8Array, fileName: string) => {
@@ -179,9 +181,11 @@ export async function renderFill(fillId: string, actor: Actor) {
       select: { id: true },
     });
   };
-  const editable = await save(out.editable, `${base} (editable).pdf`);
   const flattened = await save(out.flattened, `${base}.pdf`);
-  await Promise.all([dropOutput(f.outputFileId), dropOutput(f.flattenedFileId)]);
+  const editable = flat ? flattened : await save(out.editable, `${base} (editable).pdf`);
+  // a flat form's fill has one output file in both slots
+  await dropOutput(f.outputFileId);
+  if (f.flattenedFileId !== f.outputFileId) await dropOutput(f.flattenedFileId);
   const u = await prisma.permitFormFill.update({ where: { id: fillId }, data: { values: values as unknown as Prisma.InputJsonValue, outputFileId: editable.id, flattenedFileId: flattened.id }, include: FILL_INCLUDE });
   void indexPermitFileText(flattened.id);
   if (out.skipped.length) logger.warn("form fill skipped fields", { fillId, skipped: out.skipped });
@@ -210,6 +214,8 @@ export async function finalizeFill(fillId: string, actor: Actor) {
 export async function deleteFill(fillId: string, actor: Actor) {
   const f = await draftOf(fillId);
   await prisma.permitFormFill.delete({ where: { id: fillId } });
-  await Promise.all([dropOutput(f.outputFileId), dropOutput(f.flattenedFileId)]);
+  // a flat form's fill has one output file in both slots
+  await dropOutput(f.outputFileId);
+  if (f.flattenedFileId !== f.outputFileId) await dropOutput(f.flattenedFileId);
   await audit(actor, f.permitId, "form_fill_delete", { fillId });
 }

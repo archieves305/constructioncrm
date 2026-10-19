@@ -4,6 +4,7 @@ import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { validateBody } from "@/lib/validation/body";
 import { canWriteProduction } from "@/lib/access/roles";
+import { canManagePermitSettings } from "@/lib/permit-intel/access";
 import { loadAssist, startAssistRun, stepAssistRun } from "@/lib/permit-intel/assist-run";
 import { MAX_UPLOADS_PER_RUN } from "@/lib/permit-intel/assist-plan";
 import { actorOf, AI_RATE, errorResponse, permitInScope } from "@/lib/permit-intel/route";
@@ -23,7 +24,7 @@ export async function GET(_request: NextRequest, { params }: Context) {
       const runId = data.run.id;
       after(() => stepAssistRun(runId, null));
     }
-    return NextResponse.json({ ...data, canRun: canWriteProduction(session.user.role) });
+    return NextResponse.json({ ...data, canRun: canWriteProduction(session.user.role), canMakeForms: canManagePermitSettings(session.user.role) });
   } catch (err) {
     return errorResponse(err);
   }

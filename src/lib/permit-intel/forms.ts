@@ -23,7 +23,8 @@ type Actor = { id: string; role: RoleName };
 const audit = (actor: { id: string } | null, id: string, action: string, before?: unknown, after?: unknown) =>
   recordAudit({ actorUserId: actor?.id ?? null, entityType: "PermitFormTemplate", entityId: id, action, before, after });
 
-const MAP_STALE_MS = 5 * 60 * 1000;
+/** A flat form of a dozen pages takes a few minutes to read. */
+const MAP_STALE_MS = 10 * 60 * 1000;
 
 export type TemplateMeta = { name: string; jurisdictionId?: string | null; county?: string | null; permitTypeKeys?: string[]; notes?: string | null };
 
@@ -38,7 +39,8 @@ export async function createTemplate(file: { name: string; bytes: Buffer }, meta
     throw new PermitIntelError(400, "This PDF could not be read as a form. If it is password-protected, upload an unprotected copy.");
   }
   if (inv.kind === "XFA") throw new PermitIntelError(400, "This is an XFA form (an Adobe LiveCycle form). It cannot be filled field by field; ask the department for a standard fillable PDF, or keep it as a document.");
-  if (inv.kind === "FLAT") throw new PermitIntelError(400, "This PDF has no fillable fields (it is a flat scan or a printed form). Filling flat forms is not supported yet; keep it on the permit as a document.");
+  // a flat form's blanks are found on its pages by the AI step, so it needs AI to become a template
+  if (inv.kind === "FLAT" && !isAiConfigured()) throw new PermitIntelError(400, `This PDF has no fillable fields (a printed or scanned form). Its blanks are found with AI, and ${AI_NOT_CONFIGURED.toLowerCase()}.`);
   await checkMeta(meta);
   const sha256 = createHash("sha256").update(file.bytes).digest("hex");
   const same = await prisma.permitFormTemplate.findFirst({ where: { sha256, status: { not: "RETIRED" } }, select: { id: true, name: true } });
@@ -58,10 +60,12 @@ export async function createTemplate(file: { name: string; bytes: Buffer }, meta
       pageCount: inv.pageCount,
       formKind: inv.kind,
       fieldInventory: inv.fields as unknown as Prisma.InputJsonValue,
+      // a flat form has no fields until its pages are read: that starts now (the route runs it)
+      ...(inv.kind === "FLAT" ? { mapState: "MAPPING" as const, mapStartedAt: new Date() } : {}),
       createdByUserId: actor.id,
     },
   });
-  await audit(actor, t.id, "create", undefined, { name: t.name, fields: inv.fields.length, sha256 });
+  await audit(actor, t.id, "create", undefined, { name: t.name, kind: inv.kind, fields: inv.fields.length, sha256 });
   return t;
 }
 
@@ -147,6 +151,7 @@ export async function runMapping(id: string, userId: string | null): Promise<voi
   try {
     const t = await prisma.permitFormTemplate.findUniqueOrThrow({ where: { id }, include: { fields: true } });
     if (t.mapState !== "MAPPING") return;
+    if (t.formKind === "FLAT") return await runFlatMapping(t, userId);
     const inv = inventoryOf(t);
     const r = await runAiCall({
       subjectType: "form_template",
@@ -180,6 +185,35 @@ export async function runMapping(id: string, userId: string | null): Promise<voi
     if (!(err instanceof AiError)) logger.exception(err, { where: "forms.runMapping", templateId: id });
     await prisma.permitFormTemplate.update({ where: { id }, data: { mapState: "FAILED", mapError: message.slice(0, 500) } }).catch(() => undefined);
   }
+}
+
+/**
+ * A flat form: its blanks are found on the rendered pages and named by the AI
+ * (`flat/flat-map.ts`); they become the template's fields. A field a person
+ * mapped by hand keeps that mapping when the pages are read again.
+ */
+async function runFlatMapping(t: Prisma.PermitFormTemplateGetPayload<{ include: { fields: true } }>, userId: string | null): Promise<void> {
+  const { mapFlatForm } = await import("./flat/flat-map");
+  const out = await mapFlatForm(await readFile(t.storageKey), { templateId: t.id, sha256: t.sha256, userId });
+  if (!out.inventory.length) {
+    await prisma.permitFormTemplate.update({ where: { id: t.id }, data: { mapState: "FAILED", mapError: out.blanksFound ? "No blanks to fill were recognised on this form." : "No lines or boxes to write in were found on this form. If it is a photo, upload a clean scan or the original PDF." } });
+    return;
+  }
+  const answers = new Map(out.mappings.map((m) => [m.fieldName, m]));
+  const byHand = new Set(t.fields.filter((f) => !f.aiSuggested && (f.dataKey || f.transform)).map((f) => f.fieldName));
+  const names = new Set(out.inventory.map((f) => f.name));
+  await prisma.$transaction(async (tx) => {
+    await tx.permitFormFieldMap.deleteMany({ where: { templateId: t.id, fieldName: { notIn: [...names] } } });
+    for (const f of out.inventory) {
+      if (byHand.has(f.name)) continue;
+      const a = answers.get(f.name);
+      const ok = a ? acceptMapping(f, a) : { dataKey: null, transform: null, dropped: "The AI gave no answer for this field" };
+      const rationale = (ok.dropped ? `Left blank: ${ok.dropped}.` : (a?.rationale ?? "")).slice(0, 300) || null;
+      const data = { dataKey: ok.dataKey, transform: ok.transform, aiSuggested: true, confidence: a ? Math.min(1, Math.max(0, a.confidence)) : null, rationale };
+      await tx.permitFormFieldMap.upsert({ where: { templateId_fieldName: { templateId: t.id, fieldName: f.name } }, create: { templateId: t.id, fieldName: f.name, ...data }, update: data });
+    }
+    await tx.permitFormTemplate.update({ where: { id: t.id }, data: { fieldInventory: out.inventory as unknown as Prisma.InputJsonValue, mapState: "IDLE", mapError: null, aiCallId: out.callIds.at(-1) ?? null } });
+  });
 }
 
 /** A reading left MAPPING by a restart is retried by the next page load. */

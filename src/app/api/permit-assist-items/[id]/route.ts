@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { canWriteProduction } from "@/lib/access/roles";
-import { canManageApprovals } from "@/lib/permit-intel/access";
+import { canManageApprovals, canManagePermitSettings } from "@/lib/permit-intel/access";
+import { runMapping } from "@/lib/permit-intel/forms";
 import { runApprovalRead } from "@/lib/permit-intel/approvals";
 import { decideAssistItem } from "@/lib/permit-intel/assist-run";
 import { indexPermitFileText } from "@/lib/permit-intel/library";
@@ -16,6 +17,7 @@ const decisionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("accept"), docType: z.string().max(60) }),
   z.object({ action: z.literal("reject") }),
   z.object({ action: z.literal("approval") }),
+  z.object({ action: z.literal("template") }),
 ]);
 
 /** A person's decision on what the assistant found: accept with a type, reject, or read it as a product approval. */
@@ -31,6 +33,8 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   const v = await validateBody(request, decisionSchema);
   if (!v.ok) return v.response;
   if (v.data.action === "approval" && !canManageApprovals(session.user.role)) return forbidden();
+  // a form template is shared by every permit of the jurisdiction: the people who keep Admin → Permits
+  if (v.data.action === "template" && !canManagePermitSettings(session.user.role)) return forbidden();
   try {
     const out = await decideAssistItem(id, v.data, actorOf(session.user));
     const userId = session.user.id;
@@ -38,6 +42,11 @@ export async function PATCH(request: NextRequest, { params }: Context) {
       const approvalId = out.approval.id;
       after(() => runApprovalRead(approvalId, userId));
     }
+    if ("startMapping" in out && out.startMapping && out.template) {
+      const templateId = out.template.id;
+      after(() => runMapping(templateId, userId));
+    }
+    if ("template" in out && out.template) return NextResponse.json({ ...out.item, template: out.template });
     if ("fileId" in out && out.fileId) {
       const fileId = out.fileId;
       after(() => indexPermitFileText(fileId));

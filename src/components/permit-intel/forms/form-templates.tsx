@@ -32,7 +32,9 @@ export function whereUsed(t: { jurisdiction: { name: string } | null; county: st
 }
 
 /**
- * Admin → Permits → Forms: the municipalities' blank fillable applications.
+ * Admin → Permits → Forms: the municipalities' blank applications — fillable
+ * PDFs, and printed or scanned forms whose blanks the AI finds and the CRM
+ * prints on.
  * Each is mapped once (the AI proposes, a person confirms and publishes) and
  * then filled on any permit it applies to.
  */
@@ -45,7 +47,7 @@ export function FormTemplates() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">A fillable PDF only: a flat scan or an XFA form is refused with the reason.</p>
+        <p className="text-sm text-muted-foreground">A fillable PDF, or a printed / scanned form — its blanks are found on the page and the values printed on them. An XFA form is refused with the reason.</p>
         <Button size="sm" variant="brand" onClick={() => setAdding(true)}>
           <Upload className="size-3.5" /> Upload a blank form
         </Button>
@@ -144,7 +146,7 @@ function UploadForm({ onClose }: { onClose: () => void }) {
     <>
       <DialogHeader>
         <DialogTitle>Upload a blank form</DialogTitle>
-        <DialogDescription>The department&apos;s own fillable PDF, as downloaded. Its fields are read now; mapping them comes next.</DialogDescription>
+        <DialogDescription>The department&apos;s own blank form, as downloaded. A fillable PDF&apos;s fields are read now and mapping them comes next; on a printed or scanned form the AI finds the blanks first, which takes a minute or two.</DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
         <input

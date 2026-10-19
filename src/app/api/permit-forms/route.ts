@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/helpers";
 import { canManagePermitSettings } from "@/lib/permit-intel/access";
-import { createTemplate, listTemplates } from "@/lib/permit-intel/forms";
+import { createTemplate, listTemplates, runMapping } from "@/lib/permit-intel/forms";
 import { templateMetaSchema } from "@/lib/permit-intel/form-validation";
 import { actorOf, errorResponse } from "@/lib/permit-intel/route";
 import { MAX_UPLOAD_BYTES } from "@/lib/files/storage";
@@ -31,7 +31,13 @@ export async function POST(request: NextRequest) {
   });
   if (!meta.success) return badRequest(meta.error.issues.map((i) => i.message).join("; "));
   try {
-    return NextResponse.json(await createTemplate({ name: file.name, bytes: Buffer.from(await file.arrayBuffer()) }, meta.data, actorOf(session.user)), { status: 201 });
+    const t = await createTemplate({ name: file.name, bytes: Buffer.from(await file.arrayBuffer()) }, meta.data, actorOf(session.user));
+    // a flat form's blanks are found now, after the answer
+    if (t.mapState === "MAPPING") {
+      const userId = session.user.id;
+      after(() => runMapping(t.id, userId));
+    }
+    return NextResponse.json(t, { status: 201 });
   } catch (err) {
     return errorResponse(err);
   }

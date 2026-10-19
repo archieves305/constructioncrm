@@ -92,7 +92,12 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    **Document assistant built + dev-QA'd 2026-10-19, deployed 2026-10-19 as
    `64e3c4d`** (BUILD_ID `TLxVz6KDW9VoRZKRR74nA`, migration applied, smoke 307
    ×2, journal clean, backup `postgres-2026-10-19-015915.dump`; the droplet
-   reaches the Town of Palm Beach site): migration `20261107120000_permit_assistant`; drop many
+   reaches the Town of Palm Beach site). **Fillable forms from found
+   documents + printed / scanned forms filled — built + dev-QA'd 2026-10-19,
+   on `main`, not deployed (no migration)**: "Make a fillable form" on an
+   assistant item; flat forms' blanks found from the rendered pixels
+   (`flat/detect.ts`, own worker process), named by the AI by number, filled
+   by printing on the page. Assistant details: migration `20261107120000_permit_assistant`; drop many
    documents on a permit → the AI reads each, opens the links worth opening
    (one hop from a person's document; then only the department's site and the
    approval sites; 40 pages; a guarded fetcher), looks on the department's
@@ -556,6 +561,26 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-19 — From found documents to filled forms (built + dev-QA'd, on `main`, not deployed)
+
+"what happens after docs are identified? are they filled out" → "do both".
+No migration. (1) **Make a fillable form** on a document the assistant found:
+a form template for the permit's jurisdiction, linked back by the file's
+hash. (2) **Flat forms**: `createTemplate` accepts them; `flat/form-worker.mjs`
+renders pages in its own process, pure `flat/detect.ts` finds underlines,
+cell bands and tick boxes from the pixels, prompt `flat_form_map` (Opus, the
+page with numbered boxes) names them and maps them with the shared
+`MAPPING_RULES`; the blanks become ordinary fields `p<page>-<n>`;
+`fillFlatForm` prints values on the page (page content wrapped in q/Q first
+— a scan's OCR layer leaves text invisible otherwise), X in tick boxes,
+never signatures, a value too long reported not cut; preview PDF with the
+fields outlined. Gate: typecheck clean, lint 5/22, 1872 tests (+7), build
+clean. Dev QA on the town's real NOC, 8-page application and scanned
+affidavit: $0.66 once, 88 s, 203 + 21 blanks found and labelled, values on
+their lines in Chrome's PDF viewer, the re-roof boxes ticked; API 21/21,
+headless 12/12, SALES_REP 3/3. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 
 ### 2026-10-19 — Permit document assistant (deployed `64e3c4d`)
 
@@ -3435,6 +3460,12 @@ Notification Digests).
   profile, else stay blank; signatures and notary blocks are never filled. A
   template belongs to its exact file and never changes once published (edit =
   next version). A fill is finalised only when no two records disagree.
+- **A flat form's blanks come from the page, never from the model**
+  (`lib/permit-intel/flat/detect.ts`): the AI only says which numbered blank
+  is which; positions are found in the rendered pixels. Values are printed
+  only from records, signatures and notary blocks never, a value that does
+  not fit is reported rather than cut, and a template is checked against its
+  filled preview before it is published.
 - **A product approval's checks are advice** (`lib/permit-intel/approvals-plan.ts`):
   every flag carries "not an engineering determination"; the CRM never
   computes a required pressure (a person types the engineer's), never infers
@@ -3484,7 +3515,9 @@ Notification Digests).
 > `C7dZ4cfftPCjy5oiFvv9z`, 2026-10-19)**; what remains is the click-throughs
 > and the open ruling below. **The document assistant is on prod (`64e3c4d`,
 > BUILD_ID `TLxVz6KDW9VoRZKRR74nA`)**; next: Admin → Permits → Jurisdictions → each department's website, then a
-> permit → Documents → Document assistant → Sort documents…. Stage 3 after it: After it: Admin → Permits → Forms → upload the
+> permit → Documents → Document assistant → Sort documents…. **Filling found
+> forms (fillable and printed) is on `main`, not deployed (no migration)**:
+> Make a fillable form → check the filled preview → publish → Forms tab. Stage 3 after it: After it: Admin → Permits → Forms → upload the
 > Palm Beach County universal application (county "Palm Beach", from
 > discover.pbc.gov) → Map with AI → check "Check these" and clear the
 > office-use header → Publish; set each Palm Beach County jurisdiction's
