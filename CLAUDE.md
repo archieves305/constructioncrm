@@ -571,7 +571,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-19 — MVP 5: one estimate system, the roofing estimate from measurements (built + dev-QA'd on `estimate-one-system`, on `main`, not deployed)
+### 2026-10-19 — MVP 5: one estimate system, the roofing estimate from measurements (deployed `b824f4b`)
 
 "continue to MVP 5". Rulings: labor per square by roof type (rates in Admin →
 Roofing, defaults from KNU's own roof estimates on prod: shingle 140, tile 280,
@@ -604,6 +604,11 @@ import dry run again: both Pierce Drive entries are the **same PDF** (same
 checksum); Aug 16 carries a typed 42 sq (≈ 38.1 + 10 % waste), Aug 20 the
 report's 38.1 + waste 5 % — and the import's file-name check would have kept
 the Aug 16 one. Proposed: `--yes --skip=cmsvrxuha0004h607q2shgnrl`.
+Richard pushed and deployed from `!` (background, 333 s, exit 0) before the import:
+BUILD_ID `H8-80eOn1wli0O_dleu3F` → `dA3UpZzj_9IbLgUuL5Fv_`, migration applied (columns,
+default OTHER and `SQUARE` present), journal clean, backup
+`postgres-2026-10-19-181336.dump`. Price book on prod still empty (0 materials) — the
+import waits on Richard's word.
 
 ### 2026-10-19 — Audit roadmap Stage D: overdue control + lead call list (deployed `384ef12`)
 
@@ -3727,9 +3732,8 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **MVP 5 (one estimate system, roofing from measurements) is built on
-> `estimate-one-system`, fast-forwarded to `main`, not deployed; the deploy carries migration
-> `20261110120000_estimate_one_system`.** Before the deploy, on Richard's word:
+> **MVP 5 (one estimate system, roofing from measurements) is on prod (`b824f4b`,
+> BUILD_ID `dA3UpZzj_9IbLgUuL5Fv_`); the price book is still empty.** On Richard's word:
 > fresh backup, then the estimator import on prod with
 > `--yes --skip=cmsvrxuha0004h607q2shgnrl` (the Aug 16 Pierce Drive upload with
 > the typed 42 sq) — fills the price book (40 materials + prices). After it:
