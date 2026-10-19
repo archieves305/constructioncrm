@@ -185,7 +185,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `20261021120000_takeoffs_measurements` applied, smoke 307 ×2, journal
    clean, backup `postgres-2026-10-09-042406.dump`). **M3 (AI roofing) built
    2026-10-14, moved onto the shared AI layer and merged to `main`
-   2026-10-19** (migration `20261108120000_takeoff_analyze_jobs`;
+   2026-10-19, deployed 2026-10-19 as `166a362`** (BUILD_ID
+   `U90VFCrDknZ6GfCb-zWQr`, migration `20261108120000_takeoff_analyze_jobs`
+   applied, smoke 307 ×2, journal clean, backup
+   `postgres-2026-10-19-134400.dump`;
    `PlanAiCall` dropped; calls are `AiCall` rows with subject `takeoff`).
    Richard's click-through: a lead → Plan takeoff → upload the 3310 set
    → Start roofing takeoff → Auto calibrate A-10 → draw the roof outline → the
@@ -568,7 +571,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-19 — Plan takeoff M3 on the shared AI layer, merged to `main`
+### 2026-10-19 — Plan takeoff M3 on the shared AI layer (deployed `166a362`)
 
 "complete plan takeoff M3 and then do a dry run on prod. then delete
 duplicate SPF record". `main` merged into `takeoff-m3` (CLAUDE.md and one
@@ -581,7 +584,13 @@ versions `-2`); new migration `20261108120000_takeoff_analyze_jobs`
 clean, lint 5/22, 1897 tests, build clean. Dev QA: real run on A-10 $0.34
 (same answer as 10-14), repeat cached at $0, headless 1440 / 400 px clean.
 Details: [features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
-**Deploy carries the migration.**
+Richard pushed and deployed from `!` (background, 316 s, exit 0): BUILD_ID
+`U5IBZ_zSrPTNhnC0nmT4x` → `U90VFCrDknZ6GfCb-zWQr`, the migration applied,
+`plan_jobs.takeoff_id` present, smoke 307 ×2, journal clean, backup
+`postgres-2026-10-19-134400.dump`. Roofing import dry run on prod the same
+day (nothing written): 40 materials + prices to create, 0 rule changes, 5
+Roofr reports to import (1791 Pierce Drive twice — check before `--yes`), 1
+already here, 6 held. Not applied.
 
 ### 2026-10-19 — From found documents to filled forms (deployed `391efe1`)
 
@@ -3529,8 +3538,8 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Plan takeoff M3 is on `main` (shared AI layer); the deploy carries
-> migration `20261108120000_takeoff_analyze_jobs`.** After the deploy: a lead
+> **Plan takeoff M3 is on prod (`166a362`, BUILD_ID
+> `U90VFCrDknZ6GfCb-zWQr`).** Click-through: a lead
 > with the 3310 set → Plan takeoff → roofing takeoff → calibrate A-10 →
 > Analyze with AI → tick A-10 only → review the dashed proposals and the
 > Specifications card (~$0.35, shown under Admin → AI Usage). Next build: M4
