@@ -571,7 +571,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-19 — Audit roadmap Stage D: overdue control + lead call list (built + dev-QA'd on `overdue-control`, not deployed)
+### 2026-10-19 — Audit roadmap Stage D: overdue control + lead call list (deployed `384ef12`)
 
 No migration. **Unowned steps:** `resolveAssignee` falls back to the subject's
 coordinator (case manager, else the job's PM) when no slot, field or default fills a
@@ -595,6 +595,12 @@ tests (+4), build clean. Dev QA: API 9/9 (overdue-by-person count = list, bulk m
 tasks, reason required, call list, duplicate across formats, rep 403 on bulk and on a
 changed owner, 200 on the same owner), headless Chromium 1440 / 400 px (clean-up panel,
 Call list), unowned-steps dry run on dev. Dev DB restored.
+Richard pushed and deployed from `!` (background, 331 s, exit 0): BUILD_ID
+`ZHlkJWkImUUtlAZOH66vC` → `H8-80eOn1wli0O_dleu3F`, no migration, smoke 307 ×2, journal
+clean, backup `postgres-2026-10-19-174333.dump`. Unowned-steps dry run on prod (nothing
+written): 71 open unowned steps on 5 workflows (14 active); 17 assignable — CV-00002's 12
+to Richard (its case manager), CV-00004's 5 to Erica; 54 stay unowned because JOB-00027,
+CV-00001 and CV-00003 have no PM / case manager. `--yes` waits on Richard.
 
 ### 2026-10-19 — Audit roadmap Stage C: owner command center (deployed `c24bbc0`)
 
