@@ -183,8 +183,11 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    the `takeoff-tick.sh` cron installed). **M2 (calibration + manual tools)
    deployed 2026-10-09 as `c18e8f5`** (BUILD_ID `JyubG__VqAsj4BvpIQTie`, migration
    `20261021120000_takeoffs_measurements` applied, smoke 307 ×2, journal
-   clean, backup `postgres-2026-10-09-042406.dump`). Richard's
-   click-through: a lead → Plan takeoff → upload the 3310 set
+   clean, backup `postgres-2026-10-09-042406.dump`). **M3 (AI roofing) built
+   2026-10-14, moved onto the shared AI layer and merged to `main`
+   2026-10-19** (migration `20261108120000_takeoff_analyze_jobs`;
+   `PlanAiCall` dropped; calls are `AiCall` rows with subject `takeoff`).
+   Richard's click-through: a lead → Plan takeoff → upload the 3310 set
    → Start roofing takeoff → Auto calibrate A-10 → draw the roof outline → the
    count tool on the drains. Next: **M3** (AI-assisted roofing; needs the prod
    `ANTHROPIC_API_KEY`). Test set: `3310 NE 37 st/` at the repo root (git-ignored).
@@ -564,6 +567,21 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-19 — Plan takeoff M3 on the shared AI layer, merged to `main`
+
+"complete plan takeoff M3 and then do a dry run on prod. then delete
+duplicate SPF record". `main` merged into `takeoff-m3` (CLAUDE.md and one
+schema conflict, `main`'s side kept); M3's own call layer
+(`src/lib/takeoff/ai/{client,calls,hash,pricing}.ts`, `PlanAiCall`, migration
+`20261028120000_plan_ai_calls`) replaced by `runAiCall` with subject
+`takeoff`; the drawings' text framed with `untrustedDocument` (prompt
+versions `-2`); new migration `20261108120000_takeoff_analyze_jobs`
+(`plan_jobs.takeoff_id` only); `TAKEOFF_AI_*` env gone. Gate: typecheck
+clean, lint 5/22, 1897 tests, build clean. Dev QA: real run on A-10 $0.34
+(same answer as 10-14), repeat cached at $0, headless 1440 / 400 px clean.
+Details: [features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
+**Deploy carries the migration.**
 
 ### 2026-10-19 — From found documents to filled forms (deployed `391efe1`)
 
@@ -3510,6 +3528,13 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **Plan takeoff M3 is on `main` (shared AI layer); the deploy carries
+> migration `20261108120000_takeoff_analyze_jobs`.** After the deploy: a lead
+> with the 3310 set → Plan takeoff → roofing takeoff → calibrate A-10 →
+> Analyze with AI → tick A-10 only → review the dashed proposals and the
+> Specifications card (~$0.35, shown under Admin → AI Usage). Next build: M4
+> (AI plumbing). M5 must guard totals across roof plans that draw the same roof.
 
 > **AI Permit Intelligence Stages 2, 3 and 4 are on prod (`da551cc`, BUILD_ID
 > `6KAPwvK3Td9KNoioZBmQr`, 2026-10-19 00:26 UTC).** Stage 4 after it: Permits → Product approvals →
