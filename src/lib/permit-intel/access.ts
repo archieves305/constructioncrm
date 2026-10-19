@@ -25,7 +25,7 @@ export function canSubmitPermit(viewer: Viewer, permit: { assignedUserId: string
 /**
  * Confirming a correction notice (its items become the permit's open
  * corrections and the permit moves to corrections): the same people who may
- * submit — not yet ruled, proposed.
+ * submit. Ruled 2026-10-19 for both: office roles plus the permit's coordinator.
  */
 export const canConfirmCorrections = canSubmitPermit;
 

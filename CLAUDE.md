@@ -571,6 +571,15 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-19 — Rulings
+
+(1) Confirming a correction notice and freezing a submission: office roles +
+the permit's coordinator (as built — `canSubmitPermit`). (2) Logging a
+contact does **not** move a lead's next follow-up date. (3) `/api/messaging`
+left as it is for now. (4) Job delete stays strict. (5) Roofing: price book
+and rules stay ADMIN / MANAGER; cost and margin on a job's roofing estimate
+(P1) show to ADMIN, MANAGER and that job's project manager.
+
 ### 2026-10-19 — Plan takeoff M3 on the shared AI layer (deployed `166a362`)
 
 "complete plan takeoff M3 and then do a dry run on prod. then delete
@@ -1357,7 +1366,7 @@ audit `job_delete` with a snapshot, the counts and the reason);
 job…" in the job page's ⋯ menu. **Refused when the job has customer payments,
 expenses, invoices, crew payments, daily logs, field labor entries, a sent or
 signed customer contract or a linked violation case** — chosen by the session,
-Richard has not ruled on whether to loosen it. The lead and the job's files
+Richard ruled 2026-10-19: keep it strict. The lead and the job's files
 stay. Read-only prod check: 13 of 26 jobs carry none of those records. Gate:
 typecheck clean, lint 5/22, 1527 tests (+2), build clean. Dev QA: API 409 /
 400 / 404, SALES_REP 403 on both routes, headless Chromium deleted a job with
@@ -1518,7 +1527,7 @@ links (dev has no case) and the bulk-Won toast (it would create jobs).
 **Left for Richard's ruling:** (1) should logging a contact on a lead move its
 next follow-up date, and to when? (2) `/api/messaging` (inbound Twilio texts)
 is behind the SSO gate and Twilio is not configured on prod — make it public
-or remove the handler.
+or remove the handler. *(Ruled 2026-10-19: (1) no; (2) leave it for now.)*
 Richard pushed and deployed from `!` (background, 269 s, exit 0): BUILD_ID
 `SBnOF_n7Dfa0xpp-w6tyi` → `9llN2MQ3E4W4TUZGOSNH5`, no migration, smoke 307 ×2,
 zero journal errors since the restart, `UPLOADS_DIR` carried, 21 files in the
@@ -3285,7 +3294,7 @@ Notification Digests).
   `ROLE_HIERARCHY` ranks SALES_REP above OFFICE_STAFF (Accounting).
 - **A job is deleted only through `deleteJob`** (`lib/jobs/delete.ts`): ADMIN
   only, a reason, audited, and refused while the job carries money, field or
-  contract records. A new table that hangs real business records on a job adds
+  contract records (kept strict — Richard, 2026-10-19). A new table that hangs real business records on a job adds
   a blocker there.
 - **A job's cost and profit come from one calculation**
   (`lib/jobs/cost-summary.ts` via `lib/services/job-cost.ts`). Crew labor
@@ -3379,8 +3388,9 @@ Notification Digests).
   (a number, or switched off — and off means the rule orders nothing). **Roofing
   prices are append-only and take effect by day** (`priceInForce`); a material
   is switched off, never deleted. Everything that prices a takeoff goes through
-  `loadEngineInputs`. Roofing costs and rules are ADMIN / MANAGER only
-  (`canManageRoofPricing`) until Richard rules on who sees cost.
+  `loadEngineInputs`. The price book and takeoff rules are ADMIN / MANAGER
+  (`canManageRoofPricing`). Ruled 2026-10-19: cost and margin on a job's
+  roofing estimate (P1) show to ADMIN, MANAGER and that job's project manager.
 - **Every response is unframeable except the two documents the app frames
   itself** (`FRAMED_BY_SELF` in `next.config.ts`: the file route and the
   signing PDF, same-origin only). A new page that shows one of the app's own
@@ -3579,9 +3589,8 @@ Notification Digests).
 > the items, Confirm → tick items → Email about… → Write the response letter →
 > Submissions → Submit again; Documents → Suggest a type; Permits → Library.
 > Next build: **Stage 3** (form filling) — needs Richard's sample blank
-> applications (Palm Beach, Boynton Beach, Miami). Ruling still open: who may
-> confirm a notice / freeze a submission (proposed: office roles + the
-> permit's coordinator).
+> applications (Palm Beach, Boynton Beach, Miami). Ruled 2026-10-19: confirming a
+> notice / freezing a submission = office roles + the permit's coordinator.
 
 > **AI Permit Intelligence Stage 1 (permit record) is on prod (`acdf728`,
 > BUILD_ID `3SyklAeo2NGYbawokTWey`), seeded and backfilled (3 permits linked
@@ -3590,8 +3599,7 @@ Notification Digests).
 > (upload with a type) → Submissions → Submit. Next build: **Stage 2**
 > (corrections: AI extraction of a correction letter → confirmed items →
 > tasks, drafts, response letter) — the queue change and the Permit Library
-> come with it. Ruling still open: who may freeze a submission (proposed:
-> office roles + the permit's coordinator).
+> come with it. Ruled 2026-10-19: office roles + the permit's coordinator.
 
 > **GC Partnerships Phase 8a (prequalification package) is on `main`, not
 > deployed (no migration; `npm ci` picks up `fflate`).** After Richard's push +

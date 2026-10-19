@@ -46,7 +46,7 @@ No AI. Migration `20261101120000_permit_record`:
   - `catalog.ts`: the type seed, `permitTypeKeyFor`, jurisdiction key / kind / tidy name.
   - `requirements.ts`: the most specific row per document type wins (this jurisdiction × type > jurisdiction > type > everyone); live + APPROVED only; a missing file does not meet a requirement.
   - `submission-plan.ts`: `nextCycle` (refuses while a cycle waits), `statusForOutcome`, `planManifest` (the partners `entryName`).
-  - `access.ts`: `canManagePermitSettings` = ADMIN / MANAGER; `canSubmitPermit` = office roles or the permit's coordinator — not ruled yet, proposed.
+  - `access.ts`: `canManagePermitSettings` = ADMIN / MANAGER; `canSubmitPermit` = office roles or the permit's coordinator (ruled 2026-10-19; confirming a correction notice follows the same rule).
   - `validation.ts`: the PATCH schemas carry **no defaults**. zod `partial()` keeps a `.default()`, so a PATCH sending one field would reset the others; caught in a check before QA.
 - **Services:**
   - `service.ts`: detail loader; parties; `recordCycleOutcome`, where the status follows through `updatePermit`; `recordManualCycle`; jurisdictions (a rename carries into `municipality`); requirements (retired, never deleted).

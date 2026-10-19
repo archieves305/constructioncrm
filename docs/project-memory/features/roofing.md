@@ -118,7 +118,7 @@ Migration `20261019120000_roof_price_book`: `RoofRule`, `RoofMaterialItem`,
   Prices older than 90 days are marked.
 - `price-book.ts` (service; `loadEngineInputs`, `previewTakeoff` — writes
   nothing), `access.ts` (`canManageRoofPricing` = ADMIN / MANAGER for every
-  `/api/roofing/*` route, read and write, until "who sees cost" is ruled).
+  `/api/roofing/*` route, read and write, ; ruled 2026-10-19: the price book stays ADMIN / MANAGER, and cost and margin on a job's roofing estimate (P1) show to ADMIN, MANAGER and that job's project manager).
 - Routes: `GET|POST /api/roofing/materials`, `PATCH …/[id]`,
   `POST …/[id]/prices`, `GET /api/roofing/rules`, `PUT|DELETE …/rules/[key]`,
   `GET /api/roofing/measurements`, `POST /api/roofing/takeoff-preview`.
