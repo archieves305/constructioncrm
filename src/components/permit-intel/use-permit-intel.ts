@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 
 /** Lists the permit screens pick from: the building departments and the permit-type catalog. */
-export type JurisdictionOption = { id: string; name: string; kind: string; county: string | null; hvhz: boolean; isActive: boolean; portalUrl: string | null; submissionMethod: string; reviewDaysTarget: number | null; notes: string | null; _count?: { permits: number; knowledge: number } };
+export type JurisdictionOption = { id: string; name: string; kind: string; county: string | null; hvhz: boolean; isActive: boolean; portalUrl: string | null; websiteUrl?: string | null; allowedHosts?: string[] | null; submissionMethod: string; reviewDaysTarget: number | null; notes: string | null; _count?: { permits: number; knowledge: number } };
 export type PermitTypeOption = { key: string; name: string };
 
 export const permitIntelKeys = {

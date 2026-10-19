@@ -88,7 +88,14 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    → scrubbed, AI-worded PROPOSED lessons grouped by jurisdiction × type ×
    category × target; Admin → Permits → Knowledge decides them; approved
    lessons show at preflight; Permit Center metrics strip; attention rows
-   `permit-corrections` / `permit-resubmit-due`. **All seven stages built.** Open rulings in the design doc §19. Notes:
+   `permit-corrections` / `permit-resubmit-due`. **All seven stages built.**
+   **Document assistant built + dev-QA'd 2026-10-19, on `main`, not
+   deployed**: migration `20261107120000_permit_assistant`; drop many
+   documents on a permit → the AI reads each, opens the links worth opening
+   (one hop from a person's document; then only the department's site and the
+   approval sites; 40 pages; a guarded fetcher), looks on the department's
+   website, proposes a type per document against the checklist; a person
+   accepts. Open rulings in the design doc §19. Notes:
    [features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
 0000000000. 🔴 **GC Partnerships (Business Development)** — plan approved
    2026-10-13 (`~/.claude/plans/noble-forging-noodle.md`); design in
@@ -547,6 +554,26 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-10-19 — Permit document assistant (built + dev-QA'd, on `main`, not deployed)
+
+"for the permits i want to be able to upload multiple documents and have the
+AI go through the documents, click links and assist with putting together
+the relavent documents". Plan mode: all three kinds of link; the AI
+proposes, a person confirms (`~/.claude/plans/floofy-questing-lark.md`).
+Migration `20261107120000_permit_assistant` (runs, items, every fetch;
+jurisdiction website + allowed sites). New `web-fetch.ts` (the CRM's first
+outgoing-request guard: connect-time address check, redirects re-checked,
+robots.txt, size / time caps), `links.ts` (PDF annotations, printed URLs,
+page links, `mayFollow`), `assist-plan.ts`, `assist-run.ts`, prompt
+`assist_read` (Sonnet; picks links by number only), three routes, the
+Documents tab's Document assistant, the jurisdiction form's website fields.
+Gate: typecheck clean, lint 5/22, 1865 tests (+18), build clean. Dev QA on
+the real Town of Palm Beach site: 111 s, $0.54, 14 pages, the town's permit
+application packet / NOC form / revision form proposed, no private request,
+API 30/30, SALES_REP 4/4, headless Chromium 18/18. Details:
+[features/permit-intelligence.md](docs/project-memory/features/permit-intelligence.md).
+**Deploy carries the migration**; then set each department's website.
 
 ### 2026-10-19 — Stages 5 + 6 deployed (`2359e54`)
 
@@ -3420,6 +3447,13 @@ Notification Digests).
   reach preflight — a warning only when the document its check names is not
   on the permit. Permit Center tiles carry the ids they count; a new tile is a
   line in `metrics.ts`, never a second query.
+- **The CRM opens the web only through `safeFetch`** (`lib/permit-intel/web-fetch.ts`):
+  the model never fetches — it picks numbered links, and links the fetcher
+  would refuse are never offered. Every connection is checked at connect
+  time (no private / reserved address), redirects re-checked, robots.txt
+  honoured, every request logged (`PermitAssistFetch`); a fetched web page is
+  never served back from the CRM. What the assistant finds is a proposal: a
+  document joins the permit, with a type, only when a person accepts it.
 - **Every model call goes through `runAiCall`** (`src/lib/ai/calls.ts`): it is
   recorded as an `AiCall`, held to the per-subject and monthly caps, has no
   tools, and must match a zod schema. Document text goes in through
@@ -3442,7 +3476,10 @@ Notification Digests).
 > Admin → Permits → Knowledge fills as the department answers resubmissions.
 > **All seven stages are on prod (`2359e54`, BUILD_ID
 > `C7dZ4cfftPCjy5oiFvv9z`, 2026-10-19)**; what remains is the click-throughs
-> and the open ruling below. Stage 3 after it: After it: Admin → Permits → Forms → upload the
+> and the open ruling below. **The document assistant is on `main`, not
+> deployed** (migration `20261107120000_permit_assistant`); after the
+> deploy: Admin → Permits → Jurisdictions → each department's website, then a
+> permit → Documents → Document assistant → Sort documents…. Stage 3 after it: After it: Admin → Permits → Forms → upload the
 > Palm Beach County universal application (county "Palm Beach", from
 > discover.pbc.gov) → Map with AI → check "Check these" and clear the
 > office-use header → Publish; set each Palm Beach County jurisdiction's

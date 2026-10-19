@@ -164,13 +164,20 @@ function JurisdictionForm({ j, onClose }: { j: JurisdictionOption | null; onClos
     county: j?.county ?? "",
     hvhz: j?.hvhz ?? false,
     portalUrl: j?.portalUrl ?? "",
+    websiteUrl: j?.websiteUrl ?? "",
+    allowedHosts: (j?.allowedHosts ?? []).join(", "),
     submissionMethod: j?.submissionMethod ?? "UNKNOWN",
     reviewDaysTarget: j?.reviewDaysTarget ? String(j.reviewDaysTarget) : "",
     notes: j?.notes ?? "",
     isActive: j?.isActive ?? true,
   });
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
-  const body = { ...form, reviewDaysTarget: form.reviewDaysTarget ? Number(form.reviewDaysTarget) : null, ...(j ? {} : { isActive: undefined }) };
+  const body = {
+    ...form,
+    allowedHosts: form.allowedHosts.split(/[\s,]+/).filter(Boolean),
+    reviewDaysTarget: form.reviewDaysTarget ? Number(form.reviewDaysTarget) : null,
+    ...(j ? {} : { isActive: undefined }),
+  };
   return (
     <>
       <DialogHeader>
@@ -222,6 +229,16 @@ function JurisdictionForm({ j, onClose }: { j: JurisdictionOption | null; onClos
         <div className="space-y-1.5">
           <Label htmlFor="j-portal">Permit portal link</Label>
           <Input id="j-portal" value={form.portalUrl} onChange={(e) => set("portalUrl", e.target.value)} placeholder="https://…" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="j-web">Building department website</Label>
+          <Input id="j-web" value={form.websiteUrl} onChange={(e) => set("websiteUrl", e.target.value)} placeholder="https://… (the permits / building page)" />
+          <p className="text-xs text-muted-foreground">Where the document assistant starts looking for forms and checklists.</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="j-hosts">Other sites it may open</Label>
+          <Input id="j-hosts" value={form.allowedHosts} onChange={(e) => set("allowedHosts", e.target.value)} placeholder="discover.pbc.gov, municode.com" />
+          <p className="text-xs text-muted-foreground">Sites the department links to for its forms. The state and Miami-Dade product-approval sites are always allowed.</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="j-days">Days in review before it counts as slow</Label>

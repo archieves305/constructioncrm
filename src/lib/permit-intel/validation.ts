@@ -47,6 +47,19 @@ const jurisdictionFields = z.object({
   state: z.string().trim().length(2),
   hvhz: z.boolean(),
   portalUrl: z.string().trim().url("That link does not look right").max(500).nullable().optional().or(z.literal("").transform(() => null)),
+  websiteUrl: z.string().trim().url("That link does not look right").max(500).nullable().optional().or(z.literal("").transform(() => null)),
+  // other sites the assistant may open from the department's pages (hostnames)
+  allowedHosts: z
+    .array(
+      z
+        .string()
+        .trim()
+        .toLowerCase()
+        .transform((h) => h.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, ""))
+        .pipe(z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/, "A site looks like county.gov")),
+    )
+    .max(20)
+    .optional(),
   submissionMethod: z.enum(["PORTAL", "EMAIL", "IN_PERSON", "MAIL", "UNKNOWN"]),
   reviewDaysTarget: z.number().int().min(1).max(365).nullable().optional(),
   notes: optText(4000),

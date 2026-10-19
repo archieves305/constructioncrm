@@ -552,8 +552,10 @@ model User {
   violationInspectionsAttending     CodeViolationInspection[] @relation("ViolationInspectionAttendee")
   violationEvents                   CodeViolationEvent[]      @relation("ViolationEventActor")
 
-  signatureHtml String? @map("signature_html") @db.Text
-  signatureText String? @map("signature_text") @db.Text
+  signatureHtml         String?            @map("signature_html") @db.Text
+  signatureText         String?            @map("signature_text") @db.Text
+  permitAssistRuns      PermitAssistRun[]  @relation("PermitAssistRunStartedBy")
+  permitAssistDecisions PermitAssistItem[] @relation("PermitAssistItemDecidedBy")
 
   @@map("users")
 }
@@ -1174,6 +1176,7 @@ model File {
   formFillOutputs     PermitFormFill[]           @relation("FormFillOutput")
   formFillFlattened   PermitFormFill[]           @relation("FormFillFlattened")
   permitProducts      PermitProduct[]            @relation("PermitProductDocument")
+  assistItems         PermitAssistItem[]
 
   @@index([leadId])
   @@index([jobId])
@@ -1563,6 +1566,7 @@ model JobPermit {
   messages           PermitMessage[]
   formFills          PermitFormFill[]
   products           PermitProduct[]
+  assistRuns         PermitAssistRun[]
 
   @@index([jobId])
   @@index([status])
@@ -5943,6 +5947,10 @@ model Jurisdiction {
   hvhz             Boolean          @default(false)
   organizationId   String?          @map("organization_id")
   portalUrl        String?          @map("portal_url")
+  // The building department's own pages: where the permit assistant starts
+  // looking, and the other sites it may open from there (hostnames).
+  websiteUrl       String?          @map("website_url")
+  allowedHosts     String[]         @map("allowed_hosts")
   submissionMethod SubmissionMethod @default(UNKNOWN) @map("submission_method")
   // Days in review before a permit counts as waiting too long; null = the 7 / 14 defaults.
   reviewDaysTarget Int?             @map("review_days_target")
@@ -6631,4 +6639,127 @@ model PermitPreflightRun {
 
   @@index([permitId, createdAt])
   @@map("permit_preflight_runs")
+}
+
+// ─── Permit document assistant ────────────────────────────────────────────
+
+enum PermitAssistRunStatus {
+  RUNNING
+  DONE
+}
+
+enum PermitAssistSource {
+  // a document a person uploaded (or one already on the permit)
+  UPLOAD
+  // opened from a link inside a document
+  LINK
+  // the building department's website, or a page found there
+  SITE
+}
+
+enum PermitAssistItemStatus {
+  QUEUED
+  READING
+  // read; waiting on a person
+  PROPOSED
+  ACCEPTED
+  REJECTED
+  // a web page read for its links — never a document of the permit
+  PAGE
+  FAILED
+}
+
+/// One pass of the assistant over a permit's documents: read each, follow the
+/// links worth following, propose types against the checklist. Nothing is
+/// filed until a person accepts an item.
+model PermitAssistRun {
+  id              String                @id @default(cuid())
+  permitId        String                @map("permit_id")
+  status          PermitAssistRunStatus @default(RUNNING)
+  searchSite      Boolean               @default(false) @map("search_site")
+  fetchCount      Int                   @default(0) @map("fetch_count")
+  startedByUserId String?               @map("started_by_user_id")
+  finishedAt      DateTime?             @map("finished_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  permit    JobPermit           @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  startedBy User?               @relation("PermitAssistRunStartedBy", fields: [startedByUserId], references: [id], onDelete: SetNull)
+  items     PermitAssistItem[]
+  fetches   PermitAssistFetch[]
+
+  @@index([permitId, createdAt])
+  @@map("permit_assist_runs")
+}
+
+model PermitAssistItem {
+  id              String                 @id @default(cuid())
+  runId           String                 @map("run_id")
+  permitId        String                 @map("permit_id")
+  source          PermitAssistSource
+  parentItemId    String?                @map("parent_item_id")
+  depth           Int                    @default(0)
+  // why it was opened (the AI's reason, or "the building department's website")
+  reason          String?
+  linkText        String?                @map("link_text")
+  url             String?
+  finalUrl        String?                @map("final_url")
+  // an uploaded document's file; a fetched one's once accepted
+  fileId          String?                @map("file_id")
+  // a fetched document's bytes until it is accepted or rejected
+  storageKey      String?                @map("storage_key")
+  fileName        String?                @map("file_name")
+  fileType        String?                @map("file_type")
+  sizeBytes       Int?                   @map("size_bytes")
+  sha256          String?
+  status          PermitAssistItemStatus @default(QUEUED)
+  attempts        Int                    @default(0)
+  startedAt       DateTime?              @map("started_at")
+  error           String?
+  suggestedType   String?                @map("suggested_type")
+  title           String?
+  summary         String?                @db.Text
+  // what the document asks for, approval numbers, deadlines — each with page + quote
+  findings        Json?
+  // the links found in it (numbered as the AI saw them)
+  links           Json?
+  aiCallId        String?                @map("ai_call_id")
+  approvalId      String?                @map("approval_id")
+  decidedType     String?                @map("decided_type")
+  decidedByUserId String?                @map("decided_by_user_id")
+  decidedAt       DateTime?              @map("decided_at")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  run       PermitAssistRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  parent    PermitAssistItem?  @relation("PermitAssistItemParent", fields: [parentItemId], references: [id], onDelete: SetNull)
+  children  PermitAssistItem[] @relation("PermitAssistItemParent")
+  file      File?              @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  decidedBy User?              @relation("PermitAssistItemDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([runId, status])
+  @@index([permitId])
+  @@map("permit_assist_items")
+}
+
+/// Every request the assistant made, allowed or refused: the audit trail of
+/// what it opened on the web and why.
+model PermitAssistFetch {
+  id          String   @id @default(cuid())
+  runId       String   @map("run_id")
+  itemId      String?  @map("item_id")
+  url         String
+  finalUrl    String?  @map("final_url")
+  httpStatus  Int?     @map("http_status")
+  contentType String?  @map("content_type")
+  bytes       Int?
+  // OK, REFUSED (the policy), ERROR (the site)
+  outcome     String
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  run PermitAssistRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@map("permit_assist_fetches")
 }

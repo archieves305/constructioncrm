@@ -17,7 +17,7 @@ import type { ChecklistLine, PermitDetail, PermitFile } from "./types";
 
 const DOC_ITEMS = PERMIT_DOC_TYPES.map((t) => ({ value: t.key, label: t.label }));
 
-function DocTypeSelect({ value, onChange, disabled, className }: { value: string | null; onChange: (v: string) => void; disabled?: boolean; className?: string }) {
+export function DocTypeSelect({ value, onChange, disabled, className }: { value: string | null; onChange: (v: string) => void; disabled?: boolean; className?: string }) {
   return (
     <Select items={DOC_ITEMS} value={value ?? undefined} onValueChange={(v: string | null) => v && onChange(v)} disabled={disabled}>
       <SelectTrigger className={cn("h-8 text-xs", className)} aria-label="Document type">
@@ -34,7 +34,7 @@ function DocTypeSelect({ value, onChange, disabled, className }: { value: string
   );
 }
 
-async function uploadOne(permitId: string, file: File, docType: string | null) {
+export async function uploadOne(permitId: string, file: File, docType: string | null) {
   const form = new FormData();
   form.append("file", file);
   form.append("permitId", permitId);

@@ -19,6 +19,7 @@ import { PermitCycles } from "@/components/permit-intel/permit-cycles";
 import { PermitForms } from "@/components/permit-intel/forms/permit-forms";
 import { PermitProducts } from "@/components/permit-intel/approvals/permit-products";
 import { PermitPreflight } from "@/components/permit-intel/permit-preflight";
+import { PermitAssistant } from "@/components/permit-intel/permit-assistant";
 import { PermitDocuments } from "@/components/permit-intel/permit-documents";
 import { PermitParties } from "@/components/permit-intel/permit-parties";
 import { OUTCOME_LABEL, type HistoryRow, type PermitDetail } from "@/components/permit-intel/types";
@@ -101,7 +102,10 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
           <Overview detail={data} users={users} goTo={(t) => url.set("tab", t)} />
         </TabsContent>
         <TabsContent value="documents" className="mt-4">
-          <PermitDocuments detail={data} onChanged={invalidate} />
+          <div className="space-y-4">
+            <PermitAssistant permitId={data.permit.id} onChanged={invalidate} />
+            <PermitDocuments detail={data} onChanged={invalidate} />
+          </div>
         </TabsContent>
         <TabsContent value="forms" className="mt-4">
           <PermitForms detail={data} />
