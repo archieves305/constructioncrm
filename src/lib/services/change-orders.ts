@@ -6,7 +6,10 @@ import { env } from "@/lib/env";
 import { recomputeJobLabor, recomputeJobBalance } from "@/lib/services/job-pricing";
 import { getEmailBrand } from "@/lib/email/brand";
 import { sendEmail } from "@/lib/email/send";
-import { renderChangeOrderBillPdf } from "@/lib/pdf/change-order-bill";
+import { renderChangeOrderBillPdf, type ChangeOrderBillData } from "@/lib/pdf/change-order-bill";
+import { loadEstimateBrand } from "@/lib/pdf/brand";
+import { CHANGE_ORDER_EMAIL } from "@/lib/pdf/company";
+import { changeOrderContractSum } from "@/lib/change-orders/contract-sum";
 import { nextInvoiceNumber } from "@/lib/services/invoices";
 import { canRemoveChangeOrderSovLine, changeOrderSovLine } from "@/lib/billing/sov";
 import { closeAutoTask, ensureAutoTask, sourceKeyFor } from "@/lib/tasks/auto-tasks";
@@ -35,6 +38,8 @@ const CO_INCLUDE = {
       serviceType: true,
       jobType: true,
       billingMethod: true,
+      contractAmount: true,
+      originalContractAmount: true,
       leadId: true,
       lead: {
         select: {
@@ -116,6 +121,10 @@ export function buildBillData(co: ChangeOrderWithContext) {
     customerPrice: Number(co.customerPrice),
     changeDate: co.createdAt,
     status: co.status,
+    sentAt: co.sentAt,
+    decidedAt: co.decidedAt,
+    decisionName: co.decisionName,
+    rejectionReason: co.rejectionReason,
     job: {
       jobNumber: co.job.jobNumber,
       title: co.job.title,
@@ -130,8 +139,53 @@ export function buildBillData(co: ChangeOrderWithContext) {
   };
 }
 
+/** The change-order form: the bill plus letterhead and the contract-sum block. */
 export async function renderChangeOrderBill(co: ChangeOrderWithContext): Promise<Buffer> {
-  return renderChangeOrderBillPdf(buildBillData(co));
+  const [approved, brand] = await Promise.all([
+    prisma.changeOrder.findMany({
+      where: { jobId: co.job.id, status: "APPROVED" },
+      select: { number: true, customerPrice: true },
+    }),
+    loadEstimateBrand().catch(() => null),
+  ]);
+  const contract = changeOrderContractSum({
+    jobType: co.job.jobType,
+    contractAmount: Number(co.job.contractAmount),
+    originalContractAmount:
+      co.job.originalContractAmount == null ? null : Number(co.job.originalContractAmount),
+    approved: approved.map((a) => ({ number: a.number, customerPrice: Number(a.customerPrice) })),
+    thisNumber: co.number,
+    thisPrice: Number(co.customerPrice),
+  });
+  const cityLine = brand
+    ? [brand.city, [brand.state, brand.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")
+    : "";
+  const data: ChangeOrderBillData = {
+    ...buildBillData(co),
+    contract,
+    brand: brand
+      ? {
+          companyName: brand.companyName,
+          addressLines: [brand.addressLine1, brand.addressLine2, cityLine].filter(
+            (l): l is string => !!l && !!l.trim(),
+          ),
+          phone: brand.phone,
+          email: CHANGE_ORDER_EMAIL,
+          website: brand.website,
+          license: brand.gcLicense,
+          logoDataUri: brand.logoDataUri,
+        }
+      : null,
+  };
+  return renderChangeOrderBillPdf(data);
+}
+
+/** File name for the form: "Change-Order-CO-3-1061-NW-108th-Ter.pdf". */
+export function changeOrderPdfName(co: ChangeOrderWithContext): string {
+  const where = (formatAddressLine(co.job.lead) || co.job.jobNumber)
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `Change-Order-CO-${co.number}${where ? `-${where}` : ""}.pdf`;
 }
 
 function money(n: number): string {
@@ -159,6 +213,18 @@ export async function sendChangeOrderEmail(
   const price = money(Number(co.customerPrice));
   const heading = co.title ? `Change Order: ${co.title}` : `Change Order CO-${co.number}`;
 
+  // The form goes along as a PDF; a failed render never stops the email.
+  let attachments: { filename: string; contentBase64: string }[] | undefined;
+  try {
+    const pdf = await renderChangeOrderBill(co);
+    attachments = [{ filename: changeOrderPdfName(co), contentBase64: pdf.toString("base64") }];
+  } catch (err) {
+    logger.warn("change-order pdf render failed; emailing without it", {
+      changeOrderId: co.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   const html = `
   <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#111">
     <div style="background:${color};color:#fff;padding:20px 24px;border-radius:8px 8px 0 0">
@@ -173,7 +239,7 @@ export async function sendChangeOrderEmail(
         <div style="font-size:11px;text-transform:uppercase;color:#92400e">Additional amount</div>
         <div style="font-size:28px;font-weight:bold;color:${color}">${price}</div>
       </div>
-      <p>Please review and let us know how you'd like to proceed:</p>
+      <p>${attachments ? "The change order form is attached as a PDF. " : ""}Please review and let us know how you'd like to proceed:</p>
       <p style="text-align:center;margin:24px 0">
         <a href="${url}" style="display:inline-block;background:${color};color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-weight:bold">Review &amp; Respond</a>
       </p>
@@ -191,6 +257,7 @@ export async function sendChangeOrderEmail(
       html,
       text,
       replyTo: replyTo || undefined,
+      attachments,
     });
     return true;
   } catch (err) {

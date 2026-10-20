@@ -35,6 +35,7 @@ import {
   FileText,
   Link2,
   Gavel,
+  Download,
 } from "lucide-react";
 
 type ChangeOrder = {
@@ -404,6 +405,15 @@ export function ChangeOrdersPanel({
                           Record decision
                         </Button>
                       )}
+                    <a
+                      href={`/api/change-orders/${co.id}/pdf?download=1`}
+                      onClick={(e) => e.stopPropagation()}
+                      className={buttonVariants({ variant: "ghost", size: "icon" })}
+                      title="Download change order PDF"
+                      aria-label={`Download CO-${co.number} as PDF`}
+                    >
+                      <Download className="h-4 w-4" />
+                    </a>
                     {co.token &&
                       (co.status === "SENT" ||
                         co.status === "APPROVED" ||
@@ -532,6 +542,12 @@ export function ChangeOrdersPanel({
               )}
 
               <div className="flex flex-wrap gap-2">
+                <a
+                  href={`/api/change-orders/${viewing.id}/pdf?download=1`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  <Download className="mr-1 h-4 w-4" /> Download PDF
+                </a>
                 {viewing.invoice && (
                   <a
                     href={`/api/invoices/${viewing.invoice.id}/pdf`}

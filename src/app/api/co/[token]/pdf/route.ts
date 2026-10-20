@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  changeOrderPdfName,
   getChangeOrderByToken,
   renderChangeOrderBill,
 } from "@/lib/services/change-orders";
@@ -21,7 +22,7 @@ export async function GET(
   return new NextResponse(ab, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="change-order-CO-${co.number}.pdf"`,
+      "Content-Disposition": `inline; filename="${changeOrderPdfName(co)}"`,
       "Cache-Control": "private, max-age=0, no-store",
     },
   });
