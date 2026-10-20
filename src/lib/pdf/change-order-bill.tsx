@@ -11,7 +11,7 @@ import {
 import { COMPANY, CHANGE_ORDER_EMAIL } from "./company";
 
 // The change-order form the customer receives: letterhead, the project, the
-// change itself, how it moves the contract, and signature blocks. Rendered for
+// change itself, terms and signature blocks. Rendered for
 // staff (Money → Change orders → PDF), for the customer's link and as the
 // attachment on the customer email.
 
@@ -89,24 +89,6 @@ const styles = StyleSheet.create({
   scope: { marginTop: 4, fontSize: 10, lineHeight: 1.4 },
   scopeEmpty: { marginTop: 4, color: "#a8a29e", fontStyle: "italic" },
 
-  sumRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f4",
-  },
-  sumRowStrong: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 6,
-    marginTop: 2,
-    backgroundColor: "#fffbeb",
-    paddingHorizontal: 6,
-  },
-  sumLabel: { flex: 1 },
-  sumValue: { width: 120, textAlign: "right" },
-
   amountBox: {
     marginTop: 12,
     padding: 12,
@@ -171,13 +153,6 @@ export type ChangeOrderBillData = {
     email: string | null;
     address: string;
   };
-  /** Fixed-price jobs only: how this change moves the contract sum. */
-  contract?: {
-    original: number;
-    previousChanges: number;
-    beforeThis: number;
-    revised: number;
-  } | null;
   /** Letterhead; COMPANY fills whatever is missing. */
   brand?: {
     companyName: string;
@@ -196,10 +171,6 @@ function money(n: number) {
     maximumFractionDigits: 2,
   });
   return n < 0 ? `-$${s}` : `$${s}`;
-}
-
-function signedMoney(n: number) {
-  return n > 0 ? `+${money(n)}` : money(n);
 }
 
 function day(d: Date) {
@@ -313,34 +284,6 @@ function ChangeOrderBillDoc({ data }: { data: ChangeOrderBillData }) {
           </Text>
           <Text style={styles.amountValue}>{money(data.customerPrice)}</Text>
         </View>
-
-        {data.contract ? (
-          <View wrap={false}>
-            <Text style={styles.sectionTitle}>Contract sum</Text>
-            <View style={styles.sumRow}>
-              <Text style={styles.sumLabel}>Original contract sum</Text>
-              <Text style={styles.sumValue}>{money(data.contract.original)}</Text>
-            </View>
-            <View style={styles.sumRow}>
-              <Text style={styles.sumLabel}>Net change by previously approved change orders</Text>
-              <Text style={styles.sumValue}>{signedMoney(data.contract.previousChanges)}</Text>
-            </View>
-            <View style={styles.sumRow}>
-              <Text style={styles.sumLabel}>Contract sum prior to this change order</Text>
-              <Text style={styles.sumValue}>{money(data.contract.beforeThis)}</Text>
-            </View>
-            <View style={styles.sumRow}>
-              <Text style={styles.sumLabel}>This change order ({coNo})</Text>
-              <Text style={styles.sumValue}>{signedMoney(data.customerPrice)}</Text>
-            </View>
-            <View style={styles.sumRowStrong}>
-              <Text style={[styles.sumLabel, styles.strong]}>
-                {approved ? "Revised contract sum" : "Revised contract sum, once approved"}
-              </Text>
-              <Text style={[styles.sumValue, styles.strong]}>{money(data.contract.revised)}</Text>
-            </View>
-          </View>
-        ) : null}
 
         <View wrap={false}>
           <Text style={styles.sectionTitle}>Terms</Text>

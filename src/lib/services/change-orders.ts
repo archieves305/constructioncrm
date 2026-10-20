@@ -9,7 +9,6 @@ import { sendEmail } from "@/lib/email/send";
 import { renderChangeOrderBillPdf, type ChangeOrderBillData } from "@/lib/pdf/change-order-bill";
 import { loadEstimateBrand } from "@/lib/pdf/brand";
 import { CHANGE_ORDER_EMAIL } from "@/lib/pdf/company";
-import { changeOrderContractSum } from "@/lib/change-orders/contract-sum";
 import { nextInvoiceNumber } from "@/lib/services/invoices";
 import { canRemoveChangeOrderSovLine, changeOrderSovLine } from "@/lib/billing/sov";
 import { closeAutoTask, ensureAutoTask, sourceKeyFor } from "@/lib/tasks/auto-tasks";
@@ -38,8 +37,6 @@ const CO_INCLUDE = {
       serviceType: true,
       jobType: true,
       billingMethod: true,
-      contractAmount: true,
-      originalContractAmount: true,
       leadId: true,
       lead: {
         select: {
@@ -139,30 +136,14 @@ export function buildBillData(co: ChangeOrderWithContext) {
   };
 }
 
-/** The change-order form: the bill plus letterhead and the contract-sum block. */
+/** The change-order form: the bill on the company letterhead. */
 export async function renderChangeOrderBill(co: ChangeOrderWithContext): Promise<Buffer> {
-  const [approved, brand] = await Promise.all([
-    prisma.changeOrder.findMany({
-      where: { jobId: co.job.id, status: "APPROVED" },
-      select: { number: true, customerPrice: true },
-    }),
-    loadEstimateBrand().catch(() => null),
-  ]);
-  const contract = changeOrderContractSum({
-    jobType: co.job.jobType,
-    contractAmount: Number(co.job.contractAmount),
-    originalContractAmount:
-      co.job.originalContractAmount == null ? null : Number(co.job.originalContractAmount),
-    approved: approved.map((a) => ({ number: a.number, customerPrice: Number(a.customerPrice) })),
-    thisNumber: co.number,
-    thisPrice: Number(co.customerPrice),
-  });
+  const brand = await loadEstimateBrand().catch(() => null);
   const cityLine = brand
     ? [brand.city, [brand.state, brand.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ")
     : "";
   const data: ChangeOrderBillData = {
     ...buildBillData(co),
-    contract,
     brand: brand
       ? {
           companyName: brand.companyName,
