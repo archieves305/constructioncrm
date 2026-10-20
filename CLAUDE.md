@@ -589,6 +589,10 @@ rendered from the dev DB (throw-away CO, deleted). Deployed from the session
 (exit 0): BUILD_ID `dA3UpZzj_9IbLgUuL5Fv_` → `Vow4Qo5vdzBbqpFdOy_kU`, smoke 307
 ×2, journal clean, backup `postgres-2026-10-20-160107.dump`. Website line still
 shows the shared NewCoast site.
+Then Richard: remove the contract-sum section — removed with
+`lib/change-orders/contract-sum.ts`; deployed as `1b51590` (BUILD_ID
+`rPH5hOOQ_sU87Sz64YpDz`, smoke 307 ×2, journal clean, backup
+`postgres-2026-10-20-161301.dump`).
 
 ### 2026-10-19 — MVP 5: one estimate system, the roofing estimate from measurements (deployed `b824f4b`)
 
