@@ -571,6 +571,25 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-20 — Change-order form PDF (deployed `995df3a`)
+
+"download the change order in pdf format on a nicely formatted change order
+form". `lib/pdf/change-order-bill.tsx` redesigned (estimate letterhead + logo +
+GC licence, owner / project boxes, scope, amount, contract sum on FIXED_PRICE
+jobs via pure `lib/change-orders/contract-sum.ts` — original = signed base else
+contract less approved COs, then earlier approved COs, this one, revised —
+terms, owner + contractor signature lines, approved / declined / void band);
+contact email `CHANGE_ORDER_EMAIL` = elizabeth@knuconstruction.com (Richard).
+`GET /api/change-orders/[id]/pdf` (`guardJobMoney` price, `?download=1`),
+Download button on each CO row and in the view dialog, the PDF attached to the
+Send email, the customer link's PDF is the same form. Found: react-pdf scales a
+unitless `lineHeight` from 18 pt unless the same style sets `fontSize`. No
+migration. Gate: typecheck clean, lint 5/22, 1936 tests (+4), build clean;
+rendered from the dev DB (throw-away CO, deleted). Deployed from the session
+(exit 0): BUILD_ID `dA3UpZzj_9IbLgUuL5Fv_` → `Vow4Qo5vdzBbqpFdOy_kU`, smoke 307
+×2, journal clean, backup `postgres-2026-10-20-160107.dump`. Website line still
+shows the shared NewCoast site.
+
 ### 2026-10-19 — MVP 5: one estimate system, the roofing estimate from measurements (deployed `b824f4b`)
 
 "continue to MVP 5". Rulings: labor per square by roof type (rates in Admin →
