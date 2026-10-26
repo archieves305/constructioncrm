@@ -10,12 +10,14 @@ import { fileExists, saveFile } from "@/lib/files/storage";
 import { JOB_LABEL_SELECT } from "@/lib/labels/select";
 import { applyEdits, columnsFromParse, MEASUREMENT_KEYS, reviewState, validBands, type MeasurementValues, type Overrides } from "./measurements";
 import { parseRoofrPdf } from "./parsing/roofr";
+import type { PitchBand } from "./types";
 
 const INCLUDE = {
   file: { select: { id: true, fileName: true, storageKey: true } },
   job: { select: JOB_LABEL_SELECT },
   createdBy: { select: { id: true, firstName: true, lastName: true } },
   reviewedBy: { select: { id: true, firstName: true, lastName: true } },
+  takeoff: { select: { id: true, number: true } },
 } satisfies Prisma.RoofMeasurementInclude;
 
 type Row = Prisma.RoofMeasurementGetPayload<{ include: typeof INCLUDE }>;
@@ -92,6 +94,40 @@ export async function createManual(input: { leadId: string; jobId: string | null
     include: INCLUDE,
   });
   await recordAudit({ actorUserId: input.userId, entityType: "roof_measurement", entityId: row.id, action: "create", after: { source: input.source, totalSquares: row.totalSquares } });
+  return present(row);
+}
+
+/**
+ * A roof measured from plans (`lib/takeoff/roofing/to-measurement.ts`). A new
+ * row every time: an estimate section may already pin an earlier one.
+ */
+export async function createFromPlans(input: {
+  leadId: string;
+  jobId: string | null;
+  takeoffId: string;
+  label: string;
+  values: MeasurementValues;
+  pitchBands: PitchBand[] | null;
+  reviewedShare: number;
+  warnings: string[];
+  userId: string;
+}) {
+  const row = await prisma.roofMeasurement.create({
+    data: {
+      ...input.values,
+      pitchBands: (input.pitchBands ?? undefined) as Prisma.InputJsonValue | undefined,
+      leadId: input.leadId,
+      jobId: await jobFor(input.leadId, input.jobId),
+      takeoffId: input.takeoffId,
+      label: input.label,
+      source: "PLAN_TAKEOFF",
+      parseConfidence: input.reviewedShare,
+      warnings: input.warnings,
+      createdByUserId: input.userId,
+    },
+    include: INCLUDE,
+  });
+  await recordAudit({ actorUserId: input.userId, entityType: "roof_measurement", entityId: row.id, action: "create", after: { source: "PLAN_TAKEOFF", takeoffId: input.takeoffId, totalSquares: row.totalSquares } });
   return present(row);
 }
 

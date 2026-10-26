@@ -305,3 +305,45 @@ dragged file worked. Found on Richard's prod click-through, reproduced through
 the real input in Chrome, fixed by snapshotting with `Array.from` before the
 clear. Lesson: a file input's `files` is live — copy it before `value = ""`,
 and QA the picker path (`setInputFiles`), not only drag-and-drop.
+
+## 2026-10-26 — A roofing takeoff priced as an estimate (built + dev-QA'd on `takeoff-to-estimate`, deploy carries a migration)
+
+Until now nothing read a takeoff's measurements; the roofing estimate started
+only from a Roofr report. Now a roofing takeoff becomes an ordinary
+`RoofMeasurement` (`source PLAN_TAKEOFF`, `takeoffId`), so "Add roofing section
+from measurement" in the estimate builder prices it with the same engine, rules
+and price book. Migration `20261111120000_roof_measurement_from_takeoff`
+(enum value + nullable FK, SET NULL).
+
+- Pure `roofing/to-measurement.ts`: counts only rows a person has looked at
+  (REVIEWED / MODIFIED / APPROVED, or drawn by hand), on the ticked sheets;
+  `parseSlope` reads the plans' slope text (`1/4" / 1'-0"`, `1 3/4" / 1'-0"`,
+  `4/12`, `2%`); a plan's horizontal area grows by its pitch into a pitch band
+  (low-slope never rounds into a steep band); an area with no slope takes the
+  person's pitch; eave / rake / ridge / hip / valley → their LF fields, parapet
+  + roof-to-wall → `flashingLf`, penetration + vent + curb → `penetrations`,
+  skylight → `skylights`, cricket → area. Drains, scuppers, gutters and
+  downspouts are listed as "not priced by a takeoff rule". Nothing measured =
+  null.
+- **Default sheets never double-count**: the sheet with the largest reviewed
+  roof area plus the sheets with no roof area; ticking two roof-area sheets
+  warns (3310: A-08 + A-09 vs A-10).
+- `roofMeasurementFromTakeoff` (takeoff-service) + `createFromPlans` (roofing
+  service; a new row every time — a section may pin an earlier one).
+  `POST /api/takeoffs/[id]/roof-measurement` (`?preview=1` writes nothing; edit
+  role on the lead; non-roofing 400; no reviewed area 409). Audited on the
+  takeoff and the measurement.
+- UI: **Use for an estimate…** in the workspace header → dialog (sheets, the
+  pitch, warnings, values, not priced, left out) → toast with "Open estimates";
+  the Roofr tab shows "From plans · TK-nnnn" linking back.
+- `reviewState` no longer asks for eaves / rakes on an all-low-slope roof
+  (Roofr flat roofs too).
+
+Dev QA on TK-0003 (3310): before review 409 and "No reviewed roof area"; A-10
+approved → 2,807.56 SF at 0/12, 218.46 LF flashing, 7 + 2 drains and 2
+scuppers listed; all three sheets → 5,929 SF with the overlap warning; foreign
+sheet 400, pitch 99 400; created "Plans · TK-0003" (28.08 sq); the roof
+section from it: low-slope labor 28.1 sq × $160 = $4,496, membrane materials
+$0 (dev price book empty); headless Chromium 17/17 at 1440 / 400 px; SALES_REP
+off the lead 404. Dev DB restored. Gate: typecheck clean, lint 5/22, 1943
+tests, build clean.

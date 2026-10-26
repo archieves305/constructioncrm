@@ -2743,6 +2743,7 @@ enum RoofMeasurementSource {
   ROOFR
   MANUAL
   FIELD
+  PLAN_TAKEOFF
 }
 
 /// A roof's measurements as structured data: read from a Roofr report, typed
@@ -2761,6 +2762,8 @@ model RoofMeasurement {
   // The report it was read from; null for measurements typed by hand.
   fileId           String?               @unique @map("file_id")
   roofrOrderId     String?               @map("roofr_order_id")
+  // The plan takeoff it was read from (source PLAN_TAKEOFF).
+  takeoffId        String?               @map("takeoff_id")
   source           RoofMeasurementSource @default(ROOFR)
   label            String?
   reportDate       DateTime?             @map("report_date")
@@ -2814,12 +2817,14 @@ model RoofMeasurement {
   job              Job?              @relation(fields: [jobId], references: [id], onDelete: SetNull)
   file             File?             @relation(fields: [fileId], references: [id], onDelete: SetNull)
   roofrOrder       RoofrOrder?       @relation(fields: [roofrOrderId], references: [id], onDelete: SetNull)
+  takeoff          Takeoff?          @relation(fields: [takeoffId], references: [id], onDelete: SetNull)
   createdBy        User              @relation("RoofMeasurementCreatedBy", fields: [createdByUserId], references: [id])
   reviewedBy       User?             @relation("RoofMeasurementReviewedBy", fields: [reviewedByUserId], references: [id])
   estimateSections EstimateSection[]
 
   @@index([leadId])
   @@index([jobId])
+  @@index([takeoffId])
   @@map("roof_measurements")
 }
 
@@ -5193,13 +5198,14 @@ model Takeoff {
   createdAt         DateTime             @default(now()) @map("created_at")
   updatedAt         DateTime             @updatedAt @map("updated_at")
 
-  lead         Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  job          Job?                 @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  planSet      PlanSet              @relation(fields: [planSetId], references: [id], onDelete: Restrict)
-  createdBy    User                 @relation("TakeoffCreatedBy", fields: [createdByUserId], references: [id])
-  sheets       TakeoffSheet[]
-  measurements TakeoffMeasurement[]
-  jobs         PlanJob[]
+  lead             Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job              Job?                 @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  planSet          PlanSet              @relation(fields: [planSetId], references: [id], onDelete: Restrict)
+  createdBy        User                 @relation("TakeoffCreatedBy", fields: [createdByUserId], references: [id])
+  sheets           TakeoffSheet[]
+  measurements     TakeoffMeasurement[]
+  jobs             PlanJob[]
+  roofMeasurements RoofMeasurement[]
 
   @@index([leadId])
   @@index([planSetId])

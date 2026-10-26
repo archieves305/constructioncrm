@@ -139,7 +139,7 @@ export type ReviewState = {
 };
 
 export function reviewState(m: {
-  source: "ROOFR" | "MANUAL" | "FIELD";
+  source: "ROOFR" | "MANUAL" | "FIELD" | "PLAN_TAKEOFF";
   parseConfidence: number | null;
   fieldConfidence: unknown;
   overrides: unknown;
@@ -147,7 +147,9 @@ export function reviewState(m: {
   values: MeasurementValues;
 }): ReviewState {
   const reasons: string[] = [];
-  const missing = ESSENTIAL.filter((k) => m.values[k] == null);
+  // an all-low-slope roof has no eaves or rakes to measure
+  const allLowSlope = m.values.pitchedAreaSqFt === 0 && (m.values.flatAreaSqFt ?? 0) > 0;
+  const missing = ESSENTIAL.filter((k) => m.values[k] == null && !(allLowSlope && (k === "eavesLf" || k === "rakesLf")));
   if (m.values.totalSquares == null && m.values.roofAreaSqFt != null) missing.splice(missing.indexOf("totalSquares"), 1);
   if (missing.length) reasons.push(`Missing: ${missing.map((k) => MEASUREMENT_FIELDS.find((f) => f.key === k)!.label.toLowerCase()).join(", ")}`);
 

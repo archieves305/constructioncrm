@@ -13,13 +13,13 @@ import { ROOF_TYPE_LABEL, type RoofSection } from "@/lib/estimates/roof-section"
 import { ROOF_TYPES, type RoofType } from "@/lib/roofing/types";
 import { type FormSection, uid } from "@/components/estimates/generic-estimate-types";
 
-type MeasurementRow = { id: string; label: string | null; totalSquares: number | null; createdAt: string; reportWastePct: number | null; file: { fileName: string } | null };
+type MeasurementRow = { id: string; label: string | null; source: string; totalSquares: number | null; createdAt: string; reportWastePct: number | null; file: { fileName: string } | null };
 type SectionAnswer = { section: RoofSection; wastePct: number; unpriced: number; warnings: string[] };
 
 const ROOF_ITEMS = ROOF_TYPES.map((t) => ({ value: t, label: ROOF_TYPE_LABEL[t] }));
 
 function measurementName(m: MeasurementRow): string {
-  const name = m.label || m.file?.fileName || "Measurement";
+  const name = m.label || m.file?.fileName || (m.source === "PLAN_TAKEOFF" ? "From plans" : "Measurement");
   return `${name}${m.totalSquares ? ` · ${m.totalSquares} sq` : ""}`;
 }
 

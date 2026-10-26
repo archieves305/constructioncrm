@@ -97,6 +97,12 @@ export const calibrateSchema = z.discriminatedUnion("mode", [
 ]);
 
 /** Which roof plans to analyse; omitted = every roof plan of the takeoff. */
+/** "Use for an estimate": the sheets to count and the pitch (rise per 12) for an area the plans give no slope. */
+export const roofMeasurementFromTakeoffSchema = z.object({
+  sheetIds: z.array(z.string().min(1).max(40)).min(1).max(60).optional(),
+  defaultRise: z.number().min(0).max(24).default(0),
+});
+
 export const analyzeTakeoffSchema = z.object({ planSheetIds: z.array(z.string().min(1).max(40)).min(1).max(40).optional() });
 
 export type CreateMeasurementInput = z.infer<typeof createMeasurementSchema>;

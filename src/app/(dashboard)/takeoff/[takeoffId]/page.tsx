@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Calculator, ChevronLeft, ChevronRight, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/shared/callout";
@@ -13,6 +13,7 @@ import { useSearchParamState } from "@/components/shared/use-search-param-state"
 import { CalibrationBadge } from "@/components/takeoff/badges";
 import { MeasurementInspector, MeasurementList } from "@/components/takeoff/measurements/measurement-list";
 import { AnalyzeDialog } from "@/components/takeoff/analyze-dialog";
+import { EstimateFromTakeoffDialog } from "@/components/takeoff/estimate-from-takeoff-dialog";
 import { SpecsCard } from "@/components/takeoff/specs-card";
 import { errorText, useSheets, type Sheet } from "@/components/takeoff/use-plan-sets";
 import { useAnalysisJob, useAnalyze, useCalibrate, useCreateMeasurement, useDeleteMeasurement, useMeasurements, useRecompute, useSetAssembly, useSheetSnapIndex, useTakeoff, useUpdateMeasurement } from "@/components/takeoff/use-takeoff";
@@ -68,6 +69,7 @@ export default function TakeoffPage({ params }: { params: Promise<{ takeoffId: s
   const [calibrateMode, setCalibrateMode] = useState<{ mode: "auto" | "manual"; points?: [Pt, Pt] } | null>(null);
   const [dragging, setDragging] = useState<{ id: string; points: Pt[] } | null>(null);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
+  const [estimateOpen, setEstimateOpen] = useState(false);
 
   const selectedSheetIds = useMemo(() => new Set(takeoff.data?.sheets.map((s) => s.planSheetId) ?? []), [takeoff.data]);
   const allSheets = useMemo(() => sheets.data ?? [], [sheets.data]);
@@ -150,6 +152,12 @@ export default function TakeoffPage({ params }: { params: Promise<{ takeoffId: s
           </Button>
         ) : null
       )}
+      {t.trade === "ROOFING" && canEdit && t.measurementCount > 0 && (
+        <Button size="sm" variant="outline" onClick={() => setEstimateOpen(true)} title="Turn the reviewed roof measurements into a roof measurement the estimate builder can price" data-testid="use-for-estimate">
+          <Calculator className="mr-1 h-3 w-3" /> Use for an estimate…
+        </Button>
+      )}
+      {estimateOpen && <EstimateFromTakeoffDialog takeoffId={t.id} leadId={t.leadId} onOpenChange={setEstimateOpen} />}
       {!t.analysis.running && t.analysis.job?.status === "FAILED" && <span className="rounded-full bg-tone-danger-soft px-2 py-0.5 text-xs text-tone-danger-fg" title={t.analysis.job.error ?? undefined}>Analysis stopped</span>}
       {t.analysis.spentUsd > 0 && <span className="text-xs text-muted-foreground" title="What the AI analysis has cost on this takeoff">AI ${t.analysis.spentUsd.toFixed(2)}</span>}
       {analyzeOpen && <AnalyzeDialog open onOpenChange={setAnalyzeOpen} roofPlans={roofPlans} otherSheets={allSheets.filter((s) => !s.isRaster && !roofPlans.includes(s))} sheetsRead={t.analysis.sheetsRead} pending={analyze.isPending} onStart={(ids) => analyze.mutate(ids, { onSuccess: () => setAnalyzeOpen(false) })} />}

@@ -571,6 +571,25 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-26 — Plan takeoff → roofing estimate (built + dev-QA'd on `takeoff-to-estimate`, on `main`, not deployed)
+
+"what is the process for creating an estimate based on the plans" — there was
+none: a takeoff's measurements were read by nothing; the roofing estimate
+started only from a Roofr report. Plan approved
+(`~/.claude/plans/for-the-plan-take-frolicking-lovelace.md`): a roofing takeoff
+becomes a `RoofMeasurement` (`source PLAN_TAKEOFF`, `takeoffId`; migration
+`20261111120000_roof_measurement_from_takeoff`) that "Add roofing section from
+measurement" prices unchanged. Pure `takeoff/roofing/to-measurement.ts`
+(reviewed rows only, ticked sheets, slope text → pitch bands with the pitch
+factor, drains / scuppers listed as not priced), `POST
+/api/takeoffs/[id]/roof-measurement` (`?preview=1`), workspace **Use for an
+estimate…** dialog, "From plans · TK-n" on the Roofr tab; default sheets never
+count two roof plans; `reviewState` stops asking a flat roof for eaves /
+rakes. Gate: typecheck clean, lint 5/22, 1943 tests, build clean. Dev QA on
+TK-0003: API 11/11, headless Chromium 17/17, SALES_REP 404. Details:
+[features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
+**Deploy carries the migration.**
+
 ### 2026-10-20 — Change-order form PDF (deployed `995df3a`)
 
 "download the change order in pdf format on a nicely formatted change order
@@ -3754,6 +3773,13 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **Plan takeoff → roofing estimate is on `main`, not deployed (migration
+> `20261111120000_roof_measurement_from_takeoff`).** After the deploy: a roofing
+> takeoff → approve the roof rows → Use for an estimate… → Create → the lead's
+> Estimates → New estimate → Roofing → Add roofing section from measurement →
+> "Plans · TK-n". Materials price at $0 until the estimator import fills the
+> price book.
 
 > **MVP 5 (one estimate system, roofing from measurements) is on prod (`b824f4b`,
 > BUILD_ID `dA3UpZzj_9IbLgUuL5Fv_`); the price book is still empty.** On Richard's word:

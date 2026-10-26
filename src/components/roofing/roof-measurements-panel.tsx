@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -19,7 +20,8 @@ type Person = { id: string; firstName: string; lastName: string };
 
 type Measurement = MeasurementValues & {
   id: string;
-  source: "ROOFR" | "MANUAL" | "FIELD";
+  source: "ROOFR" | "MANUAL" | "FIELD" | "PLAN_TAKEOFF";
+  takeoff: { id: string; number: string } | null;
   label: string | null;
   reportDate: string | null;
   parsedAddress: string | null;
@@ -36,7 +38,7 @@ type Measurement = MeasurementValues & {
   review: ReviewState;
 };
 
-const SOURCE_LABEL = { ROOFR: "Roofr report", MANUAL: "Entered by hand", FIELD: "Field measurement" } as const;
+const SOURCE_LABEL = { ROOFR: "Roofr report", MANUAL: "Entered by hand", FIELD: "Field measurement", PLAN_TAKEOFF: "From plans" } as const;
 const UNIT: Record<string, string> = { squares: "sq", area: "sq ft", length: "ft", count: "", pitch: "" };
 
 function show(value: number | string | null | undefined, kind: string): string {
@@ -205,6 +207,11 @@ function MeasurementCard({ leadId, jobId, measurement: m, canEdit, onDone }: { l
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium">{isNew ? "New measurement" : (m.label ?? SOURCE_LABEL[m.source])}</span>
               {m && !editing && m.totalSquares != null && <Badge variant="secondary">{show(m.totalSquares, "squares")}</Badge>}
+              {m?.takeoff && (
+                <Link href={`/takeoff/${m.takeoff.id}`} className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+                  From plans · {m.takeoff.number}
+                </Link>
+              )}
               {m?.review.needsReview && (
                 <Badge variant="outline" className="border-amber-500 text-amber-700 dark:text-amber-400">
                   <AlertTriangle className="mr-1 h-3 w-3" /> Needs review

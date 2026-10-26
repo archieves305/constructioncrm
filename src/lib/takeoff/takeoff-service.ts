@@ -16,6 +16,8 @@ import { metricFor, type TradeName } from "./metrics";
 import { describeAnalyzeProgress, sheetOfRegionStep } from "./pipeline/analyze-plan";
 import type { StepState } from "./pipeline/plan";
 import type { AiMeasurementInput } from "./roofing/analyze";
+import { takeoffToMeasurement, type TakeoffRowInput } from "./roofing/to-measurement";
+import { createFromPlans } from "@/lib/roofing/service";
 import { readSheetGeometry, readSheetText } from "./sheet-cache";
 import { presentSheet } from "./service";
 import { proposeSheets } from "./sheets/relevance";
@@ -402,3 +404,58 @@ const SHEET_SELECT_FOR_PRESENT = {
   isRaster: true, textItemCount: true, segmentCount: true, textKey: true, renderKey72: true, renderKey144: true,
   scaleSource: true, ptPerFt: true, scaleConfidence: true, scaleVerification: true, supersededBySheetId: true, updatedAt: true,
 } satisfies Prisma.PlanSheetSelect;
+
+/**
+ * A roofing takeoff read as a roof measurement (`roofing/to-measurement.ts`):
+ * the preview the person checks, and — with `write` — the `RoofMeasurement`
+ * the estimate builder prices like a Roofr report. With no sheets named, the
+ * sheet with the largest reviewed roof area is chosen, with the sheets that
+ * carry no roof area; ticking more brings the overlap warning.
+ */
+export async function roofMeasurementFromTakeoff(id: string, input: { sheetIds?: string[]; defaultRise: number }, userId: string, write: boolean) {
+  const t = await prisma.takeoff.findUnique({ where: { id }, select: { id: true, number: true, trade: true, leadId: true, jobId: true } });
+  if (!t) return null;
+  if (t.trade !== "ROOFING") return { error: "Only a roofing takeoff can be priced as a roof", status: 400 } as const;
+  const rows = await prisma.takeoffMeasurement.findMany({
+    where: { takeoffId: id },
+    orderBy: [{ planSheet: { pageNumber: "asc" } }, { createdAt: "asc" }],
+    select: { id: true, planSheetId: true, metricKey: true, label: true, valueRaw: true, attributes: true, origin: true, reviewStatus: true, planSheet: { select: { sheetNumber: true, title: true } } },
+  });
+  const inputs: TakeoffRowInput[] = rows.map((r) => ({ ...r, sheetNumber: r.planSheet.sheetNumber, attributes: (r.attributes ?? null) as Record<string, unknown> | null }));
+
+  const sheets = new Map<string, { id: string; sheetNumber: string | null; title: string | null; roofAreaSf: number; rows: number }>();
+  for (const r of rows) {
+    const s = sheets.get(r.planSheetId) ?? { id: r.planSheetId, sheetNumber: r.planSheet.sheetNumber, title: r.planSheet.title, roofAreaSf: 0, rows: 0 };
+    s.rows++;
+    sheets.set(r.planSheetId, s);
+  }
+  const everySheet = [...sheets.keys()];
+  // A sheet's reviewed roof area, read through the same rules as the total.
+  for (const s of sheets.values()) s.roofAreaSf = takeoffToMeasurement(inputs, { sheetIds: [s.id], defaultRise: 0 }).values.roofAreaSqFt ?? 0;
+  const counting = (sheetId: string) => takeoffToMeasurement(inputs, { sheetIds: [sheetId], defaultRise: input.defaultRise }).counted > 0;
+  // Default: never two sheets' roof areas at once (a set draws the same roof on
+  // several sheets) — the largest roof plan, with every sheet that adds other rows.
+  const largest = [...sheets.values()].filter((s) => s.roofAreaSf > 0).sort((a, b) => b.roofAreaSf - a.roofAreaSf)[0];
+  const sheetIds = input.sheetIds ?? everySheet.filter((id) => counting(id) && (sheets.get(id)!.roofAreaSf === 0 || id === largest?.id));
+  const unknown = sheetIds.find((s) => !sheets.has(s));
+  if (unknown) return { error: "That sheet has no measurements in this takeoff", status: 400 } as const;
+
+  const plan = takeoffToMeasurement(inputs, { sheetIds, defaultRise: input.defaultRise });
+  const preview = { takeoff: { id: t.id, number: t.number }, sheets: [...sheets.values()], sheetIds, ...plan };
+  if (!write) return { preview };
+  if (!plan.pitchBands) return { error: "There is no reviewed roof area on the chosen sheets — approve the roof areas first", status: 409 } as const;
+
+  const measurement = await createFromPlans({
+    leadId: t.leadId,
+    jobId: t.jobId,
+    takeoffId: t.id,
+    label: `Plans · ${t.number}`,
+    values: plan.values,
+    pitchBands: plan.pitchBands,
+    reviewedShare: plan.reviewedShare,
+    warnings: [...plan.warnings, ...plan.notPriced.map((p) => `Not priced by a takeoff rule: ${p.label} ${p.value} ${p.unit}`)],
+    userId,
+  });
+  await recordAudit({ actorUserId: userId, entityType: "takeoff", entityId: t.id, action: "to_roof_measurement", after: { roofMeasurementId: measurement.id, sheetIds, totalSquares: plan.values.totalSquares, counted: plan.counted } });
+  return { preview, measurement };
+}

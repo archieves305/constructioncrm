@@ -88,6 +88,9 @@ describe("reviewState", () => {
   it("roof area stands in for squares; hand-typed measurements have no parser doubts", () => {
     expect(reviewState({ ...base, fieldConfidence: {}, values: { roofAreaSqFt: 3000, eavesLf: 1, rakesLf: 1 } }).needsReview).toBe(false);
     expect(reviewState({ ...base, source: "MANUAL", parseConfidence: null, values: { totalSquares: 30, eavesLf: 1, rakesLf: 1 } }).needsReview).toBe(false);
+    // a flat roof has no eaves or rakes
+    expect(reviewState({ ...base, source: "PLAN_TAKEOFF", parseConfidence: 1, values: { totalSquares: 28, flatAreaSqFt: 2800, pitchedAreaSqFt: 0 } }).needsReview).toBe(false);
+    expect(reviewState({ ...base, source: "PLAN_TAKEOFF", parseConfidence: 1, values: { totalSquares: 28, flatAreaSqFt: 800, pitchedAreaSqFt: 2000 } }).reasons[0]).toMatch(/eaves, rakes/);
   });
 });
 
