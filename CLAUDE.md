@@ -571,7 +571,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-10-26 — Plan takeoff → roofing estimate (built + dev-QA'd on `takeoff-to-estimate`, on `main`, not deployed)
+### 2026-10-26 — Plan takeoff → roofing estimate (deployed `31ea283`)
 
 "what is the process for creating an estimate based on the plans" — there was
 none: a takeoff's measurements were read by nothing; the roofing estimate
@@ -588,7 +588,10 @@ count two roof plans; `reviewState` stops asking a flat roof for eaves /
 rakes. Gate: typecheck clean, lint 5/22, 1943 tests, build clean. Dev QA on
 TK-0003: API 11/11, headless Chromium 17/17, SALES_REP 404. Details:
 [features/plan-takeoff.md](docs/project-memory/features/plan-takeoff.md).
-**Deploy carries the migration.**
+Pushed and deployed from the session at Richard's request (387 s, exit 0):
+BUILD_ID `rPH5hOOQ_sU87Sz64YpDz` → `uOQQcpC96ddOs9xGzu4Fx`, migration applied
+(`roof_measurements.takeoff_id` and `PLAN_TAKEOFF` present), smoke 307 ×2,
+journal clean, backup `postgres-2026-10-26-092406.dump`.
 
 ### 2026-10-20 — Change-order form PDF (deployed `995df3a`)
 
@@ -3774,8 +3777,8 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Plan takeoff → roofing estimate is on `main`, not deployed (migration
-> `20261111120000_roof_measurement_from_takeoff`).** After the deploy: a roofing
+> **Plan takeoff → roofing estimate is on prod (`31ea283`, BUILD_ID
+> `uOQQcpC96ddOs9xGzu4Fx`).** Click-through: a roofing
 > takeoff → approve the roof rows → Use for an estimate… → Create → the lead's
 > Estimates → New estimate → Roofing → Add roofing section from measurement →
 > "Plans · TK-n". Materials price at $0 until the estimator import fills the
