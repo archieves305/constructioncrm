@@ -592,8 +592,16 @@ clean, lint clean on the touched files, 1956 tests (+13 in
 scope (admin 5 jobs, rep 1) / 201 → 200 replay / rep replay 404 / cancel rep
 404, admin ok / PATCH COMPLETED 400; then Work's browser test drove the full
 loop (send → worker → one CRM task, HIGH, assigned → completed here → the Work
-item closes). QA tasks removed. **Deploy: set `WORK_API_KEY` in
-`/etc/knuco/env`; the deploy carries the migration.**
+item closes). QA tasks removed. **Deployed 2026-10-30 as `a169a19`**: `WORK_API_KEY` generated
+and appended to `/etc/knuco/env` (copy `/etc/knuco/env.bak-20261030-work`). The
+first `./deploy.sh --yes` applied the migration and built, then failed its
+laptop smoke (rc 19) because `PUBLIC_URL` defaulted to crm.knuconstruction.com
+(302) and rolled the code back; the DB stayed migrated (additive index,
+harmless). Re-run with `KNUCO_PUBLIC_URL=https://crm.careyos.com`: BUILD_ID
+`uXl46nYOTLRNcPkjE9F6C` → `BS77o8kIPCYbcvd8RqyOd`, smoke 307 ×2, journal
+clean, backup `postgres-2026-10-30-141526.dump`. From the droplet: no key /
+wrong key 401; with the key 7 users, 21 open jobs for Richard. **Lesson:
+always deploy with `KNUCO_PUBLIC_URL=https://crm.careyos.com`.**
 
 ### 2026-10-26 — Plan takeoff → roofing estimate (deployed `31ea283`)
 
