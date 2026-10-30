@@ -92,6 +92,9 @@ const schema = z.object({
   // Optional at server-start so the app boots without it; the integration
   // routes 503 when unset.
   CC_ALLOCATOR_API_KEY: z.string().optional(),
+  // Bearer token CareyOS Work presents on /api/integrations/work/*. Optional
+  // at server-start; the routes 503 when unset.
+  WORK_API_KEY: z.string().optional(),
   // cc-allocator's postings export, read by the Cost Reconciliation page.
   // Same droplet, so the internal port is the intended value.
   CC_ALLOCATOR_BASE_URL: z.string().url().optional(),

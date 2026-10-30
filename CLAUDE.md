@@ -571,6 +571,30 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-10-30 — CareyOS Work integration endpoints (built + dev-QA'd on `feat/work-integration`, not deployed)
+
+CareyOS Work (new app, `~/work`, work.careyos.com — the Monday.com replacement;
+plan `~/.claude/plans/glittery-napping-rabin.md`) hands board items to the CRM
+as ordinary tasks. New `/api/integrations/work/*` (Bearer `WORK_API_KEY`,
+compared in constant time — `src/lib/integrations/work/auth.ts`): `GET jobs`
+(open jobs the acting user can see, `jobAccessWhere`), `GET users`, `POST
+tasks` (through `createTask`, source `work`, `sourceKey = "work:<key>"`;
+idempotent; access is checked BEFORE the replay so a replayed key never hands a
+task to someone who couldn't create it), `GET tasks?ids=` (only Work-created
+tasks) / `?assigneeEmail=` (open tasks for Work's My Work), `PATCH tasks/[id]`
+(CANCELLED only, Work-created only). Every write is made as the sender, who
+must be an active CRM user — no system-user fallback. Migration
+`20261112120000_work_integration`: partial unique index on
+`tasks(source_key) WHERE source_key LIKE 'work:%'` (additive). Gate: typecheck
+clean, lint clean on the touched files, 1956 tests (+13 in
+`src/lib/integrations/work/service.test.ts`). Dev QA against the local dev DB
+(migration applied there) with mail / SMS / AI keys blanked: curl 401 / 403 /
+scope (admin 5 jobs, rep 1) / 201 → 200 replay / rep replay 404 / cancel rep
+404, admin ok / PATCH COMPLETED 400; then Work's browser test drove the full
+loop (send → worker → one CRM task, HIGH, assigned → completed here → the Work
+item closes). QA tasks removed. **Deploy: set `WORK_API_KEY` in
+`/etc/knuco/env`; the deploy carries the migration.**
+
 ### 2026-10-26 — Plan takeoff → roofing estimate (deployed `31ea283`)
 
 "what is the process for creating an estimate based on the plans" — there was

@@ -34,7 +34,9 @@ export type TaskSource =
   | "follow_up_rule"
   | "field_issue"
   | "auto"
-  | "workflow";
+  | "workflow"
+  /** Sent from a CareyOS Work board item (src/lib/integrations/work). */
+  | "work";
 
 /**
  * Workflow placement. `taskKey` null = a manual task added inside a phase:
