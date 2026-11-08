@@ -104,6 +104,17 @@ export default function JobScreen() {
           <Button label="Today's log" kind="secondary" onPress={() => router.push({ pathname: "/log/[jobId]", params: { jobId: j.id } })} />
         </View>
       </View>
+      <Button label="Clock crew in / out" kind="secondary" onPress={() => router.push({ pathname: "/crew/[jobId]", params: { jobId: j.id } })} />
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Button label="Request materials" kind="secondary" onPress={() => router.push({ pathname: "/materials", params: { jobId: j.id } })} />
+        </View>
+        {j.moneyView === "full" ? (
+          <View style={{ flex: 1 }}>
+            <Button label="Crew payments" kind="secondary" onPress={() => router.push({ pathname: "/pay/[jobId]", params: { jobId: j.id } })} />
+          </View>
+        ) : null}
+      </View>
 
       <Card>
         <Row label="Customer" value={j.lead?.fullName ?? null} />

@@ -92,3 +92,38 @@ export function markAbsent(e: LaborEntryInput, absent: boolean): LaborEntryInput
 export function personName(p: { firstName: string; lastName: string } | null | undefined): string {
   return p ? `${p.firstName} ${p.lastName}`.trim() : "Unknown worker";
 }
+
+// ── Clocking the crew (today's sheet) ───────────────────────────────────────
+
+/** On site now: here, started, not yet clocked out. */
+export function isOnSite(e: Pick<LaborEntryInput, "isAbsent" | "startMinutes" | "endMinutes">): boolean {
+  return !e.isAbsent && e.startMinutes != null && e.endMinutes == null;
+}
+
+/** Hours so far for someone still on site (break taken off), else their sheet hours. */
+export function hoursSoFar(e: LaborEntryInput, at: Date = new Date()): number {
+  if (!isOnSite(e)) return entryHours(e);
+  const worked = nowMinutes(at, e.startMinutes) - (e.startMinutes ?? 0) - (e.breakMinutes ?? 0);
+  return worked > 0 ? Math.round((worked / 60) * 10) / 10 : 0;
+}
+
+/**
+ * Clock people in at `at`: someone not on the sheet is added, started now,
+ * with no end and no break yet; someone marked absent who turns up is put on
+ * site from now. Anyone already on the sheet otherwise is left alone.
+ */
+export function clockIn(entries: LaborEntryInput[], people: CrewMemberDto[], makeId: () => string, at: Date = new Date()): LaborEntryInput[] {
+  const start = nowMinutes(at);
+  const next = [...entries];
+  for (const p of people) {
+    const i = next.findIndex((e) => e.personnelId === p.id);
+    if (i === -1) next.push({ ...newEntry(p, makeId()), startMinutes: start, endMinutes: null, breakMinutes: 0 });
+    else if (next[i].isAbsent) next[i] = { ...next[i], isAbsent: false, absenceReason: null, startMinutes: start, endMinutes: null };
+  }
+  return next;
+}
+
+/** Clock out the given entries (all on site when `ids` is omitted) at `at`; past midnight counts on. */
+export function clockOut(entries: LaborEntryInput[], ids: string[] | null, at: Date = new Date()): LaborEntryInput[] {
+  return entries.map((e) => (isOnSite(e) && (!ids || ids.includes(e.id)) ? { ...e, endMinutes: Math.max((e.startMinutes ?? 0) + 5, nowMinutes(at, e.startMinutes)) } : e));
+}

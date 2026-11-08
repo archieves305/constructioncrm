@@ -6,6 +6,7 @@ import type { CalendarItemDto } from "@crm/mobile-api";
 import { useSession } from "@/auth/session";
 import { useCalendarRange, useOverdue, useToday } from "@/api/queries";
 import { SavedNote } from "@/cache/SavedNote";
+import { OwnerStrip } from "@/ui/OwnerStrip";
 import { usePush } from "@/push/push";
 import { addDays, dayKey } from "@/lib/format";
 import { groupByDay, orderDay } from "@/lib/calendar";
@@ -126,6 +127,7 @@ export default function Today() {
       </View>
 
       <SavedNote />
+      <OwnerStrip />
       {push.state === "undetermined" ? (
         <Card>
           <Text style={[s.h2, { color: t.text }]}>Get a buzz when work comes in</Text>

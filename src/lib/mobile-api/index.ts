@@ -172,6 +172,8 @@ export const jobDetail = z.object({
   salesRep: person.nullable(),
   targetStartDate: z.string().nullable(),
   nextAction: z.string().nullable(),
+  /** What of the job's money this viewer sees (jobMoneyView): crew payments need "full". */
+  moneyView: z.enum(["full", "price", "none"]).optional(),
 });
 export type JobDetailDto = z.infer<typeof jobDetail>;
 
@@ -618,3 +620,105 @@ export const PHONE_DOC_CATEGORIES = [
   { value: "INSURANCE", label: "Insurance" },
   { value: "OTHER", label: "Other" },
 ] as const;
+
+// ---------------------------------------------------------------------------
+// Phase 5: owner summary (GET /api/attention/owner, GET /api/attention,
+// GET /api/attention/[key]) — the dashboard's numbers on the phone, for the
+// roles the dashboard shows them to (canViewCompanyFinancials). Not kept in
+// the phone's saved copy: company money.
+// ---------------------------------------------------------------------------
+
+export const ownerSummary = z.object({
+  scope: z.enum(["mine", "all"]),
+  newLeadsToday: z.number(),
+  uncontacted: z.number(),
+  pipeline: z.object({ leads: z.number(), value: z.number() }),
+  estimatesOut: z.object({ count: z.number(), total: z.number() }),
+  activeJobs: z.number(),
+  expectedGrossProfit: z.object({ total: z.number(), jobs: z.number(), jobsWithoutBaseline: z.number() }),
+});
+export type OwnerSummaryDto = z.infer<typeof ownerSummary>;
+
+const tone = z.enum(["danger", "warning", "info", "neutral", "success"]);
+export const attentionCounts = z.object({
+  scope: z.enum(["mine", "all"]),
+  rows: z.array(z.object({ key: z.string(), label: z.string(), tone, count: z.number(), href: z.string() })),
+});
+export type AttentionCountDto = z.infer<typeof attentionCounts>["rows"][number];
+
+export const attentionList = z.object({
+  key: z.string(),
+  label: z.string(),
+  description: z.string(),
+  scope: z.enum(["mine", "all"]),
+  count: z.number(),
+  items: z.array(
+    z.object({
+      id: z.string(),
+      primary: z.string(),
+      secondary: z.string().nullable(),
+      code: z.string().nullable(),
+      detail: z.string(),
+      date: z.string().nullable(),
+      href: z.string(),
+    }),
+  ),
+});
+export type AttentionListDto = z.infer<typeof attentionList>;
+
+/** Who sees the owner summary (mirrors canViewCompanyFinancials; the contract test keeps them equal). */
+export const OWNER_ROLES = ["ADMIN", "MANAGER", "OFFICE_STAFF", "READ_ONLY"] as const;
+
+
+// ---------------------------------------------------------------------------
+// Phase 5: crew payment requests (GET /api/jobs/[id]/labor-contracts,
+// GET|POST /api/labor-contracts/[id]/payment-requests) — for the job's full
+// money viewers (office roles, the job's PM). Read live, never kept offline.
+// ---------------------------------------------------------------------------
+
+const money = z.union([z.string(), z.number()]).transform((v) => Number(v));
+
+export const phoneLaborContract = z.object({
+  id: z.string(),
+  label: z.string().nullable(),
+  crew: z.object({ name: z.string() }).nullable(),
+  vendor: z.object({ name: z.string() }).nullable(),
+  contractAmount: money,
+  changeOrders: z.array(z.object({ amount: money })),
+  payments: z.array(z.object({ amount: money, paidDate: z.string() })),
+});
+export const phoneLaborContracts = z.array(phoneLaborContract);
+export type PhoneLaborContractDto = z.infer<typeof phoneLaborContract>;
+
+export const PAYMENT_REQUEST_STATUSES = ["REQUESTED", "PAID", "CANCELLED", "CLOSED_UNPAID"] as const;
+export const paymentRequestList = z.object({
+  requests: z.array(
+    z.object({
+      id: z.string(),
+      amount: money,
+      note: z.string().nullable(),
+      neededBy: z.string().nullable(),
+      status: z.enum(PAYMENT_REQUEST_STATUSES),
+      createdAt: z.string(),
+      requestedBy: z.object({ firstName: z.string(), lastName: z.string() }).nullable(),
+    }),
+  ),
+  defaultAssigneeId: z.string().nullable(),
+});
+export type PaymentRequestDto = z.infer<typeof paymentRequestList>["requests"][number];
+
+export const createPaymentRequestBody = z.object({
+  amount: z.number().positive().max(10_000_000),
+  note: z.string().trim().max(2000).optional(),
+  /** yyyy-MM-dd */
+  neededBy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+// Material requests are field issues of type MATERIAL_REQUEST (the CRM routes
+// an unassigned one to the job's Purchasing person); the lines go in the text.
+export const materialLine = z.object({
+  qty: z.string().trim().max(20),
+  unit: z.string().trim().max(20),
+  item: z.string().trim().min(1).max(200),
+});
+export type MaterialLine = z.infer<typeof materialLine>;

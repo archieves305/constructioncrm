@@ -230,3 +230,42 @@ describe("job files contract", () => {
     expect(r.success && r.data.items[0].origin).toBe("Crew payment · BNW");
   });
 });
+
+describe("owner summary contract", () => {
+  it("the CRM's own shapes parse", async () => {
+    const { ownerSummary, attentionCounts, attentionList } = await import("./index");
+    type Owner = Awaited<ReturnType<typeof import("@/lib/attention/load").loadOwnerSummary>>;
+    type List = import("@/lib/attention/rows").AttentionList;
+    type Count = import("@/lib/attention/rows").AttentionCount;
+    const owner: Owner & { scope: "all" } = { scope: "all", newLeadsToday: 2, uncontacted: 19, pipeline: { leads: 20, value: 179040 }, estimatesOut: { count: 0, total: 0 }, activeJobs: 19, expectedGrossProfit: { total: 0, jobs: 1, jobsWithoutBaseline: 16 } };
+    const count: Count = { key: "jobs-delayed", label: "Delayed jobs", tone: "danger", count: 10, href: "/attention/jobs-delayed?scope=all" };
+    const list: List = { key: "jobs-delayed", label: "Delayed jobs", description: "d", scope: "all", count: 1, items: [{ id: "j1", primary: "2188 Wind Trace", secondary: "Sarah Smith", code: "JOB-00004", detail: "Blocked task", date: null, href: "/jobs/j1" }] };
+    expect(ownerSummary.safeParse(JSON.parse(JSON.stringify(owner))).success).toBe(true);
+    expect(attentionCounts.safeParse({ scope: "all", rows: [count] }).success).toBe(true);
+    expect(attentionList.safeParse(JSON.parse(JSON.stringify(list))).success).toBe(true);
+  });
+
+  it("the phone shows the summary to exactly the roles the CRM serves it to", async () => {
+    const { OWNER_ROLES } = await import("./index");
+    const { canViewCompanyFinancials } = await import("@/lib/money/access");
+    for (const r of ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "CREW_LEAD", "READ_ONLY"])
+      expect(OWNER_ROLES.includes(r as never)).toBe(canViewCompanyFinancials(r as never));
+  });
+});
+
+describe("crew payments and material requests contract", () => {
+  it("a labor contract and its requests, as Prisma sends them (Decimal as strings), parse", async () => {
+    const { phoneLaborContracts, paymentRequestList, PAYMENT_REQUEST_STATUSES } = await import("./index");
+    const { LaborPaymentRequestStatus } = await import("@/generated/prisma/client");
+    expect([...PAYMENT_REQUEST_STATUSES].sort()).toEqual(Object.values(LaborPaymentRequestStatus).sort());
+    const c = phoneLaborContracts.parse([{ id: "lc1", label: null, crew: { name: "BNW" }, vendor: null, contractAmount: "259870.00", changeOrders: [{ amount: "-500.00" }], payments: [{ amount: "14032.99", paidDate: "2026-10-05T00:00:00.000Z" }], tasks: [] }]);
+    expect(c[0].contractAmount).toBe(259870);
+    expect(c[0].payments[0].amount).toBe(14032.99);
+    const r = paymentRequestList.parse({ requests: [{ id: "r1", amount: "4000.00", note: null, neededBy: "2026-11-10T12:00:00.000Z", status: "REQUESTED", createdAt: "2026-11-08T12:00:00.000Z", requestedBy: { firstName: "A", lastName: "B" }, photos: [] }], defaultAssigneeId: null });
+    expect(r.requests[0].amount).toBe(4000);
+  });
+  it("MATERIAL_REQUEST is a field issue type", async () => {
+    const { FieldIssueType } = await import("@/generated/prisma/client");
+    expect(Object.values(FieldIssueType)).toContain("MATERIAL_REQUEST");
+  });
+});

@@ -6,6 +6,7 @@ import { requireJobFieldAccess } from "@/lib/labor/route-helpers";
 import { recordAudit } from "@/lib/audit/record";
 import { createTask } from "@/lib/tasks/create";
 import { withIdempotency } from "@/lib/api/idempotency";
+import { userForJobRole } from "@/lib/workflows/roles";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -99,6 +100,10 @@ export async function POST(request: NextRequest, context: Context) {
       }
     }
 
+    // A material request nobody was named for goes to whoever buys for the job
+    // (the Purchasing slot, else the company default), not into an unowned task.
+    const assignedUserId = d.assignedUserId || (d.type === "MATERIAL_REQUEST" ? await userForJobRole(jobId, "PURCHASING") : null);
+
     const issue = await prisma.$transaction(async (tx) => {
       const created = await tx.fieldIssue.create({
         data: {
@@ -109,7 +114,7 @@ export async function POST(request: NextRequest, context: Context) {
           title: d.title,
           description: d.description || null,
           priority: d.priority,
-          assignedUserId: d.assignedUserId || null,
+          assignedUserId,
           dueAt: d.dueAt ? new Date(d.dueAt) : null,
           raisedByUserId: ctx.session.user.id,
         },
@@ -125,7 +130,7 @@ export async function POST(request: NextRequest, context: Context) {
           title: `[${TYPE_LABELS[d.type]}] ${d.title}`,
           description: d.description || null,
           priority: d.priority,
-          assignedUserId: d.assignedUserId || null,
+          assignedUserId,
           createdByUserId: ctx.session.user.id,
           dueAt: d.dueAt ? new Date(d.dueAt) : null,
           source: "field_issue",

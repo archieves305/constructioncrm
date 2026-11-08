@@ -1,7 +1,7 @@
 // Run: npm test
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clock, entryHours, markAbsent, newEntry, nowMinutes, sheetHours, stepTime, toInput } from "./labor";
+import { clock, clockIn, clockOut, entryHours, hoursSoFar, isOnSite, markAbsent, newEntry, nowMinutes, sheetHours, stepTime, toInput } from "./labor";
 
 const person = { id: "p1", firstName: "Ana", lastName: "Ruiz", trade: "Framing", crew: null };
 
@@ -54,4 +54,32 @@ test("absent clears the times; back again restores the defaults", () => {
   assert.equal(off.startMinutes, null);
   const back = markAbsent(off, false);
   assert.deepEqual([back.startMinutes, back.endMinutes, back.absenceReason], [420, 930, null]);
+});
+
+test("clocking in: new people start now with no end; an absent person who turns up goes on site", () => {
+  const at = new Date("2026-11-08T12:05:00Z"); // 7:05 AM New York
+  const bob = { id: "p2", firstName: "Bob", lastName: "Lee", trade: null, crew: null };
+  const absent = { ...markAbsent(newEntry(bob, "c0123456789abcdef0000000b"), true), absenceReason: "Late call" };
+  let n = 0;
+  const out = clockIn([absent], [person, bob], () => `c0123456789abcdef000000${n++}a`, at);
+  assert.equal(out.length, 2);
+  const ana = out.find((e) => e.personnelId === "p1")!;
+  assert.deepEqual([ana.startMinutes, ana.endMinutes, ana.breakMinutes], [425, null, 0]);
+  const b = out.find((e) => e.personnelId === "p2")!;
+  assert.deepEqual([b.isAbsent, b.startMinutes, b.endMinutes, b.absenceReason], [false, 425, null, null]);
+  assert.ok(out.every(isOnSite));
+  // Clocking in again changes nothing for people already on site.
+  assert.deepEqual(clockIn(out, [person, bob], () => "x", at), out);
+});
+
+test("hours so far, and clocking out (one or everyone; past midnight)", () => {
+  const start = new Date("2026-11-08T12:00:00Z"); // 7:00 AM
+  let n = 0;
+  const on = clockIn([], [person, { id: "p2", firstName: "B", lastName: "L", trade: null, crew: null }], () => `c0123456789abcdef000000${n++}b`, start);
+  assert.equal(hoursSoFar(on[0], new Date("2026-11-08T15:15:00Z")), 3.3); // 10:15 AM
+  const one = clockOut(on, [on[0].id], new Date("2026-11-08T20:30:00Z")); // 3:30 PM
+  assert.deepEqual([one[0].endMinutes, isOnSite(one[0]), isOnSite(one[1])], [930, false, true]);
+  const all = clockOut(one, null, new Date("2026-11-09T05:10:00Z")); // 12:10 AM next day
+  assert.equal(all[1].endMinutes, 1440 + 10);
+  assert.equal(all[0].endMinutes, 930); // already out: left alone
 });

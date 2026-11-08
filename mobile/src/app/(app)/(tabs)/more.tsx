@@ -1,3 +1,4 @@
+import { OWNER_ROLES } from "@crm/mobile-api";
 import { Alert, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
@@ -107,6 +108,14 @@ export default function More() {
           />
         </View>
       </Card>
+      {(OWNER_ROLES as readonly string[]).includes(user?.role ?? "") ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push("/owner")}>
+          <Card>
+            <Text style={[s.h2, { color: t.text }]}>Owner summary</Text>
+            <Text style={[s.body, { color: t.muted }]}>Leads, pipeline, estimates, jobs, expected profit, and what needs attention.</Text>
+          </Card>
+        </Pressable>
+      ) : null}
       <Pressable accessibilityRole="button" onPress={() => router.push("/inspections")}>
         <Card>
           <Text style={[s.h2, { color: t.text }]}>Inspections</Text>

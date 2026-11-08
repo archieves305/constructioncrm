@@ -9,7 +9,7 @@ import { useCrewList, useDailySheet, useJob } from "@/api/queries";
 import { addressLine, dayKey } from "@/lib/format";
 import { clearDraft, readDraft, writeDraft } from "@/lib/drafts";
 import { clientId } from "@/lib/ids";
-import { BREAKS, DEFAULT_END, DEFAULT_START, clock, entryHours, markAbsent, newEntry, nowMinutes, personName, sheetHours, stepTime, toInput } from "@/lib/labor";
+import { BREAKS, DEFAULT_END, DEFAULT_START, clock, clockIn, clockOut, entryHours, hoursSoFar, isOnSite, markAbsent, newEntry, nowMinutes, personName, sheetHours, stepTime, toInput } from "@/lib/labor";
 import { useOutbox } from "@/outbox/useOutbox";
 import { Button, Card, Notice, s } from "@/ui/components";
 import { Chips } from "@/ui/Chips";
@@ -84,6 +84,15 @@ export default function CrewHours() {
   const onSheet = new Set(entries.map((e) => e.personnelId));
   const notOnSheet = (crew.data ?? []).filter((p) => !onSheet.has(p.id));
   const present = entries.filter((e) => !e.isAbsent);
+  const isToday = date === dayKey();
+  const onSite = entries.filter(isOnSite);
+  // "Hours so far" moves on by itself while people are on site.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!onSite.length) return;
+    const id = setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, [onSite.length]);
   const address = addressLine(job.data?.lead);
 
   const change = (next: LaborEntryInput[]) => {
@@ -96,19 +105,27 @@ export default function CrewHours() {
     change([...entries, ...added]);
     if (added.length === 1) setOpen(added[0].id);
   };
+  // Clocking saves at once (queued without signal): nothing to remember to save.
+  const clockTo = async (next: LaborEntryInput[]) => {
+    setEntries(next);
+    await save(next);
+  };
+  const clockInPeople = (people: CrewMemberDto[]) => void clockTo(clockIn(entries, people, clientId));
+  const clockOutIds = (ids: string[] | null) => void clockTo(clockOut(entries, ids));
+
   const remove = (e: LaborEntryInput) =>
     Alert.alert(`Take ${names.get(e.personnelId) ?? "this worker"} off the sheet?`, "Use Absent instead if they were expected but did not come.", [
       { text: "Keep", style: "cancel" },
       { text: "Take off", style: "destructive", onPress: () => change(entries.filter((x) => x.id !== e.id)) },
     ]);
 
-  const save = async () => {
+  const save = async (list: LaborEntryInput[] = entries) => {
     const body = saveLaborSheetRequest.safeParse({
-      entries: entries.map(toInput),
+      entries: list.map(toInput),
       ...(sheet.data?.updatedAt ? { baseUpdatedAt: sheet.data.updatedAt } : {}),
     });
     if (!body.success) return Alert.alert("Check the sheet", body.error.issues[0]?.message ?? "Something is not right");
-    const bad = entries.find((e) => !e.isAbsent && e.startMinutes != null && e.endMinutes != null && e.endMinutes <= e.startMinutes);
+    const bad = list.find((e) => !e.isAbsent && e.startMinutes != null && e.endMinutes != null && e.endMinutes <= e.startMinutes);
     if (bad) return Alert.alert("Check the times", `${names.get(bad.personnelId) ?? "A worker"} stops before they start.`);
     await outbox.enqueue({
       kind: "labor.save",
@@ -153,7 +170,7 @@ export default function CrewHours() {
       <View>
         {address ? <Text style={{ color: t.muted, fontSize: 15 }}>{address}</Text> : null}
         <Text style={[s.h1, { color: t.text, fontSize: 24 }]}>
-          {present.length} on site · {sheetHours(entries)} h
+          {present.length} on the sheet · {Math.round(entries.reduce((n, e) => n + hoursSoFar(e), 0) * 10) / 10} h{onSite.length ? " so far" : ""}
         </Text>
         <Text style={{ color: t.muted, fontSize: 14 }}>
           {dirty ? "Unsaved changes on this phone" : queuedSave && queuedSave.state === "queued" ? "Saving…" : sheet.data ? "Saved" : "Not started"}
@@ -166,6 +183,43 @@ export default function CrewHours() {
         <OpRow key={op.id} op={op} />
       ))}
 
+      {editable && isToday && onSite.length ? (
+        <Card style={{ borderColor: t.ok }}>
+          <Text style={[s.h2, { color: t.text }]}>On site now · {onSite.length}</Text>
+          {onSite.map((e) => (
+            <View key={e.id} style={{ minHeight: TOUCH, flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.body, { color: t.text, fontWeight: "600" }]}>{names.get(e.personnelId) ?? "Worker"}</Text>
+                <Text style={{ color: t.muted, fontSize: 13 }}>
+                  since {clock(e.startMinutes)} · {hoursSoFar(e)} h so far
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Clock out ${names.get(e.personnelId) ?? "worker"}`}
+                onPress={() => clockOutIds([e.id])}
+                style={{ minHeight: TOUCH, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: t.border, justifyContent: "center", backgroundColor: t.bg }}
+              >
+                <Text style={{ color: t.brand, fontWeight: "700" }}>Clock out</Text>
+              </Pressable>
+            </View>
+          ))}
+          {onSite.length > 1 ? (
+            <Button
+              label={`Clock everyone out (${onSite.length})`}
+              kind="secondary"
+              onPress={() =>
+                Alert.alert(`Clock out ${onSite.length} people now?`, "Each gets an end time of now. Breaks stay as they are on each card.", [
+                  { text: "Not yet", style: "cancel" },
+                  { text: "Clock out", onPress: () => clockOutIds(null) },
+                ])
+              }
+            />
+          ) : null}
+          <Text style={{ color: t.muted, fontSize: 12 }}>Clocked-in people start with no break; set it on their card below if they took one.</Text>
+        </Card>
+      ) : null}
+
       {entries.map((e) => {
         const isOpen = open === e.id && editable;
         const server = serverHours.get(e.id);
@@ -177,10 +231,12 @@ export default function CrewHours() {
                 <Text style={{ color: e.isAbsent ? t.warn : t.muted, fontSize: 14 }}>
                   {e.isAbsent
                     ? `Absent${e.absenceReason ? ` · ${e.absenceReason}` : ""}`
-                    : `${clock(e.startMinutes)} – ${clock(e.endMinutes)} · break ${e.breakMinutes} min`}
+                    : isOnSite(e)
+                      ? `On site since ${clock(e.startMinutes)} · break ${e.breakMinutes} min`
+                      : `${clock(e.startMinutes)} – ${clock(e.endMinutes)} · break ${e.breakMinutes} min`}
                 </Text>
               </View>
-              <Text style={{ color: t.text, fontSize: 18, fontWeight: "700" }}>{entryHours(e)} h</Text>
+              <Text style={{ color: t.text, fontSize: 18, fontWeight: "700" }}>{hoursSoFar(e)} h</Text>
               {editable ? <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={20} color={t.muted} /> : null}
             </Pressable>
             {server && !dirty && server.otHours > 0 ? <Text style={{ color: t.muted, fontSize: 13 }}>{server.regularHours} h regular · {server.otHours} h overtime</Text> : null}
@@ -246,15 +302,28 @@ export default function CrewHours() {
             <Notice text="Only the office and crew leads can add people to the sheet." />
           ) : (
             <>
-              <Button label={adding ? "Done adding" : "Add people"} kind="secondary" onPress={() => setAdding((a) => !a)} />
+              <Button label={adding ? "Done" : isToday ? "Clock people in" : "Add people"} kind={adding || !isToday ? "secondary" : "primary"} onPress={() => setAdding((a) => !a)} />
               {adding ? (
                 <Card>
                   {crew.isPending ? <Text style={{ color: t.muted }}>Loading the crew list…</Text> : null}
                   {(crew.isError && crew.data === undefined) && !noCrewAccess ? <Text style={{ color: t.danger }}>The crew list did not load. Try again with signal.</Text> : null}
-                  {notOnSheet.length > 1 ? <Button label={`Add everyone (${notOnSheet.length})`} kind="secondary" onPress={() => add(notOnSheet)} /> : null}
+                  {notOnSheet.length > 1 ? (
+                    <Button
+                      label={isToday ? `Clock everyone in (${notOnSheet.length})` : `Add everyone (${notOnSheet.length})`}
+                      kind="secondary"
+                      onPress={() => (isToday ? clockInPeople(notOnSheet) : add(notOnSheet))}
+                    />
+                  ) : null}
+                  {isToday && notOnSheet.length ? <Text style={{ color: t.muted, fontSize: 13 }}>Tap a name to clock them in now. Use their card to set other times.</Text> : null}
                   {notOnSheet.map((p) => (
-                    <Pressable key={p.id} accessibilityRole="button" onPress={() => add([p])} style={{ minHeight: TOUCH, flexDirection: "row", alignItems: "center", gap: 10 }}>
-                      <Ionicons name="add-circle-outline" size={24} color={t.brand} />
+                    <Pressable
+                      key={p.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={isToday ? `Clock in ${personName(p)}` : `Add ${personName(p)}`}
+                      onPress={() => (isToday ? clockInPeople([p]) : add([p]))}
+                      style={{ minHeight: TOUCH, flexDirection: "row", alignItems: "center", gap: 10 }}
+                    >
+                      <Ionicons name={isToday ? "log-in-outline" : "add-circle-outline"} size={24} color={t.brand} />
                       <View style={{ flex: 1 }}>
                         <Text style={[s.body, { color: t.text }]}>{personName(p)}</Text>
                         <Text style={{ color: t.muted, fontSize: 13 }}>{[p.trade, p.crew?.name].filter(Boolean).join(" · ") || " "}</Text>

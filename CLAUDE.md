@@ -599,7 +599,11 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-11-08 — KNU Field app: job files, KNU icon, crash reporting wiring (built + dev-QA'd on `mobile-spike`, not deployed)
+### 2026-11-08 — KNU Field app, Phase 5: owner summary, crew payments, material requests, crew clock (built + dev-QA'd on `mobile-spike`, not deployed)
+
+Owner summary (More / Today strip; `OWNER_ROLES` = `canViewCompanyFinancials`, contract test) over the dashboard's own routes (`/api/attention/owner`, `/api/attention`, `/api/attention/[key]`); jobs and tasks open in the app, other records in an in-app browser; not kept offline. Crew payments (job card, `moneyView` full only): contracts with total / paid / left, "Request a payment" sent online with an Idempotency-Key, completion photos queued. Material requests: lines → a `MATERIAL_REQUEST` field issue (queued). Crew clock (Richard's option A): Clock in / out and "On site now" on today's crew sheet, each tap saved. CRM: **an unassigned `MATERIAL_REQUEST` goes to `userForJobRole(job, PURCHASING)`** (web too); the payment-request POST is wrapped in `withIdempotency`; **fix: `GET /api/labor-contracts/[id]/payment-requests` now needs `guardJobMoney` "full" (marketing and crew leads saw crew pay amounts).** Gate: typecheck clean, 2023 tests, lint clean; app 46 tests, expo-doctor 20/20. Dev QA: owner 3/3 (every attention list = its count), crew payments + materials 11 + marketing 403s, clock in/out stored. No migration. After deploy: set Admin → Workflow Roles → Purchasing. Then TestFlight build 8.
+
+### 2026-11-08 — KNU Field app: job files, KNU icon, crash reporting wiring (deployed `2a97783`, BUILD_ID `snSijtF16jkyZDRcrwvIv`; TestFlight build 7)
 
 Job card → Files & photos (`mobile/src/app/(app)/files/[jobId].tsx`): documents searchable by name, uploaded from the phone (expo-document-picker; Permit / Inspection / Insurance / Other; the CRM's own types and 25 MB, kept equal by a contract test; queued like photos), photos from both stores through `GET /api/jobs/[id]/gallery` (expo-image with the bearer, disk cache cleared at sign-out, full-screen viewer). **Fix: the gallery named crew-payment amounts to anyone with field read access (crew leads too); the amount now shows only for `jobMoneyView` "full".** log-draft checks sign-in before the body. KNU lettermark icons (`mobile/scripts/make-icons.mjs`; the CRM holds no KNU logo — the stored one is NewCoast's). `@sentry/react-native` wired, scrubbed, off until `EXPO_PUBLIC_SENTRY_DSN` (Richard to create the Sentry project). Gate: typecheck clean, 2019 tests, lint clean; app 39 tests, expo-doctor 20/20, iOS export clean. Dev QA 7/7. No migration. Then TestFlight build 7.
 
@@ -3876,6 +3880,10 @@ Notification Digests).
   honoured, every request logged (`PermitAssistFetch`); a fetched web page is
   never served back from the CRM. What the assistant finds is a proposal: a
   document joins the permit, with a type, only when a person accepts it.
+- **A material request with no one named goes to the job's Purchasing person**
+  (`userForJobRole(job, PURCHASING)` in the field-issue POST); crew pay —
+  contracts, payments, payment requests — is read only with `guardJobMoney`
+  "full", and a gallery photo's crew-payment amount follows the same rule.
 - **A spoken draft is a suggestion, never a record** (`src/lib/mobile-ai`): the
   AI picks a job or person only by number from what the speaker may see, and
   the phone fills a form the person saves. New voice features return a draft

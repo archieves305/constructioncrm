@@ -10,6 +10,11 @@ import {
   jobDetail,
   jobFiles,
   jobGallery,
+  ownerSummary,
+  phoneLaborContracts,
+  paymentRequestList,
+  attentionCounts,
+  attentionList,
   jobList,
   taskDetail,
   taskList,
@@ -106,6 +111,14 @@ export const useCalendarRange = (from: string, to: string, enabled = true) => us
 export const useJobIssues = (jobId: string) => useQuery(q.jobIssues(jobId));
 export const useJobGallery = (jobId: string) => useQuery(q.jobGallery(jobId));
 
+/** The owner's numbers and the dashboard's "Needs attention" (not kept offline: company money). */
+export const useOwnerSummary = (enabled: boolean) =>
+  useQuery({ queryKey: ["owner", "summary"], enabled, queryFn: () => api("/api/attention/owner?scope=all", { schema: ownerSummary }) });
+export const useAttention = (enabled = true) =>
+  useQuery({ queryKey: ["attention", "rows"], enabled, queryFn: () => api("/api/attention?scope=all", { schema: attentionCounts }) });
+export const useAttentionList = (key: string) =>
+  useQuery({ queryKey: ["attention", "list", key], queryFn: () => api(`/api/attention/${encodeURIComponent(key)}?scope=all`, { schema: attentionList }) });
+
 /** A job's log for one day, or null when nobody has started it. */
 export function useDailyLog(jobId: string, date: string) {
   return useQuery({
@@ -145,3 +158,9 @@ export function useCrewList() {
     retry: (n, e) => !(e instanceof ApiError && e.status === 403) && n < 2,
   });
 }
+
+/** A job's crew contracts and their payments: full money viewers only, read live (not kept offline). */
+export const useLaborContracts = (jobId: string, enabled: boolean) =>
+  useQuery({ queryKey: ["laborContracts", jobId], enabled, queryFn: () => api(`/api/jobs/${encodeURIComponent(jobId)}/labor-contracts`, { schema: phoneLaborContracts }) });
+export const usePaymentRequests = (contractId: string) =>
+  useQuery({ queryKey: ["paymentRequests", contractId], queryFn: () => api(`/api/labor-contracts/${encodeURIComponent(contractId)}/payment-requests`, { schema: paymentRequestList }) });

@@ -553,9 +553,15 @@ Each ticket is independently testable; "Done when" is its completion criterion.
 - Checks: real AI calls on dev 18/18 ($0.0015); 2015 CRM tests, 34 app tests. No migration.
 - Next: deploy, TestFlight build 6.
 
-### 2026-11-08 — Job files, icon, crash reporting wiring (not yet deployed)
+### 2026-11-08 — Job files, icon, crash reporting wiring (deployed `2a97783`; TestFlight build 7)
 - Files & photos per job: searchable documents, upload from the phone, photo grid + viewer.
 - CRM fix: crew-payment amounts in the photo gallery only for those who see a job's full money.
 - KNU lettermark icon; Sentry wired but off until a Sentry project's DSN is added.
 - Checks: dev 7/7; 2019 CRM tests, 39 app tests. No migration. Next: deploy, TestFlight build 7.
+
+### 2026-11-08 — Phase 5 (not yet deployed)
+- Owner summary; crew payment requests; material requests; crew clock in / out (option A).
+- CRM: material requests to Purchasing; duplicate-safe payment requests; crew-pay leak fixed on payment-request lists.
+- Checks: dev QA passed; 2023 CRM tests, 46 app tests. No migration.
+- Next: deploy, set the Purchasing default, TestFlight build 8. All five phases built.
 

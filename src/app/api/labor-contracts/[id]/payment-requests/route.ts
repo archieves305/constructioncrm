@@ -3,9 +3,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
-import { guardJob } from "@/lib/access/records";
+import { guardJob, guardJobMoney } from "@/lib/access/records";
 import { createPaymentRequest, PaymentRequestError, REQUEST_INCLUDE } from "@/lib/labor/payment-requests";
 import { userForJobRole } from "@/lib/workflows/roles";
+import { withIdempotency } from "@/lib/api/idempotency";
 import { withPresentedPhotos } from "@/lib/files/list";
 
 const createSchema = z.object({
@@ -23,6 +24,7 @@ async function jobIdOf(contractId: string): Promise<string | null> {
 }
 
 // GET — the contract's payment requests, newest first, and who a new one would go to by default.
+// Crew pay is a job cost: the list needs the job's full money view (office roles, the job's PM).
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
@@ -30,7 +32,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   const { id } = await context.params;
   const jobId = await jobIdOf(id);
   if (!jobId) return NextResponse.json({ error: "Labor contract not found" }, { status: 404 });
-  const denied = await guardJob(session.user, jobId, "read");
+  const denied = await guardJobMoney(session.user, jobId, "full");
   if (denied) return denied;
 
   const [requests, defaultAssigneeId] = await Promise.all([
@@ -51,13 +53,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const denied = await guardJob(session.user, jobId, "write");
   if (denied) return denied;
 
-  const parsed = await validateBody(request, createSchema);
-  if (!parsed.ok) return parsed.response;
-  try {
-    const created = await createPaymentRequest({ contractId: id, ...parsed.data, actorUserId: session.user.id });
-    return NextResponse.json((await withPresentedPhotos([created]))[0], { status: 201 });
-  } catch (err) {
-    if (err instanceof PaymentRequestError) return NextResponse.json({ error: err.message }, { status: err.status });
-    throw err;
-  }
+  // A resend from the phone with the same Idempotency-Key gets the first answer, never a second request.
+  return withIdempotency(request, session.user.id, `POST /api/labor-contracts/${id}/payment-requests`, async () => {
+    const parsed = await validateBody(request, createSchema);
+    if (!parsed.ok) return parsed.response;
+    try {
+      const created = await createPaymentRequest({ contractId: id, ...parsed.data, actorUserId: session.user.id });
+      return NextResponse.json((await withPresentedPhotos([created]))[0], { status: 201 });
+    } catch (err) {
+      if (err instanceof PaymentRequestError) return NextResponse.json({ error: err.message }, { status: err.status });
+      throw err;
+    }
+  });
 }
