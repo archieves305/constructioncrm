@@ -27,6 +27,29 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+000000000000. 🔴 **KNU Field — iOS / Android app** — plan approved 2026-11-08
+   (`CAREYOS_MOBILE_APP_PLAN.md`, build log at its end). Expo SDK 58 app in
+   `mobile/` (own package; `deploy.sh` skips `/mobile/` and `/.claude/`),
+   a thin client of the CRM API with CareyOS sign-in through the portal's
+   handoff plus PKCE (portal branch `mobile-pkce`). Rulings: field AND
+   office; TestFlight then an unlisted store app; `/field` stays during the
+   pilot; Apple account in Richard's name (Team `Z8A486HRLK`, App Store
+   Connect app `6832301487`, bundle `com.knuconstruction.field`, EAS
+   project `@archieves/knu-field`); push text = the job address only.
+   **Phases 0–2 built and proven on Richard's iPhone 2026-11-08, committed
+   on `mobile-spike` (`ce7991e`), not deployed.** Server: Bearer tokens on
+   `/api/*` (pages stay cookie-only); phone registry `MobileDevice` /
+   `MobileDeviceToken` with revoke, sign-out and `/api/mobile/bootstrap`
+   (min version `MOBILE_MIN_APP_VERSION`); Admin → Phones;
+   `withIdempotency` on task create / update / note and file upload; task
+   PATCH `expect` conflict check (`lib/tasks/expect.ts`); push through Expo
+   from `notify()` (`lib/mobile/push*.ts`); contracts in
+   `src/lib/mobile-api`. **Deploy carries three migrations**
+   (`20261114120000_mobile_devices`, `20261115120000_api_idempotency`,
+   `20261116120000_mobile_push`); the portal deploys first. Builds only
+   through `npm run build:*:ios` in `mobile/` (uploads mobile/ +
+   src/lib/mobile-api, never the CRM's source).
+
 00000000000. 🔴 **AI Permit Intelligence** — plan approved 2026-10-18
    (`~/.claude/plans/reactive-tickling-pony.md`); full design in
    `CAREYOS_PERMIT_INTELLIGENCE_DESIGN.md` (repo root). Stages: 0 shared AI
@@ -570,6 +593,26 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-11-08 — KNU Field app: plan, Phases 0–2 (committed on `mobile-spike`, not deployed)
+
+Richard pasted a mobile-app planning brief → plan approved → document
+`CAREYOS_MOBILE_APP_PLAN.md`. Prod usage check (read-only, Richard's `!`):
+7 active users, 1 daily log / 0 field photos in 60 days, 92 of 94 completed
+tasks assigned to ADMINs → MVP re-scoped office-first. Phase 0: portal
+PKCE handoff + CRM Bearer, proven in Expo Go over Tailscale. Phase 1:
+phone registry + revoke, bootstrap, Admin → Phones, Expo Router shell.
+Phase 2: Today, Jobs + job card, Tasks (Done / Blocked / notes, `expect`
+conflict check), New task, SQLite outbox with Idempotency-Key, photos
+(2,000 px, capture time kept, no GPS reaches the CRM — checked on real
+uploads), documents (phone's own viewer; 20 MB plan set), push (assigned
+task buzzed the phone, tap opened it). Found: portal session tokens were
+identical within a second (phone tokens now carry `n`); a wrong portal
+password dropped `next`; `deploy.sh` had been shipping `.claude/` worktree
+copies to `/opt/knuco/.claude` (49 MB, excluded now; the droplet copy to
+remove). Apple + EAS set up through Claude in Chrome / Richard's Terminal.
+Gate: typecheck clean, 2002 tests, lint clean on touched files; app 10
+tests; scripted HTTP checks 16/16, 35/35, 24/24.
 
 ### 2026-10-30 — CareyOS Work integration endpoints (built + dev-QA'd on `feat/work-integration`, not deployed)
 
