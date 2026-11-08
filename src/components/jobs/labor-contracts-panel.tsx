@@ -45,6 +45,7 @@ import { useInvalidateTasks } from "@/components/tasks/use-tasks";
 import { useSession } from "@/lib/auth/session-client";
 import { canManageJobMoney } from "@/lib/money/access";
 import { CrewPaymentTwinDialog, type PossibleDuplicate, type TwinCheck } from "./crew-payment-twin-dialog";
+import { CrewContact } from "./crew-contact";
 import { attachCompletionPhotos, CompletionPhotoPicker, CompletionPhotosButton, type CompletionPhoto } from "./completion-photos";
 
 const METHODS = [
@@ -114,7 +115,7 @@ type LaborContract = {
   retainageReleased: boolean;
   retainageReleasedDate: string | null;
   delayDamagesPerDay: string | null;
-  crew: { id: string; name: string; vendor?: { id: string; name: string } | null } | null;
+  crew: { id: string; name: string; foremanName?: string | null; phone?: string | null; language?: string | null; vendor?: { id: string; name: string } | null } | null;
   /** The contractor's own vendor record (contracts typed by name). */
   vendor?: { id: string; name: string } | null;
   /** The vendor's document status, derived on read; null when there is no vendor. */
@@ -859,6 +860,16 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                       </button>
                     </div>
                   </div>
+                  <CrewContact
+                    contractId={c.id}
+                    label={c.label}
+                    crew={c.crew}
+                    canEdit={canRecord}
+                    onChanged={() => {
+                      qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+                      qc.invalidateQueries({ queryKey: ["crews", "active"] });
+                    }}
+                  />
 
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <div>

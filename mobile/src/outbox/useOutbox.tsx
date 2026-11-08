@@ -52,6 +52,7 @@ export function OutboxProvider({ children }: { children: ReactNode }) {
       }
       if (op.kind === "issue.create" || op.targetId.startsWith("issue:")) void qc.invalidateQueries({ queryKey: ["issues"] });
       if (op.targetId.startsWith("log:")) void qc.invalidateQueries({ queryKey: ["dailyLog"] });
+      if (op.kind === "lead.note") void qc.invalidateQueries({ queryKey: ["leadNotes"] });
     });
     return () => setOnSent(null);
   }, [qc]);

@@ -12,7 +12,7 @@ export default function LogPick() {
   const router = useRouter();
   // The same job list serves "Daily log" and "Upload document" (next=files).
   const { next } = useLocalSearchParams<{ next?: string }>();
-  const forFiles = next === "files";
+  const forFiles = next === "files" || next === "video";
   const jobs = useMyJobs();
   if (jobs.isPending) return <Loading />;
   return (
@@ -21,14 +21,14 @@ export default function LogPick() {
       data={jobs.data?.data ?? []}
       keyExtractor={(j) => j.id}
       contentContainerStyle={{ padding: 16, gap: 8 }}
-      ListHeaderComponent={<Stack.Screen options={{ title: forFiles ? "Add a document to which job?" : "Daily log for which job?" }} />}
+      ListHeaderComponent={<Stack.Screen options={{ title: next === "video" ? "A video for which job?" : forFiles ? "Add a document to which job?" : "Daily log for which job?" }} />}
       ListEmptyComponent={<Notice text="You have no open jobs." />}
       renderItem={({ item }) => (
         <Pressable
           accessibilityRole="button"
           onPress={() =>
             forFiles
-              ? router.replace({ pathname: "/files/[jobId]", params: { jobId: item.id, upload: "1" } })
+              ? router.replace({ pathname: "/files/[jobId]", params: next === "video" ? { jobId: item.id, tab: "videos" } : { jobId: item.id, upload: "1" } })
               : router.replace({ pathname: "/log/[jobId]", params: { jobId: item.id } })
           }
           style={{ minHeight: TOUCH + 8, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: t.border, backgroundColor: t.card, justifyContent: "center" }}

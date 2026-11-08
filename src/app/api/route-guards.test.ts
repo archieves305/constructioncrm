@@ -46,6 +46,7 @@ const REVIEWED: Record<string, string> = {
   "mobile/devices/current DELETE": "ends the request's own token",
   "mobile/devices/current/push PUT": "sets the push token of the request's own phone",
   "mobile/devices POST": "registers the signed-in person's own phone",
+  "usage/events POST": "stores the signed-in person's own usage events (event names only, no record ids)",
   "notifications/[id]/read POST": "markRead is scoped to the recipient",
   "notifications/read-all POST": "scoped to the recipient",
   "notifications/unread-count GET": "scoped to the recipient",

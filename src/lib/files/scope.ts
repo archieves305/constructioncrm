@@ -20,6 +20,7 @@ export type FileCategoryName =
   | "RECEIPT"
   | "MEASUREMENT_REPORT"
   | "PLAN_SET"
+  | "VIDEO"
   | "OTHER";
 
 export const CATEGORY_LABEL: Record<FileCategoryName, string> = {
@@ -36,6 +37,7 @@ export const CATEGORY_LABEL: Record<FileCategoryName, string> = {
   MEASUREMENT_REPORT: "Measurement reports",
   PLAN_SET: "Plan sets",
   PHOTOS: "Photos",
+  VIDEO: "Videos",
   OTHER: "Other",
 };
 
@@ -54,6 +56,7 @@ export const CATEGORY_ORDER: readonly FileCategoryName[] = [
   "MEASUREMENT_REPORT",
   "PLAN_SET",
   "PHOTOS",
+  "VIDEO",
   "OTHER",
 ];
 
@@ -62,12 +65,13 @@ export const UPLOAD_CATEGORIES: readonly FileCategoryName[] = ["PHOTOS", "ESTIMA
 
 export const categoryLabel = (c: string) => CATEGORY_LABEL[c as FileCategoryName] ?? c.toLowerCase().replace(/_/g, " ");
 
-export type PreviewKind = "image" | "pdf" | "other";
+export type PreviewKind = "image" | "pdf" | "video" | "other";
 
 /** What the preview can show in place. HEIC is an image the browser cannot draw. */
 export function previewKind(fileType: string | null | undefined): PreviewKind {
   const t = (fileType ?? "").toLowerCase();
   if (t === "application/pdf") return "pdf";
+  if (t === "video/mp4" || t === "video/quicktime") return "video";
   if (t.startsWith("image/") && !t.includes("heic") && !t.includes("heif")) return "image";
   return "other";
 }

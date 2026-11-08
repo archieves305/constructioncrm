@@ -4,8 +4,9 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { s } from "@/ui/components";
 import { TOUCH, useTheme } from "@/ui/theme";
 
-const ACTIONS: { icon: keyof typeof Ionicons.glyphMap; label: string; when: string; href?: "/photo" | "/new-task" | "/voice-task" | "/issue/new" | "/log-pick" | "/log-pick?next=files" | "/materials" }[] = [
+const ACTIONS: { icon: keyof typeof Ionicons.glyphMap; label: string; when: string; href?: "/photo" | "/new-task" | "/voice-task" | "/issue/new" | "/log-pick" | "/log-pick?next=files" | "/log-pick?next=video" | "/materials" }[] = [
   { icon: "camera-outline", label: "Take photo", when: "", href: "/photo" },
+  { icon: "videocam-outline", label: "Add video", when: "", href: "/log-pick?next=video" },
   { icon: "checkbox-outline", label: "New task", when: "", href: "/new-task" },
   { icon: "mic-outline", label: "Speak a task", when: "", href: "/voice-task" },
   { icon: "document-attach-outline", label: "Upload document", when: "", href: "/log-pick?next=files" },

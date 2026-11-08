@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ActivityType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { guardLead } from "@/lib/access/records";
@@ -16,9 +17,15 @@ export async function GET(
   const { searchParams } = request.nextUrl;
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "50");
+  // ?type=NOTE (or a comma list): only those kinds. The phone reads notes this
+  // way, so other lines (payments, stage moves) never reach it.
+  const types = (searchParams.get("type") ?? "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter((x): x is ActivityType => (Object.values(ActivityType) as string[]).includes(x));
 
   const activities = await prisma.activityLog.findMany({
-    where: { leadId: id },
+    where: { leadId: id, ...(types.length ? { activityType: { in: types } } : {}) },
     include: {
       createdBy: { select: { firstName: true, lastName: true } },
     },

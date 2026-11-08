@@ -269,3 +269,32 @@ describe("crew payments and material requests contract", () => {
     expect(Object.values(FieldIssueType)).toContain("MATERIAL_REQUEST");
   });
 });
+
+describe("job videos contract", () => {
+  it("the phone's video types and limit are the CRM's", async () => {
+    const { VIDEO_UPLOAD_MIME, VIDEO_MAX_BYTES } = await import("./index");
+    const { VIDEO_MIME, MAX_VIDEO_BYTES } = await import("@/lib/files/limits");
+    expect([...VIDEO_UPLOAD_MIME].sort()).toEqual([...VIDEO_MIME].sort());
+    expect(VIDEO_MAX_BYTES).toBe(MAX_VIDEO_BYTES);
+  });
+});
+
+describe("lead notes contract", () => {
+  it("an activity row as the CRM sends it parses as a note", async () => {
+    const { leadNotes, addLeadNoteRequest } = await import("./index");
+    const row = { id: "a1", leadId: "l1", activityType: "NOTE", title: "Note added", description: "Gate code 1234", metadataJson: null, createdByUserId: "u1", createdAt: "2026-11-08T15:00:00.000Z", createdBy: { firstName: "A", lastName: "B" } };
+    const r = leadNotes.safeParse([row]);
+    expect(r.success).toBe(true);
+    expect(r.success && Object.keys(r.data[0]).sort()).toEqual(["createdAt", "createdBy", "description", "id"]);
+    expect(addLeadNoteRequest.safeParse({ content: "  " }).success).toBe(false);
+  });
+});
+
+describe("usage events contract", () => {
+  it("every phone event is one the CRM stores", async () => {
+    const { PHONE_USAGE_EVENTS } = await import("./index");
+    const { USAGE_EVENTS, usageBatchSchema } = await import("@/lib/usage/events");
+    for (const e of PHONE_USAGE_EVENTS) expect(USAGE_EVENTS).toContain(e);
+    expect(usageBatchSchema.safeParse({ source: "phone", events: PHONE_USAGE_EVENTS.map((event) => ({ event, at: new Date().toISOString() })) }).success).toBe(true);
+  });
+});

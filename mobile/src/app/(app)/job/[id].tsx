@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { SavedNote } from "@/cache/SavedNote";
+import { track } from "@/usage/track";
 import { Linking, Platform, RefreshControl, ScrollView, Text, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useInspections, useJob, useJobFiles, useJobTasks } from "@/api/queries";
@@ -6,6 +8,7 @@ import { splitInspections } from "@/lib/inspections";
 import { InspectionRow } from "@/ui/InspectionRow";
 import { IssueSection } from "@/ui/IssueSection";
 import { DocList } from "@/ui/DocList";
+import { NotesSection } from "@/ui/NotesSection";
 import { addressLine, dialable, fullAddress, mapsUrl, personName, shortDate } from "@/lib/format";
 import { Button, Card, s } from "@/ui/components";
 import { TaskRow } from "@/ui/TaskRow";
@@ -14,6 +17,7 @@ import { useTheme } from "@/ui/theme";
 
 function Row({ label, value }: { label: string; value: string | null }) {
   const t = useTheme();
+  useEffect(() => track("job_opened", "job"), []);
   if (!value) return null;
   return (
     <View style={{ gap: 2, paddingVertical: 4 }}>
@@ -159,6 +163,8 @@ export default function JobScreen() {
       })()}
 
       <IssueSection jobId={j.id} />
+
+      {j.lead ? <NotesSection leadId={j.lead.id} label={addressLine(j.lead) ?? j.jobNumber} /> : null}
 
       <Text style={[s.h2, { color: t.text, marginTop: 4 }]}>Documents</Text>
       {files.isPending ? (

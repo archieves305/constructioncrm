@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { track } from "@/usage/track";
 import { Alert, FlatList, Modal, Pressable, RefreshControl, ScrollView, SectionList, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
+import { prepareVideo } from "@/video/prepare";
+import { duration, VIDEO_MAX_SECONDS, videoTooLong } from "@/video/rules";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { PHONE_DOC_CATEGORIES, UPLOAD_MIME, type GalleryItemDto } from "@crm/mobile-api";
 import { useJob, useJobFiles, useJobGallery } from "@/api/queries";
@@ -18,7 +22,7 @@ import { OpRow } from "@/ui/OpRow";
 import { Empty, LoadError, Loading } from "@/ui/states";
 import { TOUCH, useTheme } from "@/ui/theme";
 
-type Tab = "docs" | "photos";
+type Tab = "docs" | "photos" | "videos";
 
 function dayLabel(day: string): string {
   return new Date(`${day}T12:00:00Z`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
@@ -32,9 +36,11 @@ function dayLabel(day: string): string {
  */
 export default function JobFiles() {
   const t = useTheme();
+  useEffect(() => track("files_opened", "file"), []);
   const router = useRouter();
   const { jobId, tab: tabParam, upload } = useLocalSearchParams<{ jobId: string; tab?: string; upload?: string }>();
-  const [tab, setTab] = useState<Tab>(tabParam === "photos" ? "photos" : "docs");
+  const [tab, setTab] = useState<Tab>(tabParam === "photos" ? "photos" : tabParam === "videos" ? "videos" : "docs");
+  const [shrinking, setShrinking] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [viewing, setViewing] = useState<number | null>(null);
   const job = useJob(jobId);
@@ -44,11 +50,13 @@ export default function JobFiles() {
   const address = addressLine(job.data?.lead) ?? job.data?.jobNumber ?? "Job";
 
   const allFiles = useMemo(() => [...(files.data?.files ?? []), ...(files.data?.leadFiles ?? [])], [files.data]);
-  // Photos are under Photos; an image filed as a document (a scanned permit) stays here too.
-  const docs = allFiles.filter((f) => f.category !== "PHOTOS");
+  // Photos are under Photos, videos under Videos; an image filed as a document (a scanned permit) stays here too.
+  const docs = allFiles.filter((f) => f.category !== "PHOTOS" && f.category !== "VIDEO");
+  const videos = allFiles.filter((f) => f.category === "VIDEO");
+  const waitingVideos = outbox.ops.filter((o) => o.kind === "file.upload" && (o.body as UploadBody).fields?.jobId === jobId && (o.body as UploadBody).mimeType?.startsWith("video/"));
   const shown = query.trim() ? docs.filter((f) => f.fileName.toLowerCase().includes(query.trim().toLowerCase())) : docs;
   const photos = gallery.data?.items ?? [];
-  const waiting = outbox.ops.filter((o) => o.kind === "file.upload" && (o.body as UploadBody).fields?.jobId === jobId && (o.body as UploadBody).mimeType);
+  const waiting = outbox.ops.filter((o) => o.kind === "file.upload" && (o.body as UploadBody).fields?.jobId === jobId && (o.body as UploadBody).mimeType && !(o.body as UploadBody).mimeType?.startsWith("video/"));
 
   const pickDocuments = async (category: string) => {
     const r = await DocumentPicker.getDocumentAsync({ type: [...UPLOAD_MIME], multiple: true, copyToCacheDirectory: true });
@@ -74,6 +82,39 @@ export default function JobFiles() {
     if (refused.length) Alert.alert("Not added", refused.join("\n"));
   };
 
+  // A video: recorded or picked, shrunk on the phone (720p, no location), then queued like a photo.
+  const addVideo = async (record: boolean) => {
+    if (record) {
+      const cam = await ImagePicker.requestCameraPermissionsAsync();
+      if (!cam.granted) return Alert.alert("Camera is off for KNU Field", "Turn it on in Settings → KNU Field → Camera.");
+    }
+    const r = record
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: "videos", videoMaxDuration: VIDEO_MAX_SECONDS })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: "videos", allowsMultipleSelection: false, videoExportPreset: ImagePicker.VideoExportPreset.Passthrough });
+    if (r.canceled || !r.assets[0]) return;
+    const a = r.assets[0];
+    // The picker gives milliseconds on iOS.
+    const seconds = a.duration != null ? a.duration / 1000 : null;
+    const long = videoTooLong(seconds);
+    if (long) return Alert.alert("Too long", long);
+    setShrinking(0);
+    try {
+      const v = await prepareVideo(a.uri, (p) => setShrinking(p));
+      await outbox.enqueue({
+        kind: "file.upload",
+        targetId: jobId,
+        method: "POST",
+        path: "/api/files",
+        body: { filePath: v.path, mimeType: "video/mp4", fields: { jobId, category: "VIDEO" } } satisfies UploadBody,
+        label: `Video${seconds ? ` (${duration(seconds)})` : ""} · ${address}`,
+      });
+    } catch (e) {
+      Alert.alert("Couldn't add the video", e instanceof Error ? e.message : String(e));
+    } finally {
+      setShrinking(null);
+    }
+  };
+
   const chooseCategory = () =>
     Alert.alert("File it as", "Contracts and plan sets are added on the web.", [
       ...PHONE_DOC_CATEGORIES.map((c) => ({ text: c.label, onPress: () => void pickDocuments(c.value) })),
@@ -97,6 +138,7 @@ export default function JobFiles() {
         [
           ["docs", `Documents${files.data ? ` · ${docs.length}` : ""}`],
           ["photos", `Photos${gallery.data ? ` · ${photos.length}` : ""}`],
+          ["videos", `Videos${files.data ? ` · ${videos.length}` : ""}`],
         ] as const
       ).map(([key, label]) => {
         const on = tab === key;
@@ -114,6 +156,45 @@ export default function JobFiles() {
       })}
     </View>
   );
+
+  if (tab === "videos")
+    return (
+      <ScrollView
+        style={{ backgroundColor: t.bg }}
+        contentContainerStyle={s.scroll}
+        refreshControl={<RefreshControl refreshing={files.isRefetching} onRefresh={() => void files.refetch()} tintColor={t.brand} />}
+      >
+        <Stack.Screen options={{ title: `Files · ${address}` }} />
+        <SavedNote />
+        {tabs}
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Button label="Record video" kind="secondary" disabled={shrinking != null} onPress={() => void addVideo(true)} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button label="From library" kind="secondary" disabled={shrinking != null} onPress={() => void addVideo(false)} />
+          </View>
+        </View>
+        {shrinking != null ? (
+          <Card>
+            <Text style={[s.body, { color: t.text }]}>Shrinking the video for sending… {Math.round(shrinking * 100)}%</Text>
+            <Text style={{ color: t.muted, fontSize: 13 }}>Keep the app open until this finishes; sending then carries on by itself.</Text>
+          </Card>
+        ) : null}
+        {waitingVideos.map((op) => (
+          <OpRow key={op.id} op={op} />
+        ))}
+        {files.isPending ? (
+          <Loading />
+        ) : files.isError && files.data === undefined ? (
+          <LoadError error={files.error} onRetry={() => files.refetch()} />
+        ) : videos.length === 0 && waitingVideos.length === 0 ? (
+          <Empty title="No videos on this job yet" body={`Record a walkthrough or pick one from Photos. Up to ${VIDEO_MAX_SECONDS / 60} minutes; it is shrunk to 720p and sent without its location.`} />
+        ) : (
+          <DocList files={videos} hidePhotoCount />
+        )}
+      </ScrollView>
+    );
 
   if (tab === "docs")
     return (
@@ -183,7 +264,10 @@ export default function JobFiles() {
                 key={item.key}
                 accessibilityRole="imagebutton"
                 accessibilityLabel={`${item.origin}, ${item.caption ?? item.fileName}`}
-                onPress={() => setViewing(index)}
+                onPress={() => {
+                  track("photo_viewed", "photo");
+                  setViewing(index);
+                }}
                 style={{ flex: 1, aspectRatio: 1 }}
               >
                 <AuthImage path={item.url} missing={item.missing} style={{ width: "100%", height: "100%", borderRadius: 8 }} />

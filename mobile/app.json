@@ -50,8 +50,8 @@
         "expo-image-picker",
         {
           "photosPermission": "KNU Field attaches the photos you choose to the job or task you pick.",
-          "cameraPermission": "KNU Field uses the camera to take job and task photos for the CRM.",
-          "microphonePermission": false
+          "cameraPermission": "KNU Field uses the camera to take job and task photos and videos for the CRM.",
+          "microphonePermission": "KNU Field records sound with the job videos you take."
         }
       ],
       [
@@ -65,7 +65,8 @@
         {
           "disableAutoUpload": true
         }
-      ]
+      ],
+      "react-native-compressor"
     ],
     "scheme": "knuco",
     "experiments": {

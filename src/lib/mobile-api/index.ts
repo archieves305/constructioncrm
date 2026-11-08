@@ -722,3 +722,51 @@ export const materialLine = z.object({
   item: z.string().trim().min(1).max(200),
 });
 export type MaterialLine = z.infer<typeof materialLine>;
+
+/** Videos as job files: mirrors lib/files/limits.ts VIDEO_MIME / MAX_VIDEO_BYTES (contract test). */
+export const VIDEO_UPLOAD_MIME = ["video/mp4", "video/quicktime"] as const;
+export const VIDEO_MAX_BYTES = 95 * 1024 * 1024;
+
+// ---------------------------------------------------------------------------
+// Release 1: notes on a job's lead (GET /api/leads/[id]/activity?type=NOTE,
+// POST /api/leads/[id]/notes with an Idempotency-Key).
+// ---------------------------------------------------------------------------
+
+export const leadNote = z.object({
+  id: z.string(),
+  description: z.string().nullable(),
+  createdAt: z.string(),
+  createdBy: z.object({ firstName: z.string(), lastName: z.string() }).nullable(),
+});
+export const leadNotes = z.array(leadNote);
+export type LeadNoteDto = z.infer<typeof leadNote>;
+export const addLeadNoteRequest = z.object({ content: z.string().trim().min(1).max(5000) });
+
+/** The phone's usage events: mirrors lib/usage/events.ts USAGE_EVENTS (contract test keeps them equal). */
+export const PHONE_USAGE_EVENTS = [
+  "app_opened",
+  "today_opened",
+  "task_opened",
+  "job_opened",
+  "files_opened",
+  "document_opened",
+  "photo_viewed",
+  "daily_log_opened",
+  "crew_hours_opened",
+  "owner_opened",
+  "task_reassigned",
+  "task_rescheduled",
+  "tasks_bulk_changed",
+  "note_saved",
+  "voice_draft_used",
+] as const;
+export type PhoneUsageEvent = (typeof PHONE_USAGE_EVENTS)[number];
+
+/** GET /api/usage/summary: who used the CRM and the app this week, and what most. */
+export const usageSummary = z.object({
+  days: z.number(),
+  activePeople: z.number(),
+  phonePeople: z.number(),
+  events: z.record(z.string(), z.number()),
+  top: z.array(z.object({ event: z.string(), subject: z.string().nullable(), count: z.number() })),
+});

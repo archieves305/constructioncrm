@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
-import { formatFileSize, uploadProblem } from "@/lib/files/limits";
+import { formatFileSize, jobFileProblem, uploadProblem } from "@/lib/files/limits";
 import { CATEGORY_LABEL, UPLOAD_CATEGORIES, categoryCounts, categoryLabel, filterFiles, groupByCategory, isImageType, type FileCategoryName } from "@/lib/files/scope";
 import { jobLabel, type JobLabelInput } from "@/lib/labels/job";
 import { uploadForm } from "@/components/workflows/use-task-file-upload";
@@ -110,7 +110,8 @@ export function FilesPanel(props: { leadId: string; scope?: FilesScope } | { sco
     setUploadingCount(picked.length);
     let ok = 0;
     for (const f of picked) {
-      const problem = uploadProblem(f);
+      // A job's or customer's files take videos too (the server's own rule).
+      const problem = scope.violationCaseId ? uploadProblem(f) : jobFileProblem(f);
       if (problem) {
         toast.error(problem);
         continue;

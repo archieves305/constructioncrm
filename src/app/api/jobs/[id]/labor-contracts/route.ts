@@ -34,7 +34,7 @@ export async function GET(
     where: { jobId: id },
     orderBy: { createdAt: "asc" },
     include: {
-      crew: { select: { id: true, name: true, vendor: { select: { id: true, name: true } } } },
+      crew: { select: { id: true, name: true, foremanName: true, phone: true, language: true, vendor: { select: { id: true, name: true } } } },
       vendor: { select: { id: true, name: true } },
       createdBy: { select: { firstName: true, lastName: true } },
       payments: {
@@ -108,7 +108,7 @@ export async function POST(
       createdByUserId: session.user.id,
     },
     include: {
-      crew: { select: { id: true, name: true, vendor: { select: { id: true, name: true } } } },
+      crew: { select: { id: true, name: true, foremanName: true, phone: true, language: true, vendor: { select: { id: true, name: true } } } },
       vendor: { select: { id: true, name: true } },
       createdBy: { select: { firstName: true, lastName: true } },
       payments: true,

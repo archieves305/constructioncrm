@@ -282,6 +282,8 @@ enum FileCategory {
   MEASUREMENT_REPORT
   // A construction plan set (PDF): the source document of a PlanDocument.
   PLAN_SET
+  // A video on a job (phone walkthroughs, progress): MP4 / QuickTime, 95 MB at most.
+  VIDEO
   OTHER
 }
 
@@ -565,6 +567,7 @@ model User {
   mobileDevicesRevoked MobileDevice[] @relation("MobileDeviceRevokedBy")
 
   @@map("users")
+  usageEvents UsageEvent[]
 }
 
 model PasswordResetToken {
@@ -1622,6 +1625,10 @@ model Crew {
   name      String
   phone     String?
   email     String?
+  /// Who to reach on the crew (guest links, later texts): the foreman's name; `phone` is theirs, stored +1XXXXXXXXXX.
+  foremanName String? @map("foreman_name")
+  /// The foreman's language for links and messages: "en" or "es".
+  language    String  @default("en")
   trades    String[] @default([])
   counties  String[] @default([])
   isActive  Boolean  @default(true) @map("is_active")
@@ -6881,4 +6888,24 @@ model ApiIdempotency {
   @@unique([userId, key])
   @@index([createdAt])
   @@map("api_idempotency")
+}
+
+/// What people open and do in the CRM and the KNU Field app, for deciding what
+/// to build next: person, event name, kind of record (never its id or content),
+/// phone or web, time. Kept 180 days (src/lib/usage/record.ts prunes).
+model UsageEvent {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  event       String
+  subjectType String?  @map("subject_type")
+  source      String
+  at          DateTime
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([at])
+  @@index([event, at])
+  @@index([userId, at])
+  @@map("usage_events")
 }

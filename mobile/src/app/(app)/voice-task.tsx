@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { track } from "@/usage/track";
 import { ScrollView, Text, TextInput, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -26,6 +27,7 @@ export default function VoiceTask() {
   const draft = async () => {
     setBusy(true);
     setError(null);
+    track("voice_draft_used", "task");
     try {
       const d = await api("/api/mobile/ai/task-draft", {
         method: "POST",

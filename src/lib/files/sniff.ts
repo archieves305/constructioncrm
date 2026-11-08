@@ -31,6 +31,9 @@ const CHECKS: Record<string, (b: Uint8Array) => boolean> = {
   "application/msword": OLE,
   // Windows browsers label a .csv file with the Excel type, so text passes too
   "application/vnd.ms-excel": (b) => OLE(b) || TEXT(b),
+  // MP4 and QuickTime: an atom name at byte 4 ("ftyp" today; older .mov files open with another atom)
+  "video/mp4": (b) => ascii(b, "ftyp", 4),
+  "video/quicktime": (b) => ["ftyp", "moov", "wide", "mdat", "free", "skip"].some((a) => ascii(b, a, 4)),
   "text/plain": TEXT,
   "text/csv": TEXT,
 };

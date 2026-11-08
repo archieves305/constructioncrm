@@ -10,6 +10,9 @@ import {
   jobDetail,
   jobFiles,
   jobGallery,
+  assignableUsers,
+  leadNotes,
+  usageSummary,
   ownerSummary,
   phoneLaborContracts,
   paymentRequestList,
@@ -164,3 +167,19 @@ export const useLaborContracts = (jobId: string, enabled: boolean) =>
   useQuery({ queryKey: ["laborContracts", jobId], enabled, queryFn: () => api(`/api/jobs/${encodeURIComponent(jobId)}/labor-contracts`, { schema: phoneLaborContracts }) });
 export const usePaymentRequests = (contractId: string) =>
   useQuery({ queryKey: ["paymentRequests", contractId], queryFn: () => api(`/api/labor-contracts/${encodeURIComponent(contractId)}/payment-requests`, { schema: paymentRequestList }) });
+
+/** Active staff, for owner pickers (the same list as the web's). */
+export const useAssignable = () =>
+  useQuery({ queryKey: ["users", "assignable"], queryFn: () => api("/api/users/assignable", { schema: assignableUsers }), staleTime: 10 * 60_000 });
+
+/** Notes on a lead (a job's notes live on its lead), newest first; only notes are fetched. */
+export const useLeadNotes = (leadId: string | null | undefined) =>
+  useQuery({
+    queryKey: ["leadNotes", leadId],
+    enabled: Boolean(leadId),
+    queryFn: () => api(`/api/leads/${encodeURIComponent(leadId!)}/activity?type=NOTE&pageSize=30`, { schema: leadNotes }),
+  });
+
+/** This week's use of the CRM and the app (owner roles). */
+export const useUsageSummary = (enabled: boolean) =>
+  useQuery({ queryKey: ["owner", "usage"], enabled, queryFn: () => api("/api/usage/summary?days=7", { schema: usageSummary }) });

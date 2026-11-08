@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { track } from "@/usage/track";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQueryClient } from "@tanstack/react-query";
@@ -35,6 +36,7 @@ function shortDay(key: string): string {
  */
 export default function Today() {
   const t = useTheme();
+  useEffect(() => track("today_opened"), []);
   const qc = useQueryClient();
   const { user } = useSession();
   const todayKey = dayKey();

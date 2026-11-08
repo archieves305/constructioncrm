@@ -19,7 +19,7 @@ import { mergeLogSave, rebaseAfter } from "./pending";
  *   - signed out (401): nothing is sent until the same person signs in again.
  */
 
-export type OutboxKind = "task.update" | "task.note" | "task.create" | "file.upload" | "issue.create" | "log.save" | "labor.save" | "log.submit";
+export type OutboxKind = "task.update" | "task.note" | "task.create" | "file.upload" | "issue.create" | "log.save" | "labor.save" | "log.submit" | "lead.note";
 
 export type OutboxOp = {
   id: string;

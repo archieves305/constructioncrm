@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/helpers";
 import { loginUrl } from "@/lib/sso";
 import { AppShell } from "@/components/layout/app-shell";
+import { UsageBeacon } from "@/components/usage/usage-beacon";
 
 export default async function DashboardLayout({
   children,
@@ -21,5 +22,10 @@ export default async function DashboardLayout({
     redirect("/field");
   }
 
-  return <AppShell user={session.user}>{children}</AppShell>;
+  return (
+    <AppShell user={session.user}>
+      <UsageBeacon />
+      {children}
+    </AppShell>
+  );
 }

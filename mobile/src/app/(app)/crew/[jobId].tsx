@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { track } from "@/usage/track";
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -29,6 +30,7 @@ function shortDay(key: string): string {
  */
 export default function CrewHours() {
   const t = useTheme();
+  useEffect(() => track("crew_hours_opened", "log"), []);
   const qc = useQueryClient();
   const { jobId, date: dateParam } = useLocalSearchParams<{ jobId: string; date?: string }>();
   const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : dayKey();

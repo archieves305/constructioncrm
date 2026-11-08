@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { track } from "@/usage/track";
 import { Stack, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { OWNER_ROLES } from "@crm/mobile-api";
-import { useAttention, useOwnerSummary } from "@/api/queries";
+import { useAttention, useOwnerSummary, useUsageSummary } from "@/api/queries";
 import { useSession } from "@/auth/session";
 import { useOnline } from "@/cache/net";
 import { moneyShort } from "@/lib/links";
@@ -13,6 +15,7 @@ import { TOUCH, useTheme } from "@/ui/theme";
 
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "warn" }) {
   const t = useTheme();
+  useEffect(() => track("owner_opened"), []);
   return (
     <View style={{ flexBasis: "47%", flexGrow: 1, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: tone === "warn" ? t.warn : t.border, backgroundColor: t.card, gap: 2 }}>
       <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>{label}</Text>
@@ -38,6 +41,7 @@ export default function Owner() {
   const allowed = (OWNER_ROLES as readonly string[]).includes(user?.role ?? "");
   const summary = useOwnerSummary(allowed);
   const attention = useAttention(allowed);
+  const usage = useUsageSummary(allowed);
 
   if (!allowed)
     return (
@@ -113,6 +117,20 @@ export default function Owner() {
           </Pressable>
         ))
       )}
+      {usage.data ? (
+        <Card>
+          <Text style={[s.h2, { color: t.text }]}>This week in the CRM and the app</Text>
+          <Text style={[s.body, { color: t.text }]}>
+            {usage.data.activePeople} {usage.data.activePeople === 1 ? "person" : "people"} active · {usage.data.phonePeople} on the phone app
+          </Text>
+          {usage.data.top.slice(0, 6).map((u) => (
+            <Text key={`${u.event}${u.subject ?? ""}`} style={{ color: t.muted, fontSize: 13 }}>
+              {u.event === "page_viewed" ? `Web: ${u.subject ?? "page"}` : u.event.replace(/_/g, " ")} · {u.count}
+            </Text>
+          ))}
+          {usage.data.top.length === 0 ? <Text style={{ color: t.muted, fontSize: 13 }}>Nothing recorded yet this week.</Text> : null}
+        </Card>
+      ) : null}
       <Text style={{ color: t.muted, fontSize: 13 }}>The same numbers as the CRM dashboard, for the whole company. Pull down to refresh.</Text>
     </ScrollView>
   );

@@ -5,6 +5,7 @@ import { useSession } from "@/auth/session";
 import { restoreSavedCopy, writeSavedCopy } from "./persist";
 import { warmDue } from "./rules";
 import { warmSavedCopy } from "./warm";
+import { track } from "@/usage/track";
 
 /**
  * Restores the signed-in person's saved copy before the screens open, keeps
@@ -21,6 +22,7 @@ export function CacheProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!userId) return;
+    track("app_opened");
     let live = true;
     restoreSavedCopy(qc, userId)
       .catch(() => 0)

@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { track } from "@/usage/track";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { SavedNote } from "@/cache/SavedNote";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useTask } from "@/api/queries";
+import { useAssignable, useTask } from "@/api/queries";
+import { moveChoices } from "@/lib/triage";
+import { PickSheet } from "@/ui/PickSheet";
 import { useSession } from "@/auth/session";
-import { addressLine, personName, shortDate, time } from "@/lib/format";
-import { completeWithChecklist, checklistTick, mergedChecklist, pendingFor, statusChange } from "@/outbox/pending";
+import { addressLine, dayKey, personName, shortDate, time } from "@/lib/format";
+import { completeWithChecklist, checklistTick, dueChange, mergedChecklist, ownerChange, pendingFor, statusChange } from "@/outbox/pending";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useOutbox } from "@/outbox/useOutbox";
 import { Button, Card, Notice, s } from "@/ui/components";
@@ -25,6 +28,7 @@ const STATUS: Record<string, string> = {
 /** A task: Done, Blocked / Unblock, notes. Changes go through the outbox. */
 export default function TaskScreen() {
   const t = useTheme();
+  useEffect(() => track("task_opened", "task"), []);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useSession();
@@ -34,6 +38,8 @@ export default function TaskScreen() {
   const [blockOpen, setBlockOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [picking, setPicking] = useState<"owner" | "due" | null>(null);
+  const people = useAssignable();
 
   if (task.isPending) return <Loading />;
   if ((task.isError && task.data === undefined))
@@ -50,7 +56,19 @@ export default function TaskScreen() {
   const open = status !== "COMPLETED" && status !== "CANCELLED";
   const address = addressLine(k.job?.lead ?? k.lead);
   const notes = k.events.filter((e) => e.type === "NOTE" && e.body);
-  const due = k.dueAt ? `${shortDate(k.dueAt)}${k.allDay ? "" : `, ${time(k.scheduledStart ?? k.dueAt)}`}` : "No date";
+  const serverDue = k.dueAt ? `${shortDate(k.dueAt)}${k.allDay ? "" : `, ${time(k.scheduledStart ?? k.dueAt)}`}` : "No date";
+  // An unsent date or owner change shows at once.
+  const due = pending.dueDay !== undefined ? (pending.dueDay ? shortDate(`${pending.dueDay}T12:00:00.000Z`) : "No date") : serverDue;
+  const ownerId = pending.assignedUserId !== undefined ? pending.assignedUserId : k.assignedTo?.id ?? null;
+  const ownerPerson = ownerId === (k.assignedTo?.id ?? null) ? k.assignedTo : (people.data ?? []).find((u) => u.id === ownerId) ?? null;
+  const moveTo = (day: string | null, label: string) => {
+    track("task_rescheduled", "task");
+    return outbox.enqueue({ kind: "task.update", targetId: k.id, method: "PATCH", path: `/api/tasks/${k.id}`, body: dueChange(k.dueAt, day), label: `${label} · ${k.title}` });
+  };
+  const giveTo = (userId: string | null, name: string) => {
+    track("task_reassigned", "task");
+    return outbox.enqueue({ kind: "task.update", targetId: k.id, method: "PATCH", path: `/api/tasks/${k.id}`, body: ownerChange(k.assignedTo?.id ?? null, userId), label: `Given to ${name} · ${k.title}` });
+  };
   // The server's copy is what the phone last saw: the conflict check compares to it.
   const seen = { status: k.status, blockedReason: k.blockedReason };
 
@@ -143,14 +161,20 @@ export default function TaskScreen() {
                 {pending.waiting ? " · sending" : ""}
               </Text>
             </View>
-            <View>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Due ${due}. Change the date`} disabled={!open} onPress={() => setPicking("due")} style={{ minHeight: TOUCH - 8 }}>
               <Text style={[s.label, { color: t.muted }]}>Due</Text>
-              <Text style={[s.body, { color: t.text }]}>{due}</Text>
-            </View>
-            <View>
+              <Text style={[s.body, { color: open ? t.brand : t.text, fontWeight: open ? "600" : "400" }]}>
+                {due}
+                {open ? " ›" : ""}
+              </Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Owner ${personName(ownerPerson) ?? "nobody"}. Give it to someone else`} disabled={!open} onPress={() => setPicking("owner")} style={{ minHeight: TOUCH - 8 }}>
               <Text style={[s.label, { color: t.muted }]}>Owner</Text>
-              <Text style={[s.body, { color: t.text }]}>{personName(k.assignedTo) ?? "Nobody"}</Text>
-            </View>
+              <Text style={[s.body, { color: open ? t.brand : t.text, fontWeight: open ? "600" : "400" }]}>
+                {personName(ownerPerson) ?? "Nobody"}
+                {open ? " ›" : ""}
+              </Text>
+            </Pressable>
           </View>
           {status === "BLOCKED" && blockedReason ? <Notice tone="warn" text={`Blocked: ${blockedReason}`} /> : null}
           {k.description ? <Text style={[s.body, { color: t.text, marginTop: 6 }]}>{k.description}</Text> : null}
@@ -283,6 +307,34 @@ export default function TaskScreen() {
           </Card>
         </View>
       </Modal>
+
+      <PickSheet
+        title="Move it to"
+        visible={picking === "due"}
+        onClose={() => setPicking(null)}
+        options={[...moveChoices(dayKey()).map((c) => ({ key: c.day, label: c.label, detail: shortDate(`${c.day}T12:00:00.000Z`), selected: pending.dueDay === c.day })), { key: "none", label: "No date" }]}
+        onPick={(key) => {
+          setPicking(null);
+          const c = moveChoices(dayKey()).find((x) => x.day === key);
+          void moveTo(key === "none" ? null : key, key === "none" ? "Date cleared" : `Moved to ${c?.label.toLowerCase() ?? key}`);
+        }}
+      />
+      <PickSheet
+        title="Give it to"
+        visible={picking === "owner"}
+        onClose={() => setPicking(null)}
+        options={[
+          ...(user ? [{ key: user.id, label: "Me", selected: ownerId === user.id }] : []),
+          ...(people.data ?? []).filter((u) => u.id !== user?.id).map((u) => ({ key: u.id, label: `${u.firstName} ${u.lastName}`.trim(), selected: ownerId === u.id })),
+          { key: "none", label: "Nobody" },
+        ]}
+        onPick={(key) => {
+          setPicking(null);
+          if (key === (ownerId ?? "none")) return;
+          const name = key === "none" ? "nobody" : key === user?.id ? "me" : (people.data ?? []).find((u) => u.id === key)?.firstName ?? "someone";
+          void giveTo(key === "none" ? null : key, name);
+        }}
+      />
 
       <Modal visible={blockOpen} transparent animationType="fade" onRequestClose={() => setBlockOpen(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 20 }}>

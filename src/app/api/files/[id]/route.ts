@@ -9,6 +9,7 @@ import { cleanFileName, UPLOAD_CATEGORIES } from "@/lib/files/scope";
 import { validateBody } from "@/lib/validation/body";
 import { recordAudit } from "@/lib/audit/record";
 import { isPermitDocType } from "@/lib/permit-intel/doc-types";
+import { parseRange } from "@/lib/files/range";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -44,15 +45,26 @@ export async function GET(request: NextRequest, context: Context) {
   if (!data) return NextResponse.json({ error: "Missing on disk" }, { status: 410 });
 
   const disposition = request.nextUrl.searchParams.get("download") === "1" ? "attachment" : "inline";
-  const ab = new ArrayBuffer(data.byteLength);
-  new Uint8Array(ab).set(data);
+  const headers: Record<string, string> = {
+    "Content-Type": file.fileType || "application/octet-stream",
+    "Content-Disposition": `${disposition}; filename="${encodeURIComponent(file.fileName)}"`,
+    "Cache-Control": "private, max-age=0, no-store",
+    // Videos play on iPhones and in Safari only when ranges are answered.
+    "Accept-Ranges": "bytes",
+  };
+  const range = parseRange(request.headers.get("range"), data.byteLength);
+  if (range === "unsatisfiable") {
+    return new NextResponse(null, { status: 416, headers: { ...headers, "Content-Range": `bytes */${data.byteLength}` } });
+  }
+  const part = range ? data.subarray(range.start, range.end + 1) : data;
+  const ab = new ArrayBuffer(part.byteLength);
+  new Uint8Array(ab).set(part);
   return new NextResponse(ab, {
-    status: 200,
+    status: range ? 206 : 200,
     headers: {
-      "Content-Type": file.fileType || "application/octet-stream",
-      "Content-Length": String(data.byteLength),
-      "Content-Disposition": `${disposition}; filename="${encodeURIComponent(file.fileName)}"`,
-      "Cache-Control": "private, max-age=0, no-store",
+      ...headers,
+      "Content-Length": String(part.byteLength),
+      ...(range ? { "Content-Range": `bytes ${range.start}-${range.end}/${data.byteLength}` } : {}),
     },
   });
 }

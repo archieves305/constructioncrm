@@ -16,6 +16,10 @@ export type PendingView = {
   photos: number;
   /** Checklist ticks not sent yet: line key → ticked. */
   checklist: Record<string, boolean>;
+  /** An owner change not sent yet (null = nobody). */
+  assignedUserId?: string | null;
+  /** A date change not sent yet: yyyy-MM-dd, or null for no date. */
+  dueDay?: string | null;
 };
 
 export function pendingFor(ops: OutboxOp[], taskId: string): PendingView {
@@ -28,6 +32,9 @@ export function pendingFor(ops: OutboxOp[], taskId: string): PendingView {
       const b = op.body as { status?: string; blockedReason?: string | null; checklist?: { key: string; done: boolean }[] };
       if (b.status !== undefined) view.status = b.status;
       if (b.blockedReason !== undefined) view.blockedReason = b.blockedReason;
+      const t = b as { assignedUserId?: string | null; dueAt?: string | null };
+      if (t.assignedUserId !== undefined) view.assignedUserId = t.assignedUserId;
+      if (t.dueAt !== undefined) view.dueDay = t.dueAt;
       for (const line of b.checklist ?? []) view.checklist[line.key] = line.done;
     }
     if (op.kind === "file.upload" && op.state === "queued") view.photos += 1;
@@ -106,4 +113,18 @@ export function rebaseAfter(sent: unknown, result: unknown, later: unknown): Rec
   if (typeof sentBase !== "string" || typeof next !== "string" || !laterBody) return null;
   if (laterBody.baseUpdatedAt !== sentBase) return null;
   return { ...laterBody, baseUpdatedAt: next };
+}
+
+/** Give the task to someone else (null = nobody), checked against the owner the phone last saw. */
+export function ownerChange(seenAssigneeId: string | null, next: string | null) {
+  return { assignedUserId: next, expect: { assignedUserId: seenAssigneeId } };
+}
+
+/**
+ * Move the task to a day (yyyy-MM-dd; the CRM keeps a timed task's window and
+ * moves it with the day) or clear its date (null), checked against the due
+ * date the phone last saw.
+ */
+export function dueChange(seenDueAt: string | null, nextDay: string | null) {
+  return { dueAt: nextDay, expect: { dueAt: seenDueAt } };
 }

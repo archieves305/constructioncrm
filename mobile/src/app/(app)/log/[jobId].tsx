@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { track } from "@/usage/track";
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -50,6 +51,7 @@ function longDay(key: string): string {
  */
 export default function DailyLogScreen() {
   const t = useTheme();
+  useEffect(() => track("daily_log_opened", "log"), []);
   const router = useRouter();
   const { jobId, date: dateParam } = useLocalSearchParams<{ jobId: string; date?: string }>();
   const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : dayKey();
@@ -176,6 +178,7 @@ export default function DailyLogScreen() {
   // What was said, sorted by the CRM's AI into the sections: added after what
   // is written, unsaved, for the person to read and Save.
   const sortSpeech = async () => {
+    track("voice_draft_used", "log");
     setSorting(true);
     try {
       const d = (await api("/api/mobile/ai/log-draft", { method: "POST", body: { jobId, date, speech: speech.trim() }, schema: logDraft })) as LogDraftDto;

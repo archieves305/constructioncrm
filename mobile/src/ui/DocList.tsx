@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { track } from "@/usage/track";
 import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { FileItemDto } from "@crm/mobile-api";
@@ -22,6 +23,7 @@ const CATEGORY: Record<string, string> = {
   RECEIPT: "Receipts",
   MEASUREMENT_REPORT: "Measurements",
   INSURANCE: "Insurance",
+  VIDEO: "Videos",
   LABOR_CONTRACT: "Labor contracts",
   INTERIOR_RENOVATION_LABOR_CONTRACT: "Labor contracts",
   CONTRACT_ADDENDUM: "Contracts",
@@ -30,6 +32,7 @@ const CATEGORY: Record<string, string> = {
 
 function icon(f: FileItemDto): keyof typeof Ionicons.glyphMap {
   if (f.fileType.startsWith("image/")) return "image-outline";
+  if (f.fileType.startsWith("video/")) return "play-circle-outline";
   if (f.fileType === "application/pdf") return "document-text-outline";
   return "document-outline";
 }
@@ -45,6 +48,7 @@ export function DocRow({ file }: { file: FileItemDto }) {
   const open = async () => {
     setOpening(true);
     try {
+      track("document_opened", "file");
       await openDocument(file);
     } catch (e) {
       Alert.alert("Can't open this file", e instanceof ApiError || e instanceof Error ? e.message : String(e));

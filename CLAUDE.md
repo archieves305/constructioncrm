@@ -599,7 +599,11 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-11-08 — KNU Field app, Phase 5: owner summary, crew payments, material requests, crew clock (built + dev-QA'd on `mobile-spike`, not deployed)
+### 2026-11-08 — KNU Field Release 1 + job videos (built + dev-QA'd on `mobile-spike`, not deployed)
+
+From the office-usage roadmap report (https://claude.ai/artifact/BsHPY98RmUZWPR5EvhfNVK, approved; section S = SMS / guest links, pilot crews Neville (English) and Jesus (Spanish)). **Videos:** `FileCategory.VIDEO` (migration `20261118120000_file_category_video`), `VIDEO_MIME` / `MAX_VIDEO_BYTES` 95 MB / `jobFileProblem` (`lib/files/limits.ts`, kept off the shared `ALLOWED_MIME`), MP4/MOV sniff, byte ranges on `/api/files/[id]` (`lib/files/range.ts`), web preview `<video>`; app records / picks and compresses to 720p (react-native-compressor + nitro-modules, compiled locally with Xcode). **Task triage** (owner / due pickers, overdue bulk on the phone; no server change). **Job notes** (`?type=NOTE` on lead activity; notes POST duplicate-safe). **Crew contacts:** `Crew.foremanName` + `language` (migration `20261119120000_crew_contact`), `PATCH /api/crews/[id]/contact`, `POST /api/labor-contracts/[id]/crew` (money roles), `CrewContact` on the labor contract card. **Usage log:** `UsageEvent` (migration `20261120120000_usage_events`; event name, record kind, phone/web, time; 180 days), `POST /api/usage/events`, `GET /api/usage/summary` (owner roles), web `UsageBeacon`, phone tracker. Gate: typecheck clean, 2040 tests, lint clean; app 51 tests, expo-doctor 20/20. Dev QA 23/23 + video 7. **Deploy carries 3 migrations and the nginx 100M limit on `^/api/files$`.** Then TestFlight build 9.
+
+### 2026-11-08 — KNU Field app, Phase 5: owner summary, crew payments, material requests, crew clock (deployed `bafb44a`, BUILD_ID `L9tEMIO3xSp_msYahDPsF`; TestFlight build 8)
 
 Owner summary (More / Today strip; `OWNER_ROLES` = `canViewCompanyFinancials`, contract test) over the dashboard's own routes (`/api/attention/owner`, `/api/attention`, `/api/attention/[key]`); jobs and tasks open in the app, other records in an in-app browser; not kept offline. Crew payments (job card, `moneyView` full only): contracts with total / paid / left, "Request a payment" sent online with an Idempotency-Key, completion photos queued. Material requests: lines → a `MATERIAL_REQUEST` field issue (queued). Crew clock (Richard's option A): Clock in / out and "On site now" on today's crew sheet, each tap saved. CRM: **an unassigned `MATERIAL_REQUEST` goes to `userForJobRole(job, PURCHASING)`** (web too); the payment-request POST is wrapped in `withIdempotency`; **fix: `GET /api/labor-contracts/[id]/payment-requests` now needs `guardJobMoney` "full" (marketing and crew leads saw crew pay amounts).** Gate: typecheck clean, 2023 tests, lint clean; app 46 tests, expo-doctor 20/20. Dev QA: owner 3/3 (every attention list = its count), crew payments + materials 11 + marketing 403s, clock in/out stored. No migration. After deploy: set Admin → Workflow Roles → Purchasing. Then TestFlight build 8.
 
@@ -3880,6 +3884,11 @@ Notification Digests).
   honoured, every request logged (`PermitAssistFetch`); a fetched web page is
   never served back from the CRM. What the assistant finds is a proposal: a
   document joins the permit, with a type, only when a person accepts it.
+- **A video is a job file only** (`jobFileProblem`), 95 MB at most, never a
+  receipt, crew-payment photo or permit document; the shared `ALLOWED_MIME`
+  list other upload routes use stays without video. **The usage log stores no
+  record ids or content** (`lib/usage/events.ts`: event names, record kinds,
+  page patterns with ids removed) and is read only by the owner roles.
 - **A material request with no one named goes to the job's Purchasing person**
   (`userForJobRole(job, PURCHASING)` in the field-issue POST); crew pay —
   contracts, payments, payment requests — is read only with `guardJobMoney`

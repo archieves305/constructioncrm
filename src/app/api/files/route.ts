@@ -6,6 +6,7 @@ import { recordTaskEvent } from "@/lib/tasks/events";
 import { FileCategory } from "@/generated/prisma/client";
 import { saveFile, MAX_UPLOAD_BYTES, ALLOWED_MIME } from "@/lib/files/storage";
 import { contentMatchesType } from "@/lib/files/sniff";
+import { isVideoType, MAX_VIDEO_BYTES } from "@/lib/files/limits";
 import { isPermitDocType } from "@/lib/permit-intel/doc-types";
 import { indexPermitFileText } from "@/lib/permit-intel/library";
 import { taskRightsFor } from "@/lib/workflows/visibility";
@@ -190,14 +191,22 @@ export async function POST(request: NextRequest) {
     if (!leadId && !taskId) return badRequest("leadId is required");
 
     if (file.size === 0) return badRequest("file is empty");
-    if (file.size > MAX_UPLOAD_BYTES) {
-      return badRequest(`file exceeds ${MAX_UPLOAD_BYTES / 1024 / 1024}MB limit`);
+    // A video is a job (or customer) file only: never a receipt, a crew
+    // payment's photo or a permit document. It has its own size limit.
+    const video = isVideoType(file.type);
+    if (video && (expenseId || laborPaymentRequestId || laborPaymentId || permitId)) {
+      return badRequest("a video can only be added to a job's files");
     }
-    if (!ALLOWED_MIME.has(file.type)) {
+    if (video ? file.size > MAX_VIDEO_BYTES : file.size > MAX_UPLOAD_BYTES) {
+      return badRequest(`file exceeds ${(video ? MAX_VIDEO_BYTES : MAX_UPLOAD_BYTES) / 1024 / 1024}MB limit`);
+    }
+    if (!video && !ALLOWED_MIME.has(file.type)) {
       return badRequest(`unsupported file type: ${file.type || "unknown"}`);
     }
 
-    const category = expenseId
+    const category = video
+      ? FileCategory.VIDEO
+      : expenseId
       ? FileCategory.RECEIPT
       : laborPaymentRequestId || laborPaymentId
         ? FileCategory.PHOTOS

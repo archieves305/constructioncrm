@@ -559,9 +559,14 @@ Each ticket is independently testable; "Done when" is its completion criterion.
 - KNU lettermark icon; Sentry wired but off until a Sentry project's DSN is added.
 - Checks: dev 7/7; 2019 CRM tests, 39 app tests. No migration. Next: deploy, TestFlight build 7.
 
-### 2026-11-08 — Phase 5 (not yet deployed)
+### 2026-11-08 — Phase 5 (deployed `bafb44a`; TestFlight build 8)
 - Owner summary; crew payment requests; material requests; crew clock in / out (option A).
 - CRM: material requests to Purchasing; duplicate-safe payment requests; crew-pay leak fixed on payment-request lists.
 - Checks: dev QA passed; 2023 CRM tests, 46 app tests. No migration.
 - Next: deploy, set the Purchasing default, TestFlight build 8. All five phases built.
+
+### 2026-11-08 — Release 1 + videos (not yet deployed)
+- From the approved roadmap report: task triage, job notes, crew contacts, usage log; job videos (compressed on the phone, served in ranges).
+- Checks: dev 23/23 + video checks; 2040 CRM tests, 51 app tests; compressor compiled locally.
+- Deploy carries 3 additive migrations and the nginx 100 MB limit on the upload route. Next: TestFlight build 9.
 

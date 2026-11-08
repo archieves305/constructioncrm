@@ -128,6 +128,10 @@ function Preview({ file, position, onPrev, onNext, onChanged }: { file: PreviewF
         ) : kind === "image" ? (
           // eslint-disable-next-line @next/next/no-img-element -- an authenticated, uncached API response, not a static asset
           <img src={url} alt={name} className="mx-auto max-h-[70vh] w-auto object-contain" />
+        ) : kind === "video" ? (
+          <video src={url} controls playsInline preload="metadata" className="mx-auto max-h-[70vh] w-full rounded bg-black">
+            Your browser cannot play this video. Download it to watch it.
+          </video>
         ) : kind === "pdf" ? (
           <>
             <iframe src={`${url}#toolbar=1`} title={name} className="hidden h-[70vh] w-full sm:block" />
