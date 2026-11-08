@@ -13,6 +13,7 @@ import {
 import { APP_ID, APP_VERSION, PORTAL_URL } from "@/config";
 import { api, ApiError, setSignedOutHandler } from "@/api/client";
 import { deleteAllDocuments } from "@/docs/open";
+import { clearAllDrafts } from "@/lib/drafts";
 import { newPkce } from "./pkce";
 import {
   installationId,
@@ -108,6 +109,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async (why: string | null) => {
       await wipeSession();
       deleteAllDocuments();
+      await clearAllDrafts().catch(() => undefined);
       queryClient.clear();
       setUser(null);
       setDevice(null);

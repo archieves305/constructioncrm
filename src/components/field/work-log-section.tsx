@@ -111,6 +111,7 @@ const ISSUE_TYPES: [string, string][] = [
   ["SAFETY", "Safety issue"],
   ["MATERIAL_REQUEST", "Material request"],
   ["INSPECTION_REMINDER", "Inspection reminder"],
+  ["PUNCH", "Punch item"],
 ];
 
 const SAFETY_CHECKLIST: { key: "safetyToolboxTalk" | "safetyPpeVerified" | "safetyHousekeeping"; label: string }[] = [

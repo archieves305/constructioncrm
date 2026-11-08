@@ -3,6 +3,7 @@ import * as SQLite from "expo-sqlite";
 import { api, ApiError } from "@/api/client";
 import { deleteQueuedPhoto } from "@/photos/prepare";
 import { sendUpload, type UploadBody } from "./upload";
+import { mergeLogSave, rebaseAfter } from "./pending";
 
 /**
  * The outbox (CAREYOS_MOBILE_APP_PLAN.md §F.3): every change made on the phone
@@ -18,7 +19,7 @@ import { sendUpload, type UploadBody } from "./upload";
  *   - signed out (401): nothing is sent until the same person signs in again.
  */
 
-export type OutboxKind = "task.update" | "task.note" | "task.create" | "file.upload";
+export type OutboxKind = "task.update" | "task.note" | "task.create" | "file.upload" | "issue.create" | "log.save" | "labor.save" | "log.submit";
 
 export type OutboxOp = {
   id: string;
@@ -26,7 +27,7 @@ export type OutboxOp = {
   kind: OutboxKind;
   /** The record it changes (task id), for showing it beside that record. */
   targetId: string;
-  method: "POST" | "PATCH";
+  method: "POST" | "PATCH" | "PUT";
   path: string;
   body: unknown;
   /** What the change looks like, in words: "Mark done", "Note: …". */
@@ -106,6 +107,19 @@ export async function listOps(userId: string): Promise<OutboxOp[]> {
 export async function enqueue(
   op: Pick<OutboxOp, "userId" | "kind" | "targetId" | "method" | "path" | "body" | "label">,
 ): Promise<OutboxOp> {
+  // A log saved twice without signal: send only the latest, based on the copy
+  // the first unsent save started from, so the two never conflict with each other.
+  if (op.kind === "log.save" || op.kind === "labor.save") {
+    const d = await db();
+    const prior = await d.getFirstAsync<Row>(
+      "SELECT * FROM outbox WHERE userId = ? AND kind = ? AND targetId = ? AND state = 'queued' ORDER BY createdAt ASC",
+      op.userId, op.kind, op.targetId,
+    );
+    if (prior) {
+      op = { ...op, body: mergeLogSave(JSON.parse(prior.body), op.body) };
+      await d.runAsync("DELETE FROM outbox WHERE userId = ? AND kind = ? AND targetId = ? AND state = 'queued'", op.userId, op.kind, op.targetId);
+    }
+  }
   const full: OutboxOp = {
     ...op,
     id: Crypto.randomUUID(),
@@ -154,7 +168,12 @@ function dropFiles(ops: OutboxOp[]) {
 export async function discard(id: string): Promise<void> {
   const d = await db();
   const row = await d.getFirstAsync<Row>("SELECT * FROM outbox WHERE id = ?", id);
-  if (row) dropFiles([fromRow(row)]);
+  if (row?.kind === "issue.create") {
+    // A new issue dropped: its queued photos have nothing to attach to.
+    const behind = (await d.getAllAsync<Row>("SELECT * FROM outbox WHERE targetId = ?", row.targetId)).map(fromRow);
+    dropFiles(behind);
+    await d.runAsync("DELETE FROM outbox WHERE targetId = ?", row.targetId);
+  } else if (row) dropFiles([fromRow(row)]);
   await d.runAsync("DELETE FROM outbox WHERE id = ?", id);
   changed();
 }
@@ -180,7 +199,8 @@ export function flush(userId: string): Promise<void> {
       const blockedTargets = new Set<string>();
       // Changes to one record go in order; each photo stands alone, so one
       // refused photo never holds up the rest.
-      const lane = (o: OutboxOp) => (o.kind === "file.upload" ? o.id : o.targetId);
+      // Photos behind a new issue or a day's log (targets "issue:…", "log:…") wait for it.
+      const lane = (o: OutboxOp) => (o.kind === "file.upload" && !o.targetId.includes(":") ? o.id : o.targetId);
       for (const op of ops) {
         if (blockedTargets.has(lane(op))) continue;
         if (op.nextTryAt > Date.now()) {
@@ -190,9 +210,19 @@ export function flush(userId: string): Promise<void> {
         try {
           const result =
             op.kind === "file.upload"
-              ? await sendUpload(op.body as UploadBody, op.idempotencyKey)
+              ? await sendUpload(op.body as UploadBody, op.idempotencyKey, op.path)
               : await api(op.path, { method: op.method, body: op.body, idempotencyKey: op.idempotencyKey });
           await d.runAsync("DELETE FROM outbox WHERE id = ?", op.id);
+          // The log's write-up and its crew sheet share one timestamp: a later
+          // save based on the same copy as this one moves onto the new one.
+          for (const later of ops) {
+            if (later === op || later.targetId !== op.targetId || later.state !== "queued") continue;
+            const rebased = rebaseAfter(op.body, result, later.body);
+            if (rebased) {
+              later.body = rebased;
+              await d.runAsync("UPDATE outbox SET body = ? WHERE id = ?", JSON.stringify(rebased), later.id);
+            }
+          }
           dropFiles([op]);
           onSent?.(op, result);
           changed();
@@ -208,9 +238,12 @@ export function flush(userId: string): Promise<void> {
             blockedTargets.add(lane(op));
             if (err.offline) break; // no point trying the rest
           } else {
+            // A 409 without a code is a clash with someone else's edit (the
+            // daily log route says "Log was modified elsewhere").
+            const code = err.code ?? (err.status === 409 ? "conflict" : null);
             await d.runAsync(
               "UPDATE outbox SET state='failed', attempts = attempts + 1, error = ?, errorCode = ?, errorBody = ? WHERE id = ?",
-              err.message, err.code ?? null, err.body ? JSON.stringify(err.body) : null, op.id,
+              err.message, code, err.body ? JSON.stringify(err.body) : null, op.id,
             );
             blockedTargets.add(lane(op));
           }

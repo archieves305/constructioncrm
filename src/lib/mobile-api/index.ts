@@ -224,6 +224,18 @@ export const taskDetail = taskRow.extend({
     }),
   ),
   viewer: z.object({ canEdit: z.boolean() }),
+  // Workflow steps (Phase 3). An ordinary task has none of these set.
+  checklist: z
+    .array(z.object({ key: z.string(), label: z.string(), done: z.boolean() }))
+    .nullable()
+    .optional(),
+  /** What the step needs before it can be completed (ATTACHMENT, PHOTO, PERMIT_NUMBER…). */
+  requiredEvidence: z.string().nullable().optional(),
+  /** A blocking gate holds the steps after it until it is done. */
+  blocking: z.boolean().optional(),
+  /** Null on a workflow step still waiting on earlier steps. */
+  activatedAt: z.string().nullable().optional(),
+  workflowInstanceId: z.string().nullable().optional(),
 });
 export type TaskDetailDto = z.infer<typeof taskDetail>;
 
@@ -263,3 +275,255 @@ export const createTaskRequest = z.object({
   priority: z.enum(PRIORITIES).optional(),
 });
 export type CreateTaskRequest = z.infer<typeof createTaskRequest>;
+
+// ---------------------------------------------------------------------------
+// Phase 3: inspections (GET /api/inspections, PATCH /api/inspections/[id]).
+// ---------------------------------------------------------------------------
+
+export const INSPECTION_TYPES = [
+  "ROUGH",
+  "FRAMING",
+  "ELECTRICAL",
+  "PLUMBING",
+  "MECHANICAL",
+  "ROOFING_IN_PROGRESS",
+  "ROOFING_FINAL",
+  "FINAL",
+  "OTHER",
+] as const;
+export const INSPECTION_RESULTS = ["SCHEDULED", "PASS", "FAIL", "CONDITIONAL", "CANCELLED"] as const;
+
+export const inspectionItem = z.object({
+  id: z.string(),
+  type: z.enum(INSPECTION_TYPES),
+  result: z.enum(INSPECTION_RESULTS),
+  scheduledFor: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  inspectorName: z.string().nullable(),
+  notes: z.string().nullable(),
+  task: z.object({ id: z.string(), title: z.string(), status: z.string() }).nullable(),
+  permit: z.object({
+    id: z.string(),
+    permitType: z.string().nullable(),
+    permitNumber: z.string().nullable(),
+    municipality: z.string().nullable(),
+    job: z.object({ id: z.string(), jobNumber: z.string(), title: z.string(), lead: leadLabel.nullable() }),
+  }),
+});
+export type InspectionDto = z.infer<typeof inspectionItem>;
+
+export const inspectionList = z.array(inspectionItem);
+
+/** PATCH /api/inspections/[id] with a result, as the phone sends it. */
+export const recordInspectionRequest = z.object({
+  result: z.enum(["PASS", "FAIL", "CONDITIONAL", "CANCELLED"]),
+  notes: z.string().trim().max(4000).optional(),
+  inspectorName: z.string().trim().max(200).optional(),
+  completedAt: z.string().optional(),
+});
+
+/** What the CRM did with a recorded result. */
+export const inspectionOutcome = inspectionItem.omit({ task: true, permit: true }).extend({
+  workflow: z
+    .object({
+      applied: z.boolean().optional(),
+      stepStatus: z.string().nullable().optional(),
+      correctionTaskId: z.string().nullable().optional(),
+      taskId: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+  permitClosed: z.boolean().optional(),
+});
+export type InspectionOutcomeDto = z.infer<typeof inspectionOutcome>;
+
+// ---------------------------------------------------------------------------
+// Phase 3: field issues and punch items (GET/POST /api/jobs/[id]/field-issues,
+// PATCH /api/field-issues/[id]). Photos go through POST /api/files with
+// `fieldIssueId` and land on the issue's task.
+// ---------------------------------------------------------------------------
+
+export const FIELD_ISSUE_TYPES = ["PUNCH", "OFFICE_FOLLOW_UP", "SAFETY", "MATERIAL_REQUEST", "CO_REVIEW", "INSPECTION_REMINDER"] as const;
+
+export const fieldIssue = z.object({
+  id: z.string(),
+  jobId: z.string(),
+  type: z.enum(FIELD_ISSUE_TYPES),
+  title: z.string(),
+  description: z.string().nullable(),
+  priority: z.enum(PRIORITIES),
+  status: z.enum(TASK_STATUSES),
+  dueAt: z.string().nullable(),
+  resolvedAt: z.string().nullable(),
+  createdAt: z.string(),
+  raisedBy: person,
+  assignedTo: person.nullable(),
+  task: z.object({ id: z.string(), status: z.string() }).nullable(),
+});
+export type FieldIssueDto = z.infer<typeof fieldIssue>;
+
+export const fieldIssueList = z.array(fieldIssue);
+
+/** A phone-made id: a letter then 19–31 lowercase letters or digits (as field photos use). */
+export const CLIENT_ID = /^[a-z][a-z0-9]{19,31}$/;
+
+export const createFieldIssueRequest = z.object({
+  id: z.string().regex(CLIENT_ID),
+  type: z.enum(FIELD_ISSUE_TYPES),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(4000).optional(),
+  priority: z.enum(PRIORITIES).optional(),
+  assignedUserId: z.string().optional(),
+  /** ISO instant. */
+  dueAt: z.string().datetime().optional(),
+});
+export type CreateFieldIssueRequest = z.infer<typeof createFieldIssueRequest>;
+
+/** Description with the location on its first line, as the web shows it. */
+export function issueDescription(location: string | undefined, details: string | undefined): string | undefined {
+  const parts = [location?.trim() ? `Location: ${location.trim()}` : "", details?.trim() ?? ""].filter(Boolean);
+  return parts.length ? parts.join("\n\n") : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: daily log (GET/PUT /api/jobs/[id]/daily-logs/[date], POST …/submit;
+// photos: POST /api/jobs/[id]/photos with logDate).
+// ---------------------------------------------------------------------------
+
+/** The write-up fields the phone edits, in the order the screen shows them. */
+export const LOG_TEXT_FIELDS = [
+  "workPerformed",
+  "areasWorked",
+  "delays",
+  "safetyIssues",
+  "materialsDelivered",
+  "subcontractorsOnsite",
+  "tomorrowPlan",
+  "notes",
+] as const;
+export const LOG_SAFETY_CHECKS = ["safetyToolboxTalk", "safetyPpeVerified", "safetyHousekeeping"] as const;
+
+export const dailyLog = z.object({
+  id: z.string(),
+  /** A log the office returned is DRAFT again, with `returnNote` set. */
+  status: z.enum(["DRAFT", "SUBMITTED", "APPROVED"]),
+  updatedAt: z.string(),
+  logDate: z.string(),
+  returnNote: z.string().nullable().optional(),
+  weatherSummary: z.string().nullable().optional(),
+  weatherTempHighF: z.number().nullable().optional(),
+  weatherTempLowF: z.number().nullable().optional(),
+  ...Object.fromEntries(LOG_TEXT_FIELDS.map((k) => [k, z.string().nullable().optional()])),
+  ...Object.fromEntries(LOG_SAFETY_CHECKS.map((k) => [k, z.boolean().optional()])),
+} as Record<string, z.ZodTypeAny>);
+export type DailyLogDto = {
+  id: string;
+  status: "DRAFT" | "SUBMITTED" | "APPROVED";
+  updatedAt: string;
+  logDate: string;
+  returnNote?: string | null;
+  weatherSummary?: string | null;
+  weatherTempHighF?: number | null;
+  weatherTempLowF?: number | null;
+} & Partial<Record<(typeof LOG_TEXT_FIELDS)[number], string | null>> &
+  Partial<Record<(typeof LOG_SAFETY_CHECKS)[number], boolean>>;
+
+/** PUT body from the phone: the write-up plus the copy it was based on. */
+export const saveDailyLogRequest = z.object({
+  ...Object.fromEntries(LOG_TEXT_FIELDS.map((k) => [k, z.string().max(10000).optional()])),
+  ...Object.fromEntries(LOG_SAFETY_CHECKS.map((k) => [k, z.boolean().optional()])),
+  /** The log's updatedAt as the phone last saw it; absent for a new log. */
+  baseUpdatedAt: z.string().optional(),
+} as Record<string, z.ZodTypeAny>);
+
+// ---------------------------------------------------------------------------
+// Phase 3: crew hours (PUT /api/jobs/[id]/daily-logs/[date]/labor, full-sheet
+// replace by phone-made entry id; GET /api/personnel?activeOnly=true).
+// ---------------------------------------------------------------------------
+
+/**
+ * Every field of a sheet entry the CRM takes back. A save replaces the whole
+ * day's sheet, so the phone sends each of these as the server last had it
+ * (cost code, phase, budget line and area may have been set by the office)
+ * and changes only what the person changed. Rates are never sent: the CRM
+ * refreshes them from the worker's profile, as for the web's crew sheet.
+ */
+export const LABOR_INPUT_FIELDS = [
+  "id",
+  "personnelId",
+  "trade",
+  "jobAreaId",
+  "workArea",
+  "startMinutes",
+  "endMinutes",
+  "breakMinutes",
+  "costCodeId",
+  "phase",
+  "budgetLineId",
+  "isAbsent",
+  "isLate",
+  "leftEarly",
+  "absenceReason",
+  "notes",
+] as const;
+
+export const laborEntryInput = z.object({
+  id: z.string().regex(CLIENT_ID),
+  personnelId: z.string().min(1),
+  trade: z.string().max(80).nullable().optional(),
+  jobAreaId: z.string().max(40).nullable().optional(),
+  workArea: z.string().max(160).nullable().optional(),
+  /** Minutes after midnight; past 1440 means the next day. */
+  startMinutes: z.number().int().min(0).max(2879).nullable().optional(),
+  endMinutes: z.number().int().min(0).max(2879).nullable().optional(),
+  breakMinutes: z.number().int().min(0).max(600),
+  costCodeId: z.string().max(40).nullable().optional(),
+  phase: z.string().max(80).nullable().optional(),
+  budgetLineId: z.string().max(40).nullable().optional(),
+  isAbsent: z.boolean(),
+  isLate: z.boolean(),
+  leftEarly: z.boolean(),
+  absenceReason: z.string().max(200).nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+});
+export type LaborEntryInput = z.infer<typeof laborEntryInput>;
+
+export const laborEntry = laborEntryInput.extend({
+  id: z.string(),
+  totalHours: z.number(),
+  regularHours: z.number(),
+  otHours: z.number(),
+  personnel: z
+    .object({ id: z.string(), firstName: z.string(), lastName: z.string() })
+    .passthrough()
+    .nullable()
+    .optional(),
+});
+export type LaborEntryDto = z.infer<typeof laborEntry>;
+
+export const saveLaborSheetRequest = z.object({
+  entries: z.array(laborEntryInput).max(300),
+  baseUpdatedAt: z.string().optional(),
+});
+
+/** The crew list, keeping only what the phone shows (never pay details). */
+export const crewMember = z.object({
+  id: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
+  trade: z.string().nullable().optional(),
+  crew: z.object({ id: z.string(), name: z.string() }).nullable().optional(),
+});
+export const crewList = z.array(crewMember);
+export type CrewMemberDto = z.infer<typeof crewMember>;
+
+/** The log with its sheet, for the crew hours screen. */
+export const dailyLogWithSheet = z
+  .object({
+    id: z.string(),
+    status: z.enum(["DRAFT", "SUBMITTED", "APPROVED"]),
+    updatedAt: z.string(),
+    entries: z.array(laborEntry),
+    totals: z.object({ workersOnsite: z.number(), totalHours: z.number(), regularHours: z.number(), otHours: z.number() }),
+  })
+  .passthrough();

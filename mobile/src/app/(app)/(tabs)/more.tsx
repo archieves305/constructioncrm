@@ -107,6 +107,12 @@ export default function More() {
           />
         </View>
       </Card>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/inspections")}>
+        <Card>
+          <Text style={[s.h2, { color: t.text }]}>Inspections</Text>
+          <Text style={[s.body, { color: t.muted }]}>Booked inspections on your jobs, and recent results.</Text>
+        </Card>
+      </Pressable>
       <Pressable accessibilityRole="button" onPress={() => router.push("/outbox")}>
         <Card>
           <Text style={[s.h2, { color: t.text }]}>Waiting to send</Text>

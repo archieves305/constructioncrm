@@ -599,6 +599,10 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-11-08 — KNU Field app, Phase 3 (built + dev-QA'd on `mobile-spike`, not deployed)
+
+Inspections (list, detail, record a result; the job card and Today taps), Today Day / Week, workflow checklists (ticks queued; Complete… = one PATCH with status + checklist; evidence notes), field issues + punch items, the daily log (write-up, safety checks, photos, submit; typing kept on the phone, only the latest unsent save sent), crew hours (full-sheet PUT; "Start now" / "Stop now" from the phone's clock, never the check-in routes, which stamp server time; office fields sent back untouched, never rates; the crew list kept to names). CRM changes: migration `20261117120000_field_issue_punch` (`FieldIssueType.PUNCH`, additive), the field-issue POST takes a phone-made id and is idempotent, `POST /api/files` takes `fieldIssueId`, `POST /api/jobs/[id]/photos` takes `logDate` (makes the draft log). The outbox moves a later save on the same log onto the new timestamp (`rebaseAfter`) — the write-up and the sheet share it. Gate: typecheck clean, 2009 tests, lint clean on the touched files; app 26 tests, expo-doctor 20/20. Dev QA by script: inspections 10, issues 11, log 14, crew 14. **Deploy carries the migration.** Then TestFlight build 5. Left in Phase 3: the fuller offline copy.
+
 ### 2026-11-08 — KNU Field app: plan, Phases 0–2 (deployed `a1ccd43`; TestFlight build 2)
 
 Richard pasted a mobile-app planning brief → plan approved → document

@@ -30,7 +30,7 @@ export function OpRow({ op, showLabel = true }: { op: OutboxOp; showLabel?: bool
       <Text style={{ color: failed ? t.danger : t.warn, fontSize: 14 }}>
         {failed
           ? conflict
-            ? `Not sent: someone changed the ${fields.join(" and ") || "task"} on the web after you last saw it.`
+            ? `Not sent: someone changed ${fields.length ? `the ${fields.join(" and ")}` : op.kind === "log.save" ? "this log" : "it"} on the web after you last saw it.`
             : `Not sent: ${op.error ?? "the CRM refused it"}`
           : op.error
             ? `Waiting to send · ${op.error}`

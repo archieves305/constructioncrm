@@ -90,6 +90,8 @@ enum FieldIssueType {
   SAFETY
   MATERIAL_REQUEST
   INSPECTION_REMINDER
+  /// A deficiency to fix before the job is done (punch list), raised from the phone or the web.
+  PUNCH
 }
 
 enum PropertyType {

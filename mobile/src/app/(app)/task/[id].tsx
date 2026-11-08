@@ -4,7 +4,8 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useTask } from "@/api/queries";
 import { useSession } from "@/auth/session";
 import { addressLine, personName, shortDate, time } from "@/lib/format";
-import { pendingFor, statusChange } from "@/outbox/pending";
+import { completeWithChecklist, checklistTick, mergedChecklist, pendingFor, statusChange } from "@/outbox/pending";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useOutbox } from "@/outbox/useOutbox";
 import { Button, Card, Notice, s } from "@/ui/components";
 import { OpRow } from "@/ui/OpRow";
@@ -31,6 +32,7 @@ export default function TaskScreen() {
   const [note, setNote] = useState("");
   const [blockOpen, setBlockOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [completeOpen, setCompleteOpen] = useState(false);
 
   if (task.isPending) return <Loading />;
   if (task.isError)
@@ -59,6 +61,41 @@ export default function TaskScreen() {
       path: `/api/tasks/${k.id}`,
       body: statusChange(seen, next),
       label: `${label} · ${k.title}`,
+    });
+
+  // Workflow step: the checklist with unsent ticks laid over it, and what it still needs.
+  const lines = mergedChecklist(k.checklist, pending.checklist);
+  const openLines = lines.filter((l) => !l.done);
+  const waitingOnEarlier = Boolean(k.workflowInstanceId) && !k.activatedAt;
+  const EVIDENCE: Record<string, string> = {
+    PHOTO: "This step needs at least one photo attached before it can be completed.",
+    ATTACHMENT: "This step needs its document attached before it can be completed.",
+    PERMIT_NUMBER: "Completes itself once the permit number is on the job's Permits tab.",
+    PERMIT_DETERMINATION: "Completes itself once the permit decision is recorded on the job.",
+    INSPECTION_RESULT: "Completes itself once the inspection result is recorded.",
+    PAYMENT_STATUS: "Completes itself once the payment is recorded.",
+    NOTE: "Add a note saying what was done before completing this step.",
+  };
+  const evidence = k.requiredEvidence ? EVIDENCE[k.requiredEvidence] ?? null : null;
+
+  const tick = (key: string, done: boolean, label: string) =>
+    outbox.enqueue({
+      kind: "task.update",
+      targetId: k.id,
+      method: "PATCH",
+      path: `/api/tasks/${k.id}`,
+      body: checklistTick(key, done),
+      label: `${done ? "Tick" : "Untick"} "${label}" · ${k.title}`,
+    });
+
+  const complete = (keys: string[]) =>
+    outbox.enqueue({
+      kind: "task.update",
+      targetId: k.id,
+      method: "PATCH",
+      path: `/api/tasks/${k.id}`,
+      body: completeWithChecklist(k.status, keys),
+      label: `Complete · ${k.title}`,
     });
 
   const sendNote = async () => {
@@ -121,6 +158,32 @@ export default function TaskScreen() {
           <OpRow key={op.id} op={op} />
         ))}
 
+        {waitingOnEarlier ? <Notice text="This step is waiting on earlier steps in the workflow. It opens when they are done." /> : null}
+        {evidence && open ? <Notice tone="warn" text={evidence} /> : null}
+
+        {lines.length > 0 ? (
+          <Card>
+            <Text style={[s.h2, { color: t.text }]}>
+              Checklist · {lines.length - openLines.length}/{lines.length}
+            </Text>
+            {lines.map((l) => (
+              <Pressable
+                key={l.key}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: l.done, disabled: !k.viewer.canEdit || !open }}
+                accessibilityLabel={l.label}
+                disabled={!k.viewer.canEdit || !open}
+                onPress={() => void tick(l.key, !l.done, l.label)}
+                style={{ minHeight: TOUCH, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 6 }}
+              >
+                <Ionicons name={l.done ? "checkbox" : "square-outline"} size={26} color={l.done ? t.ok : t.muted} />
+                <Text style={[s.body, { color: t.text, flex: 1, textDecorationLine: l.done ? "line-through" : "none" }]}>{l.label}</Text>
+                {l.sending ? <Text style={{ color: t.warn, fontSize: 12 }}>sending</Text> : null}
+              </Pressable>
+            ))}
+          </Card>
+        ) : null}
+
         {k.viewer.canEdit ? (
           <Button
             label={pending.photos ? `Photo · ${pending.photos} waiting to send` : "Photo"}
@@ -130,7 +193,11 @@ export default function TaskScreen() {
         ) : null}
         {k.viewer.canEdit && open ? (
           <View style={{ gap: 10 }}>
-            <Button label="Done" onPress={() => void change("Mark done", { status: "COMPLETED" })} />
+            {openLines.length > 0 ? (
+              <Button label={`Complete… (${openLines.length} to tick)`} onPress={() => setCompleteOpen(true)} />
+            ) : (
+              <Button label="Done" onPress={() => void (lines.length ? complete([]) : change("Mark done", { status: "COMPLETED" }))} />
+            )}
             {status === "BLOCKED" ? (
               <Button
                 label="Unblock"
@@ -188,6 +255,32 @@ export default function TaskScreen() {
           </>
         ) : null}
       </ScrollView>
+
+      <Modal visible={completeOpen} transparent animationType="fade" onRequestClose={() => setCompleteOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 20 }}>
+          <Card style={{ gap: 10 }}>
+            <Text style={[s.h2, { color: t.text }]}>Complete this step?</Text>
+            <Text style={[s.body, { color: t.muted }]}>
+              {openLines.length === 1 ? "This line is still open:" : `These ${openLines.length} lines are still open:`}
+            </Text>
+            {openLines.map((l) => (
+              <View key={l.key} style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
+                <Ionicons name="square-outline" size={20} color={t.muted} style={{ marginTop: 2 }} />
+                <Text style={[s.body, { color: t.text, flex: 1 }]}>{l.label}</Text>
+              </View>
+            ))}
+            {evidence ? <Notice tone="warn" text={evidence} /> : null}
+            <Button
+              label="Tick all and complete"
+              onPress={() => {
+                setCompleteOpen(false);
+                void complete(openLines.map((l) => l.key));
+              }}
+            />
+            <Button label="Cancel" kind="secondary" onPress={() => setCompleteOpen(false)} />
+          </Card>
+        </View>
+      </Modal>
 
       <Modal visible={blockOpen} transparent animationType="fade" onRequestClose={() => setBlockOpen(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 20 }}>

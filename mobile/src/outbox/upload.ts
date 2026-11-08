@@ -16,7 +16,7 @@ export type UploadBody = {
  * session, so it carries on if the phone locks. Errors come back as ApiError,
  * exactly as from api().
  */
-export async function sendUpload(body: UploadBody, idempotencyKey: string): Promise<unknown> {
+export async function sendUpload(body: UploadBody, idempotencyKey: string, path = "/api/files"): Promise<unknown> {
   const token = await readToken();
   if (!token) throw new ApiError("Signed out. Please sign in again.", 401, "signed_out");
   const file = new File(body.filePath);
@@ -24,7 +24,7 @@ export async function sendUpload(body: UploadBody, idempotencyKey: string): Prom
 
   let res: { status: number; body: string };
   try {
-    res = await file.upload(`${CRM_URL}/api/files`, {
+    res = await file.upload(`${CRM_URL}${path}`, {
       httpMethod: "POST",
       uploadType: UploadType.MULTIPART,
       fieldName: "file",

@@ -75,7 +75,17 @@ export async function POST(request: NextRequest) {
     // task's lead, so the lead's Files tab still lists it. A task raised with no
     // job has no lead and the file lives on the task alone. Anyone who may edit
     // the task may attach to it.
-    const taskId = typeof taskIdRaw === "string" && taskIdRaw ? taskIdRaw : null;
+    let taskId = typeof taskIdRaw === "string" && taskIdRaw ? taskIdRaw : null;
+    // A field issue's photo (the phone app): it goes on the issue's own task,
+    // so it shows with the issue's task, the job's files and its gallery, and
+    // is checked by the same task rights below.
+    const fieldIssueIdRaw = form.get("fieldIssueId");
+    if (!taskId && typeof fieldIssueIdRaw === "string" && fieldIssueIdRaw) {
+      const issue = await prisma.fieldIssue.findUnique({ where: { id: fieldIssueIdRaw }, select: { taskId: true } });
+      if (!issue) return NextResponse.json({ error: "Field issue not found" }, { status: 404 });
+      if (!issue.taskId) return badRequest("This field issue has no task to attach the photo to");
+      taskId = issue.taskId;
+    }
     let leadId = typeof leadIdRaw === "string" && leadIdRaw ? leadIdRaw : null;
     // A file uploaded on a job belongs to that job (and, through it, the lead).
     const jobIdRaw = form.get("jobId");

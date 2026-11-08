@@ -1,6 +1,9 @@
 import { Linking, Platform, RefreshControl, ScrollView, Text, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useJob, useJobFiles, useJobTasks } from "@/api/queries";
+import { useInspections, useJob, useJobFiles, useJobTasks } from "@/api/queries";
+import { splitInspections } from "@/lib/inspections";
+import { InspectionRow } from "@/ui/InspectionRow";
+import { IssueSection } from "@/ui/IssueSection";
 import { DocList } from "@/ui/DocList";
 import { addressLine, dialable, fullAddress, mapsUrl, personName, shortDate } from "@/lib/format";
 import { Button, Card, s } from "@/ui/components";
@@ -27,6 +30,7 @@ export default function JobScreen() {
   const job = useJob(id);
   const tasks = useJobTasks(id);
   const files = useJobFiles(id);
+  const inspections = useInspections();
 
   if (job.isPending) return <Loading />;
   if (job.isError)
@@ -90,6 +94,7 @@ export default function JobScreen() {
           <Button label="New task" kind="secondary" onPress={() => router.push({ pathname: "/new-task", params: { jobId: j.id } })} />
         </View>
       </View>
+      <Button label="Today's daily log" kind="secondary" onPress={() => router.push({ pathname: "/log/[jobId]", params: { jobId: j.id } })} />
 
       <Card>
         <Row label="Customer" value={j.lead?.fullName ?? null} />
@@ -116,6 +121,24 @@ export default function JobScreen() {
           ))}
         </View>
       )}
+
+      {(() => {
+        const mine = splitInspections((inspections.data ?? []).filter((x) => x.permit.job.id === j.id));
+        const list = [...mine.booked, ...mine.done.slice(0, 3)];
+        if (list.length === 0) return null;
+        return (
+          <>
+            <Text style={[s.h2, { color: t.text, marginTop: 4 }]}>Inspections</Text>
+            <View style={{ gap: 8 }}>
+              {list.map((x) => (
+                <InspectionRow key={x.id} inspection={x} showAddress={false} />
+              ))}
+            </View>
+          </>
+        );
+      })()}
+
+      <IssueSection jobId={j.id} />
 
       <Text style={[s.h2, { color: t.text, marginTop: 4 }]}>Documents</Text>
       {files.isPending ? (

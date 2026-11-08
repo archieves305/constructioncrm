@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { badRequest } from "@/lib/auth/helpers";
 import { requireJobFieldAccess } from "@/lib/labor/route-helpers";
 import { canAmendApprovedLog } from "@/lib/labor/permissions";
+import { ensureDailyLog } from "@/lib/labor/log-service";
 import { isIsoDate, toDbDate, fromDbDate } from "@/lib/labor/dates";
 import { MAX_UPLOAD_BYTES, saveFile } from "@/lib/files/storage";
 
@@ -110,7 +111,14 @@ export async function POST(request: NextRequest, context: Context) {
   const caption = String(form.get("caption") ?? "").trim() || null;
   const areaText = String(form.get("areaText") ?? "").trim() || null;
   const jobAreaId = String(form.get("jobAreaId") ?? "").trim() || null;
-  const dailyLogId = String(form.get("dailyLogId") ?? "").trim() || null;
+  let dailyLogId = String(form.get("dailyLogId") ?? "").trim() || null;
+  // The phone app attaches a photo to a day's log by date: its draft log may
+  // not exist yet (written without signal), so it is made here, as submit does.
+  const logDateRaw = String(form.get("logDate") ?? "");
+  if (!dailyLogId && logDateRaw) {
+    if (!isIsoDate(logDateRaw)) return badRequest("logDate must be YYYY-MM-DD");
+    dailyLogId = (await ensureDailyLog(jobId, logDateRaw, ctx.session.user.id)).id;
+  }
   const dailyLaborEntryId =
     String(form.get("dailyLaborEntryId") ?? "").trim() || null;
 

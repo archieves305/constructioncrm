@@ -25,6 +25,30 @@ export default function AppLayout() {
         options={{ headerShown: true, title: "New task", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
       />
       <Stack.Screen
+        name="inspections"
+        options={{ headerShown: true, title: "Inspections", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="inspection/[id]"
+        options={{ headerShown: true, title: "Inspection", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="issue/new"
+        options={{ headerShown: true, title: "Report an issue", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="log/[jobId]"
+        options={{ headerShown: true, title: "Daily log", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="crew/[jobId]"
+        options={{ headerShown: true, title: "Crew hours", headerBackTitle: "Log", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="log-pick"
+        options={{ headerShown: true, title: "Daily log", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
         name="outbox"
         options={{ headerShown: true, title: "Waiting to send", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
       />

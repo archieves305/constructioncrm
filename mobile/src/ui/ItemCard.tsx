@@ -55,7 +55,7 @@ export function ItemCard({ item }: { item: CalendarItemDto }) {
       <View style={{ flex: 1, gap: 3 }}>
         {address ? <Text style={{ color: t.muted, fontSize: 13 }}>{address}</Text> : null}
         <Text style={[s.body, { color: t.text, fontWeight: "600", textDecorationLine: done ? "line-through" : "none" }]}>
-          {isTask ? item.title : item.overlay?.label ?? item.title}
+          {isTask || item.kind === "permit_inspection" ? item.title : item.overlay?.label ?? item.title}
         </Text>
         {!isTask && item.overlay?.detail ? <Text style={{ color: t.muted, fontSize: 14 }}>{item.overlay.detail}</Text> : null}
         {item.status === "BLOCKED" && item.blockedReason ? (
@@ -78,6 +78,21 @@ export function ItemCard({ item }: { item: CalendarItemDto }) {
       )}
     </View>
   );
+
+  // A permit inspection (overlay id "pi:<inspection id>") opens its own screen.
+  const inspectionId = item.kind === "permit_inspection" && item.id.startsWith("pi:") ? item.id.slice(3) : null;
+  if (inspectionId) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${item.overlay?.label ?? item.title}${address ? `, ${address}` : ""}, ${when}`}
+        onPress={() => router.push({ pathname: "/inspection/[id]", params: { id: inspectionId } })}
+        style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}
+      >
+        {body}
+      </Pressable>
+    );
+  }
 
   if (!isTask) {
     return (
