@@ -599,7 +599,11 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-11-08 — KNU Field app, Phase 3 (built + dev-QA'd on `mobile-spike`, not deployed)
+### 2026-11-08 — KNU Field app: offline copy + Phase 4 AI drafts (built + dev-QA'd on `mobile-spike`, not deployed)
+
+Offline copy: the app's TanStack cache is saved to the phone (`mobile/src/cache`, SQLite, one row per person, wiped at sign-out; SQLCipher left off so the app still declares no non-exempt encryption), restored before the screens open, refreshed in the background at most every 15 minutes; screens keep saved data on a failed refresh. Phase 4: `POST /api/mobile/ai/task-draft` (READ_ONLY refused; jobs through `jobAccessWhere`) and `POST /api/mobile/ai/log-draft` (`requireJobFieldAccess`) — Haiku through `runAiCall`, subject `mobile_voice` / `<userId>:<yyyy-mm>` (the per-subject cap becomes per person per month), the model picks job and person by number from what the person may see, nothing is saved. App: Speak a task → the New task form filled to check; "Say it instead of typing" on the daily log (appended, marked). Speech becomes text by iOS dictation on the phone. Gate: typecheck clean, 2015 tests, lint clean; app 34 tests, expo-doctor 20/20. Dev QA with real calls 18/18 ($0.0015). No migration. Then TestFlight build 6.
+
+### 2026-11-08 — KNU Field app, Phase 3 (deployed `4df6589`, BUILD_ID `aLfqL2YKEfKBTUUkGohfr`; TestFlight build 5)
 
 Inspections (list, detail, record a result; the job card and Today taps), Today Day / Week, workflow checklists (ticks queued; Complete… = one PATCH with status + checklist; evidence notes), field issues + punch items, the daily log (write-up, safety checks, photos, submit; typing kept on the phone, only the latest unsent save sent), crew hours (full-sheet PUT; "Start now" / "Stop now" from the phone's clock, never the check-in routes, which stamp server time; office fields sent back untouched, never rates; the crew list kept to names). CRM changes: migration `20261117120000_field_issue_punch` (`FieldIssueType.PUNCH`, additive), the field-issue POST takes a phone-made id and is idempotent, `POST /api/files` takes `fieldIssueId`, `POST /api/jobs/[id]/photos` takes `logDate` (makes the draft log). The outbox moves a later save on the same log onto the new timestamp (`rebaseAfter`) — the write-up and the sheet share it. Gate: typecheck clean, 2009 tests, lint clean on the touched files; app 26 tests, expo-doctor 20/20. Dev QA by script: inspections 10, issues 11, log 14, crew 14. **Deploy carries the migration.** Then TestFlight build 5. Left in Phase 3: the fuller offline copy.
 
@@ -3868,6 +3872,10 @@ Notification Digests).
   honoured, every request logged (`PermitAssistFetch`); a fetched web page is
   never served back from the CRM. What the assistant finds is a proposal: a
   document joins the permit, with a type, only when a person accepts it.
+- **A spoken draft is a suggestion, never a record** (`src/lib/mobile-ai`): the
+  AI picks a job or person only by number from what the speaker may see, and
+  the phone fills a form the person saves. New voice features return a draft
+  and go through `runAiCall` with subject `mobile_voice`.
 - **Every model call goes through `runAiCall`** (`src/lib/ai/calls.ts`): it is
   recorded as an `AiCall`, held to the per-subject and monthly caps, has no
   tools, and must match a zod schema. Document text goes in through

@@ -527,3 +527,41 @@ export const dailyLogWithSheet = z
     totals: z.object({ workersOnsite: z.number(), totalHours: z.number(), regularHours: z.number(), otHours: z.number() }),
   })
   .passthrough();
+
+// ---------------------------------------------------------------------------
+// Phase 4: AI drafts from speech (POST /api/mobile/ai/task-draft, …/log-draft).
+// The phone sends text (iOS dictation turns speech into text on the phone);
+// the CRM's AI returns a draft the person checks. Nothing is saved by these.
+// ---------------------------------------------------------------------------
+
+export const taskDraftRequest = z.object({
+  speech: z.string().trim().min(3).max(4000),
+  /** The job the person was on, if any. */
+  jobId: z.string().max(40).optional(),
+});
+
+export const taskDraft = z.object({
+  title: z.string(),
+  description: z.string().nullable(),
+  jobId: z.string().nullable(),
+  jobLabel: z.string().nullable(),
+  assignedUserId: z.string().nullable(),
+  assigneeLabel: z.string().nullable(),
+  dueDate: z.string().nullable(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]),
+  unclear: z.array(z.string()),
+});
+export type TaskDraftDto = z.infer<typeof taskDraft>;
+
+export const logDraftRequest = z.object({
+  jobId: z.string().min(1).max(40),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  speech: z.string().trim().min(3).max(4000),
+});
+
+export const logDraft = z.object({
+  ...Object.fromEntries(LOG_TEXT_FIELDS.map((k) => [k, z.string().optional()])),
+  ...Object.fromEntries(LOG_SAFETY_CHECKS.map((k) => [k, z.boolean().optional()])),
+} as Record<string, z.ZodTypeAny>);
+export type LogDraftDto = Partial<Record<(typeof LOG_TEXT_FIELDS)[number], string>> &
+  Partial<Record<(typeof LOG_SAFETY_CHECKS)[number], boolean>>;

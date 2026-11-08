@@ -23,7 +23,7 @@ export default function InspectionsScreen() {
       <Stack.Screen options={{ title: "Inspections" }} />
       {q.isPending ? (
         <Loading />
-      ) : q.isError ? (
+      ) : (q.isError && q.data === undefined) ? (
         <LoadError error={q.error} onRetry={() => q.refetch()} />
       ) : booked.length === 0 && done.length === 0 ? (
         <Empty title="No inspections" body="Inspections booked on your jobs' permits, and results from the last 30 days, show here." />

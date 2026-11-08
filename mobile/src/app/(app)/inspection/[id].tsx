@@ -50,7 +50,7 @@ export default function InspectionScreen() {
   const [outcome, setOutcome] = useState<InspectionOutcomeDto | null>(null);
 
   if (q.isPending) return <Loading />;
-  if (q.isError)
+  if ((q.isError && q.data === undefined))
     return (
       <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
         <LoadError error={q.error} onRetry={() => q.refetch()} />

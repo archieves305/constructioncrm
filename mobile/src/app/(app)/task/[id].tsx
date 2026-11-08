@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
+import { SavedNote } from "@/cache/SavedNote";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useTask } from "@/api/queries";
 import { useSession } from "@/auth/session";
@@ -35,7 +36,7 @@ export default function TaskScreen() {
   const [completeOpen, setCompleteOpen] = useState(false);
 
   if (task.isPending) return <Loading />;
-  if (task.isError)
+  if ((task.isError && task.data === undefined))
     return (
       <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
         <LoadError error={task.error} onRetry={() => task.refetch()} />
@@ -123,6 +124,7 @@ export default function TaskScreen() {
         refreshControl={<RefreshControl refreshing={task.isRefetching} onRefresh={() => void task.refetch()} tintColor={t.brand} />}
       >
         <Stack.Screen options={{ title: "Task" }} />
+        <SavedNote />
         {address && k.job ? (
           <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: "/job/[id]", params: { id: k.job!.id } })}>
             <Text style={{ color: t.brand, fontSize: 15, fontWeight: "600" }}>{address} ›</Text>

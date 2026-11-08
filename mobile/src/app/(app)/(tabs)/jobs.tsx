@@ -1,3 +1,4 @@
+import { SavedNote } from "@/cache/SavedNote";
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -78,10 +79,13 @@ export default function Jobs() {
           autoCorrect={false}
           style={{ minHeight: TOUCH, borderRadius: 10, borderWidth: 1, borderColor: t.border, backgroundColor: t.card, color: t.text, paddingHorizontal: 14, fontSize: 16 }}
         />
+        <View style={{ marginTop: 8 }}>
+          <SavedNote />
+        </View>
       </View>
       {jobs.isPending ? (
         <Loading />
-      ) : jobs.isError ? (
+      ) : (jobs.isError && jobs.data === undefined) ? (
         <View style={{ padding: 16 }}>
           <LoadError error={jobs.error} onRetry={() => jobs.refetch()} />
         </View>

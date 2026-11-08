@@ -3,7 +3,10 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-nativ
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { LOG_SAFETY_CHECKS, LOG_TEXT_FIELDS, saveDailyLogRequest } from "@crm/mobile-api";
+import { LOG_SAFETY_CHECKS, LOG_TEXT_FIELDS, logDraft, saveDailyLogRequest, type LogDraftDto } from "@crm/mobile-api";
+import { api, ApiError } from "@/api/client";
+import { useOnline } from "@/cache/net";
+import { mergeLogDraft } from "@/lib/voice";
 import { useDailyLog, useJob } from "@/api/queries";
 import { addressLine, dayKey } from "@/lib/format";
 import { clearDraft, readDraft, writeDraft } from "@/lib/drafts";
@@ -57,6 +60,11 @@ export default function DailyLogScreen() {
   const draftKey = target;
 
   const [draft, setDraft] = useState<Draft>({});
+  const online = useOnline();
+  const [speaking, setSpeaking] = useState(false);
+  const [speech, setSpeech] = useState("");
+  const [sorting, setSorting] = useState(false);
+  const [spokenInto, setSpokenInto] = useState<string[]>([]);
   const [dirty, setDirty] = useState(false);
   const loaded = useRef(false);
 
@@ -119,6 +127,7 @@ export default function DailyLogScreen() {
     });
     await clearDraft(draftKey);
     setDirty(false);
+    setSpokenInto([]);
     return true;
   };
 
@@ -164,10 +173,33 @@ export default function DailyLogScreen() {
       },
     ]);
 
+  // What was said, sorted by the CRM's AI into the sections: added after what
+  // is written, unsaved, for the person to read and Save.
+  const sortSpeech = async () => {
+    setSorting(true);
+    try {
+      const d = (await api("/api/mobile/ai/log-draft", { method: "POST", body: { jobId, date, speech: speech.trim() }, schema: logDraft })) as LogDraftDto;
+      const { form, changed } = mergeLogDraft(draft, d);
+      if (!changed.length) {
+        Alert.alert("Nothing new", "Everything you said is already in the log.");
+        return;
+      }
+      setDraft(form);
+      setDirty(true);
+      setSpokenInto(changed);
+      setSpeech("");
+      setSpeaking(false);
+    } catch (e) {
+      Alert.alert("Could not sort it", e instanceof ApiError ? (e.offline ? "No signal. Type into the sections instead." : e.message) : "Try again, or type into the sections.");
+    } finally {
+      setSorting(false);
+    }
+  };
+
   const filled = useMemo(() => LOG_TEXT_FIELDS.filter((k) => (draft[k] ?? "").trim()).length, [draft]);
 
   if (log.isPending || job.isPending) return <Loading />;
-  if (log.isError)
+  if ((log.isError && log.data === undefined))
     return (
       <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
         <LoadError error={log.error} onRetry={() => log.refetch()} />
@@ -208,9 +240,37 @@ export default function DailyLogScreen() {
         <OpRow key={op.id} op={op} />
       ))}
 
+      {editable ? (
+        speaking ? (
+          <Card>
+            <Text style={[s.body, { color: t.text }]}>Tap the microphone on the keyboard and talk through the day: work done, where, delays, deliveries, safety, tomorrow.</Text>
+            <TextInput
+              value={speech}
+              onChangeText={setSpeech}
+              autoFocus
+              multiline
+              maxLength={4000}
+              placeholder="Today we…"
+              placeholderTextColor={t.muted}
+              accessibilityLabel="What happened today"
+              style={{ minHeight: TOUCH * 3, borderRadius: 10, borderWidth: 1, borderColor: t.border, backgroundColor: t.bg, color: t.text, padding: 12, fontSize: 16, textAlignVertical: "top" }}
+            />
+            {!online ? <Notice tone="warn" text="No signal: sorting needs the CRM. Type into the sections below instead." /> : null}
+            <Button label={sorting ? "Sorting…" : "Sort into the log"} disabled={sorting || !online || speech.trim().length < 3} onPress={() => void sortSpeech()} />
+            <Button label="Cancel" kind="secondary" onPress={() => setSpeaking(false)} />
+          </Card>
+        ) : (
+          <Button label="Say it instead of typing" kind="secondary" onPress={() => setSpeaking(true)} />
+        )
+      ) : null}
+      {spokenInto.length ? <Notice tone="warn" text="Added from what you said (marked below). Read it, change anything, then Save." /> : null}
+
       {LOG_TEXT_FIELDS.map((k) => (
         <View key={k} style={{ gap: 6 }}>
-          <Text style={[s.label, { color: t.muted }]}>{LABEL[k].title}</Text>
+          <Text style={[s.label, { color: spokenInto.includes(k) ? t.warn : t.muted }]}>
+            {LABEL[k].title}
+            {spokenInto.includes(k) ? " · from what you said" : ""}
+          </Text>
           <TextInput
             value={draft[k] ?? ""}
             onChangeText={(v) => set({ [k]: v })}

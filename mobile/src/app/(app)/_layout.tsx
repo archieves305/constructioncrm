@@ -45,6 +45,10 @@ export default function AppLayout() {
         options={{ headerShown: true, title: "Crew hours", headerBackTitle: "Log", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
       />
       <Stack.Screen
+        name="voice-task"
+        options={{ headerShown: true, title: "Speak a task", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
         name="log-pick"
         options={{ headerShown: true, title: "Daily log", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
       />

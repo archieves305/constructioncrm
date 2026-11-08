@@ -139,7 +139,7 @@ export default function CrewHours() {
   };
 
   if (sheet.isPending || job.isPending) return <Loading />;
-  if (sheet.isError)
+  if ((sheet.isError && sheet.data === undefined))
     return (
       <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
         <LoadError error={sheet.error} onRetry={() => sheet.refetch()} />
@@ -250,7 +250,7 @@ export default function CrewHours() {
               {adding ? (
                 <Card>
                   {crew.isPending ? <Text style={{ color: t.muted }}>Loading the crew list…</Text> : null}
-                  {crew.isError && !noCrewAccess ? <Text style={{ color: t.danger }}>The crew list did not load. Try again with signal.</Text> : null}
+                  {(crew.isError && crew.data === undefined) && !noCrewAccess ? <Text style={{ color: t.danger }}>The crew list did not load. Try again with signal.</Text> : null}
                   {notOnSheet.length > 1 ? <Button label={`Add everyone (${notOnSheet.length})`} kind="secondary" onPress={() => add(notOnSheet)} /> : null}
                   {notOnSheet.map((p) => (
                     <Pressable key={p.id} accessibilityRole="button" onPress={() => add([p])} style={{ minHeight: TOUCH, flexDirection: "row", alignItems: "center", gap: 10 }}>

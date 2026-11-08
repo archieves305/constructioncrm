@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { CalendarItemDto } from "@crm/mobile-api";
 import { useSession } from "@/auth/session";
 import { useCalendarRange, useOverdue, useToday } from "@/api/queries";
+import { SavedNote } from "@/cache/SavedNote";
 import { usePush } from "@/push/push";
 import { addDays, dayKey } from "@/lib/format";
 import { groupByDay, orderDay } from "@/lib/calendar";
@@ -34,7 +35,7 @@ function shortDay(key: string): string {
 export default function Today() {
   const t = useTheme();
   const qc = useQueryClient();
-  const { user, offline } = useSession();
+  const { user } = useSession();
   const todayKey = dayKey();
   const [day, setDay] = useState(todayKey);
   const [view, setView] = useState<"day" | "week">("day");
@@ -124,7 +125,7 @@ export default function Today() {
         </View>
       </View>
 
-      {offline ? <Notice tone="warn" text="No connection. Showing what this phone already had." /> : null}
+      <SavedNote />
       {push.state === "undetermined" ? (
         <Card>
           <Text style={[s.h2, { color: t.text }]}>Get a buzz when work comes in</Text>
@@ -154,7 +155,7 @@ export default function Today() {
       {view === "week" ? (
         weekQ.isPending ? (
           <Loading />
-        ) : weekQ.isError ? (
+        ) : (weekQ.isError && weekQ.data === undefined) ? (
           <LoadError error={weekQ.error} onRetry={() => weekQ.refetch()} />
         ) : (
           week.map((d) => (
@@ -184,7 +185,7 @@ export default function Today() {
         )
       ) : dayQ.isPending ? (
         <Loading />
-      ) : dayQ.isError ? (
+      ) : (dayQ.isError && dayQ.data === undefined) ? (
         <LoadError error={dayQ.error} onRetry={() => dayQ.refetch()} />
       ) : open.length === 0 && done.length === 0 ? (
         <Empty

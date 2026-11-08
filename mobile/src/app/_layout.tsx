@@ -8,6 +8,9 @@ import { SessionProvider, useSession } from "@/auth/session";
 import { OutboxProvider } from "@/outbox/useOutbox";
 import { ApiError } from "@/api/client";
 import { useTheme } from "@/ui/theme";
+import "@/cache/net";
+import { CacheProvider } from "@/cache/CacheProvider";
+import { MAX_AGE_MS } from "@/cache/rules";
 
 function RootNavigator() {
   const { status } = useSession();
@@ -41,6 +44,8 @@ export default function RootLayout() {
         defaultOptions: {
           queries: {
             staleTime: 30_000,
+            // Kept for the saved copy (cache/), not dropped five minutes after a screen closes.
+            gcTime: MAX_AGE_MS,
             // A refusal is final; only a dropped connection is worth retrying.
             retry: (count, err) => err instanceof ApiError && err.offline && count < 2,
           },
@@ -53,7 +58,9 @@ export default function RootLayout() {
         <SessionProvider>
           <OutboxProvider>
             <StatusBar style="auto" />
-            <RootNavigator />
+            <CacheProvider>
+              <RootNavigator />
+            </CacheProvider>
           </OutboxProvider>
         </SessionProvider>
       </QueryClientProvider>

@@ -1,3 +1,4 @@
+import { SavedNote } from "@/cache/SavedNote";
 import { Linking, Platform, RefreshControl, ScrollView, Text, View } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useInspections, useJob, useJobFiles, useJobTasks } from "@/api/queries";
@@ -33,7 +34,7 @@ export default function JobScreen() {
   const inspections = useInspections();
 
   if (job.isPending) return <Loading />;
-  if (job.isError)
+  if ((job.isError && job.data === undefined))
     return (
       <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
         <LoadError error={job.error} onRetry={() => job.refetch()} />
@@ -62,6 +63,7 @@ export default function JobScreen() {
       }
     >
       <Stack.Screen options={{ title: addressLine(j.lead) ?? j.jobNumber }} />
+      <SavedNote />
       <View style={{ gap: 4 }}>
         <Text style={[s.h1, { color: t.text, fontSize: 24 }]}>{addressLine(j.lead) ?? j.title}</Text>
         <Text style={[s.body, { color: t.muted }]}>
@@ -110,7 +112,7 @@ export default function JobScreen() {
       <Text style={[s.h2, { color: t.text, marginTop: 4 }]}>Open tasks · {open.length}</Text>
       {tasks.isPending ? (
         <Loading />
-      ) : tasks.isError ? (
+      ) : (tasks.isError && tasks.data === undefined) ? (
         <LoadError error={tasks.error} onRetry={() => tasks.refetch()} />
       ) : open.length === 0 ? (
         <Empty title="No open tasks on this job" />
@@ -143,7 +145,7 @@ export default function JobScreen() {
       <Text style={[s.h2, { color: t.text, marginTop: 4 }]}>Documents</Text>
       {files.isPending ? (
         <Loading />
-      ) : files.isError ? (
+      ) : (files.isError && files.data === undefined) ? (
         <LoadError error={files.error} onRetry={() => files.refetch()} />
       ) : (
         <DocList files={[...files.data.files, ...files.data.leadFiles]} />

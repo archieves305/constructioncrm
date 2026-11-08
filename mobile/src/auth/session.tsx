@@ -14,6 +14,7 @@ import { APP_ID, APP_VERSION, PORTAL_URL } from "@/config";
 import { api, ApiError, setSignedOutHandler } from "@/api/client";
 import { deleteAllDocuments } from "@/docs/open";
 import { clearAllDrafts } from "@/lib/drafts";
+import { clearSavedCopy } from "@/cache/persist";
 import { newPkce } from "./pkce";
 import {
   installationId,
@@ -111,6 +112,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       deleteAllDocuments();
       await clearAllDrafts().catch(() => undefined);
       queryClient.clear();
+      await clearSavedCopy().catch(() => undefined);
       setUser(null);
       setDevice(null);
       setOffline(false);

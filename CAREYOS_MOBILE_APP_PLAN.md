@@ -541,9 +541,15 @@ Each ticket is independently testable; "Done when" is its completion criterion.
 - **Migration** `20261116120000_mobile_push`: a push token per phone, plus `users.push_enabled`, set from the app's More → Phone notifications.
 - **Builds:** EAS project `@archieves/knu-field`; App Store Connect app `6832301487`. Builds go through `npm run build:*:ios` in `mobile/`, which upload only `mobile/` and `src/lib/mobile-api`: about 57 files, no CRM source or git history (`.easignore` at the root, plus `EAS_NO_VCS`). Development builds allow plain http to test servers (`app.config.ts`); preview and production builds do not.
 
-### 2026-11-08 — Phase 3 (not yet deployed)
+### 2026-11-08 — Phase 3 (deployed `4df6589`; TestFlight build 5)
 - Built: inspections, calendar Day / Week, workflow checklists, field issues + punch items, daily log, crew hours.
 - CRM: migration `20261117120000_field_issue_punch`; phone-made issue ids (idempotent); photos by `fieldIssueId` and by `logDate`.
 - Checks: issues 11/11, log 14/14, crew 14/14 against dev; 2009 CRM tests, 26 app tests.
 - Next: deploy, TestFlight build 5, then the fuller offline copy.
+
+### 2026-11-08 — Offline copy + Phase 4 (not yet deployed)
+- Offline copy: saved cache on the phone, restored at launch, background refresh every 15 min, wiped at sign-out.
+- Phase 4: speak a task / say the daily log; iOS dictation → CRM AI draft (Haiku, `runAiCall`) → the person checks and saves.
+- Checks: real AI calls on dev 18/18 ($0.0015); 2015 CRM tests, 34 app tests. No migration.
+- Next: deploy, TestFlight build 6.
 

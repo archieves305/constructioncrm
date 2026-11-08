@@ -1,3 +1,4 @@
+import { SavedNote } from "@/cache/SavedNote";
 import { useMemo } from "react";
 import { RefreshControl, SectionList, Text, View } from "react-native";
 import type { TaskRowDto } from "@crm/mobile-api";
@@ -41,7 +42,7 @@ export default function Tasks() {
   const sections = useMemo(() => group(tasks.data ?? []), [tasks.data]);
 
   if (tasks.isPending) return <Loading />;
-  if (tasks.isError)
+  if ((tasks.isError && tasks.data === undefined))
     return (
       <View style={{ padding: 16, backgroundColor: t.bg, flex: 1 }}>
         <LoadError error={tasks.error} onRetry={() => tasks.refetch()} />
@@ -76,6 +77,11 @@ export default function Tasks() {
         </Text>
       )}
       stickySectionHeadersEnabled
+      ListHeaderComponent={
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <SavedNote />
+        </View>
+      }
       contentContainerStyle={{ paddingBottom: 24 }}
       refreshControl={<RefreshControl refreshing={tasks.isRefetching} onRefresh={() => void tasks.refetch()} tintColor={t.brand} />}
       ListEmptyComponent={

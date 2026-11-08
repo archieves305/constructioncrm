@@ -45,7 +45,7 @@ export function IssueSection({ jobId }: { jobId: string }) {
       ))}
       {issues.isPending ? (
         <Loading />
-      ) : issues.isError ? (
+      ) : (issues.isError && issues.data === undefined) ? (
         <LoadError error={issues.error} onRetry={() => issues.refetch()} />
       ) : (
         open.map((i) => (
