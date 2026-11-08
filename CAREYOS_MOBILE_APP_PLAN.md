@@ -534,3 +534,9 @@ Each ticket is independently testable; "Done when" is its completion criterion.
 - A ScrollView's content must not be `flex: 1`.
 - Inside Expo Go, the native app version is Expo Go's own.
 - The dev CRM only loads its client JavaScript at `localhost` (Next 16 dev origins).
+
+**Phase 2: complete (2026-11-08).**
+- **Push** works end to end on Richard's iPhone: a task assigned in the CRM buzzed the phone ("New task" plus the job address), and the tap opened the task.
+- **Server:** `src/lib/mobile/push.ts` (rules) and `push-send.ts` (Expo push service; dead tokens cleared), hooked at the end of `notify()`. Push therefore works in today's shadow mode (`NOTIFICATIONS_V2=1`), independent of the email switch.
+- **Migration** `20261116120000_mobile_push`: a push token per phone, plus `users.push_enabled`, set from the app's More → Phone notifications.
+- **Builds:** EAS project `@archieves/knu-field`; App Store Connect app `6832301487`. Builds go through `npm run build:*:ios` in `mobile/`, which upload only `mobile/` and `src/lib/mobile-api`: about 57 files, no CRM source or git history (`.easignore` at the root, plus `EAS_NO_VCS`). Development builds allow plain http to test servers (`app.config.ts`); preview and production builds do not.

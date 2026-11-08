@@ -4,8 +4,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { CalendarItemDto } from "@crm/mobile-api";
 import { useSession } from "@/auth/session";
 import { useOverdue, useToday } from "@/api/queries";
+import { usePush } from "@/push/push";
 import { dayKey } from "@/lib/format";
-import { Notice, s } from "@/ui/components";
+import { Button, Card, Notice, s } from "@/ui/components";
 import { ItemCard } from "@/ui/ItemCard";
 import { Empty, LoadError, Loading } from "@/ui/states";
 import { useTheme } from "@/ui/theme";
@@ -32,6 +33,7 @@ export default function Today() {
   const [refreshing, setRefreshing] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const [showOverdue, setShowOverdue] = useState(false);
+  const push = usePush();
 
   const { open, done } = useMemo(() => {
     const items = order(today.data?.items ?? []);
@@ -63,6 +65,15 @@ export default function Today() {
         </Text>
       </View>
       {offline ? <Notice tone="warn" text="No connection. Showing what this phone already had." /> : null}
+      {push.state === "undetermined" ? (
+        <Card>
+          <Text style={[s.h2, { color: t.text }]}>Get a buzz when work comes in</Text>
+          <Text style={[s.body, { color: t.muted }]}>
+            KNU Field tells you when a task is assigned to you, when you are mentioned, and when something is escalated. It shows the job address, never prices or customer details.
+          </Text>
+          <Button label="Turn on notifications" onPress={() => void push.ask()} />
+        </Card>
+      ) : null}
 
       {(overdue.data?.length ?? 0) > 0 ? (
         <View style={{ gap: 8 }}>

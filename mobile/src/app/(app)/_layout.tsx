@@ -1,9 +1,11 @@
 import { Stack } from "expo-router";
+import { PushProvider } from "@/push/push";
 import { useTheme } from "@/ui/theme";
 
 export default function AppLayout() {
   const t = useTheme();
   return (
+    <PushProvider>
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
@@ -38,5 +40,6 @@ export default function AppLayout() {
         }}
       />
     </Stack>
+    </PushProvider>
   );
 }

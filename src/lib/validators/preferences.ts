@@ -7,6 +7,8 @@ export const preferencesSchema = z.object({
   escalationEmailsEnabled: z.boolean().optional(),
   reminderDigestEnabled: z.boolean().optional(),
   nudgeEmailsEnabled: z.boolean().optional(),
+  /** Phone notifications from the KNU Field app. */
+  pushEnabled: z.boolean().optional(),
   defaultListScope: z.enum(["MINE", "ALL"]).optional(),
   boardDensity: z.enum(["COMFORTABLE", "COMPACT"]).optional(),
   defaultCalendarView: z.enum(["DAY", "WEEK", "MONTH"]).optional(),

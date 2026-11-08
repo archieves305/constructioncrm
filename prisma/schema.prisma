@@ -557,6 +557,8 @@ model User {
   permitAssistRuns      PermitAssistRun[]  @relation("PermitAssistRunStartedBy")
   permitAssistDecisions PermitAssistItem[] @relation("PermitAssistItemDecidedBy")
 
+  /// Phone notifications from the KNU Field app (CAREYOS_MOBILE_APP_PLAN.md §D.4).
+  pushEnabled          Boolean        @default(true) @map("push_enabled")
   mobileDevices        MobileDevice[] @relation("MobileDeviceOwner")
   mobileDevicesRevoked MobileDevice[] @relation("MobileDeviceRevokedBy")
 
@@ -6827,6 +6829,9 @@ model MobileDevice {
   platform        String
   appVersion      String?   @map("app_version")
   deviceName      String?   @map("device_name")
+  /// Expo push token ("ExponentPushToken[…]"); null = no push to this phone.
+  pushToken       String?   @map("push_token")
+  pushTokenAt     DateTime? @map("push_token_at")
   lastSeenAt      DateTime  @default(now()) @map("last_seen_at")
   revokedAt       DateTime? @map("revoked_at")
   revokedByUserId String?   @map("revoked_by_user_id")

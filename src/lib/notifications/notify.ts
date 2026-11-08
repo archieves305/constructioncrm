@@ -1,4 +1,6 @@
 import { Prisma, type DeliveryClass, type Priority } from "@/generated/prisma/client";
+import { shouldPush } from "@/lib/mobile/push";
+import { pushToUsers } from "@/lib/mobile/push-send";
 import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
 import { recordTaskEvent } from "@/lib/tasks/events";
@@ -125,6 +127,9 @@ async function run(input: NotifyInput): Promise<NotifyResult> {
 
   const rows: NotifyRow[] = [];
   let deduped = 0;
+  // Phone pushes (KNU Field app): a separate channel from email, so they go
+  // in shadow mode too. Collected here, sent after the loop.
+  const pushUserIds: string[] = [];
 
   for (const r of recipients) {
     const reason: RecipientReason = input.actorUserId && r.userId === input.actorUserId ? "actor" : r.reason;
@@ -225,6 +230,7 @@ async function run(input: NotifyInput): Promise<NotifyResult> {
       deduped++;
     }
     rows.push({ id, userId: r.userId, deliveryClass: c.deliveryClass, created });
+    if (shouldPush({ kind: input.kind, deliveryClass: c.deliveryClass, reason, created })) pushUserIds.push(r.userId);
 
     if (created && input.subject.taskId) {
       await recordTaskEvent({
@@ -251,6 +257,16 @@ async function run(input: NotifyInput): Promise<NotifyResult> {
 
   if (skipped.some((s) => s.reason !== "duplicate")) {
     logger.info("notification recipients suppressed", { where: "notifications.notify", kind: input.kind, skipped: skipped.filter((s) => s.reason !== "duplicate") });
+  }
+
+  if (pushUserIds.length > 0) {
+    // Not awaited: the write that triggered this has committed, and a slow or
+    // failed push must not hold it up. pushToUsers never throws.
+    void pushToUsers({
+      userIds: pushUserIds,
+      kind: input.kind,
+      subject: { taskId: input.subject.taskId ?? null, jobId: input.subject.jobId ?? null, leadId: input.subject.leadId ?? null },
+    });
   }
 
   return { legacy: !takeover, takeover, rows, skipped, deduped };

@@ -20,6 +20,7 @@ const PREF_SELECT = {
   escalationEmailsEnabled: true,
   reminderDigestEnabled: true,
   nudgeEmailsEnabled: true,
+  pushEnabled: true,
   defaultListScope: true,
   boardDensity: true,
   defaultCalendarView: true,
@@ -40,6 +41,7 @@ export async function GET() {
       escalationEmailsEnabled: user?.escalationEmailsEnabled ?? true,
       reminderDigestEnabled: user?.reminderDigestEnabled ?? true,
       nudgeEmailsEnabled: user?.nudgeEmailsEnabled ?? true,
+      pushEnabled: user?.pushEnabled ?? true,
       defaultListScope: user?.defaultListScope ?? "MINE",
       boardDensity: user?.boardDensity ?? "COMFORTABLE",
       defaultCalendarView: user?.defaultCalendarView ?? "WEEK",
@@ -62,6 +64,7 @@ export async function PATCH(request: NextRequest) {
   if (d.escalationEmailsEnabled !== undefined) data.escalationEmailsEnabled = d.escalationEmailsEnabled;
   if (d.reminderDigestEnabled !== undefined) data.reminderDigestEnabled = d.reminderDigestEnabled;
   if (d.nudgeEmailsEnabled !== undefined) data.nudgeEmailsEnabled = d.nudgeEmailsEnabled;
+  if (d.pushEnabled !== undefined) data.pushEnabled = d.pushEnabled;
   if (d.defaultListScope !== undefined) data.defaultListScope = d.defaultListScope;
   if (d.boardDensity !== undefined) data.boardDensity = d.boardDensity;
   if (d.defaultCalendarView !== undefined) data.defaultCalendarView = d.defaultCalendarView;

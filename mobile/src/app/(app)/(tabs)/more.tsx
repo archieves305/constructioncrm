@@ -1,4 +1,7 @@
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/api/client";
+import { usePush } from "@/push/push";
 import { useRouter } from "expo-router";
 import { clearFor } from "@/outbox/outbox";
 import { useOutbox } from "@/outbox/useOutbox";
@@ -32,6 +35,18 @@ export default function More() {
   const router = useRouter();
   const { user, device, signOut, busy } = useSession();
   const { ops, waiting, failed } = useOutbox();
+  const push = usePush();
+  const qc = useQueryClient();
+  const prefs = useQuery({
+    queryKey: ["me", "preferences"],
+    queryFn: () => api("/api/me/preferences") as Promise<{ pushEnabled?: boolean }>,
+  });
+  const setPush = useMutation({
+    mutationFn: (on: boolean) => api("/api/me/preferences", { method: "PATCH", body: { pushEnabled: on } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["me", "preferences"] }),
+    onError: (e) => Alert.alert("Couldn't change notifications", e instanceof Error ? e.message : String(e)),
+  });
+  const pushOn = prefs.data?.pushEnabled ?? true;
 
   // Unsent changes belong to this person; they are not sent as anyone else.
   const confirmSignOut = () => {
@@ -67,6 +82,30 @@ export default function More() {
         <Row label="Registered" value={device ? new Date(device.createdAt).toLocaleDateString() : "Not yet"} />
         <Row label="App version" value={APP_VERSION} />
         <Row label="CRM" value={CRM_URL.replace(/^https?:\/\//, "")} />
+      </Card>
+      <Card>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.h2, { color: t.text }]}>Phone notifications</Text>
+            <Text style={{ color: t.muted, fontSize: 14 }}>
+              {push.state === "denied"
+                ? "Notifications are off for KNU Field in this phone's Settings."
+                : push.state === "undetermined"
+                  ? "Not turned on yet on this phone."
+                  : "New tasks, mentions and escalations, with the job address."}
+            </Text>
+          </View>
+          <Switch
+            accessibilityLabel="Phone notifications"
+            value={pushOn && push.state === "granted"}
+            disabled={setPush.isPending || prefs.isPending}
+            onValueChange={(on) => {
+              if (on && push.state === "undetermined") void push.ask();
+              else if (on && push.state === "denied") void Linking.openSettings();
+              setPush.mutate(on);
+            }}
+          />
+        </View>
       </Card>
       <Pressable accessibilityRole="button" onPress={() => router.push("/outbox")}>
         <Card>

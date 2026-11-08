@@ -44,6 +44,7 @@ const REVIEWED: Record<string, string> = {
   "me GET": "the signed-in person",
   "mobile/bootstrap GET": "the signed-in person and their own phone (by token hash)",
   "mobile/devices/current DELETE": "ends the request's own token",
+  "mobile/devices/current/push PUT": "sets the push token of the request's own phone",
   "mobile/devices POST": "registers the signed-in person's own phone",
   "notifications/[id]/read POST": "markRead is scoped to the recipient",
   "notifications/read-all POST": "scoped to the recipient",
