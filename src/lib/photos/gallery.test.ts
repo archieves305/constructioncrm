@@ -89,4 +89,9 @@ describe("completion photos on crew payments", () => {
     const [asked] = mergeGallery("j1", [], [file({ task: null, taskId: null, crewPayment: { crew: "BNW", amount: 5000, paid: false } })]);
     expect(asked.origin).toBe("Payment request · BNW · $5,000");
   });
+
+  it("leaves the amount out for someone who does not see crew pay", () => {
+    const [hidden] = mergeGallery("j1", [], [file({ task: null, taskId: null, crewPayment: { crew: "BNW", amount: null, paid: true } })]);
+    expect(hidden.origin).toBe("Crew payment · BNW");
+  });
 });

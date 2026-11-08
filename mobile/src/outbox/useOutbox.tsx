@@ -46,7 +46,10 @@ export function OutboxProvider({ children }: { children: ReactNode }) {
       void qc.invalidateQueries({ queryKey: ["task", op.targetId] });
       void qc.invalidateQueries({ queryKey: ["tasks"] });
       void qc.invalidateQueries({ queryKey: ["calendar"] });
-      if (op.kind === "file.upload") void qc.invalidateQueries({ queryKey: ["files"] });
+      if (op.kind === "file.upload") {
+        void qc.invalidateQueries({ queryKey: ["files"] });
+        void qc.invalidateQueries({ queryKey: ["gallery"] });
+      }
       if (op.kind === "issue.create" || op.targetId.startsWith("issue:")) void qc.invalidateQueries({ queryKey: ["issues"] });
       if (op.targetId.startsWith("log:")) void qc.invalidateQueries({ queryKey: ["dailyLog"] });
     });

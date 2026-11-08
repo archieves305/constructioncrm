@@ -206,3 +206,27 @@ describe("crew hours contract", () => {
     expect(laborSheetSchema.safeParse(sheet).success).toBe(true);
   });
 });
+
+describe("job files contract", () => {
+  it("the phone allows exactly the file types and size the CRM does", async () => {
+    const { UPLOAD_MIME, UPLOAD_MAX_BYTES } = await import("./index");
+    const { ALLOWED_MIME, MAX_UPLOAD_BYTES } = await import("@/lib/files/limits");
+    expect([...UPLOAD_MIME].sort()).toEqual([...ALLOWED_MIME].sort());
+    expect(UPLOAD_MAX_BYTES).toBe(MAX_UPLOAD_BYTES);
+  });
+
+  it("phone document categories are CRM file categories", async () => {
+    const { PHONE_DOC_CATEGORIES } = await import("./index");
+    const { FileCategory } = await import("@/generated/prisma/client");
+    for (const c of PHONE_DOC_CATEGORIES) expect(Object.values(FileCategory)).toContain(c.value);
+  });
+
+  it("a gallery item from the CRM's own builder parses", async () => {
+    const { jobGallery } = await import("./index");
+    const { mergeGallery } = await import("@/lib/photos/gallery");
+    const items = mergeGallery("j1", [], [{ id: "f1", fileName: "a.jpg", createdAt: new Date(), takenAt: null, taskId: null, task: null, crewPayment: { crew: "BNW", amount: null, paid: true }, uploadedBy: { firstName: "A", lastName: "B" }, day: "2026-11-08", missing: false } as never]);
+    const r = jobGallery.safeParse(JSON.parse(JSON.stringify({ items, canWrite: true })));
+    expect(r.success).toBe(true);
+    expect(r.success && r.data.items[0].origin).toBe("Crew payment · BNW");
+  });
+});

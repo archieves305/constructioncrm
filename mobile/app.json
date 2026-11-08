@@ -15,7 +15,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#2B5F94",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -31,7 +31,19 @@
       "expo-secure-store",
       "expo-router",
       "expo-status-bar",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#F4F6F8",
+          "dark": {
+            "image": "./assets/splash-icon-dark.png",
+            "backgroundColor": "#0E1114"
+          }
+        }
+      ],
       "expo-font",
       "expo-sqlite",
       [
@@ -46,6 +58,12 @@
         "expo-notifications",
         {
           "defaultChannel": "default"
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "disableAutoUpload": true
         }
       ]
     ],

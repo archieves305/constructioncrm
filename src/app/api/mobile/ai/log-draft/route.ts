@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AiError } from "@/lib/ai/client";
+import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { requireJobFieldAccess } from "@/lib/labor/route-helpers";
 import { logger } from "@/lib/logger";
 import { logDraftRequest } from "@/lib/mobile-api";
@@ -12,6 +13,8 @@ import { validateBody } from "@/lib/validation/body";
  * unsaved. Needs the same access as writing the job's log.
  */
 export async function POST(request: NextRequest) {
+  // Sign-in first, so a caller who is not signed in learns nothing about the body.
+  if (!(await getSession())?.user) return unauthorized();
   const v = await validateBody(request, logDraftRequest);
   if (!v.ok) return v.response;
   const ctx = await requireJobFieldAccess(v.data.jobId, "write");

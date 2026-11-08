@@ -8,6 +8,8 @@ export type UploadBody = {
   filePath: string;
   /** Form fields for POST /api/files: jobId / taskId, category, takenAt. */
   fields: Record<string, string>;
+  /** A document's type; photos are always JPEG. */
+  mimeType?: string;
 };
 
 /**
@@ -28,7 +30,7 @@ export async function sendUpload(body: UploadBody, idempotencyKey: string, path 
       httpMethod: "POST",
       uploadType: UploadType.MULTIPART,
       fieldName: "file",
-      mimeType: "image/jpeg",
+      mimeType: body.mimeType ?? "image/jpeg",
       parameters: body.fields,
       headers: {
         Authorization: `Bearer ${token}`,

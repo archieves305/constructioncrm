@@ -62,7 +62,8 @@ export type FilePhotoRow = {
   taskId: string | null;
   task: { id: string; title: string } | null;
   /** A completion photo on a crew payment, or on a request not yet paid. */
-  crewPayment?: { crew: string; amount: number; paid: boolean } | null;
+  /** `amount` is null for a viewer who does not see the job's crew pay (jobMoneyView not "full"). */
+  crewPayment?: { crew: string; amount: number | null; paid: boolean } | null;
   uploadedBy: { firstName: string; lastName: string };
   missing: boolean;
 };
@@ -72,7 +73,10 @@ const iso = (d: Date | string) => (d instanceof Date ? d.toISOString() : d);
 const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: n % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })}`;
 
 function fileOrigin(f: FilePhotoRow): string {
-  if (f.crewPayment) return `${f.crewPayment.paid ? "Crew payment" : "Payment request"} · ${f.crewPayment.crew} · ${money(f.crewPayment.amount)}`;
+  if (f.crewPayment) {
+    const head = `${f.crewPayment.paid ? "Crew payment" : "Payment request"} · ${f.crewPayment.crew}`;
+    return f.crewPayment.amount == null ? head : `${head} · ${money(f.crewPayment.amount)}`;
+  }
   return f.task ? `Task · ${f.task.title}` : "Uploaded";
 }
 

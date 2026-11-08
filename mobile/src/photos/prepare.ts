@@ -48,6 +48,9 @@ export function deleteQueuedPhoto(path: string): void {
   try {
     const f = new File(path);
     if (f.exists) f.delete();
+    // A document waits in its own folder (docs/prepare.ts): remove it once empty.
+    const dir = f.parentDirectory;
+    if (dir.name !== "outbox-photos" && dir.exists && dir.list().length === 0) dir.delete();
   } catch {
     // Already gone.
   }

@@ -21,6 +21,10 @@ const CATEGORY: Record<string, string> = {
   PHOTOS: "Photos",
   RECEIPT: "Receipts",
   MEASUREMENT_REPORT: "Measurements",
+  INSURANCE: "Insurance",
+  LABOR_CONTRACT: "Labor contracts",
+  INTERIOR_RENOVATION_LABOR_CONTRACT: "Labor contracts",
+  CONTRACT_ADDENDUM: "Contracts",
   OTHER: "Other",
 };
 
@@ -83,7 +87,7 @@ export function DocRow({ file }: { file: FileItemDto }) {
 }
 
 /** Files grouped by category, photos counted rather than listed. */
-export function DocList({ files }: { files: FileItemDto[] }) {
+export function DocList({ files, hidePhotoCount }: { files: FileItemDto[]; hidePhotoCount?: boolean }) {
   const t = useTheme();
   const docs = files.filter((f) => f.category !== "PHOTOS");
   const photos = files.length - docs.length;
@@ -105,9 +109,9 @@ export function DocList({ files }: { files: FileItemDto[] }) {
         </View>
       ))}
       {docs.length === 0 ? <Text style={[s.body, { color: t.muted }]}>No documents on this job yet.</Text> : null}
-      {photos > 0 ? (
+      {photos > 0 && !hidePhotoCount ? (
         <Text style={{ color: t.muted, fontSize: 14 }}>
-          {photos} {photos === 1 ? "photo" : "photos"} on this job (the photo gallery comes in a later update).
+          {photos} {photos === 1 ? "photo" : "photos"} on this job: open Files → Photos.
         </Text>
       ) : null}
     </View>

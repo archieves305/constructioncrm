@@ -15,6 +15,9 @@ import { api, ApiError, setSignedOutHandler } from "@/api/client";
 import { deleteAllDocuments } from "@/docs/open";
 import { clearAllDrafts } from "@/lib/drafts";
 import { clearSavedCopy } from "@/cache/persist";
+import { setCrashUser } from "@/lib/sentry";
+import { Image } from "expo-image";
+import { forgetImageToken } from "@/ui/AuthImage";
 import { newPkce } from "./pkce";
 import {
   installationId,
@@ -113,7 +116,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await clearAllDrafts().catch(() => undefined);
       queryClient.clear();
       await clearSavedCopy().catch(() => undefined);
+      // Job photos viewed on the phone are cached on disk: gone with the sign-in.
+      await Image.clearDiskCache().catch(() => undefined);
+      await Image.clearMemoryCache().catch(() => undefined);
+      forgetImageToken();
       setUser(null);
+      setCrashUser(null);
       setDevice(null);
       setOffline(false);
       setNotice(why);
@@ -137,6 +145,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
       setUser(boot.user);
+      setCrashUser(boot.user.id);
       await saveCachedUser(boot.user);
       setOffline(false);
       setDevice(boot.device ?? (await registerThisPhone().catch(() => null)));
@@ -146,6 +155,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const cached = await readCachedUser();
         if (cached) {
           setUser(cached);
+          setCrashUser(cached.id);
           setOffline(true);
           setStatus("signedIn");
           return;

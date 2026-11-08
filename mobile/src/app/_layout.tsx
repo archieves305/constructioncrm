@@ -9,6 +9,7 @@ import { OutboxProvider } from "@/outbox/useOutbox";
 import { ApiError } from "@/api/client";
 import { useTheme } from "@/ui/theme";
 import "@/cache/net";
+import { wrapRoot } from "@/lib/sentry";
 import { CacheProvider } from "@/cache/CacheProvider";
 import { MAX_AGE_MS } from "@/cache/rules";
 
@@ -37,7 +38,7 @@ function RootNavigator() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -67,3 +68,5 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+export default wrapRoot(RootLayout);

@@ -11,6 +11,7 @@ export const PERSIST_ROOTS = new Set([
   "tasks",
   "task",
   "files",
+  "gallery",
   "inspections",
   "issues",
   "dailyLog",

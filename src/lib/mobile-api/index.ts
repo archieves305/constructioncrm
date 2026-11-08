@@ -565,3 +565,56 @@ export const logDraft = z.object({
 } as Record<string, z.ZodTypeAny>);
 export type LogDraftDto = Partial<Record<(typeof LOG_TEXT_FIELDS)[number], string>> &
   Partial<Record<(typeof LOG_SAFETY_CHECKS)[number], boolean>>;
+
+// ---------------------------------------------------------------------------
+// Job files on the phone: photos (GET /api/jobs/[id]/gallery) and documents
+// uploaded from the phone (POST /api/files with jobId + category).
+// ---------------------------------------------------------------------------
+
+export const galleryItem = z.object({
+  key: z.string(),
+  source: z.string(),
+  id: z.string(),
+  /** Where the image is served (needs the sign-in header). */
+  url: z.string(),
+  fileName: z.string(),
+  day: z.string(),
+  at: z.string(),
+  category: z.string().nullable(),
+  caption: z.string().nullable(),
+  area: z.string().nullable(),
+  by: z.object({ firstName: z.string(), lastName: z.string() }),
+  /** "Daily log · Sep 3", "Task · …", "Crew payment · BNW" (the amount only for those who see crew pay). */
+  origin: z.string(),
+  missing: z.boolean(),
+});
+export const jobGallery = z.object({ items: z.array(galleryItem), canWrite: z.boolean() });
+export type GalleryItemDto = z.infer<typeof galleryItem>;
+
+/** Mirrors lib/files/limits.ts (the contract test keeps them equal). */
+export const UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
+export const UPLOAD_MIME = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "image/heic-sequence",
+  "image/heif-sequence",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+  "text/csv",
+] as const;
+
+/** What a document uploaded from the phone may be filed as. Contracts and plan sets stay web-only. */
+export const PHONE_DOC_CATEGORIES = [
+  { value: "PERMIT", label: "Permit" },
+  { value: "INSPECTION", label: "Inspection" },
+  { value: "INSURANCE", label: "Insurance" },
+  { value: "OTHER", label: "Other" },
+] as const;

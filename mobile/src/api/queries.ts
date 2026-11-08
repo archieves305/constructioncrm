@@ -9,6 +9,7 @@ import {
   inspectionList,
   jobDetail,
   jobFiles,
+  jobGallery,
   jobList,
   taskDetail,
   taskList,
@@ -75,6 +76,12 @@ export const q = {
   /** Booked inspections and the last 30 days' results, on jobs I can see. */
   inspections: () =>
     queryOptions({ queryKey: ["inspections"], queryFn: () => api("/api/inspections?days=30", { schema: inspectionList }) }),
+  /** A job's photos: daily-log photos and image files, newest first. */
+  jobGallery: (jobId: string) =>
+    queryOptions({
+      queryKey: ["gallery", "job", jobId],
+      queryFn: () => api(`/api/jobs/${encodeURIComponent(jobId)}/gallery`, { schema: jobGallery }),
+    }),
   /** A job's field issues and punch items. */
   jobIssues: (jobId: string) =>
     queryOptions({
@@ -97,6 +104,7 @@ export const useJobFiles = (jobId: string) => useQuery(q.jobFiles(jobId));
 export const useInspections = () => useQuery(q.inspections());
 export const useCalendarRange = (from: string, to: string, enabled = true) => useQuery({ ...q.range(from, to), enabled });
 export const useJobIssues = (jobId: string) => useQuery(q.jobIssues(jobId));
+export const useJobGallery = (jobId: string) => useQuery(q.jobGallery(jobId));
 
 /** A job's log for one day, or null when nobody has started it. */
 export function useDailyLog(jobId: string, date: string) {

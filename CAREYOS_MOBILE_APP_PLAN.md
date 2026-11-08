@@ -547,9 +547,15 @@ Each ticket is independently testable; "Done when" is its completion criterion.
 - Checks: issues 11/11, log 14/14, crew 14/14 against dev; 2009 CRM tests, 26 app tests.
 - Next: deploy, TestFlight build 5, then the fuller offline copy.
 
-### 2026-11-08 — Offline copy + Phase 4 (not yet deployed)
+### 2026-11-08 — Offline copy + Phase 4 (deployed `1f7ea25`; TestFlight build 6)
 - Offline copy: saved cache on the phone, restored at launch, background refresh every 15 min, wiped at sign-out.
 - Phase 4: speak a task / say the daily log; iOS dictation → CRM AI draft (Haiku, `runAiCall`) → the person checks and saves.
 - Checks: real AI calls on dev 18/18 ($0.0015); 2015 CRM tests, 34 app tests. No migration.
 - Next: deploy, TestFlight build 6.
+
+### 2026-11-08 — Job files, icon, crash reporting wiring (not yet deployed)
+- Files & photos per job: searchable documents, upload from the phone, photo grid + viewer.
+- CRM fix: crew-payment amounts in the photo gallery only for those who see a job's full money.
+- KNU lettermark icon; Sentry wired but off until a Sentry project's DSN is added.
+- Checks: dev 7/7; 2019 CRM tests, 39 app tests. No migration. Next: deploy, TestFlight build 7.
 

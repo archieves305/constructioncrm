@@ -96,7 +96,14 @@ export default function JobScreen() {
           <Button label="New task" kind="secondary" onPress={() => router.push({ pathname: "/new-task", params: { jobId: j.id } })} />
         </View>
       </View>
-      <Button label="Today's daily log" kind="secondary" onPress={() => router.push({ pathname: "/log/[jobId]", params: { jobId: j.id } })} />
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Button label="Files & photos" kind="secondary" onPress={() => router.push({ pathname: "/files/[jobId]", params: { jobId: j.id } })} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button label="Today's log" kind="secondary" onPress={() => router.push({ pathname: "/log/[jobId]", params: { jobId: j.id } })} />
+        </View>
+      </View>
 
       <Card>
         <Row label="Customer" value={j.lead?.fullName ?? null} />
@@ -148,7 +155,10 @@ export default function JobScreen() {
       ) : (files.isError && files.data === undefined) ? (
         <LoadError error={files.error} onRetry={() => files.refetch()} />
       ) : (
-        <DocList files={[...files.data.files, ...files.data.leadFiles]} />
+        <>
+          <DocList files={[...files.data.files, ...files.data.leadFiles].filter((f) => f.category !== "PHOTOS").slice(0, 5)} hidePhotoCount />
+          <Button label="All files and photos" kind="secondary" onPress={() => router.push({ pathname: "/files/[jobId]", params: { jobId: j.id } })} />
+        </>
       )}
     </ScrollView>
   );

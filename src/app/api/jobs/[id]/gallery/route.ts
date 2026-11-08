@@ -5,6 +5,7 @@ import { fromDbDate, isIsoDate, toDbDate } from "@/lib/labor/dates";
 import { fileReadWhere } from "@/lib/files/access";
 import { fileExists } from "@/lib/files/storage";
 import { mergeGallery } from "@/lib/photos/gallery";
+import { jobMoneyView } from "@/lib/money/access";
 import { dayKey, endOfDayIn, startOfDayIn } from "@/lib/time/zone";
 
 type Context = { params: Promise<{ id: string }> };
@@ -67,6 +68,10 @@ export async function GET(request: NextRequest, context: Context) {
     }),
   ]);
 
+  // Crew pay is a job cost: its amount is shown only to whoever sees the job's full money.
+  const job = await prisma.job.findUnique({ where: { id: jobId }, select: { projectManagerId: true } });
+  const seesCrewPay = jobMoneyView({ id: ctx.session.user.id, role: ctx.session.user.role }, { projectManagerId: job?.projectManagerId ?? null }) === "full";
+
   const [logThere, fileThere] = await Promise.all([
     Promise.all(logPhotos.map((p) => fileExists(p.storageKey))),
     Promise.all(files.map((f) => fileExists(f.storageKey))),
@@ -79,7 +84,7 @@ export async function GET(request: NextRequest, context: Context) {
       void _k;
       const pay = laborPayment ?? laborPaymentRequest;
       const crewPayment = pay
-        ? { crew: pay.laborContract.crew?.name ?? pay.laborContract.label ?? "Crew", amount: Number(pay.amount), paid: Boolean(laborPayment) }
+        ? { crew: pay.laborContract.crew?.name ?? pay.laborContract.label ?? "Crew", amount: seesCrewPay ? Number(pay.amount) : null, paid: Boolean(laborPayment) }
         : null;
       return { ...f, day: dayKey(f.takenAt ?? f.createdAt), crewPayment, missing: !fileThere[i] };
     }),
