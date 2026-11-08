@@ -36,8 +36,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    pilot; Apple account in Richard's name (Team `Z8A486HRLK`, App Store
    Connect app `6832301487`, bundle `com.knuconstruction.field`, EAS
    project `@archieves/knu-field`); push text = the job address only.
-   **Phases 0–2 built and proven on Richard's iPhone 2026-11-08, committed
-   on `mobile-spike` (`ce7991e`), not deployed.** Server: Bearer tokens on
+   **Phases 0–2 built and proven on Richard's iPhone; DEPLOYED 2026-11-08**:
+   the portal as `69f1b0f`, the CRM as `a1ccd43` (BUILD_ID
+   `BS77o8kIPCYbcvd8RqyOd` → `JDn1fNqiIzKiJCPytaJTu`, 3 migrations applied,
+   smoke 307 ×2, journal clean, backup `postgres-2026-11-08-191952.dump`).
+   **TestFlight build 2 (0.1.0)**: Richard signed in on the live CRM, and his
+   iPhone is registered on prod with a push token. Next: name the pilot
+   group (testers are added as Apple IDs in App Store Connect → TestFlight). Server: Bearer tokens on
    `/api/*` (pages stay cookie-only); phone registry `MobileDevice` /
    `MobileDeviceToken` with revoke, sign-out and `/api/mobile/bootstrap`
    (min version `MOBILE_MIN_APP_VERSION`); Admin → Phones;
@@ -594,7 +599,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-11-08 — KNU Field app: plan, Phases 0–2 (committed on `mobile-spike`, not deployed)
+### 2026-11-08 — KNU Field app: plan, Phases 0–2 (deployed `a1ccd43`; TestFlight build 2)
 
 Richard pasted a mobile-app planning brief → plan approved → document
 `CAREYOS_MOBILE_APP_PLAN.md`. Prod usage check (read-only, Richard's `!`):
@@ -613,6 +618,24 @@ copies to `/opt/knuco/.claude` (49 MB, excluded now; the droplet copy to
 remove). Apple + EAS set up through Claude in Chrome / Richard's Terminal.
 Gate: typecheck clean, 2002 tests, lint clean on touched files; app 10
 tests; scripted HTTP checks 16/16, 35/35, 24/24.
+
+**Deploy.** The CRM was deployed from a fresh GitHub clone, because the
+shared checkout held another session's uncommitted email / review-request
+work. That session must pull `a1ccd43` before its own deploy (`deploy.sh`
+exits 5 when behind). The clean rsync removed stray local copies from
+`/opt/knuco` (Clewiston pay applications, jobimports, the 3310 plan set).
+`/opt/knuco/.claude` (49 MB of old worktree copies plus a settings file) was
+removed at Richard's word. Portal: `deploy-careyos.sh` as knuco, health
+200. Prod checks: the new routes answer 307 without credentials and 401 to
+a bad Bearer; pages stay cookie-only; schema up to date.
+
+**TestFlight.** The production build (`2bec93bd`, build 2) was auto-submitted
+to App Store Connect app `6832301487`. EAS created the internal group "Team
+(Expo)" with Richard as tester; he installed it, signed in with his real
+CareyOS account, and the phone registered on prod with a push token. EAS
+now holds the App Store signing and an App Store Connect API key, so future
+builds and submits can run from a session (`npm run build:prod:ios --
+--non-interactive --auto-submit` in `mobile/`).
 
 ### 2026-10-30 — CareyOS Work integration endpoints (built + dev-QA'd on `feat/work-integration`, not deployed)
 
