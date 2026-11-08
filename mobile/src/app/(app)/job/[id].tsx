@@ -1,0 +1,130 @@
+import { Linking, Platform, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useJob, useJobFiles, useJobTasks } from "@/api/queries";
+import { DocList } from "@/ui/DocList";
+import { addressLine, dialable, fullAddress, mapsUrl, personName, shortDate } from "@/lib/format";
+import { Button, Card, s } from "@/ui/components";
+import { TaskRow } from "@/ui/TaskRow";
+import { Empty, LoadError, Loading } from "@/ui/states";
+import { useTheme } from "@/ui/theme";
+
+function Row({ label, value }: { label: string; value: string | null }) {
+  const t = useTheme();
+  if (!value) return null;
+  return (
+    <View style={{ gap: 2, paddingVertical: 4 }}>
+      <Text style={[s.label, { color: t.muted }]}>{label}</Text>
+      <Text style={[s.body, { color: t.text }]}>{value}</Text>
+    </View>
+  );
+}
+
+/** The job card: where it is, who to call, what is open. */
+export default function JobScreen() {
+  const t = useTheme();
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const job = useJob(id);
+  const tasks = useJobTasks(id);
+  const files = useJobFiles(id);
+
+  if (job.isPending) return <Loading />;
+  if (job.isError)
+    return (
+      <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
+        <LoadError error={job.error} onRetry={() => job.refetch()} />
+      </View>
+    );
+
+  const j = job.data;
+  const address = fullAddress(j.lead);
+  const phone = dialable(j.lead?.primaryPhone);
+  const open = (tasks.data ?? []).filter((x) => x.status !== "COMPLETED" && x.status !== "CANCELLED");
+
+  return (
+    <ScrollView
+      style={{ backgroundColor: t.bg }}
+      contentContainerStyle={s.scroll}
+      refreshControl={
+        <RefreshControl
+          refreshing={job.isRefetching || tasks.isRefetching}
+          onRefresh={() => {
+            void job.refetch();
+            void tasks.refetch();
+            void files.refetch();
+          }}
+          tintColor={t.brand}
+        />
+      }
+    >
+      <Stack.Screen options={{ title: addressLine(j.lead) ?? j.jobNumber }} />
+      <View style={{ gap: 4 }}>
+        <Text style={[s.h1, { color: t.text, fontSize: 24 }]}>{addressLine(j.lead) ?? j.title}</Text>
+        <Text style={[s.body, { color: t.muted }]}>
+          {j.lead?.fullName ?? ""} · {j.jobNumber} · {j.currentStage.name}
+        </Text>
+      </View>
+
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Button
+            label="Directions"
+            disabled={!address}
+            onPress={() => address && Linking.openURL(mapsUrl(address, Platform.OS === "android" ? "android" : "ios"))}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button label="Call" kind="secondary" disabled={!phone} onPress={() => phone && Linking.openURL(`tel:${phone}`)} />
+        </View>
+      </View>
+
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Button
+            label="Take photos"
+            kind="secondary"
+            onPress={() => router.push({ pathname: "/photo", params: { jobId: j.id, label: addressLine(j.lead) ?? j.jobNumber } })}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button label="New task" kind="secondary" onPress={() => router.push({ pathname: "/new-task", params: { jobId: j.id } })} />
+        </View>
+      </View>
+
+      <Card>
+        <Row label="Customer" value={j.lead?.fullName ?? null} />
+        <Row label="Phone" value={j.lead?.primaryPhone ?? null} />
+        <Row label="Email" value={j.lead?.email ?? null} />
+        <Row label="Address" value={address} />
+        <Row label="Project manager" value={personName(j.projectManager)} />
+        <Row label="Sales rep" value={personName(j.salesRep)} />
+        <Row label="Target start" value={j.targetStartDate ? shortDate(j.targetStartDate) : null} />
+        <Row label="Next action" value={j.nextAction} />
+      </Card>
+
+      <Text style={[s.h2, { color: t.text, marginTop: 4 }]}>Open tasks · {open.length}</Text>
+      {tasks.isPending ? (
+        <Loading />
+      ) : tasks.isError ? (
+        <LoadError error={tasks.error} onRetry={() => tasks.refetch()} />
+      ) : open.length === 0 ? (
+        <Empty title="No open tasks on this job" />
+      ) : (
+        <View style={{ gap: 8 }}>
+          {open.map((task) => (
+            <TaskRow key={task.id} task={task} showAddress={false} />
+          ))}
+        </View>
+      )}
+
+      <Text style={[s.h2, { color: t.text, marginTop: 4 }]}>Documents</Text>
+      {files.isPending ? (
+        <Loading />
+      ) : files.isError ? (
+        <LoadError error={files.error} onRetry={() => files.refetch()} />
+      ) : (
+        <DocList files={[...files.data.files, ...files.data.leadFiles]} />
+      )}
+    </ScrollView>
+  );
+}

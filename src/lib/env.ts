@@ -95,6 +95,9 @@ const schema = z.object({
   // Bearer token CareyOS Work presents on /api/integrations/work/*. Optional
   // at server-start; the routes 503 when unset.
   WORK_API_KEY: z.string().optional(),
+  // Phone app: builds older than this are told to update before they sign in
+  // (GET /api/mobile/bootstrap). Raise it when an API change breaks old builds.
+  MOBILE_MIN_APP_VERSION: z.string().optional(),
   // cc-allocator's postings export, read by the Cost Reconciliation page.
   // Same droplet, so the internal port is the intended value.
   CC_ALLOCATOR_BASE_URL: z.string().url().optional(),

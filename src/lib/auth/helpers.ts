@@ -2,6 +2,7 @@ import { cache } from "react";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { introspect } from "@/lib/sso";
+import { refusalForToken } from "@/lib/mobile/device-service";
 import { logger } from "@/lib/logger";
 import type { RoleName } from "@/generated/prisma/client";
 
@@ -30,6 +31,9 @@ export interface SessionUser {
 
 export interface Session {
   user: SessionUser;
+  /** How this request proved who it is. `tokenHash` is set for the phone
+   *  app's Bearer token (sha256 hex), so device routes can find the phone. */
+  auth?: { via: "cookie" | "bearer"; tokenHash?: string };
 }
 
 const ROLE_NAMES: readonly RoleName[] = [
@@ -122,6 +126,16 @@ export const getSession = cache(async (): Promise<Session | null> => {
   // A CRM row deactivated locally stays denied regardless of the portal.
   if (!user.isActive) return null;
 
+  // The phone app's token: refused if that phone was revoked by an admin or
+  // signed out on the phone, even though the portal still accepts it.
+  if (result.bearerTokenHash) {
+    const refusal = await refusalForToken(result.bearerTokenHash);
+    if (refusal) {
+      logger.info("refused a phone token", { email, refusal });
+      return null;
+    }
+  }
+
   // CareyOS is the source of truth for the role. Mirror it onto the row so the
   // rest of the app — assignment pickers, admin lists, reports that query by
   // role — stays consistent with what the session actually grants.
@@ -148,6 +162,9 @@ export const getSession = cache(async (): Promise<Session | null> => {
       lastName: user.lastName,
       role,
     },
+    auth: result.bearerTokenHash
+      ? { via: "bearer", tokenHash: result.bearerTokenHash }
+      : { via: "cookie" },
   };
 });
 

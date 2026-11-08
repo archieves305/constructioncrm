@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { expectSchema } from "@/lib/tasks/expect";
 
 export const createTaskSchema = z.object({
   leadId: z.string().optional(),
@@ -57,6 +58,8 @@ export const updateTaskSchema = createTaskSchema.partial().extend({
   evidenceOverrideReason: z.string().trim().min(1).max(2000).optional(),
   /** null clears the start (the task becomes a plain all-day item on its due day). */
   scheduledStart: z.string().trim().min(1).nullable().optional(),
+  /** The values the caller last saw for the fields it changes (lib/tasks/expect.ts). */
+  expect: expectSchema.optional(),
 }).superRefine((v, ctx) => {
   // Cross-field rules a single patch can state without the row; everything
   // that needs the existing task lives in applySchedule().

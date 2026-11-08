@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { createHash } from "node:crypto";
 import { env } from "@/lib/env";
 
 /**
@@ -42,6 +43,10 @@ export interface AuthorizeResult {
   /** Active user, granted this app. */
   allowed: boolean;
   user?: SsoIdentity;
+  /** sha256 (hex) of the token when it came as `Authorization: Bearer` (the
+   *  phone app) rather than the cookie. The CRM refuses it if that phone was
+   *  revoked or signed out (src/lib/mobile/device-service.ts). */
+  bearerTokenHash?: string;
 }
 
 const DENIED: AuthorizeResult = { ok: false, allowed: false };
@@ -71,7 +76,15 @@ function devIdentity(): SsoIdentity {
  */
 export async function introspect(): Promise<AuthorizeResult> {
   if (env.CAREYOS_SSO_DEV_BYPASS === "1") {
-    return { ok: true, allowed: true, user: devIdentity() };
+    // Local dev only. A Bearer header still marks the request as the phone
+    // app's, so the device routes can be tried without the portal.
+    const devBearer = bearerToken((await headers()).get("authorization"));
+    return {
+      ok: true,
+      allowed: true,
+      user: devIdentity(),
+      ...(devBearer ? { bearerTokenHash: sha256(devBearer) } : {}),
+    };
   }
 
   // Next 16: cookies() and headers() are async. The browser's cookie comes
@@ -79,9 +92,9 @@ export async function introspect(): Promise<AuthorizeResult> {
   // same portal session token as `Authorization: Bearer` (see
   // CAREYOS_MOBILE_APP_PLAN.md §D.3). Either way the portal decides.
   const jar = await cookies();
-  const token =
-    jar.get(SESSION_COOKIE)?.value ??
-    bearerToken((await headers()).get("authorization"));
+  const cookieToken = jar.get(SESSION_COOKIE)?.value;
+  const bearer = cookieToken ? null : bearerToken((await headers()).get("authorization"));
+  const token = cookieToken ?? bearer;
   if (!token) return DENIED;
 
   let res: Response;
@@ -122,7 +135,12 @@ export async function introspect(): Promise<AuthorizeResult> {
       portalRole: String(data.user.role ?? "USER"),
       appRole: data.appRole ?? null,
     },
+    ...(bearer ? { bearerTokenHash: sha256(bearer) } : {}),
   };
+}
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 /** Portal login, carrying a return path back into the CRM. */

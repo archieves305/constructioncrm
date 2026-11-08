@@ -15,7 +15,9 @@ export async function GET() {
       { status: 401, headers: { "Cache-Control": "no-store" } },
     );
   }
-  return NextResponse.json(session, {
+  // Only the person: the session also carries how it was proven (a token
+  // hash for the phone app), which has no business leaving the server.
+  return NextResponse.json({ user: session.user }, {
     headers: { "Cache-Control": "no-store" },
   });
 }

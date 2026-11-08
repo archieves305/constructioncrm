@@ -8,6 +8,8 @@ import { recordAudit } from "@/lib/audit/record";
 import { TASK_DETAIL_INCLUDE } from "@/lib/tasks/include";
 import { updateTask, TaskUpdateError } from "@/lib/tasks/update";
 import { taskRightsFor, visibilityScopeFor } from "@/lib/workflows/visibility";
+import { checkExpectations } from "@/lib/tasks/expect";
+import { withIdempotency } from "@/lib/api/idempotency";
 
 export async function GET(
   _request: NextRequest,
@@ -33,31 +35,70 @@ export async function PATCH(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
-  const parsed = await validateBody(request, updateTaskSchema);
-  if (!parsed.ok) return parsed.response;
-
   const user = session.user;
-  const row = await prisma.task.findUnique({
-    where: { id },
-    select: { assignedUserId: true, createdByUserId: true, jobId: true, violationCaseId: true, workflowInstanceId: true },
-  });
-  if (!row) return NextResponse.json({ error: "Task not found" }, { status: 404 });
-  const rights = await taskRightsFor(user, row);
-  try {
-    const { task } = await updateTask({
-      id,
-      input: parsed.data,
-      actorUserId: user.id,
-      actorRole: user.role,
-      authorize: () => rights.canEdit,
+  return withIdempotency(request, user.id, `PATCH /api/tasks/${id}`, async () => {
+    const parsed = await validateBody(request, updateTaskSchema);
+    if (!parsed.ok) return parsed.response;
+    const { expect, ...input } = parsed.data;
+
+    const row = await prisma.task.findUnique({
+      where: { id },
+      select: {
+        assignedUserId: true,
+        createdByUserId: true,
+        jobId: true,
+        violationCaseId: true,
+        workflowInstanceId: true,
+        status: true,
+        dueAt: true,
+        blockedReason: true,
+        title: true,
+        description: true,
+        priority: true,
+      },
     });
-    return NextResponse.json(task);
-  } catch (err) {
-    if (err instanceof TaskUpdateError) {
-      return NextResponse.json({ error: err.message, hint: err.hint ?? null }, { status: err.status });
+    if (!row) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    const rights = await taskRightsFor(user, row);
+
+    // An edit made from a stale copy (the phone was offline): refuse a field
+    // someone else changed, and skip a write the task already reflects.
+    if (expect) {
+      if (!rights.canEdit) return NextResponse.json({ error: "You cannot edit this task" }, { status: 403 });
+      const check = checkExpectations(row, expect, input);
+      if (!check.ok) {
+        const current = await prisma.task.findUnique({ where: { id }, include: TASK_DETAIL_INCLUDE });
+        return NextResponse.json(
+          {
+            error: "Someone changed this task since you last saw it",
+            code: "conflict",
+            conflicts: check.conflicts,
+            current,
+          },
+          { status: 409 },
+        );
+      }
+      if (check.noop) {
+        const current = await prisma.task.findUnique({ where: { id }, include: TASK_DETAIL_INCLUDE });
+        return NextResponse.json(current);
+      }
     }
-    throw err;
-  }
+
+    try {
+      const { task } = await updateTask({
+        id,
+        input,
+        actorUserId: user.id,
+        actorRole: user.role,
+        authorize: () => rights.canEdit,
+      });
+      return NextResponse.json(task);
+    } catch (err) {
+      if (err instanceof TaskUpdateError) {
+        return NextResponse.json({ error: err.message, hint: err.hint ?? null }, { status: err.status });
+      }
+      throw err;
+    }
+  });
 }
 
 export async function DELETE(

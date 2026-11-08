@@ -506,3 +506,31 @@ Each ticket is independently testable; "Done when" is its completion criterion.
 - the role lists, record scopes, notification engine, AI layer, file store and calendar are all reused;
 - the contracts are shared in TypeScript;
 - the `/field` screens serve as the tested reference for what each mobile screen must show.
+
+---
+
+## Build log
+
+**Phase 1 — foundation (built + checked 2026-11-08; not deployed).**
+- **Portal** (`mobile-pkce`): phone sign-in through the existing handoff with PKCE; the registered callback `knuco://auth` (Expo Go's `exp://` outside production only); a wrong password keeps the return path; a phone's session token carries a random value (`n`). Without that value, two sign-ins by the same person in the same second produced byte-identical tokens, and the CRM could not tell their phones apart.
+- **CRM:** a Bearer token is accepted on `/api/*` (pages stay cookie-only).
+  - `MobileDevice` + `MobileDeviceToken` (migration `20261114120000_mobile_devices`), so revoking a phone refuses every token it held.
+  - Phone sign-out ends that one token.
+  - `GET /api/mobile/bootstrap` (minimum version via `MOBILE_MIN_APP_VERSION`).
+  - Admin → Phones, with sign out and allow again, both audited.
+  - Shared contracts in `src/lib/mobile-api`, checked against server types and real responses.
+- **App:** Expo SDK 58 + Expo Router, with sign-in, the session, an update-required screen and the tab shell.
+- **Checks:** scripted HTTP checks 16/16 (sign-in) and 35/35 (phone registry); sign-in proven on an iPhone over Tailscale.
+
+**Phase 2 — core (in progress).**
+- **Done:** Today, My Jobs + job card (directions, call), Tasks, task screen (Done / Blocked / Unblock / Reopen, notes), New task, the outbox (SQLite on the phone; retries; "Waiting to send"; Retry / Discard / Send mine anyway), photos (camera or library, shrunk to 2,000 px, capture time kept, **no GPS reaches the CRM**, checked on real uploads), and job documents (opened in the phone's own viewer; a 20 MB plan set checked on an iPhone).
+- **Server:** `Idempotency-Key` on task create / update / note and file upload (migration `20261115120000_api_idempotency`).
+- **Change from §F.4:** the conflict check sends the values the phone last saw for the fields it changes (`expect`), not one `baseUpdatedAt`. A due date moved on the web no longer blocks the crew lead's "Done"; a real clash on the same field is refused with the current task; and a request the task already reflects is a success that writes nothing (`lib/tasks/expect.ts`).
+- **Checks:** scripted 24/24 (writes).
+- **Left:** push notifications. These need a development build, so on iPhone they need the Apple Developer account.
+
+**Found on the way:**
+- macOS bash 3.2 cannot `source <(…)`.
+- A ScrollView's content must not be `flex: 1`.
+- Inside Expo Go, the native app version is Expo Go's own.
+- The dev CRM only loads its client JavaScript at `localhost` (Next 16 dev origins).

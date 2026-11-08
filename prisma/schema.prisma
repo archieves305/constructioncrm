@@ -557,6 +557,9 @@ model User {
   permitAssistRuns      PermitAssistRun[]  @relation("PermitAssistRunStartedBy")
   permitAssistDecisions PermitAssistItem[] @relation("PermitAssistItemDecidedBy")
 
+  mobileDevices        MobileDevice[] @relation("MobileDeviceOwner")
+  mobileDevicesRevoked MobileDevice[] @relation("MobileDeviceRevokedBy")
+
   @@map("users")
 }
 
@@ -6805,4 +6808,70 @@ model PermitAssistFetch {
 
   @@index([runId])
   @@map("permit_assist_fetches")
+}
+
+// ---------------------------------------------------------------------------
+// Phone app (CAREYOS_MOBILE_APP_PLAN.md §D.3). One row per installation of the
+// app per person; the CareyOS session tokens it has used are kept as sha256
+// hashes, never the tokens. A Bearer request whose token hash belongs to a
+// revoked device or an ended token is refused (src/lib/auth/helpers.ts), so a
+// lost phone is switched off here even though the portal token is still valid.
+// ---------------------------------------------------------------------------
+
+model MobileDevice {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  /// Random id the app makes once per installation (not a hardware id).
+  installationId  String    @map("installation_id")
+  /// "ios" | "android"
+  platform        String
+  appVersion      String?   @map("app_version")
+  deviceName      String?   @map("device_name")
+  lastSeenAt      DateTime  @default(now()) @map("last_seen_at")
+  revokedAt       DateTime? @map("revoked_at")
+  revokedByUserId String?   @map("revoked_by_user_id")
+  revokedReason   String?   @map("revoked_reason")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user      User                @relation("MobileDeviceOwner", fields: [userId], references: [id], onDelete: Cascade)
+  revokedBy User?               @relation("MobileDeviceRevokedBy", fields: [revokedByUserId], references: [id], onDelete: SetNull)
+  tokens    MobileDeviceToken[]
+
+  @@unique([userId, installationId])
+  @@index([userId])
+  @@map("mobile_devices")
+}
+
+model MobileDeviceToken {
+  id        String    @id @default(cuid())
+  deviceId  String    @map("device_id")
+  /// sha256 (hex) of the CareyOS session token.
+  tokenHash String    @unique @map("token_hash")
+  /// Set when the person signs out on the phone; the token is refused after.
+  endedAt   DateTime? @map("ended_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  device MobileDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId])
+  @@map("mobile_device_tokens")
+}
+
+/// A write the phone app may resend (CAREYOS_MOBILE_APP_PLAN.md §F.2). The
+/// first response to an `Idempotency-Key` is kept for 7 days; the same key
+/// from the same person on the same route gets that response again instead of
+/// a second write. `statusCode` null = the first request is still running.
+model ApiIdempotency {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  key          String
+  route        String
+  statusCode   Int?     @map("status_code")
+  responseJson Json?    @map("response_json")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, key])
+  @@index([createdAt])
+  @@map("api_idempotency")
 }

@@ -2,10 +2,10 @@
   "expo": {
     "name": "KNU Field",
     "slug": "knu-field",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.knuconstruction.field"
@@ -25,8 +25,24 @@
     },
     "plugins": [
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-router",
+      "expo-status-bar",
+      "expo-splash-screen",
+      "expo-font",
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "KNU Field attaches the photos you choose to the job or task you pick.",
+          "cameraPermission": "KNU Field uses the camera to take job and task photos for the CRM.",
+          "microphonePermission": false
+        }
+      ]
     ],
-    "scheme": "knuco"
+    "scheme": "knuco",
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }
