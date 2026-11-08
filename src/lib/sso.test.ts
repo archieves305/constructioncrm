@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const cookieStore = new Map<string, string>();
+const headerStore = new Map<string, string>();
 
 vi.mock("next/headers", () => ({
+  headers: async () => ({
+    get: (name: string) => headerStore.get(name.toLowerCase()) ?? null,
+  }),
   cookies: async () => ({
     get: (name: string) =>
       cookieStore.has(name) ? { name, value: cookieStore.get(name) } : undefined,
@@ -18,7 +22,7 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
-import { introspect, loginUrl, logoutUrl, SESSION_COOKIE } from "./sso";
+import { bearerToken, introspect, loginUrl, logoutUrl, SESSION_COOKIE } from "./sso";
 
 function portalReturns(body: unknown, ok = true) {
   return vi.fn(async () => ({
@@ -29,6 +33,7 @@ function portalReturns(body: unknown, ok = true) {
 
 beforeEach(() => {
   cookieStore.clear();
+  headerStore.clear();
 });
 
 afterEach(() => {
@@ -158,5 +163,48 @@ describe("portal URLs", () => {
 
   it("points logout at the portal", () => {
     expect(logoutUrl()).toBe("https://app.careyos.com/api/auth/logout");
+  });
+});
+
+describe("bearer token (phone app)", () => {
+  it("parses only a well-formed Bearer header", () => {
+    expect(bearerToken("Bearer abc.def")).toBe("abc.def");
+    expect(bearerToken("bearer abc.def")).toBe("abc.def");
+    expect(bearerToken("Basic abc")).toBeNull();
+    expect(bearerToken("Bearer")).toBeNull();
+    expect(bearerToken("Bearer a b")).toBeNull();
+    expect(bearerToken(null)).toBeNull();
+  });
+
+  it("forwards a Bearer token to the portal when there is no cookie", async () => {
+    headerStore.set("authorization", "Bearer phone-token");
+    const fetchSpy = portalReturns({
+      ok: true,
+      allowed: true,
+      appRole: "MANAGER",
+      user: { uid: "u1", email: "Sarah@Example.com", role: "USER" },
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+    const result = await introspect();
+    expect(result.ok && result.allowed).toBe(true);
+    expect(result.user?.email).toBe("sarah@example.com");
+    const init = (fetchSpy as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]![1];
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer phone-token");
+  });
+
+  it("prefers the cookie over a Bearer header", async () => {
+    cookieStore.set(SESSION_COOKIE, "cookie-token");
+    headerStore.set("authorization", "Bearer phone-token");
+    const fetchSpy = portalReturns({ ok: false });
+    vi.stubGlobal("fetch", fetchSpy);
+    await introspect();
+    const init = (fetchSpy as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]![1];
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer cookie-token");
+  });
+
+  it("is denied when the portal refuses the Bearer token", async () => {
+    headerStore.set("authorization", "Bearer revoked");
+    vi.stubGlobal("fetch", portalReturns({ ok: false }));
+    expect(await introspect()).toEqual({ ok: false, allowed: false });
   });
 });

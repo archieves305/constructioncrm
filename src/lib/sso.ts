@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { env } from "@/lib/env";
 
 /**
@@ -46,6 +46,13 @@ export interface AuthorizeResult {
 
 const DENIED: AuthorizeResult = { ok: false, allowed: false };
 
+/** The token from an `Authorization: Bearer <token>` header, else null. */
+export function bearerToken(header: string | null | undefined): string | null {
+  if (!header) return null;
+  const match = /^Bearer\s+(\S+)\s*$/i.exec(header);
+  return match ? match[1]! : null;
+}
+
 function devIdentity(): SsoIdentity {
   return {
     uid: "dev-bypass",
@@ -67,9 +74,14 @@ export async function introspect(): Promise<AuthorizeResult> {
     return { ok: true, allowed: true, user: devIdentity() };
   }
 
-  // Next 16: cookies() is async.
+  // Next 16: cookies() and headers() are async. The browser's cookie comes
+  // first; a phone app, which cannot hold the `.careyos.com` cookie, sends the
+  // same portal session token as `Authorization: Bearer` (see
+  // CAREYOS_MOBILE_APP_PLAN.md §D.3). Either way the portal decides.
   const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
+  const token =
+    jar.get(SESSION_COOKIE)?.value ??
+    bearerToken((await headers()).get("authorization"));
   if (!token) return DENIED;
 
   let res: Response;

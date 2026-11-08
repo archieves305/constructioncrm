@@ -10,8 +10,10 @@ beforeAll(() => {
   process.env.APP_BASE_URL = "https://crm.careyos.com";
 });
 
-function run(path: string, opts: { session?: boolean } = {}) {
-  const req = new NextRequest(new URL(`https://crm.careyos.com${path}`));
+function run(path: string, opts: { session?: boolean; bearer?: string } = {}) {
+  const req = new NextRequest(new URL(`https://crm.careyos.com${path}`), {
+    headers: opts.bearer ? { authorization: opts.bearer } : undefined,
+  });
   if (opts.session) {
     req.cookies.set("careyos_session", "opaque-token");
   }
@@ -92,5 +94,22 @@ describe("middleware session gate", () => {
     expect(
       run("/admin", { session: true }).headers.get("location"),
     ).toBeNull();
+  });
+});
+
+describe("phone app Bearer header", () => {
+  it("lets an API request with a Bearer token through without a cookie", () => {
+    expect(run("/api/tasks", { bearer: "Bearer tok" }).headers.get("location")).toBeNull();
+    expect(run("/api/me", { bearer: "bearer tok" }).headers.get("location")).toBeNull();
+  });
+
+  it("never opens a page with a Bearer token", () => {
+    expect(run("/jobs", { bearer: "Bearer tok" }).headers.get("location")).toContain("/login?next=");
+    expect(run("/apiary", { bearer: "Bearer tok" }).headers.get("location")).toContain("/login?next=");
+  });
+
+  it("refuses a malformed Authorization header", () => {
+    expect(run("/api/tasks", { bearer: "Basic tok" }).headers.get("location")).toContain("/login?next=");
+    expect(run("/api/tasks", { bearer: "Bearer " }).headers.get("location")).toContain("/login?next=");
   });
 });

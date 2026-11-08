@@ -454,8 +454,13 @@ echo "[DEPLOY] rsync $LOCAL_REPO → $DROPLET:$REMOTE_APP ..."
 # the laptop's dev uploads and every file users uploaded since the last deploy
 # is removed (found 2026-10-02: 197 of 198 stored files gone). Excluded paths
 # are never deleted on the receiver.
+# /mobile/ is the phone app (Expo, its own package); it never runs on the
+# droplet, so it is not shipped. /.claude/ holds this machine's Claude Code
+# worktrees (whole copies of the repo); they were shipped until 2026-11-08.
 rsync -az --delete \
     --exclude=/uploads/ \
+    --exclude=/mobile/ \
+    --exclude=/.claude/ \
     --exclude=.git/ --exclude=node_modules/ --exclude=.next/ \
     --exclude=dist/ --exclude=build/ '--exclude=.env*' \
     --exclude=.DS_Store '--exclude=*.log' \

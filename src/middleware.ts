@@ -49,6 +49,14 @@ export function isPublicPath(pathname: string): boolean {
   );
 }
 
+function isApiPath(pathname: string): boolean {
+  return pathname === "/api" || pathname.startsWith("/api/");
+}
+
+function hasBearer(request: NextRequest): boolean {
+  return /^Bearer\s+\S+\s*$/i.test(request.headers.get("authorization") ?? "");
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -57,6 +65,12 @@ export function middleware(request: NextRequest) {
   }
 
   if (!request.cookies.get(SESSION_COOKIE)?.value) {
+    // The phone app sends the portal token as a Bearer header instead of the
+    // cookie. API routes only: pages stay cookie-only. As with the cookie, this
+    // checks presence; the route's getSession() asks the portal.
+    if (isApiPath(pathname) && hasBearer(request)) {
+      return NextResponse.next();
+    }
     return NextResponse.redirect(portalLogin(request));
   }
 

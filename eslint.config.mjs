@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Sibling worktrees checked out under the repo (`.claude/worktrees/*`)
     // are whole copies of the tree; linting them doubles every count.
     ".claude/**",
+    // The phone app (Expo) has its own package, lint and typecheck.
+    "mobile/**",
   ]),
 ]);
 
