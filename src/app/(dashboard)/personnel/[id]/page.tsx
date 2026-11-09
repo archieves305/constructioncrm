@@ -3,6 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Breadcrumb } from "@/components/shared/breadcrumb";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { QueryState } from "@/components/shared/query-state";
+import { fetchJson } from "@/lib/fetch-json";
 import { use, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,18 +111,15 @@ export default function PersonnelDetailPage({
   const { id } = use(params);
   const qc = useQueryClient();
 
-  const { data: person, isLoading } = useQuery<PersonnelDetail>({
+  const personQuery = useQuery<PersonnelDetail>({
     queryKey: ["personnel", id],
-    queryFn: async () => {
-      const res = await fetch(`/api/personnel/${id}`);
-      if (!res.ok) throw new Error("Not found");
-      return res.json();
-    },
+    queryFn: () => fetchJson<PersonnelDetail>(`/api/personnel/${id}`),
   });
+  const person = personQuery.data;
 
   const { data: grants } = useQuery<Grants>({
     queryKey: ["field-grants"],
-    queryFn: () => fetch("/api/me/field-grants").then((r) => r.json()),
+    queryFn: () => fetchJson<Grants>("/api/me/field-grants"),
   });
 
   const [form, setForm] = useState<Record<string, string>>({});
@@ -326,11 +325,12 @@ export default function PersonnelDetailPage({
     onError: () => toast.error("Failed to delete document"),
   });
 
-  if (isLoading) {
-    return <div className="p-6"><ListSkeleton rows={4} /></div>;
-  }
   if (!person) {
-    return <div className="text-muted-foreground p-6">Person not found.</div>;
+    return (
+      <div className="p-6">
+        <QueryState query={personQuery} noun="person" back={{ href: "/personnel", label: "All personnel" }} loading={<ListSkeleton rows={4} />} />
+      </div>
+    );
   }
 
   const canSensitive = grants?.canViewSensitivePersonnel ?? false;

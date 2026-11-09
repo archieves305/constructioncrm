@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { HardHat, Mail, Plus, X } from "lucide-react";
+import { fetchJson } from "@/lib/fetch-json";
 
 type Assignment = {
   id: string;
@@ -43,12 +44,12 @@ export function FieldAssignmentsPanel({ jobId }: { jobId: string }) {
   const { data: assignments = [] } = useQuery<Assignment[]>({
     queryKey: ["field-assignments", jobId],
     queryFn: () =>
-      fetch(`/api/jobs/${jobId}/field-assignments`).then((r) => r.json()),
+      fetchJson(`/api/jobs/${jobId}/field-assignments`),
   });
 
   const { data: users = [] } = useQuery<UserRow[]>({
     queryKey: ["users"],
-    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/users"),
     enabled: canManage,
   });
 

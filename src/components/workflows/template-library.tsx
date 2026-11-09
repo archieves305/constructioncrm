@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Callout } from "@/components/shared/callout";
+import { QueryState } from "@/components/shared/query-state";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { useWorkflowTemplates } from "@/components/workflows/use-workflow";
 import { WorkflowOutline, type TemplateOutline } from "@/components/workflows/workflow-outline";
@@ -27,16 +27,18 @@ const KIND_LABEL = { CORE: "Core", TRADE: "Trade", VIOLATION: "Violation" } as c
 export function TemplateLibrary({ kind, title, description, emptyDescription }: { kind?: "CORE" | "TRADE" | "VIOLATION"; title: string; description: string; emptyDescription: string }) {
   const { data: session } = useSession();
   const isAdmin = session?.user.role === "ADMIN";
-  const { data: templates = [], isLoading, error } = useWorkflowTemplates(undefined, { kind });
+  const templatesQuery = useWorkflowTemplates(undefined, { kind });
+  const { data: templates = [], isLoading, error } = templatesQuery;
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const activeKey = selected ?? templates[0]?.key ?? null;
-  const { data: outline, isLoading: loadingOutline } = useQuery<TemplateOutline>({
+  const outlineQuery = useQuery<TemplateOutline>({
     queryKey: ["workflow-template-outline", activeKey],
     queryFn: () => fetchJson(`/api/workflow-templates/${activeKey}`),
     enabled: Boolean(activeKey),
     retry: retryServerErrors,
   });
+  const outline = outlineQuery.data;
 
   return (
     <div>
@@ -53,7 +55,7 @@ export function TemplateLibrary({ kind, title, description, emptyDescription }: 
       />
       <NewTemplateDialog open={creating} onOpenChange={setCreating} />
       {error ? (
-        <Callout tone="danger" title="Couldn't load the templates">{error instanceof Error ? error.message : "Something went wrong."}</Callout>
+        <QueryState query={templatesQuery} noun="template list" />
       ) : isLoading ? (
         <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
           <Skeleton className="h-64" />
@@ -91,8 +93,8 @@ export function TemplateLibrary({ kind, title, description, emptyDescription }: 
             <p className="px-1 pt-2 text-[11px] text-muted-foreground">Templates are versioned; a job or case keeps the version it was applied with until it is upgraded from its Workflow tab.</p>
           </nav>
           <div>
-            {loadingOutline || !outline ? (
-              <Skeleton className="h-96" />
+            {!outline ? (
+              <QueryState query={outlineQuery} noun="template" loading={<Skeleton className="h-96" />} />
             ) : (
               <>
                 <div className="mb-3 flex flex-wrap items-center gap-2">

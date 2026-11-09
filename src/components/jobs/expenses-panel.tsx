@@ -369,13 +369,13 @@ export function ExpensesPanel({
 
   const { data: expenses = [], isLoading } = useQuery<Expense[]>({
     queryKey: ["expenses", jobId],
-    queryFn: () => fetch(`/api/jobs/${jobId}/expenses`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/jobs/${jobId}/expenses`),
   });
 
   const { data: sources = [] } = useQuery<PaymentSource[]>({
     queryKey: ["payment-sources"],
     queryFn: () =>
-      fetch("/api/admin/payment-sources?activeOnly=true").then((r) => r.json()),
+      fetchJson("/api/admin/payment-sources?activeOnly=true"),
   });
 
   // Effective capability, role + grant combined. The API enforces this
@@ -387,7 +387,7 @@ export function ExpensesPanel({
     canApproveJobCosts: boolean;
   }>({
     queryKey: ["me-field-grants"],
-    queryFn: () => fetch("/api/me/field-grants").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/me/field-grants"),
   });
   const mayEnterCosts = grants?.canEnterJobCosts ?? false;
   const mayDeleteAllocatorCharges = grants?.canDeleteAllocatorCharges ?? false;
@@ -520,11 +520,11 @@ export function ExpensesPanel({
 
   const toggleBillable = useMutation({
     mutationFn: ({ id, billable }: { id: string; billable: boolean }) =>
-      fetch(`/api/expenses/${id}`, {
+      fetchJson(`/api/expenses/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ billable }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["expenses", jobId] });
       qc.invalidateQueries({ queryKey: ["job", jobId] });
@@ -533,7 +533,7 @@ export function ExpensesPanel({
 
   const remove = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/expenses/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetchJson(`/api/expenses/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["expenses", jobId] });
       qc.invalidateQueries({ queryKey: ["job", jobId] });

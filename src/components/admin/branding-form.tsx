@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { fetchJson } from "@/lib/fetch-json";
 
 type Brand = {
   companyName: string;
@@ -49,7 +50,7 @@ export function BrandingForm() {
 
   const { data, isLoading } = useQuery<Brand>({
     queryKey: ["email-brand"],
-    queryFn: () => fetch("/api/admin/email-brand").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/email-brand"),
   });
 
   const [prevData, setPrevData] = useState<Brand | undefined>(undefined);

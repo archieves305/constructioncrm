@@ -1,5 +1,6 @@
 import type { RoleName } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { OFFICE_ROLES } from "./roles";
 
 // Access rules for the field-labor module. Payroll/sensitive checks use
 // explicit role lists — never hasMinRole — because the numeric hierarchy
@@ -32,26 +33,9 @@ export async function getFieldGrants(userId: string): Promise<FieldGrants> {
   return user ?? NO_GRANTS;
 }
 
-const OFFICE_ROLES: RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF"];
-
-/** Create/edit personnel records (non-sensitive fields). */
-export function canManagePersonnel(role: RoleName): boolean {
-  return OFFICE_ROLES.includes(role);
-}
-
-/**
- * Create a basic personnel record. Crew leads may add a worker who shows up
- * onsite (name/trade/phone/crew only — the POST route whitelists); rates,
- * SSNs, and edits remain office-only.
- */
-export function canCreatePersonnel(role: RoleName): boolean {
-  return canManagePersonnel(role) || role === "CREW_LEAD";
-}
-
-/** See the roster at all (CREW_LEAD/READ_ONLY get a reduced field set). */
-export function canReadPersonnel(role: RoleName): boolean {
-  return OFFICE_ROLES.includes(role) || role === "CREW_LEAD" || role === "READ_ONLY";
-}
+// The role-only checks are pure and client-safe; they live in ./roles so
+// pages can hide what the API would refuse. Re-exported for the routes.
+export { canManagePersonnel, canCreatePersonnel, canReadPersonnel } from "./roles";
 
 /** Reveal SSNs and open W-9/ID documents. Every use is audited. */
 export function canViewSensitivePersonnel(

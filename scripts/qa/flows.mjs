@@ -66,8 +66,9 @@ flows.lead = async () => {
   await rec.step("Won from the lead page offers the estimate and creates the job", async () => {
     await go(`/leads/${state.leadId}`);
     await page.getByRole("button", { name: /^Won$/ }).first().click();
-    await page.waitForTimeout(800);
-    expect(/QA estimate/.test(await dialog().innerText()), "the Won dialog does not offer the estimate");
+    // The picker loads its estimates after the dialog opens (slow on a cold dev compile).
+    const offered = await dialog().getByText(/QA estimate/).first().waitFor({ timeout: 15000 }).then(() => true, () => false);
+    expect(offered, "the Won dialog does not offer the estimate");
     await dialog().getByRole("button", { name: /move to won|confirm|won/i }).last().click();
     await page.waitForTimeout(2500);
     const jobs = await api("GET", `/api/jobs?search=Audit${STAMP}`);

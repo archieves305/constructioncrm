@@ -5,6 +5,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
+import { QueryState } from "@/components/shared/query-state";
+import { EmptyState } from "@/components/shared/empty-state";
+import { useSession } from "@/lib/auth/session-client";
+import { canWriteLeads } from "@/lib/access/roles";
+import { fetchJson } from "@/lib/fetch-json";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
+  Lock,
   Plus,
   MapPin,
   Calendar,
@@ -77,6 +83,9 @@ type Stats = {
 
 export default function CanvassingPage() {
   const qc = useQueryClient();
+  const { data: session } = useSession();
+  // The canvassing API answers only the lead-writing roles.
+  const canCanvass = session ? canWriteLeads(session.user.role) : false;
   const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DoorKnockRoute | null>(null);
@@ -88,27 +97,22 @@ export default function CanvassingPage() {
   });
 
   // Fetch routes
-  const { data: routes = [], isLoading: routesLoading } = useQuery<
-    DoorKnockRoute[]
-  >({
+  const routesQuery = useQuery<DoorKnockRoute[]>({
     queryKey: ["door-knock-routes", statusFilter],
-    queryFn: async () => {
+    enabled: canCanvass,
+    queryFn: () => {
       const params = new URLSearchParams();
       if (statusFilter) params.set("status", statusFilter);
-      const res = await fetch(`/api/door-knock-routes?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch routes");
-      return res.json();
+      return fetchJson<DoorKnockRoute[]>(`/api/door-knock-routes?${params}`);
     },
   });
+  const routes = routesQuery.data ?? [];
 
   // Fetch stats
   const { data: stats } = useQuery<Stats>({
     queryKey: ["door-knock-stats"],
-    queryFn: async () => {
-      const res = await fetch("/api/door-knock-routes/stats?days=30");
-      if (!res.ok) throw new Error("Failed to fetch stats");
-      return res.json();
-    },
+    enabled: canCanvass,
+    queryFn: () => fetchJson<Stats>("/api/door-knock-routes/stats?days=30"),
   });
 
   // Create route mutation
@@ -175,12 +179,23 @@ export default function CanvassingPage() {
     }
   };
 
+  if (session && !canCanvass) {
+    return (
+      <EmptyState
+        icon={Lock}
+        title="You don't have access to this"
+        description="Canvassing is for the sales and marketing roles. Ask an office manager if you need it."
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Canvassing Leads"
         description="Manage door-to-door canvassing routes and track field activity"
         actions={
+          canCanvass && (
           <div className="flex gap-2">
             <Link href="/canvassing/prospects">
               <Button variant="outline">
@@ -199,6 +214,7 @@ export default function CanvassingPage() {
               New Route
             </Button>
           </div>
+          )
         }
       />
 
@@ -273,10 +289,8 @@ export default function CanvassingPage() {
 
       {/* Routes List */}
       <div className="grid gap-4">
-        {routesLoading ? (
-          <p className="text-center text-muted-foreground py-8">
-            Loading routes...
-          </p>
+        {!routesQuery.data ? (
+          <QueryState query={routesQuery} noun="canvassing route list" />
         ) : routes.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">

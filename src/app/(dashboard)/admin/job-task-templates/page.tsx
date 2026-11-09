@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { fetchJson } from "@/lib/fetch-json";
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 
@@ -81,17 +82,17 @@ export default function JobTaskTemplatesPage() {
 
   const { data: templates = [], isLoading } = useQuery<Template[]>({
     queryKey: ["job-task-templates"],
-    queryFn: () => fetch("/api/admin/job-task-templates").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/job-task-templates"),
   });
 
   const { data: stages = [] } = useQuery<Stage[]>({
     queryKey: ["jobStages"],
-    queryFn: () => fetch("/api/jobs/stages").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/jobs/stages"),
   });
 
   const { data: users = [] } = useQuery<UserOpt[]>({
     queryKey: ["admin-users"],
-    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/users"),
   });
   const activeUsers = users.filter((u) => u.isActive);
 
@@ -135,9 +136,7 @@ export default function JobTaskTemplatesPage() {
 
   const remove = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/admin/job-task-templates/${id}`, { method: "DELETE" }).then((r) =>
-        r.json(),
-      ),
+      fetchJson(`/api/admin/job-task-templates/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["job-task-templates"] });
       toast.success("Deleted");

@@ -33,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { enumItems, enumLabel } from "@/lib/ui/enum-label";
+import { fetchJson } from "@/lib/fetch-json";
 
 const LEAD_TRIGGERS = ["LEAD_CREATED", "LEAD_STAGE_CHANGED", "LEAD_ASSIGNED"] as const;
 const PERMIT_TRIGGERS = [
@@ -113,17 +114,17 @@ export default function FollowUpRulesPage() {
 
   const { data: rules = [], isLoading } = useQuery<Rule[]>({
     queryKey: ["follow-up-rules"],
-    queryFn: () => fetch("/api/admin/follow-up-rules").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/follow-up-rules"),
   });
 
   const { data: templates = [] } = useQuery<Template[]>({
     queryKey: ["templates"],
-    queryFn: () => fetch("/api/admin/templates").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/templates"),
   });
 
   const { data: stages = [] } = useQuery<Stage[]>({
     queryKey: ["stages"],
-    queryFn: () => fetch("/api/admin/stages").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/stages"),
   });
 
   const save = useMutation({

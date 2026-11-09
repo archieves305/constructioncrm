@@ -41,6 +41,7 @@ import {
   type EstimateInput,
   type RoofMaterialKey,
 } from "@/lib/estimates/calc";
+import { fetchJson } from "@/lib/fetch-json";
 
 type EstimateRecord = {
   id: string;
@@ -262,7 +263,7 @@ export const EstimatesPanel = forwardRef<
   const { data: estimates = [], isLoading } = useQuery<EstimateRecord[]>({
     queryKey: ["lead-estimates", leadId],
     queryFn: () =>
-      fetch(`/api/leads/${leadId}/estimates`).then((r) => r.json()),
+      fetchJson(`/api/leads/${leadId}/estimates`),
   });
 
   const { data: brandDefaults } = useQuery<{
@@ -275,7 +276,7 @@ export const EstimatesPanel = forwardRef<
   }>({
     queryKey: ["roofing-brand"],
     queryFn: () =>
-      fetch("/api/admin/roofing-brand").then((r) => r.json()),
+      fetchJson("/api/admin/roofing-brand"),
   });
 
   const breakdown = useMemo(

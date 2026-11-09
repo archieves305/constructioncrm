@@ -20,6 +20,7 @@ import { Plus } from "lucide-react";
 import { BrandingForm } from "@/components/admin/branding-form";
 import { RoofingBrandForm } from "@/components/admin/roofing-brand-form";
 import { EstimateBrandForm } from "@/components/admin/estimate-brand-form";
+import { fetchJson } from "@/lib/fetch-json";
 
 export default function AdminSettingsPage() {
   const queryClient = useQueryClient();
@@ -27,7 +28,7 @@ export default function AdminSettingsPage() {
   // Sources
   const { data: sources } = useQuery({
     queryKey: ["sources"],
-    queryFn: () => fetch("/api/admin/sources").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/sources"),
   });
 
   const [newSource, setNewSource] = useState("");
@@ -35,11 +36,11 @@ export default function AdminSettingsPage() {
 
   const addSource = useMutation({
     mutationFn: () =>
-      fetch("/api/admin/sources", {
+      fetchJson("/api/admin/sources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newSource, channelType: newSourceChannel }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sources"] });
       setNewSource("");
@@ -50,18 +51,18 @@ export default function AdminSettingsPage() {
   // Services
   const { data: services } = useQuery({
     queryKey: ["services"],
-    queryFn: () => fetch("/api/admin/services").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/services"),
   });
 
   const [newService, setNewService] = useState("");
 
   const addService = useMutation({
     mutationFn: () =>
-      fetch("/api/admin/services", {
+      fetchJson("/api/admin/services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newService }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["services"] });
       setNewService("");
@@ -72,7 +73,7 @@ export default function AdminSettingsPage() {
   // Stages
   const { data: stages } = useQuery({
     queryKey: ["stages"],
-    queryFn: () => fetch("/api/admin/stages").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/stages"),
   });
 
   return (

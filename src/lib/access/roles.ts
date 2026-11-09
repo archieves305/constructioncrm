@@ -47,3 +47,8 @@ const REFERRAL_ROLES: readonly RoleName[] = ["ADMIN", "MANAGER"];
 export function canManageReferrals(role: RoleName): boolean {
   return REFERRAL_ROLES.includes(role);
 }
+
+/** Raise a task (anyone who works in the CRM; a read-only account only looks). */
+export function canCreateTasks(role: RoleName | null | undefined): boolean {
+  return Boolean(role) && role !== "READ_ONLY";
+}

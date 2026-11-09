@@ -27,6 +27,7 @@ import {
   useVoidContract,
   type ContractRowData,
 } from "@/components/customer-contracts/use-customer-contracts";
+import { fetchJson } from "@/lib/fetch-json";
 
 const money = (v: string | number) => `$${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -182,7 +183,7 @@ export function ContractPanel({
                             <DropdownMenuItem
                               onClick={async () => {
                                 try {
-                                  const r = await fetch(`/api/customer-contracts/${c.id}/sign-link`).then((x) => x.json());
+                                  const r = await fetchJson(`/api/customer-contracts/${c.id}/sign-link`);
                                   if (!r.signUrl) throw new Error(r.error || "No link");
                                   await navigator.clipboard?.writeText(r.signUrl);
                                   toast.success("Signing link copied");

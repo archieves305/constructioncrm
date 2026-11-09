@@ -25,6 +25,7 @@ import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import { useAssignableUsers, useInvalidateTasks } from "@/components/tasks/use-tasks";
 import { netDueForLines, requestableLines } from "@/lib/labor/payment-math";
 import { useRequestPayment } from "./labor-payment-requests";
+import { fetchJson } from "@/lib/fetch-json";
 
 export type ContractTask = {
   id: string;
@@ -103,7 +104,7 @@ export function TaskScheduleDialog({
   const { data: tasks = [], isLoading } = useQuery<ContractTask[]>({
     queryKey: ["labor-contract-tasks", contractId],
     queryFn: () =>
-      fetch(`/api/labor-contracts/${contractId}/tasks`).then((r) => r.json()),
+      fetchJson(`/api/labor-contracts/${contractId}/tasks`),
     enabled: open,
   });
 
@@ -159,9 +160,7 @@ export function TaskScheduleDialog({
 
   const deleteTask = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/labor-contract-tasks/${id}`, { method: "DELETE" }).then((r) =>
-        r.json(),
-      ),
+      fetchJson(`/api/labor-contract-tasks/${id}`, { method: "DELETE" }),
     onSuccess: () => invalidate(),
   });
 

@@ -3,6 +3,9 @@
 import { use, useState } from "react";
 import { Breadcrumb } from "@/components/shared/breadcrumb";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { QueryState } from "@/components/shared/query-state";
+import { EmptyState } from "@/components/shared/empty-state";
+import { fetchJson } from "@/lib/fetch-json";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth/session-client";
@@ -28,6 +31,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   CheckCircle2,
+  ClipboardList,
   FileDown,
   Pencil,
   RotateCcw,
@@ -72,7 +76,7 @@ export default function DailyLogReviewPage({
   const { data: session } = useSession();
   const role = (session?.user as { role?: string } | undefined)?.role;
 
-  const { data: log, isLoading } = useQuery<ServerLog & {
+  const logQuery = useQuery<ServerLog & {
     returnNote: string | null;
     submittedAt: string | null;
     approvedAt: string | null;
@@ -81,12 +85,9 @@ export default function DailyLogReviewPage({
     approvedBy: { firstName: string; lastName: string } | null;
   }>({
     queryKey: ["daily-log", jobId, date],
-    queryFn: async () => {
-      const res = await fetch(`/api/jobs/${jobId}/daily-logs/${date}`);
-      if (!res.ok) throw new Error("Not found");
-      return res.json();
-    },
+    queryFn: () => fetchJson(`/api/jobs/${jobId}/daily-logs/${date}`),
   });
+  const log = logQuery.data;
 
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnNote, setReturnNote] = useState("");
@@ -140,8 +141,32 @@ export default function DailyLogReviewPage({
     onError: (err: Error) => toast.error(err.message),
   });
 
-  if (isLoading) return <div className="p-6"><ListSkeleton rows={5} /></div>;
-  if (!log) return <div className="text-muted-foreground p-6">Log not found.</div>;
+  if (!log) {
+    const back = { href: `/jobs/${jobId}?tab=field&sub=daily-logs`, label: "The job's daily logs" };
+    return (
+      <div className="p-6">
+        <QueryState
+          query={logQuery}
+          noun="daily log"
+          back={back}
+          loading={<ListSkeleton rows={5} />}
+          notFound={
+            <EmptyState
+              icon={ClipboardList}
+              title="No daily log for this day"
+              description="Nobody has started a log for this job on this date."
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button size="sm" render={<Link href={`/field/jobs/${jobId}/daily/${date}`} />} nativeButton={false}>Start the log for this day</Button>
+                  <Button size="sm" variant="outline" render={<Link href={back.href} />} nativeButton={false}>{back.label}</Button>
+                </div>
+              }
+            />
+          }
+        />
+      </div>
+    );
+  }
 
   const record = log as unknown as Record<string, string | number | null>;
   const narrativeSections = NARRATIVE_LABELS.filter(

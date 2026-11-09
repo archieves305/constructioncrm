@@ -6,6 +6,8 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { fetchJson } from "@/lib/fetch-json";
 import type { OwnerSummary } from "@/lib/attention/rows";
 import type { ListScope } from "@/lib/lists/scope";
+import { useSession } from "@/lib/auth/session-client";
+import { canViewCompanyFinancials } from "@/lib/money/access";
 
 const money = (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(Math.round(n)).toLocaleString("en-US")}`;
 
@@ -13,16 +15,19 @@ const money = (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(Math.round(n)).toLo
  * The owner's first look: leads in, leads not called, what is in the
  * pipeline, estimates out, jobs running and the profit they are expected to
  * make. Each tile opens the list it counts. Shown to the financial-report
- * roles; for anyone else the route refuses and the strip is left out.
+ * roles only; nobody else asks for it (the route would refuse them).
  */
 export function OwnerStrip({ scope }: { scope: ListScope }) {
+  const { data: session } = useSession();
+  const allowed = canViewCompanyFinancials(session?.user.role);
   const { data } = useQuery<OwnerSummary>({
     queryKey: ["owner-summary", scope],
     queryFn: () => fetchJson(`/api/attention/owner?scope=${scope}`),
+    enabled: allowed,
     retry: false,
     refetchInterval: 5 * 60_000,
   });
-  if (!data) return null;
+  if (!allowed || !data) return null;
   const gp = data.expectedGrossProfit;
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">

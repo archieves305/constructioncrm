@@ -7,6 +7,7 @@ import { Hammer, Plus, Search, Store, Tags } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { QueryState } from "@/components/shared/query-state";
 import { useSearchParamState } from "@/components/shared/use-search-param-state";
 import { useDebouncedValue } from "@/components/shared/use-debounced-value";
 import { Badge } from "@/components/ui/badge";
@@ -155,10 +156,7 @@ function Directory({
   onUnmatched: () => void;
   unmatchedCount: number;
 }) {
-  if (query.isLoading) return <ListSkeleton rows={8} />;
-  if (query.isError) {
-    return <EmptyState icon={Store} title="The vendor list could not be loaded" description={(query.error as Error).message} action={<Button variant="outline" onClick={() => query.refetch()}>Try again</Button>} />;
-  }
+  if (!query.data) return <QueryState query={query} noun="vendor list" loading={<ListSkeleton rows={8} />} />;
   const vendors = query.data?.vendors ?? [];
   if (vendors.length === 0) {
     return filtered ? (
@@ -233,10 +231,7 @@ function UnmatchedTab({
   onCreate: (p: Pending) => void;
   onLink: (p: Pending) => void;
 }) {
-  if (query.isLoading) return <ListSkeleton rows={8} />;
-  if (query.isError) {
-    return <EmptyState icon={Tags} title="The unmatched list could not be loaded" description={(query.error as Error).message} action={<Button variant="outline" onClick={() => query.refetch()}>Try again</Button>} />;
-  }
+  if (!query.data) return <QueryState query={query} noun="unmatched payee list" loading={<ListSkeleton rows={8} />} />;
   const data = query.data;
   if (!data || data.payees.length + data.crews.length + data.contractLabels.length === 0) {
     return <EmptyState icon={Tags} title="Everything has a vendor" description="Every crew, contractor and expense payee is linked to a vendor record." />;

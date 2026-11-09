@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Bell, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchJson } from "@/lib/fetch-json";
 
 type NotificationItem = {
   id: string;
@@ -46,7 +47,7 @@ export function NotificationBell() {
 
   const { data } = useQuery<Response>({
     queryKey: ["notifications", filter],
-    queryFn: () => fetch(`/api/notifications?limit=20&filter=${filter}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/notifications?limit=20&filter=${filter}`),
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });

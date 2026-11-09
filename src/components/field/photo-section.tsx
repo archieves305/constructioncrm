@@ -29,6 +29,7 @@ import {
   listQueuedPhotos,
   type QueuedPhoto,
 } from "@/lib/field-store";
+import { fetchJson } from "@/lib/fetch-json";
 
 export const PHOTO_CATEGORIES: [string, string][] = [
   ["PROGRESS", "Progress"],
@@ -87,9 +88,7 @@ export function PhotoSection({
   const { data: uploaded } = useQuery<{ photos: UploadedPhoto[] }>({
     queryKey: ["day-photos", jobId, date],
     queryFn: () =>
-      fetch(`/api/jobs/${jobId}/photos?from=${date}&to=${date}`).then((r) =>
-        r.json(),
-      ),
+      fetchJson(`/api/jobs/${jobId}/photos?from=${date}&to=${date}`),
   });
 
   // Restore any queue survivors from a previous session.

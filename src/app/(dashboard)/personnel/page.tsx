@@ -1,6 +1,8 @@
 "use client";
 
-import { Callout } from "@/components/shared/callout";
+import { QueryState } from "@/components/shared/query-state";
+import { useSession } from "@/lib/auth/session-client";
+import { canCreatePersonnel } from "@/lib/labor/roles";
 import { fetchJson } from "@/lib/fetch-json";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -90,6 +92,9 @@ const emptyForm = {
 
 export default function PersonnelPage() {
   const qc = useQueryClient();
+  const { data: session } = useSession();
+  // Same rule the API applies; a role it refuses sees no button.
+  const canAdd = session ? canCreatePersonnel(session.user.role) : false;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [q, setQ] = useState("");
@@ -99,14 +104,15 @@ export default function PersonnelPage() {
   if (q) params.set("q", q);
   if (activeOnly) params.set("activeOnly", "true");
 
-  const { data: people = [], isLoading, error } = useQuery<PersonnelRow[]>({
+  const peopleQuery = useQuery<PersonnelRow[]>({
     queryKey: ["personnel", q, activeOnly],
     queryFn: () => fetchJson<PersonnelRow[]>(`/api/personnel?${params.toString()}`),
   });
+  const people = peopleQuery.data ?? [];
 
   const { data: crews = [] } = useQuery<CrewOption[]>({
     queryKey: ["crews", "options"],
-    queryFn: () => fetch("/api/crews?activeOnly=true").then((r) => r.json()),
+    queryFn: () => fetchJson<CrewOption[]>("/api/crews?activeOnly=true"),
   });
 
   const createPerson = useMutation({
@@ -166,15 +172,15 @@ export default function PersonnelPage() {
           Active only
         </label>
         <div className="flex-1" />
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-1 h-4 w-4" /> Add person
-        </Button>
+        {canAdd && (
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-1 h-4 w-4" /> Add person
+          </Button>
+        )}
       </div>
 
-      {error ? (
-        <Callout tone="danger" title="Couldn't load personnel">{(error as Error).message}</Callout>
-      ) : isLoading ? (
-        <ListSkeleton rows={6} />
+      {!peopleQuery.data ? (
+        <QueryState query={peopleQuery} noun="personnel list" loading={<ListSkeleton rows={6} />} />
       ) : people.length === 0 ? (
         <EmptyState icon={Users} title="No personnel yet" description="Add crew members to start tracking daily labor." />
       ) : (

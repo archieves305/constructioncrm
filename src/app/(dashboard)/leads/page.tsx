@@ -40,6 +40,8 @@ import { KanbanSquare, Table2 } from "lucide-react";
 import { useSearchParamState } from "@/components/shared/use-search-param-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { ListScope } from "@/lib/lists/scope";
+import { useSession } from "@/lib/auth/session-client";
+import { canWriteLeads } from "@/lib/access/roles";
 
 type Lead = {
   id: string;
@@ -72,6 +74,8 @@ const UNASSIGN_VALUE = "__unassigned";
 
 export default function LeadsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const canCreateLead = session ? canWriteLeads(session.user.role) : false;
   const queryClient = useQueryClient();
   const { scope, setScope, forced: scopeForced, ready: scopeReady } = useListScope();
   const { get: getUrl, setMany: setUrl } = useSearchParamState();
@@ -292,10 +296,12 @@ export default function LeadsPage() {
               Export
             </Button>
             )}
-            <Button onClick={() => router.push("/leads/new")}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Lead
-            </Button>
+            {canCreateLead && (
+              <Button onClick={() => router.push("/leads/new")}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Lead
+              </Button>
+            )}
           </>
         }
       />

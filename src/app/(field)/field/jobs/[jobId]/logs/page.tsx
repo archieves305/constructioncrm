@@ -2,6 +2,8 @@
 
 import { use, useState } from "react";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { QueryState } from "@/components/shared/query-state";
+import { fetchJson } from "@/lib/fetch-json";
 import { jobText } from "@/lib/labels/job";
 import type { JobLabel } from "@/components/tasks/types";
 import Link from "next/link";
@@ -52,16 +54,17 @@ export default function FieldLogsListPage({
   const router = useRouter();
   const qc = useQueryClient();
 
-  const { data: logs = [], isLoading } = useQuery<LogSummary[]>({
+  const logsQuery = useQuery<LogSummary[]>({
     queryKey: ["daily-logs", jobId],
-    queryFn: () => fetch(`/api/jobs/${jobId}/daily-logs`).then((r) => r.json()),
+    queryFn: () => fetchJson<LogSummary[]>(`/api/jobs/${jobId}/daily-logs`),
   });
+  const logs = logsQuery.data ?? [];
 
   const { data: fieldToday } = useQuery<{
     jobs: JobLabel[];
   }>({
     queryKey: ["field-today-jobs"],
-    queryFn: () => fetch("/api/field/today").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/field/today"),
     staleTime: 5 * 60 * 1000,
   });
   const job = fieldToday?.jobs.find((j) => j.id === jobId);
@@ -160,8 +163,8 @@ export default function FieldLogsListPage({
         </CardContent>
       </Card>
 
-      {isLoading ? (
-        <ListSkeleton rows={4} />
+      {!logsQuery.data ? (
+        <QueryState query={logsQuery} noun="job's daily logs" back={{ href: "/field", label: "Back to my jobs" }} loading={<ListSkeleton rows={4} />} />
       ) : logs.length === 0 ? (
         <Card>
           <CardContent className="text-muted-foreground py-12 text-center">

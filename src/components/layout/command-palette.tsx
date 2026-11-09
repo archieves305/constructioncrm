@@ -10,7 +10,7 @@ import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import type { SearchHit } from "@/lib/search/format";
 import { useDebouncedValue } from "@/components/shared/use-debounced-value";
 import { useRecentlyViewed } from "@/components/shared/use-recently-viewed";
-import { navSections } from "./sidebar";
+import { navSectionsFor } from "./nav-sections";
 
 const ICONS = { job: Briefcase, lead: UserRound, case: Gavel, prospect: MapPin, task: CheckSquare, vendor: Store, organization: Building2, contact: Users } as const;
 const GROUPS: { type: SearchHit["type"]; heading: string }[] = [
@@ -53,9 +53,8 @@ export function CommandPalette({ open, onOpenChange, role }: { open: boolean; on
 
   const pages = useMemo(
     () =>
-      navSections
-        .filter((s) => !s.roles || s.roles.includes(role))
-        .flatMap((s) => s.items.filter((i) => !i.roles || i.roles.includes(role)).map((i) => ({ ...i, group: s.label }))),
+      navSectionsFor(role)
+        .flatMap((s) => s.items.map((i) => ({ ...i, group: s.label }))),
     [role],
   );
 

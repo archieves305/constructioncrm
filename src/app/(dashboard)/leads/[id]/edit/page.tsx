@@ -56,17 +56,17 @@ export default function EditLeadPage() {
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ["lead", id],
-    queryFn: () => fetch(`/api/leads/${id}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/leads/${id}`),
   });
 
   const { data: sources } = useQuery({
     queryKey: ["sources"],
-    queryFn: () => fetch("/api/admin/sources").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/sources"),
   });
 
   const { data: services } = useQuery({
     queryKey: ["services"],
-    queryFn: () => fetch("/api/admin/services").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/services"),
   });
 
   const { data: users } = useQuery({

@@ -37,6 +37,7 @@ import {
   Gavel,
   Download,
 } from "lucide-react";
+import { fetchJson } from "@/lib/fetch-json";
 
 type ChangeOrder = {
   id: string;
@@ -121,13 +122,13 @@ export function ChangeOrdersPanel({
   const { data: changeOrders = [], isLoading } = useQuery<ChangeOrder[]>({
     queryKey: ["change-orders", jobId],
     queryFn: () =>
-      fetch(`/api/jobs/${jobId}/change-orders`).then((r) => r.json()),
+      fetchJson(`/api/jobs/${jobId}/change-orders`),
   });
 
   const { data: contracts = [] } = useQuery<LaborContractOption[]>({
     queryKey: ["labor-contracts", jobId],
     queryFn: () =>
-      fetch(`/api/jobs/${jobId}/labor-contracts`).then((r) => r.json()),
+      fetchJson(`/api/jobs/${jobId}/labor-contracts`),
   });
 
   const invalidate = () =>

@@ -1,7 +1,8 @@
 #!/bin/bash
 # The regression suite, end to end, on the dev database only:
 #   dump → exact row counts → dev server as ADMIN: flows, smoke, axe →
-#   dev server as SALES_REP: roles, smoke → restore → row counts must match.
+#   dev server as SALES_REP: roles, smoke → dev server as READ_ONLY: smoke →
+#   restore → row counts must match.
 # usage: scripts/qa/run.sh [all|flows|smoke|axe|roles]   (default all)
 # Needs: the local Postgres in .env, the cached Chromium headless shell
 # (or QA_CHROMIUM), port 4000 free. Mail, SMS and AI keys are blanked, so nothing is sent.
@@ -72,5 +73,10 @@ if [[ "$WHAT" =~ ^(all|roles)$ ]]; then
   [ "$WHAT" = roles ] && { start_server "$ADMIN_EMAIL" ADMIN; run scripts/qa/flows.mjs "^(lead|expense|crewpay|co|permit|calendar)$"; }
   start_server "$REP_EMAIL" SALES_REP
   run scripts/qa/roles.mjs
-  [ "$WHAT" = all ] && run scripts/qa/smoke.mjs
+  if [ "$WHAT" = all ]; then
+    run scripts/qa/smoke.mjs
+    # The same account as READ_ONLY (finish() puts it back to SALES_REP).
+    start_server "$REP_EMAIL" READ_ONLY
+    run scripts/qa/smoke.mjs
+  fi
 fi

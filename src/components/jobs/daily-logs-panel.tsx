@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { fetchJson } from "@/lib/fetch-json";
 
 type LogSummary = {
   id: string;
@@ -56,7 +57,7 @@ export function DailyLogsPanel({ jobId }: { jobId: string }) {
   const [backfillDate, setBackfillDate] = useState(() => localDate(1));
   const { data: logs = [], isLoading } = useQuery<LogSummary[]>({
     queryKey: ["daily-logs", jobId],
-    queryFn: () => fetch(`/api/jobs/${jobId}/daily-logs`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/jobs/${jobId}/daily-logs`),
   });
 
   const todayStr = localDate();

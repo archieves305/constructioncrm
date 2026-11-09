@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Home, AlertTriangle } from "lucide-react";
+import { fetchJson } from "@/lib/fetch-json";
 
 type RoofrOrderStatus = "REQUESTED" | "COMPLETED" | "CANCELLED" | "FAILED";
 
@@ -38,7 +39,7 @@ export function RoofrPanel({ leadId }: { leadId: string }) {
   const { data: orders, isLoading } = useQuery<RoofrOrder[]>({
     queryKey: ["roofr-orders", leadId],
     queryFn: () =>
-      fetch(`/api/leads/${leadId}/roofr-orders`).then((r) => r.json()),
+      fetchJson(`/api/leads/${leadId}/roofr-orders`),
   });
 
   const createOrder = useMutation({

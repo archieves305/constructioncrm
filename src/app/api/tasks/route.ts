@@ -10,6 +10,7 @@ import { TASK_LIST_INCLUDE } from "@/lib/tasks/include";
 import { createTask, TaskLinkError } from "@/lib/tasks/create";
 import { parseDueAt } from "@/lib/tasks/dates";
 import { applySchedule, EMPTY_SCHEDULE } from "@/lib/calendar/schedule";
+import { canCreateTasks } from "@/lib/access/roles";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (session.user.role === "READ_ONLY") return forbidden();
+  if (!canCreateTasks(session.user.role)) return forbidden("A read-only account can look at tasks but not raise them.");
 
   // A task created on a phone that lost signal may be sent twice.
   const user = session.user;

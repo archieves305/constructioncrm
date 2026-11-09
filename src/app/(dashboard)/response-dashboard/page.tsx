@@ -2,6 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/page-header";
+import { QueryState } from "@/components/shared/query-state";
+import { fetchJson } from "@/lib/fetch-json";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,10 +24,11 @@ function formatSeconds(seconds: number | null): string {
 }
 
 export default function ResponseDashboardPage() {
-  const { data, isLoading } = useQuery({
+  const query = useQuery({
     queryKey: ["response-times"],
-    queryFn: () => fetch("/api/reports/response-times").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/reports/response-times"),
   });
+  const { data, isLoading } = query;
 
   const slaBuckets = data?.slaBuckets;
   const slaChartData = slaBuckets
@@ -46,6 +49,7 @@ export default function ResponseDashboardPage() {
         description="Google Ads lead response time tracking"
       />
 
+      {!data ? <QueryState query={query} noun="response dashboard" /> : (<>
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         <KpiCard title="Total Leads Tracked" value={data?.totalLeads || 0} icon={Users} />
         <KpiCard
@@ -222,6 +226,7 @@ export default function ResponseDashboardPage() {
           </CardContent>
         </Card>
       </div>
+      </>)}
     </div>
   );
 }

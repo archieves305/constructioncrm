@@ -3,6 +3,7 @@
 import { fetchJson } from "@/lib/fetch-json";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { QueryState } from "@/components/shared/query-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { JobRef } from "@/components/shared/entity-label";
 import type { JobLabel } from "@/components/tasks/types";
@@ -61,18 +62,19 @@ export default function ReferralsPage() {
   const [commission, setCommission] = useState("");
   const [markPaid, setMarkPaid] = useState(false);
 
-  const { data: referrals = [], isLoading, error } = useQuery<Referral[]>({
+  const referralsQuery = useQuery<Referral[]>({
     queryKey: ["referrals"],
     queryFn: () => fetchJson<Referral[]>("/api/referrals"),
   });
+  const referrals = referralsQuery.data ?? [];
 
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      fetch(`/api/referrals/${id}`, {
+      fetchJson(`/api/referrals/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["referrals"] });
       toast.success("Status updated");
@@ -181,14 +183,10 @@ export default function ReferralsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {error ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-6 text-sm text-muted-foreground">{(error as Error).message}</TableCell>
-                </TableRow>
-              ) : isLoading ? (
+              {!referralsQuery.data ? (
                 <TableRow>
                   <TableCell colSpan={8} className="py-2">
-                    <ListSkeleton rows={4} />
+                    <QueryState query={referralsQuery} noun="referral list" loading={<ListSkeleton rows={4} />} />
                   </TableCell>
                 </TableRow>
               ) : referrals.length === 0 ? (

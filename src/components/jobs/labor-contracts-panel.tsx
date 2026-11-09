@@ -48,6 +48,7 @@ import { CrewPaymentTwinDialog, type PossibleDuplicate, type TwinCheck } from ".
 import { CrewContact } from "./crew-contact";
 import { CrewLinks } from "./crew-links";
 import { attachCompletionPhotos, CompletionPhotoPicker, CompletionPhotosButton, type CompletionPhoto } from "./completion-photos";
+import { fetchJson } from "@/lib/fetch-json";
 
 const METHODS = [
   "CHECK",
@@ -195,12 +196,12 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
   const { data: contracts = [], isLoading } = useQuery<LaborContract[]>({
     queryKey: ["labor-contracts", jobId],
     queryFn: () =>
-      fetch(`/api/jobs/${jobId}/labor-contracts`).then((r) => r.json()),
+      fetchJson(`/api/jobs/${jobId}/labor-contracts`),
   });
 
   const { data: crews = [] } = useQuery<Crew[]>({
     queryKey: ["crews", "active"],
-    queryFn: () => fetch("/api/crews?activeOnly=true").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/crews?activeOnly=true"),
   });
 
   // Add-contract form
@@ -247,9 +248,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
 
   const removeContract = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/labor-contracts/${id}`, { method: "DELETE" }).then((r) =>
-        r.json(),
-      ),
+      fetchJson(`/api/labor-contracts/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
       qc.invalidateQueries({ queryKey: ["job", jobId] });
@@ -427,9 +426,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
 
   const removePayment = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/labor-payments/${id}`, { method: "DELETE" }).then((r) =>
-        r.json(),
-      ),
+      fetchJson(`/api/labor-payments/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
       toast.success("Payment deleted");
@@ -496,9 +493,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
 
   const removeChangeOrder = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/labor-change-orders/${id}`, { method: "DELETE" }).then((r) =>
-        r.json(),
-      ),
+      fetchJson(`/api/labor-change-orders/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
       qc.invalidateQueries({ queryKey: ["job", jobId] });

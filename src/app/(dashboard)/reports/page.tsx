@@ -24,6 +24,8 @@ import {
   Funnel,
   LabelList,
 } from "recharts";
+import { useSession } from "@/lib/auth/session-client";
+import { canViewWorkflowReports } from "@/lib/workflows/access";
 
 export default function ReportsPage() {
   const [dateFrom, setDateFrom] = useState("");
@@ -55,9 +57,12 @@ export default function ReportsPage() {
   wfParams.set("type", "workflow");
   if (dateFrom) wfParams.set("dateFrom", dateFrom);
   if (dateTo) wfParams.set("dateTo", dateTo);
-  // 403 for own-only roles: the section simply does not render for them.
+  // Only the roles the API answers ask for it; for anyone else the section is left out.
+  const { data: session } = useSession();
+  const canSeeWorkflow = session ? canViewWorkflowReports(session.user.role) : false;
   const { data: workflow, error: workflowError } = useQuery<WorkflowReport>({
     queryKey: ["report-workflow", dateFrom, dateTo],
+    enabled: canSeeWorkflow,
     queryFn: () => fetchJson(`/api/reports?${wfParams.toString()}`),
     retry: retryServerErrors,
   });

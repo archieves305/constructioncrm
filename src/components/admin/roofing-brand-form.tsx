@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Trash2 } from "lucide-react";
+import { fetchJson } from "@/lib/fetch-json";
 
 type Brand = {
   id: string;
@@ -49,7 +50,7 @@ export function RoofingBrandForm() {
   const { data: brand, isLoading } = useQuery<Brand>({
     queryKey: ["roofing-brand"],
     queryFn: () =>
-      fetch("/api/admin/roofing-brand").then((r) => r.json()),
+      fetchJson("/api/admin/roofing-brand"),
   });
 
   // Mirror server state into local form state. Keep numbers as strings so

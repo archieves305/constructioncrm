@@ -22,8 +22,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { UserCheck, X } from "lucide-react";
+import { Lock, UserCheck, X } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
+import { useSession } from "@/lib/auth/session-client";
+import { canWriteLeads } from "@/lib/access/roles";
+import { EmptyState } from "@/components/shared/empty-state";
 
 type ContactMatch = {
   firstName: string;
@@ -37,6 +40,7 @@ type ContactMatch = {
 };
 
 export default function NewLeadPage() {
+  const { data: session } = useSession();
   const router = useRouter();
   const returnTo = useSearchParams().get("returnTo");
 
@@ -60,12 +64,12 @@ export default function NewLeadPage() {
 
   const { data: sources } = useQuery({
     queryKey: ["sources"],
-    queryFn: () => fetch("/api/admin/sources").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/sources"),
   });
 
   const { data: services } = useQuery({
     queryKey: ["services"],
-    queryFn: () => fetch("/api/admin/services").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/services"),
   });
 
   const { data: users } = useQuery({
@@ -167,6 +171,17 @@ export default function NewLeadPage() {
       ? current.filter((id) => id !== serviceId)
       : [...current, serviceId];
     setValue("serviceCategoryIds", next);
+  }
+
+  if (session && !canWriteLeads(session.user.role)) {
+    return (
+      <EmptyState
+        icon={Lock}
+        title="You don't have access to this"
+        description="Your role can look at leads but not add them. Ask an office manager if you need to."
+        action={<Button variant="outline" size="sm" onClick={() => router.push("/leads")}>Back to leads</Button>}
+      />
+    );
   }
 
   return (

@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Trash2, Plus, Upload, Download, Pencil, HardHat, Receipt, X } from "lucide-react";
+import { fetchJson } from "@/lib/fetch-json";
 
 type Allocation = {
   id: string;
@@ -71,16 +72,16 @@ export function BudgetPanel({
 
   const { data: lines = [], isLoading } = useQuery<BudgetLine[]>({
     queryKey: ["budget", jobId],
-    queryFn: () => fetch(`/api/jobs/${jobId}/budget`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/jobs/${jobId}/budget`),
   });
   const { data: expenses = [] } = useQuery<Expense[]>({
     queryKey: ["expenses", jobId],
-    queryFn: () => fetch(`/api/jobs/${jobId}/expenses`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/jobs/${jobId}/expenses`),
   });
   const { data: laborContracts = [] } = useQuery<LaborContract[]>({
     queryKey: ["labor-contracts", jobId],
     queryFn: () =>
-      fetch(`/api/jobs/${jobId}/labor-contracts`).then((r) => r.json()),
+      fetchJson(`/api/jobs/${jobId}/labor-contracts`),
   });
 
   const invalidateAll = () => {
@@ -241,7 +242,7 @@ export function BudgetPanel({
   });
   const deleteLine = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/budget-lines/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetchJson(`/api/budget-lines/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidateAll();
       toast.success("Budget line removed");

@@ -40,6 +40,7 @@ import {
   num,
   money,
 } from "@/components/estimates/generic-estimate-types";
+import { fetchJson } from "@/lib/fetch-json";
 
 export type DialogMode =
   | { kind: "create"; category: string }
@@ -238,20 +239,20 @@ export function GenericEstimateDialog({
     queryKey: ["estimate-template", mode?.kind === "create" ? mode.category : null],
     enabled: open && mode?.kind === "create",
     queryFn: () =>
-      fetch(
+      fetchJson(
         `/api/estimate-templates?category=${encodeURIComponent(
           mode?.kind === "create" ? mode.category : "",
         )}`,
-      ).then((r) => r.json()),
+      ),
   });
 
   const estimateQuery = useQuery<EstimateResponse>({
     queryKey: ["template-estimate", sourceId],
     enabled: open && sourceId !== null,
     queryFn: () =>
-      fetch(
+      fetchJson(
         `/api/leads/${leadId}/template-estimates/${sourceId ?? ""}`,
-      ).then((r) => r.json()),
+      ),
   });
 
   useEffect(() => {

@@ -32,6 +32,7 @@ import { Shield } from "lucide-react";
 import { roleDisplayName } from "@/lib/auth/role-display";
 import type { RoleName } from "@/generated/prisma/client";
 import { useSession } from "@/lib/auth/session-client";
+import { fetchJson } from "@/lib/fetch-json";
 
 type SelectableRole = {
   id: string;
@@ -115,12 +116,12 @@ export default function AdminUsersPage() {
 
   const { data: users, isLoading } = useQuery<UserRow[]>({
     queryKey: ["users"],
-    queryFn: () => fetch("/api/admin/users").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/users"),
   });
 
   const { data: roles } = useQuery<SelectableRole[]>({
     queryKey: ["roles"],
-    queryFn: () => fetch("/api/admin/roles").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/roles"),
   });
 
   const toggleActive = useMutation({

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { fetchJson } from "@/lib/fetch-json";
+import { QueryState } from "@/components/shared/query-state";
 
 type Submission = {
   id: string;
@@ -59,8 +60,7 @@ function CrewSubmissions() {
         <h1 className="text-2xl font-semibold">From crews</h1>
         <p className="text-sm text-muted-foreground">Sent through crew links. Nothing counts until someone here accepts it.</p>
       </div>
-      {list.isPending ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
-      {list.isError ? <p className="text-sm text-destructive">{(list.error as Error).message}</p> : null}
+      {!list.data ? <QueryState query={list} noun="crew submission list" /> : null}
       {list.data && pending.length === 0 ? (
         <p className="rounded border p-4 text-sm text-muted-foreground">Nothing waiting. Send a crew a link from a job&apos;s Field → Labor or Crews tab.</p>
       ) : null}

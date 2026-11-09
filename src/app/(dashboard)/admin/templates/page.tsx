@@ -38,6 +38,7 @@ import {
   RichTextEditor,
   type RichTextEditorHandle,
 } from "@/components/ui/rich-text-editor";
+import { fetchJson } from "@/lib/fetch-json";
 
 type Template = {
   id: string;
@@ -78,7 +79,7 @@ export default function TemplatesPage() {
 
   const { data: templates = [], isLoading } = useQuery<Template[]>({
     queryKey: ["templates"],
-    queryFn: () => fetch("/api/admin/templates").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/templates"),
   });
 
   const save = useMutation({

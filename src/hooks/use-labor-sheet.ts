@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchJson, HttpError } from "@/lib/fetch-json";
 import {
   clearLaborDraft,
   loadLaborDraft,
@@ -112,18 +113,19 @@ export function useLaborSheet(jobId: string, date: string) {
 
   const logQuery = useQuery<ServerLog | null>({
     queryKey: ["daily-log", jobId, date],
-    queryFn: async () => {
-      const res = await fetch(`/api/jobs/${jobId}/daily-logs/${date}`);
-      if (res.status === 404) return null;
-      if (!res.ok) throw new Error("Failed to load log");
-      return res.json();
-    },
+    // No log yet for the day is normal (the sheet starts one); a refusal or a
+    // server fault is not, and is surfaced through `query` for the page to show.
+    queryFn: () =>
+      fetchJson<ServerLog>(`/api/jobs/${jobId}/daily-logs/${date}`).catch((e) => {
+        if (e instanceof HttpError && e.status === 404) return null;
+        throw e;
+      }),
     refetchOnWindowFocus: false,
   });
 
   // Hydrate: prefer a dirty local draft newer than the server copy.
   useEffect(() => {
-    if (logQuery.isLoading || entries !== null) return;
+    if (logQuery.isLoading || logQuery.isError || entries !== null) return;
     let cancelled = false;
     (async () => {
       requestPersistence();
@@ -148,7 +150,7 @@ export function useLaborSheet(jobId: string, date: string) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [logQuery.isLoading, logQuery.data]);
+  }, [logQuery.isLoading, logQuery.isError, logQuery.data]);
 
   useEffect(() => {
     entriesRef.current = entries;
@@ -349,6 +351,8 @@ export function useLaborSheet(jobId: string, date: string) {
 
   return {
     log: logQuery.data ?? null,
+    /** The log read itself, for a refusal / failure screen. */
+    query: logQuery,
     isLoading: logQuery.isLoading || entries === null,
     entries: entries ?? [],
     update,

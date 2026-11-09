@@ -3,9 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import Link from "next/link";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/shared/page-header";
+import { QueryState } from "@/components/shared/query-state";
+import { fetchJson } from "@/lib/fetch-json";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,6 @@ import {
 } from "@/components/ui/command";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
   Plus,
   Trash2,
   MapPin,
@@ -146,18 +146,11 @@ export default function RouteDetailPage() {
     qc.invalidateQueries({ queryKey: ["door-knock-routes"] });
   };
 
-  const {
-    data: route,
-    isLoading,
-    isError,
-  } = useQuery<Route>({
+  const routeQuery = useQuery<Route>({
     queryKey: ["door-knock-route", id],
-    queryFn: async () => {
-      const res = await fetch(`/api/door-knock-routes/${id}`);
-      if (!res.ok) throw new Error("Failed to load route");
-      return res.json();
-    },
+    queryFn: () => fetchJson<Route>(`/api/door-knock-routes/${id}`),
   });
+  const route = routeQuery.data;
 
   // ── Mutations ────────────────────────────────────────────────────────────
   const addStops = useMutation({
@@ -287,25 +280,8 @@ export default function RouteDetailPage() {
     onError: () => toast.error("Failed to log knock"),
   });
 
-  if (isLoading) {
-    return (
-      <p className="text-center text-muted-foreground py-12">Loading route…</p>
-    );
-  }
-
-  if (isError || !route) {
-    return (
-      <div className="space-y-4">
-        <Link href="/canvassing">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to routes
-          </Button>
-        </Link>
-        <p className="text-center text-muted-foreground py-12">
-          Route not found.
-        </p>
-      </div>
-    );
+  if (!route) {
+    return <QueryState query={routeQuery} noun="route" back={{ href: "/canvassing", label: "Back to routes" }} />;
   }
 
   const stops = [...route.stops].sort((a, b) => a.sortOrder - b.sortOrder);

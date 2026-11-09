@@ -53,8 +53,10 @@ export async function guardLeads(viewer: Viewer, leadIds: string[]): Promise<Nex
 
 export async function guardJob(viewer: Viewer, jobId: string, mode: Mode): Promise<NextResponse | null> {
   if (mode === "write" && !canWriteProduction(viewer.role)) return forbidden(PRODUCTION_WRITE_DENIED);
-  if (!isOwnOnlyRole(viewer.role)) return null;
-  const hit = await prisma.job.findFirst({ where: { AND: [{ id: jobId }, jobAccessWhere(viewer)] }, select: { id: true } });
+  // Office roles see every job, but a missing one is still a 404 — not a
+  // foreign-key 500 from whatever the route writes next.
+  const where = isOwnOnlyRole(viewer.role) ? { AND: [{ id: jobId }, jobAccessWhere(viewer)] } : { id: jobId };
+  const hit = await prisma.job.findFirst({ where, select: { id: true } });
   return hit ? null : notFound("Job");
 }
 

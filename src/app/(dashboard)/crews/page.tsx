@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { VendorSelect } from "@/components/vendors/vendor-select";
+import { fetchJson } from "@/lib/fetch-json";
 
 const COMMON_TRADES = [
   "Roofing",
@@ -126,12 +127,12 @@ export default function CrewsPage() {
 
   const { data: crews = [], isLoading } = useQuery<CrewData[]>({
     queryKey: ["crews", search, filterTrades.join("|"), filterCounties.join("|"), activeOnly],
-    queryFn: () => fetch(`/api/crews?${params.toString()}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/crews?${params.toString()}`),
   });
 
   const { data: allCrews = [] } = useQuery<CrewData[]>({
     queryKey: ["crews-all-for-filters"],
-    queryFn: () => fetch("/api/crews").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/crews"),
   });
 
   const availableTrades = useMemo(() => {
@@ -184,11 +185,11 @@ export default function CrewsPage() {
 
   const toggleActive = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      fetch(`/api/crews/${id}`, {
+      fetchJson(`/api/crews/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["crews"] });
       qc.invalidateQueries({ queryKey: ["crews-all-for-filters"] });

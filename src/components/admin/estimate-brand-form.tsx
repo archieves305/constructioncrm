@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Trash2 } from "lucide-react";
+import { fetchJson } from "@/lib/fetch-json";
 
 type Brand = {
   id: string;
@@ -25,7 +26,7 @@ export function EstimateBrandForm() {
 
   const { data: brand, isLoading } = useQuery<Brand>({
     queryKey: ["estimate-brand"],
-    queryFn: () => fetch("/api/admin/estimate-brand").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/admin/estimate-brand"),
   });
 
   const [companyName, setCompanyName] = useState<string>("");

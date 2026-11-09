@@ -59,6 +59,7 @@ import {
   type LeadServiceLike,
 } from "@/lib/estimates/template-routing";
 import type { EstimateTemplateCategory } from "@/generated/prisma/enums";
+import { fetchJson } from "@/lib/fetch-json";
 
 type GenericEstimateRecord = {
   id: string;
@@ -122,7 +123,7 @@ export function LeadEstimatesPanel({
   const { data: estimates = [], isLoading } = useQuery<GenericEstimateRecord[]>({
     queryKey: ["lead-template-estimates", leadId],
     queryFn: () =>
-      fetch(`/api/leads/${leadId}/template-estimates`).then((r) => r.json()),
+      fetchJson(`/api/leads/${leadId}/template-estimates`),
   });
 
   const decision = decideEstimateRoute(services);

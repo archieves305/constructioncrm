@@ -1,11 +1,11 @@
 "use client";
 
-import { Callout } from "@/components/shared/callout";
 import { fetchJson } from "@/lib/fetch-json";
 import { useState } from "react";
 import { ClipboardList } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { QueryState } from "@/components/shared/query-state";
 import { jobText } from "@/lib/labels/job";
 import type { JobLabel } from "@/components/tasks/types";
 import { useQuery } from "@tanstack/react-query";
@@ -53,11 +53,12 @@ const FILTERS = [
 export default function FieldLogsQueuePage() {
   const [status, setStatus] = useState("SUBMITTED");
 
-  const { data: logs = [], isLoading, error } = useQuery<QueueRow[]>({
+  const logsQuery = useQuery<QueueRow[]>({
     queryKey: ["field-logs", status],
     queryFn: () => fetchJson<QueueRow[]>(`/api/field-logs${status ? `?status=${status}` : ""}`),
   });
 
+  const logs = logsQuery.data ?? [];
   const hasCost = logs.some((l) => l.totalCost !== undefined);
 
   return (
@@ -86,10 +87,8 @@ export default function FieldLogsQueuePage() {
         </Link>
       </div>
 
-      {error ? (
-        <Callout tone="danger" title="Couldn't load the daily logs">{(error as Error).message}</Callout>
-      ) : isLoading ? (
-        <ListSkeleton rows={5} />
+      {!logsQuery.data ? (
+        <QueryState query={logsQuery} noun="daily log queue" loading={<ListSkeleton rows={5} />} />
       ) : logs.length === 0 ? (
         <EmptyState
           icon={ClipboardList}

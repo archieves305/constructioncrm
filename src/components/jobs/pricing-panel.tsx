@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { fetchJson } from "@/lib/fetch-json";
 
 type JobType = "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB";
 type MarginType = "PERCENT" | "FLAT";
@@ -53,7 +54,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
   const { data: laborContracts = [] } = useQuery<unknown[]>({
     queryKey: ["labor-contracts", job.id],
     queryFn: () =>
-      fetch(`/api/jobs/${job.id}/labor-contracts`).then((r) => r.json()),
+      fetchJson(`/api/jobs/${job.id}/labor-contracts`),
     enabled: isRollup,
   });
   const laborFromCrews = laborContracts.length > 0;

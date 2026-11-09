@@ -19,6 +19,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn } from "@/lib/utils";
 import { fetchJson } from "@/lib/fetch-json";
 import { useSession } from "@/lib/auth/session-client";
+import { canCreateTasks } from "@/lib/access/roles";
 import { TaskDetailSheet } from "@/components/tasks/task-detail-sheet";
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
 import { TaskCard } from "@/components/tasks/task-card";
@@ -49,6 +50,7 @@ const ALL = "__all";
 export default function TasksPage() {
   const qc = useQueryClient();
   const { data: session } = useSession();
+  const canCreate = canCreateTasks(session?.user.role);
   const [view, setView] = useState<"list" | "board">("list");
   const [open, setOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -185,7 +187,7 @@ export default function TasksPage() {
   // promises it.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key !== "n" || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!canCreate || e.key !== "n" || e.metaKey || e.ctrlKey || e.altKey) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.closest("[role=dialog]"))) return;
       e.preventDefault();
@@ -193,7 +195,7 @@ export default function TasksPage() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [canCreate]);
 
   // Say so when the new task will not be in the list the person is looking at.
   function announceCreated(task: TaskListItem, done: string) {
@@ -338,11 +340,13 @@ export default function TasksPage() {
                 <span className="rounded-full bg-brand px-1.5 text-[10px] font-semibold text-white">{activeFilters}</span>
               )}
             </Button>
-            <Button variant="brand" onClick={() => setOpen(true)}>
-              <Plus className="h-4 w-4" />
-              New task
-              <kbd className="ml-1 hidden rounded border border-white/30 bg-white/10 px-1 font-mono text-[10px] sm:inline">N</kbd>
-            </Button>
+            {canCreate && (
+              <Button variant="brand" onClick={() => setOpen(true)}>
+                <Plus className="h-4 w-4" />
+                New task
+                <kbd className="ml-1 hidden rounded border border-white/30 bg-white/10 px-1 font-mono text-[10px] sm:inline">N</kbd>
+              </Button>
+            )}
           </>
         }
       />
@@ -469,7 +473,7 @@ export default function TasksPage() {
       </Card>
 
       {/* Quick-add (list view only) */}
-      {view === "list" && (
+      {view === "list" && canCreate && (
         <Card className="mb-3">
           <CardContent className="flex flex-wrap items-center gap-2 pt-4">
             <Input

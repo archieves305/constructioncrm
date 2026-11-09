@@ -21,6 +21,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { fetchJson } from "@/lib/fetch-json";
 
 type Bucket = {
   key: string;
@@ -63,7 +64,7 @@ const money = (n: number) => `$${n.toLocaleString(undefined, { maximumFractionDi
 export function FieldLaborSummary({ jobId }: { jobId: string }) {
   const { data, isLoading } = useQuery<LaborSummary>({
     queryKey: ["labor-summary", jobId],
-    queryFn: () => fetch(`/api/jobs/${jobId}/labor-summary`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/jobs/${jobId}/labor-summary`),
   });
 
   if (isLoading || !data) return null;

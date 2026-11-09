@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Breadcrumb } from "@/components/shared/breadcrumb";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { QueryState } from "@/components/shared/query-state";
+import { EmptyState } from "@/components/shared/empty-state";
+import { fetchJson } from "@/lib/fetch-json";
 import { useSession } from "@/lib/auth/session-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -31,6 +34,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Lock,
   TriangleAlert,
   Undo2,
 } from "lucide-react";
@@ -95,15 +99,11 @@ export default function PayrollPage() {
   const [method, setMethod] = useState<string>("CHECK");
   const [reference, setReference] = useState("");
 
-  const { data, isLoading, error } = useQuery<PayrollWeek>({
+  const payrollQuery = useQuery<PayrollWeek>({
     queryKey: ["payroll-week", anchor],
-    queryFn: async () => {
-      const res = await fetch(`/api/reports/field-labor/payroll?weekStart=${anchor}`);
-      if (res.status === 403) throw new Error("Ask an admin for the payroll permission.");
-      if (!res.ok) throw new Error("Failed to load payroll");
-      return res.json();
-    },
+    queryFn: () => fetchJson<PayrollWeek>(`/api/reports/field-labor/payroll?weekStart=${anchor}`),
   });
+  const data = payrollQuery.data;
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["payroll-week"] });
 
@@ -200,10 +200,13 @@ export default function PayrollPage() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
-        <ListSkeleton rows={5} />
-      ) : error ? (
-        <div className="text-muted-foreground py-12 text-center">{(error as Error).message}</div>
+      {!data ? (
+        <QueryState
+          query={payrollQuery}
+          noun="payroll report"
+          loading={<ListSkeleton rows={5} />}
+          forbidden={<EmptyState icon={Lock} title="You don't have access to payroll" description="Weekly payroll needs the payroll permission. Ask an admin to grant it under Admin → Users." />}
+        />
       ) : rows.length === 0 ? (
         <div className="text-muted-foreground rounded-md border py-12 text-center">
           No hours logged in this week.

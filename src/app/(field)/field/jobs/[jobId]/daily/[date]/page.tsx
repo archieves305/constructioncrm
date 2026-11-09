@@ -2,6 +2,8 @@
 
 import { use, useMemo, useState } from "react";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { QueryState } from "@/components/shared/query-state";
+import { fetchJson } from "@/lib/fetch-json";
 import Link from "next/link";
 import { useSession } from "@/lib/auth/session-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -101,14 +103,14 @@ export default function DailyLaborPage({
     jobs: { id: string; title: string; jobNumber: string }[];
   }>({
     queryKey: ["field-today-jobs"],
-    queryFn: () => fetch("/api/field/today").then((r) => r.json()),
+    queryFn: () => fetchJson("/api/field/today"),
     staleTime: 5 * 60 * 1000,
   });
   const job = fieldToday?.jobs.find((j) => j.id === jobId);
 
   const { data: roster = [] } = useQuery<Person[]>({
     queryKey: ["personnel", "field-roster"],
-    queryFn: () => fetch("/api/personnel?activeOnly=true").then((r) => r.json()),
+    queryFn: () => fetchJson<Person[]>("/api/personnel?activeOnly=true"),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -345,6 +347,13 @@ export default function DailyLaborPage({
   const presentCount = sheet.entries.filter((e) => !e.isAbsent).length;
   const totals = log?.totals;
 
+  if (sheet.query.isError) {
+    return (
+      <div className="p-6">
+        <QueryState query={sheet.query} noun="daily log" back={{ href: "/field", label: "Back to my jobs" }} />
+      </div>
+    );
+  }
   if (sheet.isLoading) {
     return <div className="p-6"><ListSkeleton rows={5} /></div>;
   }

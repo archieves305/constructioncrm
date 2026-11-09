@@ -2,6 +2,7 @@
 
 import { use, useRef, useState } from "react";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { QueryState } from "@/components/shared/query-state";
 import type { JobLabel, LeadLabel } from "@/components/tasks/types";
 import { formatAddressLine } from "@/lib/labels/address";
 import { jobLabel } from "@/lib/labels/job";
@@ -83,10 +84,11 @@ export default function FieldTaskPage({
   const photoInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const { data: task, isLoading, isError } = useQuery<FieldTask>({
+  const taskQuery = useQuery<FieldTask>({
     queryKey: ["field-task", taskId],
     queryFn: () => fetchJson(`/api/tasks/${taskId}`),
   });
+  const task = taskQuery.data;
 
   function refresh() {
     qc.invalidateQueries({ queryKey: ["field-task", taskId] });
@@ -150,16 +152,10 @@ export default function FieldTaskPage({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (isLoading) {
-    return <div className="p-6"><ListSkeleton rows={3} /></div>;
-  }
-  if (isError || !task) {
+  if (!task) {
     return (
-      <div className="p-6 text-center">
-        <p className="text-muted-foreground">This task is not available to you.</p>
-        <Link href="/field/tasks" className="mt-3 inline-block text-blue-600 underline">
-          Back to my tasks
-        </Link>
+      <div className="p-6">
+        <QueryState query={taskQuery} noun="task" back={{ href: "/field/tasks", label: "Back to my tasks" }} loading={<ListSkeleton rows={3} />} />
       </div>
     );
   }
