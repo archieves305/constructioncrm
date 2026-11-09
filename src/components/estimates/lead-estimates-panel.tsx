@@ -60,6 +60,7 @@ import {
 } from "@/lib/estimates/template-routing";
 import type { EstimateTemplateCategory } from "@/generated/prisma/enums";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type GenericEstimateRecord = {
   id: string;
@@ -96,6 +97,7 @@ export function LeadEstimatesPanel({
   jobId?: string;
   onGenerateContract?: (source: ContractSource) => void;
 }) {
+  const confirmAction = useConfirm();
   const queryClient = useQueryClient();
   const setStatus = useSetEstimateStatus(leadId);
   const [contractSource, setContractSource] = useState<ContractSource | null>(null);
@@ -389,9 +391,9 @@ export function LeadEstimatesPanel({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => {
+                      onClick={async () => {
                         if (
-                          confirm(
+                          await confirmAction(
                             `Delete estimate ${est.estimateNumber}? Generated PDFs will remain in Files.`,
                           )
                         ) {

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 export type JobPayment = {
   id: string;
@@ -26,6 +27,7 @@ export type JobPayment = {
 
 /** Record a payment against the job (optionally an invoice) and list what has come in. Moved out of the job page verbatim. */
 export function PaymentsPanel({ jobId, payments }: { jobId: string; payments: JobPayment[] }) {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
   const [payAmount, setPayAmount] = useState("");
   const [payType, setPayType] = useState("DEPOSIT");
@@ -154,8 +156,8 @@ export function PaymentsPanel({ jobId, payments }: { jobId: string; payments: Jo
                   </a>
                 )}
                 <button
-                  onClick={() => {
-                    if (confirm("Delete this payment? The balance will be recomputed.")) deletePayment.mutate(p.id);
+                  onClick={async () => {
+                    if (await confirmAction({ title: "Delete this payment?", description: "The job's balance is recalculated without it.", confirmLabel: "Delete", tone: "danger" })) deletePayment.mutate(p.id);
                   }}
                   className="rounded border px-2 py-1 text-2xs text-tone-danger-fg hover:bg-tone-danger-soft"
                 >

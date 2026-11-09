@@ -28,6 +28,7 @@ import {
   type ContractRowData,
 } from "@/components/customer-contracts/use-customer-contracts";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 const money = (v: string | number) => `$${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -38,6 +39,7 @@ export function ContractPanel({
   jobId: string;
   job: { contractAmount: string; jobType: string; billingMethod?: string | null; lead: { email: string | null; fullName: string } };
 }) {
+  const confirmAction = useConfirm();
   const { data: session } = useSession();
   const role = session?.user.role;
   const canManage = role ? canManageContracts(role) : false;
@@ -171,8 +173,8 @@ export function ContractPanel({
                                 <RefreshCw className="size-4" /> Regenerate from estimate
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => {
-                                  if (confirm(`Delete draft ${c.contractNumber}? Its PDFs stay in Files.`)) remove.mutate(c.id);
+                                onClick={async () => {
+                                  if (await confirmAction({ title: `Delete draft ${c.contractNumber}?`, description: "Its PDFs stay in Files.", confirmLabel: "Delete draft", tone: "danger" })) remove.mutate(c.id);
                                 }}
                               >
                                 <Trash2 className="size-4" /> Delete draft
@@ -255,7 +257,7 @@ function SendContractDialog({
             <p>{result.emailed ? `Emailed to ${to}.` : "Email is not configured, so nothing was sent — share the link yourself:"}</p>
             <div className="flex gap-2">
               <Input readOnly value={result.signUrl} onFocus={(e) => e.currentTarget.select()} />
-              <Button
+              <Button aria-label="Duplicate"
                 variant="outline"
                 onClick={() => {
                   void navigator.clipboard?.writeText(result.signUrl);

@@ -38,6 +38,7 @@ import {
   Download,
 } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type ChangeOrder = {
   id: string;
@@ -101,6 +102,7 @@ export function ChangeOrdersPanel({
   jobType: string;
   billingMethod?: "LUMP_SUM" | "PROGRESS";
 }) {
+  const confirmAction = useConfirm();
   const isProgress = billingMethod === "PROGRESS";
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -366,18 +368,18 @@ export function ChangeOrdersPanel({
                           size="icon"
                           variant="ghost"
                           onClick={() => openEdit(co)}
-                          title="Edit"
+                          title="Edit" aria-label="Edit"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => {
-                            if (confirm("Delete this change order?"))
+                          onClick={async () => {
+                            if (await confirmAction({ title: "Delete this change order?", confirmLabel: "Delete", tone: "danger" }))
                               remove.mutate(co.id);
                           }}
-                          title="Delete"
+                          title="Delete" aria-label="Delete"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -426,7 +428,7 @@ export function ChangeOrdersPanel({
                             e.stopPropagation();
                             copyLink(co.token!);
                           }}
-                          title="Copy customer link"
+                          title="Copy customer link" aria-label="Copy customer link"
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
@@ -576,9 +578,9 @@ export function ChangeOrdersPanel({
             {viewing && canDecide && (
               <Button
                 variant="destructive"
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    confirm(
+                    await confirmAction(
                       `Delete CO-${viewing.number}? This removes its ` +
                         (viewing.sovLine
                           ? `schedule-of-values line (item #${viewing.sovLine.itemNo})`

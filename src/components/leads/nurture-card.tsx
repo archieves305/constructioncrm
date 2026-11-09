@@ -14,6 +14,7 @@ import { useSession } from "@/lib/auth/session-client";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { toneClasses, type Tone } from "@/lib/ui/tones";
 import { canActOnLeadNurture } from "@/lib/nurture/access";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type State = {
   status: "ACTIVE" | "PAUSED" | "STOPPED";
@@ -34,6 +35,7 @@ const TONE: Record<State["status"], Tone> = { ACTIVE: "success", PAUSED: "warnin
 const when = (iso: string | null) => (iso ? format(new Date(iso), "MMM d") : "—");
 
 export function NurtureCard({ leadId }: { leadId: string }) {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
   const { data: session } = useSession();
   const canAct = session ? canActOnLeadNurture(session.user.role) : false;
@@ -119,7 +121,7 @@ export function NurtureCard({ leadId }: { leadId: string }) {
                   </Button>
                 )}
                 {st.status !== "STOPPED" ? (
-                  <Button size="sm" variant="ghost" disabled={act.isPending} onClick={() => confirm("Stop automated emails to this lead? You can enrol again later.") && act.mutate({ action: "stop" })}>
+                  <Button size="sm" variant="ghost" disabled={act.isPending} onClick={async () => (await confirmAction({ title: "Stop automated emails to this lead?", description: "You can enrol them again later.", confirmLabel: "Stop emails", tone: "warning" })) && act.mutate({ action: "stop" })}>
                     <Square className="mr-1 size-3.5" /> Stop
                   </Button>
                 ) : (

@@ -26,6 +26,7 @@ import { useAssignableUsers, useInvalidateTasks } from "@/components/tasks/use-t
 import { netDueForLines, requestableLines } from "@/lib/labor/payment-math";
 import { useRequestPayment } from "./labor-payment-requests";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 export type ContractTask = {
   id: string;
@@ -99,6 +100,7 @@ export function TaskScheduleDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
 
   const { data: tasks = [], isLoading } = useQuery<ContractTask[]>({
@@ -274,8 +276,8 @@ export function TaskScheduleDialog({
                       type="button"
                       className="rounded p-1 text-muted-foreground hover:text-destructive"
                       title="Delete task"
-                      onClick={() => {
-                        if (confirm("Delete this task?")) deleteTask.mutate(t.id);
+                      onClick={async () => {
+                        if (await confirmAction({ title: "Delete this schedule line?", confirmLabel: "Delete", tone: "danger" })) deleteTask.mutate(t.id);
                       }}
                     >
                       <Trash2 className="h-4 w-4" />

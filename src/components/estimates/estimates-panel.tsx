@@ -42,6 +42,7 @@ import {
   type RoofMaterialKey,
 } from "@/lib/estimates/calc";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type EstimateRecord = {
   id: string;
@@ -255,6 +256,7 @@ export const EstimatesPanel = forwardRef<
     onGenerateContract?: (est: { id: string; estimateNumber: string; totalPrice: number }) => void;
   }
 >(function EstimatesPanel({ leadId, hideNewButton = false, onGenerateContract }, ref) {
+  const confirmAction = useConfirm();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -484,9 +486,9 @@ export const EstimatesPanel = forwardRef<
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => {
+                    onClick={async () => {
                       if (
-                        confirm(
+                        await confirmAction(
                           `Delete estimate ${est.estimateNumber}? Generated PDFs will remain in Files.`,
                         )
                       ) {
@@ -1000,7 +1002,7 @@ function RoofTypesEditor({
                 }}
               />
             </div>
-            <Button
+            <Button aria-label="Remove row"
               type="button"
               variant="ghost"
               size="sm"

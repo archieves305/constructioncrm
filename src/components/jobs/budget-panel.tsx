@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Trash2, Plus, Upload, Download, Pencil, HardHat, Receipt, X } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type Allocation = {
   id: string;
@@ -67,6 +68,7 @@ export function BudgetPanel({
   jobId: string;
   totalJobCost: number;
 }) {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -162,13 +164,11 @@ export function BudgetPanel({
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const onPickFile = (file: File | undefined) => {
+  const onPickFile = async (file: File | undefined) => {
     if (!file) return;
     if (
       lines.length > 0 &&
-      !confirm(
-        "Uploading makes the file the budget. Lines still in it keep their allocations; lines not in it are removed with theirs. Continue?",
-      )
+      !(await confirmAction({ title: "Replace the budget with this file?", description: "Lines still in it keep their allocations; lines not in it are removed with theirs.", confirmLabel: "Replace budget", tone: "warning" }))
     ) {
       if (fileRef.current) fileRef.current.value = "";
       return;
@@ -433,7 +433,7 @@ export function BudgetPanel({
                     <button type="button" className="rounded p-1.5 text-muted-foreground hover:bg-surface-muted hover:text-foreground" title="Edit line" onClick={() => startEdit(l)}>
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button type="button" className="rounded p-1.5 text-muted-foreground hover:bg-tone-danger-soft hover:text-destructive" title="Remove line" onClick={() => { if (confirm("Remove this budget line?")) deleteLine.mutate(l.id); }}>
+                    <button type="button" className="rounded p-1.5 text-muted-foreground hover:bg-tone-danger-soft hover:text-destructive" title="Remove line" aria-label="Remove line" onClick={async () => { if (await confirmAction({ title: "Remove this budget line?", description: "Any expense allocations on it are removed too.", confirmLabel: "Remove", tone: "danger" })) deleteLine.mutate(l.id); }}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>

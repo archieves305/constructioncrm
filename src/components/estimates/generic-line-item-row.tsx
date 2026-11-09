@@ -144,7 +144,7 @@ export function GenericLineItemRow({
           className="h-7 w-7"
           onClick={onMoveUp}
           disabled={isFirst}
-          title="Move up"
+          title="Move up" aria-label="Move up"
         >
           <ChevronUp className="h-4 w-4" />
         </Button>
@@ -155,7 +155,7 @@ export function GenericLineItemRow({
           className="h-7 w-7"
           onClick={onMoveDown}
           disabled={isLast}
-          title="Move down"
+          title="Move down" aria-label="Move down"
         >
           <ChevronDown className="h-4 w-4" />
         </Button>
@@ -165,7 +165,7 @@ export function GenericLineItemRow({
           variant="ghost"
           className="h-7 w-7"
           onClick={onDuplicate}
-          title="Duplicate line"
+          title="Duplicate line" aria-label="Duplicate line"
         >
           <Copy className="h-4 w-4" />
         </Button>
@@ -175,7 +175,7 @@ export function GenericLineItemRow({
           variant="ghost"
           className="h-7 w-7 text-destructive"
           onClick={onDelete}
-          title="Delete line"
+          title="Delete line" aria-label="Delete line"
         >
           <Trash2 className="h-4 w-4" />
         </Button>

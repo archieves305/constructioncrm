@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { enumItems, enumLabel } from "@/lib/ui/enum-label";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 const LEAD_TRIGGERS = ["LEAD_CREATED", "LEAD_STAGE_CHANGED", "LEAD_ASSIGNED"] as const;
 const PERMIT_TRIGGERS = [
@@ -107,6 +108,7 @@ const empty: FormState = {
 };
 
 export default function FollowUpRulesPage() {
+  const confirmAction = useConfirm();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -466,14 +468,15 @@ export default function FollowUpRulesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => startEdit(r)}>
+                      <Button aria-label="Edit" size="sm" variant="ghost" onClick={() => startEdit(r)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
-                          if (confirm(`Delete "${r.name}"?`)) remove.mutate(r.id);
+                        aria-label={`Delete the rule ${r.name}`}
+                        onClick={async () => {
+                          if (await confirmAction({ title: `Delete the rule "${r.name}"?`, description: "Leads and jobs stop getting its follow-ups. Follow-ups already sent stay in their history.", confirmLabel: "Delete", tone: "danger" })) remove.mutate(r.id);
                         }}
                       >
                         <Trash2 className="h-4 w-4" />

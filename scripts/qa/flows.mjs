@@ -239,6 +239,24 @@ flows.expense = async () => {
     expect(st === "APPROVED", st);
     return true;
   });
+  await rec.step("Deleting an expense asks in an in-app dialog (no browser confirm), and Cancel keeps it", async () => {
+    const r = await api("POST", `/api/jobs/${state.jobId}/expenses`, { type: "MATERIAL", vendor: `QA Delete ${STAMP}`, amount: 9.99, incurredDate: "2026-11-08" });
+    ok(r, "expense create");
+    const id = idOf(r.body);
+    await go(`/jobs/${state.jobId}?tab=money&sub=expenses`);
+    // Each expense is a card; its delete button is named from its title ("Delete expense").
+    const row = page.locator('[data-slot="card"]').filter({ hasText: `QA Delete ${STAMP}` }).last();
+    await row.getByRole("button", { name: /^delete/i }).click();
+    await dialog().getByText("Delete this expense?").waitFor({ timeout: 10000 });
+    await dialog().getByRole("button", { name: "Cancel" }).click();
+    await page.waitForTimeout(800);
+    expect(sql(`select count(*) from job_expenses where id = '${id}'`) === "1", "Cancel deleted the expense");
+    await row.getByRole("button", { name: /^delete/i }).click();
+    await dialog().getByRole("button", { name: "Delete" }).click();
+    await page.waitForTimeout(1500);
+    expect(sql(`select count(*) from job_expenses where id = '${id}'`) === "0", "Delete did not remove the expense");
+    return true;
+  });
 };
 
 flows.crewpay = async () => {

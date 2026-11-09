@@ -362,7 +362,7 @@ export default function CanvassingPage() {
                       </div>
                     )}
                   </div>
-                  <Button
+                  <Button aria-label="Delete"
                     variant="ghost"
                     size="sm"
                     className="text-tone-danger-fg hover:text-tone-danger-fg"

@@ -12,6 +12,19 @@ const eslintConfig = defineConfig([
     files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}", "src/hooks/**/*.{ts,tsx}", "src/lib/ui/**/*.ts"],
     ignores: ["src/app/api/**"],
     rules: {
+      // The browser's dialogs block the page and can't say what will happen — useConfirm / usePrompt.
+      "no-restricted-globals": [
+        "error",
+        { name: "confirm", message: "Use useConfirm() from @/components/shared/confirm-provider." },
+        { name: "prompt", message: "Use usePrompt() from @/components/shared/confirm-provider." },
+        { name: "alert", message: "Use a toast (sonner) or a Callout." },
+      ],
+      "no-restricted-properties": [
+        "error",
+        { object: "window", property: "confirm", message: "Use useConfirm() from @/components/shared/confirm-provider." },
+        { object: "window", property: "prompt", message: "Use usePrompt() from @/components/shared/confirm-provider." },
+        { object: "window", property: "alert", message: "Use a toast (sonner) or a Callout." },
+      ],
       "no-restricted-syntax": [
         "error",
         { selector: "Literal[value=/(^|[\\s:])(bg|text|border|ring|divide|fill|stroke|outline)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}\\b/]", message: "Use a design token (surface-*, fg-secondary, muted-foreground, border, tone-*, stage-*, brand) instead of a raw Tailwind colour — see docs/project-memory/features/design-system.md." },

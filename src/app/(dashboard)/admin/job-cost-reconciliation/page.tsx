@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { NEVER_POSTED_LABEL, type NeverPostedReason } from "@/lib/expenses/reconcile-allocator";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type Side = { id: string; vendor: string | null; description: string | null; type: string; billable: boolean; incurredDate: string; createdAt: string; enteredBy: string };
 type Pair = {
@@ -97,6 +98,7 @@ const day = (iso: string) => format(new Date(`${iso.slice(0, 10)}T12:00:00`), "M
  * posting is the bank's record and its idempotency key.
  */
 export default function JobCostReconciliationPage() {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery<Payload>({
     queryKey: ["job-cost-reconciliation"],
@@ -211,9 +213,9 @@ export default function JobCostReconciliationPage() {
                                 size="sm"
                                 variant="destructive"
                                 disabled={busy}
-                                onClick={() => {
+                                onClick={async () => {
                                   if (
-                                    confirm(
+                                    await confirmAction(
                                       `Remove the typed-in ${money(p.amount)} charge (${p.manual.vendor ?? "no vendor"}, ${day(p.manual.incurredDate)}) on ${p.jobAddress ?? p.jobNumber}? The cc-allocator posting stays. This cannot be undone.`,
                                     )
                                   )

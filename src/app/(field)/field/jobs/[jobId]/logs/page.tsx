@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ArrowLeft, CalendarPlus, FileDown, Mail, Trash2 } from "lucide-react";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 function localDate(daysAgo = 0): string {
   const d = new Date();
@@ -50,6 +51,7 @@ export default function FieldLogsListPage({
 }: {
   params: Promise<{ jobId: string }>;
 }) {
+  const confirmAction = useConfirm();
   const { jobId } = use(params);
   const router = useRouter();
   const qc = useQueryClient();
@@ -121,7 +123,7 @@ export default function FieldLogsListPage({
   return (
     <div className="mx-auto max-w-3xl space-y-3 p-4">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/field")}>
+        <Button aria-label="Back" variant="ghost" size="sm" onClick={() => router.push("/field")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="min-w-0 flex-1">
@@ -219,9 +221,9 @@ export default function FieldLogsListPage({
                     <Button
                       variant="outline"
                       className="h-11"
-                      onClick={() => {
+                      onClick={async () => {
                         if (
-                          confirm(
+                          await confirmAction(
                             `Delete the ${format(new Date(`${log.logDate}T12:00:00`), "MMM d")} log? Crew hours and notes for that day will be removed.`,
                           )
                         ) {

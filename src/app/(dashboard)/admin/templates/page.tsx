@@ -39,6 +39,7 @@ import {
   type RichTextEditorHandle,
 } from "@/components/ui/rich-text-editor";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type Template = {
   id: string;
@@ -70,6 +71,7 @@ function looksLikeHtml(s: string) {
 }
 
 export default function TemplatesPage() {
+  const confirmAction = useConfirm();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -449,14 +451,14 @@ export default function TemplatesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => startEdit(t)}>
+                      <Button aria-label="Edit" size="sm" variant="ghost" onClick={() => startEdit(t)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
+                      <Button aria-label="Delete"
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
-                          if (confirm(`Delete "${t.name}"?`)) remove.mutate(t.id);
+                        onClick={async () => {
+                          if (await confirmAction({ title: `Delete the template "${t.name}"?`, confirmLabel: "Delete", tone: "danger" })) remove.mutate(t.id);
                         }}
                       >
                         <Trash2 className="h-4 w-4" />

@@ -26,6 +26,7 @@ import { toneClasses, type Tone } from "@/lib/ui/tones";
 import { canManageNurture } from "@/lib/nurture/access";
 import type { PlannedSend } from "@/lib/nurture/run";
 import Link from "next/link";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type Settings = {
   enabled: boolean;
@@ -255,6 +256,7 @@ function CadenceTab({ data, isAdmin }: { data: SettingsPayload; isAdmin: boolean
 }
 
 function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
   const { data: rows = [], isLoading } = useQuery<Content[]>({ queryKey: ["nurture-content"], queryFn: () => fetchJson("/api/admin/nurture/content"), retry: retryServerErrors });
   const [editing, setEditing] = useState<Partial<Content> | null>(null);
@@ -361,7 +363,7 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
                           {c.isActive ? "Deactivate" : "Activate"}
                         </Button>
                         {c.sentCount === 0 && (
-                          <Button size="icon" variant="ghost" aria-label="Delete" onClick={() => confirm(`Delete "${c.subject}"?`) && remove.mutate(c.id)}>
+                          <Button size="icon" variant="ghost" aria-label="Delete" onClick={async () => (await confirmAction({ title: `Delete the email "${c.subject}"?`, confirmLabel: "Delete", tone: "danger" })) && remove.mutate(c.id)}>
                             <Trash2 className="size-4" />
                           </Button>
                         )}
@@ -451,6 +453,7 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
 }
 
 function QueueTab({ isAdmin, timeZone }: { isAdmin: boolean; timeZone: string }) {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
   const [status, setStatus] = useState<"" | "ACTIVE" | "PAUSED" | "STOPPED">("");
   const [q, setQ] = useState("");
@@ -587,7 +590,7 @@ function QueueTab({ isAdmin, timeZone }: { isAdmin: boolean; timeZone: string })
                             </Button>
                           )}
                           {r.status !== "STOPPED" && (
-                            <Button size="icon" variant="ghost" aria-label="Stop" onClick={() => confirm(`Stop automated emails to ${r.lead.fullName}?`) && act.mutate({ leadId: r.leadId, action: "stop" })}>
+                            <Button size="icon" variant="ghost" aria-label="Stop" onClick={async () => (await confirmAction({ title: `Stop automated emails to ${r.lead.fullName}?`, description: "You can enrol them again later from the lead.", confirmLabel: "Stop emails", tone: "warning" })) && act.mutate({ leadId: r.leadId, action: "stop" })}>
                               <Square className="size-4" />
                             </Button>
                           )}

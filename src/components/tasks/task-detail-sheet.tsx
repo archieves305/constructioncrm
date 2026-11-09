@@ -40,6 +40,7 @@ import { formatAddressLine } from "@/lib/labels/address";
 import { TaskWorkflowBlock } from "@/components/workflows/task-workflow-block";
 import { TaskAttachments } from "./task-attachments";
 import type { WorkflowTaskItem } from "@/components/workflows/types";
+import { usePrompt } from "@/components/shared/confirm-provider";
 
 type TaskDetail = TaskListItem &
   Omit<WorkflowTaskItem, keyof TaskListItem | "dependencies"> & {
@@ -72,6 +73,7 @@ export function TaskDetailSheet({
   isAdmin: boolean;
   onClose: () => void;
 }) {
+  const ask = usePrompt();
   const qc = useQueryClient();
   const { data: session } = useSession();
   const isPhone = useIsPhone();
@@ -596,10 +598,10 @@ export function TaskDetailSheet({
                 users={userLookup}
                 currentUserId={currentUserId}
                 isAdmin={isAdmin}
-                onEditNote={(id, body) => {
-                  const next = window.prompt("Edit note", body);
-                  if (next !== null && next.trim() && next !== body) {
-                    editNote.mutate({ id, body: next.trim() });
+                onEditNote={async (id, body) => {
+                  const next = await ask({ title: "Edit note", label: "Note", defaultValue: body, multiline: true });
+                  if (next && next !== body) {
+                    editNote.mutate({ id, body: next });
                   }
                 }}
                 onDeleteNote={(id) => deleteNote.mutate(id)}

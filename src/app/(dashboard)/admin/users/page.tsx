@@ -33,6 +33,7 @@ import { roleDisplayName } from "@/lib/auth/role-display";
 import type { RoleName } from "@/generated/prisma/client";
 import { useSession } from "@/lib/auth/session-client";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type SelectableRole = {
   id: string;
@@ -108,6 +109,7 @@ async function parseError(res: Response): Promise<string> {
 }
 
 export default function AdminUsersPage() {
+  const confirmAction = useConfirm();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const currentUser = (session?.user as SessionUser | undefined) ?? {};
@@ -225,14 +227,14 @@ export default function AdminUsersPage() {
                       {isAdmin ? (
                         <Select
                           value={user.role.id}
-                          onValueChange={(v: string | null) => {
+                          onValueChange={async (v: string | null) => {
                             if (!v || v === user.role.id) return;
                             const next = roles?.find((r) => r.id === v);
                             const isSelf = currentUser.id === user.id;
                             const confirmMsg = isSelf
                               ? `Change your own role to ${next?.displayName ?? "the selected role"}? You'll keep ADMIN access only if the new role is ADMIN.`
                               : `Change ${user.firstName} ${user.lastName}'s role to ${next?.displayName ?? "the selected role"}?`;
-                            if (confirm(confirmMsg)) {
+                            if (await confirmAction(confirmMsg)) {
                               changeRole.mutate({ id: user.id, roleId: v });
                             }
                           }}

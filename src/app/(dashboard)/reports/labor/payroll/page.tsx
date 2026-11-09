@@ -38,6 +38,7 @@ import {
   TriangleAlert,
   Undo2,
 } from "lucide-react";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type JobSplit = {
   jobId: string;
@@ -85,6 +86,7 @@ function money(n: number): string {
 }
 
 export default function PayrollPage() {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
@@ -172,7 +174,7 @@ export default function PayrollPage() {
 
       <Card>
         <CardContent className="flex flex-wrap items-center gap-3 py-4">
-          <Button variant="outline" size="sm" onClick={() => setAnchor(shiftDays(anchor, -7))}>
+          <Button aria-label="Previous" variant="outline" size="sm" onClick={() => setAnchor(shiftDays(anchor, -7))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Input
@@ -181,7 +183,7 @@ export default function PayrollPage() {
             onChange={(e) => e.target.value && setAnchor(e.target.value)}
             className="w-40"
           />
-          <Button variant="outline" size="sm" onClick={() => setAnchor(shiftDays(anchor, 7))}>
+          <Button aria-label="Next" variant="outline" size="sm" onClick={() => setAnchor(shiftDays(anchor, 7))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
           {data && (
@@ -259,14 +261,14 @@ export default function PayrollPage() {
                           {row.payment.paidBy}
                         </span>
                         {isAdmin && (
-                          <Button
+                          <Button aria-label="Undo payment (removes the posted job expenses)"
                             variant="ghost"
                             size="sm"
                             title="Undo payment (removes the posted job expenses)"
                             disabled={unpay.isPending}
-                            onClick={() => {
+                            onClick={async () => {
                               if (
-                                confirm(
+                                await confirmAction(
                                   `Undo the ${money(row.payment!.grossAmount)} payment for ${row.name}? The posted job expenses will be removed.`,
                                 )
                               ) {

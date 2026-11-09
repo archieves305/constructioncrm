@@ -33,6 +33,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { formatFileSize, uploadProblem } from "@/lib/files/limits";
 import { preparedUpload } from "@/components/workflows/use-task-file-upload";
 import { FilePreviewDialog } from "@/components/files/file-preview";
+import { useConfirm, usePrompt } from "@/components/shared/confirm-provider";
 
 const TYPES = [
   "MATERIAL",
@@ -145,6 +146,7 @@ function ExpenseFields({
   onAddSource: (name: string) => void;
   showBillable: boolean;
 }) {
+  const ask = usePrompt();
   // Known vendors are suggested; anything else may still be typed.
   const { data: knownVendors = [] } = useVendorOptions();
   return (
@@ -254,11 +256,11 @@ function ExpenseFields({
           <div className="flex gap-2">
             <Select
               value={form.paidFrom || "__none"}
-              onValueChange={(v: string | null) => {
+              onValueChange={async (v: string | null) => {
                 if (!v || v === "__none") {
                   setForm({ ...form, paidFrom: "" });
                 } else if (v === "__add") {
-                  const name = window.prompt("New payment source name")?.trim();
+                  const name = await ask({ title: "Add a payment source", label: "Name", placeholder: "e.g. Chase business card", confirmLabel: "Add" });
                   if (name) onAddSource(name);
                 } else {
                   setForm({ ...form, paidFrom: v });
@@ -308,6 +310,8 @@ export function ExpensesPanel({
   laborTotal?: number;
   isRentalTurnover?: boolean;
 }) {
+  const ask = usePrompt();
+  const confirmAction = useConfirm();
   const isCostPlus = jobType === "COST_PLUS";
   const isOwnedRehab = jobType === "OWNED_REHAB";
   // Rollup jobs compute their contract from the expense pool — no per-expense
@@ -1116,10 +1120,8 @@ export function ExpensesPanel({
                           variant="outline"
                           className="h-7"
                           disabled={review.isPending}
-                          onClick={() => {
-                            const note = window.prompt(
-                              "Why is this charge being rejected?",
-                            );
+                          onClick={async () => {
+                            const note = await ask({ title: "Why is this charge being rejected?", label: "Reason", multiline: true, required: false, confirmLabel: "Reject charge" });
                             if (note === null) return;
                             review.mutate({
                               id: e.id,
@@ -1185,8 +1187,8 @@ export function ExpensesPanel({
                             ? "Delete — this charge came from cc-allocator; prefer fixing it there"
                             : "Delete expense"
                         }
-                        onClick={() => {
-                          if (confirm("Delete this expense?")) remove.mutate(e.id);
+                        onClick={async () => {
+                          if (await confirmAction({ title: "Delete this expense?", description: "The job's costs are recalculated without it.", confirmLabel: "Delete", tone: "danger" })) remove.mutate(e.id);
                         }}
                       >
                         <Trash2 className="h-4 w-4" />

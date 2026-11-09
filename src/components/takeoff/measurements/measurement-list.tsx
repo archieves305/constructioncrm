@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toneClasses, type Tone } from "@/lib/ui/tones";
 import { colorFor } from "../viewer/shapes";
 import type { Measurement } from "../use-takeoff";
+import { usePrompt } from "@/components/shared/confirm-provider";
 
 const STATUS: Record<string, { tone: Tone; label: string }> = {
   AI_GENERATED: { tone: "info", label: "AI proposal" },
@@ -68,6 +69,7 @@ export function MeasurementList({ measurements, trade, selectedId, onSelect, onH
 
 /** One measurement: edit its label, review it, exclude or delete it. */
 export function MeasurementInspector({ m, trade, canEdit, canApprove, onPatch, onDelete, onClose }: { m: Measurement; trade: TradeName; canEdit: boolean; canApprove: boolean; onPatch: (patch: { label?: string; metricKey?: string; reviewStatus?: "REVIEWED" | "APPROVED" | "EXCLUDED" | "NEEDS_CLARIFICATION"; note?: string | null }) => void; onDelete: () => void; onClose: () => void }) {
+  const ask = usePrompt();
   const [label, setLabel] = useState(m.label);
   const [confirm, setConfirm] = useState(false);
   const options = METRICS[trade].filter((d) => d.kind === m.kind);
@@ -94,7 +96,7 @@ export function MeasurementInspector({ m, trade, canEdit, canApprove, onPatch, o
               canApprove ? <Button size="sm" onClick={() => onPatch({ reviewStatus: "APPROVED" })}><Check className="mr-1 h-3 w-3" /> Approve</Button> : <Button size="sm" onClick={() => onPatch({ reviewStatus: "REVIEWED" })}><Check className="mr-1 h-3 w-3" /> Mark reviewed</Button>
             )}
             {m.reviewStatus !== "EXCLUDED" ? <Button size="sm" variant="outline" onClick={() => onPatch({ reviewStatus: "EXCLUDED" })}><XCircle className="mr-1 h-3 w-3" /> Exclude</Button> : <Button size="sm" variant="outline" onClick={() => onPatch({ reviewStatus: "REVIEWED" })}>Include again</Button>}
-            {m.reviewStatus !== "NEEDS_CLARIFICATION" && <Button size="sm" variant="outline" onClick={() => { const n = window.prompt("What needs clarifying?", note ?? ""); if (n != null && n.trim()) onPatch({ reviewStatus: "NEEDS_CLARIFICATION", note: n.trim() }); }}>Needs clarification</Button>}
+            {m.reviewStatus !== "NEEDS_CLARIFICATION" && <Button size="sm" variant="outline" onClick={async () => { const n = await ask({ title: "What needs clarifying?", label: "Question", defaultValue: note ?? "", multiline: true }); if (n) onPatch({ reviewStatus: "NEEDS_CLARIFICATION", note: n.trim() }); }}>Needs clarification</Button>}
             <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setConfirm(true)} aria-label="Delete measurement"><Trash2 className="h-4 w-4" /></Button>
           </div>
         </>

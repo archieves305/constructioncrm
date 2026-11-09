@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Upload, Trash2 } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type Brand = {
   id: string;
@@ -43,6 +44,7 @@ const num = (s: string) => {
 };
 
 export function RoofingBrandForm() {
+  const confirmAction = useConfirm();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [logoCacheBust, setLogoCacheBust] = useState(0);
@@ -224,8 +226,8 @@ export function RoofingBrandForm() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => {
-                    if (confirm("Remove the brand logo?")) removeLogo.mutate();
+                  onClick={async () => {
+                    if (await confirmAction({ title: "Remove the brand logo?", confirmLabel: "Remove logo", tone: "danger" })) removeLogo.mutate();
                   }}
                   disabled={removeLogo.isPending}
                 >

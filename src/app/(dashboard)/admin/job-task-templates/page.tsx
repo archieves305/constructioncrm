@@ -33,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 
@@ -75,6 +76,7 @@ const emptyForm: Form = {
 };
 
 export default function JobTaskTemplatesPage() {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -411,18 +413,18 @@ export default function JobTaskTemplatesPage() {
                       )}
                     </TableCell>
                     <TableCell className="flex gap-1">
-                      <Button
+                      <Button aria-label="Edit"
                         size="sm"
                         variant="ghost"
                         onClick={() => startEdit(t)}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
+                      <Button aria-label="Delete"
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
-                          if (confirm(`Delete "${t.title}"?`)) remove.mutate(t.id);
+                        onClick={async () => {
+                          if (await confirmAction({ title: `Delete the stage task "${t.title}"?`, description: "Jobs entering that stage stop getting this task. Tasks already raised stay.", confirmLabel: "Delete", tone: "danger" })) remove.mutate(t.id);
                         }}
                       >
                         <Trash2 className="h-4 w-4" />

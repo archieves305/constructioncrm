@@ -256,7 +256,7 @@ export function TemplateEditor({ templateId, versionId }: { templateId: string; 
                       <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditPhase({ phase: selectedPhase })}>
                         <Pencil className="size-3.5" /> Edit phase
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 text-xs text-tone-danger-fg" onClick={() => setConfirmDeletePhase(selectedPhase)}>
+                      <Button aria-label="Delete" size="sm" variant="ghost" className="h-7 text-xs text-tone-danger-fg" onClick={() => setConfirmDeletePhase(selectedPhase)}>
                         <Trash2 className="size-3.5" />
                       </Button>
                       <Button size="sm" className="h-7 text-xs" onClick={() => setEditTask({ task: null, phaseId: selectedPhase.id })}>

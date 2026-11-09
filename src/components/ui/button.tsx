@@ -1,6 +1,8 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
+import { Loader2 } from "lucide-react"
+
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
@@ -8,7 +10,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        // The primary action is brand blue (T-11): one per view; secondary = outline, tertiary = ghost.
+        default:
+          "bg-brand text-brand-foreground shadow-xs hover:bg-brand/90 focus-visible:border-brand focus-visible:ring-brand/40",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
@@ -42,18 +46,41 @@ const buttonVariants = cva(
   }
 )
 
+type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>
+type IconSize = Extract<ButtonSize, `icon${string}`>
+type BaseProps = ButtonPrimitive.Props &
+  Omit<VariantProps<typeof buttonVariants>, "size"> & {
+    /** Shows a spinner, disables the button and marks it busy. */
+    loading?: boolean
+  }
+/**
+ * An icon-only button has no text, so it must be named for screen readers —
+ * the type refuses `size="icon…"` without `aria-label` / `aria-labelledby`.
+ */
+type ButtonProps =
+  | (BaseProps & { size?: Exclude<ButtonSize, IconSize> | null })
+  | (BaseProps & { size: IconSize } & ({ "aria-label": string } | { "aria-labelledby": string }))
+
 function Button({
   className,
   variant = "default",
   size = "default",
+  loading = false,
+  disabled,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonProps) {
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
       {...props}
-    />
+    >
+      {loading && <Loader2 className="animate-spin" aria-hidden />}
+      {children}
+    </ButtonPrimitive>
   )
 }
 

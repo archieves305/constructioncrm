@@ -41,6 +41,7 @@ import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { useTasks } from "@/components/tasks/use-tasks";
 import { isPast, isToday } from "date-fns";
 import { computeApplication, type ComputedApplication } from "@/lib/billing/g702";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type InvoicePayment = {
   id: string;
@@ -127,6 +128,7 @@ export function InvoicesPanel({
   billingMethod: "LUMP_SUM" | "PROGRESS";
   retainagePercent: number;
 }) {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
   const { data: session } = useSession();
   const canManage = BILLING_ROLES.includes(session?.user?.role ?? "");
@@ -217,12 +219,15 @@ export function InvoicesPanel({
     return { title: pastDue ? `Follow up on ${taskFor.invoiceNumber} — past due` : "" };
   }, [taskFor]);
 
-  function changeStatus(inv: Invoice, status: string) {
+  async function changeStatus(inv: Invoice, status: string) {
     // Payments drive status — warn if marking PAID without covering payments.
     if (status === "PAID" && paidTotal(inv) < Number(inv.amount)) {
-      const ok = confirm(
-        "No payment covers this invoice yet. Marking it Paid here won't record money received or reduce the balance. Record a payment on the Payments tab instead?\n\nClick OK to mark Paid anyway, Cancel to stop.",
-      );
+      const ok = await confirmAction({
+        title: "Mark this invoice paid without a payment?",
+        description: "No payment covers it yet, so marking it Paid here won't record money received or lower the balance. To record money received, use the Payments tab instead.",
+        confirmLabel: "Mark paid anyway",
+        tone: "warning",
+      });
       if (!ok) return;
     }
     updateStatus.mutate({ id: inv.id, status });
@@ -393,14 +398,12 @@ export function InvoicesPanel({
             {canManage ? (
               <Select
                 value={billingMethod}
-                onValueChange={(v: string | null) => {
+                onValueChange={async (v: string | null) => {
                   if (!v || v === billingMethod) return;
                   if (
                     v === "LUMP_SUM" &&
                     (billing?.applications.length ?? 0) > 0 &&
-                    !confirm(
-                      "This job already has payment applications. Switching to lump-sum keeps them but stops new ones. Continue?",
-                    )
+                    !(await confirmAction({ title: "Switch this job to lump-sum billing?", description: "Its payment applications are kept, but no new ones can be made.", confirmLabel: "Switch to lump sum", tone: "warning" }))
                   )
                     return;
                   saveSettings.mutate({ billingMethod: v });

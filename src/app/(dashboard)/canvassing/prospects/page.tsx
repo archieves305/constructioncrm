@@ -284,7 +284,7 @@ export default function ProspectsPage() {
                   <DoorOpen className="mr-2 h-4 w-4" /> Log knock
                 </Button>
 
-                <Button
+                <Button aria-label="Delete"
                   variant="ghost"
                   size="sm"
                   className="text-tone-danger-fg hover:text-tone-danger-fg"

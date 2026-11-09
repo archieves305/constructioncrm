@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Eye, EyeOff, FileText, Trash2, Upload } from "lucide-react";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   W2: "Employee (W-2)",
@@ -108,6 +109,7 @@ export default function PersonnelDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const confirmAction = useConfirm();
   const { id } = use(params);
   const qc = useQueryClient();
 
@@ -593,8 +595,8 @@ export default function PersonnelDetailPage({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            if (confirm("Remove the SSN from this record?")) saveSsn.mutate(null);
+                          onClick={async () => {
+                            if (await confirmAction({ title: "Remove the SSN from this record?", confirmLabel: "Remove SSN", tone: "danger" })) saveSsn.mutate(null);
                           }}
                         >
                           Remove
@@ -676,11 +678,11 @@ export default function PersonnelDetailPage({
                         <span className="text-muted-foreground hidden sm:inline">
                           {format(new Date(doc.createdAt), "MMM d, yyyy")}
                         </span>
-                        <Button
+                        <Button aria-label="Delete"
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            if (confirm(`Delete ${doc.fileName}?`)) deleteDoc.mutate(doc.id);
+                          onClick={async () => {
+                            if (await confirmAction({ title: `Delete ${doc.fileName}?`, confirmLabel: "Delete", tone: "danger" })) deleteDoc.mutate(doc.id);
                           }}
                         >
                           <Trash2 className="h-4 w-4 text-tone-danger-fg" />
@@ -709,8 +711,8 @@ export default function PersonnelDetailPage({
           </div>
           <Button
             variant={person.isActive ? "destructive" : "default"}
-            onClick={() => {
-              if (!person.isActive || confirm(`Deactivate ${person.firstName} ${person.lastName}?`)) {
+            onClick={async () => {
+              if (!person.isActive || (await confirmAction({ title: `Deactivate ${person.firstName} ${person.lastName}?`, description: "They drop off rosters and daily logs. Their history stays, and you can reactivate them.", confirmLabel: "Deactivate", tone: "warning" }))) {
                 toggleActive.mutate();
               }
             }}

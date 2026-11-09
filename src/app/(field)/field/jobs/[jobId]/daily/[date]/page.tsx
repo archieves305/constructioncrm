@@ -362,7 +362,7 @@ export default function DailyLaborPage({
     <div className="mx-auto max-w-3xl p-4 pb-32">
       <div className="mb-4 flex items-center gap-2">
         <Link href="/field">
-          <Button variant="ghost" size="sm">
+          <Button aria-label="Back" variant="ghost" size="sm">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
@@ -382,13 +382,13 @@ export default function DailyLaborPage({
             rel="noreferrer"
             aria-label="View PDF"
           >
-            <Button variant="ghost" size="sm">
+            <Button aria-label="Download PDF" variant="ghost" size="sm">
               <FileDown className="h-5 w-5" />
             </Button>
           </a>
         )}
         <Link href={`/field/jobs/${jobId}/logs`} aria-label="All logs">
-          <Button variant="ghost" size="sm">
+          <Button aria-label="History" variant="ghost" size="sm">
             <History className="h-5 w-5" />
           </Button>
         </Link>

@@ -42,6 +42,7 @@ import { useRouter } from "next/navigation";
 import { formatMinutes } from "@/components/field/touch-time-field";
 import type { ServerLog } from "@/hooks/use-labor-sheet";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-surface-muted text-fg-secondary" },
@@ -70,6 +71,7 @@ export default function DailyLogReviewPage({
 }: {
   params: Promise<{ id: string; date: string }>;
 }) {
+  const confirmAction = useConfirm();
   const { id: jobId, date } = use(params);
   const router = useRouter();
   const qc = useQueryClient();
@@ -217,11 +219,11 @@ export default function DailyLogReviewPage({
               <Undo2 className="mr-1 h-4 w-4" /> Return to draft
             </Button>
             <Button
-              onClick={() => {
+              onClick={async () => {
                 // Force a conscious look at the crew count — a day submitted
                 // with fewer workers than expected is the main thing to catch.
                 if (
-                  confirm(
+                  await confirmAction(
                     `Approve this day — ${present.length} worker${present.length === 1 ? "" : "s"}, ${log.totals.totalHours}h total?`,
                   )
                 ) {
@@ -246,8 +248,8 @@ export default function DailyLogReviewPage({
         {role === "ADMIN" && log.status === "APPROVED" && (
           <Button
             variant="outline"
-            onClick={() => {
-              if (confirm("Reopen this approved log? Hours become editable again.")) {
+            onClick={async () => {
+              if (await confirmAction({ title: "Reopen this approved log?", description: "Its hours become editable again until it is approved a second time.", confirmLabel: "Reopen", tone: "warning" })) {
                 transition.mutate({ action: "reopen" });
               }
             }}
@@ -259,9 +261,9 @@ export default function DailyLogReviewPage({
         {(log.status === "DRAFT" || role === "ADMIN") && (
           <Button
             variant="outline"
-            onClick={() => {
+            onClick={async () => {
               if (
-                confirm(
+                await confirmAction(
                   `Delete this daily log? Crew hours, notes, and the day's report will be removed.${log.status !== "DRAFT" ? " This log was already " + log.status.toLowerCase() + "." : ""}`,
                 )
               ) {

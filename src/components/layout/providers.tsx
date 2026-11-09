@@ -4,6 +4,7 @@ import { SessionProvider } from "@/lib/auth/session-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { retryServerErrors } from "@/lib/fetch-json";
+import { ConfirmProvider } from "@/components/shared/confirm-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -24,7 +25,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
-        {children}
+        <ConfirmProvider>{children}</ConfirmProvider>
       </QueryClientProvider>
     </SessionProvider>
   );

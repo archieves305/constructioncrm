@@ -27,6 +27,7 @@ import {
   Pilcrow,
   Code2,
 } from "lucide-react";
+import { usePrompt } from "@/components/shared/confirm-provider";
 
 type Props = {
   value: string;
@@ -57,6 +58,7 @@ export type RichTextEditorHandle = {
 
 export const RichTextEditor = React.forwardRef<RichTextEditorHandle, Props>(
   function RichTextEditor({ value, onChange, placeholder, className, minHeight = 280 }, ref) {
+    const ask = usePrompt();
     const editorRef = React.useRef<HTMLDivElement | null>(null);
     const [showColor, setShowColor] = React.useState(false);
     const [showHighlight, setShowHighlight] = React.useState(false);
@@ -121,9 +123,17 @@ export const RichTextEditor = React.forwardRef<RichTextEditorHandle, Props>(
       emitChange();
     }
 
-    function insertLink() {
-      const url = window.prompt("Link URL (https://…)");
+    async function insertLink() {
+      // The dialog takes focus, so keep the selection to put back afterwards.
+      const saved = window.getSelection()?.rangeCount ? window.getSelection()!.getRangeAt(0).cloneRange() : null;
+      const url = await ask({ title: "Add a link", label: "Link address", type: "url", placeholder: "https://…", confirmLabel: "Add link" });
       if (!url) return;
+      editorRef.current?.focus();
+      if (saved) {
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(saved);
+      }
       applyFormat("createLink", url);
       // Make link target=_blank for safety in email clients (best-effort).
       const sel = window.getSelection();
@@ -289,7 +299,7 @@ function ToolbarBtn({
       type="button"
       variant="ghost"
       size="icon-sm"
-      title={title}
+      title={title} aria-label={title}
       onMouseDown={(e) => e.preventDefault()} // keep selection
       onClick={onClick}
       className="h-7 w-7"

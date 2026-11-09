@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Trash2 } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 type Brand = {
   id: string;
@@ -20,6 +21,7 @@ type Brand = {
 // name + logo are editable here — all other letterhead (address, phone, email,
 // licenses, payment terms) is inherited from the NewCoast/Roofing Proposal brand.
 export function EstimateBrandForm() {
+  const confirmAction = useConfirm();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [logoCacheBust, setLogoCacheBust] = useState(0);
@@ -150,8 +152,8 @@ export function EstimateBrandForm() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => {
-                    if (confirm("Remove the logo?")) removeLogo.mutate();
+                  onClick={async () => {
+                    if (await confirmAction({ title: "Remove the logo?", confirmLabel: "Remove logo", tone: "danger" })) removeLogo.mutate();
                   }}
                   disabled={removeLogo.isPending}
                 >

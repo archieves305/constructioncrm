@@ -103,7 +103,7 @@ export function GenericSectionEditor({
                 className="h-8 w-8"
                 onClick={() => moveSection(sIdx, -1)}
                 disabled={sIdx === 0}
-                title="Move section up"
+                title="Move section up" aria-label="Move section up"
               >
                 <ChevronUp className="h-4 w-4" />
               </Button>
@@ -114,7 +114,7 @@ export function GenericSectionEditor({
                 className="h-8 w-8"
                 onClick={() => moveSection(sIdx, 1)}
                 disabled={sIdx === sections.length - 1}
-                title="Move section down"
+                title="Move section down" aria-label="Move section down"
               >
                 <ChevronDown className="h-4 w-4" />
               </Button>
@@ -124,7 +124,7 @@ export function GenericSectionEditor({
                 variant="ghost"
                 className="h-8 w-8"
                 onClick={() => duplicateSection(sIdx)}
-                title="Duplicate section (e.g. per room)"
+                title="Duplicate section (e.g. per room)" aria-label="Duplicate section (e.g. per room)"
               >
                 <Copy className="h-4 w-4" />
               </Button>
@@ -135,7 +135,7 @@ export function GenericSectionEditor({
                 className="h-8 w-8 text-destructive"
                 onClick={() => deleteSection(sIdx)}
                 disabled={sections.length === 1}
-                title="Delete section"
+                title="Delete section" aria-label="Delete section"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

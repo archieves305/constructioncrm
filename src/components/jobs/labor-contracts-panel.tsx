@@ -49,6 +49,7 @@ import { CrewContact } from "./crew-contact";
 import { CrewLinks } from "./crew-links";
 import { attachCompletionPhotos, CompletionPhotoPicker, CompletionPhotosButton, type CompletionPhoto } from "./completion-photos";
 import { fetchJson } from "@/lib/fetch-json";
+import { useConfirm } from "@/components/shared/confirm-provider";
 
 const METHODS = [
   "CHECK",
@@ -191,6 +192,7 @@ function vendorOf(c: LaborContract): { id: string; name: string } | null {
 }
 
 export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }: { jobId: string; projectManagerId?: string | null }) {
+  const confirmAction = useConfirm();
   const qc = useQueryClient();
 
   const { data: contracts = [], isLoading } = useQuery<LaborContract[]>({
@@ -845,9 +847,9 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                         type="button"
                         className="rounded p-2 text-muted-foreground hover:bg-tone-danger-soft hover:text-destructive"
                         title="Remove contract"
-                        onClick={() => {
+                        onClick={async () => {
                           if (
-                            confirm(
+                            await confirmAction(
                               "Remove this labor contract and its payments?",
                             )
                           )
@@ -938,9 +940,9 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                           variant="outline"
                           className="h-6 text-2xs"
                           disabled={releaseRetainage.isPending}
-                          onClick={() => {
+                          onClick={async () => {
                             if (
-                              confirm(
+                              await confirmAction(
                                 `Release $${held.toLocaleString()} retainage to ${name}? It becomes payable now.`,
                               )
                             )
@@ -1042,8 +1044,8 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                                   type="button"
                                   className="rounded p-1 text-muted-foreground hover:text-destructive"
                                   title="Remove change order"
-                                  onClick={() => {
-                                    if (confirm("Remove this change order?"))
+                                  onClick={async () => {
+                                    if (await confirmAction({ title: "Remove this crew change order?", confirmLabel: "Remove", tone: "danger" }))
                                       removeChangeOrder.mutate(co.id);
                                   }}
                                 >
@@ -1120,8 +1122,8 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                             type="button"
                             className="rounded p-1 text-muted-foreground hover:text-destructive"
                             title="Delete payment"
-                            onClick={() => {
-                              if (confirm("Delete this payment?"))
+                            onClick={async () => {
+                              if (await confirmAction({ title: "Delete this crew payment?", description: "What is still owed on the contract goes back up by this amount.", confirmLabel: "Delete", tone: "danger" }))
                                 removePayment.mutate(p.id);
                             }}
                           >

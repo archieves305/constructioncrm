@@ -26,6 +26,7 @@ import { PartnerBoard } from "@/components/partners/partner-board";
 import { HealthPill, OrgBadges, PriorityBadge } from "@/components/partners/stage-badges";
 import { KIND_LABEL, useChangeStage, useOrganizations, usePartnerOptions, type OrgRow } from "@/components/partners/use-partners";
 import { format } from "date-fns";
+import { usePrompt } from "@/components/shared/confirm-provider";
 
 const ALL = "__all";
 const STAGES = stagesAsStageLike();
@@ -240,6 +241,7 @@ function AccountsTable({ rows, total, canManage, sort, onSort }: { rows: OrgRow[
 }
 
 function AccountRow({ row, now, canManage }: { row: OrgRow; now: Date; canManage: boolean }) {
+  const ask = usePrompt();
   const change = useChangeStage(row.id);
   const quiet = row.badges.some((b) => b.key === "quiet" || b.key === "never-contacted");
   return (
@@ -259,10 +261,10 @@ function AccountRow({ row, now, canManage }: { row: OrgRow; now: Date; canManage
           value={row.stage}
           stages={STAGES}
           disabled={!canManage || change.isPending}
-          onChange={(stage) => {
+          onChange={async (stage) => {
             if (stage === "DO_NOT_PURSUE") {
-              const reason = window.prompt(`Why is ${row.name} not being pursued?`);
-              if (!reason?.trim()) return;
+              const reason = await ask({ title: `Why is ${row.name} not being pursued?`, label: "Reason", multiline: true, confirmLabel: "Mark as not pursued" });
+              if (!reason) return;
               change.mutate({ stage: "DO_NOT_PURSUE", reason });
               return;
             }
