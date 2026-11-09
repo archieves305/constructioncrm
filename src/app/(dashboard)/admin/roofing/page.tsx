@@ -151,7 +151,7 @@ function PriceBook() {
                 <tr key={m.id} className={m.isActive ? "" : "opacity-60"}>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1.5 font-medium">
-                      {m.isPreferred && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" aria-label="The takeoff's choice" />}
+                      {m.isPreferred && <Star className="h-3.5 w-3.5 fill-tone-warning text-tone-warning-fg" aria-label="The takeoff's choice" />}
                       {m.name}
                     </div>
                     {m.sku && <div className="font-mono text-xs text-muted-foreground">{m.sku}</div>}

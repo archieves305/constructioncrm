@@ -134,10 +134,10 @@ export default function ResponseDashboardPage() {
                             <span
                               className={
                                 u.avgResponseSeconds <= 300
-                                  ? "text-green-600 font-medium"
+                                  ? "text-tone-success-fg font-medium"
                                   : u.avgResponseSeconds <= 600
-                                    ? "text-amber-600"
-                                    : "text-red-600 font-medium"
+                                    ? "text-tone-warning-fg"
+                                    : "text-tone-danger-fg font-medium"
                               }
                             >
                               {formatSeconds(u.avgResponseSeconds)}
@@ -208,7 +208,7 @@ export default function ResponseDashboardPage() {
                         </TableCell>
                         <TableCell className="text-right text-sm font-medium">
                           {m.responseTimeSeconds ? (
-                            <span className={m.responseTimeSeconds <= 300 ? "text-green-600" : "text-red-600"}>
+                            <span className={m.responseTimeSeconds <= 300 ? "text-tone-success-fg" : "text-tone-danger-fg"}>
                               {formatSeconds(m.responseTimeSeconds)}
                             </span>
                           ) : "—"}

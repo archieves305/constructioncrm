@@ -36,7 +36,7 @@ export function PermitStatusPill({
     <span
       title={PERMIT_STATUS_LABEL[status]}
       className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-2xs font-medium",
         toneClasses(PERMIT_STATUS_TONE[status]).pill,
         className,
       )}
@@ -62,7 +62,7 @@ export function WorkflowIssueChips({ summary, className }: { summary: JobWorkflo
         <span
           key={c.key}
           title={`${c.n} ${c.label} step${c.n === 1 ? "" : "s"}`}
-          className={cn("inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium tabular-nums", c.cls)}
+          className={cn("inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-2xs font-medium tabular-nums", c.cls)}
         >
           <c.icon className="size-3" />
           {c.n}

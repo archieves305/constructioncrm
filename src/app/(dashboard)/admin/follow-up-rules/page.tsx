@@ -261,19 +261,19 @@ export default function FollowUpRulesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Lead events</div>
+                    <div className="px-2 py-1 text-3xs uppercase tracking-wide text-muted-foreground">Lead events</div>
                     {LEAD_TRIGGERS.map((t) => (
                       <SelectItem key={t} value={t}>
                         {enumLabel(t)}
                       </SelectItem>
                     ))}
-                    <div className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Permit events (retired — no longer fire)</div>
+                    <div className="mt-1 px-2 py-1 text-3xs uppercase tracking-wide text-muted-foreground">Permit events (retired — no longer fire)</div>
                     {PERMIT_TRIGGERS.map((t) => (
                       <SelectItem key={t} value={t}>
                         {enumLabel(t)}
                       </SelectItem>
                     ))}
-                    <div className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Inspection events (retired — no longer fire)</div>
+                    <div className="mt-1 px-2 py-1 text-3xs uppercase tracking-wide text-muted-foreground">Inspection events (retired — no longer fire)</div>
                     {INSPECTION_TRIGGERS.map((t) => (
                       <SelectItem key={t} value={t}>
                         {enumLabel(t)}

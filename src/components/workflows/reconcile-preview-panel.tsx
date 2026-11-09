@@ -23,7 +23,7 @@ export function ReconcilePreviewPanel({
   const kept = plan.preserved;
   const tile = (label: string, n: number, tone: string) => (
     <div className={cn("rounded-md border p-2.5", tone)}>
-      <p className="text-[11px] opacity-80">{label}</p>
+      <p className="text-2xs opacity-80">{label}</p>
       <p className="text-lg font-semibold tabular-nums">{n}</p>
     </div>
   );
@@ -33,7 +33,7 @@ export function ReconcilePreviewPanel({
         {tile("To add", plan.toCreate.length, "bg-tone-success-soft text-tone-success-fg")}
         {tile("To reinstate", plan.toReinstate.length, "bg-tone-info-soft text-tone-info-fg")}
         {tile("To skip", plan.toSkip.length - (retain?.size ?? 0), "bg-tone-warning-soft text-tone-warning-fg")}
-        {tile("Kept as-is", kept.length + (retain?.size ?? 0), "bg-gray-50 text-gray-700")}
+        {tile("Kept as-is", kept.length + (retain?.size ?? 0), "bg-surface-subtle text-fg-secondary")}
       </div>
 
       {plan.warnings.map((w) => (
@@ -46,11 +46,11 @@ export function ReconcilePreviewPanel({
           Existing tasks keep their current titles; only new steps use the new wording.
           <ul className="mt-1 space-y-0.5">
             {plan.drift.slice(0, 6).map((d) => (
-              <li key={`${d.key}:${d.field}`} className="truncate text-[12px]">
+              <li key={`${d.key}:${d.field}`} className="truncate text-xs">
                 <span className="opacity-70">{d.field}:</span> “{d.from}” → “{d.to}”
               </li>
             ))}
-            {plan.drift.length > 6 && <li className="text-[12px] opacity-70">and {plan.drift.length - 6} more</li>}
+            {plan.drift.length > 6 && <li className="text-xs opacity-70">and {plan.drift.length - 6} more</li>}
           </ul>
         </Callout>
       )}
@@ -66,7 +66,7 @@ export function ReconcilePreviewPanel({
             renderExtra={
               onRetainChange
                 ? (t) => (
-                    <label className="ml-auto flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+                    <label className="ml-auto flex shrink-0 items-center gap-1 text-2xs text-muted-foreground">
                       <Checkbox checked={retain?.has(t.id!) ?? false} onCheckedChange={(v) => onRetainChange(t.id!, Boolean(v))} aria-label={`Keep ${t.title}`} />
                       keep
                     </label>
@@ -82,7 +82,7 @@ export function ReconcilePreviewPanel({
           <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Kept as-is ({kept.length}) — completed, manual, corrections and steps someone skipped</summary>
           <ul className="mt-2 max-h-48 space-y-0.5 overflow-y-auto">
             {kept.map((t) => (
-              <li key={t.id ?? t.key} className="flex justify-between gap-2 truncate text-[12px]">
+              <li key={t.id ?? t.key} className="flex justify-between gap-2 truncate text-xs">
                 <span className="truncate">{t.title}</span>
                 <span className="shrink-0 text-muted-foreground">{t.why.replace("-", " ")}</span>
               </li>
@@ -90,7 +90,7 @@ export function ReconcilePreviewPanel({
           </ul>
         </details>
       )}
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Nothing is deleted. Skipped steps stay on the job with the reason on their timeline; a later re-plan can bring them back.
       </p>
     </div>
@@ -111,7 +111,7 @@ function ItemList({ title, items, empty, tone, renderExtra }: { title: string; i
             <li key={t.id ?? t.key} className="flex items-center gap-2">
               {t.blocking && <span className="text-tone-warning-fg" title="Blocking gate">⛔</span>}
               <span className="truncate">{t.title}</span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">{t.moduleKey.replace(/_/g, " ")}</span>
+              <span className="shrink-0 text-2xs text-muted-foreground">{t.moduleKey.replace(/_/g, " ")}</span>
               {renderExtra?.(t)}
             </li>
           ))}

@@ -65,7 +65,7 @@ export function FieldBottomNav() {
               aria-current={it.active ? "page" : undefined}
               className={cn(
                 "relative flex h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium",
-                it.active ? "text-blue-700" : "text-gray-500 hover:text-gray-800",
+                it.active ? "text-tone-info-fg" : "text-muted-foreground hover:text-foreground",
               )}
             >
               <span className="relative">
@@ -73,8 +73,8 @@ export function FieldBottomNav() {
                 {it.count > 0 && (
                   <span
                     className={cn(
-                      "absolute -right-2.5 -top-1.5 min-w-4 rounded-full px-1 text-[10px] font-semibold leading-4 text-white",
-                      it.alert ? "bg-red-600" : "bg-gray-700",
+                      "absolute -right-2.5 -top-1.5 min-w-4 rounded-full px-1 text-3xs font-semibold leading-4 text-white",
+                      it.alert ? "bg-tone-danger" : "bg-foreground",
                     )}
                   >
                     {it.count}

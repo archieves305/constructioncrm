@@ -209,20 +209,20 @@ export default function NewLeadPage() {
                   return (
                     <div
                       key={key}
-                      className="flex items-start justify-between gap-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm"
+                      className="flex items-start justify-between gap-3 rounded-md border border-tone-info-line bg-tone-info-soft p-3 text-sm"
                     >
                       <div className="flex items-start gap-2">
-                        <UserCheck className="mt-0.5 h-4 w-4 text-blue-700" />
+                        <UserCheck className="mt-0.5 h-4 w-4 text-tone-info-fg" />
                         <div>
-                          <div className="font-medium text-blue-900">
+                          <div className="font-medium text-tone-info-fg">
                             Existing contact: {m.firstName} {m.lastName}
                           </div>
-                          <div className="text-xs text-blue-800">
+                          <div className="text-xs text-tone-info-fg">
                             {m.primaryPhone}
                             {m.email ? ` · ${m.email}` : ""}
                             {m.companyName ? ` · ${m.companyName}` : ""}
                           </div>
-                          <div className="text-xs text-blue-700">
+                          <div className="text-xs text-tone-info-fg">
                             {m.leadCount} prior lead{m.leadCount === 1 ? "" : "s"}
                           </div>
                         </div>
@@ -238,7 +238,7 @@ export default function NewLeadPage() {
                         </Button>
                         <button
                           type="button"
-                          className="rounded p-1 text-blue-700 hover:bg-blue-100"
+                          className="rounded p-1 text-tone-info-fg hover:bg-tone-info-soft"
                           onClick={() => setDismissedKey(key)}
                           aria-label="Dismiss"
                         >
@@ -254,17 +254,17 @@ export default function NewLeadPage() {
             <div>
               <Label htmlFor="firstName">First Name *</Label>
               <Input id="firstName" {...register("firstName")} />
-              {errors.firstName && <p className="mt-1 text-xs text-red-600">{errors.firstName.message}</p>}
+              {errors.firstName && <p className="mt-1 text-xs text-tone-danger-fg">{errors.firstName.message}</p>}
             </div>
             <div>
               <Label htmlFor="lastName">Last Name *</Label>
               <Input id="lastName" {...register("lastName")} />
-              {errors.lastName && <p className="mt-1 text-xs text-red-600">{errors.lastName.message}</p>}
+              {errors.lastName && <p className="mt-1 text-xs text-tone-danger-fg">{errors.lastName.message}</p>}
             </div>
             <div>
               <Label htmlFor="primaryPhone">Primary Phone *</Label>
               <Input id="primaryPhone" {...register("primaryPhone")} />
-              {errors.primaryPhone && <p className="mt-1 text-xs text-red-600">{errors.primaryPhone.message}</p>}
+              {errors.primaryPhone && <p className="mt-1 text-xs text-tone-danger-fg">{errors.primaryPhone.message}</p>}
             </div>
             <div>
               <Label htmlFor="secondaryPhone">Secondary Phone</Label>
@@ -273,7 +273,7 @@ export default function NewLeadPage() {
             <div>
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" {...register("email")} />
-              {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
+              {errors.email && <p className="mt-1 text-xs text-tone-danger-fg">{errors.email.message}</p>}
             </div>
             <div>
               <Label htmlFor="companyName">Company Name</Label>

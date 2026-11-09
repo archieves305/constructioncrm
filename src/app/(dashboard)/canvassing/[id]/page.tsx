@@ -302,7 +302,7 @@ export default function RouteDetailPage() {
             </Button>
             <Button
               variant="outline"
-              className="text-red-600 hover:text-red-700"
+              className="text-tone-danger-fg hover:text-tone-danger-fg"
               onClick={() => setDeleteOpen(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -338,9 +338,9 @@ export default function RouteDetailPage() {
           </span>
           {stops.length > 0 && (
             <span className="flex gap-2 text-xs">
-              <span className="text-green-600">{visited} visited</span>·
-              <span className="text-yellow-600">{pending} pending</span>·
-              <span className="text-red-600">{skipped} skipped</span>
+              <span className="text-tone-success-fg">{visited} visited</span>·
+              <span className="text-tone-warning-fg">{pending} pending</span>·
+              <span className="text-tone-danger-fg">{skipped} skipped</span>
             </span>
           )}
         </CardContent>
@@ -418,7 +418,7 @@ export default function RouteDetailPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-red-600 hover:text-red-700"
+                  className="text-tone-danger-fg hover:text-tone-danger-fg"
                   onClick={() => removeStop.mutate(stop.id)}
                   disabled={removeStop.isPending}
                 >
@@ -471,7 +471,7 @@ export default function RouteDetailPage() {
               Cancel
             </Button>
             <Button
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-tone-danger hover:bg-tone-danger"
               onClick={() => deleteRoute.mutate()}
               disabled={deleteRoute.isPending}
             >

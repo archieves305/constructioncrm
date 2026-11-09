@@ -183,7 +183,7 @@ export function FieldLaborSummary({ jobId }: { jobId: string }) {
                       {money(line.totalAllocated)}
                     </TableCell>
                     <TableCell
-                      className={`text-right ${line.remaining < 0 ? "font-semibold text-red-600" : ""}`}
+                      className={`text-right ${line.remaining < 0 ? "font-semibold text-tone-danger-fg" : ""}`}
                     >
                       {money(line.remaining)}
                     </TableCell>

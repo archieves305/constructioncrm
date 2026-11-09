@@ -85,7 +85,7 @@ function Preview({ file, position, onPrev, onNext, onChanged }: { file: PreviewF
         </DialogDescription>
       </DialogHeader>
 
-      <div className="relative min-h-[16rem] flex-1 overflow-hidden rounded-md border bg-gray-50">
+      <div className="relative min-h-[16rem] flex-1 overflow-hidden rounded-md border bg-surface-subtle">
         {meta.isLoading ? (
           <Skeleton className="h-[60vh] w-full" />
         ) : meta.isError ? (
@@ -187,10 +187,10 @@ function DownloadButton({ url }: { url: string }) {
 function Notice({ icon: Icon, title, body, action }: { icon: typeof FileText; title: string; body?: string; action?: React.ReactNode }) {
   return (
     <div className="flex min-h-[16rem] flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-      <span className="inline-flex size-10 items-center justify-center rounded-full bg-gray-200 text-gray-600">
+      <span className="inline-flex size-10 items-center justify-center rounded-full bg-surface-strong text-fg-secondary">
         <Icon className="size-5" />
       </span>
-      <p className="text-sm font-medium text-gray-900">{title}</p>
+      <p className="text-sm font-medium text-foreground">{title}</p>
       {body && <p className="max-w-md text-sm text-muted-foreground">{body}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>

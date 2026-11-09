@@ -34,7 +34,7 @@ export function PermitMetricsStrip({ active, onPick }: { active: string | null; 
             <p className={cn("text-xl font-semibold tabular-nums", t.key === "at-risk" && t.ids.length > 0 && "text-tone-danger-fg")}>{t.value}</p>
             <p className="truncate text-xs text-muted-foreground">{t.label}</p>
             {on && (
-              <p className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-primary">
+              <p className="mt-0.5 inline-flex items-center gap-0.5 text-2xs text-primary">
                 <X className="size-3" /> showing these
               </p>
             )}

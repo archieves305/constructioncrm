@@ -240,10 +240,10 @@ export default function PermitCenterPage() {
             {BOARD_STATUSES.map((status) => {
               const statusPermits = shownPermits.filter((p) => p.status === status);
               return (
-                <div key={status} className="flex-shrink-0 w-[300px] rounded-lg border bg-gray-50">
+                <div key={status} className="flex-shrink-0 w-[300px] rounded-lg border bg-surface-subtle">
                   <div className="flex items-center justify-between border-b bg-white px-3 py-2 rounded-t-lg">
                     <span className={statusPill(status)}>{PERMIT_STATUS_LABEL[status]}</span>
-                    <Badge variant="secondary" className="text-[10px]">{statusPermits.length}</Badge>
+                    <Badge variant="secondary" className="text-3xs">{statusPermits.length}</Badge>
                   </div>
                   <ScrollArea className="h-[calc(100vh-300px)]">
                     <div className="space-y-2 p-2">
@@ -257,21 +257,21 @@ export default function PermitCenterPage() {
                             <div className="flex items-center justify-between">
                               <span className="truncate text-xs font-medium" title={p.job.jobNumber}>{jobLabel(p.job, { customer: false, trade: false }).primary}</span>
                               {p.agingDays !== null && p.agingDays > 14 && (
-                                <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                                <AlertTriangle className="h-3.5 w-3.5 text-tone-danger-fg" />
                               )}
                             </div>
                             <p className="text-xs font-medium">{p.job.lead.fullName}</p>
-                            <p className="text-[10px] text-muted-foreground">{p.municipality}</p>
+                            <p className="text-3xs text-muted-foreground">{p.municipality}</p>
                             {(() => {
                               const notice = expiryNotice(p);
-                              return notice ? <span className={cn("inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium", toneClasses(notice.tone).pill)}>{notice.text}</span> : null;
+                              return notice ? <span className={cn("inline-block rounded-full px-1.5 py-0.5 text-3xs font-medium", toneClasses(notice.tone).pill)}>{notice.text}</span> : null;
                             })()}
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-muted-foreground truncate">
+                              <span className="text-3xs text-muted-foreground truncate">
                                 {p.permitType || "General"}
                               </span>
                               {p.agingDays !== null && (
-                                <span className={`text-[10px] ${p.agingDays > 14 ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                                <span className={`text-3xs ${p.agingDays > 14 ? "text-tone-danger-fg font-medium" : "text-muted-foreground"}`}>
                                   {p.agingDays}d
                                 </span>
                               )}
@@ -281,7 +281,7 @@ export default function PermitCenterPage() {
                                 value={p.status}
                                 onValueChange={(v: string | null) => v && updatePermit.mutate({ id: p.id, status: v })}
                               >
-                                <SelectTrigger className="h-6 text-[10px]" aria-label="Status"><SelectValue>{(v: string) => PERMIT_STATUS_LABEL[v] ?? v}</SelectValue></SelectTrigger>
+                                <SelectTrigger className="h-6 text-3xs" aria-label="Status"><SelectValue>{(v: string) => PERMIT_STATUS_LABEL[v] ?? v}</SelectValue></SelectTrigger>
                                 <SelectContent>
                                   {BOARD_STATUSES.map((s) => (
                                     <SelectItem key={s} value={s}>{PERMIT_STATUS_LABEL[s]}</SelectItem>
@@ -294,7 +294,7 @@ export default function PermitCenterPage() {
                                   v && updatePermit.mutate({ id: p.id, assignedUserId: v === "unassigned" ? null : v })
                                 }
                               >
-                                <SelectTrigger className="h-6 text-[10px]" aria-label="Coordinator">
+                                <SelectTrigger className="h-6 text-3xs" aria-label="Coordinator">
                                   {/* The name, not the id: the person may not be in the assignable list any more. */}
                                   <SelectValue>{() => (p.assignedTo ? `${p.assignedTo.firstName} ${p.assignedTo.lastName}` : "Unassigned")}</SelectValue>
                                 </SelectTrigger>
@@ -312,7 +312,7 @@ export default function PermitCenterPage() {
                         </Card>
                       ))}
                       {statusPermits.length === 0 && (
-                        <p className="py-4 text-center text-[10px] text-muted-foreground">None</p>
+                        <p className="py-4 text-center text-3xs text-muted-foreground">None</p>
                       )}
                     </div>
                   </ScrollArea>
@@ -352,7 +352,7 @@ export default function PermitCenterPage() {
                 {shownPermits.map((p) => (
                   <TableRow
                     key={p.id}
-                    className="cursor-pointer hover:bg-gray-50"
+                    className="cursor-pointer hover:bg-surface-subtle"
                     onClick={() => setSelectedPermitId(p.id)}
                   >
                     <TableCell className="max-w-56"><JobRef job={p.job} href={null} customer={false} trade={false} /></TableCell>
@@ -366,7 +366,7 @@ export default function PermitCenterPage() {
                     <TableCell className="text-xs">{formatDay(p.expirationDate)}</TableCell>
                     <TableCell>
                       {p.agingDays !== null ? (
-                        <span className={p.agingDays > 14 ? "text-red-600 font-medium text-sm" : "text-sm"}>
+                        <span className={p.agingDays > 14 ? "text-tone-danger-fg font-medium text-sm" : "text-sm"}>
                           {p.agingDays} days
                         </span>
                       ) : "—"}
@@ -389,7 +389,7 @@ export default function PermitCenterPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-500" />
+                <AlertTriangle className="h-4 w-4 text-tone-danger-fg" />
                 Aging Permits (&gt; 14 days without approval)
               </CardTitle>
             </CardHeader>
@@ -417,7 +417,7 @@ export default function PermitCenterPage() {
                         <TableCell className="max-w-56"><JobRef job={p.job} href={null} customer={false} trade={false} /></TableCell>
                         <TableCell>{p.job.lead.fullName}</TableCell>
                         <TableCell>{p.municipality}</TableCell>
-                        <TableCell className="text-red-600 font-medium">{p.agingDays}d</TableCell>
+                        <TableCell className="text-tone-danger-fg font-medium">{p.agingDays}d</TableCell>
                         <TableCell><span className={statusPill(p.status)}>{PERMIT_STATUS_LABEL[p.status] ?? p.status}</span></TableCell>
                         <TableCell className="text-sm">
                           {p.assignedTo ? `${p.assignedTo.firstName} ${p.assignedTo.lastName}` : "—"}

@@ -37,7 +37,7 @@ export function useUpdatePermit(jobId: string) {
 function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? "sm:col-span-2" : undefined}>
-      <Label className="text-[11px]">{label}</Label>
+      <Label className="text-2xs">{label}</Label>
       {children}
     </div>
   );

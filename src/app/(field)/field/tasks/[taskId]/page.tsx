@@ -210,13 +210,13 @@ export default function FieldTaskPage({
           )}
 
           {task.description && (
-            <p className="whitespace-pre-wrap rounded-md bg-gray-50 p-3 text-sm text-gray-700">
+            <p className="whitespace-pre-wrap rounded-md bg-surface-subtle p-3 text-sm text-fg-secondary">
               {task.description}
             </p>
           )}
 
           {task.status === "BLOCKED" && task.blockedReason && (
-            <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="rounded-md border border-tone-warning-line bg-tone-warning-soft p-3 text-sm text-tone-warning-fg">
               <strong>Blocked:</strong> {task.blockedReason}
             </p>
           )}
@@ -253,7 +253,7 @@ export default function FieldTaskPage({
               <ul className="mt-1 divide-y text-sm">
                 {files.map((f, i) => (
                   <li key={f.id}>
-                    <button type="button" onClick={() => setPreview(i)} className="flex min-h-11 w-full items-center gap-2 text-left text-blue-700">
+                    <button type="button" onClick={() => setPreview(i)} className="flex min-h-11 w-full items-center gap-2 text-left text-tone-info-fg">
                       {f.fileType.startsWith("image/") ? <Camera className="size-4 shrink-0" /> : <Paperclip className="size-4 shrink-0" />}
                       <span className="truncate">{f.fileName}</span>
                     </button>
@@ -277,7 +277,7 @@ export default function FieldTaskPage({
           </section>
 
           {refused && !done && (
-            <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+            <p className="rounded-md border border-tone-warning-line bg-tone-warning-soft p-3 text-sm text-tone-warning-fg" role="alert">
               <strong>Not done yet:</strong> {refused}
             </p>
           )}
@@ -306,7 +306,7 @@ export default function FieldTaskPage({
                 {task.status !== "BLOCKED" && (
                   <Button
                     variant="outline"
-                    className="h-11 flex-1 border-amber-300 text-amber-800"
+                    className="h-11 flex-1 border-tone-warning-line text-tone-warning-fg"
                     onClick={() => setShowBlock((s) => !s)}
                   >
                     Blocked
@@ -327,8 +327,8 @@ export default function FieldTaskPage({
           </div>
 
           {showBlock && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-              <label className="text-xs font-medium text-amber-900">
+            <div className="rounded-md border border-tone-warning-line bg-tone-warning-soft p-3">
+              <label className="text-xs font-medium text-tone-warning-fg">
                 What is it waiting on?
               </label>
               <Textarea

@@ -65,13 +65,13 @@ export function TaskCard({
             {task.title}
           </button>
           {wfState && (
-            <span className={cn("shrink-0 rounded-full px-1.5 text-[10px] font-medium", WORKFLOW_STATE_PILL[wfState])} title="Workflow step">
+            <span className={cn("shrink-0 rounded-full px-1.5 text-3xs font-medium", WORKFLOW_STATE_PILL[wfState])} title="Workflow step">
               {WORKFLOW_STATE_LABEL[wfState]}
             </span>
           )}
           {(task._count?.events ?? 0) > 0 && (
             <span
-              className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground"
+              className="flex shrink-0 items-center gap-0.5 text-2xs text-muted-foreground"
               title={`${task._count!.events} note${task._count!.events === 1 ? "" : "s"}`}
             >
               <MessageSquare className="size-3" />
@@ -80,7 +80,7 @@ export function TaskCard({
           )}
           {(task._count?.files ?? 0) > 0 && (
             <span
-              className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground"
+              className="flex shrink-0 items-center gap-0.5 text-2xs text-muted-foreground"
               title={`${task._count!.files} file${task._count!.files === 1 ? "" : "s"} attached`}
             >
               <Paperclip className="size-3" />
@@ -89,14 +89,14 @@ export function TaskCard({
           )}
         </div>
         {task.status === "BLOCKED" && task.blockedReason && (
-          <div className="mt-0.5 truncate text-[11px] text-amber-700">Blocked — {task.blockedReason}</div>
+          <div className="mt-0.5 truncate text-2xs text-tone-warning-fg">Blocked — {task.blockedReason}</div>
         )}
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
           <Select
             value={task.priority}
             onValueChange={(v: string | null) => v && onUpdate(task.id, { priority: v as Priority })}
           >
-            <SelectTrigger className={cn("h-6 w-[88px] text-[10px] uppercase", PRIORITY_OUTLINE_CLASS[task.priority])}>
+            <SelectTrigger className={cn("h-6 w-[88px] text-3xs uppercase", PRIORITY_OUTLINE_CLASS[task.priority])}>
               <SelectValue>{(v: string) => v || task.priority}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -114,15 +114,15 @@ export function TaskCard({
             aria-label="Due date"
             onChange={(e) => onUpdate(task.id, { dueAt: e.target.value || null })}
             className={cn(
-              "h-6 rounded border bg-white px-1 text-[11px]",
-              overdue && "border-red-300 font-semibold text-red-700",
+              "h-6 rounded border bg-white px-1 text-2xs",
+              overdue && "border-tone-danger-line font-semibold text-tone-danger-fg",
               !task.dueAt && "text-muted-foreground",
             )}
           />
 
           <AssigneePicker
             size="sm"
-            className="h-6 w-[150px] text-[11px]"
+            className="h-6 w-[150px] text-2xs"
             value={task.assignedTo?.id ?? null}
             users={users}
             onChange={(id) => onUpdate(task.id, { assignedUserId: id })}

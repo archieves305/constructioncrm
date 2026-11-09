@@ -71,11 +71,11 @@ type LaborContractOption = {
 };
 
 const STATUS_STYLES: Record<ChangeOrder["status"], string> = {
-  DRAFT: "bg-gray-100 text-gray-700",
-  SENT: "bg-blue-100 text-blue-700",
-  APPROVED: "bg-green-100 text-green-700",
-  REJECTED: "bg-red-100 text-red-700",
-  VOID: "bg-gray-100 text-gray-400",
+  DRAFT: "bg-surface-muted text-fg-secondary",
+  SENT: "bg-tone-info-soft text-tone-info-fg",
+  APPROVED: "bg-tone-success-soft text-tone-success-fg",
+  REJECTED: "bg-tone-danger-soft text-tone-danger-fg",
+  VOID: "bg-surface-muted text-muted-foreground",
 };
 
 function money(v: string | number | null) {
@@ -277,7 +277,7 @@ export function ChangeOrdersPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-500">
+        <h3 className="text-sm font-medium text-muted-foreground">
           Change Orders ({changeOrders.length})
         </h3>
         <Button size="sm" onClick={openCreate}>
@@ -286,9 +286,9 @@ export function ChangeOrdersPanel({
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-gray-400">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       ) : changeOrders.length === 0 ? (
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-muted-foreground">
           No change orders yet. Create one to bill the customer for added scope.
         </p>
       ) : (
@@ -300,7 +300,7 @@ export function ChangeOrdersPanel({
               key={co.id}
               className={
                 clickable
-                  ? "cursor-pointer transition-colors hover:border-green-300 hover:bg-green-50/40"
+                  ? "cursor-pointer transition-colors hover:border-tone-success-line hover:bg-tone-success-soft/40"
                   : undefined
               }
               onClick={clickable ? () => setViewing(co) : undefined}
@@ -312,15 +312,15 @@ export function ChangeOrdersPanel({
                     <div className="flex items-center gap-2">
                       <span className="font-medium">CO-{co.number}</span>
                       {co.title ? (
-                        <span className="text-gray-600">— {co.title}</span>
+                        <span className="text-fg-secondary">— {co.title}</span>
                       ) : null}
                       <Badge className={STATUS_STYLES[co.status]}>
                         {co.status}
                       </Badge>
                     </div>
-                    <div className="mt-1 text-sm text-gray-500">
+                    <div className="mt-1 text-sm text-muted-foreground">
                       Customer price{" "}
-                      <span className="font-semibold text-gray-900">
+                      <span className="font-semibold text-foreground">
                         {money(co.customerPrice)}
                       </span>
                       {co.crewCost != null && (
@@ -331,12 +331,12 @@ export function ChangeOrdersPanel({
                       )}
                     </div>
                     {co.description ? (
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-fg-secondary">
                         {co.description}
                       </p>
                     ) : null}
                     {co.status === "APPROVED" && (co.invoice || co.sovLine) && (
-                      <div className="mt-1 flex items-center gap-1 text-sm text-green-700">
+                      <div className="mt-1 flex items-center gap-1 text-sm text-tone-success-fg">
                         <FileText className="h-3.5 w-3.5" />
                         {co.invoice ? `Invoice ${co.invoice.invoiceNumber}` : `SOV item #${co.sovLine?.itemNo} — bill on the next application`}
                         {co.decisionName ? ` · approved by ${co.decisionName}` : ""}
@@ -346,14 +346,14 @@ export function ChangeOrdersPanel({
                       </div>
                     )}
                     {co.status === "REJECTED" && (
-                      <div className="mt-1 text-sm text-red-700">
+                      <div className="mt-1 text-sm text-tone-danger-fg">
                         Rejected
                         {co.decisionName ? ` by ${co.decisionName}` : ""}
                         {co.rejectionReason ? `: ${co.rejectionReason}` : ""}
                       </div>
                     )}
                     {co.status === "SENT" && co.sentAt && (
-                      <div className="mt-1 text-sm text-blue-700">
+                      <div className="mt-1 text-sm text-tone-info-fg">
                         Sent {format(new Date(co.sentAt), "MMM d, yyyy")} —
                         awaiting customer response
                       </div>
@@ -449,7 +449,7 @@ export function ChangeOrdersPanel({
             <DialogTitle className="flex items-center gap-2">
               {viewing ? `CO-${viewing.number}` : "Change order"}
               {viewing?.title ? (
-                <span className="font-normal text-gray-600">
+                <span className="font-normal text-fg-secondary">
                   — {viewing.title}
                 </span>
               ) : null}
@@ -464,47 +464,47 @@ export function ChangeOrdersPanel({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <div className="text-xs uppercase text-gray-400">
+                  <div className="text-xs uppercase text-muted-foreground">
                     Customer price
                   </div>
-                  <div className="font-semibold text-gray-900">
+                  <div className="font-semibold text-foreground">
                     {money(viewing.customerPrice)}
                   </div>
                 </div>
                 {viewing.crewCost != null && (
                   <div>
-                    <div className="text-xs uppercase text-gray-400">
+                    <div className="text-xs uppercase text-muted-foreground">
                       Crew cost
                     </div>
-                    <div className="font-semibold text-gray-900">
+                    <div className="font-semibold text-foreground">
                       {money(viewing.crewCost)}
                     </div>
                   </div>
                 )}
                 {viewing.materialCost != null && (
                   <div>
-                    <div className="text-xs uppercase text-gray-400">
+                    <div className="text-xs uppercase text-muted-foreground">
                       Other cost
                     </div>
-                    <div className="font-semibold text-gray-900">
+                    <div className="font-semibold text-foreground">
                       {money(viewing.materialCost)}
                     </div>
                   </div>
                 )}
                 {viewing.laborContract && (
                   <div>
-                    <div className="text-xs uppercase text-gray-400">Crew</div>
-                    <div className="text-gray-900">
+                    <div className="text-xs uppercase text-muted-foreground">Crew</div>
+                    <div className="text-foreground">
                       {contractName(viewing.laborContract)}
                     </div>
                   </div>
                 )}
                 {viewing.decisionName && (
                   <div>
-                    <div className="text-xs uppercase text-gray-400">
+                    <div className="text-xs uppercase text-muted-foreground">
                       Approved by
                     </div>
-                    <div className="text-gray-900">
+                    <div className="text-foreground">
                       {viewing.decisionName}
                       {viewing.decidedAt
                         ? ` · ${format(new Date(viewing.decidedAt), "MMM d, yyyy")}`
@@ -515,28 +515,28 @@ export function ChangeOrdersPanel({
               </div>
 
               <div>
-                <div className="text-xs uppercase text-gray-400">
+                <div className="text-xs uppercase text-muted-foreground">
                   Scope / description
                 </div>
                 {viewing.description ? (
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-fg-secondary">
                     {viewing.description}
                   </p>
                 ) : (
-                  <p className="mt-1 text-sm text-gray-400">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     No description provided.
                   </p>
                 )}
               </div>
 
               {viewing.invoice && (
-                <div className="flex items-center gap-1 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+                <div className="flex items-center gap-1 rounded-md bg-tone-success-soft px-3 py-2 text-sm text-tone-success-fg">
                   <FileText className="h-4 w-4" />
                   Invoice {viewing.invoice.invoiceNumber} · {viewing.invoice.status}
                 </div>
               )}
               {viewing.sovLine && (
-                <div className="flex items-center gap-1 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+                <div className="flex items-center gap-1 rounded-md bg-tone-success-soft px-3 py-2 text-sm text-tone-success-fg">
                   <FileText className="h-4 w-4" />
                   Schedule of values item #{viewing.sovLine.itemNo} · billed through payment applications
                 </div>
@@ -611,7 +611,7 @@ export function ChangeOrdersPanel({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Use this when the customer approved or rejected the change order in
               person, by phone, or in a meeting. Approving here bills the customer
               just like the emailed link.
@@ -706,7 +706,7 @@ export function ChangeOrdersPanel({
                   onChange={(e) => setMaterialCost(e.target.value)}
                   placeholder="optional"
                 />
-                <p className="mt-1 text-xs text-gray-400">Once approved, crew and other cost are added to the job&apos;s expected cost.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Once approved, crew and other cost are added to the job&apos;s expected cost.</p>
               </div>
             </div>
             <div>
@@ -730,14 +730,14 @@ export function ChangeOrdersPanel({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-muted-foreground">
                 <Link2 className="mr-1 inline h-3 w-3" />
                 When set with a crew cost, approval also files a labor change
                 order so crew totals stay correct.
               </p>
             </div>
             {!["FIXED_PRICE"].includes(jobType) && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-tone-warning-fg">
                 This is a {jobType.replace("_", "-").toLowerCase()} job — the
                 contract is recomputed from crew cost on approval. Set a crew
                 cost and linked contract so the customer price flows through.

@@ -213,7 +213,7 @@ function MeasurementCard({ leadId, jobId, measurement: m, canEdit, onDone }: { l
                 </Link>
               )}
               {m?.review.needsReview && (
-                <Badge variant="outline" className="border-amber-500 text-amber-700 dark:text-amber-400">
+                <Badge variant="outline" className="border-tone-warning text-tone-warning-fg">
                   <AlertTriangle className="mr-1 h-3 w-3" /> Needs review
                 </Badge>
               )}
@@ -250,7 +250,7 @@ function MeasurementCard({ leadId, jobId, measurement: m, canEdit, onDone }: { l
         </div>
 
         {m?.review.needsReview && !editing && (
-          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          <div className="rounded-md border border-tone-warning-line bg-tone-warning-soft px-3 py-2 text-xs text-tone-warning-fg">
             <p>{m.review.reasons.join(". ")}.</p>
             {canEdit && m.review.unsureFields.length > 0 && (
               <Button size="sm" variant="outline" className="mt-2 h-7" disabled={review.isPending} onClick={() => review.mutate(true)}>
@@ -277,7 +277,7 @@ function MeasurementCard({ leadId, jobId, measurement: m, canEdit, onDone }: { l
                     onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
                   />
                 ) : (
-                  <p className={`text-sm ${unsure.has(f.key) ? "font-medium text-amber-700 dark:text-amber-400" : ""}`}>
+                  <p className={`text-sm ${unsure.has(f.key) ? "font-medium text-tone-warning-fg" : ""}`}>
                     {show(value, f.kind)}
                     {over && over.previous != null && <span className="ml-1 text-xs font-normal text-muted-foreground">was {show(over.previous, f.kind)}</span>}
                   </p>

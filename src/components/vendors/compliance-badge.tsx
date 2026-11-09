@@ -7,11 +7,11 @@ import { needsAttention, VERDICT_LABEL, type ComplianceVerdict } from "@/lib/ven
 export type ComplianceSummary = { verdict: ComplianceVerdict; gaps: string[] };
 
 const TONE: Record<ComplianceVerdict, string> = {
-  ok: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  not_required: "border-gray-200 bg-gray-50 text-gray-600",
-  expiring: "border-amber-200 bg-amber-50 text-amber-800",
-  missing: "border-red-200 bg-red-50 text-red-700",
-  expired: "border-red-200 bg-red-50 text-red-700",
+  ok: "border-tone-success-line bg-tone-success-soft text-tone-success-fg",
+  not_required: "border-border bg-surface-subtle text-fg-secondary",
+  expiring: "border-tone-warning-line bg-tone-warning-soft text-tone-warning-fg",
+  missing: "border-tone-danger-line bg-tone-danger-soft text-tone-danger-fg",
+  expired: "border-tone-danger-line bg-tone-danger-soft text-tone-danger-fg",
 };
 
 /** A vendor's compliance in one pill; the gaps are the tooltip. */
@@ -20,7 +20,7 @@ export function ComplianceBadge({ compliance, className }: { compliance: Complia
   const Icon = warn ? AlertTriangle : CheckCircle2;
   return (
     <span
-      className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium", TONE[compliance.verdict], className)}
+      className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-medium", TONE[compliance.verdict], className)}
       title={compliance.gaps.join(" · ") || undefined}
     >
       {compliance.verdict !== "not_required" && <Icon className="size-3" />}
@@ -54,7 +54,7 @@ export function ComplianceCallout({
   if (!compliance || !needsAttention(compliance.verdict)) return null;
   const serious = compliance.verdict !== "expiring";
   return (
-    <div className={cn("flex items-start gap-2 rounded-md border px-3 py-2 text-xs", serious ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900", className)} role="note">
+    <div className={cn("flex items-start gap-2 rounded-md border px-3 py-2 text-xs", serious ? "border-tone-danger-line bg-tone-danger-soft text-tone-danger-fg" : "border-tone-warning-line bg-tone-warning-soft text-tone-warning-fg", className)} role="note">
       <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
       <span>
         <span className="font-medium">{vendorName ? `${vendorName}: ` : ""}</span>

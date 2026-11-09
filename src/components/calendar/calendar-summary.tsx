@@ -14,7 +14,7 @@ export function CalendarSummary({ label, summary, className }: { label: string; 
   if (summary.blocked > 0) parts.push({ text: `${summary.blocked} blocked`, tone: "warning" });
   return (
     <p className={cn("flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground", className)}>
-      <span className="font-semibold uppercase tracking-wide text-gray-700">{label}</span>
+      <span className="font-semibold uppercase tracking-wide text-fg-secondary">{label}</span>
       {parts.map((p) => (
         <span key={p.text} className="inline-flex items-center gap-2">
           <span aria-hidden>·</span>

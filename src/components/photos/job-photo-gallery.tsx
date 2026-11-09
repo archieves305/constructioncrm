@@ -111,15 +111,15 @@ export function JobPhotoGallery({ jobId, readOnly = false, order = "newest" }: {
   const tile = (photo: GalleryItem) => (
     <button key={photo.key} type="button" onClick={() => setOpenKey(photo.key)} className="group relative aspect-square overflow-hidden rounded-md" aria-label={`${photo.origin} — ${photo.fileName}`}>
       {photo.missing ? (
-        <span className="flex size-full flex-col items-center justify-center gap-1 border border-dashed border-amber-300 bg-amber-50 text-amber-800">
+        <span className="flex size-full flex-col items-center justify-center gap-1 border border-dashed border-tone-warning-line bg-tone-warning-soft text-tone-warning-fg">
           <ImageOff className="size-5" />
-          <span className="text-[10px] font-medium">Photo missing</span>
+          <span className="text-3xs font-medium">Photo missing</span>
         </span>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element -- an authenticated API response
         <img src={photo.url} alt={photo.caption ?? photo.fileName} loading="lazy" className="size-full object-cover" />
       )}
-      <span className="absolute right-1 bottom-1 max-w-[90%] truncate rounded bg-black/60 px-1 py-0.5 text-[10px] text-white">
+      <span className="absolute right-1 bottom-1 max-w-[90%] truncate rounded bg-black/60 px-1 py-0.5 text-3xs text-white">
         {photo.source === "log" ? categoryLabel(photo.category ?? "") : isCrewPayment(photo) ? "Crew payment" : photo.taskId ? "Task" : "Uploaded"}
       </span>
     </button>
@@ -135,7 +135,7 @@ export function JobPhotoGallery({ jobId, readOnly = false, order = "newest" }: {
           </Button>
         ))}
         {missingCount > 0 && (
-          <Button size="sm" variant={missingOnly ? "default" : "outline"} className={cn(!missingOnly && "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100")} onClick={() => setMissingOnly(!missingOnly)}>
+          <Button size="sm" variant={missingOnly ? "default" : "outline"} className={cn(!missingOnly && "border-tone-warning-line bg-tone-warning-soft text-tone-warning-fg hover:bg-tone-warning-soft")} onClick={() => setMissingOnly(!missingOnly)}>
             Missing · {missingCount}
           </Button>
         )}
@@ -154,7 +154,7 @@ export function JobPhotoGallery({ jobId, readOnly = false, order = "newest" }: {
               type="button"
               aria-pressed={category === value}
               onClick={() => setCategory(category === value ? "" : value)}
-              className={cn("rounded-full border px-2.5 py-0.5 text-xs", category === value ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50")}
+              className={cn("rounded-full border px-2.5 py-0.5 text-xs", category === value ? "border-foreground bg-foreground text-white" : "border-border bg-white text-fg-secondary hover:bg-surface-subtle")}
             >
               {label}
             </button>
@@ -205,8 +205,8 @@ export function JobPhotoGallery({ jobId, readOnly = false, order = "newest" }: {
               </DialogHeader>
               <div className="relative">
                 {current.missing ? (
-                  <div className="flex min-h-[16rem] flex-col items-center justify-center gap-2 rounded-md border border-dashed bg-gray-50 px-6 py-10 text-center">
-                    <ImageOff className="size-8 text-amber-600" />
+                  <div className="flex min-h-[16rem] flex-col items-center justify-center gap-2 rounded-md border border-dashed bg-surface-subtle px-6 py-10 text-center">
+                    <ImageOff className="size-8 text-tone-warning-fg" />
                     <p className="text-sm font-medium">This photo is missing</p>
                     <p className="max-w-md text-sm text-muted-foreground">
                       The record is kept, but the stored image is gone. If you still have the photo, upload it again and it will sit on this same record.
@@ -265,7 +265,7 @@ export function JobPhotoGallery({ jobId, readOnly = false, order = "newest" }: {
                 )}
                 {canWrite && (
                   <Button variant="outline" size="sm" aria-label="Delete photo" onClick={() => setRemoving(current)}>
-                    <Trash2 className="size-4 text-red-500" />
+                    <Trash2 className="size-4 text-tone-danger-fg" />
                   </Button>
                 )}
               </div>

@@ -139,7 +139,7 @@ function CaseView({ data, tab, setTab, openItem, onOpenItem }: { data: CaseData;
           <>
             <CaseStatusPill status={data.status} />
             <CasePhasePill state={data.state} />
-            <Badge className={cn("border-0 text-[11px]", toneClasses(SEVERITY_TONE[data.severity] ?? "neutral").pill)}>{SEVERITY_LABEL[data.severity]}</Badge>
+            <Badge className={cn("border-0 text-2xs", toneClasses(SEVERITY_TONE[data.severity] ?? "neutral").pill)}>{SEVERITY_LABEL[data.severity]}</Badge>
             <CaseFlags flags={data.state.flags} />
           </>
         }
@@ -250,9 +250,9 @@ function CaseView({ data, tab, setTab, openItem, onOpenItem }: { data: CaseData;
           {TABS.map((t) => (
             <TabsTrigger key={t.value} value={t.value} className="data-[state=active]:bg-brand-soft data-[state=active]:text-brand-fg">
               {t.label}
-              {t.value === "items" && <span className="ml-1 text-[10px] text-muted-foreground">{data.items.length}</span>}
-              {t.value === "hearings" && data.hearings.length > 0 && <span className="ml-1 text-[10px] text-muted-foreground">{data.hearings.length}</span>}
-              {t.value === "inspections" && data.inspections.length > 0 && <span className="ml-1 text-[10px] text-muted-foreground">{data.inspections.length}</span>}
+              {t.value === "items" && <span className="ml-1 text-3xs text-muted-foreground">{data.items.length}</span>}
+              {t.value === "hearings" && data.hearings.length > 0 && <span className="ml-1 text-3xs text-muted-foreground">{data.hearings.length}</span>}
+              {t.value === "inspections" && data.inspections.length > 0 && <span className="ml-1 text-3xs text-muted-foreground">{data.inspections.length}</span>}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -344,7 +344,7 @@ function Overview({ data, onSetTab }: { data: CaseData; onSetTab: (t: string) =>
                 ["Extension", data.extensionStatus ? `${data.extensionStatus.toLowerCase()}${data.extensionDeadline ? ` → ${format(new Date(data.extensionDeadline), "MMM d, yyyy")}` : ""}` : null],
               ]}
             />
-            {data.summary && <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">{data.summary}</p>}
+            {data.summary && <p className="mt-3 whitespace-pre-wrap text-sm text-fg-secondary">{data.summary}</p>}
           </CardContent>
         </Card>
         <Card>
@@ -363,8 +363,8 @@ function Overview({ data, onSetTab }: { data: CaseData; onSetTab: (t: string) =>
                   <li key={i.id} className="flex items-center gap-2 py-1.5">
                     <span className="font-mono text-xs text-muted-foreground">#{i.itemNumber}</span>
                     <span className="min-w-0 flex-1 truncate">{i.description}</span>
-                    {i.category && <span className="text-[11px] text-muted-foreground">{i.category.name}</span>}
-                    <Badge variant="outline" className="text-[10px]">
+                    {i.category && <span className="text-2xs text-muted-foreground">{i.category.name}</span>}
+                    <Badge variant="outline" className="text-3xs">
                       {i.status.toLowerCase().replace("_", " ")}
                     </Badge>
                   </li>

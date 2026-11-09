@@ -147,11 +147,11 @@ export default function AdminSettingsPage() {
                   }) => (
                     <div key={source.id} className="flex items-center gap-2 py-1">
                       <span className="text-sm">{source.name}</span>
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-3xs">
                         {source.channelType}
                       </Badge>
                       {source.children?.map((c) => (
-                        <Badge key={c.id} variant="secondary" className="text-[10px]">
+                        <Badge key={c.id} variant="secondary" className="text-3xs">
                           {c.name}
                         </Badge>
                       ))}
@@ -232,10 +232,10 @@ export default function AdminSettingsPage() {
                         {stage.stageOrder}
                       </span>
                       <span className="text-sm">{stage.name}</span>
-                      {stage.isWon && <Badge className="bg-green-100 text-green-800 text-[10px]">Won</Badge>}
-                      {stage.isLost && <Badge className="bg-red-100 text-red-800 text-[10px]">Lost</Badge>}
+                      {stage.isWon && <Badge className="bg-tone-success-soft text-tone-success-fg text-3xs">Won</Badge>}
+                      {stage.isLost && <Badge className="bg-tone-danger-soft text-tone-danger-fg text-3xs">Lost</Badge>}
                       {stage.isClosed && !stage.isWon && !stage.isLost && (
-                        <Badge variant="secondary" className="text-[10px]">Closed</Badge>
+                        <Badge variant="secondary" className="text-3xs">Closed</Badge>
                       )}
                     </div>
                   )

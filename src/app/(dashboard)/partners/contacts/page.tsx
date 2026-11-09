@@ -115,7 +115,7 @@ function Contacts() {
             <Filter label="Any role" value={role} onChange={(v) => url.set("role", v)} items={options?.contactRoles ?? []} width="w-44" />
             <Filter label="Any account owner" value={owner} onChange={(v) => url.set("owner", v)} items={options?.owners ?? []} width="w-44" />
             <Filter label="Any trade" value={trade} onChange={(v) => url.set("trade", v)} items={(options?.trades ?? []).map((t) => ({ value: t.label, label: t.label }))} width="w-36" />
-            <label className="inline-flex items-center gap-1.5 text-xs text-gray-700">
+            <label className="inline-flex items-center gap-1.5 text-xs text-fg-secondary">
               <input type="checkbox" checked={quiet} onChange={(e) => url.set("quiet", e.target.checked ? "1" : null)} />
               No touch in 60 days
             </label>
@@ -147,7 +147,7 @@ function Contacts() {
                 {rows.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>
-                      <Link href={`/partners/${c.organization.id}?tab=contacts&contact=${c.id}`} className="font-medium text-gray-900 hover:underline">{c.firstName} {c.lastName}</Link>
+                      <Link href={`/partners/${c.organization.id}?tab=contacts&contact=${c.id}`} className="font-medium text-foreground hover:underline">{c.firstName} {c.lastName}</Link>
                       <div className="text-xs text-muted-foreground">{[c.title, roleLabel(c.roleTag)].filter(Boolean).join(" · ")}</div>
                     </TableCell>
                     <TableCell>

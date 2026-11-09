@@ -15,7 +15,7 @@ const TONES = buildStageToneMap(STAGE_LIKE);
 /** The relationship stage as a tinted pill, coloured by phase like the lead and job stages. */
 export function PartnerStageBadge({ stage, className }: { stage: PartnerStage; className?: string }) {
   const tone = TONES.get(stage);
-  return <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", tone?.pill ?? "bg-gray-100 text-gray-700", className)}>{stageDef(stage).name}</span>;
+  return <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", tone?.pill ?? "bg-surface-muted text-fg-secondary", className)}>{stageDef(stage).name}</span>;
 }
 
 /** The derived facts about an account (quiet, prequalified, bidding…), most urgent first. */
@@ -25,11 +25,11 @@ export function OrgBadges({ badges, max = 3, className }: { badges: OrgBadge[]; 
   return (
     <span className={cn("flex flex-wrap items-center gap-1", className)}>
       {shown.map((b) => (
-        <Badge key={b.key} variant="outline" className={cn("border-0 text-[11px]", toneClasses(b.tone).pill)}>
+        <Badge key={b.key} variant="outline" className={cn("border-0 text-2xs", toneClasses(b.tone).pill)}>
           {b.label}
         </Badge>
       ))}
-      {badges.length > shown.length && <span className="text-[11px] text-muted-foreground">+{badges.length - shown.length}</span>}
+      {badges.length > shown.length && <span className="text-2xs text-muted-foreground">+{badges.length - shown.length}</span>}
     </span>
   );
 }
@@ -37,7 +37,7 @@ export function OrgBadges({ badges, max = 3, className }: { badges: OrgBadge[]; 
 export function PriorityBadge({ priority }: { priority: "A" | "B" | "C" | null }) {
   if (!priority) return null;
   const cls = priority === "A" ? toneClasses("danger").pill : priority === "B" ? toneClasses("warning").pill : toneClasses("neutral").pill;
-  return <span className={cn("inline-flex size-5 items-center justify-center rounded-full text-[11px] font-semibold", cls)} title={`Priority ${priority}`}>{priority}</span>;
+  return <span className={cn("inline-flex size-5 items-center justify-center rounded-full text-2xs font-semibold", cls)} title={`Priority ${priority}`}>{priority}</span>;
 }
 
 /** Health as a pill: the score and its band, with the top strength and weakness on hover. */

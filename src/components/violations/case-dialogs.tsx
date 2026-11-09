@@ -269,7 +269,7 @@ export function DeadlineChangeDialog({ data, open, onOpenChange }: { data: CaseD
                     <span className="text-xs tabular-nums text-muted-foreground">{m.oldDueAt ? format(new Date(m.oldDueAt), "MMM d") : "—"}</span>
                     <span className="text-xs">→</span>
                     <span className={`text-xs tabular-nums ${m.locked ? "text-muted-foreground" : "font-medium"}`}>{m.newDueAt ? format(new Date(m.newDueAt), "MMM d") : "—"}</span>
-                    {m.locked && <span className="rounded bg-gray-100 px-1 text-[10px] text-gray-600">kept — hand-edited</span>}
+                    {m.locked && <span className="rounded bg-surface-muted px-1 text-3xs text-fg-secondary">kept — hand-edited</span>}
                   </li>
                 ))}
               </ul>
@@ -516,7 +516,7 @@ export function EditCaseDialog({ data, open, onOpenChange }: { data: CaseData; o
           <div>
             <Label className="text-xs">Case manager</Label>
             <AssigneePicker className="mt-1 w-full" value={f.caseManagerId} users={users} onChange={(id) => set("caseManagerId", id)} />
-            {!canAssign && <p className="text-[11px] text-muted-foreground">Office roles reassign cases.</p>}
+            {!canAssign && <p className="text-2xs text-muted-foreground">Office roles reassign cases.</p>}
           </div>
           <div>
             <Label className="text-xs">Responsible team</Label>

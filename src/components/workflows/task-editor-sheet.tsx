@@ -234,7 +234,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
                 Business days
               </Label>
               <Input id="st-offset" type="number" className="mt-1" value={offset} onChange={(e) => setOffset(e.target.value)} />
-              {!DATE_ANCHORS.has(anchor) && Number(offset) < 0 && <p className="text-[11px] text-tone-danger-fg">Negative only from a date anchor (target start, compliance deadline, hearing date).</p>}
+              {!DATE_ANCHORS.has(anchor) && Number(offset) < 0 && <p className="text-2xs text-tone-danger-fg">Negative only from a date anchor (target start, compliance deadline, hearing date).</p>}
             </div>
             <div>
               <Label htmlFor="st-dur" className="text-xs">
@@ -248,7 +248,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={blocking} onCheckedChange={(v) => setBlocking(Boolean(v))} /> Blocking gate
-            <span className="text-[11px] text-muted-foreground">(only an admin or manager may skip it)</span>
+            <span className="text-2xs text-muted-foreground">(only an admin or manager may skip it)</span>
           </label>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={autoActivate} onCheckedChange={(v) => setAutoActivate(Boolean(v))} /> Becomes Ready automatically
@@ -258,7 +258,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
         <div>
           <div className="flex items-center justify-between">
             <Label className="text-xs">Waits on</Label>
-            <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setDepsOpen((o) => !o)}>
+            <Button size="sm" variant="ghost" className="h-6 text-2xs" onClick={() => setDepsOpen((o) => !o)}>
               <Plus className="size-3" /> {depsOpen ? "Done" : "Add"}
             </Button>
           </div>
@@ -268,7 +268,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
               <li key={d.ref} className="flex items-center gap-2 text-sm">
                 <span className="min-w-0 flex-1 truncate">{titleOf(d.ref)}</span>
                 <Select value={d.kind} onValueChange={(v: string | null) => v && setDeps((ds) => ds.map((x) => (x.ref === d.ref ? { ...x, kind: v as TaskDependencyKind } : x)))}>
-                  <SelectTrigger className="h-6 w-[110px] text-[11px]">
+                  <SelectTrigger className="h-6 w-[110px] text-2xs">
                     <SelectValue>{(v: string) => (v === "BLOCKING" ? "blocks" : "date only")}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -276,7 +276,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
                     <SelectItem value="DATE_ONLY">date only</SelectItem>
                   </SelectContent>
                 </Select>
-                <button type="button" aria-label={`Remove ${titleOf(d.ref)}`} className="rounded p-0.5 text-muted-foreground hover:bg-gray-100" onClick={() => setDeps((ds) => ds.filter((x) => x.ref !== d.ref))}>
+                <button type="button" aria-label={`Remove ${titleOf(d.ref)}`} className="rounded p-0.5 text-muted-foreground hover:bg-surface-muted" onClick={() => setDeps((ds) => ds.filter((x) => x.ref !== d.ref))}>
                   <X className="size-3" />
                 </button>
               </li>
@@ -292,9 +292,9 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
                   .slice(0, 80)
                   .map((c) => (
                     <li key={c.ref}>
-                      <button type="button" className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-gray-50" onClick={() => setDeps((ds) => [...ds, { ref: c.ref, kind: "BLOCKING" }])}>
+                      <button type="button" className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-surface-subtle" onClick={() => setDeps((ds) => [...ds, { ref: c.ref, kind: "BLOCKING" }])}>
                         <span className="truncate">{c.title}</span>
-                        <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{c.group}</span>
+                        <span className="ml-auto shrink-0 text-3xs text-muted-foreground">{c.group}</span>
                       </button>
                     </li>
                   ))}
@@ -336,7 +336,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
         <div>
           <div className="flex items-center justify-between">
             <Label className="text-xs">Checklist</Label>
-            <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setChecklist((c) => [...c, { label: "" }])}>
+            <Button size="sm" variant="ghost" className="h-6 text-2xs" onClick={() => setChecklist((c) => [...c, { label: "" }])}>
               <Plus className="size-3" /> Line
             </Button>
           </div>
@@ -346,7 +346,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
                 <Input className="h-8 text-sm" value={c.label} placeholder="What to check" onChange={(e) => setChecklist((all) => all.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
                 {toggles.length > 0 && (
                   <Select value={c.condition?.anyOf?.[0] ?? "always"} onValueChange={(v: string | null) => setChecklist((all) => all.map((x, j) => (j === i ? { ...x, condition: !v || v === "always" ? null : { anyOf: [v] } } : x)))}>
-                    <SelectTrigger className="h-8 w-[150px] text-[11px]">
+                    <SelectTrigger className="h-8 w-[150px] text-2xs">
                       <SelectValue>{(v: string) => (v === "always" ? "always" : `only if ${toggles.find((t) => t.key === v)?.label ?? v}`)}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -359,7 +359,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
                     </SelectContent>
                   </Select>
                 )}
-                <button type="button" aria-label="Remove line" className="rounded p-1 text-muted-foreground hover:bg-gray-100" onClick={() => setChecklist((all) => all.filter((_, j) => j !== i))}>
+                <button type="button" aria-label="Remove line" className="rounded p-1 text-muted-foreground hover:bg-surface-muted" onClick={() => setChecklist((all) => all.filter((_, j) => j !== i))}>
                   <X className="size-3.5" />
                 </button>
               </li>
@@ -371,7 +371,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
           <Label className="text-xs">Only include this step when…</Label>
           <div className="grid gap-2 sm:grid-cols-2">
             <div>
-              <p className="text-[11px] text-muted-foreground">Permit</p>
+              <p className="text-2xs text-muted-foreground">Permit</p>
               <Select value={permit} onValueChange={(v: string | null) => v && setPermit(v as typeof permit)}>
                 <SelectTrigger className="mt-0.5 h-8 text-xs">
                   <SelectValue>{(v: string) => (v === "REQUIRED" ? "a permit is required" : v === "NOT_REQUIRED" ? "no permit is required" : "either way")}</SelectValue>
@@ -385,7 +385,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
             </div>
             {!isCore && (
               <div>
-                <p className="text-[11px] text-muted-foreground">Replaces a Core step</p>
+                <p className="text-2xs text-muted-foreground">Replaces a Core step</p>
                 <Select value={overrides} onValueChange={(v: string | null) => v && setOverrides(v)}>
                   <SelectTrigger className="mt-0.5 h-8 text-xs">
                     <SelectValue>{(v: string) => (v === "none" ? "No" : (version.coreSteps.find((c) => c.key === v)?.title ?? v))}</SelectValue>
@@ -405,20 +405,20 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
           {toggles.length > 0 && (
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
-                <p className="text-[11px] text-muted-foreground">Any of these scope toggles is on</p>
+                <p className="text-2xs text-muted-foreground">Any of these scope toggles is on</p>
                 <div className="mt-1 flex flex-wrap gap-1">
                   {toggles.map((t) => (
-                    <button key={t.key} type="button" aria-pressed={anyOf.includes(t.key)} onClick={() => setAnyOf((l) => toggleIn(l, t.key))} className={cn("rounded-full border px-2 py-0.5 text-[11px]", anyOf.includes(t.key) && "border-brand bg-brand/10 text-brand-fg")}>
+                    <button key={t.key} type="button" aria-pressed={anyOf.includes(t.key)} onClick={() => setAnyOf((l) => toggleIn(l, t.key))} className={cn("rounded-full border px-2 py-0.5 text-2xs", anyOf.includes(t.key) && "border-brand bg-brand/10 text-brand-fg")}>
                       {t.label}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground">All of these are on</p>
+                <p className="text-2xs text-muted-foreground">All of these are on</p>
                 <div className="mt-1 flex flex-wrap gap-1">
                   {toggles.map((t) => (
-                    <button key={t.key} type="button" aria-pressed={allOf.includes(t.key)} onClick={() => setAllOf((l) => toggleIn(l, t.key))} className={cn("rounded-full border px-2 py-0.5 text-[11px]", allOf.includes(t.key) && "border-brand bg-brand/10 text-brand-fg")}>
+                    <button key={t.key} type="button" aria-pressed={allOf.includes(t.key)} onClick={() => setAllOf((l) => toggleIn(l, t.key))} className={cn("rounded-full border px-2 py-0.5 text-2xs", allOf.includes(t.key) && "border-brand bg-brand/10 text-brand-fg")}>
                       {t.label}
                     </button>
                   ))}
@@ -428,7 +428,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
           )}
         </div>
       </div>
-      <div className="mt-auto flex items-center justify-between gap-2 border-t bg-gray-50/60 px-6 py-3">
+      <div className="mt-auto flex items-center justify-between gap-2 border-t bg-surface-subtle/60 px-6 py-3">
         {task && onDelete ? (
           <Button variant="ghost" className="text-tone-danger-fg" onClick={onDelete}>
             <Trash2 className="size-4" /> Delete step

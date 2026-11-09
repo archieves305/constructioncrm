@@ -17,7 +17,7 @@ export function DatePopover({ anchor, label, onPick, className }: { anchor: DayK
       <PopoverTrigger
         aria-label={`${label}. Pick a date`}
         className={cn(
-          "inline-flex h-8 items-center gap-2 rounded-md px-2 text-left text-base font-semibold tracking-tight text-gray-900 hover:bg-gray-100 sm:text-lg",
+          "inline-flex h-8 items-center gap-2 rounded-md px-2 text-left text-base font-semibold tracking-tight text-foreground hover:bg-surface-muted sm:text-lg",
           className,
         )}
       >

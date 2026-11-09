@@ -29,12 +29,12 @@ export function DayStrip({ range, selected, today, byDay, onSelect }: { range: D
             onClick={() => onSelect(day)}
             className={cn(
               "flex h-14 flex-col items-center justify-center gap-0.5 rounded-md border text-xs",
-              active ? "border-brand bg-brand text-white" : day === today ? "border-brand/40 bg-brand-soft text-brand-fg" : "bg-white text-gray-700",
+              active ? "border-brand bg-brand text-white" : day === today ? "border-brand/40 bg-brand-soft text-brand-fg" : "bg-white text-fg-secondary",
             )}
           >
             <span className="uppercase opacity-80">{format(d, "EEEEE")}</span>
             <span className="text-sm font-semibold tabular-nums">{format(d, "d")}</span>
-            <span className={cn("size-1.5 rounded-full", open === 0 ? "bg-transparent" : late ? (active ? "bg-white" : "bg-tone-danger") : active ? "bg-white/80" : "bg-gray-400")} aria-hidden />
+            <span className={cn("size-1.5 rounded-full", open === 0 ? "bg-transparent" : late ? (active ? "bg-white" : "bg-tone-danger") : active ? "bg-white/80" : "bg-tone-neutral")} aria-hidden />
           </button>
         );
       })}

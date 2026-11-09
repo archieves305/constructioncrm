@@ -60,7 +60,7 @@ export function WorkflowTeamDialog({
             <div key={role}>
               <Label className="flex items-center gap-1.5 text-xs">
                 {WORKFLOW_ROLE_LABEL[role]}
-                {unassigned.has(role) && <span className="rounded-full bg-tone-warning-soft px-1.5 text-[10px] text-tone-warning-fg">needs someone</span>}
+                {unassigned.has(role) && <span className="rounded-full bg-tone-warning-soft px-1.5 text-3xs text-tone-warning-fg">needs someone</span>}
               </Label>
               <AssigneePicker
                 className="mt-1 w-full"

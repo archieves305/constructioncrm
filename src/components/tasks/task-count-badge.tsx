@@ -23,8 +23,8 @@ export function TaskCountBadge({
     <span
       title={hasOverdue ? `${overdue} overdue of ${open} open` : `${open} open task${open === 1 ? "" : "s"}`}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium tabular-nums",
-        hasOverdue ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700",
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs font-medium tabular-nums",
+        hasOverdue ? "bg-tone-danger-soft text-tone-danger-fg" : "bg-tone-info-soft text-tone-info-fg",
         className,
       )}
     >

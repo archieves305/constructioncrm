@@ -99,10 +99,10 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
             <span className={cn("size-2.5 rounded-full", tone.dot)} aria-hidden />
             {health.label}
           </span>
-          <span className="text-sm text-gray-700">
+          <span className="text-sm text-fg-secondary">
             {data.stage.name} · {data.stage.daysInStage === 0 ? "since today" : `${data.stage.daysInStage} day${data.stage.daysInStage === 1 ? "" : "s"} in this stage`}
           </span>
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-fg-secondary">
             PM: {data.projectManager ?? "not set"}
             {data.targetStartDate ? ` · Starts ${utcDay(data.targetStartDate)}` : ""}
           </span>
@@ -118,7 +118,7 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
           {workflow ? (
             <div className="mb-3">
               <div className="flex items-baseline justify-between text-sm">
-                <span className="font-medium text-gray-900">{workflow.currentPhase ?? "All steps done"}</span>
+                <span className="font-medium text-foreground">{workflow.currentPhase ?? "All steps done"}</span>
                 <span className="tabular-nums text-muted-foreground">{workflow.done}/{workflow.total} steps · {workflow.percentComplete}%</span>
               </div>
               <Progress value={workflow.percentComplete} className="mt-1.5 h-1.5" />
@@ -144,13 +144,13 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
             <ul className="space-y-1.5">
               {attention.map((a) => (
                 <li key={a.key}>
-                  <button type="button" onClick={() => onNavigate(a.tab, a.sub)} className="group flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm hover:bg-gray-50">
+                  <button type="button" onClick={() => onNavigate(a.tab, a.sub)} className="group flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left text-sm hover:bg-surface-subtle">
                     <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", toneClasses(a.tone).dot)} aria-hidden />
                     <span className="min-w-0 flex-1">
-                      <span className="text-gray-900">{a.title}</span>
+                      <span className="text-foreground">{a.title}</span>
                       {a.detail && <span className="block truncate text-xs text-muted-foreground">{a.detail}</span>}
                     </span>
-                    <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-gray-300 group-hover:text-gray-500" aria-hidden />
+                    <ArrowRight className="mt-0.5 size-3.5 shrink-0 text-muted-foreground group-hover:text-muted-foreground" aria-hidden />
                   </button>
                 </li>
               ))}
@@ -244,11 +244,11 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
               const Icon = EVENT_ICON[e.kind];
               const body = (
                 <>
-                  <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+                  <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted-foreground">
                     <Icon className="size-3.5" aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm text-gray-900">{e.title}</span>
+                    <span className="block text-sm text-foreground">{e.title}</span>
                     <span className="block text-xs text-muted-foreground" title={format(new Date(e.at), "PPp")}>
                       {formatDistanceToNowStrict(new Date(e.at), { addSuffix: true })}{e.actor ? ` · ${e.actor}` : ""}
                     </span>
@@ -258,7 +258,7 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
               return (
                 <li key={e.id}>
                   {e.tab ? (
-                    <button type="button" onClick={() => onNavigate(e.tab!, e.sub ?? undefined)} className="flex w-full items-start gap-2.5 rounded-md px-1 py-0.5 text-left hover:bg-gray-50">
+                    <button type="button" onClick={() => onNavigate(e.tab!, e.sub ?? undefined)} className="flex w-full items-start gap-2.5 rounded-md px-1 py-0.5 text-left hover:bg-surface-subtle">
                       {body}
                     </button>
                   ) : (
@@ -402,7 +402,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return (
     <div className="flex items-start justify-between gap-4">
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 text-right text-gray-900">{children}</dd>
+      <dd className="min-w-0 text-right text-foreground">{children}</dd>
     </div>
   );
 }
@@ -412,7 +412,7 @@ function TaskList({ rows }: { rows: OverviewTask[] }) {
     <ul className="space-y-1.5">
       {rows.map((t) => (
         <li key={t.id} className="flex items-baseline justify-between gap-3 text-sm">
-          <span className="min-w-0 truncate text-gray-900">{t.title}</span>
+          <span className="min-w-0 truncate text-foreground">{t.title}</span>
           <span className={cn("shrink-0 text-xs", t.overdue ? "text-tone-danger-fg" : "text-muted-foreground")}>
             {[t.assignee ?? "Unassigned", t.dueAt ? (t.overdue ? `was due ${day(t.dueAt)}` : `due ${day(t.dueAt)}`) : "no date"].join(" · ")}
           </span>

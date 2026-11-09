@@ -18,11 +18,11 @@ export default async function GuestPage({ params }: { params: Promise<{ token: s
     const t = GUEST_TEXT[view.state === "notFound" ? "en" : view.language];
     const key = view.state === "notFound" ? "notFound" : view.state;
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+      <main className="flex min-h-screen items-center justify-center bg-surface-subtle p-6">
         <div className="max-w-sm text-center">
-          <p className="mb-1 text-sm font-semibold tracking-wide text-slate-500">KNU Construction</p>
-          <p className="text-lg text-slate-800">{t[key]}</p>
-          {view.state === "notFound" ? <p className="mt-2 text-lg text-slate-800">{GUEST_TEXT.es.notFound}</p> : null}
+          <p className="mb-1 text-sm font-semibold tracking-wide text-muted-foreground">KNU Construction</p>
+          <p className="text-lg text-foreground">{t[key]}</p>
+          {view.state === "notFound" ? <p className="mt-2 text-lg text-foreground">{GUEST_TEXT.es.notFound}</p> : null}
         </div>
       </main>
     );

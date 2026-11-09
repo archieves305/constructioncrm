@@ -37,11 +37,11 @@ export function FieldShell({ user, children }: FieldShellProps) {
   const isOfficeUser = user.role !== "CREW_LEAD" && user.role !== "READ_ONLY";
 
   return (
-    <div className="flex min-h-dvh flex-col bg-gray-50">
+    <div className="flex min-h-dvh flex-col bg-surface-subtle">
       <header className="sticky top-0 z-40 border-b bg-white">
         <div className="flex h-14 items-center gap-3 px-4">
           <Link href="/field" className="flex items-center gap-2">
-            <HardHat className="h-6 w-6 text-blue-600" />
+            <HardHat className="h-6 w-6 text-tone-info-fg" />
             <span className="text-base font-bold">Field Mode</span>
           </Link>
           <div className="flex-1" />
@@ -78,7 +78,7 @@ export function FieldShell({ user, children }: FieldShellProps) {
           </Button>
         </div>
         {offline && (
-          <div className="flex items-center gap-2 bg-amber-100 px-4 py-2 text-sm text-amber-900">
+          <div className="flex items-center gap-2 bg-tone-warning-soft px-4 py-2 text-sm text-tone-warning-fg">
             <WifiOff className="h-4 w-4 shrink-0" />
             You&apos;re offline — work is saved on this device and will sync when
             you reconnect.

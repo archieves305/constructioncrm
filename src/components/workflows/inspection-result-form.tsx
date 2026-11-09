@@ -76,7 +76,7 @@ export function InspectionResultForm({ task, canRecord }: { task: WorkflowTaskIt
             <RadioGroupItem value={r.value} className="mt-0.5" aria-label={r.label} />
             <span>
               <span className="font-medium">{r.label}</span>
-              <span className="block text-[11px] text-muted-foreground">{r.hint}</span>
+              <span className="block text-2xs text-muted-foreground">{r.hint}</span>
             </span>
           </label>
         ))}

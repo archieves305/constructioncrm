@@ -112,7 +112,7 @@ export function AddressAutofillFields<T extends FieldValues>({
       name
     ];
     return err?.message ? (
-      <p className="mt-1 text-xs text-red-600">{String(err.message)}</p>
+      <p className="mt-1 text-xs text-tone-danger-fg">{String(err.message)}</p>
     ) : null;
   };
 
@@ -129,7 +129,7 @@ export function AddressAutofillFields<T extends FieldValues>({
         )}
         {fieldError("propertyAddress1")}
         {!token && (
-          <p className="mt-1 text-xs text-amber-600">
+          <p className="mt-1 text-xs text-tone-warning-fg">
             Address autocomplete disabled — set NEXT_PUBLIC_MAPBOX_TOKEN in
             .env to enable.
           </p>

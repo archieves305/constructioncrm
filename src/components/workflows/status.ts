@@ -7,25 +7,25 @@ export type { WorkflowTaskState };
 
 /** Filled-pill classes per workflow state. Literal strings so Tailwind sees them. */
 export const WORKFLOW_STATE_PILL: Record<WorkflowTaskState, string> = {
-  NOT_ACTIVE: "bg-gray-100 text-gray-500",
+  NOT_ACTIVE: "bg-surface-muted text-muted-foreground",
   READY: "bg-tone-info-soft text-tone-info-fg",
-  IN_PROGRESS: "bg-blue-100 text-blue-800",
+  IN_PROGRESS: "bg-tone-info-soft text-tone-info-fg",
   BLOCKED: "bg-tone-warning-soft text-tone-warning-fg",
   FAILED_INSPECTION: "bg-tone-danger-soft text-tone-danger-fg",
   COMPLETED: "bg-tone-success-soft text-tone-success-fg",
-  SKIPPED: "bg-gray-100 text-gray-500 line-through decoration-gray-400",
-  CANCELLED: "bg-gray-100 text-gray-500",
+  SKIPPED: "bg-surface-muted text-muted-foreground line-through decoration-muted-foreground",
+  CANCELLED: "bg-surface-muted text-muted-foreground",
 };
 
 export const WORKFLOW_STATE_DOT: Record<WorkflowTaskState, string> = {
-  NOT_ACTIVE: "bg-gray-300",
+  NOT_ACTIVE: "bg-surface-emphasis",
   READY: "bg-tone-info",
-  IN_PROGRESS: "bg-blue-500",
+  IN_PROGRESS: "bg-tone-info",
   BLOCKED: "bg-tone-warning",
   FAILED_INSPECTION: "bg-tone-danger",
   COMPLETED: "bg-tone-success",
-  SKIPPED: "bg-gray-300",
-  CANCELLED: "bg-gray-300",
+  SKIPPED: "bg-surface-emphasis",
+  CANCELLED: "bg-surface-emphasis",
 };
 
 export const PERMIT_STATUS_LABEL: Record<WorkflowPermitStatus, string> = {

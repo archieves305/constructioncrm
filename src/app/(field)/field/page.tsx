@@ -39,9 +39,9 @@ function localToday(): string {
 }
 
 const LOG_CHIP: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: "Draft", className: "bg-gray-100 text-gray-700" },
-  SUBMITTED: { label: "Submitted", className: "bg-amber-100 text-amber-800" },
-  APPROVED: { label: "Approved", className: "bg-green-100 text-green-800" },
+  DRAFT: { label: "Draft", className: "bg-surface-muted text-fg-secondary" },
+  SUBMITTED: { label: "Submitted", className: "bg-tone-warning-soft text-tone-warning-fg" },
+  APPROVED: { label: "Approved", className: "bg-tone-success-soft text-tone-success-fg" },
 };
 
 function lastMonday(): string {
@@ -122,7 +122,7 @@ export default function FieldHomePage() {
                 </div>
 
                 {job.yesterdayUnsubmitted && (
-                  <div className="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  <div className="flex items-center gap-2 rounded-md bg-tone-warning-soft px-3 py-2 text-sm text-tone-warning-fg">
                     <TriangleAlert className="h-4 w-4 shrink-0" />
                     Yesterday&apos;s log was never submitted
                   </div>
@@ -153,7 +153,7 @@ export default function FieldHomePage() {
       )}
       <Card>
         <CardContent className="flex items-center gap-3 py-4">
-          <Mail className="h-5 w-5 shrink-0 text-blue-600" />
+          <Mail className="h-5 w-5 shrink-0 text-tone-info-fg" />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold">Weekly hours to bookkeeper</div>
             <p className="text-muted-foreground text-xs">

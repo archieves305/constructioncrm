@@ -54,7 +54,7 @@ export function CrewContact({ contractId, label, crew, canEdit, onChanged }: { c
           <span>{LANG[crew.language ?? "en"] ?? crew.language}</span>
         </>
       ) : (
-        <span className="text-amber-700 dark:text-amber-400">No phone for this crew yet, so crew links cannot reach it.</span>
+        <span className="text-tone-warning-fg">No phone for this crew yet, so crew links cannot reach it.</span>
       )}
       {canEdit ? (
         <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditing(true)}>

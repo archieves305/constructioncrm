@@ -24,7 +24,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
               href={t.href}
               className={cn(
                 "-mb-px inline-flex h-9 items-center gap-1.5 border-b-2 px-3 text-sm font-medium transition-colors",
-                active ? "border-brand text-gray-900" : "border-transparent text-gray-500 hover:text-gray-900",
+                active ? "border-brand text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               <Icon className="size-4" /> {t.label}

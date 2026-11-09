@@ -291,7 +291,7 @@ export function AddTaskDialog({
               {files.length > 0 && (
                 <ul className="mt-2 flex flex-wrap gap-1.5">
                   {files.map((f, i) => (
-                    <li key={`${f.name}-${i}`} className="inline-flex max-w-full items-center gap-1 rounded-md border bg-gray-50 px-2 py-0.5 text-xs">
+                    <li key={`${f.name}-${i}`} className="inline-flex max-w-full items-center gap-1 rounded-md border bg-surface-subtle px-2 py-0.5 text-xs">
                       <span className="truncate">{f.name}</span>
                       <span className="shrink-0 text-muted-foreground">{formatFileSize(f.size)}</span>
                       {!attaching && (
@@ -344,7 +344,7 @@ export function AddTaskDialog({
                 onChange={(e) => setForm({ ...form, remindAt: e.target.value })}
                 aria-label="Reminder date"
               />
-              <span className="text-[11px] text-muted-foreground">optional · arrives with that morning&apos;s digest</span>
+              <span className="text-2xs text-muted-foreground">optional · arrives with that morning&apos;s digest</span>
             </div>
           </section>
 
@@ -382,7 +382,7 @@ export function AddTaskDialog({
                   {watcherCandidates.map((u) => {
                     const checked = form.watcherIds.includes(u.id);
                     return (
-                      <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-xs hover:bg-gray-50">
+                      <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-xs hover:bg-surface-subtle">
                         <Checkbox
                           checked={checked}
                           onCheckedChange={(c) =>
@@ -407,8 +407,8 @@ export function AddTaskDialog({
           </section>
         </div>
 
-        <div className="flex items-center justify-between gap-2 rounded-b-xl border-t bg-gray-50/70 px-5 py-3">
-          <span className="text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 rounded-b-xl border-t bg-surface-subtle/70 px-5 py-3">
+          <span className="text-2xs text-muted-foreground">
             <kbd className="rounded border bg-white px-1 font-mono">⌘</kbd>{" "}
             <kbd className="rounded border bg-white px-1 font-mono">↵</kbd> to create
           </span>

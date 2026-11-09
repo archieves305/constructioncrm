@@ -38,9 +38,9 @@ type QueueRow = {
 };
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: "Draft", className: "bg-gray-100 text-gray-700" },
-  SUBMITTED: { label: "Submitted", className: "bg-amber-100 text-amber-800" },
-  APPROVED: { label: "Approved", className: "bg-green-100 text-green-800" },
+  DRAFT: { label: "Draft", className: "bg-surface-muted text-fg-secondary" },
+  SUBMITTED: { label: "Submitted", className: "bg-tone-warning-soft text-tone-warning-fg" },
+  APPROVED: { label: "Approved", className: "bg-tone-success-soft text-tone-success-fg" },
 };
 
 const FILTERS = [
@@ -117,7 +117,7 @@ export default function FieldLogsQueuePage() {
                     <TableCell>
                       <Link
                         href={`/jobs/${log.jobId}/daily-logs/${log.logDate}`}
-                        className="font-medium text-blue-700 hover:underline"
+                        className="font-medium text-tone-info-fg hover:underline"
                       >
                         {format(new Date(`${log.logDate}T12:00:00`), "EEE, MMM d")}
                       </Link>

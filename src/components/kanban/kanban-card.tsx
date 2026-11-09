@@ -30,8 +30,8 @@ export function KanbanCard({
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, disabled });
   const base = cn(
-    "group/card relative rounded-lg bg-white text-sm ring-1 ring-gray-200 shadow-xs transition",
-    "hover:ring-gray-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60",
+    "group/card relative rounded-lg bg-white text-sm ring-1 ring-border shadow-xs transition",
+    "hover:ring-border-strong hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60",
     isDragging && "opacity-40",
     className,
   );
@@ -44,7 +44,7 @@ export function KanbanCard({
           {...attributes}
           {...listeners}
           aria-label="Drag to move"
-          className="absolute left-1 top-2 z-10 cursor-grab rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 active:cursor-grabbing"
+          className="absolute left-1 top-2 z-10 cursor-grab rounded p-0.5 text-muted-foreground hover:bg-surface-muted hover:text-fg-secondary active:cursor-grabbing"
         >
           <GripVertical className="size-4" />
         </button>

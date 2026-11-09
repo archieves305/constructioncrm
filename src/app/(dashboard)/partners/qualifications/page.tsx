@@ -108,7 +108,7 @@ function Qualifications() {
                 {rows.map((q) => (
                   <TableRow key={q.id}>
                     <TableCell>
-                      <Link href={`/partners/${q.organization.id}?tab=qualification`} className="font-medium text-gray-900 hover:underline">{q.organization.name}</Link>
+                      <Link href={`/partners/${q.organization.id}?tab=qualification`} className="font-medium text-foreground hover:underline">{q.organization.name}</Link>
                       <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                         <PartnerStageBadge stage={q.organization.stage} />
                         {q.platform && <span>{q.platform}</span>}

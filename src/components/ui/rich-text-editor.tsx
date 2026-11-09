@@ -137,7 +137,7 @@ export const RichTextEditor = React.forwardRef<RichTextEditorHandle, Props>(
     return (
       <div className={cn("rounded-md border bg-white", className)}>
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-0.5 border-b bg-gray-50 px-1 py-1">
+        <div className="flex flex-wrap items-center gap-0.5 border-b bg-surface-subtle px-1 py-1">
           <ToolbarBtn title="Undo" onClick={() => applyFormat("undo")}>
             <Undo2 className="h-3.5 w-3.5" />
           </ToolbarBtn>
@@ -263,10 +263,10 @@ export const RichTextEditor = React.forwardRef<RichTextEditorHandle, Props>(
             "[&_h1]:text-xl [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-2",
             "[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2",
             "[&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6",
-            "[&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-gray-600",
-            "[&_a]:text-blue-600 [&_a]:underline",
-            "[&_pre]:bg-gray-100 [&_pre]:rounded [&_pre]:px-2 [&_pre]:py-1 [&_pre]:font-mono [&_pre]:text-xs",
-            "empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400",
+            "[&_blockquote]:border-l-4 [&_blockquote]:border-border-strong [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-fg-secondary",
+            "[&_a]:text-tone-info-fg [&_a]:underline",
+            "[&_pre]:bg-surface-muted [&_pre]:rounded [&_pre]:px-2 [&_pre]:py-1 [&_pre]:font-mono [&_pre]:text-xs",
+            "empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground",
           )}
           style={{ minHeight }}
         />
@@ -332,7 +332,7 @@ function SwatchPopover({
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => onPick(c)}
-          className="h-5 w-5 rounded border border-gray-200"
+          className="h-5 w-5 rounded border border-border"
           style={{ backgroundColor: c }}
           title={c}
         />

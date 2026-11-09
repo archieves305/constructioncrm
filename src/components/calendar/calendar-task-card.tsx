@@ -84,11 +84,11 @@ function OverlayCard({ item, variant, className }: { item: CalendarItem; variant
         className,
       )}
     >
-      <p className={cn("flex items-center gap-1 truncate text-tone-info-fg", compact ? "text-[10px]" : "text-[11px]")}>
+      <p className={cn("flex items-center gap-1 truncate text-tone-info-fg", compact ? "text-3xs" : "text-2xs")}>
         <Icon className="size-3 shrink-0" aria-hidden /> {o.label}
         {o.state === "moved" && <span className="text-muted-foreground">· continued</span>}
       </p>
-      <p className={cn("font-medium leading-snug text-gray-900", compact ? "line-clamp-1 text-xs" : "line-clamp-2 text-sm", done && "line-through")}>{item.title}</p>
+      <p className={cn("font-medium leading-snug text-foreground", compact ? "line-clamp-1 text-xs" : "line-clamp-2 text-sm", done && "line-through")}>{item.title}</p>
       {!compact && (
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
           {contextLine(item)}
@@ -116,7 +116,7 @@ export function CalendarTaskCard({ item, variant = "full", showAssignee = true, 
       onClick={() => onOpen(item.id)}
       aria-label={`${item.title}, ${contextLine(item)}, ${whenLine(item)}${item.assignedTo ? `, ${shortName(item.assignedTo)}` : ", unassigned"}`}
       className={cn(
-        "group relative w-full rounded-md border bg-white text-left shadow-xs transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50",
+        "group relative w-full rounded-md border bg-white text-left shadow-xs transition-colors hover:border-border-strong hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50",
         compact ? "px-2 py-1.5 pl-3" : "px-3 py-2 pl-3.5",
         closed && "opacity-60",
         dragProps && "cursor-grab active:cursor-grabbing touch-manipulation",
@@ -127,8 +127,8 @@ export function CalendarTaskCard({ item, variant = "full", showAssignee = true, 
     >
       <span aria-hidden className={cn("absolute inset-y-1.5 left-0 w-0.5 rounded-full", bar)} />
 
-      <p className={cn("truncate text-muted-foreground", compact ? "text-[10px]" : "text-[11px]")}>{contextLine(item)}</p>
-      <p className={cn("font-medium leading-snug text-gray-900", compact ? "line-clamp-1 text-xs" : "line-clamp-2 text-sm", closed && "line-through")}>
+      <p className={cn("truncate text-muted-foreground", compact ? "text-3xs" : "text-2xs")}>{contextLine(item)}</p>
+      <p className={cn("font-medium leading-snug text-foreground", compact ? "line-clamp-1 text-xs" : "line-clamp-2 text-sm", closed && "line-through")}>
         {item.title}
       </p>
 
@@ -158,10 +158,10 @@ function Pill({ tone, icon: Icon, children }: { tone: "danger" | "warning" | "su
     warning: "bg-tone-warning-soft text-tone-warning-fg",
     success: "bg-tone-success-soft text-tone-success-fg",
     info: "bg-tone-info-soft text-tone-info-fg",
-    neutral: "bg-gray-100 text-gray-600",
+    neutral: "bg-surface-muted text-fg-secondary",
   }[tone];
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none", cls)}>
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-3xs font-medium leading-none", cls)}>
       {Icon && <Icon className="size-3" aria-hidden />}
       {children}
     </span>

@@ -25,7 +25,7 @@ const VALUE_TONE = {
 
 export function KpiCard({ title, value, description, icon: Icon, trend, href, tone, children }: KpiCardProps) {
   const card = (
-    <Card className={cn(href && "h-full transition-shadow hover:shadow-md hover:ring-1 hover:ring-gray-300")}>
+    <Card className={cn(href && "h-full transition-shadow hover:shadow-md hover:ring-1 hover:ring-border-strong")}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {title}
@@ -40,7 +40,7 @@ export function KpiCard({ title, value, description, icon: Icon, trend, href, to
         )}
         {trend && (
           <p
-            className={`text-xs ${trend.positive ? "text-green-600" : "text-red-600"}`}
+            className={`text-xs ${trend.positive ? "text-tone-success-fg" : "text-tone-danger-fg"}`}
           >
             {trend.positive ? "+" : ""}
             {trend.value}% from last period

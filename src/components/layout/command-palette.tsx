@@ -100,7 +100,7 @@ export function CommandPalette({ open, onOpenChange, role }: { open: boolean; on
                           <span className="block truncate text-sm font-medium">{h.primary}</span>
                           {h.secondary && <span className="block truncate text-xs text-muted-foreground">{h.secondary}</span>}
                         </span>
-                        {h.code && <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{h.code}</span>}
+                        {h.code && <span className="shrink-0 font-mono text-2xs text-muted-foreground">{h.code}</span>}
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -135,8 +135,8 @@ export function CommandPalette({ open, onOpenChange, role }: { open: boolean; on
                           <span className="block truncate text-sm font-medium">{r.primary}</span>
                           {r.secondary && <span className="block truncate text-xs text-muted-foreground">{r.secondary}</span>}
                         </span>
-                        {r.code && <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{r.code}</span>}
-                        <Clock className="size-3.5 shrink-0 text-gray-300" />
+                        {r.code && <span className="shrink-0 font-mono text-2xs text-muted-foreground">{r.code}</span>}
+                        <Clock className="size-3.5 shrink-0 text-muted-foreground" />
                       </CommandItem>
                     );
                   })}

@@ -148,12 +148,12 @@ function NotificationsInner() {
       ) : (
         <ul className="divide-y rounded-md border bg-card">
           {items.map((n) => (
-            <li key={n.id} className={cn("flex gap-3 p-3 text-sm", !n.readAt && "bg-blue-50/60")}>
+            <li key={n.id} className={cn("flex gap-3 p-3 text-sm", !n.readAt && "bg-tone-info-soft/60")}>
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span className="rounded bg-muted px-1.5 py-0.5">{CATEGORY_LABEL[n.category] ?? n.category}</span>
-                  {n.actionRequired && !n.readAt && <span className="rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-800">Action</span>}
-                  {n.priority === "URGENT" && <span className="rounded bg-red-100 px-1.5 py-0.5 font-medium text-red-700">Urgent</span>}
+                  {n.actionRequired && !n.readAt && <span className="rounded bg-tone-warning-soft px-1.5 py-0.5 font-medium text-tone-warning-fg">Action</span>}
+                  {n.priority === "URGENT" && <span className="rounded bg-tone-danger-soft px-1.5 py-0.5 font-medium text-tone-danger-fg">Urgent</span>}
                   <span>{formatDistanceToNow(new Date(n.lastOccurredAt), { addSuffix: true })}</span>
                   {n.occurrences > 1 && <span>· ×{n.occurrences}</span>}
                   {n.emailedAt && <span>· emailed</span>}
@@ -170,7 +170,7 @@ function NotificationsInner() {
                 </Link>
               </div>
               {!n.readAt && (
-                <button type="button" className="self-start text-xs text-blue-600 hover:underline" onClick={() => markRead.mutate(n.id)}>
+                <button type="button" className="self-start text-xs text-tone-info-fg hover:underline" onClick={() => markRead.mutate(n.id)}>
                   Mark read
                 </button>
               )}

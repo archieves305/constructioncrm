@@ -207,7 +207,7 @@ export function WorkLogSection({
       {/* Weather */}
       <Card>
         <CardContent className="flex items-center gap-3 py-3">
-          <CloudSun className="h-5 w-5 shrink-0 text-blue-500" />
+          <CloudSun className="h-5 w-5 shrink-0 text-tone-info-fg" />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">Weather</div>
             {weatherText ? (
@@ -269,7 +269,7 @@ export function WorkLogSection({
           className="h-12 w-full"
           onClick={() => setIssueOpen(true)}
         >
-          <Flag className="mr-2 h-4 w-4 text-red-500" />
+          <Flag className="mr-2 h-4 w-4 text-tone-danger-fg" />
           Flag an issue for the office
         </Button>
       )}

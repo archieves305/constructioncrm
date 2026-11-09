@@ -148,11 +148,11 @@ function DocRow({ doc, showType }: { doc: GeneratedDoc; showType?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-2 text-xs">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Badge variant="secondary" className="text-[10px]">
+        <Badge variant="secondary" className="text-3xs">
           v{doc.versionNumber}
         </Badge>
         {showType && (
-          <Badge variant="outline" className="text-[10px]">
+          <Badge variant="outline" className="text-3xs">
             {docTypeLabel(doc.documentType)}
           </Badge>
         )}
@@ -165,7 +165,7 @@ function DocRow({ doc, showType }: { doc: GeneratedDoc; showType?: boolean }) {
         <FileLink
           fileId={doc.fileId}
           fileName={doc.fileName}
-          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
           title="View / download PDF"
         >
           <Download className="h-3.5 w-3.5" />
@@ -614,7 +614,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
           <CardContent className="p-3">
-            <div className="text-[10px] uppercase text-muted-foreground">
+            <div className="text-3xs uppercase text-muted-foreground">
               Labor contracts
             </div>
             <div className="text-lg font-semibold">
@@ -624,32 +624,32 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
         </Card>
         <Card>
           <CardContent className="p-3">
-            <div className="text-[10px] uppercase text-muted-foreground">
+            <div className="text-3xs uppercase text-muted-foreground">
               Paid to date
             </div>
-            <div className="text-lg font-semibold text-emerald-700">
+            <div className="text-lg font-semibold text-tone-success-fg">
               ${totals.paid.toLocaleString()}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3">
-            <div className="text-[10px] uppercase text-muted-foreground">
+            <div className="text-3xs uppercase text-muted-foreground">
               Retainage held
             </div>
-            <div className="text-lg font-semibold text-amber-700">
+            <div className="text-lg font-semibold text-tone-warning-fg">
               ${totals.held.toLocaleString()}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3">
-            <div className="text-[10px] uppercase text-muted-foreground">
+            <div className="text-3xs uppercase text-muted-foreground">
               Net owed now
             </div>
             <div
               className={`text-lg font-semibold ${
-                totals.netOwed > 0 ? "text-red-700" : "text-emerald-700"
+                totals.netOwed > 0 ? "text-tone-danger-fg" : "text-tone-success-fg"
               }`}
             >
               ${totals.netOwed.toLocaleString()}
@@ -763,7 +763,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                       <HardHat className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium">{name}</span>
                       {!c.crew && (
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="text-3xs">
                           ad-hoc
                         </Badge>
                       )}
@@ -835,7 +835,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                       )}
                       <button
                         type="button"
-                        className="rounded p-2 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+                        className="rounded p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
                         title="Edit contract"
                         onClick={() => openEdit(c)}
                       >
@@ -843,7 +843,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                       </button>
                       <button
                         type="button"
-                        className="rounded p-2 text-muted-foreground hover:bg-red-50 hover:text-destructive"
+                        className="rounded p-2 text-muted-foreground hover:bg-tone-danger-soft hover:text-destructive"
                         title="Remove contract"
                         onClick={() => {
                           if (
@@ -872,14 +872,14 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
 
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <div>
-                      <div className="text-[10px] uppercase text-muted-foreground">
+                      <div className="text-3xs uppercase text-muted-foreground">
                         {coTotal !== 0 ? "Revised contract" : "Contract"}
                       </div>
                       <div className="font-semibold">
                         ${revised.toLocaleString()}
                       </div>
                       {coTotal !== 0 && (
-                        <div className="text-[10px] text-muted-foreground">
+                        <div className="text-3xs text-muted-foreground">
                           orig ${Number(c.contractAmount).toLocaleString()}
                           {" · "}
                           {coTotal >= 0 ? "+" : "−"}$
@@ -888,20 +888,20 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                       )}
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase text-muted-foreground">
+                      <div className="text-3xs uppercase text-muted-foreground">
                         Paid
                       </div>
-                      <div className="font-semibold text-emerald-700">
+                      <div className="font-semibold text-tone-success-fg">
                         ${paid.toLocaleString()}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase text-muted-foreground">
+                      <div className="text-3xs uppercase text-muted-foreground">
                         Outstanding
                       </div>
                       <div
                         className={`font-semibold ${
-                          outstanding > 0 ? "text-red-700" : "text-emerald-700"
+                          outstanding > 0 ? "text-tone-danger-fg" : "text-tone-success-fg"
                         }`}
                       >
                         ${outstanding.toLocaleString()}
@@ -910,8 +910,8 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                   </div>
 
                   {retPct > 0 && (
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded bg-amber-50 px-2 py-1.5 text-xs">
-                      <div className="text-amber-800">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded bg-tone-warning-soft px-2 py-1.5 text-xs">
+                      <div className="text-tone-warning-fg">
                         {c.retainageReleased ? (
                           <>
                             Retainage ({retPct}%) released
@@ -936,7 +936,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-6 text-[11px]"
+                          className="h-6 text-2xs"
                           disabled={releaseRetainage.isPending}
                           onClick={() => {
                             if (
@@ -968,7 +968,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                     if (contractDocs.length === 0) return null;
                     return (
                       <div className="space-y-1 border-t pt-2">
-                        <div className="text-[10px] uppercase text-muted-foreground">
+                        <div className="text-3xs uppercase text-muted-foreground">
                           Contract PDFs
                         </div>
                         {contractDocs
@@ -983,7 +983,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
 
                   {c.changeOrders.length > 0 && (
                     <div className="space-y-1 border-t pt-2">
-                      <div className="text-[10px] uppercase text-muted-foreground">
+                      <div className="text-3xs uppercase text-muted-foreground">
                         Change orders
                       </div>
                       {c.changeOrders.map((co) => {
@@ -1007,7 +1007,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                                 )}
                                 <span
                                   className={`font-medium ${
-                                    n >= 0 ? "text-foreground" : "text-amber-700"
+                                    n >= 0 ? "text-foreground" : "text-tone-warning-fg"
                                   }`}
                                 >
                                   {n >= 0 ? "+" : "−"}$
@@ -1028,7 +1028,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                               <div className="flex shrink-0 items-center gap-1">
                                 <button
                                   type="button"
-                                  className="flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-gray-100 hover:text-foreground disabled:opacity-50"
+                                  className="flex items-center gap-1 rounded px-2 py-1 text-2xs text-muted-foreground hover:bg-surface-muted hover:text-foreground disabled:opacity-50"
                                   title="Generate addendum PDF"
                                   disabled={genPending}
                                   onClick={() =>
@@ -1092,7 +1092,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                               ${Number(p.amount).toLocaleString()}
                             </span>
                             {p.method && (
-                              <Badge variant="secondary" className="text-[10px]">
+                              <Badge variant="secondary" className="text-3xs">
                                 {p.method}
                               </Badge>
                             )}
@@ -1170,7 +1170,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
               />
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-2xs text-muted-foreground">
                 Used verbatim as the Scope of Work on the generated contract.
               </p>
             </div>
@@ -1413,7 +1413,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                   value={coAmount}
                   onChange={(e) => setCoAmount(e.target.value)}
                 />
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-2xs text-muted-foreground">
                   Use a negative number for a credit.
                 </p>
               </div>
@@ -1483,7 +1483,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                 />
               </div>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               After saving, use the <span className="font-medium">Addendum</span>{" "}
               button on the change order to generate a PDF.
             </p>

@@ -114,7 +114,7 @@ function ProductCard({ p, canEdit, onChanged }: { p: PermitProductRow; canEdit: 
               {a.designPressurePos || a.designPressureNeg ? ` · ${[n(a.designPressurePos) != null ? `+${n(a.designPressurePos)}` : null, n(a.designPressureNeg)].filter((x) => x != null).join(" / ")} psf` : ""}
             </p>
           </div>
-          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(st.tone).pill)}>{st.label}</span>
+          <span className={cn("rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(st.tone).pill)}>{st.label}</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-3 pt-0">

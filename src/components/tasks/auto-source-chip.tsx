@@ -23,14 +23,14 @@ export function AutoSourceChip({ sourceKey }: { sourceKey: string | null | undef
     const moduleKey = sourceKey.split(":")[2] ?? "";
     const label = WORKFLOW_MODULE_LABEL[moduleKey] ?? moduleKey.replace(/_/g, " ");
     return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-brand/10 px-1.5 py-0.5 text-[11px] text-brand-fg">
+      <span className="inline-flex items-center gap-1 rounded-md bg-brand/10 px-1.5 py-0.5 text-2xs text-brand-fg">
         <Route className="size-3" />
         Created by the {label} workflow
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600">
+    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted px-1.5 py-0.5 text-2xs text-fg-secondary">
       <Bot className="size-3" />
       Created automatically from {LABELS[kind] ?? "a system event"}
     </span>

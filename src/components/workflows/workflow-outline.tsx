@@ -45,13 +45,13 @@ export function WorkflowOutline({ outline }: { outline: TemplateOutline }) {
             <header className="flex items-center gap-3 border-b px-3 py-2">
               <span className={cn("h-6 w-1 rounded-full", tone.bar)} aria-hidden />
               <h3 className="text-sm font-semibold">{p.name}</h3>
-              <span className="text-[11px] text-muted-foreground">band {p.band}</span>
+              <span className="text-2xs text-muted-foreground">band {p.band}</span>
               {p.conditionPermit && (
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-3xs">
                   {p.conditionPermit === "REQUIRED" ? "permit required branch" : "no-permit branch"}
                 </Badge>
               )}
-              <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">{p.tasks.length} steps</span>
+              <span className="ml-auto text-2xs tabular-nums text-muted-foreground">{p.tasks.length} steps</span>
             </header>
             {p.note && (
               <div className="px-3 pt-2">
@@ -63,26 +63,26 @@ export function WorkflowOutline({ outline }: { outline: TemplateOutline }) {
                 const deps = depsFor(t.key);
                 return (
                   <li key={t.key} className="flex flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2 text-sm">
-                    <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{i + 1}</span>
+                    <span className="w-5 shrink-0 text-right text-2xs tabular-nums text-muted-foreground">{i + 1}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
                         {t.blocking && <ShieldAlert className="size-3.5 text-tone-warning-fg" aria-label="Blocking gate" />}
                         <span className="font-medium">{t.title}</span>
-                        <span className="text-[11px] text-muted-foreground">{WORKFLOW_ROLE_LABEL[t.role]}</span>
-                        {t.priority !== "MEDIUM" && <Badge variant="outline" className="text-[10px]">{t.priority}</Badge>}
+                        <span className="text-2xs text-muted-foreground">{WORKFLOW_ROLE_LABEL[t.role]}</span>
+                        {t.priority !== "MEDIUM" && <Badge variant="outline" className="text-3xs">{t.priority}</Badge>}
                         {t.requiredEvidence && (
-                          <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground">
+                          <span className="inline-flex items-center gap-0.5 text-2xs text-muted-foreground">
                             <Paperclip className="size-3" /> {t.requiredEvidence.toLowerCase().replace("_", " ")}
                           </span>
                         )}
                         {t.checklist.length > 0 && (
-                          <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground">
+                          <span className="inline-flex items-center gap-0.5 text-2xs text-muted-foreground">
                             <CheckSquare className="size-3" /> {t.checklist.length}
                           </span>
                         )}
-                        {t.overridesCoreKey && <span className="text-[11px] text-muted-foreground">replaces Core › {humanize(t.overridesCoreKey)}</span>}
+                        {t.overridesCoreKey && <span className="text-2xs text-muted-foreground">replaces Core › {humanize(t.overridesCoreKey)}</span>}
                       </div>
-                      <div className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
+                      <div className="mt-0.5 flex flex-wrap gap-x-3 text-2xs text-muted-foreground">
                         <span>
                           {t.anchor === "PREDECESSOR" ? "due" : `due from ${t.anchor.toLowerCase().replace("_", " ")}`} +{t.dueOffsetBusinessDays} business day{t.dueOffsetBusinessDays === 1 ? "" : "s"}
                         </span>

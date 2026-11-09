@@ -30,10 +30,10 @@ export function MyTasksWidget({ className }: { className?: string }) {
 
   const buckets = useMemo(() => bucketByDue(tasks), [tasks]);
   const sections: { key: keyof typeof buckets; title: string; tone: string }[] = [
-    { key: "overdue", title: "Overdue", tone: "text-red-600" },
-    { key: "today", title: "Due today", tone: "text-amber-700" },
-    { key: "upcoming", title: "Coming up", tone: "text-gray-700" },
-    { key: "noDate", title: "No date", tone: "text-gray-500" },
+    { key: "overdue", title: "Overdue", tone: "text-tone-danger-fg" },
+    { key: "today", title: "Due today", tone: "text-tone-warning-fg" },
+    { key: "upcoming", title: "Coming up", tone: "text-fg-secondary" },
+    { key: "noDate", title: "No date", tone: "text-muted-foreground" },
   ];
   const total = tasks.length;
 
@@ -47,7 +47,7 @@ export function MyTasksWidget({ className }: { className?: string }) {
         </CardTitle>
         <Link
           href="/tasks?assignedUserId=me"
-          className="inline-flex items-center gap-1 text-xs text-blue-700 hover:underline"
+          className="inline-flex items-center gap-1 text-xs text-tone-info-fg hover:underline"
         >
           View all <ArrowRight className="size-3" />
         </Link>

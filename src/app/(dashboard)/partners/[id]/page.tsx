@@ -293,7 +293,7 @@ function OverviewTab({ data, now, onLog, onAddContact }: { data: OrgDetail; now:
             {org.paymentTermsDays !== null && <Row label="Payment terms">{org.paymentTermsDays} days</Row>}
             {org.trades.length > 0 && (
               <Row label="Trades">
-                <span className="flex flex-wrap gap-1">{org.trades.map((t) => <Badge key={t.id} variant="outline" className="text-[11px]">{t.name}</Badge>)}</span>
+                <span className="flex flex-wrap gap-1">{org.trades.map((t) => <Badge key={t.id} variant="outline" className="text-2xs">{t.name}</Badge>)}</span>
               </Row>
             )}
             {org.markets.length > 0 && <Row label="Markets">{org.markets.join(", ")}</Row>}
@@ -445,7 +445,7 @@ function ContactsTab({ org, canManage, now, onAdd, onEdit }: { org: OrgDetail["o
                   <div className="flex items-center gap-1.5 font-medium">
                     {c.firstName} {c.lastName}
                     {c.isPrimary && <Star className="size-3.5 fill-current text-tone-warning-fg" aria-label="Primary" />}
-                    {!c.isActive && <Badge variant="outline" className="text-[10px]">Inactive</Badge>}
+                    {!c.isActive && <Badge variant="outline" className="text-3xs">Inactive</Badge>}
                   </div>
                   <div className="text-xs text-muted-foreground">{[c.title, c.office].filter(Boolean).join(" · ")}</div>
                 </TableCell>
@@ -549,7 +549,7 @@ function InteractionLine({ i, canEdit, onEdit, onDelete }: { i: Interaction; can
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <span className="font-medium">{kindLabel}</span>
           {i.contact && <span className="text-muted-foreground">with {i.contact.firstName} {i.contact.lastName}</span>}
-          {outcomeLabel && <Badge variant="outline" className="text-[11px]">{outcomeLabel}</Badge>}
+          {outcomeLabel && <Badge variant="outline" className="text-2xs">{outcomeLabel}</Badge>}
           {i.lead && <Link href={`/leads/${i.lead.id}`} className="text-xs text-muted-foreground hover:underline">about {i.lead.companyName ?? i.lead.fullName} · {i.lead.propertyAddress1}</Link>}
         </div>
         <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground">{i.summary}</p>

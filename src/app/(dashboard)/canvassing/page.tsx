@@ -309,7 +309,7 @@ export default function CanvassingPage() {
           routes.map((route) => (
             <Card
               key={route.id}
-              className="cursor-pointer hover:bg-gray-50 transition-colors"
+              className="cursor-pointer hover:bg-surface-subtle transition-colors"
               onClick={() => router.push(`/canvassing/${route.id}`)}
             >
               <CardContent className="pt-6">
@@ -348,15 +348,15 @@ export default function CanvassingPage() {
                     </div>
                     {route.totalStops > 0 && (
                       <div className="mt-3 flex gap-2 text-xs">
-                        <span className="text-green-600">
+                        <span className="text-tone-success-fg">
                           {route.visitedStops} visited
                         </span>
-                        <span className="text-gray-400">·</span>
-                        <span className="text-yellow-600">
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-tone-warning-fg">
                           {route.pendingStops} pending
                         </span>
-                        <span className="text-gray-400">·</span>
-                        <span className="text-red-600">
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-tone-danger-fg">
                           {route.skippedStops} skipped
                         </span>
                       </div>
@@ -365,7 +365,7 @@ export default function CanvassingPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-red-600 hover:text-red-700"
+                    className="text-tone-danger-fg hover:text-tone-danger-fg"
                     onClick={(e) => {
                       e.stopPropagation();
                       setDeleteTarget(route);
@@ -457,7 +457,7 @@ export default function CanvassingPage() {
               Cancel
             </Button>
             <Button
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-tone-danger hover:bg-tone-danger"
               onClick={() =>
                 deleteTarget && deleteRouteMutation.mutate(deleteTarget.id)
               }

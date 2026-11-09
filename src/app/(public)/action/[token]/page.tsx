@@ -13,10 +13,10 @@ export default async function QuickActionPage({
   if (!link) notFound();
   if (link.expiresAt < new Date()) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-surface-subtle p-4">
         <div className="text-center">
           <h1 className="text-xl font-bold mb-2">Link Expired</h1>
-          <p className="text-gray-600">This action link has expired. Open the CRM directly.</p>
+          <p className="text-fg-secondary">This action link has expired. Open the CRM directly.</p>
         </div>
       </div>
     );
@@ -56,7 +56,7 @@ export default async function QuickActionPage({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-subtle">
       <ActionPanel lead={serializedLead} linkMap={linkMap} currentToken={token} />
     </div>
   );

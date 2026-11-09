@@ -109,7 +109,7 @@ function CopyBlock({
     <button
       type="button"
       onClick={() => copy(text, title)}
-      className="group w-full rounded-md border bg-gray-50 p-3 text-left active:bg-gray-100"
+      className="group w-full rounded-md border bg-surface-subtle p-3 text-left active:bg-surface-muted"
     >
       <div className="mb-1 flex items-center justify-between text-xs font-semibold text-muted-foreground">
         <span className="flex items-center gap-1.5">
@@ -128,7 +128,7 @@ function CopyBlock({
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+      <dt className="text-2xs uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
       <dd className="text-sm font-medium">{value}</dd>
@@ -179,7 +179,7 @@ export function CanvasserSummaryModal({
 
           {isError && (
             <div className="space-y-3 py-8 text-center">
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-tone-danger-fg">
                 Property data unavailable. Try refresh.
               </p>
               <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -202,7 +202,7 @@ export function CanvasserSummaryModal({
                   <span className="text-muted-foreground">Owner: </span>
                   {data.ownerName ?? "Unknown"}
                   {data.ownerOccupied === false && (
-                    <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
+                    <span className="ml-2 rounded bg-tone-warning-soft px-1.5 py-0.5 text-2xs font-medium text-tone-warning-fg">
                       Absentee
                     </span>
                   )}
@@ -217,7 +217,7 @@ export function CanvasserSummaryModal({
               />
 
               {data.stale && (
-                <p className="text-xs text-amber-600">
+                <p className="text-xs text-tone-warning-fg">
                   Showing the last saved data — a live refresh wasn’t available.
                 </p>
               )}
@@ -289,13 +289,13 @@ export function CanvasserSummaryModal({
               {(s.financingAngle || s.insuranceAngle) && (
                 <section className="space-y-2">
                   {s.financingAngle && (
-                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                    <div className="rounded-md border border-tone-info-line bg-tone-info-soft p-3 text-sm text-tone-info-fg">
                       <span className="font-semibold">Financing angle: </span>
                       {s.financingAngle}
                     </div>
                   )}
                   {s.insuranceAngle && (
-                    <div className="rounded-md border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900">
+                    <div className="rounded-md border border-stage-0/40 bg-stage-0-soft p-3 text-sm text-stage-0-fg">
                       <span className="font-semibold">Insurance angle: </span>
                       {s.insuranceAngle}
                     </div>
@@ -304,11 +304,11 @@ export function CanvasserSummaryModal({
               )}
 
               {/* Caution notes */}
-              <section className="rounded-md border border-red-200 bg-red-50 p-3">
-                <h4 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-red-700">
+              <section className="rounded-md border border-tone-danger-line bg-tone-danger-soft p-3">
+                <h4 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-tone-danger-fg">
                   <AlertTriangle className="h-3.5 w-3.5" /> Caution
                 </h4>
-                <ul className="space-y-1 text-sm text-red-900">
+                <ul className="space-y-1 text-sm text-tone-danger-fg">
                   {s.cautionNotes.map((c, i) => (
                     <li key={i} className="flex gap-2">
                       <span>•</span>
@@ -319,7 +319,7 @@ export function CanvasserSummaryModal({
               </section>
 
               {/* Compliance disclaimer */}
-              <p className="flex gap-2 rounded-md bg-gray-100 p-3 text-[11px] leading-snug text-muted-foreground">
+              <p className="flex gap-2 rounded-md bg-surface-muted p-3 text-2xs leading-snug text-muted-foreground">
                 <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
                 {s.disclaimer}
               </p>
@@ -359,7 +359,7 @@ export function CanvasserSummaryModal({
           </div>
         )}
         {isFetching && !isLoading && (
-          <div className="px-4 pb-2 text-center text-[11px] text-muted-foreground">
+          <div className="px-4 pb-2 text-center text-2xs text-muted-foreground">
             Refreshing…
           </div>
         )}

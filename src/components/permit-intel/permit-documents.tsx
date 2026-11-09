@@ -146,19 +146,19 @@ export function PermitDocuments({ detail, onChanged }: { detail: PermitDetail; o
               .filter((g) => groups.has(g))
               .map((g) => (
                 <section key={g} className="min-w-0">
-                  <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{g === "unclassified" ? "Unclassified" : PERMIT_DOC_GROUP_LABEL[g]}</h3>
+                  <h3 className="mb-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{g === "unclassified" ? "Unclassified" : PERMIT_DOC_GROUP_LABEL[g]}</h3>
                   <ul className="divide-y rounded-md border">
                     {groups.get(g)!.map((f) => (
                       <li key={f.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
                         <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setPreview(files.indexOf(f))}>
                           <span className={cn("block truncate text-sm font-medium", f.missing && "text-tone-danger-fg")}>{f.fileName}</span>
-                          <span className="block text-[11px] text-muted-foreground">
+                          <span className="block text-2xs text-muted-foreground">
                             {permitDocLabel(f.permitDocType)} · {formatFileSize(f.fileSize)} · {f.uploadedBy.firstName} {f.uploadedBy.lastName}
                             {f.missing && " · missing from the store"}
                           </span>
                         </button>
                         {f.permitLock ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground" title={f.permitLock === "submitted" ? "Sent in a submitted package — kept exactly as sent" : "Issued by the building department — kept exactly as issued"}>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-2xs text-muted-foreground" title={f.permitLock === "submitted" ? "Sent in a submitted package — kept exactly as sent" : "Issued by the building department — kept exactly as issued"}>
                             <Lock className="size-3" /> {f.permitLock === "submitted" ? "Submitted" : "Issued"}
                           </span>
                         ) : (
@@ -228,12 +228,12 @@ function SuggestType({ file, onAccept }: { file: PermitFile; onAccept: (type: st
   };
   if (state === "idle" || state === "busy")
     return (
-      <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={state === "busy"} onClick={ask}>
+      <Button size="sm" variant="ghost" className="h-7 text-2xs" disabled={state === "busy"} onClick={ask}>
         <Sparkles className="size-3" /> {state === "busy" ? "Reading…" : "Suggest a type"}
       </Button>
     );
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-[11px]" title={state.reason}>
+    <span className="inline-flex items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-2xs" title={state.reason}>
       Looks like: <strong className="font-medium">{state.label}</strong> · {Math.round(state.confidence * 100)}%
       <button type="button" className="ml-1 font-medium text-primary hover:underline" onClick={() => onAccept(state.docType)}>
         Accept

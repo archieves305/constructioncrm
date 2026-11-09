@@ -38,7 +38,7 @@ const PARTY_ITEMS = RESPONSIBLE_PARTIES.map((v) => ({ value: v, label: PARTY_LAB
 
 function Pill({ tone, children, title }: { tone: Tone; children: React.ReactNode; title?: string }) {
   return (
-    <span title={title} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(tone).pill)}>
+    <span title={title} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(tone).pill)}>
       {children}
     </span>
   );
@@ -135,7 +135,7 @@ export function ItemRow({
             {item.reviewOutcome && <Pill tone={item.reviewOutcome === "ACCEPTED" ? "success" : "danger"}>{item.reviewOutcome === "ACCEPTED" ? "Accepted on re-review" : "Commented again"}</Pill>}
           </div>
           <p className="whitespace-pre-wrap text-sm leading-snug">{item.text}</p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {CATEGORY_LABEL[item.category]} · {item.affectsRef ?? TARGET_LABEL[item.affects]} · {item.party?.name ?? PARTY_LABEL[item.responsibleParty]}
             {item.sourcePage ? ` · page ${item.sourcePage}` : ""}
             {item.dueAt ? ` · due ${format(new Date(item.dueAt), "MMM d")}` : ""}
@@ -194,7 +194,7 @@ export function ItemRow({
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {item.files.map(({ file }) => (
-              <span key={file.id} className="inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]">
+              <span key={file.id} className="inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-2xs">
                 <Paperclip className="size-3 shrink-0" />
                 <span className="truncate">{file.fileName}</span>
                 {canEdit && (
@@ -208,7 +208,7 @@ export function ItemRow({
               <>
                 {linkable.length > 0 && (
                   <Select items={linkable} value={null} onValueChange={(v: string | null) => v && link(v)}>
-                    <SelectTrigger className="h-7 w-[180px] text-[11px]" aria-label="Link a revised file">
+                    <SelectTrigger className="h-7 w-[180px] text-2xs" aria-label="Link a revised file">
                       <SelectValue placeholder="Link a revised file" />
                     </SelectTrigger>
                     <SelectContent>
@@ -221,7 +221,7 @@ export function ItemRow({
                   </Select>
                 )}
                 <input ref={upload} type="file" className="hidden" onChange={(e) => uploadRevised(e.target.files)} />
-                <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={uploading} onClick={() => upload.current?.click()}>
+                <Button size="sm" variant="ghost" className="h-7 text-2xs" disabled={uploading} onClick={() => upload.current?.click()}>
                   <Upload className="size-3" /> {uploading ? "Uploading…" : "Upload a revised file"}
                 </Button>
               </>

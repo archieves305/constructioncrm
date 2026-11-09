@@ -89,7 +89,7 @@ function Body({ subject, phase, onClose }: { subject: SubjectLike; phase: Workfl
                 {s.state === "held" && <p className="text-xs text-tone-warning-fg">Held — {s.reason}</p>}
                 {s.state === "unselected" && s.blocking && <p className="text-xs text-muted-foreground">A gate — tick it to complete it with the phase.</p>}
               </div>
-              {s.state === "ok" && <span className="shrink-0 rounded-full bg-tone-success-soft px-1.5 text-[10px] font-medium text-tone-success-fg">will complete</span>}
+              {s.state === "ok" && <span className="shrink-0 rounded-full bg-tone-success-soft px-1.5 text-3xs font-medium text-tone-success-fg">will complete</span>}
             </li>
           ))}
         </ul>

@@ -108,7 +108,7 @@ export function EvidenceLine({ task, subject, onOpenTask, compact }: { task: Wor
       <span>Workflow tab</span>
     ) : null;
   return (
-    <p className={`flex items-center gap-1.5 text-muted-foreground ${compact ? "text-[11px]" : "text-xs"}`}>
+    <p className={`flex items-center gap-1.5 text-muted-foreground ${compact ? "text-2xs" : "text-xs"}`}>
       <Icon className="size-3.5 shrink-0" aria-hidden />
       <span className={satisfied ? "line-through" : ""}>{label}</span>
       {satisfied === true && <span className="text-tone-success-fg">✓</span>}

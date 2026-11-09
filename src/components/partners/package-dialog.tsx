@@ -49,13 +49,13 @@ export function PackageDialog({ qualificationId, open, onOpenChange }: { qualifi
                       {i.included && i.doc && <span className="text-xs text-muted-foreground"> — {docLabel(i.doc.title, i.doc.version)}</span>}
                     </p>
                     {i.reason && <p className="text-xs text-muted-foreground">Left out: {i.reason}</p>}
-                    {i.note && <p className="text-xs text-amber-700">{i.note}</p>}
+                    {i.note && <p className="text-xs text-tone-warning-fg">{i.note}</p>}
                   </div>
                 </li>
               ))}
             </ul>
             {p.canReadRestricted && (
-              <label className="flex items-center gap-2 rounded-md bg-gray-50 px-3 py-2">
+              <label className="flex items-center gap-2 rounded-md bg-surface-subtle px-3 py-2">
                 <Checkbox checked={restricted} onCheckedChange={(c) => setRestricted(Boolean(c))} />
                 Include restricted documents (financials, banking, tax forms) — each one is logged
               </label>

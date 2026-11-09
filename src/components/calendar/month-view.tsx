@@ -25,7 +25,7 @@ export function MonthView({ grid, byDay, today, onPickDay }: { grid: MonthGrid; 
       <thead>
         <tr>
           {weekdays.map((w) => (
-            <th key={w} scope="col" className="pb-1 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <th key={w} scope="col" className="pb-1 text-left text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
               {w}
             </th>
           ))}
@@ -56,15 +56,15 @@ export function MonthView({ grid, byDay, today, onPickDay }: { grid: MonthGrid; 
                     aria-label={`${format(d, "EEEE, MMMM d")}, ${words}`}
                     aria-current={day === today ? "date" : undefined}
                     className={cn(
-                      "flex h-16 w-full flex-col items-start justify-between rounded-md border p-1.5 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 sm:h-20 sm:p-2",
-                      day === today ? "border-brand/40 bg-brand-soft/40" : "border-gray-200 bg-white",
+                      "flex h-16 w-full flex-col items-start justify-between rounded-md border p-1.5 text-left transition-colors hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 sm:h-20 sm:p-2",
+                      day === today ? "border-brand/40 bg-brand-soft/40" : "border-border bg-white",
                       !inMonth && "opacity-45",
                     )}
                   >
                     <span className="flex w-full items-center justify-between">
-                      <span className={cn("text-xs font-medium tabular-nums", day === today ? "text-brand-fg" : "text-gray-700")}>{format(d, "d")}</span>
+                      <span className={cn("text-xs font-medium tabular-nums", day === today ? "text-brand-fg" : "text-fg-secondary")}>{format(d, "d")}</span>
                       {events > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] text-tone-info-fg" title={`${events} ${events === 1 ? "appointment" : "appointments"}`}>
+                        <span className="inline-flex items-center gap-0.5 text-3xs text-tone-info-fg" title={`${events} ${events === 1 ? "appointment" : "appointments"}`}>
                           <CalendarClock className="size-3" aria-hidden />
                           {events > 1 ? events : ""}
                         </span>
@@ -73,11 +73,11 @@ export function MonthView({ grid, byDay, today, onPickDay }: { grid: MonthGrid; 
                     {items.length > 0 && (
                       <span
                         className={cn(
-                          "inline-flex max-w-full items-center gap-1 truncate rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none",
+                          "inline-flex max-w-full items-center gap-1 truncate rounded-full px-1.5 py-0.5 text-3xs font-medium leading-none",
                           tone === "overdue" && "bg-tone-danger-soft text-tone-danger-fg",
                           tone === "blocked" && "bg-tone-warning-soft text-tone-warning-fg",
                           tone === "busy" && "bg-tone-info-soft text-tone-info-fg",
-                          tone === "quiet" && "bg-gray-100 text-gray-600",
+                          tone === "quiet" && "bg-surface-muted text-fg-secondary",
                         )}
                       >
                         {items.length}

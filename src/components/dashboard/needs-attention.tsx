@@ -63,7 +63,7 @@ export function NeedsAttention({ scope, className }: { scope: ListScope; classNa
                 <li key={r.key}>
                   <Link
                     href={r.href}
-                    className="flex h-full items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-full items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <span className={cn("inline-flex min-w-9 justify-center rounded-md px-2 py-1 text-sm font-semibold tabular-nums", tone.pill)}>{r.count}</span>
                     <span className="min-w-0 flex-1 text-sm font-medium leading-tight">{r.label}</span>

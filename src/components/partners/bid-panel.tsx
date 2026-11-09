@@ -92,7 +92,7 @@ function FactsCard({ bid: b, onEdit, onSubmit, onClose }: { bid: BidDetail; onEd
             <BidStatusBadge status={b.status} label={b.statusLabel} outcome={b.outcome} />
           </CardTitle>
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <Link href={`/partners/${b.organization.id}?tab=bids`} className="inline-flex items-center gap-1 font-medium text-blue-700 hover:underline"><Building2 className="size-3.5" />{b.organization.name}</Link>
+            <Link href={`/partners/${b.organization.id}?tab=bids`} className="inline-flex items-center gap-1 font-medium text-tone-info-fg hover:underline"><Building2 className="size-3.5" />{b.organization.name}</Link>
             {b.contact && <span>Invited by {b.contact.firstName} {b.contact.lastName}{b.contact.title ? `, ${b.contact.title}` : ""}</span>}
             <span>Estimator: {personName(b.estimator) ?? "not assigned"}</span>
           </p>
@@ -135,7 +135,7 @@ function FactsCard({ bid: b, onEdit, onSubmit, onClose }: { bid: BidDetail; onEd
           <Fact label="Estimated value">{usd(b.lead.estimatedJobValue)}</Fact>
           <Fact label="Latest price sent">{b.latestAmount == null ? "Not submitted" : usd(b.latestAmount)}</Fact>
           <Fact label="From">
-            {b.platformUrl ? <a href={b.platformUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-700 hover:underline">{platform}<ExternalLink className="size-3" /></a> : platform}
+            {b.platformUrl ? <a href={b.platformUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-tone-info-fg hover:underline">{platform}<ExternalLink className="size-3" /></a> : platform}
             {b.platformRef && <span className="ml-1 text-muted-foreground">· {b.platformRef}</span>}
           </Fact>
           {b.projectType && <Fact label="Project type">{b.projectType}</Fact>}
@@ -143,11 +143,11 @@ function FactsCard({ bid: b, onEdit, onSubmit, onClose }: { bid: BidDetail; onEd
           {b.addendaCount > 0 && <Fact label="Addenda">{b.addendaCount}</Fact>}
         </dl>
         {flags.length > 0 && <div className="flex flex-wrap gap-1.5">{flags.map((f) => <Badge key={f} variant="outline">{f}</Badge>)}</div>}
-        {b.scopeSummary && <p className="whitespace-pre-wrap text-gray-700">{b.scopeSummary}</p>}
+        {b.scopeSummary && <p className="whitespace-pre-wrap text-fg-secondary">{b.scopeSummary}</p>}
         {(b.insuranceNotes || b.scheduleNotes) && (
           <div className="grid gap-2 sm:grid-cols-2">
-            {b.insuranceNotes && <p className="text-xs text-muted-foreground"><span className="font-medium text-gray-700">Insurance: </span>{b.insuranceNotes}</p>}
-            {b.scheduleNotes && <p className="text-xs text-muted-foreground"><span className="font-medium text-gray-700">Schedule: </span>{b.scheduleNotes}</p>}
+            {b.insuranceNotes && <p className="text-xs text-muted-foreground"><span className="font-medium text-fg-secondary">Insurance: </span>{b.insuranceNotes}</p>}
+            {b.scheduleNotes && <p className="text-xs text-muted-foreground"><span className="font-medium text-fg-secondary">Schedule: </span>{b.scheduleNotes}</p>}
           </div>
         )}
         {b.status === "ESTIMATING" && p.canManage && (
@@ -252,9 +252,9 @@ function DecisionCard({ bid: b }: { bid: BidDetail }) {
               {SLIDERS.map((s) => (
                 <div key={s.key} className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm">{s.label}<span className="ml-1 text-xs text-muted-foreground">({s.low} 1 – 5 {s.high})</span></span>
-                  <div role="radiogroup" aria-label={s.label} className="inline-flex rounded-lg border bg-gray-50 p-0.5">
+                  <div role="radiogroup" aria-label={s.label} className="inline-flex rounded-lg border bg-surface-subtle p-0.5">
                     {[1, 2, 3, 4, 5].map((n) => (
-                      <button key={n} type="button" role="radio" aria-checked={sliders[s.key] === n} disabled={!p.canDecide} onClick={() => setSliders((v) => ({ ...v, [s.key]: v[s.key] === n ? null : n }))} className={cn("h-7 w-8 rounded-md text-xs font-medium disabled:opacity-60", sliders[s.key] === n ? "bg-white shadow-sm" : "text-muted-foreground hover:text-gray-900")}>
+                      <button key={n} type="button" role="radio" aria-checked={sliders[s.key] === n} disabled={!p.canDecide} onClick={() => setSliders((v) => ({ ...v, [s.key]: v[s.key] === n ? null : n }))} className={cn("h-7 w-8 rounded-md text-xs font-medium disabled:opacity-60", sliders[s.key] === n ? "bg-white shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                         {n}
                       </button>
                     ))}
@@ -373,7 +373,7 @@ function OutcomeCard({ bid: b }: { bid: BidDetail }) {
         {b.outcomeNotes && <p className="whitespace-pre-wrap text-muted-foreground">{b.outcomeNotes}</p>}
         {b.lead.jobs.map((j) => (
           <p key={j.id}>
-            <Link href={`/jobs/${j.id}`} className="font-medium text-blue-700 hover:underline">Job <span className="font-mono text-xs">{j.jobNumber}</span></Link>
+            <Link href={`/jobs/${j.id}`} className="font-medium text-tone-info-fg hover:underline">Job <span className="font-mono text-xs">{j.jobNumber}</span></Link>
             <span className="text-muted-foreground"> · {usd(j.contractAmount)} · {j.billingMethod === "PROGRESS" ? "progress billing" : j.billingMethod.toLowerCase()} · {j.currentStage?.name}</span>
           </p>
         ))}

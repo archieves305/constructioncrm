@@ -68,7 +68,7 @@ export function JobPicker({
         disabled={disabled}
         aria-label="Job"
         className={cn(
-          "flex h-11 sm:h-9 w-full items-center gap-2 rounded-md border bg-white px-3 text-left text-sm shadow-xs hover:bg-gray-50 disabled:opacity-50",
+          "flex h-11 sm:h-9 w-full items-center gap-2 rounded-md border bg-white px-3 text-left text-sm shadow-xs hover:bg-surface-subtle disabled:opacity-50",
           className,
         )}
       >
@@ -88,7 +88,7 @@ export function JobPicker({
           <span
             role="button"
             aria-label="Clear job"
-            className="rounded p-0.5 text-muted-foreground hover:bg-gray-200 hover:text-gray-900"
+            className="rounded p-0.5 text-muted-foreground hover:bg-surface-strong hover:text-foreground"
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();

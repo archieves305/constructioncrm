@@ -526,7 +526,7 @@ export function GenericEstimateDialog({
                 </div>
               ) : null}
               <Separator className="my-2" />
-              <div className="flex justify-between text-base font-bold text-emerald-700">
+              <div className="flex justify-between text-base font-bold text-tone-success-fg">
                 <span>Total</span>
                 <span>{money(breakdown.totalPrice)}</span>
               </div>
@@ -535,7 +535,7 @@ export function GenericEstimateDialog({
         )}
 
         {problems.length > 0 && (
-          <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div role="alert" className="rounded-md border border-tone-danger-line bg-tone-danger-soft p-3 text-sm text-tone-danger-fg">
             <p className="font-medium">Fix these before saving:</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-5">
               {problems.map((p) => (

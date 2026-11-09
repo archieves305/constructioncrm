@@ -9,15 +9,15 @@ export function priorityFromScore(score: number): Priority {
 }
 
 const DOT: Record<Priority, string> = {
-  high: "bg-green-500",
-  medium: "bg-amber-500",
-  low: "bg-red-500",
+  high: "bg-tone-success",
+  medium: "bg-tone-warning",
+  low: "bg-tone-danger",
 };
 
 const RING: Record<Priority, string> = {
-  high: "border-green-500 text-green-700 bg-green-50",
-  medium: "border-amber-500 text-amber-700 bg-amber-50",
-  low: "border-red-500 text-red-700 bg-red-50",
+  high: "border-tone-success text-tone-success-fg bg-tone-success-soft",
+  medium: "border-tone-warning text-tone-warning-fg bg-tone-warning-soft",
+  low: "border-tone-danger text-tone-danger-fg bg-tone-danger-soft",
 };
 
 // A coloured priority dot — green/amber/red (spec §9).
@@ -80,7 +80,7 @@ export function KnockScoreBadgeLarge({
         )}
       >
         <span className="text-2xl font-bold leading-none tabular-nums">{score}</span>
-        <span className="text-[10px] uppercase tracking-wide opacity-70">/ 100</span>
+        <span className="text-3xs uppercase tracking-wide opacity-70">/ 100</span>
       </div>
       <div>
         <div className="flex items-center gap-2">

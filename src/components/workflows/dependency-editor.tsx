@@ -33,7 +33,7 @@ export function DependencyEditor({ task, canEdit }: { task: WorkflowTaskItem; ca
             <li key={d.dependsOnTaskId} className="group flex items-center gap-2">
               <span className={cn("size-2 shrink-0 rounded-full", WORKFLOW_STATE_DOT[s])} aria-hidden />
               <span className={cn("truncate", (s === "COMPLETED" || s === "SKIPPED") && "text-muted-foreground line-through")}>{d.dependsOn.title}</span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
+              <span className="shrink-0 text-2xs text-muted-foreground">
                 {WORKFLOW_STATE_LABEL[s]}
                 {d.kind === "DATE_ONLY" ? " · date only" : ""}
                 {d.source === "manual" ? " · manual" : ""}
@@ -42,7 +42,7 @@ export function DependencyEditor({ task, canEdit }: { task: WorkflowTaskItem; ca
                 <button
                   type="button"
                   aria-label={`Stop waiting on ${d.dependsOn.title}`}
-                  className="ml-auto rounded p-0.5 text-muted-foreground opacity-0 hover:bg-gray-100 group-hover:opacity-100 focus:opacity-100"
+                  className="ml-auto rounded p-0.5 text-muted-foreground opacity-0 hover:bg-surface-muted group-hover:opacity-100 focus:opacity-100"
                   disabled={remove.isPending}
                   onClick={() => remove.mutate(d.dependsOnTaskId)}
                 >
@@ -81,7 +81,7 @@ export function DependencyEditor({ task, canEdit }: { task: WorkflowTaskItem; ca
               </Button>
             </div>
           ) : (
-            <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[11px] text-muted-foreground" onClick={() => setAdding(true)}>
+            <Button size="sm" variant="ghost" className="h-6 px-1.5 text-2xs text-muted-foreground" onClick={() => setAdding(true)}>
               <Plus className="size-3" /> Wait on another step
             </Button>
           )}

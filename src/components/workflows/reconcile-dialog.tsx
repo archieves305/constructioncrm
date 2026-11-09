@@ -176,7 +176,7 @@ function ReconcileBody({ subject, data, mode, onClose }: { subject: SubjectLike;
                         aria-label={t.name}
                       />
                       {t.name}
-                      {t.suggested && <span className="rounded-full bg-tone-info-soft px-1.5 text-[10px] text-tone-info-fg">suggested</span>}
+                      {t.suggested && <span className="rounded-full bg-tone-info-soft px-1.5 text-3xs text-tone-info-fg">suggested</span>}
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {t.taskCount} steps · v{t.version}

@@ -325,7 +325,7 @@ export default function LeadsPage() {
           ]}
         />
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search name, phone, address..."
             className="pl-9"
@@ -445,14 +445,14 @@ export default function LeadsPage() {
       </div>
 
       {selected.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
-          <span className="flex items-center gap-2 font-medium text-blue-900">
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-tone-info-line bg-tone-info-soft px-3 py-2 text-sm">
+          <span className="flex items-center gap-2 font-medium text-tone-info-fg">
             <ListChecks className="h-4 w-4" />
             {selected.size} selected
           </span>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-blue-900">Assign to:</span>
+            <span className="text-xs text-tone-info-fg">Assign to:</span>
             <Select value={bulkAssignTo} onValueChange={(v: string | null) => setBulkAssignTo(v ?? "")}>
               <SelectTrigger className="h-8 w-[180px] text-xs">
                 <SelectValue placeholder="Pick user">
@@ -480,7 +480,7 @@ export default function LeadsPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-blue-900">Move to stage:</span>
+            <span className="text-xs text-tone-info-fg">Move to stage:</span>
             <Select value={bulkStage} onValueChange={(v: string | null) => setBulkStage(v ?? "")}>
               <SelectTrigger className="h-8 w-[180px] text-xs">
                 <SelectValue placeholder="Pick stage">
@@ -556,7 +556,7 @@ export default function LeadsPage() {
                 return (
                   <TableRow
                     key={lead.id}
-                    className={`h-12 cursor-pointer hover:bg-gray-50 ${
+                    className={`h-12 cursor-pointer hover:bg-surface-subtle ${
                       selected.has(lead.id) ? "bg-brand-soft/60" : ""
                     }`}
                     onClick={() => router.push(`/leads/${lead.id}`)}
@@ -572,7 +572,7 @@ export default function LeadsPage() {
                       <div className="flex items-center gap-2">
                         {lead.fullName}
                         {lead.isDuplicateFlag && (
-                          <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                          <Badge variant="destructive" className="text-3xs px-1 py-0">
                             DUP
                           </Badge>
                         )}
@@ -635,12 +635,12 @@ export default function LeadsPage() {
                     <TableCell className="hidden md:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {lead.services.slice(0, 2).map((s, i) => (
-                          <Badge key={i} variant="outline" className="text-[10px]">
+                          <Badge key={i} variant="outline" className="text-3xs">
                             {s.serviceCategory.name}
                           </Badge>
                         ))}
                         {lead.services.length > 2 && (
-                          <Badge variant="outline" className="text-[10px]">
+                          <Badge variant="outline" className="text-3xs">
                             +{lead.services.length - 2}
                           </Badge>
                         )}
@@ -652,7 +652,7 @@ export default function LeadsPage() {
                     <TableCell>
                       <Link
                         href={`/leads/${lead.id}`}
-                        className="text-blue-600 hover:underline text-sm"
+                        className="text-tone-info-fg hover:underline text-sm"
                         onClick={(e) => e.stopPropagation()}
                       >
                         View

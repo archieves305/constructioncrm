@@ -109,7 +109,7 @@ export function JobPersonnelScopePanel({ jobId }: { jobId: string }) {
       <CardContent className="space-y-3">
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[200px] flex-1">
-            <Label className="text-[11px]">Person</Label>
+            <Label className="text-2xs">Person</Label>
             <Select
               items={Object.fromEntries(roster.map((p) => [p.id, `${p.lastName}, ${p.firstName}${p.trade ? ` — ${p.trade}` : ""}`]))}
               value={personnelId || undefined}
@@ -129,7 +129,7 @@ export function JobPersonnelScopePanel({ jobId }: { jobId: string }) {
             </Select>
           </div>
           <div className="min-w-[150px]">
-            <Label className="text-[11px]">Pay type</Label>
+            <Label className="text-2xs">Pay type</Label>
             <Select items={{ [INHERIT]: selected ? `Profile default (${PAY_TYPE_LABELS[selected.payType] ?? selected.payType})` : "Profile default", ...PAY_TYPE_LABELS }} value={payType} onValueChange={(v) => v && setPayType(v)}>
               <SelectTrigger>
                 <SelectValue />
@@ -149,7 +149,7 @@ export function JobPersonnelScopePanel({ jobId }: { jobId: string }) {
             </Select>
           </div>
           <div className="min-w-[220px] flex-[2]">
-            <Label className="text-[11px]">Work description on this job</Label>
+            <Label className="text-2xs">Work description on this job</Label>
             <Input
               placeholder={selected?.workDescription ?? "e.g. Punch list, 2nd floor"}
               value={workDescription}
@@ -191,11 +191,11 @@ export function JobPersonnelScopePanel({ jobId }: { jobId: string }) {
                     <span className="text-sm font-medium">
                       {s.personnel.lastName}, {s.personnel.firstName}
                     </span>
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-3xs">
                       {PAY_TYPE_LABELS[s.resolved.payType] ?? s.resolved.payType}
                     </Badge>
                     {s.override.payType && (
-                      <span className="text-muted-foreground text-[10px]">
+                      <span className="text-muted-foreground text-3xs">
                         (profile:{" "}
                         {PAY_TYPE_LABELS[s.profile.payType] ?? s.profile.payType})
                       </span>

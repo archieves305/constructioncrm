@@ -53,7 +53,7 @@ export function OrgDocumentsTab({ organizationId, organizationName }: { organiza
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   {doc.locked ? <span className="inline-flex items-center gap-1 font-medium"><Lock className="size-3.5" /> {doc.title}</span> : <button type="button" className="font-medium hover:underline" onClick={() => setPreview(doc)}>{doc.title}</button>}
-                  <span className="font-mono text-[11px] text-muted-foreground">v{doc.version}</span>
+                  <span className="font-mono text-2xs text-muted-foreground">v{doc.version}</span>
                   <span className="text-xs text-muted-foreground">{CONFIDENTIALITY_LABEL[doc.confidentiality]}</span>
                   {!doc.current && <span className="text-xs font-medium text-tone-warning-fg">superseded in the vault</span>}
                 </div>
@@ -61,7 +61,7 @@ export function OrgDocumentsTab({ organizationId, organizationName }: { organiza
                   {doc.documentType.name} · {where.join(", ")} · {states.join(", ")}{doc.expiresAt ? ` · expires ${day(doc.expiresAt)}` : ""}
                 </div>
                 {!doc.locked && (
-                  <a href={`/api/company-documents/${doc.id}/file?download=1`} className="inline-flex items-center gap-1 text-xs text-blue-700 hover:underline"><Paperclip className="size-3" /> {doc.fileName}</a>
+                  <a href={`/api/company-documents/${doc.id}/file?download=1`} className="inline-flex items-center gap-1 text-xs text-tone-info-fg hover:underline"><Paperclip className="size-3" /> {doc.fileName}</a>
                 )}
               </div>
             </li>

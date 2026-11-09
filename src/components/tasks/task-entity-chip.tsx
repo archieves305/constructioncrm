@@ -40,12 +40,12 @@ function ChipBody({ chip, className }: { chip: Chip; className?: string }) {
     <>
       <Icon className="size-3 shrink-0" />
       <span className={cn("truncate", chip.mono && "font-mono")}>{chip.label}</span>
-      {chip.code && <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{chip.code}</span>}
+      {chip.code && <span className="shrink-0 font-mono text-3xs text-muted-foreground">{chip.code}</span>}
     </>
   );
   const cls = cn(
-    "inline-flex max-w-full items-center gap-1 rounded-md border bg-gray-50 px-1.5 py-0.5 text-[11px] text-gray-700",
-    chip.href && "hover:border-gray-300 hover:bg-white hover:text-gray-900",
+    "inline-flex max-w-full items-center gap-1 rounded-md border bg-surface-subtle px-1.5 py-0.5 text-2xs text-fg-secondary",
+    chip.href && "hover:border-border-strong hover:bg-white hover:text-foreground",
     className,
   );
   const title = chip.title ?? undefined;

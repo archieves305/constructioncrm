@@ -152,7 +152,7 @@ function Partners() {
             <FilterSelect label="Any market" value={market} onChange={(v) => url.set("market", v)} items={(options?.markets ?? []).map((m) => ({ value: m, label: m }))} width="w-36" />
             <FilterSelect label="Any trade" value={trade} onChange={(v) => url.set("trade", v)} items={options?.trades ?? []} width="w-36" />
             <FilterSelect label="Any kind" value={kind} onChange={(v) => url.set("kind", v)} items={options?.kinds ?? []} width="w-40" />
-            <label className="inline-flex items-center gap-1.5 text-xs text-gray-700">
+            <label className="inline-flex items-center gap-1.5 text-xs text-fg-secondary">
               <input type="checkbox" checked={inactive} onChange={(e) => url.set("inactive", e.target.checked ? "1" : null)} />
               Show inactive
             </label>
@@ -206,7 +206,7 @@ function FilterSelect({ label, value, onChange, items, width }: { label: string;
 function AccountsTable({ rows, total, canManage, sort, onSort }: { rows: OrgRow[]; total: number; canManage: boolean; sort: string; onSort: (s: string) => void }) {
   const now = new Date();
   const sortButton = (key: string, label: string) => (
-    <button type="button" className={cn("font-medium hover:underline", sort === key && "text-gray-900")} onClick={() => onSort(sort === key ? "" : key)}>
+    <button type="button" className={cn("font-medium hover:underline", sort === key && "text-foreground")} onClick={() => onSort(sort === key ? "" : key)}>
       {label}
       {sort === key ? " ↓" : ""}
     </button>
@@ -246,7 +246,7 @@ function AccountRow({ row, now, canManage }: { row: OrgRow; now: Date; canManage
     <TableRow className={row.isActive ? undefined : "opacity-60"}>
       <TableCell className="max-w-[18rem]">
         <div className="flex items-center gap-2">
-          <Link href={`/partners/${row.id}`} className="truncate font-medium text-gray-900 hover:underline">{row.name}</Link>
+          <Link href={`/partners/${row.id}`} className="truncate font-medium text-foreground hover:underline">{row.name}</Link>
           <PriorityBadge priority={row.priority} />
         </div>
         <div className="truncate text-xs text-muted-foreground">

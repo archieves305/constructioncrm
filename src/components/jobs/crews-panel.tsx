@@ -110,7 +110,7 @@ export function CrewsPanel({
       <Card>
         <CardContent className="flex flex-wrap items-end gap-2 pt-4">
           <div className="flex-1 min-w-[180px]">
-            <Label className="text-[11px]">Crew</Label>
+            <Label className="text-2xs">Crew</Label>
             <Select value={assignCrewId || "__none"} onValueChange={(v: string | null) => setAssignCrewId(!v || v === "__none" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a crew">{(v: string) => (!v || v === "__none" ? "Select a crew" : crews.find((c) => c.id === v)?.name || "Select a crew")}</SelectValue>
@@ -126,13 +126,13 @@ export function CrewsPanel({
             </Select>
           </div>
           <div>
-            <Label className="text-[11px]">Install date (optional)</Label>
+            <Label className="text-2xs">Install date (optional)</Label>
             <Input type="date" value={assignInstallDate} onChange={(e) => setAssignInstallDate(e.target.value)} />
           </div>
           <Button size="sm" disabled={!assignCrewId || assignCrew.isPending} onClick={() => assignCrew.mutate({ crewId: assignCrewId, installDate: assignInstallDate })}>
             Assign crew
           </Button>
-          <p className="basis-full text-[11px] text-muted-foreground">
+          <p className="basis-full text-2xs text-muted-foreground">
             An install date goes on the calendar and raises a get-ready task for the job&apos;s superintendent (else its project manager), due the working day before.
           </p>
         </CardContent>
@@ -191,15 +191,15 @@ function CrewRow({
       <CardContent className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 px-4">
         <div className="min-w-0">
           <span className="text-sm font-medium">{assignment.crew.name}</span>
-          <Badge variant="outline" className="text-[10px] ml-2">{assignment.crew.trades?.join(", ") || "—"}</Badge>
+          <Badge variant="outline" className="text-3xs ml-2">{assignment.crew.trades?.join(", ") || "—"}</Badge>
           {task && (
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-2xs text-muted-foreground">
               Get-ready task: {owner ?? "unassigned"}
               {task.dueAt ? `, due ${longDay(dayOf(task.dueAt))}` : ""}
             </p>
           )}
           {assignment.confirmation ? (
-            <p className={`mt-0.5 text-[11px] ${assignment.confirmation === "CONFIRMED" ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
+            <p className={`mt-0.5 text-2xs ${assignment.confirmation === "CONFIRMED" ? "text-tone-success-fg" : "text-tone-warning-fg"}`}>
               {assignment.confirmation === "CONFIRMED" ? "Crew confirmed the day" : assignment.confirmation === "CANT_MAKE_IT" ? "Crew can't make the day" : "Crew asked for a different day"}
             </p>
           ) : null}

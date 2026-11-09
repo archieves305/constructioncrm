@@ -174,7 +174,7 @@ export function LaborPaymentRequests({
   return (
     <div className="space-y-1.5 border-t pt-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Payment requests</span>
+        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">Payment requests</span>
         <Button size="sm" variant="outline" className="h-7 text-xs" onClick={start}>
           <HandCoins className="size-3.5" /> Request payment
         </Button>
@@ -191,7 +191,7 @@ export function LaborPaymentRequests({
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
                 <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
                   <span className="font-medium tabular-nums">{money(Number(r.amount))}</span>
-                  <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", toneClasses(s.tone).pill)}>{s.label}</span>
+                  <span className={cn("rounded-full px-1.5 py-0.5 text-3xs font-medium", toneClasses(s.tone).pill)}>{s.label}</span>
                   <span className="text-muted-foreground">
                     {r.status === "REQUESTED" && who ? `with ${who.firstName} ${who.lastName}` : `by ${r.requestedBy.firstName} ${r.requestedBy.lastName}`}
                     {r.status === "REQUESTED" && r.neededBy ? ` · needed ${dayLabel(r.neededBy)}` : ` · ${format(new Date(r.createdAt), "MMM d")}`}
@@ -212,14 +212,14 @@ export function LaborPaymentRequests({
                   {r.status === "REQUESTED" && (
                     <>
                       {canRecord && (
-                        <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => onRecord(r)}>
+                        <Button size="sm" className="h-6 px-2 text-2xs" onClick={() => onRecord(r)}>
                           Record payment
                         </Button>
                       )}
                       {(canRecord || r.requestedBy.id === session?.user.id) && (
                         <button
                           type="button"
-                          className="rounded p-1 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+                          className="rounded p-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
                           title="Withdraw this request"
                           aria-label="Withdraw this request"
                           disabled={cancel.isPending}
@@ -266,7 +266,7 @@ export function LaborPaymentRequests({
                 className="w-full"
                 placeholder="Pick who should pay it"
               />
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-2xs text-muted-foreground">
                 {defaultAssigneeId
                   ? "Pre-filled with the job's accountant."
                   : "This job has no accountant yet — pick someone, or set the Accounting default under Admin → Workflow Roles."}

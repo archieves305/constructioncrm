@@ -44,9 +44,9 @@ import type { ServerLog } from "@/hooks/use-labor-sheet";
 import { EntityTaskPanel } from "@/components/tasks/entity-task-panel";
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: "Draft", className: "bg-gray-100 text-gray-700" },
-  SUBMITTED: { label: "Submitted", className: "bg-amber-100 text-amber-800" },
-  APPROVED: { label: "Approved", className: "bg-green-100 text-green-800" },
+  DRAFT: { label: "Draft", className: "bg-surface-muted text-fg-secondary" },
+  SUBMITTED: { label: "Submitted", className: "bg-tone-warning-soft text-tone-warning-fg" },
+  APPROVED: { label: "Approved", className: "bg-tone-success-soft text-tone-success-fg" },
 };
 
 const NARRATIVE_LABELS: [string, string][] = [
@@ -270,7 +270,7 @@ export default function DailyLogReviewPage({
             }}
             disabled={deleteLog.isPending}
           >
-            <Trash2 className="mr-1 h-4 w-4 text-red-500" /> Delete
+            <Trash2 className="mr-1 h-4 w-4 text-tone-danger-fg" /> Delete
           </Button>
         )}
       </div>
@@ -304,7 +304,7 @@ export default function DailyLogReviewPage({
       </div>
 
       {log.returnNote && log.status === "DRAFT" && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+        <div className="rounded-md border border-tone-danger-line bg-tone-danger-soft p-3 text-sm text-tone-danger-fg">
           <span className="font-semibold">Return note:</span> {log.returnNote}
         </div>
       )}

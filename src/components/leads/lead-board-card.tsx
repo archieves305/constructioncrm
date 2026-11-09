@@ -31,9 +31,9 @@ export function LeadBoardCard({ lead, density = "comfortable" }: { lead: BoardLe
   return (
     <div className={compact ? "space-y-1" : "space-y-1.5"}>
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-gray-900">{lead.fullName}</p>
+        <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-foreground">{lead.fullName}</p>
         {lead.urgent && (
-          <Badge variant="destructive" className="shrink-0 text-[10px]">
+          <Badge variant="destructive" className="shrink-0 text-3xs">
             Urgent
           </Badge>
         )}
@@ -57,11 +57,11 @@ export function LeadBoardCard({ lead, density = "comfortable" }: { lead: BoardLe
       {!compact && services.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {services.slice(0, 2).map((s, i) => (
-            <Badge key={i} variant="outline" className="text-[11px]">
+            <Badge key={i} variant="outline" className="text-2xs">
               {s.serviceCategory.name}
             </Badge>
           ))}
-          {services.length > 2 && <span className="text-[11px] text-muted-foreground">+{services.length - 2}</span>}
+          {services.length > 2 && <span className="text-2xs text-muted-foreground">+{services.length - 2}</span>}
         </div>
       )}
       <div className="flex items-center justify-between gap-2 pt-0.5">

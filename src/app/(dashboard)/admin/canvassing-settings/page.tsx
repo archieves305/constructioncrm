@@ -195,11 +195,11 @@ export default function CanvassingSettingsPage() {
         </CardHeader>
         <CardContent>
           {draft.propertyApiConfigured ? (
-            <Badge className="gap-1 bg-green-100 text-green-800 hover:bg-green-100">
+            <Badge className="gap-1 bg-tone-success-soft text-tone-success-fg hover:bg-tone-success-soft">
               <CheckCircle2 className="h-3.5 w-3.5" /> Configured
             </Badge>
           ) : (
-            <Badge variant="outline" className="gap-1 text-amber-700">
+            <Badge variant="outline" className="gap-1 text-tone-warning-fg">
               <XCircle className="h-3.5 w-3.5" /> Not configured
             </Badge>
           )}

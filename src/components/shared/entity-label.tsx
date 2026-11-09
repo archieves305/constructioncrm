@@ -24,13 +24,13 @@ export function EntityLabel({
   className?: string;
 }) {
   const primaryCls = cn(
-    "font-medium text-gray-900",
+    "font-medium text-foreground",
     size === "sm" && "text-sm",
     size === "md" && "text-base",
     size === "lg" && "text-xl font-semibold",
     label.placeholder && "italic",
   );
-  const code = label.code ? <span className="shrink-0 whitespace-nowrap font-mono text-[11px] text-muted-foreground">{label.code}</span> : null;
+  const code = label.code ? <span className="shrink-0 whitespace-nowrap font-mono text-2xs text-muted-foreground">{label.code}</span> : null;
   const primary = href ? (
     <Link href={href} className={cn(primaryCls, "hover:underline")} onClick={(e) => e.stopPropagation()}>
       {label.primary}

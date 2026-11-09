@@ -206,7 +206,7 @@ export function TemplateEditor({ id }: { id: string }) {
         <CardContent className="space-y-4 pt-0">
           {pages.map((page) => (
             <section key={page} className="min-w-0">
-              <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Page {page + 1}</h3>
+              <h3 className="mb-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Page {page + 1}</h3>
               <ul className="divide-y rounded-md border">
                 {shown
                   .filter((f) => f.page === page)
@@ -252,7 +252,7 @@ function FieldRow({ field: f, map, preview, canEdit, onEdit }: { field: Inventor
     <li className="flex flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2">
       <div className="min-w-0 flex-1 basis-56">
         <p className="truncate text-sm font-medium">{f.label ?? f.name}</p>
-        <p className="truncate font-mono text-[10px] text-muted-foreground">
+        <p className="truncate font-mono text-3xs text-muted-foreground">
           {f.name} · {f.type}
           {f.options?.length ? ` · ${f.options.join(" / ")}` : ""}
         </p>
@@ -260,14 +260,14 @@ function FieldRow({ field: f, map, preview, canEdit, onEdit }: { field: Inventor
       <div className="min-w-0 flex-1 basis-56">
         <p className={cn("text-sm", !map?.dataKey && "text-muted-foreground")}>{f.type === "signature" ? "Signed by hand" : describeMapping(map?.dataKey ?? null, map?.transform ?? null)}</p>
         {map?.aiSuggested && map.rationale && (
-          <p className={cn("text-[11px]", low ? "text-tone-warning-fg" : "text-muted-foreground")}>
+          <p className={cn("text-2xs", low ? "text-tone-warning-fg" : "text-muted-foreground")}>
             <Sparkles className="mr-0.5 inline size-3" />
             {map.rationale}
             {map.confidence != null ? ` · ${Math.round(map.confidence * 100)}%` : ""}
           </p>
         )}
         {preview && (
-          <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]">
+          <p className="mt-0.5 flex flex-wrap items-center gap-1 text-2xs">
             <span className={cn("rounded-full px-1.5 py-0.5 font-medium", toneClasses(FILL_STATUS[preview.status].tone).pill)}>{FILL_STATUS[preview.status].label}</span>
             {preview.value != null && <span className="truncate font-medium">{preview.value || "(empty)"}</span>}
           </p>
@@ -355,7 +355,7 @@ function FieldMapForm({ templateId, field: f, map, onClose }: { templateId: stri
     <>
       <DialogHeader>
         <DialogTitle className="pr-6">{f.label ?? f.name}</DialogTitle>
-        <DialogDescription className="font-mono text-[11px]">
+        <DialogDescription className="font-mono text-2xs">
           {f.name} · {f.type} · page {f.page + 1}
           {f.options?.length ? ` · ${f.options.join(" / ")}` : ""}
         </DialogDescription>

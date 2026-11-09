@@ -24,43 +24,43 @@ export const PRIORITY_LABEL: Record<Priority, string> = {
 
 /** Filled badge. */
 export const STATUS_BADGE_CLASS: Record<TaskStatus, string> = {
-  PENDING: "bg-gray-100 text-gray-800",
-  IN_PROGRESS: "bg-blue-100 text-blue-800",
-  BLOCKED: "bg-amber-100 text-amber-900",
-  COMPLETED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-gray-100 text-gray-500",
+  PENDING: "bg-surface-muted text-foreground",
+  IN_PROGRESS: "bg-tone-info-soft text-tone-info-fg",
+  BLOCKED: "bg-tone-warning-soft text-tone-warning-fg",
+  COMPLETED: "bg-tone-success-soft text-tone-success-fg",
+  CANCELLED: "bg-surface-muted text-muted-foreground",
 };
 
 /** Filled badge. */
 export const PRIORITY_BADGE_CLASS: Record<Priority, string> = {
-  LOW: "bg-gray-100 text-gray-700",
-  MEDIUM: "bg-blue-50 text-blue-700",
-  HIGH: "bg-amber-100 text-amber-800",
-  URGENT: "bg-red-100 text-red-700",
+  LOW: "bg-surface-muted text-fg-secondary",
+  MEDIUM: "bg-tone-info-soft text-tone-info-fg",
+  HIGH: "bg-tone-warning-soft text-tone-warning-fg",
+  URGENT: "bg-tone-danger-soft text-tone-danger-fg",
 };
 
 /** Outlined control (a select trigger, a chip). */
 export const PRIORITY_OUTLINE_CLASS: Record<Priority, string> = {
-  LOW: "border-gray-300 text-gray-700",
-  MEDIUM: "border-blue-300 text-blue-700",
-  HIGH: "border-amber-400 text-amber-800",
-  URGENT: "border-red-500 text-red-700",
+  LOW: "border-border-strong text-fg-secondary",
+  MEDIUM: "border-tone-info-line text-tone-info-fg",
+  HIGH: "border-tone-warning text-tone-warning-fg",
+  URGENT: "border-tone-danger text-tone-danger-fg",
 };
 
 /** Selected chip in a segmented control. */
 export const PRIORITY_SELECTED_CLASS: Record<Priority, string> = {
-  LOW: "bg-gray-100 text-gray-800 ring-gray-300",
-  MEDIUM: "bg-blue-50 text-blue-800 ring-blue-300",
-  HIGH: "bg-amber-50 text-amber-900 ring-amber-300",
-  URGENT: "bg-red-50 text-red-800 ring-red-300",
+  LOW: "bg-surface-muted text-foreground ring-border-strong",
+  MEDIUM: "bg-tone-info-soft text-tone-info-fg ring-tone-info-line",
+  HIGH: "bg-tone-warning-soft text-tone-warning-fg ring-tone-warning-line",
+  URGENT: "bg-tone-danger-soft text-tone-danger-fg ring-tone-danger-line",
 };
 
 /** Small solid dot. */
 export const PRIORITY_DOT_CLASS: Record<Priority, string> = {
-  LOW: "bg-gray-400",
-  MEDIUM: "bg-blue-500",
-  HIGH: "bg-amber-500",
-  URGENT: "bg-red-500",
+  LOW: "bg-tone-neutral",
+  MEDIUM: "bg-tone-info",
+  HIGH: "bg-tone-warning",
+  URGENT: "bg-tone-danger",
 };
 
 /** Board column tones, in the same shape the stage helper returns. */
@@ -78,13 +78,13 @@ export const STATUS_TONE: Record<TaskStatus, StageTone> = {
   IN_PROGRESS: tone("bg-tone-info", "bg-tone-info-soft text-tone-info-fg", "text-tone-info-fg", "ring-tone-info/40", "bg-tone-info text-white"),
   BLOCKED: tone("bg-tone-warning", "bg-tone-warning-soft text-tone-warning-fg", "text-tone-warning-fg", "ring-tone-warning/40", "bg-tone-warning text-white"),
   COMPLETED: tone("bg-tone-success", "bg-tone-success-soft text-tone-success-fg", "text-tone-success-fg", "ring-tone-success/40", "bg-tone-success text-white"),
-  CANCELLED: tone("bg-gray-300", "bg-gray-100 text-gray-500", "text-gray-500", "ring-gray-300", "bg-gray-400 text-white"),
+  CANCELLED: tone("bg-surface-emphasis", "bg-surface-muted text-muted-foreground", "text-muted-foreground", "ring-border-strong", "bg-tone-neutral text-white"),
 };
 
 export const STATUS_DOT_CLASS: Record<TaskStatus, string> = {
-  PENDING: "bg-gray-400",
-  IN_PROGRESS: "bg-blue-500",
-  BLOCKED: "bg-amber-500",
-  COMPLETED: "bg-green-500",
-  CANCELLED: "bg-gray-300",
+  PENDING: "bg-tone-neutral",
+  IN_PROGRESS: "bg-tone-info",
+  BLOCKED: "bg-tone-warning",
+  COMPLETED: "bg-tone-success",
+  CANCELLED: "bg-surface-emphasis",
 };

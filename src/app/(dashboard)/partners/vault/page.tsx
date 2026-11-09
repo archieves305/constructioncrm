@@ -81,7 +81,7 @@ function TypeCard({ type, canUpload, canClassify, onUpload, onPreview }: { type:
   const current = type.current;
   const expiry = current ? expiryTone(current.daysLeft) : null;
   return (
-    <Card className={cn(current?.daysLeft !== null && current?.daysLeft !== undefined && current.daysLeft < 0 && "border-red-200")}>
+    <Card className={cn(current?.daysLeft !== null && current?.daysLeft !== undefined && current.daysLeft < 0 && "border-tone-danger-line")}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base">{type.name}</CardTitle>
@@ -98,7 +98,7 @@ function TypeCard({ type, canUpload, canClassify, onUpload, onPreview }: { type:
         ) : (
           <p className="text-muted-foreground">Nothing on file{type.defaultValidityMonths ? ` · usually valid ${type.defaultValidityMonths} months` : ""}.</p>
         )}
-        {expiry && <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium", expiry.cls)}>{expiry.label}</span>}
+        {expiry && <span className={cn("inline-flex rounded-full px-2 py-0.5 text-2xs font-medium", expiry.cls)}>{expiry.label}</span>}
         {type.versions.length > 1 && (
           <div>
             <button type="button" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline" onClick={() => setHistory((h) => !h)}>
@@ -150,16 +150,16 @@ function DocumentLine({ doc, canClassify, onPreview, muted }: { doc: DocumentVie
           ) : (
             <button type="button" className="font-medium hover:underline" onClick={() => onPreview(doc)}>{doc.title}</button>
           )}
-          <span className="font-mono text-[11px] text-muted-foreground">v{doc.version}</span>
-          <Badge variant="outline" className={cn("border-0 text-[11px]", toneClasses(CONF_TONE[doc.confidentiality]).pill)}>{CONFIDENTIALITY_LABEL[doc.confidentiality]}</Badge>
-          {doc.approvedForExternal && <span className="inline-flex items-center gap-1 text-[11px] text-tone-success-fg"><ShieldCheck className="size-3" /> approved to send</span>}
-          {doc.missing && <Badge variant="destructive" className="text-[10px]">Missing on disk</Badge>}
+          <span className="font-mono text-2xs text-muted-foreground">v{doc.version}</span>
+          <Badge variant="outline" className={cn("border-0 text-2xs", toneClasses(CONF_TONE[doc.confidentiality]).pill)}>{CONFIDENTIALITY_LABEL[doc.confidentiality]}</Badge>
+          {doc.approvedForExternal && <span className="inline-flex items-center gap-1 text-2xs text-tone-success-fg"><ShieldCheck className="size-3" /> approved to send</span>}
+          {doc.missing && <Badge variant="destructive" className="text-3xs">Missing on disk</Badge>}
         </div>
         <div className="text-xs text-muted-foreground">
           {[doc.effectiveDate && `from ${day(doc.effectiveDate)}`, doc.expiresAt ? `expires ${day(doc.expiresAt)}` : "no expiry", `filed ${day(doc.createdAt)} by ${doc.uploadedBy.firstName} ${doc.uploadedBy.lastName}`, doc.usedByCount ? `used by ${doc.usedByCount} qualification${doc.usedByCount === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}
         </div>
         {!doc.locked && (
-          <a href={`/api/company-documents/${doc.id}/file?download=1`} className="inline-flex max-w-[16rem] items-center gap-1 text-xs text-blue-700 hover:underline" title={doc.fileName}>
+          <a href={`/api/company-documents/${doc.id}/file?download=1`} className="inline-flex max-w-[16rem] items-center gap-1 text-xs text-tone-info-fg hover:underline" title={doc.fileName}>
             <Paperclip className="size-3 shrink-0" /><span className="truncate">{doc.fileName}</span><span className="shrink-0 font-normal text-muted-foreground">{formatFileSize(doc.fileSize)}</span>
           </a>
         )}

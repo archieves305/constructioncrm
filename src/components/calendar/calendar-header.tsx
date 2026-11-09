@@ -71,7 +71,7 @@ export function CalendarHeader({
             <Plus className="size-4" />
             <span className="hidden sm:inline">New task</span>
             <span className="sm:hidden">Task</span>
-            <kbd className="ml-1 hidden rounded border border-white/30 bg-white/10 px-1 font-mono text-[10px] sm:inline">N</kbd>
+            <kbd className="ml-1 hidden rounded border border-white/30 bg-white/10 px-1 font-mono text-3xs sm:inline">N</kbd>
           </Button>
         )}
       </div>

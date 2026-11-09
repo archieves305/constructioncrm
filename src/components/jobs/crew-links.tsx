@@ -70,7 +70,7 @@ export function CrewLinks({ jobId, laborContractId, crewAssignmentId, purposes, 
         const s = stateText(l);
         return (
           <span key={l.id} className="inline-flex items-center gap-1">
-            <Badge variant={s.tone} className="text-[10px]">
+            <Badge variant={s.tone} className="text-3xs">
               {PURPOSE[l.purpose].split(" (")[0]}: {s.text}
             </Badge>
             {l.state === "open" ? (
@@ -88,7 +88,7 @@ export function CrewLinks({ jobId, laborContractId, crewAssignmentId, purposes, 
           </DialogHeader>
           {!made ? (
             <div className="space-y-2">
-              {!hasPhone ? <p className="text-sm text-amber-700 dark:text-amber-400">This crew has no phone on file. You can still copy the link; add the contact on the card so links show their number.</p> : null}
+              {!hasPhone ? <p className="text-sm text-tone-warning-fg">This crew has no phone on file. You can still copy the link; add the contact on the card so links show their number.</p> : null}
               {purposes.map((p) => (
                 <Button key={p} className="w-full justify-start" variant="outline" disabled={create.isPending} onClick={() => create.mutate(p)}>
                   {PURPOSE[p]}

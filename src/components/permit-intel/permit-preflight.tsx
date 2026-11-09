@@ -161,7 +161,7 @@ export function PermitPreflight({ detail }: { detail: PermitDetail }) {
               const Icon = g.icon;
               return (
                 <section key={g.severity} className="min-w-0">
-                  <h3 className={cn("mb-1 text-[11px] font-semibold uppercase tracking-wide", toneClasses(g.tone).text)}>
+                  <h3 className={cn("mb-1 text-2xs font-semibold uppercase tracking-wide", toneClasses(g.tone).text)}>
                     {g.title} ({items.length})
                   </h3>
                   <ul className="divide-y rounded-md border">

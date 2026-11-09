@@ -162,7 +162,7 @@ export default function PermitLibraryPage() {
               <li key={f.id} className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2.5">
                 <button type="button" className="min-w-0 flex-1 basis-64 space-y-0.5 text-left" onClick={() => setPreview(i)}>
                   <span className={cn("block truncate text-sm font-medium", f.missing && "text-tone-danger-fg")}>{f.fileName}</span>
-                  <span className="block text-[11px] text-muted-foreground">
+                  <span className="block text-2xs text-muted-foreground">
                     {permitDocLabel(f.permitDocType)} · {formatFileSize(f.fileSize)} · {format(new Date(f.createdAt), "MMM d, yyyy")}
                     {f.missing && " · missing from the store"}
                   </span>
@@ -174,7 +174,7 @@ export default function PermitLibraryPage() {
                   </Link>
                   {f.job && <span className="block truncate text-muted-foreground">{jobLabel(f.job, { customer: false, trade: false }).primary}</span>}
                   {f.permitLock && (
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 text-2xs text-muted-foreground">
                       <Lock className="size-3" /> {f.permitLock === "submitted" ? "Submitted" : "Issued"}
                     </span>
                   )}

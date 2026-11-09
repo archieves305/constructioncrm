@@ -85,12 +85,12 @@ export function ItemsPanel({ data, openItemId, onOpenItem }: { data: CaseData; o
 function ItemRow({ item, caseId, canEdit, users, onOpen }: { item: Item; caseId: string; canEdit: boolean; users: { id: string; firstName: string; lastName: string; isActive: boolean }[]; onOpen: () => void }) {
   const patch = useCaseAction<Record<string, unknown>>(caseId, `/items/${item.id}`, { method: "PATCH" });
   return (
-    <TableRow className="cursor-pointer hover:bg-gray-50" onClick={onOpen}>
+    <TableRow className="cursor-pointer hover:bg-surface-subtle" onClick={onOpen}>
       <TableCell className="font-mono text-xs">{item.itemNumber}</TableCell>
       <TableCell className="text-xs">{item.category?.name ?? <span className="text-muted-foreground">—</span>}</TableCell>
       <TableCell className="max-w-[320px]">
         <div className="truncate text-sm">{item.description}</div>
-        {item.codeSection && <div className="text-[11px] text-muted-foreground">§ {item.codeSection}</div>}
+        {item.codeSection && <div className="text-2xs text-muted-foreground">§ {item.codeSection}</div>}
       </TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>
         {canEdit ? (
@@ -107,7 +107,7 @@ function ItemRow({ item, caseId, canEdit, users, onOpen }: { item: Item; caseId:
             </SelectContent>
           </Select>
         ) : (
-          <Badge className={cn("border-0 text-[11px]", toneClasses(ITEM_STATUS_TONE[item.status] ?? "neutral").pill)}>{ITEM_STATUS_LABEL[item.status]}</Badge>
+          <Badge className={cn("border-0 text-2xs", toneClasses(ITEM_STATUS_TONE[item.status] ?? "neutral").pill)}>{ITEM_STATUS_LABEL[item.status]}</Badge>
         )}
       </TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -266,7 +266,7 @@ function ItemSheet({ item, data, canEdit, onClose }: { item: Item | null; data: 
             <SheetHeader>
               <SheetTitle className="flex items-center gap-2">
                 <span className="font-mono text-muted-foreground">Item {item.itemNumber}</span>
-                <Badge className={cn("border-0 text-[11px]", toneClasses(ITEM_STATUS_TONE[item.status] ?? "neutral").pill)}>{ITEM_STATUS_LABEL[item.status]}</Badge>
+                <Badge className={cn("border-0 text-2xs", toneClasses(ITEM_STATUS_TONE[item.status] ?? "neutral").pill)}>{ITEM_STATUS_LABEL[item.status]}</Badge>
                 {canEdit && (
                   <Button size="sm" variant="outline" className="ml-auto h-7 text-xs" onClick={() => setEditing(true)}>
                     Edit

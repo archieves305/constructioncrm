@@ -302,9 +302,9 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
               type="button"
               disabled={i > step && Boolean(stepError(step))}
               onClick={() => i < step && setStep(i)}
-              className={cn("flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs", i === step ? "border-brand bg-brand-soft text-brand-fg" : i < step ? "border-transparent text-gray-700 hover:bg-gray-50" : "border-transparent text-muted-foreground")}
+              className={cn("flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs", i === step ? "border-brand bg-brand-soft text-brand-fg" : i < step ? "border-transparent text-fg-secondary hover:bg-surface-subtle" : "border-transparent text-muted-foreground")}
             >
-              <span className={cn("flex size-4 items-center justify-center rounded-full text-[10px]", i < step ? "bg-brand text-white" : i === step ? "bg-brand/20" : "bg-gray-100")}>{i < step ? <Check className="size-2.5" /> : i + 1}</span>
+              <span className={cn("flex size-4 items-center justify-center rounded-full text-3xs", i < step ? "bg-brand text-white" : i === step ? "bg-brand/20" : "bg-surface-muted")}>{i < step ? <Check className="size-2.5" /> : i + 1}</span>
               {s}
             </button>
           </li>
@@ -391,7 +391,7 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
               <div>
                 <Label className="text-xs">Compliance deadline</Label>
                 <Input type="date" className="mt-1" value={form.complianceDeadline} onChange={(e) => set("complianceDeadline", e.target.value)} />
-                <p className="mt-0.5 text-[11px] text-muted-foreground">The workflow&apos;s deadline-anchored steps are dated from this.</p>
+                <p className="mt-0.5 text-2xs text-muted-foreground">The workflow&apos;s deadline-anchored steps are dated from this.</p>
               </div>
               <div>
                 <Label className="text-xs">Appeal deadline</Label>
@@ -414,12 +414,12 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
                       key={c.id}
                       type="button"
                       onClick={() => set("items", [...form.items, { ...blankItem(), categoryId: c.id, responsibleTrade: c.defaultResponsibleTrade ?? "", permitRequirement: c.defaultPermitRequirement }])}
-                      className="rounded-full border px-2.5 py-0.5 text-xs hover:bg-gray-50"
+                      className="rounded-full border px-2.5 py-0.5 text-xs hover:bg-surface-subtle"
                     >
                       + {c.name}
                     </button>
                   ))}
-                  <button type="button" onClick={() => set("items", [...form.items, blankItem()])} className="rounded-full border border-dashed px-2.5 py-0.5 text-xs hover:bg-gray-50">
+                  <button type="button" onClick={() => set("items", [...form.items, blankItem()])} className="rounded-full border border-dashed px-2.5 py-0.5 text-xs hover:bg-surface-subtle">
                     <Plus className="mr-0.5 inline size-3" /> Other
                   </button>
                 </div>
@@ -445,7 +445,7 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
                             ))}
                           </SelectContent>
                         </Select>
-                        <button type="button" className="ml-auto rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-destructive" onClick={() => set("items", form.items.filter((_, j) => j !== i))} title="Remove item">
+                        <button type="button" className="ml-auto rounded p-1 text-muted-foreground hover:bg-tone-danger-soft hover:text-destructive" onClick={() => set("items", form.items.filter((_, j) => j !== i))} title="Remove item">
                           <Trash2 className="size-4" />
                         </button>
                       </div>
@@ -761,7 +761,7 @@ function TeamSlots({ templateRoles, users, value, onChange }: { templateRoles: r
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {templateRoles.map((r) => (
             <div key={r}>
-              <Label className="text-[11px]">{WORKFLOW_ROLE_LABEL[r as keyof typeof WORKFLOW_ROLE_LABEL] ?? r}</Label>
+              <Label className="text-2xs">{WORKFLOW_ROLE_LABEL[r as keyof typeof WORKFLOW_ROLE_LABEL] ?? r}</Label>
               <AssigneePicker className="mt-0.5 w-full" size="sm" value={value[r] ?? null} users={users} onChange={(id) => onChange({ ...value, [r]: id })} placeholder="Role default" />
             </div>
           ))}

@@ -73,7 +73,7 @@ export function NoticeCard({
       <CardHeader className="space-y-1 pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="text-sm">Corrections on review cycle {n.cycle.number}</CardTitle>
-          <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(s.tone).pill)}>
+          <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(s.tone).pill)}>
             {n.status === "EXTRACTING" && <Loader2 className="size-3 animate-spin" />}
             {s.label}
           </span>
@@ -133,7 +133,7 @@ export function NoticeCard({
         )}
         {n.summary && (
           <div className="rounded-md bg-muted/60 px-3 py-2 text-sm">
-            <p className="mb-0.5 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-0.5 inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
               <Sparkles className="size-3" /> The AI&apos;s reading{n.aiCall ? ` · ${money(n.aiCall.costUsd)}` : ""}
             </p>
             <p className="leading-snug">{n.summary}</p>

@@ -68,7 +68,7 @@ function DayColumn({
       <header
         className={cn(
           "mb-2 flex items-baseline justify-between gap-1 rounded-md border px-2 py-1.5",
-          isToday ? "border-brand/40 bg-brand-soft text-brand-fg" : "border-transparent bg-gray-50 text-gray-700",
+          isToday ? "border-brand/40 bg-brand-soft text-brand-fg" : "border-transparent bg-surface-subtle text-fg-secondary",
         )}
         aria-current={isToday ? "date" : undefined}
       >
@@ -76,7 +76,7 @@ function DayColumn({
           <span className="uppercase tracking-wide">{format(d, "EEE")}</span> <span className="text-sm">{format(d, "d")}</span>
           <span className="sr-only">, {format(d, "MMMM yyyy")}</span>
         </h3>
-        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground" title={`${items.length} tasks, ${done} done`}>
+        <span className="shrink-0 text-2xs tabular-nums text-muted-foreground" title={`${items.length} tasks, ${done} done`}>
           {items.length === 0 ? "" : done > 0 ? `${open} · ${done} done` : `${items.length}`}
         </span>
       </header>
@@ -89,7 +89,7 @@ function DayColumn({
         ))}
       </ul>
       {hidden > 0 && (
-        <button type="button" onClick={() => setShown(nextShown(shown))} className="mt-1.5 w-full rounded-md border border-dashed py-1 text-xs text-muted-foreground hover:bg-gray-50">
+        <button type="button" onClick={() => setShown(nextShown(shown))} className="mt-1.5 w-full rounded-md border border-dashed py-1 text-xs text-muted-foreground hover:bg-surface-subtle">
           Show {Math.min(hidden, DEFAULT_COLUMN_LIMIT)} more
         </button>
       )}
@@ -99,7 +99,7 @@ function DayColumn({
           onClick={onAdd}
           aria-label={`Add a task on ${format(d, "EEEE, MMMM d")}`}
           className={cn(
-            "mt-1.5 inline-flex w-full items-center justify-center gap-1 rounded-md py-1 text-xs text-muted-foreground opacity-0 transition-opacity hover:bg-gray-50 hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100",
+            "mt-1.5 inline-flex w-full items-center justify-center gap-1 rounded-md py-1 text-xs text-muted-foreground opacity-0 transition-opacity hover:bg-surface-subtle hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100",
             items.length === 0 && "opacity-100",
           )}
         >

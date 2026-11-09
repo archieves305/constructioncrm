@@ -275,7 +275,7 @@ function Field({ label, evidence, children }: { label: string; evidence?: { page
       <Label className="text-xs">{label}</Label>
       {children}
       {evidence && (
-        <p className="text-[11px] text-muted-foreground" title={evidence.quote}>
+        <p className="text-2xs text-muted-foreground" title={evidence.quote}>
           <Sparkles className="mr-0.5 inline size-3" />p. {evidence.page}: “<span className="italic">{evidence.quote.length > 90 ? `${evidence.quote.slice(0, 89)}…` : evidence.quote}</span>”
         </p>
       )}

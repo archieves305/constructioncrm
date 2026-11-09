@@ -129,12 +129,12 @@ export const STAGE_TONES: Record<StageToneKey, StageTone> = {
   },
   neutral: {
     key: "neutral",
-    bar: "bg-gray-300",
-    dot: "bg-gray-400",
-    pill: "bg-gray-100 text-gray-700",
-    text: "text-gray-700",
-    ring: "ring-gray-300",
-    solid: "bg-gray-500 text-white",
+    bar: "bg-surface-emphasis",
+    dot: "bg-tone-neutral",
+    pill: "bg-surface-muted text-fg-secondary",
+    text: "text-fg-secondary",
+    ring: "ring-border-strong",
+    solid: "bg-tone-neutral text-white",
   },
 };
 

@@ -149,7 +149,7 @@ export function PaymentsPanel({ jobId, payments }: { jobId: string; payments: Jo
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 {p.receivedDate ? format(new Date(p.receivedDate), "MMM d, yyyy") : p.status}
                 {p.status === "RECEIVED" && (
-                  <a href={`/api/payments/${p.id}/receipt`} target="_blank" rel="noopener noreferrer" className="rounded border px-2 py-1 text-[11px] hover:bg-gray-50">
+                  <a href={`/api/payments/${p.id}/receipt`} target="_blank" rel="noopener noreferrer" className="rounded border px-2 py-1 text-2xs hover:bg-surface-subtle">
                     Receipt PDF
                   </a>
                 )}
@@ -157,7 +157,7 @@ export function PaymentsPanel({ jobId, payments }: { jobId: string; payments: Jo
                   onClick={() => {
                     if (confirm("Delete this payment? The balance will be recomputed.")) deletePayment.mutate(p.id);
                   }}
-                  className="rounded border px-2 py-1 text-[11px] text-red-600 hover:bg-red-50"
+                  className="rounded border px-2 py-1 text-2xs text-tone-danger-fg hover:bg-tone-danger-soft"
                 >
                   Delete
                 </button>

@@ -353,7 +353,7 @@ export function BudgetPanel({
               </Button>
               <a
                 href={`/api/jobs/${jobId}/budget/template`}
-                className="inline-flex items-center gap-1 rounded border px-3 py-1.5 text-xs hover:bg-gray-50"
+                className="inline-flex items-center gap-1 rounded border px-3 py-1.5 text-xs hover:bg-surface-subtle"
               >
                 <Download className="h-3 w-3" />
                 Download template
@@ -385,20 +385,20 @@ export function BudgetPanel({
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card><CardContent className="p-3">
-          <div className="text-[10px] uppercase text-muted-foreground">Total budget</div>
+          <div className="text-3xs uppercase text-muted-foreground">Total budget</div>
           <div className="text-lg font-semibold">${totalBudget.toLocaleString()}</div>
         </CardContent></Card>
         <Card><CardContent className="p-3">
-          <div className="text-[10px] uppercase text-muted-foreground">Spent (job cost)</div>
+          <div className="text-3xs uppercase text-muted-foreground">Spent (job cost)</div>
           <div className="text-lg font-semibold">${totalJobCost.toLocaleString()}</div>
         </CardContent></Card>
         <Card><CardContent className="p-3">
-          <div className="text-[10px] uppercase text-muted-foreground">{variance >= 0 ? "Under budget" : "Over budget"}</div>
-          <div className={`text-lg font-semibold ${variance >= 0 ? "text-emerald-700" : "text-red-700"}`}>${Math.abs(variance).toLocaleString()}</div>
+          <div className="text-3xs uppercase text-muted-foreground">{variance >= 0 ? "Under budget" : "Over budget"}</div>
+          <div className={`text-lg font-semibold ${variance >= 0 ? "text-tone-success-fg" : "text-tone-danger-fg"}`}>${Math.abs(variance).toLocaleString()}</div>
         </CardContent></Card>
         <Card><CardContent className="p-3">
-          <div className="text-[10px] uppercase text-muted-foreground">Unbudgeted spend</div>
-          <div className={`text-lg font-semibold ${unbudgeted > 0.005 ? "text-amber-700" : "text-muted-foreground"}`}>${unbudgeted.toLocaleString()}</div>
+          <div className="text-3xs uppercase text-muted-foreground">Unbudgeted spend</div>
+          <div className={`text-lg font-semibold ${unbudgeted > 0.005 ? "text-tone-warning-fg" : "text-muted-foreground"}`}>${unbudgeted.toLocaleString()}</div>
         </CardContent></Card>
       </div>
 
@@ -409,7 +409,7 @@ export function BudgetPanel({
           <Upload className="mr-1 h-4 w-4" />
           {importFile.isPending ? "Importing…" : "Re-upload (replace)"}
         </Button>
-        <a href={`/api/jobs/${jobId}/budget/template`} className="inline-flex items-center gap-1 rounded border px-3 py-1.5 text-xs hover:bg-gray-50">
+        <a href={`/api/jobs/${jobId}/budget/template`} className="inline-flex items-center gap-1 rounded border px-3 py-1.5 text-xs hover:bg-surface-subtle">
           <Download className="h-3 w-3" /> Template
         </a>
       </div>
@@ -425,36 +425,36 @@ export function BudgetPanel({
               <CardContent className="space-y-2 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    {l.category && <Badge variant="outline" className="text-[10px]">{l.category}</Badge>}
+                    {l.category && <Badge variant="outline" className="text-3xs">{l.category}</Badge>}
                     <span className="text-sm font-medium">{l.name}</span>
-                    {l.source === "estimate" && <span className="ml-2 rounded-full bg-gray-100 px-1.5 text-[11px] text-gray-600" title="Made from the estimate the job's price came from">from estimate</span>}
+                    {l.source === "estimate" && <span className="ml-2 rounded-full bg-surface-muted px-1.5 text-2xs text-fg-secondary" title="Made from the estimate the job's price came from">from estimate</span>}
                   </div>
                   <div className="flex items-center gap-1">
-                    <button type="button" className="rounded p-1.5 text-muted-foreground hover:bg-gray-100 hover:text-foreground" title="Edit line" onClick={() => startEdit(l)}>
+                    <button type="button" className="rounded p-1.5 text-muted-foreground hover:bg-surface-muted hover:text-foreground" title="Edit line" onClick={() => startEdit(l)}>
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button type="button" className="rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-destructive" title="Remove line" onClick={() => { if (confirm("Remove this budget line?")) deleteLine.mutate(l.id); }}>
+                    <button type="button" className="rounded p-1.5 text-muted-foreground hover:bg-tone-danger-soft hover:text-destructive" title="Remove line" onClick={() => { if (confirm("Remove this budget line?")) deleteLine.mutate(l.id); }}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div>
-                    <div className="text-[10px] uppercase text-muted-foreground">Budget</div>
+                    <div className="text-3xs uppercase text-muted-foreground">Budget</div>
                     <div className="font-semibold">${budget.toLocaleString()}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase text-muted-foreground">Actual</div>
+                    <div className="text-3xs uppercase text-muted-foreground">Actual</div>
                     <div className="font-semibold">${actual.toLocaleString()}</div>
                     {(openByLine.get(l.id) ?? 0) > 0 && (
-                      <div className="text-[11px] text-muted-foreground" title="Open commitments to vendors on this line — promised, not yet paid">
+                      <div className="text-2xs text-muted-foreground" title="Open commitments to vendors on this line — promised, not yet paid">
                         + ${(openByLine.get(l.id) ?? 0).toLocaleString()} committed
                       </div>
                     )}
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase text-muted-foreground">{v >= 0 ? "Under" : "Over"}</div>
-                    <div className={`font-semibold ${v >= 0 ? "text-emerald-700" : "text-red-700"}`}>${Math.abs(v).toLocaleString()}</div>
+                    <div className="text-3xs uppercase text-muted-foreground">{v >= 0 ? "Under" : "Over"}</div>
+                    <div className={`font-semibold ${v >= 0 ? "text-tone-success-fg" : "text-tone-danger-fg"}`}>${Math.abs(v).toLocaleString()}</div>
                   </div>
                 </div>
                 {l.allocations.length > 0 && (
@@ -510,18 +510,18 @@ export function BudgetPanel({
                   {itemAllocs.length > 0 ? (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {itemAllocs.map((a) => (
-                        <Badge key={a.id} variant="secondary" className="text-[10px]">
+                        <Badge key={a.id} variant="secondary" className="text-3xs">
                           {lineName(lineById.get(a.budgetLineId))}: ${Number(a.amount).toLocaleString()}
                         </Badge>
                       ))}
                       {remainder > 0.005 && (
-                        <Badge variant="outline" className="text-[10px] text-amber-700">
+                        <Badge variant="outline" className="text-3xs text-tone-warning-fg">
                           unallocated ${remainder.toLocaleString()}
                         </Badge>
                       )}
                     </div>
                   ) : (
-                    <div className="mt-1 text-[11px] text-muted-foreground">Unallocated</div>
+                    <div className="mt-1 text-2xs text-muted-foreground">Unallocated</div>
                   )}
                 </div>
                 <Button size="sm" variant="outline" onClick={() => openAllocator(item)}>
@@ -600,7 +600,7 @@ export function BudgetPanel({
             >
               <Plus className="mr-1 h-4 w-4" /> Add split
             </Button>
-            <div className={`text-xs ${rowsRemainder < -0.005 ? "text-red-700" : "text-muted-foreground"}`}>
+            <div className={`text-xs ${rowsRemainder < -0.005 ? "text-tone-danger-fg" : "text-muted-foreground"}`}>
               Allocated ${rowsTotal.toLocaleString()} of ${(target?.amount ?? 0).toLocaleString()} ·{" "}
               {rowsRemainder < -0.005
                 ? `over by $${Math.abs(rowsRemainder).toLocaleString()}`

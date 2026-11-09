@@ -284,7 +284,7 @@ function VersionEditor({ templateId, version, isAdmin, onArchive }: { templateId
               <p className="mb-1 text-xs text-muted-foreground">Insert a merge field at the cursor:</p>
               <div className="flex flex-wrap gap-1">
                 {mergeFields.map((f) => (
-                  <button key={f.key} type="button" title={f.description} className="rounded border bg-background px-1.5 py-0.5 font-mono text-[11px] hover:bg-accent" onClick={() => insertField(f.key)}>
+                  <button key={f.key} type="button" title={f.description} className="rounded border bg-background px-1.5 py-0.5 font-mono text-2xs hover:bg-accent" onClick={() => insertField(f.key)}>
                     {`{{${f.key}}}`}
                   </button>
                 ))}

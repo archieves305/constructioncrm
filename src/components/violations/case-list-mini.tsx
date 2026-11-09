@@ -33,7 +33,7 @@ export function CaseListMini({ scope, newHref, linkAction, invalidateKeys }: { s
       <div className="flex items-center gap-2 border-b px-4 py-2.5">
         <Gavel className="size-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">Code violations</h3>
-        <span className="rounded-full bg-gray-100 px-1.5 text-[11px] tabular-nums text-gray-600">{rows.length}</span>
+        <span className="rounded-full bg-surface-muted px-1.5 text-2xs tabular-nums text-fg-secondary">{rows.length}</span>
         <div className="flex-1" />
         {linkAction && canCreate && "jobId" in scope && (
           <Button size="sm" variant="outline" onClick={() => setLinking(true)}>
@@ -96,7 +96,7 @@ function LinkCaseDialog({ open, onOpenChange, jobId, leadId }: { open: boolean; 
           <ul className="max-h-72 space-y-1 overflow-y-auto">
             {rows.map((r) => (
               <li key={r.id}>
-                <label className={`flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm ${picked === r.id ? "border-brand bg-brand/5" : "hover:bg-gray-50"}`}>
+                <label className={`flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm ${picked === r.id ? "border-brand bg-brand/5" : "hover:bg-surface-subtle"}`}>
                   <input type="radio" name="link-case" checked={picked === r.id} onChange={() => setPicked(r.id)} />
                   <span className="font-mono">{r.caseNumber}</span>
                   <span className="truncate">{r.title}</span>

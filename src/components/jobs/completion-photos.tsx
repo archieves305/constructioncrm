@@ -91,19 +91,19 @@ export function CompletionPhotoPicker({
         </span>
       </div>
       {existing.length > 0 && (
-        <button type="button" className="text-[11px] text-primary hover:underline" onClick={() => setPreview(0)}>
+        <button type="button" className="text-2xs text-primary hover:underline" onClick={() => setPreview(0)}>
           {existing.length} photo{existing.length === 1 ? "" : "s"} sent with the request — view
         </button>
       )}
       {files.length > 0 ? (
         <ul className="flex flex-wrap gap-1">
           {files.map((f, i) => (
-            <li key={`${f.name}-${i}`} className="flex max-w-full items-center gap-1 rounded-full border bg-muted/40 py-0.5 pl-2 pr-1 text-[11px]">
+            <li key={`${f.name}-${i}`} className="flex max-w-full items-center gap-1 rounded-full border bg-muted/40 py-0.5 pl-2 pr-1 text-2xs">
               <Camera className="size-3 shrink-0 text-muted-foreground" />
               <span className="truncate">{f.name}</span>
               <button
                 type="button"
-                className="rounded-full p-0.5 text-muted-foreground hover:bg-gray-200 hover:text-foreground"
+                className="rounded-full p-0.5 text-muted-foreground hover:bg-surface-strong hover:text-foreground"
                 aria-label={`Remove ${f.name}`}
                 onClick={() => onChange(files.filter((_, j) => j !== i))}
               >
@@ -113,7 +113,7 @@ export function CompletionPhotoPicker({
           ))}
         </ul>
       ) : (
-        <p className="text-[11px] text-muted-foreground">Pictures of the finished work. They go on the job&apos;s Project photos too.</p>
+        <p className="text-2xs text-muted-foreground">Pictures of the finished work. They go on the job&apos;s Project photos too.</p>
       )}
       <input ref={pickRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => take(e.target.files)} />
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => take(e.target.files)} />
@@ -148,7 +148,7 @@ export function CompletionPhotosButton({
       {photos.length > 0 ? (
         <button
           type="button"
-          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] hover:bg-gray-100 ${missing ? "text-amber-700" : "text-muted-foreground"}`}
+          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs hover:bg-surface-muted ${missing ? "text-tone-warning-fg" : "text-muted-foreground"}`}
           title={missing ? "A photo's file is missing — open it to upload it again" : "Open the completion photos"}
           aria-label={`${photos.length} completion photo${photos.length === 1 ? "" : "s"}`}
           onClick={() => setPreview(0)}
@@ -160,7 +160,7 @@ export function CompletionPhotosButton({
       {canAdd && (
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs text-muted-foreground hover:bg-surface-muted hover:text-foreground"
           title="Add completion photos"
           aria-label="Add completion photos"
           disabled={busy}

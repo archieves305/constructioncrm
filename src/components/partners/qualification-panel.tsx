@@ -204,7 +204,7 @@ function QualificationCard({ q, canManage, onEdit, onDelete }: { q: Qualificatio
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{r.documentType.name}</span>
                     {!r.required && <span className="text-xs text-muted-foreground">(optional)</span>}
-                    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(STATE_TONE[r.state]).pill)}>{REQUIREMENT_STATE_LABEL[r.state]}</span>
+                    <span className={cn("rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(STATE_TONE[r.state]).pill)}>{REQUIREMENT_STATE_LABEL[r.state]}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {r.companyDocument ? (

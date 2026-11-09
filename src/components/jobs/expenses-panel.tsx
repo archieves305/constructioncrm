@@ -216,7 +216,7 @@ function ExpenseFields({
               Billable (adds to contract)
             </Label>
           ) : (
-            <p className="mb-1 text-[11px] text-muted-foreground">
+            <p className="mb-1 text-2xs text-muted-foreground">
               All expenses roll into the job total automatically.
             </p>
           )}
@@ -627,9 +627,9 @@ export function ExpensesPanel({
     <div className="space-y-4">
       {/* Rental turnover summary */}
       {isRentalTurnover && (
-        <div className="rounded-md border border-blue-200 bg-blue-50/60 p-2">
-          <div className="text-[10px] uppercase text-blue-900">Turnover cost</div>
-          <div className="text-lg font-semibold text-blue-900">
+        <div className="rounded-md border border-tone-info-line bg-tone-info-soft/60 p-2">
+          <div className="text-3xs uppercase text-tone-info-fg">Turnover cost</div>
+          <div className="text-lg font-semibold text-tone-info-fg">
             ${totalAll.toLocaleString()}
           </div>
         </div>
@@ -640,7 +640,7 @@ export function ExpensesPanel({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
+              <div className="text-3xs uppercase text-muted-foreground">
                 Labor contract
               </div>
               <div className="text-lg font-semibold">
@@ -650,7 +650,7 @@ export function ExpensesPanel({
           </Card>
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
+              <div className="text-3xs uppercase text-muted-foreground">
                 Expenses
               </div>
               <div className="text-lg font-semibold">
@@ -660,13 +660,13 @@ export function ExpensesPanel({
           </Card>
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
+              <div className="text-3xs uppercase text-muted-foreground">
                 Total job cost
               </div>
               <div className="text-lg font-semibold">
                 ${totalJobCost.toLocaleString()}
               </div>
-              <div className="mt-0.5 text-[10px] text-muted-foreground">
+              <div className="mt-0.5 text-3xs text-muted-foreground">
                 Labor + all expenses
               </div>
             </CardContent>
@@ -676,7 +676,7 @@ export function ExpensesPanel({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
+              <div className="text-3xs uppercase text-muted-foreground">
                 Labor
               </div>
               <div className="text-lg font-semibold">
@@ -686,7 +686,7 @@ export function ExpensesPanel({
           </Card>
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
+              <div className="text-3xs uppercase text-muted-foreground">
                 Expenses
               </div>
               <div className="text-lg font-semibold">
@@ -696,26 +696,26 @@ export function ExpensesPanel({
           </Card>
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
+              <div className="text-3xs uppercase text-muted-foreground">
                 Margin{" "}
                 {costPlus?.marginType === "PERCENT"
                   ? `(${costPlus.marginValue}%)`
                   : ""}
               </div>
-              <div className="text-lg font-semibold text-emerald-700">
+              <div className="text-lg font-semibold text-tone-success-fg">
                 ${Math.round(marginAmount).toLocaleString()}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
+              <div className="text-3xs uppercase text-muted-foreground">
                 Total billable
               </div>
               <div className="text-lg font-semibold">
                 ${Math.round(totalBillableCostPlus).toLocaleString()}
               </div>
-              <div className="mt-0.5 text-[10px] text-muted-foreground">
+              <div className="mt-0.5 text-3xs text-muted-foreground">
                 Labor + Expenses + Margin
               </div>
             </CardContent>
@@ -725,7 +725,7 @@ export function ExpensesPanel({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
+              <div className="text-3xs uppercase text-muted-foreground">
                 Contract
               </div>
               <div className="text-lg font-semibold">
@@ -742,17 +742,17 @@ export function ExpensesPanel({
           >
             <Card
               className={
-                filter === "billable" ? "ring-2 ring-blue-500" : "hover:bg-muted/40"
+                filter === "billable" ? "ring-2 ring-tone-info" : "hover:bg-muted/40"
               }
             >
               <CardContent className="p-3">
-                <div className="text-[10px] uppercase text-muted-foreground">
+                <div className="text-3xs uppercase text-muted-foreground">
                   Billable add-ons
                 </div>
-                <div className="text-lg font-semibold text-blue-700">
+                <div className="text-lg font-semibold text-tone-info-fg">
                   +${totalBillable.toLocaleString()}
                 </div>
-                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                <div className="mt-0.5 text-3xs text-muted-foreground">
                   Click to view
                 </div>
               </CardContent>
@@ -768,18 +768,18 @@ export function ExpensesPanel({
             <Card
               className={
                 filter === "nonbillable"
-                  ? "ring-2 ring-red-500"
+                  ? "ring-2 ring-tone-danger"
                   : "hover:bg-muted/40"
               }
             >
               <CardContent className="p-3">
-                <div className="text-[10px] uppercase text-muted-foreground">
+                <div className="text-3xs uppercase text-muted-foreground">
                   Costs (non-billable)
                 </div>
-                <div className="text-lg font-semibold text-red-700">
+                <div className="text-lg font-semibold text-tone-danger-fg">
                   -${totalNonBillable.toLocaleString()}
                 </div>
-                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                <div className="mt-0.5 text-3xs text-muted-foreground">
                   Click to view
                 </div>
               </CardContent>
@@ -787,18 +787,18 @@ export function ExpensesPanel({
           </button>
           <Card>
             <CardContent className="p-3">
-              <div className="text-[10px] uppercase text-muted-foreground">
+              <div className="text-3xs uppercase text-muted-foreground">
                 Contract less costs so far
               </div>
               <div
                 className={`text-lg font-semibold ${
-                  estimatedProfit >= 0 ? "text-emerald-700" : "text-red-700"
+                  estimatedProfit >= 0 ? "text-tone-success-fg" : "text-tone-danger-fg"
                 }`}
               >
                 ${estimatedProfit.toLocaleString()}
               </div>
               {laborTotal > 0 && (
-                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                <div className="mt-0.5 text-3xs text-muted-foreground">
                   after ${laborTotal.toLocaleString()} labor
                 </div>
               )}
@@ -811,13 +811,13 @@ export function ExpensesPanel({
           where the figures are — otherwise the totals look wrong to whoever
           filed the charge. */}
       {totalPending > 0 && (
-        <Card className="border-amber-300 bg-amber-50/60">
+        <Card className="border-tone-warning-line bg-tone-warning-soft/60">
           <CardContent className="flex flex-wrap items-center justify-between gap-2 py-3">
-            <div className="text-sm text-amber-900">
+            <div className="text-sm text-tone-warning-fg">
               <strong>${totalPending.toLocaleString()}</strong> awaiting
               approval — not included in the job cost, profit or contract above.
             </div>
-            <span className="text-xs text-amber-800">
+            <span className="text-xs text-tone-warning-fg">
               {mayApprove
                 ? "Approve or reject them in the list below."
                 : "A bookkeeper needs to approve these."}
@@ -861,7 +861,7 @@ export function ExpensesPanel({
                   Add receipt
                 </Button>
                 {newReceipts.map((f, i) => (
-                  <span key={`${f.name}-${i}`} className="inline-flex max-w-[14rem] items-center gap-1 rounded-full border bg-gray-50 px-2 py-0.5 text-xs">
+                  <span key={`${f.name}-${i}`} className="inline-flex max-w-[14rem] items-center gap-1 rounded-full border bg-surface-subtle px-2 py-0.5 text-xs">
                     <span className="truncate">{f.name}</span>
                     <span className="shrink-0 text-muted-foreground">{formatFileSize(f.size)}</span>
                     <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setNewReceipts((r) => r.filter((_, j) => j !== i))}>
@@ -943,7 +943,7 @@ export function ExpensesPanel({
               <button
                 type="button"
                 onClick={() => setFilter("all")}
-                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 hover:bg-gray-50"
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 hover:bg-surface-subtle"
               >
                 {filter === "billable" ? "Billable" : "Non-billable"}
                 <X className="h-3 w-3" />
@@ -953,7 +953,7 @@ export function ExpensesPanel({
               <button
                 type="button"
                 onClick={clearAllFilters}
-                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 hover:bg-gray-50"
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 hover:bg-surface-subtle"
               >
                 <X className="h-3 w-3" />
                 clear filters
@@ -962,7 +962,7 @@ export function ExpensesPanel({
           </div>
           <a
             href={`/api/jobs/${jobId}/expenses/qbo-export`}
-            className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-gray-50"
+            className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-surface-subtle"
           >
             <Download className="h-3 w-3" />
             Export to QuickBooks
@@ -991,7 +991,7 @@ export function ExpensesPanel({
                 key={e.id}
                 className={
                   pending
-                    ? "border-amber-300 bg-amber-50/40"
+                    ? "border-tone-warning-line bg-tone-warning-soft/40"
                     : rejected
                       ? "border-dashed opacity-60"
                       : undefined
@@ -1001,7 +1001,7 @@ export function ExpensesPanel({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Receipt className="h-4 w-4 text-muted-foreground" />
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-3xs">
                         {e.type.replace(/_/g, " ")}
                       </Badge>
                       {e.vendorRecord ? (
@@ -1025,29 +1025,29 @@ export function ExpensesPanel({
                         ${Number(e.amount).toLocaleString()}
                       </span>
                       {e.commitment && (
-                        <Badge variant="outline" className="font-mono text-[10px]" title="Drawn against this commitment">
+                        <Badge variant="outline" className="font-mono text-3xs" title="Drawn against this commitment">
                           {commitmentCode(e.commitment.number)}
                         </Badge>
                       )}
                       {/* The whole point of the state is that these do not
                           count yet — say so on the row, not just in a total. */}
                       {pending && (
-                        <Badge className="border-0 bg-amber-100 text-[10px] text-amber-900">
+                        <Badge className="border-0 bg-tone-warning-soft text-3xs text-tone-warning-fg">
                           Awaiting approval · not counted
                         </Badge>
                       )}
                       {rejected && (
-                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        <Badge variant="outline" className="text-3xs text-muted-foreground">
                           Rejected
                         </Badge>
                       )}
                       {e.billable && !rejected && (
-                        <Badge variant="default" className="text-[10px]">
+                        <Badge variant="default" className="text-3xs">
                           Billable
                         </Badge>
                       )}
                       {fromAllocator && (
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="text-3xs">
                           via CC Allocator
                         </Badge>
                       )}
@@ -1061,7 +1061,7 @@ export function ExpensesPanel({
                     {(e.paidMethod || e.paidFrom) && (
                       <div className="mt-1 flex flex-wrap items-center gap-1 text-xs">
                         {e.paidMethod && (
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge variant="secondary" className="text-3xs">
                             {e.paidMethod}
                           </Badge>
                         )}
@@ -1077,7 +1077,7 @@ export function ExpensesPanel({
                         {e.description}
                       </div>
                     )}
-                    <div className="mt-1 text-[10px] text-muted-foreground">
+                    <div className="mt-1 text-3xs text-muted-foreground">
                       {format(new Date(e.incurredDate), "MMM d, yyyy")} · added by{" "}
                       {e.createdBy.firstName} {e.createdBy.lastName}
                     </div>
@@ -1135,7 +1135,7 @@ export function ExpensesPanel({
                     {(e.receipts?.length ?? 0) > 0 && (
                       <button
                         type="button"
-                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-gray-100 ${e.receipts!.some((r) => r.missing) ? "text-amber-700" : "text-gray-700"}`}
+                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-surface-muted ${e.receipts!.some((r) => r.missing) ? "text-tone-warning-fg" : "text-fg-secondary"}`}
                         title={e.receipts!.some((r) => r.missing) ? "A receipt's file is missing — open it to upload it again" : "Open the receipt"}
                         aria-label={`${e.receipts!.length} receipt${e.receipts!.length === 1 ? "" : "s"}`}
                         onClick={() => setReceiptPreview({ files: e.receipts!, index: 0 })}
@@ -1147,7 +1147,7 @@ export function ExpensesPanel({
                     {mayEnterCosts && (
                       <button
                         type="button"
-                        className="rounded p-2 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+                        className="rounded p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
                         title="Attach a receipt"
                         aria-label="Attach a receipt"
                         disabled={attaching}
@@ -1165,7 +1165,7 @@ export function ExpensesPanel({
                     {!fromAllocator && mayEnterCosts && (
                       <button
                         type="button"
-                        className="rounded p-2 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+                        className="rounded p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
                         title="Edit expense"
                         onClick={() => openEdit(e)}
                       >
@@ -1179,7 +1179,7 @@ export function ExpensesPanel({
                     {(fromAllocator ? mayDeleteAllocatorCharges : mayEnterCosts) && (
                       <button
                         type="button"
-                        className="rounded p-2 text-muted-foreground hover:bg-red-50 hover:text-destructive"
+                        className="rounded p-2 text-muted-foreground hover:bg-tone-danger-soft hover:text-destructive"
                         title={
                           fromAllocator
                             ? "Delete — this charge came from cc-allocator; prefer fixing it there"
@@ -1234,7 +1234,7 @@ export function ExpensesPanel({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="mt-1 text-[11px] text-muted-foreground">An approved expense against a commitment lowers what is still open on it.</p>
+              <p className="mt-1 text-2xs text-muted-foreground">An approved expense against a commitment lowers what is still open on it.</p>
             </div>
           )}
           {editing && (
@@ -1246,7 +1246,7 @@ export function ExpensesPanel({
                     key={r.id}
                     type="button"
                     onClick={() => setReceiptPreview({ files: all, index: i })}
-                    className={`inline-flex max-w-[16rem] items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-gray-50 ${r.missing ? "border-amber-200 bg-amber-50 text-amber-800" : "bg-white"}`}
+                    className={`inline-flex max-w-[16rem] items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-surface-subtle ${r.missing ? "border-tone-warning-line bg-tone-warning-soft text-tone-warning-fg" : "bg-white"}`}
                   >
                     <Paperclip className="h-3 w-3 shrink-0" />
                     <span className="truncate">{r.fileName}</span>

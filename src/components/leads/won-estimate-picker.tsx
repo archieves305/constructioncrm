@@ -43,7 +43,7 @@ export function WonEstimatePicker({
 
   return (
     <fieldset className="space-y-2 text-sm">
-      <legend className="mb-1 font-medium text-gray-900">The job&apos;s price, cost and budget come from</legend>
+      <legend className="mb-1 font-medium text-foreground">The job&apos;s price, cost and budget come from</legend>
       {options.map((o) => (
         <label key={`${o.kind}:${o.id}`} className="flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 has-[:checked]:border-brand has-[:checked]:bg-brand/5">
           <input type="radio" name="won-estimate" className="mt-1" checked={isPicked(o)} onChange={() => onChange({ kind: o.kind, id: o.id })} />

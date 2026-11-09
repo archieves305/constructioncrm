@@ -89,12 +89,12 @@ export function UnscheduledPanel({
             onClick={onToggle}
             aria-label={`Show unscheduled work: ${title}`}
             aria-expanded={false}
-            className="flex h-full min-h-40 w-9 flex-col items-center gap-2 rounded-md border bg-gray-50 py-2 text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+            className="flex h-full min-h-40 w-9 flex-col items-center gap-2 rounded-md border bg-surface-subtle py-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
           >
             <ChevronRight className="size-4" />
             <Inbox className="size-4" />
-            {count > 0 && <span className="rounded-full bg-tone-warning-soft px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-tone-warning-fg">{count}</span>}
-            <span className="mt-1 text-[10px] font-medium uppercase tracking-wide [writing-mode:vertical-rl]">Unscheduled</span>
+            {count > 0 && <span className="rounded-full bg-tone-warning-soft px-1.5 py-0.5 text-3xs font-semibold tabular-nums text-tone-warning-fg">{count}</span>}
+            <span className="mt-1 text-3xs font-medium uppercase tracking-wide [writing-mode:vertical-rl]">Unscheduled</span>
           </button>
         </DropZone>
       </div>
@@ -110,23 +110,23 @@ export function UnscheduledPanel({
 
   return (
     <aside className="w-72 shrink-0" aria-label="Unscheduled work">
-      <DropZone target={{ kind: "unscheduled" }} label="Unscheduled" className="flex h-full flex-col rounded-md border bg-gray-50">
+      <DropZone target={{ kind: "unscheduled" }} label="Unscheduled" className="flex h-full flex-col rounded-md border bg-surface-subtle">
         <header className="flex items-center justify-between gap-2 border-b px-2 py-1.5">
           <h3 className="flex items-center gap-1.5 text-xs font-semibold">
             <Inbox className="size-3.5 text-muted-foreground" />
             Unscheduled
-            {count > 0 && <span className="rounded-full bg-tone-warning-soft px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-tone-warning-fg">{count}</span>}
+            {count > 0 && <span className="rounded-full bg-tone-warning-soft px-1.5 py-0.5 text-3xs font-semibold tabular-nums text-tone-warning-fg">{count}</span>}
           </h3>
           <Button variant="ghost" size="icon-sm" onClick={onToggle} aria-label="Hide unscheduled work" aria-expanded>
             <ChevronLeft className="size-4" />
           </Button>
         </header>
-        <p className="px-2 pt-2 text-[11px] text-muted-foreground">{isLoading ? "Loading…" : title}. Drag a card onto a day{showAssignee ? " or a person" : ""}.</p>
+        <p className="px-2 pt-2 text-2xs text-muted-foreground">{isLoading ? "Loading…" : title}. Drag a card onto a day{showAssignee ? " or a person" : ""}.</p>
         <div className="max-h-[calc(100dvh-16rem)] flex-1 space-y-3 overflow-y-auto p-2">
           {count === 0 && !isLoading && <p className="rounded-md border border-dashed bg-white px-3 py-4 text-center text-xs text-muted-foreground">Drop a card here to take it off the calendar.</p>}
           {Array.from(groups.entries()).map(([label, list]) => (
             <section key={label} aria-label={label}>
-              <h4 className="mb-1 truncate px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</h4>
+              <h4 className="mb-1 truncate px-0.5 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</h4>
               <ul className="space-y-1.5">
                 {list.map((item) => (
                   <li key={item.id}>
@@ -136,7 +136,7 @@ export function UnscheduledPanel({
               </ul>
             </section>
           ))}
-          {truncated && <p className="text-[11px] text-muted-foreground">Showing the first {count}. Narrow to a person to see the rest.</p>}
+          {truncated && <p className="text-2xs text-muted-foreground">Showing the first {count}. Narrow to a person to see the rest.</p>}
         </div>
       </DropZone>
     </aside>

@@ -76,7 +76,7 @@ export function ScheduleSection({ task, canEdit, onPatch, pending }: { task: Sch
     return (
       <div>
         <dt className="text-xs text-muted-foreground">Scheduled</dt>
-        <dd className="font-medium text-gray-800">
+        <dd className="font-medium text-foreground">
           {!task.dueAt
             ? "No date yet"
             : isSpan && task.scheduledStart

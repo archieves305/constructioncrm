@@ -121,7 +121,7 @@ function SettingsForm({ data }: { data: PartnerSettings }) {
                   <Badge key={m} variant="outline" className="gap-1">
                     {m}
                     {canEdit && (
-                      <button type="button" aria-label={`Remove ${m}`} onClick={() => set("markets", form.markets.filter((x) => x !== m))} className="rounded-full hover:bg-gray-200">
+                      <button type="button" aria-label={`Remove ${m}`} onClick={() => set("markets", form.markets.filter((x) => x !== m))} className="rounded-full hover:bg-surface-strong">
                         <X className="size-3" />
                       </button>
                     )}

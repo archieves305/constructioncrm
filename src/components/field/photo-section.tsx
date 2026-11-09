@@ -298,7 +298,7 @@ export function PhotoSection({
                     ) : p.status === "failed" ? (
                       <button
                         type="button"
-                        className="rounded bg-red-600/90 px-1.5 py-0.5 text-xs text-white"
+                        className="rounded bg-tone-danger/90 px-1.5 py-0.5 text-xs text-white"
                         onClick={() => drain()}
                       >
                         Retry
@@ -308,7 +308,7 @@ export function PhotoSection({
                   {p.status !== "uploading" && (
                     <button
                       type="button"
-                      className="absolute -top-1.5 -right-1.5 rounded-full bg-gray-800 p-1 text-white"
+                      className="absolute -top-1.5 -right-1.5 rounded-full bg-foreground p-1 text-white"
                       onClick={() => removePending(p.id)}
                       aria-label="Remove"
                     >
@@ -342,9 +342,9 @@ export function PhotoSection({
               onClick={(ev) => broken.has(photo.id) && ev.preventDefault()}
             >
               {broken.has(photo.id) ? (
-                <span className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-amber-300 bg-amber-50 text-amber-800">
+                <span className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-tone-warning-line bg-tone-warning-soft text-tone-warning-fg">
                   <ImageOff className="h-5 w-5" />
-                  <span className="text-[10px] font-medium">Photo missing</span>
+                  <span className="text-3xs font-medium">Photo missing</span>
                 </span>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -356,7 +356,7 @@ export function PhotoSection({
                   onError={() => setBroken((b) => new Set(b).add(photo.id))}
                 />
               )}
-              <span className="absolute right-1 bottom-1 rounded bg-black/60 px-1 py-0.5 text-[10px] text-white">
+              <span className="absolute right-1 bottom-1 rounded bg-black/60 px-1 py-0.5 text-3xs text-white">
                 {categoryLabel(photo.category)}
               </span>
             </a>

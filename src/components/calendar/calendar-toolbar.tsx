@@ -46,12 +46,12 @@ export function CalendarToolbar({
       filters={
         <Popover>
           <PopoverTrigger
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-2.5 text-sm shadow-xs hover:bg-gray-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-2.5 text-sm shadow-xs hover:bg-surface-subtle"
             aria-label={`Filters${count ? `, ${count} active` : ""}`}
           >
             <SlidersHorizontal className="size-4" />
             Filters
-            {count > 0 && <span className="rounded-full bg-brand px-1.5 text-[10px] font-semibold text-white">{count}</span>}
+            {count > 0 && <span className="rounded-full bg-brand px-1.5 text-3xs font-semibold text-white">{count}</span>}
           </PopoverTrigger>
           <PopoverContent align="start" className="w-80 space-y-3 p-3">
             <div>

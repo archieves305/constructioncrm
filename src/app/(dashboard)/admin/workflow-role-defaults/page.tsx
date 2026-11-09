@@ -52,9 +52,9 @@ export default function WorkflowRoleDefaultsPage() {
                 <div className="min-w-[180px] flex-1">
                   <Label className="text-sm">{r.label}</Label>
                   {(r.role === "PROJECT_MANAGER" || r.role === "SALES_REP") && (
-                    <p className="text-[11px] text-muted-foreground">Falls back to the job&apos;s {r.role === "PROJECT_MANAGER" ? "project manager" : "sales rep"} before this.</p>
+                    <p className="text-2xs text-muted-foreground">Falls back to the job&apos;s {r.role === "PROJECT_MANAGER" ? "project manager" : "sales rep"} before this.</p>
                   )}
-                  {r.user && !r.user.isActive && <p className="text-[11px] text-tone-warning-fg">This person is deactivated — pick someone else.</p>}
+                  {r.user && !r.user.isActive && <p className="text-2xs text-tone-warning-fg">This person is deactivated — pick someone else.</p>}
                 </div>
                 <AssigneePicker
                   className="w-[240px]"

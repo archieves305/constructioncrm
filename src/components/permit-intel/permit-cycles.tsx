@@ -105,7 +105,7 @@ function CycleCard({ cycle: c }: { cycle: PermitCycle }) {
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="text-sm">Review cycle {c.number}</CardTitle>
-          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(OUTCOME_TONE[c.outcome]).pill)}>{OUTCOME_LABEL[c.outcome]}</span>
+          <span className={cn("rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(OUTCOME_TONE[c.outcome]).pill)}>{OUTCOME_LABEL[c.outcome]}</span>
         </div>
         <p className="text-xs text-muted-foreground">
           Submitted {day(c.submittedAt)}
@@ -122,14 +122,14 @@ function CycleCard({ cycle: c }: { cycle: PermitCycle }) {
               {s.manifest.map((m) => (
                 <li key={m.fileId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5">
                   <span className="min-w-0 truncate">{m.name}</span>
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     {permitDocLabel(m.docType)} · {formatFileSize(m.bytes)}
                   </span>
                 </li>
               ))}
             </ul>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="truncate font-mono text-[10px] text-muted-foreground" title="SHA-256 of the frozen package">
+              <span className="truncate font-mono text-3xs text-muted-foreground" title="SHA-256 of the frozen package">
                 sha256 {s.sha256.slice(0, 16)}… · {formatFileSize(s.sizeBytes)}
               </span>
               <Button size="sm" variant="outline" render={<a href={`/api/permit-submissions/${s.id}/download`} />} nativeButton={false}>
@@ -194,7 +194,7 @@ function FreezeForm({ detail, onClose }: { detail: PermitDetail; onClose: () => 
               <label key={f.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-muted">
                 <Checkbox checked={picked.has(f.id)} onCheckedChange={(v) => toggle(f.id, v === true)} />
                 <span className="min-w-0 flex-1 truncate">{f.fileName}</span>
-                <span className="shrink-0 text-[11px] text-muted-foreground">{permitDocLabel(f.permitDocType)}</span>
+                <span className="shrink-0 text-2xs text-muted-foreground">{permitDocLabel(f.permitDocType)}</span>
               </label>
             ))
           )}

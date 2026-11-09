@@ -52,7 +52,7 @@ export function LeadPicker({ value, onChange, returnTo }: { value: PickedLead | 
           <ul className="max-h-72 divide-y overflow-y-auto rounded-md border">
             {rows.map((l) => (
               <li key={l.id}>
-                <button type="button" onClick={() => onChange(l)} className={cn("flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50", value?.id === l.id && "bg-brand/5")}>
+                <button type="button" onClick={() => onChange(l)} className={cn("flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-surface-subtle", value?.id === l.id && "bg-brand/5")}>
                   <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">

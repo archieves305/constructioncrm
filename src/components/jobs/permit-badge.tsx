@@ -20,7 +20,7 @@ function label(status: string): string {
 export function PermitBadge({ status, className }: { status: string | null | undefined; className?: string }) {
   if (!status) return <span className="text-xs text-muted-foreground">—</span>;
   return (
-    <Badge variant="outline" className={cn("border-0 text-[11px]", toneClasses(TONE[status] ?? "neutral").pill, className)}>
+    <Badge variant="outline" className={cn("border-0 text-2xs", toneClasses(TONE[status] ?? "neutral").pill, className)}>
       {label(status)}
     </Badge>
   );

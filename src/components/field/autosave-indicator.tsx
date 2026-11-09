@@ -7,14 +7,14 @@ import { cn } from "@/lib/utils";
 const DISPLAY: Record<SaveStatus, { label: string; className: string }> = {
   idle: { label: "", className: "text-muted-foreground" },
   saving: { label: "Saving…", className: "text-muted-foreground" },
-  saved: { label: "Saved", className: "text-green-700" },
+  saved: { label: "Saved", className: "text-tone-success-fg" },
   local: {
     label: "Saved on device — will sync",
-    className: "text-amber-700",
+    className: "text-tone-warning-fg",
   },
-  conflict: { label: "Edited elsewhere", className: "text-red-700" },
-  locked: { label: "Day locked — changes on device only", className: "text-red-700" },
-  error: { label: "Save failed — retrying", className: "text-red-700" },
+  conflict: { label: "Edited elsewhere", className: "text-tone-danger-fg" },
+  locked: { label: "Day locked — changes on device only", className: "text-tone-danger-fg" },
+  error: { label: "Save failed — retrying", className: "text-tone-danger-fg" },
 };
 
 export function AutosaveIndicator({ status }: { status: SaveStatus }) {

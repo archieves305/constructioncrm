@@ -15,13 +15,13 @@ import type { CaseRow } from "./use-violations";
 
 /** Lifecycle pill. */
 export function CaseStatusPill({ status, className }: { status: string; className?: string }) {
-  return <Badge className={cn("border-0 text-[11px]", toneClasses(CASE_STATUS_TONE[status] ?? "neutral").pill, className)}>{CASE_STATUS_LABEL[status] ?? status}</Badge>;
+  return <Badge className={cn("border-0 text-2xs", toneClasses(CASE_STATUS_TONE[status] ?? "neutral").pill, className)}>{CASE_STATUS_LABEL[status] ?? status}</Badge>;
 }
 
 /** The derived "where it is" label (phase + flags), or the lifecycle when not active. */
 export function CasePhasePill({ state, className }: { state: Pick<CaseState, "label" | "status" | "overdue">; className?: string }) {
   const tone = state.overdue ? "danger" : state.status === "ACTIVE" ? "info" : (CASE_STATUS_TONE[state.status] ?? "neutral");
-  return <Badge variant="outline" className={cn("text-[11px]", toneClasses(tone).text, className)}>{state.label}</Badge>;
+  return <Badge variant="outline" className={cn("text-2xs", toneClasses(tone).text, className)}>{state.label}</Badge>;
 }
 
 const FLAG_ICON: Partial<Record<CaseFlag, { icon: React.ElementType; className: string }>> = {
@@ -58,7 +58,7 @@ export function DeadlineCell({ at, done, className }: { at: string | null; done?
   const d = new Date(at);
   const now = new Date();
   const days = Math.round((new Date(d).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) / 86_400_000);
-  const tone = done ? "text-muted-foreground" : days < 0 ? "text-tone-danger-fg font-semibold" : days <= 7 ? "text-tone-warning-fg font-medium" : "text-gray-700";
+  const tone = done ? "text-muted-foreground" : days < 0 ? "text-tone-danger-fg font-semibold" : days <= 7 ? "text-tone-warning-fg font-medium" : "text-fg-secondary";
   return (
     <span className={cn("inline-flex items-center gap-1 text-xs", tone, className)}>
       {days < 0 && !done ? <AlertTriangle className="size-3" /> : <CalendarClock className="size-3 opacity-70" />}
@@ -78,7 +78,7 @@ export function CasePhaseCell({ row }: { row: Pick<CaseRow, "workflow"> }) {
       <div className="truncate text-xs">{s.currentPhase?.name ?? (s.status === "COMPLETED" ? "Complete" : "—")}</div>
       <div className="mt-1 flex items-center gap-1.5">
         <Progress value={s.done + s.skipped} max={s.total} className="h-1 w-20" indicatorClassName={pct === 100 ? "bg-tone-success" : undefined} label={`${pct}% complete`} />
-        <span className="text-[10px] tabular-nums text-muted-foreground">{pct}%</span>
+        <span className="text-3xs tabular-nums text-muted-foreground">{pct}%</span>
       </div>
     </div>
   );

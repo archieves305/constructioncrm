@@ -135,7 +135,7 @@ export default function VendorPage({ params }: { params: Promise<{ id: string }>
                   <Badge key={a.id} variant="outline" className="gap-1">
                     {a.pattern}
                     {canManage && (
-                      <button type="button" aria-label={`Remove ${a.pattern}`} onClick={() => removeAlias.mutate(a.id)} className="rounded-full hover:bg-gray-200">
+                      <button type="button" aria-label={`Remove ${a.pattern}`} onClick={() => removeAlias.mutate(a.id)} className="rounded-full hover:bg-surface-strong">
                         <X className="size-3" />
                       </button>
                     )}

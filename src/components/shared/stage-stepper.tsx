@@ -67,7 +67,7 @@ export function StageStepper({
             ? cn(tone.solid, "ring-2 shadow-sm", tone.ring)
             : done
               ? cn(tone.pill, "hover:brightness-95")
-              : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800",
+              : "bg-surface-muted text-muted-foreground hover:bg-surface-strong hover:text-foreground",
           "disabled:cursor-default disabled:opacity-100",
         )}
       >
@@ -82,7 +82,7 @@ export function StageStepper({
       <div className={cn("flex items-center gap-1 overflow-x-auto py-1 [scrollbar-width:thin]", className)}>
         {progression.map((s, i) => (
           <span key={s.id} className="flex items-center gap-1">
-            {i > 0 && <span className={cn("h-px w-3 shrink-0", allDone || i <= currentIndex ? tones.get(s.id)!.bar : "bg-gray-200")} />}
+            {i > 0 && <span className={cn("h-px w-3 shrink-0", allDone || i <= currentIndex ? tones.get(s.id)!.bar : "bg-surface-strong")} />}
             {pill(s, i)}
           </span>
         ))}

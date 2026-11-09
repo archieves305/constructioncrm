@@ -179,7 +179,7 @@ export default function EditLeadPage() {
               <Label htmlFor="firstName">First Name *</Label>
               <Input id="firstName" {...register("firstName")} />
               {errors.firstName && (
-                <p className="mt-1 text-xs text-red-600">
+                <p className="mt-1 text-xs text-tone-danger-fg">
                   {errors.firstName.message}
                 </p>
               )}
@@ -188,7 +188,7 @@ export default function EditLeadPage() {
               <Label htmlFor="lastName">Last Name *</Label>
               <Input id="lastName" {...register("lastName")} />
               {errors.lastName && (
-                <p className="mt-1 text-xs text-red-600">
+                <p className="mt-1 text-xs text-tone-danger-fg">
                   {errors.lastName.message}
                 </p>
               )}
@@ -197,7 +197,7 @@ export default function EditLeadPage() {
               <Label htmlFor="primaryPhone">Primary Phone *</Label>
               <Input id="primaryPhone" {...register("primaryPhone")} />
               {errors.primaryPhone && (
-                <p className="mt-1 text-xs text-red-600">
+                <p className="mt-1 text-xs text-tone-danger-fg">
                   {errors.primaryPhone.message}
                 </p>
               )}
@@ -210,7 +210,7 @@ export default function EditLeadPage() {
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" {...register("email")} />
               {errors.email && (
-                <p className="mt-1 text-xs text-red-600">
+                <p className="mt-1 text-xs text-tone-danger-fg">
                   {errors.email.message}
                 </p>
               )}

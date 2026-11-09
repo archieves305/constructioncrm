@@ -190,7 +190,7 @@ function DeliveryTab({ data, isAdmin }: { data: Payload; isAdmin: boolean }) {
             <div>
               <Label className="text-xs">Catch-up grace (minutes)</Label>
               <Input type="number" value={form.catchUpGraceMinutes} onChange={num("catchUpGraceMinutes")} disabled={!isAdmin} className="mt-1" />
-              <p className="mt-0.5 text-[11px] text-muted-foreground">How long after a time the tick may still send that digest.</p>
+              <p className="mt-0.5 text-2xs text-muted-foreground">How long after a time the tick may still send that digest.</p>
             </div>
             <div>
               <Label className="text-xs">Keep rows for (days)</Label>
@@ -214,12 +214,12 @@ function DeliveryTab({ data, isAdmin }: { data: Payload; isAdmin: boolean }) {
             <div>
               <Label className="text-xs">Immediate mails per person per hour</Label>
               <Input type="number" value={form.maxImmediatePerUserPerHour} onChange={num("maxImmediatePerUserPerHour")} disabled={!isAdmin} className="mt-1" />
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Past this, the rest wait for the next digest (mentions, nudges and escalations excepted).</p>
+              <p className="mt-0.5 text-2xs text-muted-foreground">Past this, the rest wait for the next digest (mentions, nudges and escalations excepted).</p>
             </div>
             <div>
               <Label className="text-xs">Collapse an engine batch from</Label>
               <Input type="number" value={form.batchCollapseThreshold} onChange={num("batchCollapseThreshold")} disabled={!isAdmin} className="mt-1" />
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Steps from one workflow run become one digest line at this size.</p>
+              <p className="mt-0.5 text-2xs text-muted-foreground">Steps from one workflow run become one digest line at this size.</p>
             </div>
             <div>
               <Label className="text-xs">Storm threshold (rows / 10 min)</Label>
@@ -285,7 +285,7 @@ function DeliveryTab({ data, isAdmin }: { data: Payload; isAdmin: boolean }) {
                         <td className="py-1.5 pr-3 tabular-nums">{p.agendaItems ?? "—"}</td>
                         <td className="py-1.5">
                           <Badge className={`border-0 ${toneClasses(p.outcome === "sent" || p.outcome === "planned" ? "success" : p.outcome === "failed" ? "danger" : "neutral").pill}`}>{p.outcome ?? "pending"}</Badge>
-                          {p.error && <span className="ml-2 text-xs text-red-700">{p.error}</span>}
+                          {p.error && <span className="ml-2 text-xs text-tone-danger-fg">{p.error}</span>}
                         </td>
                       </tr>
                     ))}
@@ -346,7 +346,7 @@ function KindsTab({ data, isAdmin }: { data: Payload; isAdmin: boolean }) {
             {data.kinds.map((k) => (
               <tr key={k.kind}>
                 <td className="py-1.5 pr-3">
-                  {k.label} <span className="font-mono text-[11px] text-muted-foreground">{k.kind}</span>
+                  {k.label} <span className="font-mono text-2xs text-muted-foreground">{k.kind}</span>
                 </td>
                 <td className="py-1.5 pr-3 text-muted-foreground">{k.category}</td>
                 <td className="py-1.5 pr-3">
@@ -405,7 +405,7 @@ function LogTab() {
                     <td className="py-1.5 pr-3 tabular-nums">{d.itemCount}{d.collapsedCount ? ` (${d.collapsedCount} collapsed)` : ""}{d.hiddenCount ? ` +${d.hiddenCount}` : ""}{d.suppressedCount ? ` · ${d.suppressedCount} hidden` : ""}</td>
                     <td className="py-1.5 pr-3">
                       <Badge className={`border-0 ${toneClasses(STATUS_TONE[d.status] ?? "neutral").pill}`}>{d.status}</Badge>
-                      {d.lastError && <span className="ml-2 text-xs text-red-700">{d.lastError}</span>}
+                      {d.lastError && <span className="ml-2 text-xs text-tone-danger-fg">{d.lastError}</span>}
                     </td>
                     <td className="py-1.5 tabular-nums">{when(d.sentAt)}</td>
                   </tr>
@@ -444,7 +444,7 @@ function LogTab() {
                     <td className="py-1.5 pr-3 text-xs text-muted-foreground">{r.classifyReason}</td>
                     <td className="py-1.5">
                       <Badge className={`border-0 ${toneClasses(STATUS_TONE[r.state] ?? "neutral").pill}`}>{r.state}</Badge>
-                      {r.lastError && <span className="ml-2 text-xs text-red-700">{r.lastError}</span>}
+                      {r.lastError && <span className="ml-2 text-xs text-tone-danger-fg">{r.lastError}</span>}
                     </td>
                   </tr>
                 ))}

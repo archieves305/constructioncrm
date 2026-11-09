@@ -44,8 +44,8 @@ export function DueDatePresets({
             className={cn(
               "h-11 rounded-full border px-2.5 text-xs transition-colors sm:h-7",
               active
-                ? "border-gray-900 bg-gray-900 text-white"
-                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50",
+                ? "border-foreground bg-foreground text-white"
+                : "border-border bg-white text-fg-secondary hover:border-border-strong hover:bg-surface-subtle",
             )}
           >
             {p.label}

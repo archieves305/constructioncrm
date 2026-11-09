@@ -291,9 +291,9 @@ export function MessagesCard({ data, onOpen, onNew }: { data: CorrectionsData; o
             {[...drafts, ...sent].map((m) => (
               <li key={m.id}>
                 <button type="button" className="flex w-full min-w-0 flex-wrap items-center gap-2 px-3 py-2 text-left hover:bg-muted/50" onClick={() => onOpen(m)}>
-                  <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(m.status === "DRAFT" ? "warning" : "success").pill)}>{m.status === "DRAFT" ? "Draft" : "Sent"}</span>
+                  <span className={cn("rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(m.status === "DRAFT" ? "warning" : "success").pill)}>{m.status === "DRAFT" ? "Draft" : "Sent"}</span>
                   <span className="min-w-0 flex-1 truncate text-sm">{m.subject}</span>
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     {m.party?.name ?? m.toEmails[0] ?? "no recipient"} · {format(new Date(m.sentAt ?? m.createdAt), "MMM d")}
                   </span>
                 </button>

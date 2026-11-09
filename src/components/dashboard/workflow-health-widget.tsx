@@ -50,7 +50,7 @@ export function WorkflowHealthWidget({ className, scope = "all" }: { className?:
             </span>
           )}
         </CardTitle>
-        <Link href="/reports#workflow" className="inline-flex items-center gap-1 text-xs text-blue-700 hover:underline">
+        <Link href="/reports#workflow" className="inline-flex items-center gap-1 text-xs text-tone-info-fg hover:underline">
           Report <ArrowRight className="size-3" />
         </Link>
       </CardHeader>
@@ -75,12 +75,12 @@ export function WorkflowHealthWidget({ className, scope = "all" }: { className?:
                     key={t.label}
                     href={t.href}
                     className={cn(
-                      "rounded-lg border px-3 py-2 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "rounded-lg border px-3 py-2 transition-colors hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       !quiet && t.tone !== "info" && toneClasses(t.tone).soft,
                     )}
                   >
                     <div className={cn("text-xl font-semibold", !quiet && t.tone !== "info" && toneClasses(t.tone).text)}>{t.value}</div>
-                    <div className="text-[11px] leading-tight text-muted-foreground">{t.label}</div>
+                    <div className="text-2xs leading-tight text-muted-foreground">{t.label}</div>
                   </Link>
                 );
               })}
@@ -89,7 +89,7 @@ export function WorkflowHealthWidget({ className, scope = "all" }: { className?:
               <ul className="divide-y rounded-lg border">
                 {data.attention.map((j) => (
                   <li key={j.jobId}>
-                    <Link href={`/jobs/${j.jobId}?tab=workflow`} className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50">
+                    <Link href={`/jobs/${j.jobId}?tab=workflow`} className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-surface-subtle">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{j.address ?? j.customer ?? j.title}</span>
                         <span className="block truncate text-xs text-muted-foreground">
@@ -97,13 +97,13 @@ export function WorkflowHealthWidget({ className, scope = "all" }: { className?:
                           {j.currentPhase ?? "Waiting"}
                         </span>
                       </span>
-                      <span className="hidden shrink-0 font-mono text-[11px] text-muted-foreground sm:inline">{j.jobNumber}</span>
+                      <span className="hidden shrink-0 font-mono text-2xs text-muted-foreground sm:inline">{j.jobNumber}</span>
                       <PermitStatusPill status={j.permitStatus} compact className="hidden sm:inline-flex" />
                       <span className="hidden w-24 items-center gap-2 md:flex">
                         <Progress value={j.percentComplete} className="h-1.5 flex-1" label={`${j.percentComplete}% complete`} />
-                        <span className="text-[11px] tabular-nums text-muted-foreground">{j.percentComplete}%</span>
+                        <span className="text-2xs tabular-nums text-muted-foreground">{j.percentComplete}%</span>
                       </span>
-                      <span className="flex shrink-0 gap-1 text-[11px] font-medium tabular-nums">
+                      <span className="flex shrink-0 gap-1 text-2xs font-medium tabular-nums">
                         {j.blocked > 0 && <span className={cn("rounded-md px-1.5 py-0.5", toneClasses("danger").pill)}>{j.blocked} blocked</span>}
                         {j.overdue > 0 && <span className={cn("rounded-md px-1.5 py-0.5", toneClasses("warning").pill)}>{j.overdue} overdue</span>}
                         {j.unassigned > 0 && <span className={cn("rounded-md px-1.5 py-0.5", toneClasses("neutral").pill)}>{j.unassigned} unassigned</span>}

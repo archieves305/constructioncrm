@@ -155,7 +155,7 @@ function permitTitle(type: string | null, number: string | null): string {
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-2xs uppercase tracking-wide text-muted-foreground">{label}</dt>
       <dd className="truncate text-sm">{children}</dd>
     </div>
   );

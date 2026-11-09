@@ -290,7 +290,7 @@ export function LeadEstimatesPanel({
                       </p>
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-bold text-emerald-700">
+                      <div className="text-xl font-bold text-tone-success-fg">
                         {money(Number(est.totalPrice))}
                       </div>
                     </div>

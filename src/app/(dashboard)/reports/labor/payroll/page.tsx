@@ -232,7 +232,7 @@ export default function PayrollPage() {
                     {row.name}
                     {row.zeroRate && (
                       <span title="Has days with a $0 rate">
-                        <TriangleAlert className="ml-1 inline h-4 w-4 text-amber-600" />
+                        <TriangleAlert className="ml-1 inline h-4 w-4 text-tone-warning-fg" />
                       </span>
                     )}
                   </TableCell>
@@ -250,7 +250,7 @@ export default function PayrollPage() {
                   <TableCell>
                     {row.payment ? (
                       <div className="flex items-center gap-2">
-                        <Badge className="bg-green-100 text-green-800">
+                        <Badge className="bg-tone-success-soft text-tone-success-fg">
                           Paid {format(new Date(row.payment.paidAt), "MMM d")}
                         </Badge>
                         <span className="text-muted-foreground text-xs">
@@ -279,7 +279,7 @@ export default function PayrollPage() {
                         )}
                       </div>
                     ) : row.unapprovedDates.length > 0 ? (
-                      <span className="flex items-center gap-1 text-sm text-amber-700">
+                      <span className="flex items-center gap-1 text-sm text-tone-warning-fg">
                         <TriangleAlert className="h-4 w-4" />
                         Approve {row.unapprovedDates.length} day
                         {row.unapprovedDates.length === 1 ? "" : "s"} first
@@ -316,7 +316,7 @@ export default function PayrollPage() {
           </DialogHeader>
           {payFor && (
             <div className="space-y-4">
-              <div className="rounded-md bg-gray-50 p-3 text-sm">
+              <div className="rounded-md bg-surface-subtle p-3 text-sm">
                 <div className="flex justify-between font-medium">
                   <span>
                     {payFor.totalHours}h ({payFor.regularHours} reg

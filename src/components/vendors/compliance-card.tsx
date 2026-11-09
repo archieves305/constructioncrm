@@ -23,11 +23,11 @@ const STATUS_LABEL: Record<ComplianceStatus, string> = {
   not_recorded: "Not recorded",
 };
 const STATUS_TONE: Record<ComplianceStatus, string> = {
-  ok: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  expiring: "bg-amber-50 text-amber-800 border-amber-200",
-  expired: "bg-red-50 text-red-700 border-red-200",
-  missing: "bg-red-50 text-red-700 border-red-200",
-  not_recorded: "bg-gray-50 text-gray-600 border-gray-200",
+  ok: "bg-tone-success-soft text-tone-success-fg border-tone-success-line",
+  expiring: "bg-tone-warning-soft text-tone-warning-fg border-tone-warning-line",
+  expired: "bg-tone-danger-soft text-tone-danger-fg border-tone-danger-line",
+  missing: "bg-tone-danger-soft text-tone-danger-fg border-tone-danger-line",
+  not_recorded: "bg-surface-subtle text-fg-secondary border-border",
 };
 
 /** A pinned day ("2026-11-04T12:00Z") printed as its own date, whatever the browser's zone. */
@@ -109,12 +109,12 @@ export function ComplianceCard({
                 </div>
                 <div className="text-xs text-muted-foreground">{when(r)}</div>
                 {canManage && (
-                  <button type="button" className="mt-1 text-xs font-medium text-blue-700 hover:underline" onClick={() => setAdding(REQUIREMENT_TYPES[r.key][0])}>
+                  <button type="button" className="mt-1 text-xs font-medium text-tone-info-fg hover:underline" onClick={() => setAdding(REQUIREMENT_TYPES[r.key][0])}>
                     {r.docId ? "Add a newer one" : "Add"}
                   </button>
                 )}
               </div>
-              <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium", STATUS_TONE[r.status])}>{STATUS_LABEL[r.status]}</span>
+              <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-2xs font-medium", STATUS_TONE[r.status])}>{STATUS_LABEL[r.status]}</span>
             </div>
           ))}
         </div>
@@ -148,7 +148,7 @@ export function ComplianceCard({
                       href={`/api/vendors/${vendorId}/documents/${d.id}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex max-w-[12rem] items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
+                      className="inline-flex max-w-[12rem] items-center gap-1 text-xs font-medium text-tone-info-fg hover:underline"
                       title={d.fileName}
                     >
                       <Paperclip className="size-3 shrink-0" />

@@ -176,7 +176,7 @@ export default function JobCostReconciliationPage() {
                             <Link href={`/jobs/${p.jobId}?tab=money&sub=expenses`} className="text-xs font-medium hover:underline">
                               {p.jobAddress ?? p.jobNumber}
                             </Link>
-                            {p.jobAddress && <span className="ml-1 font-mono text-[10px] text-muted-foreground">{p.jobNumber}</span>}
+                            {p.jobAddress && <span className="ml-1 font-mono text-3xs text-muted-foreground">{p.jobNumber}</span>}
                             <div className="max-w-[160px] truncate text-xs text-muted-foreground" title={p.jobTitle}>
                               {p.jobTitle}
                             </div>
@@ -190,9 +190,9 @@ export default function JobCostReconciliationPage() {
                           </TableCell>
                           <TableCell>
                             {p.exact ? (
-                              <Badge className="text-[10px]">same day</Badge>
+                              <Badge className="text-3xs">same day</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[10px]">
+                              <Badge variant="outline" className="text-3xs">
                                 {p.gapDays}d apart
                               </Badge>
                             )}
@@ -261,7 +261,7 @@ export default function JobCostReconciliationPage() {
                       <TableRow key={d.id}>
                         <TableCell className="text-xs text-muted-foreground">{format(new Date(d.decidedAt), "MMM d, yyyy HH:mm")}</TableCell>
                         <TableCell>
-                          <Badge variant={d.decision === "DUPLICATE" ? "destructive" : "outline"} className="text-[10px]">
+                          <Badge variant={d.decision === "DUPLICATE" ? "destructive" : "outline"} className="text-3xs">
                             {d.decision === "DUPLICATE" ? "Duplicate removed" : "Kept both"}
                           </Badge>
                         </TableCell>
@@ -342,7 +342,7 @@ function AllocatorSection({ a }: { a: Allocator }) {
           <div>
             <div className="mb-1 flex items-center gap-2 text-sm font-medium">
               Posted by cc-allocator, missing here
-              <Badge variant="destructive" className="text-[10px]">{a.totals.missing.count} · {money(a.totals.missing.amount)}</Badge>
+              <Badge variant="destructive" className="text-3xs">{a.totals.missing.count} · {money(a.totals.missing.amount)}</Badge>
             </div>
             <p className="mb-2 text-xs text-muted-foreground">cc-allocator holds a CRM expense id for these, so it will never retry. They were deleted in the CRM after posting: re-enter by hand if that was a mistake, or acknowledge it if the deletion was deliberate.</p>
             <AllocatorTable rows={a.missingInCrm} action={(r) => acknowledge(r.externalId)} />
@@ -353,7 +353,7 @@ function AllocatorSection({ a }: { a: Allocator }) {
           <div>
             <button type="button" className="mb-1 flex items-center gap-2 text-sm font-medium hover:underline" onClick={() => setShowAcked((v) => !v)}>
               Acknowledged as deliberately deleted
-              <Badge variant="outline" className="text-[10px]">{a.totals.acknowledged.count} · {money(a.totals.acknowledged.amount)}</Badge>
+              <Badge variant="outline" className="text-3xs">{a.totals.acknowledged.count} · {money(a.totals.acknowledged.amount)}</Badge>
               <span className="text-xs font-normal text-muted-foreground">{showAcked ? "hide" : "show"}</span>
             </button>
             {showAcked && (
@@ -370,7 +370,7 @@ function AllocatorSection({ a }: { a: Allocator }) {
           <div>
             <div className="mb-1 flex items-center gap-2 text-sm font-medium">
               Linked to a job, never posted
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-3xs">
                 {a.totals.neverPosted.count} · {money(a.totals.neverPosted.amount)}
                 {a.totals.neverPosted.credits.count > 0 ? ` (incl. ${a.totals.neverPosted.credits.count} credits, ${money(a.totals.neverPosted.credits.amount)})` : ""}
               </Badge>
@@ -384,7 +384,7 @@ function AllocatorSection({ a }: { a: Allocator }) {
           <div>
             <div className="mb-1 flex items-center gap-2 text-sm font-medium">
               Held for review here
-              <Badge variant="outline" className="text-[10px]">{a.totals.held.count} · {money(a.totals.held.amount)}</Badge>
+              <Badge variant="outline" className="text-3xs">{a.totals.held.count} · {money(a.totals.held.amount)}</Badge>
             </div>
             <p className="mb-2 text-xs text-muted-foreground">Arrived as Pending because a typed-in charge matched. Approve or remove the twin from the job&apos;s Expenses tab.</p>
             <AllocatorTable rows={a.heldPending} />
@@ -434,7 +434,7 @@ function AllocatorTable({
               </TableCell>
               <TableCell className="max-w-[220px] truncate text-sm" title={r.payee ?? ""}>{r.payee ?? "—"}</TableCell>
               <TableCell className="text-xs">{day(r.date)}</TableCell>
-              <TableCell className={`text-right tabular-nums ${r.amount < 0 ? "text-green-700" : ""}`}>{money(r.amount)}</TableCell>
+              <TableCell className={`text-right tabular-nums ${r.amount < 0 ? "text-tone-success-fg" : ""}`}>{money(r.amount)}</TableCell>
               <TableCell className="text-xs">{r.source === "bank" ? "bank feed" : "card feed"}</TableCell>
               <TableCell className="text-xs">
                 {statusText ? statusText(r) : showReason && r.reason ? NEVER_POSTED_LABEL[r.reason] : r.status.toLowerCase().replace(/_/g, " ")}
@@ -457,7 +457,7 @@ function SideCell({ s, note }: { s: Side; note: string }) {
         {day(s.incurredDate)} · {s.type.toLowerCase().replace("_", " ")}
         {s.billable ? " · billable" : ""}
       </div>
-      <div className="text-[11px] text-muted-foreground">{note}</div>
+      <div className="text-2xs text-muted-foreground">{note}</div>
     </div>
   );
 }
@@ -498,14 +498,14 @@ function CrewPaymentsSection({ crew }: { crew: Crew }) {
       <Link href={`/jobs/${e.jobId}?tab=money&sub=expenses`} className="text-xs font-medium hover:underline">
         {e.jobAddress ?? e.jobNumber}
       </Link>
-      {e.jobAddress && e.jobNumber && <span className="ml-1 font-mono text-[10px] text-muted-foreground">{e.jobNumber}</span>}
+      {e.jobAddress && e.jobNumber && <span className="ml-1 font-mono text-3xs text-muted-foreground">{e.jobNumber}</span>}
     </>
   );
   const charge = (e: CrewExpense) => (
     <div className="min-w-0">
       <div className="font-medium tabular-nums">{money(e.amount)} · {day(e.incurredDate)}</div>
       <div className="max-w-[260px] truncate text-xs text-muted-foreground" title={e.vendor ?? ""}>{e.vendor ?? "no payee"}</div>
-      <div className="text-[10px] text-muted-foreground">{e.fromBank ? "bank / card feed" : "typed in"}{e.status === "PENDING" ? " · held for review" : ""}</div>
+      <div className="text-3xs text-muted-foreground">{e.fromBank ? "bank / card feed" : "typed in"}{e.status === "PENDING" ? " · held for review" : ""}</div>
     </div>
   );
   const separate = (e: CrewExpense) => (
@@ -518,7 +518,7 @@ function CrewPaymentsSection({ crew }: { crew: Crew }) {
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <HardHat className="size-4 text-muted-foreground" /> Crew payments
-          {total > 0 && <Badge variant="secondary" className="text-[10px]">{total}</Badge>}
+          {total > 0 && <Badge variant="secondary" className="text-3xs">{total}</Badge>}
         </CardTitle>
         <p className="text-xs text-muted-foreground">
           A labor contract counts in full from the day it is signed, so a payment to the crew must be recorded on the contract — not also as an expense.
@@ -551,7 +551,7 @@ function CrewPaymentsSection({ crew }: { crew: Crew }) {
                       <div className="font-medium tabular-nums">{money(t.payment.amount)} · {day(t.payment.paidDate)}</div>
                       <div className="text-xs text-muted-foreground">{t.payment.crew}{t.gapDays ? ` · ${t.gapDays}d apart` : " · same day"}</div>
                       {Math.abs(t.difference) >= 0.01 && (
-                        <div className="text-[10px] text-tone-warning-fg">
+                        <div className="text-3xs text-tone-warning-fg">
                           {t.difference > 0 ? `Bank sent ${money(t.difference)} more — file that part where it belongs` : `Bank sent ${money(-t.difference)} less`}
                         </div>
                       )}

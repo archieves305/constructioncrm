@@ -152,7 +152,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
               onChange={(e) => setContractAmount(e.target.value)}
               disabled={Boolean(signedContract)}
             />
-            <p className="mt-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 text-2xs text-muted-foreground">
               {signedContract ? (
                 <>
                   Set by signed contract{" "}
@@ -178,7 +178,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
               onChange={(e) => setLaborCost(e.target.value)}
               disabled={laborFromCrews}
             />
-            <p className="mt-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 text-2xs text-muted-foreground">
               {laborFromCrews
                 ? "Set per crew in the Labor tab."
                 : "Total cost = Labor contract + Expenses. No client billing."}
@@ -197,7 +197,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
                 disabled={laborFromCrews}
               />
               {laborFromCrews && (
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-2xs text-muted-foreground">
                   Set per crew in the Labor tab.
                 </p>
               )}
@@ -235,7 +235,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
                 />
               </div>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               Contract = Labor + Expenses + Margin. Recalculates as you add
               expenses.
             </p>

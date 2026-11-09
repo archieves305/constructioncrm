@@ -26,7 +26,7 @@ export default function DashboardError({ error, reset }: { error: Error & { dige
         }
       >
         {error.message || "Something went wrong rendering this page."}
-        {error.digest && <span className="mt-1 block font-mono text-[11px] text-muted-foreground">ref {error.digest}</span>}
+        {error.digest && <span className="mt-1 block font-mono text-2xs text-muted-foreground">ref {error.digest}</span>}
       </Callout>
     </div>
   );

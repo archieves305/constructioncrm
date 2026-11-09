@@ -355,7 +355,7 @@ export function TaskDetailSheet({
 
             <div className="space-y-5 px-6 py-5">
               {!editing && task.description && (
-                <p className="whitespace-pre-wrap rounded-md border-l-2 border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                <p className="whitespace-pre-wrap rounded-md border-l-2 border-border-strong bg-surface-subtle px-3 py-2 text-sm text-fg-secondary">
                   {task.description}
                 </p>
               )}
@@ -370,7 +370,7 @@ export function TaskDetailSheet({
               )}
 
               {task.status === "BLOCKED" && task.blockedReason && (
-                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <p className="rounded-md border border-tone-warning-line bg-tone-warning-soft px-3 py-2 text-sm text-tone-warning-fg">
                   <strong>Blocked:</strong> {task.blockedReason}
                 </p>
               )}
@@ -453,8 +453,8 @@ export function TaskDetailSheet({
               </div>
 
               {nudging && (
-                <div className="rounded-md border border-violet-200 bg-violet-50 p-3">
-                  <Label className="text-xs text-violet-900">
+                <div className="rounded-md border border-stage-0/40 bg-stage-0-soft p-3">
+                  <Label className="text-xs text-stage-0-fg">
                     Add a note for {task.assignedTo?.firstName ?? "them"} (optional)
                   </Label>
                   <Textarea
@@ -497,14 +497,14 @@ export function TaskDetailSheet({
                         Clear
                       </button>
                     )}
-                    <span className="text-[11px] text-muted-foreground">arrives with that morning&apos;s digest</span>
+                    <span className="text-2xs text-muted-foreground">arrives with that morning&apos;s digest</span>
                   </div>
                 </div>
               )}
 
               {askingBlockReason && (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
-                  <Label className="text-xs text-amber-900">What is it waiting on?</Label>
+                <div className="rounded-md border border-tone-warning-line bg-tone-warning-soft p-3">
+                  <Label className="text-xs text-tone-warning-fg">What is it waiting on?</Label>
                   <Input
                     autoFocus
                     className="mt-1 bg-white"
@@ -546,13 +546,13 @@ export function TaskDetailSheet({
                   {task.watchers.map((w) => (
                     <span
                       key={w.id}
-                      className="inline-flex items-center gap-1 rounded-full border bg-gray-50 py-0.5 pl-2.5 pr-1 text-xs"
+                      className="inline-flex items-center gap-1 rounded-full border bg-surface-subtle py-0.5 pl-2.5 pr-1 text-xs"
                     >
                       {w.user.firstName} {w.user.lastName}
                       <button
                         type="button"
                         aria-label={`Remove ${w.user.firstName} as a watcher`}
-                        className="rounded-full p-0.5 hover:bg-gray-200"
+                        className="rounded-full p-0.5 hover:bg-surface-strong"
                         onClick={() => removeWatcher.mutate(w.user.id)}
                       >
                         <X className="h-3 w-3" />
@@ -577,7 +577,7 @@ export function TaskDetailSheet({
                   ) : (
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-xs text-muted-foreground hover:bg-gray-50"
+                      className="inline-flex items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-xs text-muted-foreground hover:bg-surface-subtle"
                       onClick={() => setAddingWatcher(true)}
                     >
                       <Plus className="h-3 w-3" /> Add
@@ -587,7 +587,7 @@ export function TaskDetailSheet({
               </div>
             </div>
 
-            <div className="border-t bg-gray-50/60 px-6 py-5">
+            <div className="border-t bg-surface-subtle/60 px-6 py-5">
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Activity
               </h3>
@@ -654,21 +654,21 @@ function QuickLinks({ task }: { task: TaskDetail }) {
     );
   } else if (task.job) {
     links.push(
-      <Link key="job" href={`/jobs/${task.job.id}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-gray-50">
+      <Link key="job" href={`/jobs/${task.job.id}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-surface-subtle">
         <Briefcase className="size-3.5" /> Open job
       </Link>,
     );
   }
   if (lead && address) {
     links.push(
-      <a key="maps" href={mapsHref(lead)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-gray-50">
+      <a key="maps" href={mapsHref(lead)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-surface-subtle">
         <MapPin className="size-3.5" /> Directions
       </a>,
     );
   }
   if (isDialable(phone)) {
     links.push(
-      <a key="tel" href={telHref(phone)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-gray-50">
+      <a key="tel" href={telHref(phone)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-surface-subtle">
         <Phone className="size-3.5" /> Call {lead?.fullName?.split(" ")[0] ?? ""}
       </a>,
     );
@@ -686,7 +686,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="font-medium text-gray-800">{value}</dd>
+      <dd className="font-medium text-foreground">{value}</dd>
     </div>
   );
 }

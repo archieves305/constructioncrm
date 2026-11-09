@@ -437,7 +437,7 @@ export const EstimatesPanel = forwardRef<
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-xl font-bold text-emerald-700">
+                    <div className="text-xl font-bold text-tone-success-fg">
                       {money(Number(est.totalPrice))}
                     </div>
                   </div>
@@ -542,7 +542,7 @@ export const EstimatesPanel = forwardRef<
                       }))
                     }
                   />
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-3xs text-muted-foreground">
                     Appears on the client proposal under &ldquo;Roofing
                     material selected&rdquo;.
                   </p>
@@ -1063,7 +1063,7 @@ function PercentField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
-      {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-3xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -1074,7 +1074,7 @@ function BreakdownSummary({
   breakdown: ReturnType<typeof calculateEstimate>;
 }) {
   return (
-    <div className="rounded border bg-slate-50 p-3 text-sm">
+    <div className="rounded border bg-surface-subtle p-3 text-sm">
       <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
         Live breakdown
       </h3>
@@ -1121,7 +1121,7 @@ function BreakdownSummary({
       </div>
       <div className="mt-3 flex items-center justify-between border-t pt-2">
         <span className="font-semibold">Total client price</span>
-        <span className="text-xl font-bold text-emerald-700">
+        <span className="text-xl font-bold text-tone-success-fg">
           {money(breakdown.totalPrice)}
         </span>
       </div>

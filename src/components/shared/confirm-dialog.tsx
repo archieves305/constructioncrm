@@ -74,7 +74,7 @@ export function ConfirmDialog({
               {reasonLabel}
             </Label>
             <Textarea id="confirm-reason" rows={3} className="mt-1" autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder={reasonPlaceholder} />
-            {min > 1 && <p className="mt-0.5 text-[11px] text-muted-foreground">At least {min} characters.</p>}
+            {min > 1 && <p className="mt-0.5 text-2xs text-muted-foreground">At least {min} characters.</p>}
           </div>
         )}
         {checkboxLabel && (

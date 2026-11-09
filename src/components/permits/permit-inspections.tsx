@@ -102,7 +102,7 @@ export function PermitInspections({ jobId, permitId, inspections, steps, canEdit
       {inspections.map((i) => (
         <div key={i.id} className="rounded-md border bg-white text-sm">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2">
-            <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(RESULT_TONE[i.result] ?? "neutral").pill)}>{RESULT_LABEL[i.result] ?? i.result}</span>
+            <span className={cn("rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(RESULT_TONE[i.result] ?? "neutral").pill)}>{RESULT_LABEL[i.result] ?? i.result}</span>
             <span className="font-medium">{typeLabel(i.type)}</span>
             <span className="text-xs text-muted-foreground">
               {i.result === "SCHEDULED" || !i.completedAt ? formatWhen(i.scheduledFor) : formatDay(i.completedAt)}
@@ -198,23 +198,23 @@ function ScheduleForm({ jobId, permitId, onDone }: { jobId: string; permitId: st
     <div className="space-y-2 rounded-md border bg-white p-3">
       <div className="grid gap-2 sm:grid-cols-3">
         <div>
-          <Label className="text-[11px]">Type</Label>
+          <Label className="text-2xs">Type</Label>
           <TypeSelect value={form.type} onChange={(v) => set("type", v)} />
         </div>
         <div>
-          <Label className="text-[11px]">Date</Label>
+          <Label className="text-2xs">Date</Label>
           <Input type="date" className="h-8" value={form.day} onChange={(e) => set("day", e.target.value)} />
         </div>
         <div>
-          <Label className="text-[11px]">Time (optional)</Label>
+          <Label className="text-2xs">Time (optional)</Label>
           <Input type="time" className="h-8" value={form.time} disabled={!form.day} onChange={(e) => set("time", e.target.value)} />
         </div>
         <div className="sm:col-span-3">
-          <Label className="text-[11px]">Inspector</Label>
+          <Label className="text-2xs">Inspector</Label>
           <Input className="h-8" value={form.inspectorName} onChange={(e) => set("inspectorName", e.target.value)} />
         </div>
         <div className="sm:col-span-3">
-          <Label className="text-[11px]">Notes</Label>
+          <Label className="text-2xs">Notes</Label>
           <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
         </div>
       </div>
@@ -244,26 +244,26 @@ function EditForm({ jobId, insp, onDone, onCorrect, onCancelInspection, onDelete
     onError: (e: Error) => toast.error(e.message),
   });
   return (
-    <div className="space-y-2 border-t bg-gray-50 px-3 py-3">
+    <div className="space-y-2 border-t bg-surface-subtle px-3 py-3">
       <div className="grid gap-2 sm:grid-cols-3">
         <div>
-          <Label className="text-[11px]">Type</Label>
+          <Label className="text-2xs">Type</Label>
           <TypeSelect value={form.type} onChange={(v) => set("type", v)} />
         </div>
         <div>
-          <Label className="text-[11px]">Scheduled date</Label>
+          <Label className="text-2xs">Scheduled date</Label>
           <Input type="date" className="h-8" value={form.day} onChange={(e) => set("day", e.target.value)} />
         </div>
         <div>
-          <Label className="text-[11px]">Time (optional)</Label>
+          <Label className="text-2xs">Time (optional)</Label>
           <Input type="time" className="h-8" value={form.time} disabled={!form.day} onChange={(e) => set("time", e.target.value)} />
         </div>
         <div className="sm:col-span-3">
-          <Label className="text-[11px]">Inspector</Label>
+          <Label className="text-2xs">Inspector</Label>
           <Input className="h-8" value={form.inspectorName} onChange={(e) => set("inspectorName", e.target.value)} />
         </div>
         <div className="sm:col-span-3">
-          <Label className="text-[11px]">Notes</Label>
+          <Label className="text-2xs">Notes</Label>
           <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
         </div>
       </div>

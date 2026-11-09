@@ -64,7 +64,7 @@ export function PermitsPanel({ data, onSetPermit }: { data: CaseData; onSetPermi
             <ul className="space-y-2">
               {data.job.permits.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-lg border bg-white p-3 text-sm">
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline" className="text-3xs">
                     {p.status}
                   </Badge>
                   <span className="font-medium">{p.permitNumber ?? "No number yet"}</span>
@@ -106,10 +106,10 @@ export function PhotosPanel({ data }: { data: CaseData }) {
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {photos.map((f, i) => (
-              <FileLink key={f.id} fileId={f.id} files={photos} index={i} className="group relative aspect-square overflow-hidden rounded-md border bg-gray-50">
+              <FileLink key={f.id} fileId={f.id} files={photos} index={i} className="group relative aspect-square overflow-hidden rounded-md border bg-surface-subtle">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/api/files/${f.id}`} alt={f.fileName} className="size-full object-cover transition-transform group-hover:scale-105" loading="lazy" />
-                <span className="absolute inset-x-0 bottom-0 truncate bg-black/50 px-1.5 py-0.5 text-[10px] text-white">
+                <span className="absolute inset-x-0 bottom-0 truncate bg-black/50 px-1.5 py-0.5 text-3xs text-white">
                   {f.violationItem ? `Item ${f.violationItem.itemNumber} · ` : ""}
                   {format(new Date(f.createdAt), "MMM d")}
                 </span>
@@ -187,7 +187,7 @@ export function CommunicationsPanel({ data }: { data: CaseData }) {
           {rows.map((c) => (
             <li key={c.id} className="rounded-lg border bg-white p-3 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-3xs">
                   {c.communicationType} {c.direction === "OUTBOUND" ? "→" : "←"} {c.direction === "OUTBOUND" ? c.toValue : c.fromValue}
                 </Badge>
                 <span className="ml-auto text-xs text-muted-foreground">
@@ -237,10 +237,10 @@ export function NotesPanel({ data, currentUserId }: { data: CaseData; currentUse
                 </span>
                 {(n.actor?.id === currentUserId || isManager) && (
                   <span className="ml-auto flex gap-1">
-                    <button type="button" className="rounded p-1 text-muted-foreground hover:bg-gray-100" title="Edit" onClick={() => { setEditing(n.id); setDraft(n.body ?? ""); }}>
+                    <button type="button" className="rounded p-1 text-muted-foreground hover:bg-surface-muted" title="Edit" onClick={() => { setEditing(n.id); setDraft(n.body ?? ""); }}>
                       <Pencil className="size-3.5" />
                     </button>
-                    <button type="button" className="rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-destructive" title="Delete" onClick={() => { setRemoving(n.id); setTimeout(() => remove.mutate({} as never, { onSettled: () => setRemoving(null) }), 0); }}>
+                    <button type="button" className="rounded p-1 text-muted-foreground hover:bg-tone-danger-soft hover:text-destructive" title="Delete" onClick={() => { setRemoving(n.id); setTimeout(() => remove.mutate({} as never, { onSettled: () => setRemoving(null) }), 0); }}>
                       <Trash2 className="size-3.5" />
                     </button>
                   </span>
@@ -295,7 +295,7 @@ export function ActivityPanel({ data }: { data: CaseData }) {
         <ol className="relative space-y-3 border-l pl-4">
           {rows.map((r) => (
             <li key={r.id} className="text-sm">
-              <span className={`absolute -left-1.5 mt-1.5 size-3 rounded-full border-2 border-white ${r.audit ? "bg-gray-300" : toneClasses("info").dot}`} />
+              <span className={`absolute -left-1.5 mt-1.5 size-3 rounded-full border-2 border-white ${r.audit ? "bg-surface-emphasis" : toneClasses("info").dot}`} />
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{r.label}</span>
                 <span className="text-xs text-muted-foreground">
@@ -303,7 +303,7 @@ export function ActivityPanel({ data }: { data: CaseData }) {
                   {r.who ? ` · ${r.who.firstName} ${r.who.lastName}` : ""}
                 </span>
               </div>
-              {r.body && <p className={`mt-0.5 text-xs ${r.audit ? "break-all font-mono text-muted-foreground" : "text-gray-700"}`}>{r.body}</p>}
+              {r.body && <p className={`mt-0.5 text-xs ${r.audit ? "break-all font-mono text-muted-foreground" : "text-fg-secondary"}`}>{r.body}</p>}
             </li>
           ))}
         </ol>

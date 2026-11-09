@@ -320,7 +320,7 @@ export default function JobDetailPage() {
                 <DollarSign className="h-4 w-4" /> Total job cost
               </div>
               <div className="text-2xl font-bold">${Number(job.contractAmount).toLocaleString()}</div>
-              <div className="text-[11px] text-muted-foreground mt-1">Labor + all expenses spent</div>
+              <div className="text-2xs text-muted-foreground mt-1">Labor + all expenses spent</div>
             </CardContent>
           </Card>
           {totalBudget > 0 && (
@@ -333,7 +333,7 @@ export default function JobDetailPage() {
                 {(() => {
                   const v = totalBudget - Number(job.contractAmount);
                   return (
-                    <div className={`text-[11px] mt-1 font-medium ${v >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    <div className={`text-2xs mt-1 font-medium ${v >= 0 ? "text-tone-success-fg" : "text-tone-danger-fg"}`}>
                       ${Math.abs(v).toLocaleString()} {v >= 0 ? "under budget" : "over budget"}
                     </div>
                   );
@@ -493,7 +493,7 @@ export default function JobDetailPage() {
               : group === "field" ? (FIELD.some((f) => f.value === sub) ? sub : FIELD[0].value)
               : group;
             const count = (n: number, tone?: "danger") => (
-              <span className={`ml-1 rounded-full px-1.5 text-[11px] tabular-nums ${tone === "danger" ? "bg-tone-danger-soft text-tone-danger-fg" : "bg-gray-100 text-gray-600"}`}>{n}</span>
+              <span className={`ml-1 rounded-full px-1.5 text-2xs tabular-nums ${tone === "danger" ? "bg-tone-danger-soft text-tone-danger-fg" : "bg-surface-muted text-fg-secondary"}`}>{n}</span>
             );
             return (
           <Tabs value={panel} onValueChange={(v) => { if (v) setTab(group, group === "money" || group === "field" ? String(v) : undefined); }}>
@@ -529,7 +529,7 @@ export default function JobDetailPage() {
                     type="button"
                     onClick={() => setTab(g.value, g.value === "money" ? (MONEY.some((m) => m.value === sub) ? sub : moneyDefault) : g.value === "field" ? (FIELD.some((f) => f.value === sub) ? sub : FIELD[0].value) : undefined)}
                     className={`-mb-px inline-flex h-9 items-center border-b-2 px-3 text-sm font-medium transition-colors ${
-                      group === g.value ? "border-brand text-gray-900" : "border-transparent text-gray-500 hover:text-gray-900"
+                      group === g.value ? "border-brand text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     {g.label}

@@ -164,9 +164,9 @@ function PermitCard({ permit: p, open, onToggle, children }: { permit: PermitRec
             <span className="text-sm font-medium">{p.permitType || "Permit"}</span>
             <span className="text-xs text-muted-foreground">{p.municipality}</span>
             {p.permitNumber && <span className="font-mono text-xs">#{p.permitNumber}</span>}
-            <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(PERMIT_STATUS_TONE[p.status] ?? "neutral").pill)}>{PERMIT_STATUS_LABEL[p.status] ?? p.status}</span>
-            {notice && <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(notice.tone).pill)}>{notice.text}</span>}
-            {failed > 0 && p.status !== "FINAL" && <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses("danger").pill)}>{failed} failed inspection{failed === 1 ? "" : "s"}</span>}
+            <span className={cn("rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(PERMIT_STATUS_TONE[p.status] ?? "neutral").pill)}>{PERMIT_STATUS_LABEL[p.status] ?? p.status}</span>
+            {notice && <span className={cn("rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(notice.tone).pill)}>{notice.text}</span>}
+            {failed > 0 && p.status !== "FINAL" && <span className={cn("rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses("danger").pill)}>{failed} failed inspection{failed === 1 ? "" : "s"}</span>}
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {facts.join(" · ")}
@@ -219,7 +219,7 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
       <CardContent className="space-y-3 pt-0">
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <Label className="text-[11px]">Jurisdiction *</Label>
+            <Label className="text-2xs">Jurisdiction *</Label>
             <JurisdictionPicker
               jurisdictions={jurisdictions}
               jurisdictionId={form.jurisdictionId || null}
@@ -229,7 +229,7 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
             />
           </div>
           <div>
-            <Label className="text-[11px]">Permit type</Label>
+            <Label className="text-2xs">Permit type</Label>
             <Select
               items={permitTypes.map((t) => ({ value: t.key, label: t.name }))}
               value={form.permitTypeKey || undefined}
@@ -248,15 +248,15 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
             </Select>
           </div>
           <div>
-            <Label className="text-[11px]">Application #</Label>
+            <Label className="text-2xs">Application #</Label>
             <Input value={form.applicationNumber} onChange={(e) => set("applicationNumber", e.target.value)} />
           </div>
           <div>
-            <Label className="text-[11px]">Permit # (once issued)</Label>
+            <Label className="text-2xs">Permit # (once issued)</Label>
             <Input value={form.permitNumber} onChange={(e) => set("permitNumber", e.target.value)} />
           </div>
           <div>
-            <Label className="text-[11px]">Status</Label>
+            <Label className="text-2xs">Status</Label>
             <Select value={form.status} onValueChange={(v: string | null) => v && set("status", v)}>
               <SelectTrigger>
                 <SelectValue>{(v: string) => PERMIT_STATUS_LABEL[v] ?? v}</SelectValue>
@@ -272,24 +272,24 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
           </div>
           {!preparing && (
             <div>
-              <Label className="text-[11px]">Submitted</Label>
+              <Label className="text-2xs">Submitted</Label>
               <Input type="date" value={form.submittedDate} onChange={(e) => set("submittedDate", e.target.value)} />
             </div>
           )}
           <div>
-            <Label className="text-[11px]">Expected approval</Label>
+            <Label className="text-2xs">Expected approval</Label>
             <Input type="date" value={form.expectedApprovalDate} onChange={(e) => set("expectedApprovalDate", e.target.value)} />
           </div>
           <div>
-            <Label className="text-[11px]">Expires</Label>
+            <Label className="text-2xs">Expires</Label>
             <Input type="date" value={form.expirationDate} onChange={(e) => set("expirationDate", e.target.value)} />
           </div>
           <div>
-            <Label className="text-[11px]">Permit fee quoted</Label>
+            <Label className="text-2xs">Permit fee quoted</Label>
             <Input value={form.permitFee} inputMode="decimal" placeholder="0.00" onChange={(e) => set("permitFee", e.target.value)} />
           </div>
           <div className="sm:col-span-2">
-            <Label className="text-[11px]">Coordinator</Label>
+            <Label className="text-2xs">Coordinator</Label>
             <Select value={form.assignedUserId || "unassigned"} onValueChange={(v: string | null) => v && set("assignedUserId", v === "unassigned" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue>
@@ -310,7 +310,7 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
             </Select>
           </div>
           <div className="sm:col-span-2">
-            <Label className="text-[11px]">Notes</Label>
+            <Label className="text-2xs">Notes</Label>
             <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
           </div>
         </div>

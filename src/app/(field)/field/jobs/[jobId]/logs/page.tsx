@@ -40,9 +40,9 @@ type LogSummary = {
 };
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: "Draft", className: "bg-gray-100 text-gray-700" },
-  SUBMITTED: { label: "Submitted", className: "bg-amber-100 text-amber-800" },
-  APPROVED: { label: "Approved", className: "bg-green-100 text-green-800" },
+  DRAFT: { label: "Draft", className: "bg-surface-muted text-fg-secondary" },
+  SUBMITTED: { label: "Submitted", className: "bg-tone-warning-soft text-tone-warning-fg" },
+  APPROVED: { label: "Approved", className: "bg-tone-success-soft text-tone-success-fg" },
 };
 
 export default function FieldLogsListPage({
@@ -135,7 +135,7 @@ export default function FieldLogsListPage({
       <Card>
         <CardContent className="space-y-2 py-4">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <CalendarPlus className="h-4 w-4 text-blue-600" />
+            <CalendarPlus className="h-4 w-4 text-tone-info-fg" />
             Add or update a previous day
           </div>
           <p className="text-muted-foreground text-xs">
@@ -231,7 +231,7 @@ export default function FieldLogsListPage({
                       disabled={deleteLog.isPending}
                       aria-label="Delete log"
                     >
-                      <Trash2 className="h-4 w-4 text-red-500" />
+                      <Trash2 className="h-4 w-4 text-tone-danger-fg" />
                     </Button>
                   )}
                 </div>

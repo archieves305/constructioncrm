@@ -167,9 +167,9 @@ export default function ReportsPage() {
                   <div key={metric.label} className="flex items-center justify-between">
                     <span className="text-sm">{metric.label}</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-32 h-3 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="w-32 h-3 bg-surface-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-blue-500 rounded-full"
+                          className="h-full bg-tone-info rounded-full"
                           style={{ width: `${Math.min(Number(metric.value), 100)}%` }}
                         />
                       </div>

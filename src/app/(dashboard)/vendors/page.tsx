@@ -102,7 +102,7 @@ function Vendors() {
                 { value: "OTHER", label: "Other" },
               ]}
             />
-            <label className="inline-flex items-center gap-1.5 text-xs text-gray-700">
+            <label className="inline-flex items-center gap-1.5 text-xs text-fg-secondary">
               <input type="checkbox" checked={needs} onChange={(e) => url.set("needs", e.target.checked ? "1" : null)} />
               Needs documents
             </label>
@@ -192,7 +192,7 @@ function Directory({
             {vendors.map((v) => (
               <TableRow key={v.id}>
                 <TableCell>
-                  <Link href={`/vendors/${v.id}`} className="font-medium text-gray-900 hover:underline">{v.name}</Link>
+                  <Link href={`/vendors/${v.id}`} className="font-medium text-foreground hover:underline">{v.name}</Link>
                   {!v.isActive && <Badge variant="outline" className="ml-2">Inactive</Badge>}
                   {v.trade && <div className="text-xs text-muted-foreground">{v.trade}</div>}
                 </TableCell>

@@ -60,11 +60,11 @@ export function DayView({
         <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs text-muted-foreground">
           <span>Add at</span>
           {([8, 9, 10, 13, 15] as const).map((h) => (
-            <button key={h} type="button" onClick={() => onAddAt(day, h)} className="rounded-full border px-2 py-0.5 hover:bg-gray-50 hover:text-foreground">
+            <button key={h} type="button" onClick={() => onAddAt(day, h)} className="rounded-full border px-2 py-0.5 hover:bg-surface-subtle hover:text-foreground">
               {h > 12 ? `${h - 12}:00 PM` : `${h}:00 AM`}
             </button>
           ))}
-          <button type="button" onClick={() => onAddAt(day, null)} className="rounded-full border px-2 py-0.5 hover:bg-gray-50 hover:text-foreground">
+          <button type="button" onClick={() => onAddAt(day, null)} className="rounded-full border px-2 py-0.5 hover:bg-surface-subtle hover:text-foreground">
             All day
           </button>
         </div>

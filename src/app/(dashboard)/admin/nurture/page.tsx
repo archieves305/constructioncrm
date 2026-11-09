@@ -332,9 +332,9 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
                   <div key={c.id} className={`flex flex-wrap items-center gap-2 px-4 py-2.5 text-sm ${c.isActive ? "" : "opacity-60"}`}>
                     <span className="w-8 shrink-0 font-mono text-xs text-muted-foreground">{kind === "FOLLOW_UP" ? `#${c.step}` : i + 1}</span>
                     <span className="min-w-0 flex-1 truncate font-medium">{c.subject}</span>
-                    {c.category && <Badge variant="outline" className="text-[11px]">{c.category}</Badge>}
-                    {!c.isActive && <Badge variant="outline" className="text-[11px]">inactive</Badge>}
-                    {c.editedAt && <Badge variant="outline" className="text-[11px]">edited</Badge>}
+                    {c.category && <Badge variant="outline" className="text-2xs">{c.category}</Badge>}
+                    {!c.isActive && <Badge variant="outline" className="text-2xs">inactive</Badge>}
+                    {c.editedAt && <Badge variant="outline" className="text-2xs">edited</Badge>}
                     <span className="text-xs text-muted-foreground">sent {c.sentCount}</span>
                     <Button size="icon" variant="ghost" aria-label="Preview" onClick={() => previewIt.mutate(c)}>
                       <Eye className="size-4" />
@@ -416,7 +416,7 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
                 <Textarea rows={12} value={editing.body ?? ""} onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
                 <div className="mt-1 flex flex-wrap gap-1">
                   {TEMPLATE_VARIABLES.filter((v) => !v.startsWith("permit.") && !v.startsWith("inspection.")).map((v) => (
-                    <button key={v} type="button" className="rounded border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] hover:bg-accent" onClick={() => setEditing({ ...editing, body: `${editing.body ?? ""}{{${v}}}` })}>
+                    <button key={v} type="button" className="rounded border bg-muted/40 px-1.5 py-0.5 font-mono text-2xs hover:bg-accent" onClick={() => setEditing({ ...editing, body: `${editing.body ?? ""}{{${v}}}` })}>
                       {`{{${v}}}`}
                     </button>
                   ))}
@@ -516,7 +516,7 @@ function QueueTab({ isAdmin, timeZone }: { isAdmin: boolean; timeZone: string })
                         <span className="ml-1 text-muted-foreground">{p.email}</span>
                       </td>
                       <td className="px-3 py-1.5">
-                        <Badge variant="outline" className="text-[11px]">{p.kind}</Badge>
+                        <Badge variant="outline" className="text-2xs">{p.kind}</Badge>
                       </td>
                       <td className="px-3 py-1.5">{p.subject ?? <span className="text-muted-foreground">{p.reason}</span>}</td>
                       <td className="px-3 py-1.5 text-muted-foreground">{p.subject ? p.reason : ""}{p.rep ? ` · from ${p.rep}` : ""}</td>
@@ -558,7 +558,7 @@ function QueueTab({ isAdmin, timeZone }: { isAdmin: boolean; timeZone: string })
                       </Link>
                       <div className="text-xs text-muted-foreground">
                         {r.lead.email}
-                        {r.sharedEmail && <Badge variant="outline" className="ml-1 text-[10px]">shared address</Badge>}
+                        {r.sharedEmail && <Badge variant="outline" className="ml-1 text-3xs">shared address</Badge>}
                       </div>
                     </td>
                     <td className="px-3 py-2 text-xs">
@@ -566,8 +566,8 @@ function QueueTab({ isAdmin, timeZone }: { isAdmin: boolean; timeZone: string })
                       <div className="text-muted-foreground">{r.lead.assignedUser ? `${r.lead.assignedUser.firstName} ${r.lead.assignedUser.lastName}` : "Unassigned"}</div>
                     </td>
                     <td className="px-3 py-2">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${toneClasses(STATUS_TONE[r.status]).pill}`}>{r.status.toLowerCase()}</span>
-                      {(r.pausedReason || r.stoppedReason) && <div className="text-[11px] text-muted-foreground">{(r.pausedReason ?? r.stoppedReason)?.replace("_", " ")}</div>}
+                      <span className={`rounded-full px-2 py-0.5 text-2xs font-medium ${toneClasses(STATUS_TONE[r.status]).pill}`}>{r.status.toLowerCase()}</span>
+                      {(r.pausedReason || r.stoppedReason) && <div className="text-2xs text-muted-foreground">{(r.pausedReason ?? r.stoppedReason)?.replace("_", " ")}</div>}
                     </td>
                     <td className="px-3 py-2 text-xs">{r.status === "ACTIVE" ? `${when(r.nextFollowUpAt)} · step ${r.followUpStep + 1}` : "—"}</td>
                     <td className="px-3 py-2 text-xs">{r.status === "ACTIVE" ? when(r.nextNurtureAt) : "—"}</td>
@@ -635,8 +635,8 @@ function LogTab() {
                 <td className="px-3 py-2 text-xs">{r.kind === "FOLLOW_UP" ? "Follow-up" : "Nurture"}</td>
                 <td className="px-3 py-2">{r.subject || <span className="text-muted-foreground">—</span>}</td>
                 <td className="px-3 py-2">
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${toneClasses(r.status === "SENT" ? "success" : r.status === "FAILED" ? "danger" : "neutral").pill}`}>{r.status.toLowerCase()}</span>
-                  {r.error && <div className="max-w-xs truncate text-[11px] text-muted-foreground" title={r.error}>{r.error}</div>}
+                  <span className={`rounded-full px-2 py-0.5 text-2xs font-medium ${toneClasses(r.status === "SENT" ? "success" : r.status === "FAILED" ? "danger" : "neutral").pill}`}>{r.status.toLowerCase()}</span>
+                  {r.error && <div className="max-w-xs truncate text-2xs text-muted-foreground" title={r.error}>{r.error}</div>}
                 </td>
               </tr>
             ))}

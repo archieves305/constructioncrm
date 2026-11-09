@@ -42,15 +42,15 @@ export function HearingsPanel({ data }: { data: CaseData }) {
           {data.hearings.map((h) => (
             <li key={h.id} id={`hearing-${h.id}`} className="rounded-lg border bg-white p-3 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-3xs">
                   {HEARING_TYPE_LABEL[h.type] ?? h.type}
                 </Badge>
                 <span className="font-medium">{format(new Date(h.scheduledAt), "EEE MMM d, yyyy · h:mm a")}</span>
                 {h.location && <span className="text-xs text-muted-foreground">{h.location}</span>}
                 {h.outcome ? (
-                  <Badge className="border-0 bg-tone-info-soft text-[10px] text-tone-info-fg">{HEARING_OUTCOME_LABEL[h.outcome] ?? h.outcome}</Badge>
+                  <Badge className="border-0 bg-tone-info-soft text-3xs text-tone-info-fg">{HEARING_OUTCOME_LABEL[h.outcome] ?? h.outcome}</Badge>
                 ) : (
-                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                  <Badge variant="outline" className="text-3xs text-muted-foreground">
                     {h.status.toLowerCase()}
                   </Badge>
                 )}

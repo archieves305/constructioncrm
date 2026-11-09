@@ -35,7 +35,7 @@ export function LinkJobDialog({ data, open, onOpenChange }: { data: CaseData; op
           <ul className="max-h-72 space-y-1 overflow-y-auto">
             {rows.map((j) => (
               <li key={j.id}>
-                <button type="button" onClick={() => setPicked(j.id)} className={cn("flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm hover:bg-gray-50", picked === j.id && "border-brand bg-brand/5")}>
+                <button type="button" onClick={() => setPicked(j.id)} className={cn("flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm hover:bg-surface-subtle", picked === j.id && "border-brand bg-brand/5")}>
                   <JobRef job={j} href={null} customer={false} className="min-w-0 flex-1" />
                   <span className="text-xs text-muted-foreground">{j.currentStage.name}</span>
                 </button>

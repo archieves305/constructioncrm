@@ -240,7 +240,7 @@ export function TaskScheduleDialog({
               <button
                 key={t}
                 type="button"
-                className="rounded border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+                className="rounded border px-2 py-0.5 text-2xs text-muted-foreground hover:bg-surface-muted hover:text-foreground"
                 onClick={() => addTask.mutate(t)}
               >
                 + {t}
@@ -284,7 +284,7 @@ export function TaskScheduleDialog({
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <div>
-                      <Label className="text-[10px]">Room / area</Label>
+                      <Label className="text-3xs">Room / area</Label>
                       <Input
                         defaultValue={t.room ?? ""}
                         onBlur={(e) =>
@@ -293,7 +293,7 @@ export function TaskScheduleDialog({
                       />
                     </div>
                     <div>
-                      <Label className="text-[10px]">Amount ($)</Label>
+                      <Label className="text-3xs">Amount ($)</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -306,7 +306,7 @@ export function TaskScheduleDialog({
                       />
                     </div>
                     <div>
-                      <Label className="text-[10px]">Percent (%)</Label>
+                      <Label className="text-3xs">Percent (%)</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -321,7 +321,7 @@ export function TaskScheduleDialog({
                       />
                     </div>
                     <div>
-                      <Label className="text-[10px]">Status</Label>
+                      <Label className="text-3xs">Status</Label>
                       <Select
                         value={t.status}
                         onValueChange={(v: string | null) =>
@@ -346,7 +346,7 @@ export function TaskScheduleDialog({
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <div>
-                      <Label className="text-[10px]">Inspection req.</Label>
+                      <Label className="text-3xs">Inspection req.</Label>
                       <Select
                         value={t.inspectionRequired ? "yes" : "no"}
                         onValueChange={(v: string | null) =>
@@ -371,7 +371,7 @@ export function TaskScheduleDialog({
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-[10px]">Inspection status</Label>
+                      <Label className="text-3xs">Inspection status</Label>
                       <Select
                         value={t.inspectionStatus}
                         onValueChange={(v: string | null) =>
@@ -393,7 +393,7 @@ export function TaskScheduleDialog({
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-[10px]">Approved by</Label>
+                      <Label className="text-3xs">Approved by</Label>
                       <Input
                         defaultValue={t.approvedBy ?? ""}
                         onBlur={(e) =>
@@ -402,7 +402,7 @@ export function TaskScheduleDialog({
                       />
                     </div>
                     <div>
-                      <Label className="text-[10px]">Approved date</Label>
+                      <Label className="text-3xs">Approved date</Label>
                       <Input
                         type="date"
                         defaultValue={t.approvedDate?.slice(0, 10) ?? ""}
@@ -415,7 +415,7 @@ export function TaskScheduleDialog({
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <div className="col-span-2">
-                      <Label className="text-[10px]">Assigned to</Label>
+                      <Label className="text-3xs">Assigned to</Label>
                       <AssigneePicker
                         value={t.assignedUserId ?? null}
                         onChange={(id) => save(t.id, "assignedUserId", id)}
@@ -426,7 +426,7 @@ export function TaskScheduleDialog({
                       />
                     </div>
                     <div>
-                      <Label className="text-[10px]">Due</Label>
+                      <Label className="text-3xs">Due</Label>
                       <Input
                         type="date"
                         defaultValue={t.dueDate?.slice(0, 10) ?? ""}
@@ -436,7 +436,7 @@ export function TaskScheduleDialog({
                         }}
                       />
                     </div>
-                    <div className="flex items-end pb-1.5 text-[11px] text-muted-foreground">
+                    <div className="flex items-end pb-1.5 text-2xs text-muted-foreground">
                       {t.paymentRequest?.status === "PAID"
                         ? "Paid"
                         : t.paymentRequest?.status === "REQUESTED"
@@ -450,7 +450,7 @@ export function TaskScheduleDialog({
                   </div>
 
                   <div>
-                    <Label className="text-[10px]">Description / notes</Label>
+                    <Label className="text-3xs">Description / notes</Label>
                     <Input
                       defaultValue={t.description ?? ""}
                       onBlur={(e) =>
@@ -467,7 +467,7 @@ export function TaskScheduleDialog({
         {/* Weekly payment summary */}
         <Card>
           <CardContent className="space-y-2 p-3">
-            <div className="text-[10px] uppercase text-muted-foreground">
+            <div className="text-3xs uppercase text-muted-foreground">
               Weekly payment calculation (approved tasks)
             </div>
             <div className="flex justify-between text-sm">
@@ -480,7 +480,7 @@ export function TaskScheduleDialog({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-[10px]">Backcharges / offsets ($)</Label>
+                <Label className="text-3xs">Backcharges / offsets ($)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -489,7 +489,7 @@ export function TaskScheduleDialog({
                 />
               </div>
               <div>
-                <Label className="text-[10px]">Direct payments ($)</Label>
+                <Label className="text-3xs">Direct payments ($)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -502,14 +502,14 @@ export function TaskScheduleDialog({
               <span className="font-semibold">Net due to contractor</span>
               <span
                 className={`font-semibold ${
-                  summary.net >= 0 ? "text-emerald-700" : "text-red-700"
+                  summary.net >= 0 ? "text-tone-success-fg" : "text-tone-danger-fg"
                 }`}
               >
                 {money(summary.net)}
               </span>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-2">
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 {toRequest.lines.length === 0
                   ? "No approved lines are waiting to be requested."
                   : `${toRequest.lines.length} approved line${toRequest.lines.length === 1 ? "" : "s"} not yet requested: ${money(toRequest.due.net)} after retainage and the deductions above. The request goes to the job's accountant as a task.`}

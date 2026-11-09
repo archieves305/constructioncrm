@@ -48,7 +48,7 @@ export function OrgBidsTab({ organizationId, canManage, onLog }: { organizationI
               {rows.map((b) => (
                 <TableRow key={b.id}>
                   <TableCell>
-                    <Link href={`/leads/${b.leadId}?tab=bid`} className="font-medium text-gray-900 hover:underline">{b.projectName}</Link>
+                    <Link href={`/leads/${b.leadId}?tab=bid`} className="font-medium text-foreground hover:underline">{b.projectName}</Link>
                     <div className="text-xs text-muted-foreground"><span className="font-mono">{b.number}</span>{b.lead.trades.length > 0 && <> · {b.lead.trades.map((t) => t.name).join(", ")}</>}</div>
                   </TableCell>
                   <TableCell><BidStatusBadge status={b.status} label={b.statusLabel} outcome={b.outcome} /></TableCell>
@@ -85,7 +85,7 @@ export function OrgProjectsTab({ projects }: { projects: OrgDetail["projects"] }
               {projects.map((j) => (
                 <TableRow key={j.id}>
                   <TableCell>
-                    <Link href={`/jobs/${j.id}`} className="font-medium text-gray-900 hover:underline">{j.title}</Link>
+                    <Link href={`/jobs/${j.id}`} className="font-medium text-foreground hover:underline">{j.title}</Link>
                     <div className="text-xs text-muted-foreground"><span className="font-mono">{j.jobNumber}</span> · {j.billingMethod === "PROGRESS" ? "progress billing" : "lump sum"} · since {format(new Date(j.createdAt), "MMM yyyy")}</div>
                   </TableCell>
                   <TableCell className="hidden text-sm sm:table-cell">{j.currentStage?.name ?? "—"}</TableCell>

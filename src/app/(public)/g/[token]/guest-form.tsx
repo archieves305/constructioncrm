@@ -67,12 +67,12 @@ export function GuestForm({ token, view }: { token: string; view: View }) {
 
   if (state === "sent") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+      <main className="flex min-h-screen items-center justify-center bg-surface-subtle p-6">
         <div className="max-w-sm text-center">
           <p className="mb-2 text-5xl" aria-hidden>
             ✓
           </p>
-          <p className="text-lg text-slate-800">{t.sent}</p>
+          <p className="text-lg text-foreground">{t.sent}</p>
         </div>
       </main>
     );
@@ -80,16 +80,16 @@ export function GuestForm({ token, view }: { token: string; view: View }) {
 
   const big = "w-full rounded-xl px-4 py-4 text-lg font-semibold";
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-surface-subtle">
       <div className="mx-auto max-w-md space-y-5 px-4 py-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold tracking-wide text-slate-500">KNU Construction</p>
-            <h1 className="text-2xl font-bold text-slate-900">{t.title[view.purpose]}</h1>
+            <p className="text-sm font-semibold tracking-wide text-muted-foreground">KNU Construction</p>
+            <h1 className="text-2xl font-bold text-foreground">{t.title[view.purpose]}</h1>
           </div>
-          <div className="flex overflow-hidden rounded-lg border border-slate-300 text-sm" role="group" aria-label="Language">
+          <div className="flex overflow-hidden rounded-lg border border-border-strong text-sm" role="group" aria-label="Language">
             {(["en", "es"] as const).map((l) => (
-              <button key={l} type="button" onClick={() => setLang(l)} aria-pressed={lang === l} className={`px-3 py-2 ${lang === l ? "bg-slate-900 text-white" : "bg-white text-slate-700"}`}>
+              <button key={l} type="button" onClick={() => setLang(l)} aria-pressed={lang === l} className={`px-3 py-2 ${lang === l ? "bg-foreground text-white" : "bg-white text-fg-secondary"}`}>
                 {l === "en" ? "English" : "Español"}
               </button>
             ))}
@@ -97,28 +97,28 @@ export function GuestForm({ token, view }: { token: string; view: View }) {
         </div>
 
         <div className="space-y-1 rounded-xl bg-white p-4 shadow-sm">
-          <p className="text-lg font-semibold text-slate-900">{view.street}</p>
-          {view.crewName ? <p className="text-slate-600">{view.crewName}</p> : null}
+          <p className="text-lg font-semibold text-foreground">{view.street}</p>
+          {view.crewName ? <p className="text-fg-secondary">{view.crewName}</p> : null}
           {view.scope ? (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-fg-secondary">
               <span className="font-medium">{t.scope}:</span> {view.scope}
             </p>
           ) : null}
           {view.when ? (
-            <p className="text-slate-800">
+            <p className="text-foreground">
               <span className="font-medium">{t.when}:</span> {view.when}
             </p>
           ) : null}
-          <p className="pt-1 text-xs text-slate-500">{t.intro}</p>
+          <p className="pt-1 text-xs text-muted-foreground">{t.intro}</p>
         </div>
 
         {view.purpose === "CREW_PAYMENT" ? (
           <div className="space-y-1">
-            <label htmlFor="amount" className="block text-base font-medium text-slate-800">
+            <label htmlFor="amount" className="block text-base font-medium text-foreground">
               {t.amount}
             </label>
-            <input id="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="4,000" className="w-full rounded-xl border border-slate-300 bg-white px-4 py-4 text-2xl" />
-            <p className="text-sm text-slate-500">{t.amountHelp}</p>
+            <input id="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="4,000" className="w-full rounded-xl border border-border-strong bg-white px-4 py-4 text-2xl" />
+            <p className="text-sm text-muted-foreground">{t.amountHelp}</p>
           </div>
         ) : null}
 
@@ -126,12 +126,12 @@ export function GuestForm({ token, view }: { token: string; view: View }) {
           <div className="space-y-3">
             {(
               [
-                ["yes", t.yes, "bg-emerald-600 text-white"],
-                ["no", t.no, "bg-white text-slate-900 border border-slate-300"],
-                ["change", t.change, "bg-white text-slate-900 border border-slate-300"],
+                ["yes", t.yes, "bg-tone-success text-white"],
+                ["no", t.no, "bg-white text-foreground border border-border-strong"],
+                ["change", t.change, "bg-white text-foreground border border-border-strong"],
               ] as const
             ).map(([v, label, cls]) => (
-              <button key={v} type="button" onClick={() => setAnswer(v)} aria-pressed={answer === v} className={`${big} ${cls} ${answer === v ? "ring-4 ring-sky-400" : ""}`}>
+              <button key={v} type="button" onClick={() => setAnswer(v)} aria-pressed={answer === v} className={`${big} ${cls} ${answer === v ? "ring-4 ring-tone-info" : ""}`}>
                 {label}
               </button>
             ))}
@@ -141,10 +141,10 @@ export function GuestForm({ token, view }: { token: string; view: View }) {
         {view.photos.max > 0 ? (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => camera.current?.click()} className={`${big} bg-slate-900 text-white`} disabled={photos.length >= view.photos.max}>
+              <button type="button" onClick={() => camera.current?.click()} className={`${big} bg-foreground text-white`} disabled={photos.length >= view.photos.max}>
                 {t.takePhoto}
               </button>
-              <button type="button" onClick={() => library.current?.click()} className={`${big} border border-slate-300 bg-white text-slate-900`} disabled={photos.length >= view.photos.max}>
+              <button type="button" onClick={() => library.current?.click()} className={`${big} border border-border-strong bg-white text-foreground`} disabled={photos.length >= view.photos.max}>
                 {t.addPhotos}
               </button>
             </div>
@@ -161,19 +161,19 @@ export function GuestForm({ token, view }: { token: string; view: View }) {
                 ))}
               </div>
             ) : null}
-            {view.photos.min > 0 && photos.length === 0 ? <p className="text-sm text-slate-500">{t.photosNeeded}</p> : null}
+            {view.photos.min > 0 && photos.length === 0 ? <p className="text-sm text-muted-foreground">{t.photosNeeded}</p> : null}
           </div>
         ) : null}
 
         <div className="space-y-1">
-          <label htmlFor="note" className="block text-base font-medium text-slate-800">
+          <label htmlFor="note" className="block text-base font-medium text-foreground">
             {t.note}
           </label>
-          <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={1000} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base" />
+          <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={1000} className="w-full rounded-xl border border-border-strong bg-white px-4 py-3 text-base" />
         </div>
 
-        {error ? <p className="rounded-lg bg-red-50 p-3 text-red-800">{error}</p> : null}
-        <button type="button" onClick={() => void send()} disabled={!ready || state === "sending"} className={`${big} bg-sky-700 text-white disabled:opacity-40`}>
+        {error ? <p className="rounded-lg bg-tone-danger-soft p-3 text-tone-danger-fg">{error}</p> : null}
+        <button type="button" onClick={() => void send()} disabled={!ready || state === "sending"} className={`${big} bg-tone-info text-white disabled:opacity-40`}>
           {state === "sending" ? t.sending : t.send}
         </button>
       </div>

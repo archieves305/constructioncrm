@@ -94,7 +94,7 @@ export function PermitForms({ detail }: { detail: PermitDetail }) {
 
 function Count({ n, label, tone }: { n: number; label: string; tone: "success" | "warning" | "danger" | "info" | "neutral" }) {
   if (!n) return null;
-  return <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(tone).pill)}>{`${n} ${label}`}</span>;
+  return <span className={cn("rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(tone).pill)}>{`${n} ${label}`}</span>;
 }
 
 function FillCard({ fill: f, leadId, open, onToggle, permissions, onChanged }: { fill: FillRow; leadId: string; open: boolean; onToggle: () => void; permissions: FillsData["permissions"]; onChanged: () => void }) {
@@ -127,7 +127,7 @@ function FillCard({ fill: f, leadId, open, onToggle, permissions, onChanged }: {
             {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
             <CardTitle className="truncate text-sm">{f.template.name}</CardTitle>
           </button>
-          <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(draft ? "warning" : "success").pill)}>
+          <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(draft ? "warning" : "success").pill)}>
             {draft ? "Draft" : <><Lock className="size-3" /> Final</>}
           </span>
         </div>
@@ -177,7 +177,7 @@ function FillCard({ fill: f, leadId, open, onToggle, permissions, onChanged }: {
           />
           {pages.map((p) => (
             <section key={p} className="min-w-0">
-              <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Page {p + 1}</h3>
+              <h3 className="mb-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Page {p + 1}</h3>
               <ul className="divide-y rounded-md border">
                 {shown
                   .filter((v) => v.page === p)
@@ -275,10 +275,10 @@ function ValueRow({ fill, value: v, leadId, canEdit, onChanged }: { fill: FillRo
             {v.label ?? v.field}
             {v.protected && <ShieldCheck className="ml-1 inline size-3.5 text-muted-foreground" aria-label="filled from records only" />}
           </p>
-          <p className="truncate text-[11px] text-muted-foreground">{v.source ?? (v.status === "BLANK" ? "not mapped" : "")}</p>
+          <p className="truncate text-2xs text-muted-foreground">{v.source ?? (v.status === "BLANK" ? "not mapped" : "")}</p>
         </div>
         <div className="min-w-0 flex-1 basis-48">
-          <span className={cn("mr-1.5 rounded-full px-1.5 py-0.5 text-[11px] font-medium", toneClasses(st.tone).pill)}>{st.label}</span>
+          <span className={cn("mr-1.5 rounded-full px-1.5 py-0.5 text-2xs font-medium", toneClasses(st.tone).pill)}>{st.label}</span>
           {v.status === "SIGN_BY_HAND" ? (
             <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
               <PenLine className="size-3.5" /> on the printed form
@@ -286,7 +286,7 @@ function ValueRow({ fill, value: v, leadId, canEdit, onChanged }: { fill: FillRo
           ) : (
             <span className="break-words text-sm">{v.type === "checkbox" ? (v.value === CHECKED ? "☑ ticked" : v.value === UNCHECKED ? "☐ not ticked" : "—") : v.value || "—"}</span>
           )}
-          {v.note && <p className="text-[11px] text-tone-warning-fg">{v.note}</p>}
+          {v.note && <p className="text-2xs text-tone-warning-fg">{v.note}</p>}
         </div>
         {canEdit && v.type !== "signature" && !editing && (
           <div className="flex shrink-0 gap-1">

@@ -143,19 +143,19 @@ function prettyTime(iso: string): string {
 }
 
 const DOT_TONE: Record<string, string> = {
-  BLOCKED: "bg-amber-500",
-  UNBLOCKED: "bg-blue-500",
-  EMAIL_FAILED: "bg-red-500",
-  EMAIL_SENT: "bg-gray-300",
-  CREATED: "bg-gray-400",
-  NUDGED: "bg-violet-500",
-  ESCALATED: "bg-red-500",
-  AUTO_CLOSED: "bg-emerald-500",
-  REMINDER_SET: "bg-gray-300",
-  REMINDER_SENT: "bg-gray-300",
+  BLOCKED: "bg-tone-warning",
+  UNBLOCKED: "bg-tone-info",
+  EMAIL_FAILED: "bg-tone-danger",
+  EMAIL_SENT: "bg-surface-emphasis",
+  CREATED: "bg-tone-neutral",
+  NUDGED: "bg-stage-0",
+  ESCALATED: "bg-tone-danger",
+  AUTO_CLOSED: "bg-tone-success",
+  REMINDER_SET: "bg-surface-emphasis",
+  REMINDER_SENT: "bg-surface-emphasis",
   ACTIVATED: "bg-tone-info",
-  SKIPPED: "bg-gray-400",
-  EVIDENCE_ATTACHED: "bg-gray-400",
+  SKIPPED: "bg-tone-neutral",
+  EVIDENCE_ATTACHED: "bg-tone-neutral",
   INSPECTION_RESULT: "bg-tone-warning",
   RECONCILED: "bg-tone-info",
   SCHEDULE_CHANGED: "bg-tone-info",
@@ -192,7 +192,7 @@ export function TaskTimeline({
           return (
             <li key={e.id} className="rounded-md border bg-white p-3">
               <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium text-gray-700">{actorName(e.actor)}</span>
+                <span className="font-medium text-fg-secondary">{actorName(e.actor)}</span>
                 <span>{format(new Date(e.createdAt), "MMM d, h:mm a")}</span>
                 {e.editedAt && <span className="italic">edited</span>}
                 <span className="flex-1" />
@@ -208,14 +208,14 @@ export function TaskTimeline({
                 {(mine || isAdmin) && (
                   <button
                     type="button"
-                    className="hover:text-red-600 hover:underline"
+                    className="hover:text-tone-danger-fg hover:underline"
                     onClick={() => onDeleteNote(e.id)}
                   >
                     Delete
                   </button>
                 )}
               </div>
-              <p className="whitespace-pre-wrap text-sm text-gray-800">{e.body}</p>
+              <p className="whitespace-pre-wrap text-sm text-foreground">{e.body}</p>
             </li>
           );
         }
@@ -229,19 +229,19 @@ export function TaskTimeline({
             <span
               className={cn(
                 "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
-                DOT_TONE[e.type] ?? "bg-gray-300",
+                DOT_TONE[e.type] ?? "bg-surface-emphasis",
               )}
             />
             <span
               className={cn(
                 "flex-1",
-                muted ? "text-muted-foreground/70" : "text-muted-foreground",
-                e.type === "EMAIL_FAILED" && "text-red-600",
+                muted ? "text-muted-foreground" : "text-muted-foreground",
+                e.type === "EMAIL_FAILED" && "text-tone-danger-fg",
               )}
             >
               {text}
             </span>
-            <span className="shrink-0 text-muted-foreground/70">
+            <span className="shrink-0 text-muted-foreground">
               {format(new Date(e.createdAt), "MMM d, h:mm a")}
             </span>
           </li>

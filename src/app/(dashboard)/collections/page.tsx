@@ -204,13 +204,13 @@ export default function CollectionsPage() {
                 </TableHeader>
                 <TableBody>
                   {depositsMissing.map((j) => (
-                    <TableRow key={j.id} className="cursor-pointer hover:bg-gray-50"
+                    <TableRow key={j.id} className="cursor-pointer hover:bg-surface-subtle"
                       onClick={() => router.push(`/jobs/${j.id}`)}>
                       <TableCell className="max-w-56"><JobRef job={j} href={null} customer={false} trade={false} /></TableCell>
                       <TableCell className="text-sm">{j.lead.fullName}</TableCell>
                       <TableCell className="text-right">${Number(j.depositRequired).toLocaleString()}</TableCell>
                       <TableCell className="text-right">${Number(j.depositReceived).toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-red-600 font-medium">
+                      <TableCell className="text-right text-tone-danger-fg font-medium">
                         ${(Number(j.depositRequired) - Number(j.depositReceived)).toLocaleString()}
                       </TableCell>
                     </TableRow>
@@ -238,12 +238,12 @@ export default function CollectionsPage() {
                 </TableHeader>
                 <TableBody>
                   {finalPaymentDue.map((j) => (
-                    <TableRow key={j.id} className="cursor-pointer hover:bg-gray-50"
+                    <TableRow key={j.id} className="cursor-pointer hover:bg-surface-subtle"
                       onClick={() => router.push(`/jobs/${j.id}`)}>
                       <TableCell className="max-w-56"><JobRef job={j} href={null} customer={false} trade={false} /></TableCell>
                       <TableCell className="text-sm">{j.lead.fullName}</TableCell>
                       <TableCell className="text-sm">{j.lead.primaryPhone}</TableCell>
-                      <TableCell className="text-right text-red-600 font-medium">
+                      <TableCell className="text-right text-tone-danger-fg font-medium">
                         ${Number(j.balanceDue).toLocaleString()}
                       </TableCell>
                     </TableRow>
@@ -279,11 +279,11 @@ export default function CollectionsPage() {
                 </TableHeader>
                 <TableBody>
                   {progress.rows.map((r) => (
-                    <TableRow key={r.jobId} className="cursor-pointer hover:bg-gray-50"
+                    <TableRow key={r.jobId} className="cursor-pointer hover:bg-surface-subtle"
                       onClick={() => router.push(`/jobs/${r.jobId}?tab=money&sub=invoices`)}>
                       <TableCell className="font-mono text-xs">
                         {r.jobNumber}
-                        <div className="text-[10px] text-muted-foreground">
+                        <div className="text-3xs text-muted-foreground">
                           {r.applications} app{r.applications === 1 ? "" : "s"}{r.hasDraft ? " · draft open" : ""}
                         </div>
                       </TableCell>
@@ -291,14 +291,14 @@ export default function CollectionsPage() {
                       <TableCell className="text-right">{money(r.contractSum)}</TableCell>
                       <TableCell className="text-right">
                         {money(r.completedToDate)}
-                        <div className="text-[10px] text-muted-foreground">
+                        <div className="text-3xs text-muted-foreground">
                           {r.contractSum > 0 ? Math.round((r.completedToDate / r.contractSum) * 100) : 0}%
                         </div>
                       </TableCell>
-                      <TableCell className={`text-right font-medium ${r.openReceivable > 0 ? "text-red-600" : ""}`}>{money(r.openReceivable)}</TableCell>
+                      <TableCell className={`text-right font-medium ${r.openReceivable > 0 ? "text-tone-danger-fg" : ""}`}>{money(r.openReceivable)}</TableCell>
                       <TableCell className="text-right">
                         {money(r.retainageHeld)}
-                        <div className="text-[10px] text-muted-foreground">{r.retainagePercent}%</div>
+                        <div className="text-3xs text-muted-foreground">{r.retainagePercent}%</div>
                       </TableCell>
                       <TableCell className="text-right">{money(r.balanceToFinish)}</TableCell>
                       <TableCell className="text-right text-muted-foreground">{money(r.balanceDue)}</TableCell>
@@ -323,8 +323,8 @@ export default function CollectionsPage() {
             <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
               {(["current", "d1_30", "d31_60", "d61_90", "d90plus"] as AgingBucket[]).map((b) => (
                 <div key={b} className="rounded border p-2 text-center">
-                  <div className="text-[10px] uppercase text-muted-foreground">{BUCKET_LABELS[b]}</div>
-                  <div className={`text-sm font-semibold ${b === "d90plus" && (aging?.buckets[b] ?? 0) > 0 ? "text-red-600" : ""}`}>
+                  <div className="text-3xs uppercase text-muted-foreground">{BUCKET_LABELS[b]}</div>
+                  <div className={`text-sm font-semibold ${b === "d90plus" && (aging?.buckets[b] ?? 0) > 0 ? "text-tone-danger-fg" : ""}`}>
                     {money(aging?.buckets[b] ?? 0)}
                   </div>
                 </div>
@@ -345,13 +345,13 @@ export default function CollectionsPage() {
                 </TableHeader>
                 <TableBody>
                   {overdueRows.map((r) => (
-                    <TableRow key={r.invoiceId} className="cursor-pointer hover:bg-gray-50"
+                    <TableRow key={r.invoiceId} className="cursor-pointer hover:bg-surface-subtle"
                       onClick={() => router.push(`/jobs/${r.jobId}`)}>
                       <TableCell className="font-mono text-xs">{r.invoiceNumber}</TableCell>
                       <TableCell className="text-sm">{r.customer}</TableCell>
                       <TableCell className="font-mono text-xs">{r.jobNumber}</TableCell>
                       <TableCell className="text-right">{r.ageDays}</TableCell>
-                      <TableCell className="text-right font-medium text-red-600">{money(r.remaining)}</TableCell>
+                      <TableCell className="text-right font-medium text-tone-danger-fg">{money(r.remaining)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -389,19 +389,19 @@ export default function CollectionsPage() {
                   </TableHeader>
                   <TableBody>
                     {costRows.map(({ jobId, jobNumber, address, summary: c }) => (
-                      <TableRow key={jobId} className="cursor-pointer hover:bg-gray-50" onClick={() => router.push(`/jobs/${jobId}?tab=money`)}>
+                      <TableRow key={jobId} className="cursor-pointer hover:bg-surface-subtle" onClick={() => router.push(`/jobs/${jobId}?tab=money`)}>
                         <TableCell className="max-w-56">
                           <span className="block truncate text-sm font-medium">{address || jobNumber}</span>
-                          {address && <span className="font-mono text-[11px] text-muted-foreground">{jobNumber}</span>}
+                          {address && <span className="font-mono text-2xs text-muted-foreground">{jobNumber}</span>}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{money(c.revisedContract)}</TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">{c.estimatedCost === null ? "—" : money(c.estimatedCost)}</TableCell>
                         <TableCell className="text-right tabular-nums">{money(c.spent)}</TableCell>
-                        <TableCell className={`text-right tabular-nums ${c.overBudget ? "text-red-600" : ""}`}>{money(c.committed)}</TableCell>
-                        <TableCell className={`text-right font-medium tabular-nums ${Math.round(c.projectedProfit ?? 0) < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                        <TableCell className={`text-right tabular-nums ${c.overBudget ? "text-tone-danger-fg" : ""}`}>{money(c.committed)}</TableCell>
+                        <TableCell className={`text-right font-medium tabular-nums ${Math.round(c.projectedProfit ?? 0) < 0 ? "text-tone-danger-fg" : "text-tone-success-fg"}`}>
                           {c.projectedProfit === null ? "—" : money(c.projectedProfit)}
                         </TableCell>
-                        <TableCell className={`text-right tabular-nums ${Math.round((c.projectedMargin ?? 0) * 100) < 0 ? "text-red-600" : ""}`}>
+                        <TableCell className={`text-right tabular-nums ${Math.round((c.projectedMargin ?? 0) * 100) < 0 ? "text-tone-danger-fg" : ""}`}>
                           {c.projectedMargin === null ? "—" : `${Math.round(c.projectedMargin * 100) || 0}%`}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{money(c.billedToDate)}</TableCell>
@@ -436,13 +436,13 @@ export default function CollectionsPage() {
                 </TableHeader>
                 <TableBody>
                   {balancesDue.map((j) => (
-                    <TableRow key={j.id} className="cursor-pointer hover:bg-gray-50"
+                    <TableRow key={j.id} className="cursor-pointer hover:bg-surface-subtle"
                       onClick={() => router.push(`/jobs/${j.id}`)}>
                       <TableCell className="max-w-56"><JobRef job={j} href={null} customer={false} trade={false} /></TableCell>
                       <TableCell className="text-sm">{j.lead.fullName}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-[10px]">{j.currentStage.name}</Badge></TableCell>
+                      <TableCell><Badge variant="outline" className="text-3xs">{j.currentStage.name}</Badge></TableCell>
                       <TableCell className="text-right">${Number(j.contractAmount).toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-red-600 font-medium">${Number(j.balanceDue).toLocaleString()}</TableCell>
+                      <TableCell className="text-right text-tone-danger-fg font-medium">${Number(j.balanceDue).toLocaleString()}</TableCell>
                       <TableCell className="text-sm">{j.salesRep ? `${j.salesRep.firstName} ${j.salesRep.lastName[0]}.` : "—"}</TableCell>
                     </TableRow>
                   ))}

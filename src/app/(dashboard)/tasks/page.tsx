@@ -280,7 +280,7 @@ export default function TasksPage() {
                 <button
                   type="button"
                   onClick={() => showMine(false)}
-                  className="rounded-full bg-tone-info-soft px-2 py-0.5 text-[11px] font-medium text-tone-info-fg hover:brightness-95"
+                  className="rounded-full bg-tone-info-soft px-2 py-0.5 text-2xs font-medium text-tone-info-fg hover:brightness-95"
                 >
                   Mine {summary.open}
                 </button>
@@ -288,13 +288,13 @@ export default function TasksPage() {
                   <button
                     type="button"
                     onClick={() => showMine(true)}
-                    className="rounded-full bg-tone-danger-soft px-2 py-0.5 text-[11px] font-medium text-tone-danger-fg hover:brightness-95"
+                    className="rounded-full bg-tone-danger-soft px-2 py-0.5 text-2xs font-medium text-tone-danger-fg hover:brightness-95"
                   >
                     Overdue {summary.overdue}
                   </button>
                 )}
                 {summary.dueToday > 0 && (
-                  <span className="rounded-full bg-tone-warning-soft px-2 py-0.5 text-[11px] font-medium text-tone-warning-fg">
+                  <span className="rounded-full bg-tone-warning-soft px-2 py-0.5 text-2xs font-medium text-tone-warning-fg">
                     Due today {summary.dueToday}
                   </span>
                 )}
@@ -337,14 +337,14 @@ export default function TasksPage() {
               <SlidersHorizontal className="h-4 w-4" />
               Filters
               {activeFilters > 0 && (
-                <span className="rounded-full bg-brand px-1.5 text-[10px] font-semibold text-white">{activeFilters}</span>
+                <span className="rounded-full bg-brand px-1.5 text-3xs font-semibold text-white">{activeFilters}</span>
               )}
             </Button>
             {canCreate && (
               <Button variant="brand" onClick={() => setOpen(true)}>
                 <Plus className="h-4 w-4" />
                 New task
-                <kbd className="ml-1 hidden rounded border border-white/30 bg-white/10 px-1 font-mono text-[10px] sm:inline">N</kbd>
+                <kbd className="ml-1 hidden rounded border border-white/30 bg-white/10 px-1 font-mono text-3xs sm:inline">N</kbd>
               </Button>
             )}
           </>
@@ -404,9 +404,9 @@ export default function TasksPage() {
             <JobPicker value={filterJob || null} onChange={(j) => setFilterJob(j?.id ?? "")} placeholder="All jobs" className="mt-1" />
           </div>
           {filterCase && (
-            <div className="flex items-center gap-1 self-end rounded-md border bg-gray-50 px-2 py-1.5 text-xs">
+            <div className="flex items-center gap-1 self-end rounded-md border bg-surface-subtle px-2 py-1.5 text-xs">
               Code-violation case
-              <button type="button" className="ml-1 rounded p-0.5 hover:bg-gray-200" aria-label="Clear case filter" onClick={() => setFilterCase("")}>
+              <button type="button" className="ml-1 rounded p-0.5 hover:bg-surface-strong" aria-label="Clear case filter" onClick={() => setFilterCase("")}>
                 ×
               </button>
             </div>
@@ -651,8 +651,8 @@ function Section({
         <CardTitle
           className={cn(
             "flex items-center gap-2 text-sm",
-            tone === "destructive" && "text-red-600",
-            tone === "primary" && "text-blue-700",
+            tone === "destructive" && "text-tone-danger-fg",
+            tone === "primary" && "text-tone-info-fg",
           )}
         >
           {title} <span className="text-xs text-muted-foreground">({tasks.length})</span>

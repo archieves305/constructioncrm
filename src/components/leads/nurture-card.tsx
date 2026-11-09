@@ -61,7 +61,7 @@ export function NurtureCard({ leadId }: { leadId: string }) {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Repeat className="size-4 text-muted-foreground" /> Automated follow-up
-          {st && <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-medium ${toneClasses(TONE[st.status]).pill}`}>{st.status === "ACTIVE" ? "Active" : st.status === "PAUSED" ? `Paused${st.pausedReason ? ` · ${st.pausedReason.replace("_", " ")}` : ""}` : `Stopped${st.stoppedReason ? ` · ${st.stoppedReason.replace("_", " ")}` : ""}`}</span>}
+          {st && <span className={`ml-auto rounded-full px-2 py-0.5 text-2xs font-medium ${toneClasses(TONE[st.status]).pill}`}>{st.status === "ACTIVE" ? "Active" : st.status === "PAUSED" ? `Paused${st.pausedReason ? ` · ${st.pausedReason.replace("_", " ")}` : ""}` : `Stopped${st.stoppedReason ? ` · ${st.stoppedReason.replace("_", " ")}` : ""}`}</span>}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">

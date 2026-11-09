@@ -202,7 +202,7 @@ export default function PersonnelPage() {
                   <TableCell>
                     <Link
                       href={`/personnel/${p.id}`}
-                      className="font-medium text-blue-700 hover:underline"
+                      className="font-medium text-tone-info-fg hover:underline"
                     >
                       {p.lastName}, {p.firstName}
                     </Link>

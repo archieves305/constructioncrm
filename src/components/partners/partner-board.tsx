@@ -95,7 +95,7 @@ function PartnerCard({ row, compact }: { row: OrgRow; compact: boolean }) {
   return (
     <div className={compact ? "space-y-1" : "space-y-1.5"}>
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-gray-900">{row.name}</p>
+        <p className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-foreground">{row.name}</p>
         <PriorityBadge priority={row.priority} />
       </div>
       {!compact && row.primaryContact && (
@@ -111,7 +111,7 @@ function PartnerCard({ row, compact }: { row: OrgRow; compact: boolean }) {
           <UserAvatar user={row.owner} size="sm" />
           <span className="truncate">{row.owner ? `${row.owner.firstName} ${row.owner.lastName.charAt(0)}.` : "No owner"}</span>
         </span>
-        {row.nextOpenTask && <span className="truncate text-[11px] text-muted-foreground">{row.nextOpenTask.title}</span>}
+        {row.nextOpenTask && <span className="truncate text-2xs text-muted-foreground">{row.nextOpenTask.title}</span>}
       </div>
     </div>
   );

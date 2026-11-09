@@ -73,20 +73,20 @@ export function AppShell({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="rounded p-2 hover:bg-gray-100"
+            className="rounded p-2 hover:bg-surface-muted"
             aria-label="Open menu"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
           <div className="flex items-center gap-2">
-            <HardHat className="h-5 w-5 text-blue-600" />
+            <HardHat className="h-5 w-5 text-tone-info-fg" />
             <span className="text-sm font-bold">Knu Construction</span>
           </div>
-          <button type="button" onClick={() => setPaletteOpen(true)} className="ml-auto rounded p-2 hover:bg-gray-100" aria-label="Search">
+          <button type="button" onClick={() => setPaletteOpen(true)} className="ml-auto rounded p-2 hover:bg-surface-muted" aria-label="Search">
             <Search className="h-5 w-5" />
           </button>
         </header>
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto bg-surface-subtle p-4 md:p-6">
           {children}
         </main>
       </div>

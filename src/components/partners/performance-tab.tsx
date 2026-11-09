@@ -118,10 +118,10 @@ function HealthCard({ organizationId, health: h, canManage }: { organizationId: 
             return (
               <div key={k}>
                 <div className="flex items-baseline justify-between text-xs">
-                  <span className="font-medium text-gray-700">{SECTION_LABEL[k]}</span>
+                  <span className="font-medium text-fg-secondary">{SECTION_LABEL[k]}</span>
                   <span className="tabular-nums text-muted-foreground">{s.points} / {s.max}</span>
                 </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100" role="meter" aria-label={SECTION_LABEL[k]} aria-valuenow={s.points} aria-valuemin={0} aria-valuemax={s.max}>
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-surface-muted" role="meter" aria-label={SECTION_LABEL[k]} aria-valuenow={s.points} aria-valuemin={0} aria-valuemax={s.max}>
                   <div className="h-full rounded-full bg-brand" style={{ width: `${s.max ? (s.points / s.max) * 100 : 0}%` }} />
                 </div>
                 <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
@@ -142,7 +142,7 @@ function HealthCard({ organizationId, health: h, canManage }: { organizationId: 
             {h.weaknesses.length ? <ul className="list-inside list-disc">{h.weaknesses.slice(0, 5).map((s) => <li key={s}>{s}</li>)}</ul> : <p className="text-muted-foreground">None</p>}
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-gray-50 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-subtle px-3 py-2">
           <p><span className="text-xs text-muted-foreground">Next: </span><span className="font-medium">{h.recommendedAction}</span></p>
           {canManage && (
             <Button size="sm" variant="outline" disabled={task.isPending || task.isSuccess} onClick={() => task.mutate(h.recommendedAction)}>

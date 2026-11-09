@@ -29,9 +29,9 @@ const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", curren
 const NO_LINE = "__none";
 
 const STATUS_TONE: Record<CommitmentStatusName, string> = {
-  OPEN: "border-blue-200 bg-blue-50 text-blue-800",
-  CLOSED: "border-gray-200 bg-gray-50 text-gray-600",
-  CANCELLED: "border-gray-200 bg-gray-50 text-gray-500 line-through",
+  OPEN: "border-tone-info-line bg-tone-info-soft text-tone-info-fg",
+  CLOSED: "border-border bg-surface-subtle text-fg-secondary",
+  CANCELLED: "border-border bg-surface-subtle text-muted-foreground line-through",
 };
 
 /**
@@ -133,11 +133,11 @@ export function CommitmentsPanel({ jobId, onOpenLabor }: { jobId: string; onOpen
                   <TableRow key={c.id} className={cn(c.status === "CANCELLED" && "opacity-60")}>
                     <TableCell className="max-w-[20rem] whitespace-normal">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-mono text-[11px] text-muted-foreground">{commitmentCode(c.number)}</span>
-                        <Link href={`/vendors/${c.vendor.id}`} className="font-medium text-gray-900 hover:underline">{c.vendor.name}</Link>
-                        <span className={cn("rounded-full border px-1.5 py-0.5 text-[10px] font-medium", STATUS_TONE[c.status])}>{COMMITMENT_STATUS_LABEL[c.status]}</span>
+                        <span className="font-mono text-2xs text-muted-foreground">{commitmentCode(c.number)}</span>
+                        <Link href={`/vendors/${c.vendor.id}`} className="font-medium text-foreground hover:underline">{c.vendor.name}</Link>
+                        <span className={cn("rounded-full border px-1.5 py-0.5 text-3xs font-medium", STATUS_TONE[c.status])}>{COMMITMENT_STATUS_LABEL[c.status]}</span>
                       </div>
-                      <div className="break-words text-sm text-gray-700">{c.description}</div>
+                      <div className="break-words text-sm text-fg-secondary">{c.description}</div>
                       <div className="text-xs text-muted-foreground">
                         {[
                           c.budgetLine ? `Budget: ${c.budgetLine.name}` : null,
@@ -193,7 +193,7 @@ export function CommitmentsPanel({ jobId, onOpenLabor }: { jobId: string; onOpen
                     <TableCell className="max-w-[20rem] whitespace-normal">
                       <span className="font-medium">{c.name}</span>
                       {c.vendor && c.vendor.name !== c.name && <span className="text-xs text-muted-foreground"> · {c.vendor.name}</span>}
-                      <Badge variant="outline" className="ml-2 text-[10px]">Labor contract</Badge>
+                      <Badge variant="outline" className="ml-2 text-3xs">Labor contract</Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{usd(c.amount)}</TableCell>
                     <TableCell className="hidden text-right tabular-nums sm:table-cell">{usd(c.paid)} paid</TableCell>
@@ -227,7 +227,7 @@ export function CommitmentsPanel({ jobId, onOpenLabor }: { jobId: string; onOpen
 function Tile({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="rounded-lg border bg-white p-3">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-2xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className={cn("tabular-nums", strong ? "text-lg font-semibold" : "text-base font-medium")}>{value}</div>
     </div>
   );

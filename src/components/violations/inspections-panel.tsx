@@ -50,14 +50,14 @@ export function InspectionsPanel({ data }: { data: CaseData }) {
           {data.inspections.map((i) => (
             <li key={i.id} id={`inspection-${i.id}`} className="rounded-lg border bg-white p-3 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="text-[10px] capitalize">
+                <Badge variant="outline" className="text-3xs capitalize">
                   {i.kind.toLowerCase()}
                 </Badge>
                 <span className="font-medium">{i.scheduledFor ? format(new Date(i.scheduledFor), "EEE MMM d, yyyy · h:mm a") : `Requested ${format(new Date(i.requestedAt), "MMM d, yyyy")}`}</span>
                 {i.result ? (
-                  <Badge className={cn("border-0 text-[10px]", toneClasses(INSPECTION_RESULT_TONE[i.result] ?? "neutral").pill)}>{i.result}</Badge>
+                  <Badge className={cn("border-0 text-3xs", toneClasses(INSPECTION_RESULT_TONE[i.result] ?? "neutral").pill)}>{i.result}</Badge>
                 ) : (
-                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                  <Badge variant="outline" className="text-3xs text-muted-foreground">
                     {i.status.toLowerCase()}
                   </Badge>
                 )}

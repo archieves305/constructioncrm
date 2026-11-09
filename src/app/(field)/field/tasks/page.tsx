@@ -28,10 +28,10 @@ export default function FieldTasksPage() {
 
   const buckets = useMemo(() => bucketByDue(tasks), [tasks]);
   const sections: { key: keyof typeof buckets; title: string; tone: string }[] = [
-    { key: "overdue", title: "Overdue", tone: "text-red-600" },
-    { key: "today", title: "Due today", tone: "text-amber-700" },
-    { key: "upcoming", title: "Coming up", tone: "text-gray-700" },
-    { key: "noDate", title: "No due date", tone: "text-gray-500" },
+    { key: "overdue", title: "Overdue", tone: "text-tone-danger-fg" },
+    { key: "today", title: "Due today", tone: "text-tone-warning-fg" },
+    { key: "upcoming", title: "Coming up", tone: "text-fg-secondary" },
+    { key: "noDate", title: "No due date", tone: "text-muted-foreground" },
   ];
   const jobFilter = jobId ? tasks.find((t) => t.job?.id === jobId)?.job : null;
   const jobLabelText = jobFilter ? jobLabel(jobFilter, { customer: false }).primary : null;
@@ -41,7 +41,7 @@ export default function FieldTasksPage() {
       <div className="flex items-baseline justify-between">
         <h1 className="text-xl font-bold">My Tasks</h1>
         {jobId && (
-          <Link href="/field/tasks" className="text-sm text-blue-700 hover:underline">
+          <Link href="/field/tasks" className="text-sm text-tone-info-fg hover:underline">
             {jobLabelText ? `${jobLabelText} · ` : ""}Show all
           </Link>
         )}
@@ -78,7 +78,7 @@ export default function FieldTasksPage() {
 function TaskRow({ task, overdue }: { task: TaskListItem; overdue: boolean }) {
   return (
     <Link href={`/field/tasks/${task.id}`} className="block">
-      <Card className="active:bg-gray-50">
+      <Card className="active:bg-surface-subtle">
         <CardContent className="flex min-h-16 items-center gap-3 py-3">
           <div className="min-w-0 flex-1 space-y-1">
             <div className="truncate text-base font-semibold">{task.title}</div>
@@ -86,7 +86,7 @@ function TaskRow({ task, overdue }: { task: TaskListItem; overdue: boolean }) {
               <Badge className={cn("border-0", STATUS_BADGE_CLASS[task.status])}>{STATUS_LABEL[task.status]}</Badge>
               <Badge className={cn("border-0", PRIORITY_BADGE_CLASS[task.priority])}>{task.priority}</Badge>
               {task.dueAt && (
-                <span className={cn(overdue ? "font-semibold text-red-600" : "text-muted-foreground")}>
+                <span className={cn(overdue ? "font-semibold text-tone-danger-fg" : "text-muted-foreground")}>
                   {overdue ? "Overdue · " : "Due "}
                   {format(new Date(task.dueAt), "EEE, MMM d")}
                 </span>
@@ -103,7 +103,7 @@ function TaskRow({ task, overdue }: { task: TaskListItem; overdue: boolean }) {
               )}
             </div>
             {task.status === "BLOCKED" && task.blockedReason && (
-              <div className="truncate text-xs text-amber-700">Blocked — {task.blockedReason}</div>
+              <div className="truncate text-xs text-tone-warning-fg">Blocked — {task.blockedReason}</div>
             )}
           </div>
           <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />

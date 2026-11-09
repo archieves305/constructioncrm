@@ -189,11 +189,11 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
 
   const chips: { key: Exclude<Chip, null>; label: string; n: number; tone: string }[] = [
     { key: "ready", label: "Ready", n: progress.ready, tone: "bg-tone-info-soft text-tone-info-fg" },
-    { key: "inProgress", label: "In progress", n: progress.inProgress, tone: "bg-blue-100 text-blue-800" },
+    { key: "inProgress", label: "In progress", n: progress.inProgress, tone: "bg-tone-info-soft text-tone-info-fg" },
     { key: "blocked", label: "Blocked", n: progress.blocked, tone: "bg-tone-warning-soft text-tone-warning-fg" },
     { key: "overdue", label: "Overdue", n: progress.overdue, tone: "bg-tone-danger-soft text-tone-danger-fg" },
-    { key: "notActive", label: "Not active", n: progress.notActive, tone: "bg-gray-100 text-gray-600" },
-    { key: "skipped", label: "Skipped", n: progress.skipped, tone: "bg-gray-100 text-gray-500" },
+    { key: "notActive", label: "Not active", n: progress.notActive, tone: "bg-surface-muted text-fg-secondary" },
+    { key: "skipped", label: "Skipped", n: progress.skipped, tone: "bg-surface-muted text-muted-foreground" },
   ];
 
   const rowUpdate = (t: WorkflowTaskItem, patch: UpdatePatch & { dueLocked?: boolean }) => {
@@ -234,7 +234,7 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
                 const upgrade = (data.upgrades ?? []).find((u) => u.templateKey === m.templateKey);
                 const menu = canApply && (!isBase(m.kind) || upgrade);
                 const pill = (
-                  <Badge variant="outline" className={cn("text-xs", isBase(m.kind) && "border-dashed", menu && "cursor-pointer hover:bg-gray-50")}>
+                  <Badge variant="outline" className={cn("text-xs", isBase(m.kind) && "border-dashed", menu && "cursor-pointer hover:bg-surface-subtle")}>
                     {m.name} <span className="ml-1 text-muted-foreground">v{m.version}</span>
                     {upgrade && <ArrowUpCircle className="ml-1 size-3 text-tone-info-fg" aria-label={`v${upgrade.to} available`} />}
                     {menu && <ChevronDown className="ml-0.5 size-3 text-muted-foreground" />}
@@ -297,7 +297,7 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
                   aria-pressed={chip === c.key}
                   onClick={() => setChip((cur) => (cur === c.key ? null : c.key))}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ring-transparent transition",
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium ring-1 ring-inset ring-transparent transition",
                     c.tone,
                     chip === c.key && "ring-current",
                     c.n === 0 && chip !== c.key && "opacity-50",
@@ -307,7 +307,7 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
                 </button>
               ))}
               {chip && (
-                <button type="button" className="text-[11px] text-muted-foreground underline" onClick={() => setChip(null)}>
+                <button type="button" className="text-2xs text-muted-foreground underline" onClick={() => setChip(null)}>
                   clear
                 </button>
               )}
@@ -366,7 +366,7 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
           </Callout>
         )}
         {inst.permitStatus !== "UNDETERMINED" && inst.permitDeterminedBy && (
-          <p className="mt-2 text-[11px] text-muted-foreground">
+          <p className="mt-2 text-2xs text-muted-foreground">
             {PERMIT_STATUS_LABEL[inst.permitStatus]} — confirmed by {inst.permitDeterminedBy.firstName} {inst.permitDeterminedBy.lastName}
             {inst.permitDeterminedAt ? ` on ${new Date(inst.permitDeterminedAt).toLocaleDateString()}` : ""}
             {info.jurisdiction ? ` · ${info.jurisdiction}` : ""}

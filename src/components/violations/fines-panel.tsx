@@ -51,12 +51,12 @@ export function FinesPanel({ data }: { data: CaseData }) {
             {s.accrual.status === "ACCRUING" ? `Accruing ${money(s.accrual.dailyFine)}/day · ${s.accrual.days} day${s.accrual.days === 1 ? "" : "s"} so far` : s.accrual.status === "STOPPED" ? `Accrual stopped ${s.accrual.stoppedAt ? format(new Date(s.accrual.stoppedAt), "MMM d, yyyy") : ""}` : s.accrual.status === "NOT_STARTED" ? "Accrual not started" : "No daily fine set"}
           </p>
           {s.overrideApplied && (
-            <p className="mt-1 text-[11px] text-tone-warning-fg">
+            <p className="mt-1 text-2xs text-tone-warning-fg">
               Overridden — system figure {money(s.systemEstimate)}
               {s.overrideStale ? " · fine terms changed since" : ""}
             </p>
           )}
-          <p className="mt-1 text-[11px] text-muted-foreground">Exposure after payments, admin costs and mitigation: {money(s.exposure)}</p>
+          <p className="mt-1 text-2xs text-muted-foreground">Exposure after payments, admin costs and mitigation: {money(s.exposure)}</p>
         </div>
         <div className="rounded-lg border bg-white p-4">
           <p className="text-xs font-medium text-muted-foreground">{s.officialBalance ? s.officialBalance.label : "Official (agency) balance"}</p>
@@ -124,7 +124,7 @@ export function FinesPanel({ data }: { data: CaseData }) {
                 <TableRow key={e.id}>
                   <TableCell className="text-xs tabular-nums">{format(new Date(e.effectiveAt), "MMM d, yyyy")}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-3xs">
                       {FINE_ENTRY_LABEL[e.type] ?? e.type}
                     </Badge>
                   </TableCell>

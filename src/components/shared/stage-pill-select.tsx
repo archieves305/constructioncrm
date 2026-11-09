@@ -30,7 +30,7 @@ export function StagePillSelect({
       <SelectTrigger
         className={cn(
           "h-7 w-[180px] rounded-full border-0 pl-2.5 text-xs font-medium shadow-none",
-          current?.pill ?? "bg-gray-100 text-gray-700",
+          current?.pill ?? "bg-surface-muted text-fg-secondary",
           className,
         )}
       >

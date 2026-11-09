@@ -100,7 +100,7 @@ export function CostSummaryCard({
               <p className="text-xs text-muted-foreground">
                 {s.projectedProfit === null ? "Projected gross profit" : s.estimatedCost === null ? "Profit on costs so far" : "Projected gross profit"}
               </p>
-              <p className={cn("text-xl font-semibold tabular-nums", (s.projectedProfit ?? 0) < 0 ? "text-tone-danger-fg" : "text-gray-900")}>
+              <p className={cn("text-xl font-semibold tabular-nums", (s.projectedProfit ?? 0) < 0 ? "text-tone-danger-fg" : "text-foreground")}>
                 {s.projectedProfit === null ? "—" : money(s.projectedProfit)}
                 {s.projectedMargin !== null && <span className="ml-2 text-sm font-normal text-muted-foreground">{pct(s.projectedMargin)} margin</span>}
               </p>
@@ -135,14 +135,14 @@ function Line({
     <div className="flex items-start justify-between gap-4">
       <dt className="text-muted-foreground">
         {label}
-        {sub && <span className="block text-[11px] leading-tight">{sub}</span>}
+        {sub && <span className="block text-2xs leading-tight">{sub}</span>}
         {action && (
-          <button type="button" onClick={action.onClick} className="block text-[11px] text-brand hover:underline">
+          <button type="button" onClick={action.onClick} className="block text-2xs text-brand hover:underline">
             {action.label}
           </button>
         )}
       </dt>
-      <dd className={cn("shrink-0 tabular-nums", strong ? "font-semibold text-gray-900" : "text-gray-900", tone === "danger" && "text-tone-danger-fg")}>{value}</dd>
+      <dd className={cn("shrink-0 tabular-nums", strong ? "font-semibold text-foreground" : "text-foreground", tone === "danger" && "text-tone-danger-fg")}>{value}</dd>
     </div>
   );
 }

@@ -15,7 +15,7 @@ export function PriorityChips({
   className?: string;
 }) {
   return (
-    <div role="radiogroup" className={cn("inline-flex rounded-lg border bg-gray-50 p-0.5", className)}>
+    <div role="radiogroup" className={cn("inline-flex rounded-lg border bg-surface-subtle p-0.5", className)}>
       {TASK_PRIORITIES.map((p) => {
         const active = p === value;
         return (
@@ -29,7 +29,7 @@ export function PriorityChips({
               "inline-flex h-11 items-center gap-1.5 rounded-md px-2.5 sm:h-7 text-xs font-medium transition-colors",
               active
                 ? cn("ring-1 shadow-sm", PRIORITY_SELECTED_CLASS[p])
-                : "text-gray-600 hover:bg-white hover:text-gray-900",
+                : "text-fg-secondary hover:bg-white hover:text-foreground",
             )}
           >
             <span className={cn("size-2 rounded-full", PRIORITY_DOT_CLASS[p])} />

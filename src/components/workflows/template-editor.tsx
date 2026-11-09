@@ -28,8 +28,8 @@ import type { AdminVersionSummary, EditorPhase, EditorTask, EditorVersion, Valid
 const STATUS_PILL: Record<string, string> = {
   DRAFT: "bg-tone-warning-soft text-tone-warning-fg",
   PUBLISHED: "bg-tone-success-soft text-tone-success-fg",
-  SUPERSEDED: "bg-gray-100 text-gray-600",
-  ARCHIVED: "bg-gray-100 text-gray-400",
+  SUPERSEDED: "bg-surface-muted text-fg-secondary",
+  ARCHIVED: "bg-surface-muted text-muted-foreground",
 };
 
 /**
@@ -122,11 +122,11 @@ export function TemplateEditor({ templateId, versionId }: { templateId: string; 
             type="button"
             onClick={() => router.replace(`/admin/workflow-templates/${templateId}?v=${v.id}`)}
             aria-current={v.id === activeVid ? "true" : undefined}
-            className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs", v.id === activeVid ? "border-brand bg-brand/5" : "hover:bg-gray-50")}
+            className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs", v.id === activeVid ? "border-brand bg-brand/5" : "hover:bg-surface-subtle")}
           >
             v{v.version}
-            <span className={cn("rounded-full px-1.5 text-[10px] font-medium", STATUS_PILL[v.status])}>{v.status.toLowerCase()}</span>
-            {v._count.modules > 0 && <span className="text-[10px] text-muted-foreground">{v._count.modules} job{v._count.modules === 1 ? "" : "s"}</span>}
+            <span className={cn("rounded-full px-1.5 text-3xs font-medium", STATUS_PILL[v.status])}>{v.status.toLowerCase()}</span>
+            {v._count.modules > 0 && <span className="text-3xs text-muted-foreground">{v._count.modules} job{v._count.modules === 1 ? "" : "s"}</span>}
           </button>
         ))}
         <div className="ml-auto flex items-center gap-1.5">
@@ -161,7 +161,7 @@ export function TemplateEditor({ templateId, versionId }: { templateId: string; 
           {validation.issues.length > 0 && (
             <ul className="mt-1 space-y-0.5">
               {validation.issues.slice(0, 12).map((i, n) => (
-                <li key={n} className="flex items-center gap-2 text-[12px]">
+                <li key={n} className="flex items-center gap-2 text-xs">
                   <span className={i.level === "error" ? "" : "opacity-70"}>{i.message}</span>
                   {(i.taskKey || i.phaseKey) && version && (
                     <button
@@ -179,7 +179,7 @@ export function TemplateEditor({ templateId, versionId }: { templateId: string; 
                   )}
                 </li>
               ))}
-              {validation.issues.length > 12 && <li className="text-[12px] opacity-70">and {validation.issues.length - 12} more</li>}
+              {validation.issues.length > 12 && <li className="text-xs opacity-70">and {validation.issues.length - 12} more</li>}
             </ul>
           )}
         </Callout>
@@ -222,11 +222,11 @@ export function TemplateEditor({ templateId, versionId }: { templateId: string; 
                         type="button"
                         onClick={() => setPhaseId(p.id)}
                         aria-current={selectedPhase?.id === p.id ? "true" : undefined}
-                        className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-50", selectedPhase?.id === p.id && "bg-brand/5 ring-1 ring-brand/30")}
+                        className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-subtle", selectedPhase?.id === p.id && "bg-brand/5 ring-1 ring-brand/30")}
                       >
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium">{p.name}</span>
-                          <span className="block text-[11px] text-muted-foreground">
+                          <span className="block text-2xs text-muted-foreground">
                             {bandLabel(p.band)} · {stepsOf(p.id).length} steps
                             {p.conditionPermit ? ` · ${p.conditionPermit === "REQUIRED" ? "permit branch" : "no-permit branch"}` : ""}
                           </span>
@@ -246,7 +246,7 @@ export function TemplateEditor({ templateId, versionId }: { templateId: string; 
                 <header className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-semibold">{selectedPhase.name}</h3>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       {bandLabel(selectedPhase.band)} · key {selectedPhase.key}
                       {selectedPhase.note ? ` · ${selectedPhase.note.slice(0, 80)}${selectedPhase.note.length > 80 ? "…" : ""}` : ""}
                     </p>
@@ -276,21 +276,21 @@ export function TemplateEditor({ templateId, versionId }: { templateId: string; 
                       const deps = depsOf(t.key);
                       const issues = issuesFor({ taskKey: t.key });
                       return (
-                        <button type="button" onClick={() => setEditTask({ task: t, phaseId: t.phaseId })} className="flex w-full items-start gap-3 px-2 py-2 text-left hover:bg-gray-50">
-                          <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{i + 1}</span>
+                        <button type="button" onClick={() => setEditTask({ task: t, phaseId: t.phaseId })} className="flex w-full items-start gap-3 px-2 py-2 text-left hover:bg-surface-subtle">
+                          <span className="w-5 shrink-0 text-right text-2xs tabular-nums text-muted-foreground">{i + 1}</span>
                           <span className="min-w-0 flex-1">
                             <span className="flex flex-wrap items-center gap-1.5">
                               {t.blocking && <ShieldAlert className="size-3.5 text-tone-warning-fg" aria-label="Blocking gate" />}
                               <span className="text-sm font-medium">{t.title}</span>
-                              <span className="text-[11px] text-muted-foreground">{WORKFLOW_ROLE_LABEL[t.role]}</span>
+                              <span className="text-2xs text-muted-foreground">{WORKFLOW_ROLE_LABEL[t.role]}</span>
                               {t.priority !== "MEDIUM" && (
-                                <Badge variant="outline" className="text-[10px]">
+                                <Badge variant="outline" className="text-3xs">
                                   {t.priority}
                                 </Badge>
                               )}
-                              {issues.length > 0 && <span className="rounded-full bg-tone-danger-soft px-1.5 text-[10px] text-tone-danger-fg">{issues.length} problem{issues.length === 1 ? "" : "s"}</span>}
+                              {issues.length > 0 && <span className="rounded-full bg-tone-danger-soft px-1.5 text-3xs text-tone-danger-fg">{issues.length} problem{issues.length === 1 ? "" : "s"}</span>}
                             </span>
-                            <span className="block text-[11px] text-muted-foreground">
+                            <span className="block text-2xs text-muted-foreground">
                               <span className="font-mono">{t.key}</span> · {t.anchor === "PREDECESSOR" ? "" : `from ${t.anchor.toLowerCase().replace("_", " ")} `}+{t.dueOffsetBusinessDays}d
                               {deps.length > 0 ? ` · after ${deps.length} step${deps.length === 1 ? "" : "s"}` : ""}
                               {t.requiredEvidence ? ` · needs ${t.requiredEvidence.toLowerCase().replace("_", " ")}` : ""}

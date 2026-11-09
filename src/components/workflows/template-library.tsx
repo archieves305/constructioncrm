@@ -73,13 +73,13 @@ export function TemplateLibrary({ kind, title, description, emptyDescription }: 
                 onClick={() => setSelected(t.key)}
                 aria-current={t.key === activeKey ? "page" : undefined}
                 className={cn(
-                  "w-full rounded-lg border bg-white px-3 py-2.5 text-left text-sm transition-colors hover:bg-gray-50",
+                  "w-full rounded-lg border bg-white px-3 py-2.5 text-left text-sm transition-colors hover:bg-surface-subtle",
                   t.key === activeKey && "border-brand ring-1 ring-brand/30",
                 )}
               >
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{t.name}</span>
-                  <Badge variant="outline" className={cn("text-[10px]", t.kind === "CORE" && "border-dashed")}>
+                  <Badge variant="outline" className={cn("text-3xs", t.kind === "CORE" && "border-dashed")}>
                     {KIND_LABEL[t.kind] ?? t.kind} · v{t.version}
                   </Badge>
                 </div>
@@ -87,10 +87,10 @@ export function TemplateLibrary({ kind, title, description, emptyDescription }: 
                   {t.phaseCount} phases · {t.taskCount} steps
                   {t.scopeToggles.length > 0 ? ` · ${t.scopeToggles.length} scope toggles` : ""}
                 </p>
-                {t.serviceCategoryNames.length > 0 && <p className="mt-0.5 text-[11px] text-muted-foreground">Suggested for: {t.serviceCategoryNames.join(", ")}</p>}
+                {t.serviceCategoryNames.length > 0 && <p className="mt-0.5 text-2xs text-muted-foreground">Suggested for: {t.serviceCategoryNames.join(", ")}</p>}
               </button>
             ))}
-            <p className="px-1 pt-2 text-[11px] text-muted-foreground">Templates are versioned; a job or case keeps the version it was applied with until it is upgraded from its Workflow tab.</p>
+            <p className="px-1 pt-2 text-2xs text-muted-foreground">Templates are versioned; a job or case keeps the version it was applied with until it is upgraded from its Workflow tab.</p>
           </nav>
           <div>
             {!outline ? (
@@ -100,7 +100,7 @@ export function TemplateLibrary({ kind, title, description, emptyDescription }: 
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <h2 className="text-lg font-semibold">{outline.template.name}</h2>
                   <Badge variant="outline" className="text-xs">v{outline.version.version} · {outline.version.status.toLowerCase()}</Badge>
-                  <Link href={`/admin/workflow-templates/${templates.find((t) => t.key === activeKey)?.id ?? ""}`} className="ml-auto inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-gray-50">
+                  <Link href={`/admin/workflow-templates/${templates.find((t) => t.key === activeKey)?.id ?? ""}`} className="ml-auto inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-surface-subtle">
                     <Pencil className="size-3.5" /> {isAdmin ? "Open in editor" : "Versions"}
                   </Link>
                   {outline.template.description && <p className="basis-full text-sm text-muted-foreground">{outline.template.description}</p>}

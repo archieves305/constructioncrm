@@ -17,7 +17,7 @@ export function BusinessDevelopmentStrip() {
   const d = q.data;
   return (
     <section aria-label="Business development" className="mt-6">
-      <h2 className="mb-2 text-sm font-semibold text-gray-700">Business development</h2>
+      <h2 className="mb-2 text-sm font-semibold text-fg-secondary">Business development</h2>
       <div className="grid gap-3 sm:grid-cols-3">
         <KpiCard title="Open bid value" value={usd(d.openBidValue)} icon={BadgeDollarSign} description={`${d.openBids} open bid${d.openBids === 1 ? "" : "s"}`} href="/partners/bids" />
         <KpiCard title="Bids due this week" value={d.bidsDueThisWeek} icon={CalendarClock} tone={d.bidsDueThisWeek ? "warning" : undefined} description="Not yet submitted" href="/attention/bids-due?scope=all" />

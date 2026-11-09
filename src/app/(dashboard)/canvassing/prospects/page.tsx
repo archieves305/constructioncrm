@@ -287,7 +287,7 @@ export default function ProspectsPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-red-600 hover:text-red-700"
+                  className="text-tone-danger-fg hover:text-tone-danger-fg"
                   onClick={() => deleteProspect.mutate(p.id)}
                   disabled={deleteProspect.isPending}
                 >

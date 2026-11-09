@@ -125,7 +125,7 @@ export function ContractPanel({
                       {c.status === "SIGNED" && c.moneyApplyNote && <p className="mt-1 text-xs text-tone-warning-fg">{c.moneyApplyNote}</p>}
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-bold text-emerald-700">{money(c.contractAmount)}</div>
+                      <div className="text-xl font-bold text-tone-success-fg">{money(c.contractAmount)}</div>
                       <div className="text-xs text-muted-foreground">deposit {money(c.depositAmount)}</div>
                     </div>
                   </div>

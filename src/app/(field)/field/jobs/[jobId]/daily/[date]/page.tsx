@@ -64,9 +64,9 @@ type Person = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  DRAFT: "bg-gray-100 text-gray-700",
-  SUBMITTED: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-green-100 text-green-800",
+  DRAFT: "bg-surface-muted text-fg-secondary",
+  SUBMITTED: "bg-tone-warning-soft text-tone-warning-fg",
+  APPROVED: "bg-tone-success-soft text-tone-success-fg",
 };
 
 export default function DailyLaborPage({
@@ -395,13 +395,13 @@ export default function DailyLaborPage({
       </div>
 
       {log?.returnNote && logStatus === "DRAFT" && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+        <div className="mb-4 rounded-md border border-tone-danger-line bg-tone-danger-soft p-3 text-sm text-tone-danger-fg">
           <span className="font-semibold">Returned by the office:</span>{" "}
           {log.returnNote}
         </div>
       )}
       {logStatus === "SUBMITTED" && (
-        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="mb-4 rounded-md border border-tone-warning-line bg-tone-warning-soft p-3 text-sm text-tone-warning-fg">
           Submitted
           {log?.submittedAt
             ? ` ${format(new Date(log.submittedAt), "MMM d, h:mm a")}`
@@ -412,14 +412,14 @@ export default function DailyLaborPage({
         </div>
       )}
       {logStatus === "APPROVED" && (
-        <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+        <div className="mb-4 rounded-md border border-tone-success-line bg-tone-success-soft p-3 text-sm text-tone-success-fg">
           {canAmendApproved
             ? "Approved — corrections you make here are saved to the approved day and recorded in the audit log. Hours already paid out in payroll stay locked."
             : "Approved — this day is locked."}
         </div>
       )}
       {(sheet.status === "locked" || narrative.status === "locked") && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+        <div className="mb-4 rounded-md border border-tone-danger-line bg-tone-danger-soft p-3 text-sm text-tone-danger-fg">
           <span className="font-semibold">
             This day was locked before your latest changes could sync.
           </span>{" "}
@@ -429,7 +429,7 @@ export default function DailyLaborPage({
         </div>
       )}
 
-      <div className="mb-4 grid grid-cols-3 gap-1 rounded-lg bg-gray-200/70 p-1">
+      <div className="mb-4 grid grid-cols-3 gap-1 rounded-lg bg-surface-strong/70 p-1">
         {(
           [
             ["crew", "Crew"],
@@ -443,7 +443,7 @@ export default function DailyLaborPage({
             onClick={() => setSection(value)}
             className={cn(
               "h-11 rounded-md text-sm font-semibold transition-colors",
-              section === value ? "bg-white shadow" : "text-gray-600",
+              section === value ? "bg-white shadow" : "text-fg-secondary",
             )}
           >
             {label}
@@ -521,7 +521,7 @@ export default function DailyLaborPage({
                       {entry && server && !entry.isAbsent && (
                         <>
                           {" · "}
-                          <span className="font-medium text-gray-700">
+                          <span className="font-medium text-fg-secondary">
                             {server.regularHours}h
                             {server.otHours > 0 ? ` + ${server.otHours}h OT` : ""}
                           </span>
@@ -533,7 +533,7 @@ export default function DailyLaborPage({
                         {/* Piecework/contract hours are recorded for the job
                             record, but they are not what the worker is paid. */}
                         {server.scope.payType !== "HOURLY" && (
-                          <span className="mr-1 font-medium text-amber-700">
+                          <span className="mr-1 font-medium text-tone-warning-fg">
                             {server.scope.payType === "PIECEWORK"
                               ? "Piecework"
                               : "Contract"}
@@ -552,7 +552,7 @@ export default function DailyLaborPage({
                   <Button
                     type="button"
                     variant={present ? "default" : "outline"}
-                    className={cn("h-11 w-24", present && "bg-green-600 hover:bg-green-700")}
+                    className={cn("h-11 w-24", present && "bg-tone-success hover:bg-tone-success")}
                     disabled={!editable}
                     onClick={() => togglePresence(person)}
                   >
@@ -567,7 +567,7 @@ export default function DailyLaborPage({
                 </div>
 
                 {entry && expanded && (
-                  <div className="space-y-3 border-t bg-gray-50/60 px-4 py-3">
+                  <div className="space-y-3 border-t bg-surface-subtle/60 px-4 py-3">
                     <div className="grid grid-cols-2 gap-3">
                       <TouchTimeField
                         label="Start"
@@ -788,7 +788,7 @@ export default function DailyLaborPage({
               {totals ? ` · ${totals.totalHours} hours` : ""}.
             </p>
             {presentCount === 0 && (
-              <p className="font-medium text-amber-700">
+              <p className="font-medium text-tone-warning-fg">
                 No workers are marked present — submit anyway?
               </p>
             )}

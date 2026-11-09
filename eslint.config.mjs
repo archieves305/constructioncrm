@@ -9,11 +9,13 @@ const eslintConfig = defineConfig([
     // `fetch(url).then((r) => r.json())` hands a refusal or a server error's
     // body back as data (stuck skeletons, ".map is not a function"). Client
     // code reads through fetchJson, which throws an HttpError with the status.
-    files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}", "src/hooks/**/*.{ts,tsx}"],
+    files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}", "src/hooks/**/*.{ts,tsx}", "src/lib/ui/**/*.ts"],
     ignores: ["src/app/api/**"],
     rules: {
       "no-restricted-syntax": [
         "error",
+        { selector: "Literal[value=/(^|[\\s:])(bg|text|border|ring|divide|fill|stroke|outline)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}\\b/]", message: "Use a design token (surface-*, fg-secondary, muted-foreground, border, tone-*, stage-*, brand) instead of a raw Tailwind colour — see docs/project-memory/features/design-system.md." },
+        { selector: "TemplateElement[value.raw=/(^|[\\s:])(bg|text|border|ring|divide|fill|stroke|outline)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}\\b/]", message: "Use a design token (surface-*, fg-secondary, muted-foreground, border, tone-*, stage-*, brand) instead of a raw Tailwind colour — see docs/project-memory/features/design-system.md." },
         {
           selector:
             "CallExpression[callee.property.name='then'][callee.object.type='CallExpression'][callee.object.callee.name='fetch'][arguments.0.body.callee.property.name='json']",

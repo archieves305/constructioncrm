@@ -121,7 +121,7 @@ export function SignView({ token, initialState, contract, brand }: Props) {
   );
 
   const footer = (
-    <p className="mt-6 text-center text-xs text-gray-500">
+    <p className="mt-6 text-center text-xs text-muted-foreground">
       {brand.companyName}
       {brand.officePhone ? ` · ${brand.officePhone}` : ""}
       {brand.contactEmail ? ` · ${brand.contactEmail}` : ""}
@@ -134,7 +134,7 @@ export function SignView({ token, initialState, contract, brand }: Props) {
         {header}
         <div className="rounded-b-xl border bg-white p-6 text-center shadow-sm">
           <h2 className="text-lg font-semibold">Thank you — we have recorded that you declined.</h2>
-          <p className="mt-2 text-sm text-gray-600">Someone from {brand.companyName} will follow up. If you change your mind, just get in touch.</p>
+          <p className="mt-2 text-sm text-fg-secondary">Someone from {brand.companyName} will follow up. If you change your mind, just get in touch.</p>
         </div>
         {footer}
       </div>
@@ -146,7 +146,7 @@ export function SignView({ token, initialState, contract, brand }: Props) {
       <div className="mx-auto max-w-lg p-4">
         {header}
         <div className="rounded-b-xl border bg-white p-6 shadow-sm">
-          <div className="flex items-start gap-3 rounded-lg bg-green-50 p-4 text-green-800">
+          <div className="flex items-start gap-3 rounded-lg bg-tone-success-soft p-4 text-tone-success-fg">
             <CheckCircle className="mt-0.5 h-6 w-6 shrink-0" />
             <div>
               <p className="font-semibold">Signed{done.signerName ? ` as ${done.signerName}` : ""}</p>
@@ -156,7 +156,7 @@ export function SignView({ token, initialState, contract, brand }: Props) {
           <a href={`${pdfUrl}?kind=signed&download=1`} className="mt-4 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white" style={{ background: color }}>
             <Download className="h-4 w-4" /> Download your signed copy
           </a>
-          <p className="mt-4 flex items-start gap-2 text-xs text-gray-500">
+          <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /> The signed PDF ends with a signature certificate recording when and how it was signed.
           </p>
         </div>
@@ -170,25 +170,25 @@ export function SignView({ token, initialState, contract, brand }: Props) {
       {header}
       <div className="space-y-4 rounded-b-xl border bg-white p-5 shadow-sm">
         <section className="text-sm">
-          <p className="text-gray-600">Prepared for</p>
+          <p className="text-fg-secondary">Prepared for</p>
           <p className="font-medium">{contract.customer.fullName}</p>
-          <p className="text-gray-600">{contract.job.address}</p>
-          <p className="mt-2 text-gray-600">
+          <p className="text-fg-secondary">{contract.job.address}</p>
+          <p className="mt-2 text-fg-secondary">
             By {contract.company.name}
             {contract.company.licenses.length ? ` · Lic. ${contract.company.licenses.join(", ")}` : ""}
           </p>
         </section>
 
-        <section className="rounded-lg bg-gray-50 p-3 text-sm">
+        <section className="rounded-lg bg-surface-subtle p-3 text-sm">
           <p className="font-medium">Scope of work</p>
-          <ul className="mt-1 list-disc pl-5 text-gray-700">
+          <ul className="mt-1 list-disc pl-5 text-fg-secondary">
             {contract.scopeSummary.map((s) => (
               <li key={s.title}>
-                {s.title} <span className="text-gray-500">({s.lineCount} item{s.lineCount === 1 ? "" : "s"})</span>
+                {s.title} <span className="text-muted-foreground">({s.lineCount} item{s.lineCount === 1 ? "" : "s"})</span>
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-xs text-gray-500">Full line items are in the agreement below.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Full line items are in the agreement below.</p>
         </section>
 
         <section className="rounded-lg border p-3" style={{ borderColor: color }}>
@@ -204,14 +204,14 @@ export function SignView({ token, initialState, contract, brand }: Props) {
                 <tr key={r.label} className="border-t">
                   <td className="py-1.5 pr-2">
                     <span className="font-medium">{r.label}</span>
-                    <span className="block text-xs text-gray-500">{r.trigger}</span>
+                    <span className="block text-xs text-muted-foreground">{r.trigger}</span>
                   </td>
                   <td className="py-1.5 text-right font-medium">{money(r.amount)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-xs text-gray-500">Price valid through {longDate(contract.offerExpiresAt)}.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Price valid through {longDate(contract.offerExpiresAt)}.</p>
         </section>
 
         <section>
@@ -246,13 +246,13 @@ export function SignView({ token, initialState, contract, brand }: Props) {
                 </div>
                 <label className="mt-4 flex items-start gap-3 text-sm">
                   <input type="checkbox" className="mt-1 h-5 w-5 shrink-0" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-                  <span className="text-gray-700">{contract.consentText}</span>
+                  <span className="text-fg-secondary">{contract.consentText}</span>
                 </label>
-                {error && <p className="mt-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+                {error && <p className="mt-3 rounded-md bg-tone-danger-soft p-2 text-sm text-tone-danger-fg">{error}</p>}
                 <button type="button" disabled={!canSign || expired} onClick={submitSign} className="mt-4 w-full rounded-md px-4 py-3 text-base font-semibold text-white disabled:opacity-50" style={{ background: color }}>
                   {submitting ? "Signing…" : "Sign agreement"}
                 </button>
-                <button type="button" className="mt-3 w-full text-center text-sm text-gray-500 underline" onClick={() => setMode("decline")}>
+                <button type="button" className="mt-3 w-full text-center text-sm text-muted-foreground underline" onClick={() => setMode("decline")}>
                   I don&rsquo;t want to sign — decline
                 </button>
               </>
@@ -262,11 +262,11 @@ export function SignView({ token, initialState, contract, brand }: Props) {
                   Why are you declining? (optional)
                   <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 text-base" />
                 </label>
-                {error && <p className="mt-3 rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
-                <button type="button" disabled={submitting} onClick={submitDecline} className="mt-4 w-full rounded-md border border-red-600 px-4 py-3 text-base font-semibold text-red-700 disabled:opacity-50">
+                {error && <p className="mt-3 rounded-md bg-tone-danger-soft p-2 text-sm text-tone-danger-fg">{error}</p>}
+                <button type="button" disabled={submitting} onClick={submitDecline} className="mt-4 w-full rounded-md border border-tone-danger px-4 py-3 text-base font-semibold text-tone-danger-fg disabled:opacity-50">
                   {submitting ? "Sending…" : "Confirm decline"}
                 </button>
-                <button type="button" className="mt-3 w-full text-center text-sm text-gray-500 underline" onClick={() => setMode("sign")}>
+                <button type="button" className="mt-3 w-full text-center text-sm text-muted-foreground underline" onClick={() => setMode("sign")}>
                   Back to signing
                 </button>
               </>

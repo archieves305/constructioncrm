@@ -40,9 +40,9 @@ const STATUS_OPTIONS = [
 const BUCKETS: { key: DateBucket; title: string; tone: string }[] = [
   { key: "overdue", title: "Past", tone: "text-tone-danger-fg" },
   { key: "today", title: "Today", tone: "text-tone-warning-fg" },
-  { key: "week", title: "This week", tone: "text-gray-900" },
-  { key: "later", title: "Later", tone: "text-gray-700" },
-  { key: "none", title: "Not yet scheduled", tone: "text-gray-500" },
+  { key: "week", title: "This week", tone: "text-foreground" },
+  { key: "later", title: "Later", tone: "text-fg-secondary" },
+  { key: "none", title: "Not yet scheduled", tone: "text-muted-foreground" },
 ];
 
 /**
@@ -92,9 +92,9 @@ export function ScheduleList({ kind }: { kind: "hearing" | "inspection" }) {
         title={kind === "hearing" ? "Hearings" : "Agency inspections"}
         description={
           <span className="flex flex-wrap gap-1.5">
-            {counts.past > 0 && <span className="rounded-full bg-tone-danger-soft px-2 py-0.5 text-[11px] font-medium text-tone-danger-fg">Past {counts.past}</span>}
-            {counts.today > 0 && <span className="rounded-full bg-tone-warning-soft px-2 py-0.5 text-[11px] font-medium text-tone-warning-fg">Today {counts.today}</span>}
-            <span className="rounded-full bg-tone-info-soft px-2 py-0.5 text-[11px] font-medium text-tone-info-fg">This week {counts.week}</span>
+            {counts.past > 0 && <span className="rounded-full bg-tone-danger-soft px-2 py-0.5 text-2xs font-medium text-tone-danger-fg">Past {counts.past}</span>}
+            {counts.today > 0 && <span className="rounded-full bg-tone-warning-soft px-2 py-0.5 text-2xs font-medium text-tone-warning-fg">Today {counts.today}</span>}
+            <span className="rounded-full bg-tone-info-soft px-2 py-0.5 text-2xs font-medium text-tone-info-fg">This week {counts.week}</span>
           </span>
         }
       />
@@ -169,9 +169,9 @@ export function ScheduleList({ kind }: { kind: "hearing" | "inspection" }) {
                   const result = "outcome" in r ? r.outcome : r.result;
                   return (
                     <li key={r.id}>
-                      <Link href={`/violations/${r.case.id}?tab=${path}#${kind}-${r.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-gray-50">
+                      <Link href={`/violations/${r.case.id}?tab=${path}#${kind}-${r.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-surface-subtle">
                         <span className="w-28 shrink-0 tabular-nums text-xs text-muted-foreground">{d ? format(new Date(d), "EEE MMM d · h:mm a") : "requested " + format(new Date((r as InspectionRow).requestedAt), "MMM d")}</span>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-3xs">
                           {"type" in r ? HEARING_TYPE_LABEL[r.type] ?? r.type : r.kind.toLowerCase()}
                         </Badge>
                         <span className="font-mono text-brand-fg">{r.case.caseNumber}</span>
@@ -182,9 +182,9 @@ export function ScheduleList({ kind }: { kind: "hearing" | "inspection" }) {
                         {"location" in r && r.location && <span className="hidden text-xs text-muted-foreground sm:inline">{r.location}</span>}
                         {"inspectorName" in r && r.inspectorName && <span className="hidden text-xs text-muted-foreground sm:inline">{r.inspectorName}</span>}
                         {result ? (
-                          <Badge className={cn("border-0 text-[10px]", toneClasses(INSPECTION_RESULT_TONE[result] ?? "neutral").pill)}>{HEARING_OUTCOME_LABEL[result] ?? result}</Badge>
+                          <Badge className={cn("border-0 text-3xs", toneClasses(INSPECTION_RESULT_TONE[result] ?? "neutral").pill)}>{HEARING_OUTCOME_LABEL[result] ?? result}</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                          <Badge variant="outline" className="text-3xs text-muted-foreground">
                             {r.status.toLowerCase()}
                           </Badge>
                         )}

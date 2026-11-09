@@ -257,7 +257,7 @@ export default function CrewsPage() {
         <CardContent className="space-y-3 pt-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search by crew name…"
                 value={search}
@@ -280,7 +280,7 @@ export default function CrewsPage() {
               {filterTrades.length > 0 && (
                 <button
                   type="button"
-                  className="ml-2 text-blue-600 hover:underline"
+                  className="ml-2 text-tone-info-fg hover:underline"
                   onClick={() => setFilterTrades([])}
                 >
                   clear
@@ -298,8 +298,8 @@ export default function CrewsPage() {
                     className={cn(
                       "rounded-full border px-2.5 py-0.5 text-xs",
                       on
-                        ? "border-blue-500 bg-blue-500 text-white"
-                        : "border-gray-200 bg-white hover:bg-gray-50",
+                        ? "border-tone-info bg-tone-info text-white"
+                        : "border-border bg-white hover:bg-surface-subtle",
                     )}
                   >
                     {t}
@@ -314,7 +314,7 @@ export default function CrewsPage() {
               {filterCounties.length > 0 && (
                 <button
                   type="button"
-                  className="ml-2 text-blue-600 hover:underline"
+                  className="ml-2 text-tone-info-fg hover:underline"
                   onClick={() => setFilterCounties([])}
                 >
                   clear
@@ -332,8 +332,8 @@ export default function CrewsPage() {
                     className={cn(
                       "rounded-full border px-2.5 py-0.5 text-xs",
                       on
-                        ? "border-blue-500 bg-blue-500 text-white"
-                        : "border-gray-200 bg-white hover:bg-gray-50",
+                        ? "border-tone-info bg-tone-info text-white"
+                        : "border-border bg-white hover:bg-surface-subtle",
                     )}
                   >
                     {c}
@@ -406,8 +406,8 @@ export default function CrewsPage() {
                       className={cn(
                         "rounded-full border px-3 py-1 text-xs transition-colors",
                         on
-                          ? "border-blue-500 bg-blue-500 text-white"
-                          : "border-gray-200 bg-white hover:bg-gray-50",
+                          ? "border-tone-info bg-tone-info text-white"
+                          : "border-border bg-white hover:bg-surface-subtle",
                       )}
                     >
                       {t}
@@ -423,7 +423,7 @@ export default function CrewsPage() {
                       onClick={() =>
                         setForm((f) => ({ ...f, trades: toggleChip(f.trades, t) }))
                       }
-                      className="flex items-center gap-1 rounded-full border border-blue-500 bg-blue-500 px-3 py-1 text-xs text-white"
+                      className="flex items-center gap-1 rounded-full border border-tone-info bg-tone-info px-3 py-1 text-xs text-white"
                     >
                       {t}
                       <XIcon className="h-3 w-3" />
@@ -482,8 +482,8 @@ export default function CrewsPage() {
                       className={cn(
                         "rounded-full border px-3 py-1 text-xs transition-colors",
                         on
-                          ? "border-emerald-600 bg-emerald-600 text-white"
-                          : "border-gray-200 bg-white hover:bg-gray-50",
+                          ? "border-tone-success bg-tone-success text-white"
+                          : "border-border bg-white hover:bg-surface-subtle",
                       )}
                     >
                       {c}
@@ -499,7 +499,7 @@ export default function CrewsPage() {
                       onClick={() =>
                         setForm((f) => ({ ...f, counties: toggleChip(f.counties, c) }))
                       }
-                      className="flex items-center gap-1 rounded-full border border-emerald-600 bg-emerald-600 px-3 py-1 text-xs text-white"
+                      className="flex items-center gap-1 rounded-full border border-tone-success bg-tone-success px-3 py-1 text-xs text-white"
                     >
                       {c}
                       <XIcon className="h-3 w-3" />
@@ -596,7 +596,7 @@ export default function CrewsPage() {
                   <Hammer className="h-3 w-3 text-muted-foreground" />
                   {crew.trades.length > 0 ? (
                     crew.trades.map((t) => (
-                      <Badge key={t} variant="outline" className="text-[10px]">
+                      <Badge key={t} variant="outline" className="text-3xs">
                         {t}
                       </Badge>
                     ))
@@ -608,7 +608,7 @@ export default function CrewsPage() {
                   {crew.vendor ? (
                     <>
                       Vendor:{" "}
-                      <Link href={`/vendors/${crew.vendor.id}`} className="font-medium text-gray-700 hover:underline">
+                      <Link href={`/vendors/${crew.vendor.id}`} className="font-medium text-fg-secondary hover:underline">
                         {crew.vendor.name}
                       </Link>
                     </>
@@ -623,7 +623,7 @@ export default function CrewsPage() {
                       <Badge
                         key={c}
                         variant="outline"
-                        className="border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700"
+                        className="border-tone-success-line bg-tone-success-soft text-3xs text-tone-success-fg"
                       >
                         {c}
                       </Badge>
@@ -661,7 +661,7 @@ export default function CrewsPage() {
                   {crew.assignments.slice(0, 4).map((a) => (
                     <div
                       key={a.id}
-                      className="flex cursor-pointer items-center justify-between rounded bg-gray-50 p-1.5 text-xs hover:bg-gray-100"
+                      className="flex cursor-pointer items-center justify-between rounded bg-surface-subtle p-1.5 text-xs hover:bg-surface-muted"
                       onClick={() => router.push(`/jobs/${a.job.id}`)}
                     >
                       <span className="min-w-0 truncate" title={a.job.jobNumber}>{jobLabel(a.job, { customer: false, trade: false }).primary}</span>
@@ -673,7 +673,7 @@ export default function CrewsPage() {
                     </div>
                   ))}
                   {crew.assignments.length > 4 && (
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-3xs text-muted-foreground">
                       +{crew.assignments.length - 4} more
                     </p>
                   )}

@@ -36,8 +36,8 @@ function TaskNavBadge() {
     <span
       title={`${data.overdue} overdue · ${data.dueToday} due today · ${data.open} open`}
       className={cn(
-        "ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-none",
-        overdue ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600",
+        "ml-auto rounded-full px-1.5 py-0.5 text-2xs font-semibold tabular-nums leading-none",
+        overdue ? "bg-tone-danger-soft text-tone-danger-fg" : "bg-surface-muted text-fg-secondary",
       )}
     >
       {overdue ? data.overdue : data.open}
@@ -54,8 +54,8 @@ function ViolationsNavBadge() {
     <span
       title={`${data.overdue} overdue · ${data.dueSoon} due in 7 days · ${data.open} open`}
       className={cn(
-        "ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-none",
-        overdue ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800",
+        "ml-auto rounded-full px-1.5 py-0.5 text-2xs font-semibold tabular-nums leading-none",
+        overdue ? "bg-tone-danger-soft text-tone-danger-fg" : "bg-tone-warning-soft text-tone-warning-fg",
       )}
     >
       {overdue ? data.overdue : data.dueSoon}
@@ -111,11 +111,11 @@ export function Sidebar({ user, onSearch }: SidebarProps & { onSearch?: () => vo
           <button
             type="button"
             onClick={onSearch}
-            className="flex w-full items-center gap-2 rounded-md border bg-gray-50 px-3 py-1.5 text-sm text-gray-500 hover:border-gray-300 hover:bg-white hover:text-gray-900"
+            className="flex w-full items-center gap-2 rounded-md border bg-surface-subtle px-3 py-1.5 text-sm text-muted-foreground hover:border-border-strong hover:bg-white hover:text-foreground"
           >
             <Search className="h-4 w-4" />
             <span className="flex-1 text-left">Search…</span>
-            <kbd className="rounded border bg-white px-1.5 py-0.5 font-mono text-[10px] text-gray-500">⌘K</kbd>
+            <kbd className="rounded border bg-white px-1.5 py-0.5 font-mono text-3xs text-muted-foreground">⌘K</kbd>
           </button>
         </div>
       )}
@@ -149,7 +149,7 @@ export function Sidebar({ user, onSearch }: SidebarProps & { onSearch?: () => vo
             title="Notification settings"
             aria-label="Notification settings"
             className={cn(
-              "rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900",
+              "rounded-md p-1.5 text-muted-foreground hover:bg-surface-muted hover:text-foreground",
               pathname.startsWith("/settings") && "bg-brand-soft text-brand-fg",
             )}
           >
@@ -159,7 +159,7 @@ export function Sidebar({ user, onSearch }: SidebarProps & { onSearch?: () => vo
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2 text-gray-600"
+          className="w-full justify-start gap-2 text-fg-secondary"
           onClick={() => signOut()}
         >
           <LogOut className="h-4 w-4" />
@@ -189,7 +189,7 @@ function NavLink({ item, active, nested }: { item: NavItem; active: boolean; nes
         nested && "py-1.5 pl-9 text-[13px]",
         active
           ? "bg-brand-soft font-semibold text-brand-fg before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-brand"
-          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+          : "text-fg-secondary hover:bg-surface-subtle hover:text-foreground",
       )}
     >
       <Icon className={cn("h-4 w-4", nested && "h-3.5 w-3.5")} />
@@ -213,18 +213,18 @@ function NavGroup({ section, pathname, search, allItems }: { section: NavSection
         type="button"
         onClick={() => writeOpen(section.key, !shown)}
         aria-expanded={shown}
-        className={cn("flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors", anyActive ? "text-gray-900" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900")}
+        className={cn("flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors", anyActive ? "text-foreground" : "text-fg-secondary hover:bg-surface-subtle hover:text-foreground")}
       >
         <Icon className="h-4 w-4" />
         {section.label}
-        <ChevronDown className={cn("ml-auto h-3.5 w-3.5 text-gray-400 transition-transform", !shown && "-rotate-90")} />
+        <ChevronDown className={cn("ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform", !shown && "-rotate-90")} />
       </button>
       {shown && (
         <div className="mt-0.5 space-y-0.5">
           {section.items.map((item, i) => (
             <div key={item.href}>
               {item.heading && item.heading !== section.items[i - 1]?.heading && (
-                <div className="px-3 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{item.heading}</div>
+                <div className="px-3 pb-0.5 pt-2 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">{item.heading}</div>
               )}
               <NavLink item={item} active={active[i]!} nested />
             </div>

@@ -45,7 +45,7 @@ function AttentionListView({ listKey }: { listKey: string }) {
     return (
       <div>
         <PageHeader title="Needs attention" breadcrumb={crumbs} />
-        <EmptyState title="That list does not exist" action={<Link href="/" className="text-sm text-blue-700 hover:underline">Back to the dashboard</Link>} />
+        <EmptyState title="That list does not exist" action={<Link href="/" className="text-sm text-tone-info-fg hover:underline">Back to the dashboard</Link>} />
       </div>
     );
   }
@@ -90,10 +90,10 @@ function AttentionListView({ listKey }: { listKey: string }) {
               <ul className="divide-y">
                 {data.items.map((it) => (
                   <li key={it.id}>
-                    <Link href={it.href} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+                    <Link href={it.href} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
                       <span className="min-w-0 flex-1">
                         <EntityLabel label={{ primary: it.primary, secondary: it.secondary, code: it.code, placeholder: false }} />
-                        <span className="mt-0.5 block text-sm text-gray-700">{it.detail}</span>
+                        <span className="mt-0.5 block text-sm text-fg-secondary">{it.detail}</span>
                       </span>
                       <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                     </Link>

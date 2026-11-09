@@ -9,12 +9,12 @@ export const metadata: Metadata = { title: "Sign your agreement", robots: { inde
 
 function Shell({ title, children, contact }: { title: string; children: React.ReactNode; contact: { email: string | null; phone: string | null } }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-surface-subtle p-4">
       <div className="max-w-md text-center">
         <h1 className="mb-2 text-xl font-bold">{title}</h1>
-        <div className="text-gray-600">{children}</div>
+        <div className="text-fg-secondary">{children}</div>
         {(contact.phone || contact.email) && (
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="mt-4 text-sm text-muted-foreground">
             Questions? {contact.phone ? `Call ${contact.phone}` : ""}
             {contact.phone && contact.email ? " or " : ""}
             {contact.email ? `email ${contact.email}` : ""}.
@@ -51,7 +51,7 @@ export default async function SignPage({ params }: { params: Promise<{ token: st
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-subtle">
       <SignView
         token={token}
         initialState={view.kind === "signed" ? { signed: true, signedAt: view.signedAt?.toISOString() ?? null, signerName: view.signerName } : { signed: false }}

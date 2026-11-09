@@ -141,7 +141,7 @@ export function KanbanBoard<T extends { id: string }>({
                           return { key: prev.key, counts };
                         })
                       }
-                      className="w-full rounded-md border border-dashed border-gray-300 bg-white/60 px-2 py-1.5 text-xs font-medium text-gray-600 hover:bg-white hover:text-gray-900"
+                      className="w-full rounded-md border border-dashed border-border-strong bg-white/60 px-2 py-1.5 text-xs font-medium text-fg-secondary hover:bg-white hover:text-foreground"
                     >
                       Show {Math.min(maxVisiblePerColumn, hidden)} more · {hidden} hidden
                     </button>

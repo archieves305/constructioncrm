@@ -130,7 +130,7 @@ export function NoteComposer({
                 type="button"
                 className={cn(
                   "flex w-full items-center px-3 py-1.5 text-left text-sm",
-                  i === highlight ? "bg-blue-50 text-blue-900" : "hover:bg-gray-50",
+                  i === highlight ? "bg-tone-info-soft text-tone-info-fg" : "hover:bg-surface-subtle",
                 )}
                 onMouseEnter={() => setHighlight(i)}
                 onClick={() => insertMention(u)}

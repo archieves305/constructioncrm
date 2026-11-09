@@ -120,7 +120,7 @@ function Body({ a, by, onPeriod }: { a: Analytics; by: By; onPeriod: (p: Period)
         <CardHeader className="pb-2"><CardTitle className="text-sm">Pipeline</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           {a.pipeline.byStage.map((s) => (
-            <Link key={s.stage} href={`/partners?stage=${s.stage}`} className="rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50">
+            <Link key={s.stage} href={`/partners?stage=${s.stage}`} className="rounded-md border px-3 py-1.5 text-sm hover:bg-surface-subtle">
               <span className="font-semibold tabular-nums">{s.count}</span> <span className="text-muted-foreground">{s.label}</span>
             </Link>
           ))}

@@ -36,7 +36,7 @@ export function DropZone({
       data-drop-over={isOver && !refused ? "" : undefined}
       className={cn(
         "rounded-md transition-colors",
-        active && !refused && "outline-1 outline-dashed outline-gray-300",
+        active && !refused && "outline-1 outline-dashed outline-border-strong",
         isOver && !refused && "bg-brand/5 outline-2 outline-brand/60",
         active && refused && "bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgb(0_0_0/0.05)_6px,rgb(0_0_0/0.05)_12px)] opacity-70",
         className,

@@ -47,26 +47,26 @@ export function PhaseSection({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setOpen} className="overflow-hidden rounded-lg border bg-white">
-      <CollapsibleTrigger className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50">
+      <CollapsibleTrigger className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-subtle">
         <span className={cn("h-8 w-1 shrink-0 rounded-full", tone.bar)} aria-hidden />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold">{phase.name}</span>
-            {phase.moduleKey !== "core" && !phase.legacy && <span className={cn("rounded-full px-1.5 text-[10px] font-medium", tone.pill)}>{phase.moduleName}</span>}
-            {phase.legacy && <span className="rounded-full bg-tone-neutral-soft px-1.5 text-[10px] text-tone-neutral-fg">history</span>}
-            {phase.conditionPermit === "REQUIRED" && <span className="rounded-full bg-tone-info-soft px-1.5 text-[10px] text-tone-info-fg">permit branch</span>}
-            {phase.conditionPermit === "NOT_REQUIRED" && <span className="rounded-full bg-tone-neutral-soft px-1.5 text-[10px] text-tone-neutral-fg">no-permit branch</span>}
-            {p.overdue > 0 && <span className="rounded-full bg-tone-danger-soft px-1.5 text-[10px] font-medium text-tone-danger-fg">{p.overdue} overdue</span>}
-            {p.blocked > 0 && <span className="rounded-full bg-tone-warning-soft px-1.5 text-[10px] font-medium text-tone-warning-fg">{p.blocked} blocked</span>}
+            {phase.moduleKey !== "core" && !phase.legacy && <span className={cn("rounded-full px-1.5 text-3xs font-medium", tone.pill)}>{phase.moduleName}</span>}
+            {phase.legacy && <span className="rounded-full bg-tone-neutral-soft px-1.5 text-3xs text-tone-neutral-fg">history</span>}
+            {phase.conditionPermit === "REQUIRED" && <span className="rounded-full bg-tone-info-soft px-1.5 text-3xs text-tone-info-fg">permit branch</span>}
+            {phase.conditionPermit === "NOT_REQUIRED" && <span className="rounded-full bg-tone-neutral-soft px-1.5 text-3xs text-tone-neutral-fg">no-permit branch</span>}
+            {p.overdue > 0 && <span className="rounded-full bg-tone-danger-soft px-1.5 text-3xs font-medium text-tone-danger-fg">{p.overdue} overdue</span>}
+            {p.blocked > 0 && <span className="rounded-full bg-tone-warning-soft px-1.5 text-3xs font-medium text-tone-warning-fg">{p.blocked} blocked</span>}
           </div>
           {phase.legacy ? (
-            <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+            <p className="mt-0.5 text-2xs tabular-nums text-muted-foreground">
               {p.done} completed · {p.skipped} retired or skipped · not part of the progress above
             </p>
           ) : (
           <div className="mt-1 flex items-center gap-2">
             <Progress value={closed} max={p.total} className="h-1 w-32" indicatorClassName={closed === p.total ? "bg-tone-success" : tone.bar} label={`${phase.name} ${closed} of ${p.total}`} />
-            <span className="text-[11px] tabular-nums text-muted-foreground">
+            <span className="text-2xs tabular-nums text-muted-foreground">
               {closed}/{p.total}
               {p.ready > 0 && ` · ${p.ready} ready`}
               {p.notActive > 0 && ` · ${p.notActive} waiting`}

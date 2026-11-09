@@ -238,7 +238,7 @@ function ReportRecipients({ jobId }: { jobId: string }) {
                 type="button"
                 aria-label={`Remove ${r}`}
                 onClick={() => save.mutate(recipients.filter((x) => x !== r))}
-                className="text-muted-foreground hover:text-red-600"
+                className="text-muted-foreground hover:text-tone-danger-fg"
               >
                 <X className="h-3.5 w-3.5" />
               </button>

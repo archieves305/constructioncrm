@@ -53,7 +53,7 @@ function Field({ label, value, hint }: { label: string; value: React.ReactNode; 
   return (
     <div className="min-w-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={cn("break-words text-sm", !value && "text-muted-foreground")}>{value || "—"}{hint && <span className="block text-xs text-amber-700">{hint}</span>}</dd>
+      <dd className={cn("break-words text-sm", !value && "text-muted-foreground")}>{value || "—"}{hint && <span className="block text-xs text-tone-warning-fg">{hint}</span>}</dd>
     </div>
   );
 }
@@ -102,7 +102,7 @@ export function IntakeCard({ item, highlight }: { item: IntakeItem; highlight?: 
         </dl>
         <p className="text-xs text-muted-foreground">Read from the email: {p.found.length ? p.found.join(", ") : "nothing reliable — fill the bid in by hand"}. Nothing here is a guess; a field the email does not state is left empty.</p>
 
-        <div className="flex flex-wrap items-center gap-2 rounded-md bg-gray-50 px-3 py-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-md bg-surface-subtle px-3 py-2 text-sm">
           <span className="text-xs text-muted-foreground">Account</span>
           {open ? (
             <Select items={accountItems} value={item.organizationId ?? NONE} onValueChange={(v: string | null) => setAccount.mutate({ id: item.id, body: { organizationId: !v || v === NONE ? null : v } })}>
@@ -113,7 +113,7 @@ export function IntakeCard({ item, highlight }: { item: IntakeItem; highlight?: 
             <span className="font-medium">{item.organization?.name ?? "—"}</span>
           )}
           {item.matchedBy && <span className="text-xs text-muted-foreground">{item.matchedBy === "person" ? "picked by a person" : `matched by ${item.matchedBy}`}</span>}
-          {!item.organizationId && open && <span className="text-xs text-amber-700">No account matched — pick one, or create the account first under GC Partnerships.</span>}
+          {!item.organizationId && open && <span className="text-xs text-tone-warning-fg">No account matched — pick one, or create the account first under GC Partnerships.</span>}
         </div>
 
         {item.existingBid && open && (

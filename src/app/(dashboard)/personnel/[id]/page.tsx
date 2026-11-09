@@ -667,7 +667,7 @@ export default function PersonnelDetailPage({
                           href={`/api/personnel/${id}/documents/${doc.id}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex-1 truncate text-blue-700 hover:underline"
+                          className="flex-1 truncate text-tone-info-fg hover:underline"
                         >
                           {doc.fileName}
                         </a>
@@ -683,7 +683,7 @@ export default function PersonnelDetailPage({
                             if (confirm(`Delete ${doc.fileName}?`)) deleteDoc.mutate(doc.id);
                           }}
                         >
-                          <Trash2 className="h-4 w-4 text-red-500" />
+                          <Trash2 className="h-4 w-4 text-tone-danger-fg" />
                         </Button>
                       </li>
                     ))}
@@ -695,7 +695,7 @@ export default function PersonnelDetailPage({
         </Card>
       </div>
 
-      <Card className="border-red-200">
+      <Card className="border-tone-danger-line">
         <CardContent className="flex items-center justify-between py-4">
           <div>
             <div className="font-medium">

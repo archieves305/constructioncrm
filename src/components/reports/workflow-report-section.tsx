@@ -126,7 +126,7 @@ export function WorkflowReportSection({ report }: { report: WorkflowReport }) {
           <Link
             key={t.label}
             href={t.href}
-            className={cn("rounded-lg border bg-white px-4 py-3 hover:bg-gray-50", t.value > 0 && t.tone && toneClasses(t.tone).soft)}
+            className={cn("rounded-lg border bg-white px-4 py-3 hover:bg-surface-subtle", t.value > 0 && t.tone && toneClasses(t.tone).soft)}
           >
             <div className={cn("text-2xl font-semibold", t.value > 0 && t.tone && toneClasses(t.tone).text)}>{t.value}</div>
             <div className="text-xs text-muted-foreground">{t.label}</div>
@@ -287,7 +287,7 @@ export function WorkflowReportSection({ report }: { report: WorkflowReport }) {
                 <div key={m.metric} className="rounded-lg border px-4 py-3">
                   <div className="text-2xl font-semibold">{m.medianDays === null ? "—" : `${m.medianDays}d`}</div>
                   <div className="text-xs text-muted-foreground">{m.label}</div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
+                  <div className="mt-1 text-2xs text-muted-foreground">
                     {m.n === 0 ? "no data yet" : `n ${m.n} · avg ${fmtDays(m.avgDays)} · p90 ${fmtDays(m.p90Days)}`}
                   </div>
                 </div>
@@ -337,7 +337,7 @@ export function WorkflowReportSection({ report }: { report: WorkflowReport }) {
                     <TableRow key={r.key}>
                       <TableCell>
                         <div className="text-sm">{r.title}</div>
-                        <div className="font-mono text-[11px] text-muted-foreground">{r.key}</div>
+                        <div className="font-mono text-2xs text-muted-foreground">{r.key}</div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{r.userSkips}</TableCell>
                       <TableCell className="text-right tabular-nums">{r.engineSkips}</TableCell>
@@ -391,7 +391,7 @@ export function WorkflowReportSection({ report }: { report: WorkflowReport }) {
                       <TableCell className="text-xs">{i.role ? WORKFLOW_ROLE_LABEL[i.role] : "—"}</TableCell>
                       <TableCell className="text-xs">{report.stalled.byCause.find((c) => c.cause === i.cause)?.label ?? i.cause}</TableCell>
                       <TableCell>
-                        <span className={cn("rounded-md px-1.5 py-0.5 text-[11px] font-medium", i.state === "BLOCKED" ? toneClasses("danger").pill : toneClasses("warning").pill)}>
+                        <span className={cn("rounded-md px-1.5 py-0.5 text-2xs font-medium", i.state === "BLOCKED" ? toneClasses("danger").pill : toneClasses("warning").pill)}>
                           {i.state === "BLOCKED" ? "Blocked" : "Overdue"}
                         </span>
                       </TableCell>

@@ -38,20 +38,20 @@ export function FieldDayCard({
 
   return (
     <li className="flex items-stretch gap-2">
-      <span className={cn("w-14 shrink-0 pt-4 text-right text-xs font-medium tabular-nums", item.allDay ? "text-muted-foreground/70" : "text-gray-700")} aria-hidden>
+      <span className={cn("w-14 shrink-0 pt-4 text-right text-xs font-medium tabular-nums", item.allDay ? "text-muted-foreground" : "text-fg-secondary")} aria-hidden>
         {rail}
       </span>
-      <div className={cn("min-w-0 flex-1 rounded-lg border bg-white shadow-xs", overdue && "border-red-300", closed && "opacity-70")}>
-        <Link href={`/field/tasks/${item.id}`} className="block min-h-16 px-3 py-3 active:bg-gray-50" aria-label={`${item.title}, ${contextLine(item)}, ${when}`}>
+      <div className={cn("min-w-0 flex-1 rounded-lg border bg-white shadow-xs", overdue && "border-tone-danger-line", closed && "opacity-70")}>
+        <Link href={`/field/tasks/${item.id}`} className="block min-h-16 px-3 py-3 active:bg-surface-subtle" aria-label={`${item.title}, ${contextLine(item)}, ${when}`}>
           <p className="truncate text-xs text-muted-foreground">{contextLine(item)}</p>
           <p className={cn("text-base font-semibold leading-snug", closed && "line-through")}>{item.title}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-            <Badge className={cn("border-0", overdue ? "bg-red-100 text-red-800" : STATUS_BADGE_CLASS[item.status])}>{overdue ? "Overdue" : STATUS_LABEL[item.status]}</Badge>
+            <Badge className={cn("border-0", overdue ? "bg-tone-danger-soft text-tone-danger-fg" : STATUS_BADGE_CLASS[item.status])}>{overdue ? "Overdue" : STATUS_LABEL[item.status]}</Badge>
             <Badge className={cn("border-0", PRIORITY_BADGE_CLASS[item.priority])}>{item.priority}</Badge>
             <span className="text-muted-foreground">{when}</span>
           </div>
           {item.status === "BLOCKED" && item.blockedReason && (
-            <p className="mt-1.5 flex items-start gap-1 text-xs text-amber-800">
+            <p className="mt-1.5 flex items-start gap-1 text-xs text-tone-warning-fg">
               <Lock className="mt-0.5 size-3 shrink-0" /> {item.blockedReason}
             </p>
           )}

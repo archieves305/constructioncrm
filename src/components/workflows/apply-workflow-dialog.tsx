@@ -452,7 +452,7 @@ function ApplyWorkflowBody({
             ) : (
               <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
                 {core && (
-                  <div className="rounded-md border border-dashed bg-gray-50 p-3 text-sm">
+                  <div className="rounded-md border border-dashed bg-surface-subtle p-3 text-sm">
                     <div className="flex items-center gap-2 font-medium">
                       <Checkbox
                         checked
@@ -543,7 +543,7 @@ function ApplyWorkflowBody({
                   : null;
                 return (
                   <div key={role}>
-                    <Label className="text-[11px] text-muted-foreground">
+                    <Label className="text-2xs text-muted-foreground">
                       {WORKFLOW_ROLE_LABEL[role]}
                     </Label>
                     <AssigneePicker
@@ -577,7 +577,7 @@ function ApplyWorkflowBody({
                   value={targetStart}
                   onChange={(e) => setTargetStart(e.target.value)}
                 />
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-2xs text-muted-foreground">
                   Steps counted back from the start date get dates once this is
                   set.
                 </p>
@@ -667,7 +667,7 @@ function TradeCard({
     <label
       className={cn(
         "cursor-pointer rounded-md border p-3 text-sm transition-colors",
-        checked ? "border-brand bg-brand/5" : "hover:bg-gray-50",
+        checked ? "border-brand bg-brand/5" : "hover:bg-surface-subtle",
         applied && "opacity-80",
       )}
     >
@@ -680,12 +680,12 @@ function TradeCard({
         />
         {template.name}
         {template.suggested && !applied && (
-          <span className="rounded-full bg-tone-info-soft px-1.5 text-[10px] font-medium text-tone-info-fg">
+          <span className="rounded-full bg-tone-info-soft px-1.5 text-3xs font-medium text-tone-info-fg">
             suggested
           </span>
         )}
         {applied && (
-          <span className="rounded-full bg-tone-success-soft px-1.5 text-[10px] font-medium text-tone-success-fg">
+          <span className="rounded-full bg-tone-success-soft px-1.5 text-3xs font-medium text-tone-success-fg">
             applied
           </span>
         )}
@@ -869,12 +869,12 @@ function Tile({
   small?: boolean;
 }) {
   return (
-    <div className="rounded-md border bg-gray-50 p-2.5">
-      <p className="text-[11px] text-muted-foreground">{label}</p>
+    <div className="rounded-md border bg-surface-subtle p-2.5">
+      <p className="text-2xs text-muted-foreground">{label}</p>
       <p className={cn("font-semibold", small ? "text-sm" : "text-lg")}>
         {value}
       </p>
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-2xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }

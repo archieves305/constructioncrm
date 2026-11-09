@@ -10,11 +10,11 @@ type Strength = {
 
 const LABELS = ["Very weak", "Weak", "Fair", "Strong", "Very strong"];
 const COLORS = [
-  "bg-red-500",
-  "bg-orange-500",
-  "bg-amber-500",
-  "bg-green-500",
-  "bg-emerald-600",
+  "bg-tone-danger",
+  "bg-tone-warning",
+  "bg-tone-warning",
+  "bg-tone-success",
+  "bg-tone-success",
 ];
 
 // Load zxcvbn + dictionaries ONCE per page, not per keystroke. The dictionary
@@ -97,21 +97,21 @@ export function PasswordStrengthMeter({
           <div
             key={i}
             className={`h-1.5 flex-1 rounded-full ${
-              i <= score ? COLORS[score] : "bg-gray-200"
+              i <= score ? COLORS[score] : "bg-surface-strong"
             }`}
           />
         ))}
       </div>
       <div className="flex items-center justify-between text-xs">
-        <span className={meets ? "text-green-700" : "text-muted-foreground"}>
+        <span className={meets ? "text-tone-success-fg" : "text-muted-foreground"}>
           {LABELS[score]}
         </span>
         {!meets && password.length > 0 && (
-          <span className="text-amber-700">Need stronger</span>
+          <span className="text-tone-warning-fg">Need stronger</span>
         )}
       </div>
       {strength?.warning && (
-        <p className="text-xs text-amber-700">{strength.warning}</p>
+        <p className="text-xs text-tone-warning-fg">{strength.warning}</p>
       )}
       {strength?.suggestions && strength.suggestions.length > 0 && !meets && (
         <ul className="ml-4 list-disc text-xs text-muted-foreground">

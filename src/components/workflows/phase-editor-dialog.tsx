@@ -61,7 +61,7 @@ function Body({ phase, onCancel, onSave, pending }: { phase: EditorPhase | null;
             Name
           </Label>
           <Input id="ph-name" autoFocus className="mt-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Roofing Procurement" />
-          {phase && <p className="mt-0.5 text-[11px] text-muted-foreground">Key: {phase.key}</p>}
+          {phase && <p className="mt-0.5 text-2xs text-muted-foreground">Key: {phase.key}</p>}
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>

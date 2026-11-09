@@ -83,7 +83,7 @@ export function NotificationBell() {
         <Bell className="h-4 w-4" />
         <span>Notifications</span>
         {unread > 0 && (
-          <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+          <span className="ml-auto rounded-full bg-tone-danger px-1.5 py-0.5 text-3xs font-bold text-white">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
@@ -113,7 +113,7 @@ export function NotificationBell() {
               {unread > 0 && (
                 <button
                   type="button"
-                  className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                  className="flex items-center gap-1 text-xs text-tone-info-fg hover:underline"
                   onClick={() => markAllRead.mutate()}
                 >
                   <Check className="h-3 w-3" />
@@ -129,21 +129,21 @@ export function NotificationBell() {
               ) : (
                 <ul className="divide-y">
                   {items.map((n) => (
-                    <li key={n.id} className={cn("p-3 text-sm", !n.readAt && "bg-blue-50")}>
+                    <li key={n.id} className={cn("p-3 text-sm", !n.readAt && "bg-tone-info-soft")}>
                       <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="rounded bg-muted px-1.5 py-0.5">{CATEGORY_LABEL[n.category] ?? n.category}</span>
                         {n.actionRequired && !n.readAt && (
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-800">Action</span>
+                          <span className="rounded bg-tone-warning-soft px-1.5 py-0.5 font-medium text-tone-warning-fg">Action</span>
                         )}
                         {n.priority === "URGENT" && (
-                          <span className="rounded bg-red-100 px-1.5 py-0.5 font-medium text-red-700">Urgent</span>
+                          <span className="rounded bg-tone-danger-soft px-1.5 py-0.5 font-medium text-tone-danger-fg">Urgent</span>
                         )}
                         <span>{formatDistanceToNow(new Date(n.lastOccurredAt), { addSuffix: true })}</span>
                         {n.occurrences > 1 && <span>· ×{n.occurrences}</span>}
                         {!n.readAt && (
                           <button
                             type="button"
-                            className="ml-auto text-blue-600 hover:underline"
+                            className="ml-auto text-tone-info-fg hover:underline"
                             onClick={() => markRead.mutate(n.id)}
                           >
                             Mark read
@@ -162,7 +162,7 @@ export function NotificationBell() {
             <div className="border-t px-3 py-2 text-xs">
               <button
                 type="button"
-                className="text-blue-600 hover:underline"
+                className="text-tone-info-fg hover:underline"
                 onClick={() => {
                   setOpen(false);
                   router.push("/notifications");

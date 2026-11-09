@@ -101,7 +101,7 @@ export function TargetStartField({
               onChange={(e) => setDraft(e.target.value)}
             />
             {hasWorkflow && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-2xs text-muted-foreground">
                 Open workflow steps counted from the start date move with it.
               </p>
             )}

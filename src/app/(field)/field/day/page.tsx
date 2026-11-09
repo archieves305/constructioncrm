@@ -142,7 +142,7 @@ export default function FieldDayPage() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             Nothing scheduled {isToday ? "today" : "this day"}.{" "}
-            <Link href="/field/tasks" className="text-blue-700 underline">
+            <Link href="/field/tasks" className="text-tone-info-fg underline">
               See all my tasks
             </Link>
           </CardContent>
@@ -183,7 +183,7 @@ export default function FieldDayPage() {
           <ul className="divide-y border-t">
             {tomorrow.remaining.map((i) => (
               <li key={i.id}>
-                <Link href={`/field/tasks/${i.id}`} className="block px-3 py-2.5 text-sm active:bg-gray-50">
+                <Link href={`/field/tasks/${i.id}`} className="block px-3 py-2.5 text-sm active:bg-surface-subtle">
                   <span className="font-medium">{i.title}</span>
                   {!i.allDay && i.start && <span className="ml-2 text-xs text-muted-foreground">{format(new Date(i.start), "h:mm a")}</span>}
                 </Link>

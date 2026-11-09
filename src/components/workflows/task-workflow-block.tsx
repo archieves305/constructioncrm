@@ -66,8 +66,8 @@ export function TaskWorkflowBlock({
           <span className="font-medium">{moduleName}</span>
           {phaseName && <span className="text-muted-foreground">· {phaseName}</span>}
           {task.workflowRole && <span className="text-muted-foreground">· {WORKFLOW_ROLE_LABEL[task.workflowRole]}</span>}
-          {task.blocking && <span className="rounded bg-tone-warning-soft px-1 text-[10px] text-tone-warning-fg">blocking gate</span>}
-          {!isStep && <span className="rounded bg-gray-100 px-1 text-[10px] text-gray-600">manual task in phase</span>}
+          {task.blocking && <span className="rounded bg-tone-warning-soft px-1 text-3xs text-tone-warning-fg">blocking gate</span>}
+          {!isStep && <span className="rounded bg-surface-muted px-1 text-3xs text-fg-secondary">manual task in phase</span>}
         </div>
         {subject && (
           <Link href={`${subjectHref(subject)}?tab=workflow#task-${task.id}`} className="inline-flex items-center gap-1 text-xs text-brand-fg hover:underline">
@@ -118,7 +118,7 @@ export function TaskWorkflowBlock({
                   <button type="button" onClick={() => setPreview(i)} className="truncate text-left hover:underline">
                     {f.fileName}
                   </button>
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     {f.uploadedBy.firstName} {f.uploadedBy.lastName}
                   </span>
                 </li>
@@ -147,7 +147,7 @@ export function TaskWorkflowBlock({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-3 text-2xs text-muted-foreground">
         {task.dueLocked && (
           <span className="inline-flex items-center gap-1">
             <Lock className="size-3" /> Due date set by hand
@@ -159,7 +159,7 @@ export function TaskWorkflowBlock({
           </span>
         )}
         {isStep && open && canCoordinate && (
-          <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[11px]" onClick={() => setSkipOpen(true)}>
+          <Button size="sm" variant="ghost" className="h-6 px-1.5 text-2xs" onClick={() => setSkipOpen(true)}>
             <SkipForward className="size-3" /> Skip this step
           </Button>
         )}

@@ -60,20 +60,20 @@ export function JobBoardCard({ job, density = "comfortable" }: { job: BoardJob; 
   return (
     <div className={compact ? "space-y-1" : "space-y-1.5"}>
       <div className="flex items-start justify-between gap-2">
-        <p className={cn("min-w-0 truncate text-sm font-medium leading-tight text-gray-900", label.placeholder && "italic")} title={label.primary}>
+        <p className={cn("min-w-0 truncate text-sm font-medium leading-tight text-foreground", label.placeholder && "italic")} title={label.primary}>
           {label.primary}
         </p>
-        <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-900">{money0(job.contractAmount)}</span>
+        <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{money0(job.contractAmount)}</span>
       </div>
       {!compact && <p className="truncate text-xs text-muted-foreground">{job.lead.fullName}</p>}
       <div className="flex flex-wrap items-center gap-1">
-        <Badge variant="outline" className="text-[11px]">
+        <Badge variant="outline" className="text-2xs">
           {job.serviceType}
         </Badge>
         {job.workflow ? <PermitStatusPill status={job.workflow.permitStatus} compact /> : permit && <PermitBadge status={permit} />}
         {compact && job.workflow && (
           <>
-            <span className="text-[11px] tabular-nums text-muted-foreground" title={job.workflow.currentPhase?.name ?? "Workflow"}>
+            <span className="text-2xs tabular-nums text-muted-foreground" title={job.workflow.currentPhase?.name ?? "Workflow"}>
               {job.workflow.percentComplete}%
             </span>
             <WorkflowIssueChips summary={job.workflow} />
@@ -103,12 +103,12 @@ export function JobBoardCard({ job, density = "comfortable" }: { job: BoardJob; 
             indicatorClassName={pct >= 100 ? "bg-tone-success" : "bg-tone-warning"}
             label={`Deposit ${pct}%`}
           />
-          <span className="text-[11px] tabular-nums text-muted-foreground">dep {pct}%</span>
+          <span className="text-2xs tabular-nums text-muted-foreground">dep {pct}%</span>
         </div>
       )}
       <div className="flex items-center justify-between gap-2 pt-0.5 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="font-mono text-[11px]">{job.jobNumber}</span>
+          <span className="font-mono text-2xs">{job.jobNumber}</span>
           {days !== null && (
             <span className="flex items-center gap-1">
               <Clock className="size-3" /> {days}d

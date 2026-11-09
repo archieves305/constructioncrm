@@ -26,7 +26,7 @@ export function Progress({
       aria-valuemax={100}
       aria-valuenow={Math.round(pct)}
       aria-label={label}
-      className={cn("relative h-2 w-full overflow-hidden rounded-full bg-gray-100", className)}
+      className={cn("relative h-2 w-full overflow-hidden rounded-full bg-surface-muted", className)}
     >
       <div
         className={cn("h-full rounded-full bg-brand transition-[width]", indicatorClassName)}

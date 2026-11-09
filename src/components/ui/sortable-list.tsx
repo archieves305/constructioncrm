@@ -83,17 +83,17 @@ function Row({ id, disabled, className, onUp, onDown, first, last, children }: {
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className={cn("flex items-center gap-1 rounded-md border bg-white", isDragging && "z-10 shadow-lg ring-1 ring-brand/40", className)}>
       {!disabled && (
-        <button type="button" className="cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-gray-100 active:cursor-grabbing" aria-label="Drag to reorder" {...attributes} {...listeners}>
+        <button type="button" className="cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-surface-muted active:cursor-grabbing" aria-label="Drag to reorder" {...attributes} {...listeners}>
           <GripVertical className="size-4" />
         </button>
       )}
       <div className="min-w-0 flex-1">{children}</div>
       {!disabled && (
         <div className="flex flex-col">
-          <button type="button" className="rounded p-0.5 text-muted-foreground hover:bg-gray-100 disabled:opacity-30" aria-label="Move up" disabled={first} onClick={onUp}>
+          <button type="button" className="rounded p-0.5 text-muted-foreground hover:bg-surface-muted disabled:opacity-30" aria-label="Move up" disabled={first} onClick={onUp}>
             <ChevronUp className="size-3.5" />
           </button>
-          <button type="button" className="rounded p-0.5 text-muted-foreground hover:bg-gray-100 disabled:opacity-30" aria-label="Move down" disabled={last} onClick={onDown}>
+          <button type="button" className="rounded p-0.5 text-muted-foreground hover:bg-surface-muted disabled:opacity-30" aria-label="Move down" disabled={last} onClick={onDown}>
             <ChevronDown className="size-3.5" />
           </button>
         </div>

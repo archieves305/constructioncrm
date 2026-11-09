@@ -133,7 +133,7 @@ function Bids() {
                   return (
                     <TableRow key={b.id}>
                       <TableCell>
-                        <Link href={`/leads/${b.leadId}?tab=bid`} className="font-medium text-gray-900 hover:underline">{b.projectName}</Link>
+                        <Link href={`/leads/${b.leadId}?tab=bid`} className="font-medium text-foreground hover:underline">{b.projectName}</Link>
                         <div className="mt-0.5 text-xs text-muted-foreground">
                           <span className="font-mono">{b.number}</span> · {b.organization.name}
                           {b.lead.trades.length > 0 && <> · {b.lead.trades.map((t) => t.name).join(", ")}</>}
@@ -169,7 +169,7 @@ function BidBoard({ rows }: { rows: Bid[] }) {
       {cols.map((s) => {
         const items = rows.filter((b) => b.status === s && (s !== "CLOSED" || new Date(b.outcomeAt ?? b.updatedAt).getTime() >= recent));
         return (
-          <div key={s} className="w-64 shrink-0 rounded-lg bg-gray-50 p-2">
+          <div key={s} className="w-64 shrink-0 rounded-lg bg-surface-subtle p-2">
             <p className="mb-2 flex items-center justify-between px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {BID_STATUS_LABEL[s]}<span>{items.length}</span>
             </p>
@@ -177,7 +177,7 @@ function BidBoard({ rows }: { rows: Bid[] }) {
               {items.map((b) => {
                 const due = dueText(b);
                 return (
-                  <Link key={b.id} href={`/leads/${b.leadId}?tab=bid`} className="block rounded-md border bg-white p-2.5 text-sm shadow-sm hover:border-gray-300">
+                  <Link key={b.id} href={`/leads/${b.leadId}?tab=bid`} className="block rounded-md border bg-white p-2.5 text-sm shadow-sm hover:border-border-strong">
                     <p className="font-medium leading-snug">{b.projectName}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{b.organization.name}</p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
@@ -219,7 +219,7 @@ function BidKpiStrip({ scope }: { scope: Scope }) {
       {tiles.map(([label, value, sub]) => (
         <Card key={label}>
           <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground">{label}{label !== "Open bids" && <span className="text-[10px]"> · 12 mo</span>}</p>
+            <p className="text-xs text-muted-foreground">{label}{label !== "Open bids" && <span className="text-3xs"> · 12 mo</span>}</p>
             <p className="text-lg font-semibold tabular-nums">{value}</p>
             <p className="truncate text-xs text-muted-foreground">{sub}</p>
           </CardContent>
@@ -235,7 +235,7 @@ function IntakeNotice({ enabled }: { enabled: boolean }) {
   const n = intake.data?.counts.NEW ?? 0;
   if (!enabled || n === 0) return null;
   return (
-    <Link href="/partners/intake" className="mb-3 flex items-center gap-2 rounded-md bg-sky-50 px-3 py-2 text-sm text-sky-900 hover:bg-sky-100">
+    <Link href="/partners/intake" className="mb-3 flex items-center gap-2 rounded-md bg-tone-info-soft px-3 py-2 text-sm text-tone-info-fg hover:bg-tone-info-soft">
       <Inbox className="size-4" /> {n} emailed invitation{n === 1 ? "" : "s"} waiting for review — create the bid or file {n === 1 ? "it" : "them"}
     </Link>
   );

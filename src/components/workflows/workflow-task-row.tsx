@@ -70,12 +70,12 @@ export function WorkflowTaskRow({
       className={cn(
         "group flex flex-wrap items-center gap-x-3 gap-y-1 px-3 sm:flex-nowrap",
         notActive ? "py-1.5 opacity-60" : "py-2",
-        state === "COMPLETED" || state === "SKIPPED" ? "bg-gray-50/60" : "bg-white",
+        state === "COMPLETED" || state === "SKIPPED" ? "bg-surface-subtle/60" : "bg-white",
       )}
     >
-      <span className="w-6 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{index}</span>
+      <span className="w-6 shrink-0 text-right text-2xs tabular-nums text-muted-foreground">{index}</span>
       <Badge
-        className={cn("h-5 shrink-0 border-0 px-1.5 text-[10px] font-medium", WORKFLOW_STATE_PILL[state])}
+        className={cn("h-5 shrink-0 border-0 px-1.5 text-3xs font-medium", WORKFLOW_STATE_PILL[state])}
         title={
           notActive && waitingOn.length > 0
             ? `Waiting on: ${waitingOn.map((d) => d.dependsOn.title).join(", ")}`
@@ -99,9 +99,9 @@ export function WorkflowTaskRow({
           >
             {task.title}
           </button>
-          {!isStep && <span className="rounded bg-gray-100 px-1 text-[10px] text-gray-600">manual</span>}
+          {!isStep && <span className="rounded bg-surface-muted px-1 text-3xs text-fg-secondary">manual</span>}
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
           {task.workflowRole && <span>{WORKFLOW_ROLE_LABEL[task.workflowRole]}</span>}
           {waitingOn.length > 0 && open && (
             <span className="truncate" title={waitingOn.map((d) => d.dependsOn.title).join(", ")}>
@@ -135,7 +135,7 @@ export function WorkflowTaskRow({
           <Button
             variant="outline"
             size="sm"
-            className="h-7 gap-1 px-2 text-[11px]"
+            className="h-7 gap-1 px-2 text-2xs"
             title={oneClick ? "Mark this step complete" : "Complete — shows the checklist and what the step needs"}
             onClick={oneClick ? onQuickComplete : onComplete}
           >
@@ -144,7 +144,7 @@ export function WorkflowTaskRow({
         )}
         {notActive ? (
           // A waiting step is not anyone's to schedule yet: say who it goes to, nothing to edit.
-          <span className="w-[140px] truncate text-right text-[11px] text-muted-foreground">
+          <span className="w-[140px] truncate text-right text-2xs text-muted-foreground">
             {task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : "No owner yet"}
           </span>
         ) : (
@@ -157,9 +157,9 @@ export function WorkflowTaskRow({
             disabled={!canEdit || !open}
             onChange={(e) => onUpdate({ dueAt: e.target.value || null })}
             className={cn(
-              "h-7 w-[132px] rounded border bg-white px-1.5 text-[11px] disabled:bg-transparent disabled:text-muted-foreground",
-              overdue && "border-red-300 font-semibold text-red-700",
-              dueToday && "border-amber-300 text-amber-800",
+              "h-7 w-[132px] rounded border bg-white px-1.5 text-2xs disabled:bg-transparent disabled:text-muted-foreground",
+              overdue && "border-tone-danger-line font-semibold text-tone-danger-fg",
+              dueToday && "border-tone-warning-line text-tone-warning-fg",
               !task.dueAt && "text-muted-foreground",
             )}
           />
@@ -177,7 +177,7 @@ export function WorkflowTaskRow({
         </div>
         <AssigneePicker
           size="sm"
-          className="h-7 w-[140px] text-[11px]"
+          className="h-7 w-[140px] text-2xs"
           value={task.assignedTo?.id ?? null}
           users={users}
           onChange={(id) => canEdit && onUpdate({ assignedUserId: id })}

@@ -187,17 +187,17 @@ function TaskRow({
       >
         {task.title}
         {task.status === "BLOCKED" && task.blockedReason && (
-          <span className="ml-2 font-normal text-amber-700">· Blocked — {task.blockedReason}</span>
+          <span className="ml-2 font-normal text-tone-warning-fg">· Blocked — {task.blockedReason}</span>
         )}
       </button>
       {(task._count?.events ?? 0) > 0 && (
-        <span className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground">
+        <span className="flex shrink-0 items-center gap-0.5 text-2xs text-muted-foreground">
           <MessageSquare className="size-3" />
           {task._count!.events}
         </span>
       )}
       {(task._count?.files ?? 0) > 0 && (
-        <span className="flex shrink-0 items-center gap-0.5 text-[11px] text-muted-foreground" title="Files attached">
+        <span className="flex shrink-0 items-center gap-0.5 text-2xs text-muted-foreground" title="Files attached">
           <Paperclip className="size-3" />
           {task._count!.files}
         </span>
@@ -206,7 +206,7 @@ function TaskRow({
         <span
           className={cn(
             "shrink-0 text-xs tabular-nums",
-            overdue ? "font-semibold text-red-600" : dueToday ? "font-medium text-amber-700" : "text-muted-foreground",
+            overdue ? "font-semibold text-tone-danger-fg" : dueToday ? "font-medium text-tone-warning-fg" : "text-muted-foreground",
           )}
         >
           {overdue ? "Overdue · " : dueToday ? "Today" : format(due, "MMM d")}

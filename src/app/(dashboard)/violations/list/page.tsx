@@ -133,7 +133,7 @@ function ListBody() {
   };
 
   const pill = (label: string, n: number | undefined, v: ViolationView, tone?: "danger" | "warning") => (
-    <button type="button" onClick={() => setMany({ view: v, page: null })} className={cn("rounded-full border px-2.5 py-0.5 text-xs", view === v ? "border-brand bg-brand-soft text-brand-fg" : "hover:bg-gray-50", tone === "danger" && (n ?? 0) > 0 && view !== v && "border-red-200 bg-red-50 text-red-700", tone === "warning" && (n ?? 0) > 0 && view !== v && "border-amber-200 bg-amber-50 text-amber-800")}>
+    <button type="button" onClick={() => setMany({ view: v, page: null })} className={cn("rounded-full border px-2.5 py-0.5 text-xs", view === v ? "border-brand bg-brand-soft text-brand-fg" : "hover:bg-surface-subtle", tone === "danger" && (n ?? 0) > 0 && view !== v && "border-tone-danger-line bg-tone-danger-soft text-tone-danger-fg", tone === "warning" && (n ?? 0) > 0 && view !== v && "border-tone-warning-line bg-tone-warning-soft text-tone-warning-fg")}>
       {label} {n ?? "…"}
     </button>
   );
@@ -259,7 +259,7 @@ function ListBody() {
           {VIOLATION_FLAGS.map((f) => {
             const on = get(f) === "1";
             return (
-              <button key={f} type="button" onClick={() => setMany({ [f]: on ? null : "1", page: null })} className={cn("rounded-full border px-2.5 py-0.5 text-xs", on ? "border-brand bg-brand-soft text-brand-fg" : "hover:bg-gray-50")}>
+              <button key={f} type="button" onClick={() => setMany({ [f]: on ? null : "1", page: null })} className={cn("rounded-full border px-2.5 py-0.5 text-xs", on ? "border-brand bg-brand-soft text-brand-fg" : "hover:bg-surface-subtle")}>
                 {FLAG_LABEL[f]}
               </button>
             );
@@ -353,7 +353,7 @@ function Row({ r, selectable, selected, onSelect }: { r: CaseRow; selectable: bo
   const cats = Array.from(new Set(r.items.map((i) => i.category?.name).filter(Boolean))) as string[];
   const openItems = r.items.filter((i) => i.status !== "VERIFIED" && i.status !== "WITHDRAWN").length;
   return (
-    <TableRow className={cn(r.state.overdue && "bg-red-50/40")}>
+    <TableRow className={cn(r.state.overdue && "bg-tone-danger-soft/40")}>
       {selectable && (
         <TableCell>
           <Checkbox checked={selected} onCheckedChange={(v) => onSelect(Boolean(v))} aria-label={`Select ${r.caseNumber}`} />
@@ -372,11 +372,11 @@ function Row({ r, selectable, selected, onSelect }: { r: CaseRow; selectable: bo
         <span className="tabular-nums">
           {openItems}/{r.items.length}
         </span>
-        {cats.length > 0 && <div className="max-w-[160px] truncate text-[11px] text-muted-foreground">{cats.join(", ")}</div>}
+        {cats.length > 0 && <div className="max-w-[160px] truncate text-2xs text-muted-foreground">{cats.join(", ")}</div>}
       </TableCell>
       <TableCell>
         <CaseStatusPill status={r.status} />
-        <div className="mt-0.5 text-[11px] text-muted-foreground">{r.state.label}</div>
+        <div className="mt-0.5 text-2xs text-muted-foreground">{r.state.label}</div>
       </TableCell>
       <TableCell>
         <CasePhaseCell row={r} />
@@ -399,7 +399,7 @@ function Row({ r, selectable, selected, onSelect }: { r: CaseRow; selectable: bo
         ) : (
           <span className="text-xs text-muted-foreground">—</span>
         )}
-        {r.nextAction?.dueAt && <div className="text-[11px] text-muted-foreground">due {format(new Date(r.nextAction.dueAt), "MMM d")}</div>}
+        {r.nextAction?.dueAt && <div className="text-2xs text-muted-foreground">due {format(new Date(r.nextAction.dueAt), "MMM d")}</div>}
       </TableCell>
       <TableCell>
         <UserAvatar user={r.caseManager} size="sm" title={r.caseManager ? `${r.caseManager.firstName} ${r.caseManager.lastName}` : "Unassigned"} />

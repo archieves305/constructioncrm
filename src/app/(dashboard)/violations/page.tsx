@@ -54,14 +54,14 @@ export default function ViolationsOverviewPage() {
         </div>
       )}
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        <Link href="/violations/inspections" className="flex items-center gap-3 rounded-lg border bg-white p-4 text-sm hover:bg-gray-50">
+        <Link href="/violations/inspections" className="flex items-center gap-3 rounded-lg border bg-white p-4 text-sm hover:bg-surface-subtle">
           <ClipboardCheck className="size-5 text-muted-foreground" />
           <span>
             <span className="font-medium">Inspections</span>
             <span className="block text-xs text-muted-foreground">Agency reinspections, date-first, with results to record.</span>
           </span>
         </Link>
-        <Link href="/violations/hearings" className="flex items-center gap-3 rounded-lg border bg-white p-4 text-sm hover:bg-gray-50">
+        <Link href="/violations/hearings" className="flex items-center gap-3 rounded-lg border bg-white p-4 text-sm hover:bg-surface-subtle">
           <Gavel className="size-5 text-muted-foreground" />
           <span>
             <span className="font-medium">Hearings</span>

@@ -32,7 +32,7 @@ export function TaskAttachments({ taskId, files, canEdit }: { taskId: string; fi
               <button type="button" onClick={() => setPreview(i)} className="truncate text-left hover:underline">
                 {f.fileName}
               </button>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
+              <span className="shrink-0 text-2xs text-muted-foreground">
                 {formatFileSize(f.fileSize)} · {f.uploadedBy.firstName} {f.uploadedBy.lastName}
               </span>
             </li>

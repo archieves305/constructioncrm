@@ -143,7 +143,7 @@ function LessonCard({ l }: { l: Lesson }) {
     <Card className={cn("min-w-0", (l.status === "REJECTED" || l.status === "RETIRED") && "opacity-70")}>
       <CardHeader className="space-y-1 pb-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", toneClasses(STATUS_TONE[l.status]).pill)}>{STATUS_LABEL[l.status]}</span>
+          <span className={cn("rounded-full px-2 py-0.5 text-2xs font-medium", toneClasses(STATUS_TONE[l.status]).pill)}>{STATUS_LABEL[l.status]}</span>
           <span className="text-xs text-muted-foreground">
             {l.jurisdiction?.name ?? "Every jurisdiction"} · {l.permitTypeKey ? (types.find((t) => t.key === l.permitTypeKey)?.name ?? l.permitTypeKey) : "every type"}
             {l.category ? ` · ${CATEGORY_LABEL[l.category as CorrectionCategory] ?? l.category}` : ""}

@@ -9,7 +9,7 @@ import { ChangeOrderBillView } from "./change-order-bill-view";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-surface-subtle p-4">
       <div className="text-center">{children}</div>
     </div>
   );
@@ -28,7 +28,7 @@ export default async function ChangeOrderPublicPage({
     return (
       <Shell>
         <h1 className="mb-2 text-xl font-bold">Link Expired</h1>
-        <p className="text-gray-600">
+        <p className="text-fg-secondary">
           This change order link has expired. Please contact us for an updated
           copy.
         </p>
@@ -40,7 +40,7 @@ export default async function ChangeOrderPublicPage({
   const bill = buildBillData(co);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-subtle">
       <ChangeOrderBillView
         token={token}
         status={co.status}

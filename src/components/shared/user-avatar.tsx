@@ -11,19 +11,19 @@ type AvatarUser = { id?: string; firstName: string; lastName: string };
  */
 
 const TONES = [
-  "bg-indigo-100 text-indigo-800",
-  "bg-sky-100 text-sky-800",
-  "bg-teal-100 text-teal-800",
-  "bg-emerald-100 text-emerald-800",
-  "bg-amber-100 text-amber-900",
-  "bg-rose-100 text-rose-800",
-  "bg-violet-100 text-violet-800",
-  "bg-slate-200 text-slate-800",
+  "bg-stage-0-soft text-stage-0-fg",
+  "bg-tone-info-soft text-tone-info-fg",
+  "bg-stage-2-soft text-stage-2-fg",
+  "bg-tone-success-soft text-tone-success-fg",
+  "bg-tone-warning-soft text-tone-warning-fg",
+  "bg-tone-danger-soft text-tone-danger-fg",
+  "bg-stage-0-soft text-stage-0-fg",
+  "bg-surface-strong text-foreground",
 ];
 
 const SIZE = {
-  xs: "size-5 text-[9px]",
-  sm: "size-6 text-[10px]",
+  xs: "size-5 text-3xs",
+  sm: "size-6 text-3xs",
   default: "size-8 text-xs",
   lg: "size-10 text-sm",
 } as const;
@@ -55,7 +55,7 @@ export function UserAvatar({
         title={title ?? "Unassigned"}
         aria-label="Unassigned"
         className={cn(
-          "inline-flex shrink-0 items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400",
+          "inline-flex shrink-0 items-center justify-center rounded-full border border-dashed border-border-strong text-muted-foreground",
           SIZE[size],
           className,
         )}

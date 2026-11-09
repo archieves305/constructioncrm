@@ -23,7 +23,7 @@ export function VaultPreviewDialog({ doc, onClose }: { doc: DocumentView | null;
               <DialogTitle className="flex flex-wrap items-center gap-2">
                 {doc.title}
                 {doc.confidentiality === "RESTRICTED" && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700"><Lock className="size-3" /> {CONFIDENTIALITY_LABEL.RESTRICTED}</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-tone-danger-soft px-2 py-0.5 text-xs font-medium text-tone-danger-fg"><Lock className="size-3" /> {CONFIDENTIALITY_LABEL.RESTRICTED}</span>
                 )}
               </DialogTitle>
               <DialogDescription>

@@ -509,7 +509,7 @@ export function InvoicesPanel({
             <div className="mb-2 flex items-center justify-between">
               <div className="text-sm font-medium">Schedule of values</div>
               {!billing.sovMatchesContract && (
-                <div className="flex items-center gap-1 text-xs text-amber-700">
+                <div className="flex items-center gap-1 text-xs text-tone-warning-fg">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   Lines total {money0(billing.sovTotal)} vs contract {money0(billing.contractSum)}
                 </div>
@@ -540,7 +540,7 @@ export function InvoicesPanel({
                           <span className="inline-flex items-center gap-1.5">
                             {line.description}
                             {line.changeOrderNumber !== null && (
-                              <Badge variant="outline" className="text-[10px]" title="Added by an approved change order; its value follows the change order">
+                              <Badge variant="outline" className="text-3xs" title="Added by an approved change order; its value follows the change order">
                                 CO-{line.changeOrderNumber}
                               </Badge>
                             )}
@@ -578,7 +578,7 @@ export function InvoicesPanel({
                             <div className="flex justify-end gap-1">
                               <button
                                 type="button"
-                                className="rounded p-1 hover:bg-gray-100"
+                                className="rounded p-1 hover:bg-surface-muted"
                                 title="Edit line"
                                 onClick={() => {
                                   setEditingLine(line);
@@ -591,7 +591,7 @@ export function InvoicesPanel({
                               {done === 0 && line.changeOrderNumber === null && (
                                 <button
                                   type="button"
-                                  className="rounded p-1 text-red-600 hover:bg-red-50"
+                                  className="rounded p-1 text-tone-danger-fg hover:bg-tone-danger-soft"
                                   title="Remove line"
                                   onClick={() => removeLine.mutate(line.id)}
                                 >
@@ -669,7 +669,7 @@ export function InvoicesPanel({
                       <span className="text-sm font-medium">{money0(inv.amount)}</span>
                       <Badge
                         variant={inv.status === "PAID" ? "default" : inv.status === "VOID" ? "secondary" : "outline"}
-                        className="text-[10px]"
+                        className="text-3xs"
                       >
                         {inv.status}
                       </Badge>
@@ -691,14 +691,14 @@ export function InvoicesPanel({
                         {money0(app.computed.completedToDate)} ({pct(app.computed.contractSum > 0 ? app.computed.completedToDate / app.computed.contractSum : 0)})
                         {" · "}retainage {money0(app.computed.retainage)} ({app.computed.retainagePercent}%)
                         {app.computed.retainageReleased > 0 && (
-                          <span className="ml-1 rounded bg-green-50 px-1.5 py-0.5 font-medium text-green-700">
+                          <span className="ml-1 rounded bg-tone-success-soft px-1.5 py-0.5 font-medium text-tone-success-fg">
                             releases {money0(app.computed.retainageReleased)} retainage
                           </span>
                         )}
                       </div>
                     )}
                     {inv.payments.length > 0 && (
-                      <div className="mt-1 text-xs text-green-700">
+                      <div className="mt-1 text-xs text-tone-success-fg">
                         Paid {money0(paidTotal(inv))} of {money0(inv.amount)}
                         {" · "}
                         {inv.payments.length} payment{inv.payments.length > 1 ? "s" : ""}
@@ -731,7 +731,7 @@ export function InvoicesPanel({
                       href={`/api/invoices/${inv.id}/pdf`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded border px-2 py-1 text-xs hover:bg-gray-50"
+                      className="rounded border px-2 py-1 text-xs hover:bg-surface-subtle"
                     >
                       PDF
                     </a>
@@ -814,15 +814,15 @@ export function InvoicesPanel({
                         <TableCell className="text-right">{money(l.previous)}</TableCell>
                         <TableCell className="text-right">
                           <Input
-                            className={`h-8 text-right ${over ? "border-red-500" : ""}`}
+                            className={`h-8 text-right ${over ? "border-tone-danger" : ""}`}
                             inputMode="decimal"
                             placeholder="0.00"
                             value={work[l.sovLineId] ?? ""}
                             onChange={(e) => setWork((w) => ({ ...w, [l.sovLineId]: e.target.value }))}
                           />
                         </TableCell>
-                        <TableCell className={`text-right ${over ? "text-red-600" : ""}`}>{money(l.toDate)}</TableCell>
-                        <TableCell className={`text-right ${over ? "text-red-600" : ""}`}>{pct(l.percent)}</TableCell>
+                        <TableCell className={`text-right ${over ? "text-tone-danger-fg" : ""}`}>{money(l.toDate)}</TableCell>
+                        <TableCell className={`text-right ${over ? "text-tone-danger-fg" : ""}`}>{pct(l.percent)}</TableCell>
                       </TableRow>
                     );
                   })}
@@ -835,7 +835,7 @@ export function InvoicesPanel({
                     <Label>Retainage % on this application</Label>
                     <Input
                       inputMode="decimal"
-                      className={`h-8 w-24 ${badRate ? "border-red-500" : ""}`}
+                      className={`h-8 w-24 ${badRate ? "border-tone-danger" : ""}`}
                       value={appRetainage}
                       onChange={(e) => setAppRetainage(e.target.value)}
                     />
@@ -875,7 +875,7 @@ export function InvoicesPanel({
                 </p>
               </div>
 
-              <div className="rounded border bg-gray-50 p-3 text-sm">
+              <div className="rounded border bg-surface-subtle p-3 text-sm">
                 <Row label="Total completed to date" value={money(preview.completedToDate)} />
                 <Row label={`Less retainage (${preview.retainagePercent}%)`} value={`−${money(preview.retainage)}`} />
                 {isRelease && <Row label="Retainage released on this application" value={money(preview.retainageReleased)} />}
@@ -949,10 +949,10 @@ function Stat({
   return (
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={`text-lg font-semibold ${tone === "warn" ? "text-red-600" : tone === "ok" ? "text-green-600" : ""}`}>
+      <div className={`text-lg font-semibold ${tone === "warn" ? "text-tone-danger-fg" : tone === "ok" ? "text-tone-success-fg" : ""}`}>
         {value}
       </div>
-      {sub && <div className="text-[11px] text-muted-foreground">{sub}</div>}
+      {sub && <div className="text-2xs text-muted-foreground">{sub}</div>}
     </div>
   );
 }

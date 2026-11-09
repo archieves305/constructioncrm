@@ -34,7 +34,7 @@ import { CanvasserSummaryModal } from "@/components/canvassing/canvasser-summary
 
 const PropertyMap = dynamic(
   () => import("@/components/canvassing/property-map"),
-  { ssr: false, loading: () => <div className="h-[520px] w-full rounded-md border bg-gray-50" /> },
+  { ssr: false, loading: () => <div className="h-[520px] w-full rounded-md border bg-surface-subtle" /> },
 );
 
 type PropertyRecord = {
@@ -203,7 +203,7 @@ export default function FindPropertiesPage() {
       )}
 
       {nearby.isError && (
-        <p className="text-sm text-red-600">{(nearby.error as Error).message}</p>
+        <p className="text-sm text-tone-danger-fg">{(nearby.error as Error).message}</p>
       )}
 
       {center && (
@@ -236,7 +236,7 @@ export default function FindPropertiesPage() {
                     <div
                       key={p.reapiId}
                       onClick={() => toggle(p.reapiId)}
-                      className="flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm hover:bg-gray-50"
+                      className="flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm hover:bg-surface-subtle"
                     >
                       <Checkbox
                         checked={selected.has(p.reapiId)}
@@ -268,7 +268,7 @@ export default function FindPropertiesPage() {
                             e.stopPropagation();
                             setSummaryReapiId(p.reapiId);
                           }}
-                          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+                          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-tone-info-fg hover:text-tone-info-fg"
                         >
                           <FileText className="h-3.5 w-3.5" /> View Canvasser Summary
                         </button>
@@ -399,7 +399,7 @@ function CenterBar({
                   <button
                     key={f.place_name}
                     onClick={() => pick(f)}
-                    className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-subtle"
                   >
                     {f.place_name}
                   </button>
@@ -431,7 +431,7 @@ function CenterBar({
         </div>
 
         {!MAPBOX_TOKEN && (
-          <p className="text-xs text-amber-600">
+          <p className="text-xs text-tone-warning-fg">
             Address/city search needs a Mapbox token — use “Use my location” for now.
           </p>
         )}
@@ -480,7 +480,7 @@ function BulkBar({
   const disabled = selected.length === 0;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border bg-gray-50 px-3 py-2">
+    <div className="flex flex-wrap items-center gap-2 rounded-md border bg-surface-subtle px-3 py-2">
       <Badge variant="secondary">{selected.length} selected</Badge>
       <Button variant="ghost" size="sm" onClick={onToggleAll}>
         {allSelected ? "Clear all" : "Select all"}

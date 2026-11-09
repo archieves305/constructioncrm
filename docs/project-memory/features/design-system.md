@@ -104,3 +104,22 @@ stays.
   stale CSS bundle with none of the new tokens; restart dev after a build.
 - The Chrome tool's `left_click_drag` does not activate dnd-kit's mouse
   sensor; keyboard drag is the reliable automated check.
+
+## Tokens only (T-10, 2026-11-09)
+
+Raw Tailwind palette classes (`bg-gray-50`, `text-red-600`…) are banned by
+ESLint in `src/app`, `src/components`, `src/hooks` and `src/lib/ui`. The
+1,070 that existed were moved by `scripts/codemods/tokens-2026-11.py`.
+
+| Use | Token |
+|---|---|
+| Page / card wash, hover rows | `bg-surface-subtle` (was gray-50), `bg-surface-muted` (100), `bg-surface-strong` (200), `bg-surface-emphasis` (300) |
+| Text | `text-foreground` (gray-800/900), `text-fg-secondary` (600/700), `text-muted-foreground` (300–500) |
+| Lines | `border-border` (100/200), `border-border-strong` (300–500) |
+| Status | `tone-{info,warning,danger,success,neutral}`: `-soft` wash, `-line` border, solid fill / icon, `-fg` text |
+| Categories | `stage-*` (violet/indigo → `stage-0`, teal/cyan → `stage-2`) |
+| Inverse chip / toolbar | `bg-foreground text-background` |
+
+Type scale below `text-xs`: `text-3xs` (10 px: counts, kbd) and `text-2xs`
+(11 px: meta lines). `text-[Npx]` is for documented exceptions only (2 left).
+`scripts/qa/ui-measure.sh` prints the counts the Phase B exit check reads.

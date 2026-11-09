@@ -39,7 +39,7 @@ export function ScopeTogglesEditor({ toggles, readOnly, onSave, pending }: { tog
           <label className="flex shrink-0 items-center gap-1 text-xs">
             <Checkbox checked={t.default} onCheckedChange={(v) => setDraft(items.map((x, j) => (j === i ? { ...x, default: Boolean(v) } : x)))} /> on by default
           </label>
-          <button type="button" aria-label={`Remove ${t.label}`} className="rounded p-1 text-muted-foreground hover:bg-gray-100" onClick={() => setDraft(items.filter((_, j) => j !== i))}>
+          <button type="button" aria-label={`Remove ${t.label}`} className="rounded p-1 text-muted-foreground hover:bg-surface-muted" onClick={() => setDraft(items.filter((_, j) => j !== i))}>
             <X className="size-3.5" />
           </button>
         </div>
@@ -58,7 +58,7 @@ export function ScopeTogglesEditor({ toggles, readOnly, onSave, pending }: { tog
             </Button>
           </>
         )}
-        <Label className="text-[11px] text-muted-foreground">Steps and checklist lines can be limited to a toggle.</Label>
+        <Label className="text-2xs text-muted-foreground">Steps and checklist lines can be limited to a toggle.</Label>
       </div>
     </div>
   );

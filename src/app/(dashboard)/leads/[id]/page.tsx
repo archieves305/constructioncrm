@@ -235,7 +235,7 @@ export default function LeadDetailPage() {
             {(lead.jobs ?? []).map((j: { id: string; jobNumber: string; currentStage?: { name: string } | null }) => (
               <span key={j.id}>
                 {" · "}
-                <Link href={`/jobs/${j.id}`} className="font-medium text-blue-700 hover:underline" title={j.currentStage?.name ?? undefined}>
+                <Link href={`/jobs/${j.id}`} className="font-medium text-tone-info-fg hover:underline" title={j.currentStage?.name ?? undefined}>
                   Job <span className="font-mono text-xs">{j.jobNumber}</span>
                 </Link>
               </span>
@@ -362,7 +362,7 @@ export default function LeadDetailPage() {
                 {lead.insuranceClaim && <Badge>Insurance Claim</Badge>}
                 {lead.financingNeeded && <Badge variant="secondary">Financing</Badge>}
               </div>
-              <div className={`flex items-center gap-2 ${isOverdue ? "text-red-600 font-medium" : ""}`}>
+              <div className={`flex items-center gap-2 ${isOverdue ? "text-tone-danger-fg font-medium" : ""}`}>
                 <Calendar className="h-4 w-4" />
                 Next Follow-Up:{" "}
                 {lead.nextFollowUpAt
@@ -499,7 +499,7 @@ export default function LeadDetailPage() {
                       <CardContent className="py-3 px-4">
                         <div className="flex justify-between">
                           <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-[10px]">
+                            <Badge variant="outline" className="text-3xs">
                               {comm.communicationType} {comm.direction}
                             </Badge>
                             <p className="text-sm">{comm.body}</p>

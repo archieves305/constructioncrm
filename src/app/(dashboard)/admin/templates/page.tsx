@@ -240,7 +240,7 @@ export default function TemplatesPage() {
                       }
                     />
                     {form.channel === "EMAIL" && (
-                      <p className="mt-1 text-[11px] text-muted-foreground">
+                      <p className="mt-1 text-2xs text-muted-foreground">
                         This is the subject line. Variables work here too.
                       </p>
                     )}
@@ -271,7 +271,7 @@ export default function TemplatesPage() {
                   <div className="mb-1 flex items-center justify-between">
                     <Label>Body</Label>
                     {form.channel === "EMAIL" && (
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-2xs text-muted-foreground">
                         Outlook-style formatting · HTML output
                       </span>
                     )}
@@ -305,7 +305,7 @@ export default function TemplatesPage() {
                   )}
 
                   {form.channel === "EMAIL" && (
-                    <p className="mt-1 text-[11px] text-muted-foreground">
+                    <p className="mt-1 text-2xs text-muted-foreground">
                       Email layout, signature, and unsubscribe footer are added automatically.
                     </p>
                   )}
@@ -319,7 +319,7 @@ export default function TemplatesPage() {
                         type="button"
                         key={v}
                         onClick={() => insertVariable(v)}
-                        className="rounded border bg-muted/60 px-2 py-0.5 font-mono text-[11px] hover:bg-muted"
+                        className="rounded border bg-muted/60 px-2 py-0.5 font-mono text-2xs hover:bg-muted"
                         title={`Insert {{${v}}}`}
                       >
                         {`{{${v}}}`}
@@ -352,7 +352,7 @@ export default function TemplatesPage() {
                     Type a body to see the preview.
                   </p>
                 ) : preview.channel === "EMAIL" && preview.html ? (
-                  <div className="rounded border bg-gray-50">
+                  <div className="rounded border bg-surface-subtle">
                     <div className="border-b px-3 py-2 text-xs">
                       <div className="text-muted-foreground">Subject</div>
                       <div className="font-medium">{preview.subject}</div>
@@ -365,11 +365,11 @@ export default function TemplatesPage() {
                     />
                   </div>
                 ) : (
-                  <pre className="rounded border bg-gray-50 p-3 text-xs whitespace-pre-wrap">
+                  <pre className="rounded border bg-surface-subtle p-3 text-xs whitespace-pre-wrap">
                     {preview.text}
                   </pre>
                 )}
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   Preview uses sample lead data (&ldquo;Sarah Johnson, Boca Raton&rdquo;).
                 </p>
               </div>
