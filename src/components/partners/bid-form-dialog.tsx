@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { useBidOptions, useInvalidateBids, useOrganizations, type Bid, type BidPlatform, type OrgDetail } from "./use-partners";
+import { Field } from "@/components/ui/field";
 
 const NONE = "__none";
 const local = (iso: string | null | undefined) => (iso ? format(new Date(iso), "yyyy-MM-dd'T'HH:mm") : "");
@@ -196,32 +197,28 @@ function BidForm({ organizationId, editing, onSaved, onClose, prefill, intakeId 
 
       <div className="grid gap-3 sm:grid-cols-2">
         {!accountFixed && (
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Account</Label>
+          <Field label="Account" className="sm:col-span-2">
             <Select items={accountItems} value={form.organizationId || null} onValueChange={(v: string | null) => setForm((f) => ({ ...f, organizationId: v ?? "", contactId: null }))}>
               <SelectTrigger className="w-full" aria-label="Account"><SelectValue placeholder={accounts.isLoading ? "Loading…" : "Pick the GC"} /></SelectTrigger>
               <SelectContent>{accountItems.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
+          </Field>
         )}
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="b-project">Project</Label>
+        <Field label="Project" id="b-project" className="sm:col-span-2">
           <Input id="b-project" value={form.projectName} onChange={(e) => set("projectName", e.target.value)} placeholder="Towne Place Suites Clewiston — drywall" maxLength={200} required />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Invited by</Label>
+        </Field>
+        <Field label="Invited by">
           <Select items={contactItems} value={form.contactId ?? NONE} onValueChange={(v: string | null) => set("contactId", !v || v === NONE ? null : v)} disabled={!form.organizationId}>
             <SelectTrigger className="w-full" aria-label="Invited by"><SelectValue /></SelectTrigger>
             <SelectContent>{contactItems.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Estimator</Label>
+        </Field>
+        <Field label="Estimator">
           <Select items={estimatorItems} value={form.estimatorUserId ?? NONE} onValueChange={(v: string | null) => set("estimatorUserId", !v || v === NONE ? null : v)}>
             <SelectTrigger className="w-full" aria-label="Estimator"><SelectValue /></SelectTrigger>
             <SelectContent>{estimatorItems.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
+        </Field>
         <div className="space-y-1.5 sm:col-span-2">
           <Label>Trades in the package</Label>
           <div className="flex flex-wrap gap-1.5">
@@ -237,92 +234,73 @@ function BidForm({ organizationId, editing, onSaved, onClose, prefill, intakeId 
       {!editing && (
         <fieldset className="grid gap-3 sm:grid-cols-6">
           <legend className="mb-1.5 text-sm font-medium">Project site</legend>
-          <div className="space-y-1.5 sm:col-span-6">
-            <Label htmlFor="b-addr">Street</Label>
+          <Field label="Street" id="b-addr" className="sm:col-span-6">
             <Input id="b-addr" value={form.address1} onChange={(e) => set("address1", e.target.value)} maxLength={200} required />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="b-city">City</Label>
+          </Field>
+          <Field label="City" id="b-city" className="sm:col-span-2">
             <Input id="b-city" value={form.city} onChange={(e) => set("city", e.target.value)} maxLength={120} required />
-          </div>
-          <div className="space-y-1.5 sm:col-span-1">
-            <Label htmlFor="b-state">State</Label>
+          </Field>
+          <Field label="State" id="b-state" className="sm:col-span-1">
             <Input id="b-state" value={form.state} onChange={(e) => set("state", e.target.value.toUpperCase())} maxLength={2} />
-          </div>
-          <div className="space-y-1.5 sm:col-span-1">
-            <Label htmlFor="b-zip">ZIP</Label>
+          </Field>
+          <Field label="ZIP" id="b-zip" className="sm:col-span-1">
             <Input id="b-zip" value={form.zipCode} onChange={(e) => set("zipCode", e.target.value)} maxLength={12} required />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="b-county">County</Label>
+          </Field>
+          <Field label="County" id="b-county" className="sm:col-span-2">
             <Input id="b-county" value={form.county} onChange={(e) => set("county", e.target.value)} maxLength={80} placeholder="Read by the bid score" />
-          </div>
+          </Field>
         </fieldset>
       )}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="b-due">Bid due</Label>
+        <Field label="Bid due" id="b-due">
           <Input id="b-due" type="datetime-local" value={form.bidDueAt} onChange={(e) => set("bidDueAt", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-invited">Invited</Label>
+        </Field>
+        <Field label="Invited" id="b-invited">
           <Input id="b-invited" type="date" value={form.invitedAt} onChange={(e) => set("invitedAt", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-value">Estimated contract value</Label>
+        </Field>
+        <Field label="Estimated contract value" id="b-value">
           <Input id="b-value" type="number" min={0} step="1000" inputMode="decimal" value={form.estimatedContractValue} onChange={(e) => set("estimatedContractValue", e.target.value)} placeholder="$" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-walk">Site walk</Label>
+        </Field>
+        <Field label="Site walk" id="b-walk">
           <Input id="b-walk" type="datetime-local" value={form.siteWalkAt} onChange={(e) => set("siteWalkAt", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-prebid">Pre-bid meeting</Label>
+        </Field>
+        <Field label="Pre-bid meeting" id="b-prebid">
           <Input id="b-prebid" type="datetime-local" value={form.preBidMeetingAt} onChange={(e) => set("preBidMeetingAt", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-rfi">RFI deadline</Label>
+        </Field>
+        <Field label="RFI deadline" id="b-rfi">
           <Input id="b-rfi" type="date" value={form.rfiDueAt} onChange={(e) => set("rfiDueAt", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-addenda">Addenda deadline</Label>
+        </Field>
+        <Field label="Addenda deadline" id="b-addenda">
           <Input id="b-addenda" type="date" value={form.addendaDeadlineAt} onChange={(e) => set("addendaDeadlineAt", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-interview">Interview</Label>
+        </Field>
+        <Field label="Interview" id="b-interview">
           <Input id="b-interview" type="datetime-local" value={form.interviewAt} onChange={(e) => set("interviewAt", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-award">Award expected</Label>
+        </Field>
+        <Field label="Award expected" id="b-award">
           <Input id="b-award" type="date" value={form.expectedAwardAt} onChange={(e) => set("expectedAwardAt", e.target.value)} />
-        </div>
+        </Field>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="space-y-1.5">
-          <Label>Where it came from</Label>
+        <Field label="Where it came from">
           <Select items={platformItems} value={form.platform} onValueChange={(v: BidPlatform | null) => v && set("platform", v)}>
             <SelectTrigger className="w-full" aria-label="Platform"><SelectValue /></SelectTrigger>
             <SelectContent>{platformItems.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="b-url">Link to the invitation</Label>
+        </Field>
+        <Field label="Link to the invitation" id="b-url" className="sm:col-span-2">
           <Input id="b-url" type="url" value={form.platformUrl} onChange={(e) => set("platformUrl", e.target.value)} placeholder="https://app.buildingconnected.com/…" maxLength={500} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-ref">Their reference</Label>
+        </Field>
+        <Field label="Their reference" id="b-ref">
           <Input id="b-ref" value={form.platformRef} onChange={(e) => set("platformRef", e.target.value)} maxLength={120} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-type">Project type</Label>
+        </Field>
+        <Field label="Project type" id="b-type">
           <Input id="b-type" value={form.projectType} onChange={(e) => set("projectType", e.target.value)} placeholder="Hotel, multifamily…" maxLength={120} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-addcount">Addenda issued</Label>
+        </Field>
+        <Field label="Addenda issued" id="b-addcount">
           <Input id="b-addcount" type="number" min={0} max={99} value={form.addendaCount} onChange={(e) => set("addendaCount", e.target.value)} />
-        </div>
+        </Field>
       </div>
 
       <div className="flex flex-wrap gap-x-5 gap-y-2">
@@ -340,19 +318,16 @@ function BidForm({ organizationId, editing, onSaved, onClose, prefill, intakeId 
         )}
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="b-scope">Scope</Label>
+      <Field label="Scope" id="b-scope">
         <Textarea id="b-scope" value={form.scopeSummary} onChange={(e) => set("scopeSummary", e.target.value)} rows={3} maxLength={5000} placeholder="What the package covers, as the GC describes it" />
-      </div>
+      </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="b-ins">Insurance requirements</Label>
+        <Field label="Insurance requirements" id="b-ins">
           <Textarea id="b-ins" value={form.insuranceNotes} onChange={(e) => set("insuranceNotes", e.target.value)} rows={2} maxLength={2000} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="b-sched">Schedule</Label>
+        </Field>
+        <Field label="Schedule" id="b-sched">
           <Textarea id="b-sched" value={form.scheduleNotes} onChange={(e) => set("scheduleNotes", e.target.value)} rows={2} maxLength={2000} />
-        </div>
+        </Field>
       </div>
 
       <DialogFooter>

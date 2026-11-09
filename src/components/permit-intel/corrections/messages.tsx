@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Callout } from "@/components/shared/callout";
@@ -21,6 +20,7 @@ import { PARTY_ROLE_LABEL, type PermitFile, type PermitParty } from "../types";
 import type { CorrectionItem, CorrectionsData, PermitMessage } from "./types";
 import { useCorrectionsWrite } from "./use-corrections";
 import { itemNumber } from "./item-row";
+import { Field } from "@/components/ui/field";
 
 const splitEmails = (v: string) =>
   v
@@ -75,8 +75,7 @@ export function DraftForm({
             ))}
           </ul>
         )}
-        <div className="space-y-1">
-          <Label htmlFor="draft-party">To</Label>
+        <Field label="To" id="draft-party">
           <Select items={partyItems} value={partyId} onValueChange={(v: string | null) => v !== null && setPartyId(v)}>
             <SelectTrigger id="draft-party" className="w-full">
               <SelectValue />
@@ -89,7 +88,7 @@ export function DraftForm({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
         {items.length > 0 && (
           <label className={cn("flex items-start gap-2 text-sm", !aiReady && "opacity-60")}>
             <Checkbox checked={ai} disabled={!aiReady} onCheckedChange={(v) => setAi(v === true)} className="mt-0.5" />
@@ -186,22 +185,18 @@ export function MessageEditor({
         <DialogDescription>{m.aiCallId ? "Written by the AI from the corrections — read it before sending." : "Write the email, then send it."} Replies come to you.</DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
-        <div className="space-y-1">
-          <Label htmlFor="msg-to">To</Label>
+        <Field label="To" id="msg-to">
           <Input id="msg-to" value={to} onChange={(e) => setTo(e.target.value)} placeholder="name@example.com" />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="msg-cc">Cc</Label>
+        </Field>
+        <Field label="Cc" id="msg-cc">
           <Input id="msg-cc" value={cc} onChange={(e) => setCc(e.target.value)} />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="msg-subject">Subject</Label>
+        </Field>
+        <Field label="Subject" id="msg-subject">
           <Input id="msg-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="msg-body">Message</Label>
+        </Field>
+        <Field label="Message" id="msg-body">
           <Textarea id="msg-body" rows={12} value={body} onChange={(e) => setBody(e.target.value)} />
-        </div>
+        </Field>
         {choices.length > 0 && (
           <div className="space-y-1">
             <p className="text-sm font-medium">Attach permit documents</p>

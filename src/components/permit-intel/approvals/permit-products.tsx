@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { permitIntelKeys } from "../use-permit-intel";
 import type { PermitDetail } from "../types";
 import { READ_STATE, type ApprovalRow, type PermitProductRow } from "./types";
+import { Field } from "@/components/ui/field";
 
 const productsKey = (permitId: string) => ["permit", permitId, "products"] as const;
 const n = (v: string | null) => (v == null ? null : Number(v));
@@ -218,19 +219,16 @@ function AddProduct({ permitId, onClose, onAdded }: { permitId: string; onClose:
             </li>
           ))}
         </ul>
-        <div className="space-y-1">
-          <Label htmlFor="add-used">Used as</Label>
+        <Field label="Used as" id="add-used">
           <Input id="add-used" value={usedAs} onChange={(e) => setUsedAs(e.target.value)} placeholder="underlayment, field tile, front door…" />
-        </div>
+        </Field>
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label htmlFor="add-pos">Required + psf</Label>
+          <Field label="Required + psf" id="add-pos">
             <Input id="add-pos" inputMode="decimal" value={pos} onChange={(e) => setPos(e.target.value.replace(/[^\d.]/g, ""))} placeholder="from the engineer" />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="add-neg">Required − psf</Label>
+          </Field>
+          <Field label="Required − psf" id="add-neg">
             <Input id="add-neg" inputMode="decimal" value={neg} onChange={(e) => setNeg(e.target.value.replace(/[^\d.\-]/g, ""))} placeholder="from the engineer" />
-          </div>
+          </Field>
         </div>
         <p className="text-xs text-muted-foreground">Required pressures are typed from the engineer&apos;s wind-load document; the CRM never works them out.</p>
       </div>

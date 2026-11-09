@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatValue } from "@/lib/takeoff/measurement-value";
 import { METRICS, PIPE_SIZES, sizeLabel, type MeasurementKindName, type MetricDef, type TradeName, type Unit } from "@/lib/takeoff/metrics";
+import { Field } from "@/components/ui/field";
 
 export type LabelChoice = { metricKey: string; label: string; attributes?: Record<string, string | number> };
 
@@ -42,10 +43,9 @@ export function LabelPopover({ trade, kind, value, unit, suggestion, onSave, onC
           </select>
         </div>
       )}
-      <div className="space-y-1">
-        <Label htmlFor="lp-label">Label</Label>
+      <Field label="Label" id="lp-label">
         <Input id="lp-label" value={label} onChange={(e) => setLabel(e.target.value)} maxLength={160} onKeyDown={(e) => { if (e.key === "Enter") onSave({ metricKey: metric.key, label: label.trim() || metric.label, attributes: metric.sized ? { sizeIn: size } : undefined }); }} />
-      </div>
+      </Field>
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button size="sm" onClick={() => onSave({ metricKey: metric.key, label: label.trim() || metric.label, attributes: metric.sized ? { sizeIn: size } : undefined })}>Save</Button>

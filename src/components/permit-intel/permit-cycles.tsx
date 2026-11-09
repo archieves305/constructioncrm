@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Callout } from "@/components/shared/callout";
@@ -20,6 +19,7 @@ import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 import { METHOD_LABEL, OUTCOME_LABEL, type PermitCycle, type PermitDetail } from "./types";
 import { usePermitWrite } from "./use-permit-intel";
+import { Field } from "@/components/ui/field";
 
 const METHOD_ITEMS = ["PORTAL", "EMAIL", "IN_PERSON", "MAIL", "UNKNOWN"].map((v) => ({ value: v, label: METHOD_LABEL[v] }));
 const OUTCOME_ITEMS = (["APPROVED", "CORRECTIONS", "DENIED", "WITHDRAWN"] as const).map((v) => ({ value: v, label: OUTCOME_LABEL[v] }));
@@ -200,8 +200,7 @@ function FreezeForm({ detail, onClose }: { detail: PermitDetail; onClose: () => 
           )}
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Sent by</Label>
+          <Field label="Sent by">
             <Select items={METHOD_ITEMS} value={method} onValueChange={(v: string | null) => v && setMethod(v)}>
               <SelectTrigger>
                 <SelectValue />
@@ -214,20 +213,17 @@ function FreezeForm({ detail, onClose }: { detail: PermitDetail; onClose: () => 
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="sub-day">Submitted on</Label>
+          </Field>
+          <Field label="Submitted on" id="sub-day">
             <Input id="sub-day" type="date" value={submittedOn} onChange={(e) => setSubmittedOn(e.target.value)} />
-          </div>
+          </Field>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="sub-ref">Confirmation or application number</Label>
+        <Field label="Confirmation or application number" id="sub-ref">
           <Input id="sub-ref" value={confirmationRef} onChange={(e) => setRef(e.target.value)} placeholder="What the portal or the counter gave you" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="sub-notes">Notes</Label>
+        </Field>
+        <Field label="Notes" id="sub-notes">
           <Textarea id="sub-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </div>
+        </Field>
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onClose}>
@@ -270,8 +266,7 @@ function AnswerForm({ detail, cycle, onClose }: { detail: PermitDetail; cycle: P
       </DialogHeader>
       <div className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Answer</Label>
+          <Field label="Answer">
             <Select items={OUTCOME_ITEMS} value={outcome} onValueChange={(v: string | null) => v && setOutcome(v)}>
               <SelectTrigger>
                 <SelectValue />
@@ -284,26 +279,22 @@ function AnswerForm({ detail, cycle, onClose }: { detail: PermitDetail; cycle: P
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ans-day">On</Label>
+          </Field>
+          <Field label="On" id="ans-day">
             <Input id="ans-day" type="date" value={on} onChange={(e) => setOn(e.target.value)} />
-          </div>
+          </Field>
         </div>
         {outcome === "APPROVED" && (
-          <div className="space-y-1.5">
-            <Label htmlFor="ans-number">Permit number issued</Label>
+          <Field label="Permit number issued" id="ans-number">
             <Input id="ans-number" value={permitNumber} onChange={(e) => setNumber(e.target.value)} />
-          </div>
+          </Field>
         )}
-        <div className="space-y-1.5">
-          <Label htmlFor="ans-reviewer">Reviewer</Label>
+        <Field label="Reviewer" id="ans-reviewer">
           <Input id="ans-reviewer" value={reviewerName} onChange={(e) => setReviewer(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="ans-notes">Notes</Label>
+        </Field>
+        <Field label="Notes" id="ans-notes">
           <Textarea id="ans-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={outcome === "CORRECTIONS" ? "What they asked for — upload the letter on the Documents tab as a correction notice" : undefined} />
-        </div>
+        </Field>
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onClose}>
@@ -341,14 +332,12 @@ function ManualForm({ detail, onClose }: { detail: PermitDetail; onClose: () => 
         <DialogDescription>For a package sent before it was in the CRM. This opens the next review cycle without a frozen package.</DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="man-day">Submitted on</Label>
+        <Field label="Submitted on" id="man-day">
           <Input id="man-day" type="date" value={on} onChange={(e) => setOn(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="man-notes">Notes</Label>
+        </Field>
+        <Field label="Notes" id="man-notes">
           <Textarea id="man-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </div>
+        </Field>
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onClose}>

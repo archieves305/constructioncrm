@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { CaseFlags, CaseNumberLink, CasePhaseCell, CaseStatusPill, DeadlineCell, addressOf } from "@/components/violations/case-widgets";
 import { CASE_STATUS_LABEL } from "@/components/violations/status";
 import { money, useBulkAssignCases, useViolationCases, useViolationCategories, useViolationSummary, type CaseRow } from "@/components/violations/use-violations";
+import { Field } from "@/components/ui/field";
 
 const VIEW_LABEL: Record<ViolationView, string> = { all: "All open", mine: "Mine", new: "New", "due-soon": "Due soon", overdue: "Overdue", fines: "Fines & liens", "awaiting-agency": "Awaiting agency", closed: "Closed" };
 const FLAG_LABEL: Record<ViolationFlag, string> = { finesAccruing: "Fines accruing", lienRecorded: "Lien", hearingScheduled: "Hearing scheduled", permitPending: "Permit pending", emergency: "Emergency", constructionRequired: "Construction", blocked: "Blocked" };
@@ -183,10 +184,9 @@ function ListBody() {
             <Input className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Case #, agency #, address, owner, officer…" />
           </form>
         </div>
-        <div>
-          <Label className="text-xs">Jurisdiction</Label>
+        <Field label="Jurisdiction" labelClassName="text-xs">
           <Select value={get("jurisdiction") ?? "__all"} onValueChange={(v: string | null) => setMany({ jurisdiction: !v || v === "__all" ? null : v, page: null })}>
-            <SelectTrigger className="mt-1">
+            <SelectTrigger >
               <SelectValue>{(v: string) => (!v || v === "__all" ? "All" : v)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -198,11 +198,10 @@ function ListBody() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Category</Label>
+        </Field>
+        <Field label="Category" labelClassName="text-xs">
           <Select value={get("categoryId") ?? "__all"} onValueChange={(v: string | null) => setMany({ categoryId: !v || v === "__all" ? null : v, page: null })}>
-            <SelectTrigger className="mt-1">
+            <SelectTrigger >
               <SelectValue>{(v: string) => (!v || v === "__all" ? "All" : (categories.find((c) => c.id === v)?.name ?? "—"))}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -214,11 +213,10 @@ function ListBody() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Case manager</Label>
+        </Field>
+        <Field label="Case manager" labelClassName="text-xs">
           <Select value={get("caseManagerId") ?? "__all"} onValueChange={(v: string | null) => setMany({ caseManagerId: !v || v === "__all" ? null : v, page: null })}>
-            <SelectTrigger className="mt-1">
+            <SelectTrigger >
               <SelectValue>
                 {(v: string) => {
                   if (!v || v === "__all") return "All";
@@ -238,11 +236,10 @@ function ListBody() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Status</Label>
+        </Field>
+        <Field label="Status" labelClassName="text-xs">
           <Select value={get("status") ?? "__all"} onValueChange={(v: string | null) => setMany({ status: !v || v === "__all" ? null : v, page: null })}>
-            <SelectTrigger className="mt-1">
+            <SelectTrigger >
               <SelectValue>{(v: string) => (!v || v === "__all" ? "Any" : (CASE_STATUS_LABEL[v] ?? v))}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -254,7 +251,7 @@ function ListBody() {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
         <div className="flex flex-wrap items-center gap-1.5 lg:col-span-6">
           {VIOLATION_FLAGS.map((f) => {
             const on = get(f) === "1";

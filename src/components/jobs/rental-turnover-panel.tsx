@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 
 type Job = {
   id: string;
@@ -76,8 +77,7 @@ export function RentalTurnoverPanel({ job }: { job: Job }) {
       </CardHeader>
       {job.isRentalTurnover && (
         <CardContent className="space-y-3 text-sm">
-          <div>
-            <Label className="text-xs">Prior tenant</Label>
+          <Field label="Prior tenant" labelClassName="text-xs">
             <Input
               value={priorTenant}
               onChange={(e) => setPriorTenant(e.target.value)}
@@ -88,7 +88,7 @@ export function RentalTurnoverPanel({ job }: { job: Job }) {
               }}
               placeholder="Prior tenant name"
             />
-          </div>
+          </Field>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>

@@ -20,6 +20,7 @@ import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import type { FineSummary } from "@/lib/violations/fines";
 import { FINE_ENTRY_LABEL } from "./status";
 import { money, useCaseAction, violationKeys, type CaseData } from "./use-violations";
+import { Field } from "@/components/ui/field";
 
 type Entry = { id: string; type: string; amount: string | null; effectiveAt: string; reference: string | null; notes: string | null; fileId: string | null; createdAt: string };
 type FinesResponse = { summary: FineSummary & { officialBalance: { amount: string; asOf: string; label: string } | null; accrual: { stoppedAt: string | null; status: string; days: number; dailyFine: string; initial: string; accrued: string } }; entries: Entry[]; terms: Record<string, string | null> };
@@ -181,10 +182,9 @@ function EntryDialog({ open, onOpenChange, caseId }: { open: boolean; onOpenChan
           <DialogDescription>Official figures only. The case&apos;s balance, payments and accrual dates are mirrored from these rows.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Entry</Label>
+          <Field label="Entry" className="sm:col-span-2" labelClassName="text-xs">
             <Select value={type} onValueChange={(v: string | null) => v && setType(v as typeof type)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => FINE_ENTRY_LABEL[v] ?? v}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -195,7 +195,7 @@ function EntryDialog({ open, onOpenChange, caseId }: { open: boolean; onOpenChan
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           <div>
             <Label className="text-xs">{type === "ACCRUAL_STARTED" ? "Daily rate" : "Amount"}{needsAmount ? "" : " (optional)"}</Label>
             <Input className="mt-1" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
@@ -204,14 +204,12 @@ function EntryDialog({ open, onOpenChange, caseId }: { open: boolean; onOpenChan
             <Label className="text-xs">{type === "OFFICIAL_BALANCE" ? "As of" : type === "PAYMENT" ? "Paid on" : "Effective"}</Label>
             <Input type="date" className="mt-1" value={effectiveAt} onChange={(e) => setEffectiveAt(e.target.value)} />
           </div>
-          <div>
-            <Label className="text-xs">Reference</Label>
-            <Input className="mt-1" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Statement id, receipt #…" />
-          </div>
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Notes</Label>
-            <Textarea className="mt-1" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
+          <Field label="Reference" labelClassName="text-xs">
+            <Input  value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Statement id, receipt #…" />
+          </Field>
+          <Field label="Notes" className="sm:col-span-2" labelClassName="text-xs">
+            <Textarea  rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </Field>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -238,30 +236,24 @@ function TermsDialog({ open, onOpenChange, data }: { open: boolean; onOpenChange
           <DialogDescription>From the notice or order. The estimate is computed from these; only the official stop date stops it.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label className="text-xs">Initial fine</Label>
-            <Input className="mt-1" inputMode="decimal" value={f.initialFine} onChange={(e) => set("initialFine", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Daily fine</Label>
-            <Input className="mt-1" inputMode="decimal" value={f.dailyFine} onChange={(e) => set("dailyFine", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Accrual start</Label>
-            <Input type="date" className="mt-1" value={f.accrualStartDate} onChange={(e) => set("accrualStartDate", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Official stop date</Label>
-            <Input type="date" className="mt-1" value={f.accrualStoppedAt} onChange={(e) => set("accrualStoppedAt", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Administrative costs (total)</Label>
-            <Input className="mt-1" inputMode="decimal" value={f.adminCosts} onChange={(e) => set("adminCosts", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Fines resolved on</Label>
-            <Input type="date" className="mt-1" value={f.fineResolvedAt} onChange={(e) => set("fineResolvedAt", e.target.value)} />
-          </div>
+          <Field label="Initial fine" labelClassName="text-xs">
+            <Input  inputMode="decimal" value={f.initialFine} onChange={(e) => set("initialFine", e.target.value)} />
+          </Field>
+          <Field label="Daily fine" labelClassName="text-xs">
+            <Input  inputMode="decimal" value={f.dailyFine} onChange={(e) => set("dailyFine", e.target.value)} />
+          </Field>
+          <Field label="Accrual start" labelClassName="text-xs">
+            <Input type="date"  value={f.accrualStartDate} onChange={(e) => set("accrualStartDate", e.target.value)} />
+          </Field>
+          <Field label="Official stop date" labelClassName="text-xs">
+            <Input type="date"  value={f.accrualStoppedAt} onChange={(e) => set("accrualStoppedAt", e.target.value)} />
+          </Field>
+          <Field label="Administrative costs (total)" labelClassName="text-xs">
+            <Input  inputMode="decimal" value={f.adminCosts} onChange={(e) => set("adminCosts", e.target.value)} />
+          </Field>
+          <Field label="Fines resolved on" labelClassName="text-xs">
+            <Input type="date"  value={f.fineResolvedAt} onChange={(e) => set("fineResolvedAt", e.target.value)} />
+          </Field>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -282,14 +274,12 @@ function OverrideForm({ caseId, current, onDone }: { caseId: string; current: st
   const save = useCaseAction<Record<string, unknown>>(caseId, "/fines/override", { success: "Estimate override saved" });
   return (
     <div className="space-y-3">
-      <div>
-        <Label className="text-xs">Override amount (blank clears the override)</Label>
-        <Input className="mt-1" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-      </div>
-      <div>
-        <Label className="text-xs">Reason</Label>
-        <Textarea className="mt-1" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Agency waived weekend days per the officer" />
-      </div>
+      <Field label="Override amount (blank clears the override)" labelClassName="text-xs">
+        <Input  inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+      </Field>
+      <Field label="Reason" labelClassName="text-xs">
+        <Textarea  rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Agency waived weekend days per the officer" />
+      </Field>
       <div className="flex justify-end">
         <Button variant="brand" disabled={save.isPending || !reason.trim()} onClick={() => save.mutate({ amount: amount.trim() || null, reason: reason.trim() }, { onSuccess: onDone })}>
           {save.isPending ? "Saving…" : "Save override"}
@@ -317,29 +307,25 @@ function LienDialog({ mode, onClose, caseId }: { mode: "record" | "release" | nu
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           {mode === "record" && (
-            <div>
-              <Label className="text-xs">Lien amount</Label>
-              <Input className="mt-1" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            </div>
+            <Field label="Lien amount" labelClassName="text-xs">
+              <Input  inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </Field>
           )}
           <div>
             <Label className="text-xs">{mode === "record" ? "Recorded on" : "Released on"}</Label>
             <Input type="date" className="mt-1" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div>
-            <Label className="text-xs">Instrument number</Label>
-            <Input className="mt-1" value={instrument} onChange={(e) => setInstrument(e.target.value)} />
-          </div>
+          <Field label="Instrument number" labelClassName="text-xs">
+            <Input  value={instrument} onChange={(e) => setInstrument(e.target.value)} />
+          </Field>
           {mode === "record" && (
-            <div>
-              <Label className="text-xs">Book / page</Label>
-              <Input className="mt-1" value={bookPage} onChange={(e) => setBookPage(e.target.value)} />
-            </div>
+            <Field label="Book / page" labelClassName="text-xs">
+              <Input  value={bookPage} onChange={(e) => setBookPage(e.target.value)} />
+            </Field>
           )}
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Notes</Label>
-            <Textarea className="mt-1" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
+          <Field label="Notes" className="sm:col-span-2" labelClassName="text-xs">
+            <Textarea  rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </Field>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>

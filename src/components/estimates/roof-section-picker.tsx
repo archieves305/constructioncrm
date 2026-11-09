@@ -6,12 +6,12 @@ import { toast } from "sonner";
 import { Ruler } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchJson } from "@/lib/fetch-json";
 import { ROOF_TYPE_LABEL, type RoofSection } from "@/lib/estimates/roof-section";
 import { ROOF_TYPES, type RoofType } from "@/lib/roofing/types";
 import { type FormSection, uid } from "@/components/estimates/generic-estimate-types";
+import { Field } from "@/components/ui/field";
 
 type MeasurementRow = { id: string; label: string | null; source: string; totalSquares: number | null; createdAt: string; reportWastePct: number | null; file: { fileName: string } | null };
 type SectionAnswer = { section: RoofSection; wastePct: number; unpriced: number; warnings: string[] };
@@ -81,28 +81,25 @@ export function RoofSectionPicker({ leadId, onAdd }: { leadId: string; onAdd: (s
         <p className="text-xs text-muted-foreground">This lead has no roof measurement yet. Upload a Roofr report on the lead&rsquo;s Roofr tab first.</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px_110px]">
-          <div className="min-w-0 space-y-1">
-            <Label className="text-xs">Measurement</Label>
+          <Field label="Measurement" className="min-w-0" labelClassName="text-xs">
             <Select items={items} value={measurementId} onValueChange={(v) => { setMeasurementId(v); setWaste(""); }}>
               <SelectTrigger aria-label="Measurement"><SelectValue placeholder="Choose a measurement" /></SelectTrigger>
               <SelectContent>
                 {items.map((i) => <SelectItem key={i.value} value={i.value}>{i.label}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Roof type</Label>
+          </Field>
+          <Field label="Roof type" labelClassName="text-xs">
             <Select items={ROOF_ITEMS} value={roofType} onValueChange={(v) => v && setRoofType(v as RoofType)}>
               <SelectTrigger aria-label="Roof type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ROOF_ITEMS.map((i) => <SelectItem key={i.value} value={i.value}>{i.label}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Waste %</Label>
+          </Field>
+          <Field label="Waste %" labelClassName="text-xs">
             <Input inputMode="decimal" aria-label="Waste percent" value={waste} placeholder="rule" onChange={(e) => setWaste(e.target.value)} />
-          </div>
+          </Field>
         </div>
       )}
       {/* Roofr's waste is a suggestion, never applied by itself: an empty box is the company's rule. */}

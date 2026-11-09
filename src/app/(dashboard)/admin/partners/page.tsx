@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_BID_WEIGHTS } from "@/lib/partners/bid-score";
 import { DEFAULT_HEALTH_WEIGHTS } from "@/lib/partners/health";
 import { useInvalidatePartners, usePartnerOptions, usePartnerSettings, type PartnerSettings } from "@/components/partners/use-partners";
+import { Field } from "@/components/ui/field";
 
 const NONE = "__none";
 
@@ -208,14 +209,12 @@ function WeightsCard({ data, canEdit }: { data: PartnerSettings; canEdit: boolea
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="pref-awards">Preferred: at least this many awards</Label>
+          <Field label="Preferred: at least this many awards" id="pref-awards">
             <Input id="pref-awards" type="number" min={1} max={50} className="max-w-[8rem]" value={minAwards} onChange={(e) => setMinAwards(e.target.value)} disabled={!canEdit} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="pref-margin">…at this projected margin or better (%)</Label>
+          </Field>
+          <Field label="…at this projected margin or better (%)" id="pref-margin">
             <Input id="pref-margin" type="number" min={0} max={100} className="max-w-[8rem]" value={minMargin} onChange={(e) => setMinMargin(e.target.value)} disabled={!canEdit} />
-          </div>
+          </Field>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-1.5">
@@ -287,10 +286,9 @@ function BidScoringCard({ form, set, canEdit, trades, weightsVersion }: { form: 
           <Chips all={markets} picked={form.adjacentCounties} onChange={(v) => set("adjacentCounties", v)} disabled={!canEdit} />
           <p className="text-xs text-muted-foreground">Counties come from the Markets list; add one there first.</p>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="bond-cap">Bonding capacity</Label>
+        <Field label="Bonding capacity" id="bond-cap">
           <Input id="bond-cap" type="number" min={0} step="10000" className="max-w-xs" value={form.bondingCapacity ?? ""} onChange={(e) => set("bondingCapacity", e.target.value === "" ? null : Number(e.target.value))} placeholder="Not set: a bonded bid is a hard stop" disabled={!canEdit} />
-        </div>
+        </Field>
         {ours.length > 0 && (
           <div className="space-y-1.5">
             <Label>Usual contract size per trade</Label>

@@ -51,6 +51,7 @@ import {
   type WorkflowRole,
   type WorkflowTemplateOption,
 } from "./types";
+import { Field } from "@/components/ui/field";
 
 type LeadFile = { id: string; fileName: string; category: string };
 
@@ -323,39 +324,33 @@ function ApplyWorkflowBody({
       )}
       {permitStatus !== "UNDETERMINED" && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label className="text-xs">Permit confirmed by</Label>
-            <Input className="mt-1" value={me} disabled />
-          </div>
-          <div>
-            <Label className="text-xs">Confirmation date</Label>
+          <Field label="Permit confirmed by" labelClassName="text-xs">
+            <Input  value={me} disabled />
+          </Field>
+          <Field label="Confirmation date" labelClassName="text-xs">
             <Input
-              className="mt-1"
+              
               value={format(new Date(), "MMM d, yyyy")}
               disabled
             />
-          </div>
-          <div>
-            <Label htmlFor="wf-jurisdiction" className="text-xs">
-              Jurisdiction
-            </Label>
+          </Field>
+          <Field label="Jurisdiction" id="wf-jurisdiction" labelClassName="text-xs">
             <Input
               id="wf-jurisdiction"
-              className="mt-1"
+              
               placeholder="e.g. City of Miami Building Dept."
               value={jurisdiction}
               onChange={(e) => setJurisdiction(e.target.value)}
             />
-          </div>
-          <div>
-            <Label className="text-xs">Supporting document (optional)</Label>
+          </Field>
+          <Field label="Supporting document (optional)" labelClassName="text-xs">
             <Select
               value={permitFileId ?? "__none"}
               onValueChange={(v: string | null) =>
                 setPermitFileId(!v || v === "__none" ? null : v)
               }
             >
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>
                   {(v: string) =>
                     !v || v === "__none"
@@ -373,20 +368,17 @@ function ApplyWorkflowBody({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="sm:col-span-2">
-            <Label htmlFor="wf-permit-notes" className="text-xs">
-              Permit determination notes (optional)
-            </Label>
+          </Field>
+          <Field label="Permit determination notes (optional)" id="wf-permit-notes" className="sm:col-span-2" labelClassName="text-xs">
             <Textarea
               id="wf-permit-notes"
               rows={2}
-              className="mt-1"
+              
               value={permitNotes}
               onChange={(e) => setPermitNotes(e.target.value)}
               placeholder="Who you spoke to, exemption cited, portal reference…"
             />
-          </div>
+          </Field>
         </div>
       )}
     </section>
@@ -566,22 +558,16 @@ function ApplyWorkflowBody({
 
           {!isCase && (
             <section className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="wf-target-start" className="text-xs">
-                  Target start date (optional)
-                </Label>
+              <Field label="Target start date (optional)" id="wf-target-start" help="Steps counted back from the start date get dates once this is
+                  set." labelClassName="text-xs">
                 <Input
                   id="wf-target-start"
                   type="date"
-                  className="mt-1"
+                  
                   value={targetStart}
                   onChange={(e) => setTargetStart(e.target.value)}
                 />
-                <p className="mt-0.5 text-2xs text-muted-foreground">
-                  Steps counted back from the start date get dates once this is
-                  set.
-                </p>
-              </div>
+              </Field>
             </section>
           )}
         </div>

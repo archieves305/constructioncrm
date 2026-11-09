@@ -42,6 +42,7 @@ import { useTasks } from "@/components/tasks/use-tasks";
 import { isPast, isToday } from "date-fns";
 import { computeApplication, type ComputedApplication } from "@/lib/billing/g702";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 type InvoicePayment = {
   id: string;
@@ -784,14 +785,12 @@ export function InvoicesPanel({
           {billing && preview && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Period from</Label>
+                <Field label="Period from">
                   <Input type="date" value={periodFrom} onChange={(e) => setPeriodFrom(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Period to *</Label>
+                </Field>
+                <Field label="Period to" required>
                   <Input type="date" value={periodTo} onChange={(e) => setPeriodTo(e.target.value)} />
-                </div>
+                </Field>
               </div>
 
               <Table>
@@ -834,15 +833,14 @@ export function InvoicesPanel({
 
               <div className="rounded border p-3">
                 <div className="flex flex-wrap items-end gap-3">
-                  <div>
-                    <Label>Retainage % on this application</Label>
+                  <Field label="Retainage % on this application">
                     <Input
                       inputMode="decimal"
                       className={`h-8 w-24 ${badRate ? "border-tone-danger" : ""}`}
                       value={appRetainage}
                       onChange={(e) => setAppRetainage(e.target.value)}
                     />
-                  </div>
+                  </Field>
                   {billing.effectiveRetainagePercent > 0 && preview.previousRetainage > 0 && (
                     <div className="flex gap-2 pb-0.5">
                       <Button
@@ -889,10 +887,9 @@ export function InvoicesPanel({
               </div>
 
               {!editingApp && (
-                <div>
-                  <Label>Notes (printed on the application)</Label>
+                <Field label="Notes (printed on the application)">
                   <Textarea rows={2} value={appNotes} onChange={(e) => setAppNotes(e.target.value)} />
-                </div>
+                </Field>
               )}
 
               <label className="flex items-center gap-2 text-sm">

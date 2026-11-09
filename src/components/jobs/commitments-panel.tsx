@@ -24,6 +24,7 @@ import { COMMITMENT_STATUS_LABEL, commitmentCode, type CommitmentStatusName } fr
 import { ComplianceCallout, type ComplianceSummary } from "@/components/vendors/compliance-badge";
 import { VendorSelect } from "@/components/vendors/vendor-select";
 import { commitmentsKey, useJobCommitments, type CommitmentRow, type JobCommitments } from "@/components/vendors/use-commitments";
+import { Field } from "@/components/ui/field";
 
 const usd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 const NO_LINE = "__none";
@@ -324,10 +325,9 @@ function CommitmentForm({ jobId, data, editing, onSaved, onClose }: { jobId: str
         {vendor && vendorId && <ComplianceCallout compliance={vendor.compliance} vendorName={vendor.vendor.name} />}
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="commitment-description">What was ordered or agreed</Label>
+      <Field label="What was ordered or agreed" id="commitment-description">
         <Textarea id="commitment-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={2000} placeholder="Impact windows, 14 openings — quote #4471" />
-      </div>
+      </Field>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
@@ -335,15 +335,13 @@ function CommitmentForm({ jobId, data, editing, onSaved, onClose }: { jobId: str
           <Input id="commitment-amount" type="number" min={0} step="0.01" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
           {editing && editing.received > 0 && <p className="text-xs text-muted-foreground">{usd(editing.received)} already received against it.</p>}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="commitment-date">Date</Label>
+        <Field label="Date" id="commitment-date">
           <Input id="commitment-date" type="date" value={committedDate} onChange={(e) => setCommittedDate(e.target.value)} />
-        </div>
+        </Field>
       </div>
 
       {data.budgetLines.length > 0 && (
-        <div className="space-y-1.5">
-          <Label>Budget line (optional)</Label>
+        <Field label="Budget line (optional)">
           <Select value={budgetLineId || NO_LINE} onValueChange={(v: string | null) => setBudgetLineId(!v || v === NO_LINE ? "" : v)}>
             <SelectTrigger className="w-full" aria-label="Budget line">
               <SelectValue>{lineName}</SelectValue>
@@ -358,13 +356,12 @@ function CommitmentForm({ jobId, data, editing, onSaved, onClose }: { jobId: str
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
       )}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="commitment-notes">Notes</Label>
+      <Field label="Notes" id="commitment-notes">
         <Textarea id="commitment-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={4000} />
-      </div>
+      </Field>
 
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

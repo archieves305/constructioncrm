@@ -23,6 +23,7 @@ import type { ClosureBlocker } from "@/lib/violations/rules";
 import { CASE_STATUS_LABEL, NOTICE_TYPE_LABEL, SEVERITY_LABEL } from "./status";
 import { useCaseAction, type CaseData } from "./use-violations";
 import { ChevronDown } from "lucide-react";
+import { Field } from "@/components/ui/field";
 
 /** Lifecycle moves. Closure has its own dialog. */
 export function ChangeStatusMenu({ data }: { data: CaseData }) {
@@ -158,22 +159,18 @@ export function AgencyConfirmDialog({ data, open, onOpenChange }: { data: CaseDa
           <DialogDescription>The formal confirmation from the issuing agency. This is what allows the case to close; construction completion never counts.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label className="text-xs">Confirmed on</Label>
-            <Input type="date" className="mt-1" value={f.confirmedAt} onChange={(e) => set("confirmedAt", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Official compliance date (if different)</Label>
-            <Input type="date" className="mt-1" value={f.officialComplianceDate} onChange={(e) => set("officialComplianceDate", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Confirmed by (agency)</Label>
-            <Input className="mt-1" value={f.confirmedByName} onChange={(e) => set("confirmedByName", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Method</Label>
+          <Field label="Confirmed on" labelClassName="text-xs">
+            <Input type="date"  value={f.confirmedAt} onChange={(e) => set("confirmedAt", e.target.value)} />
+          </Field>
+          <Field label="Official compliance date (if different)" labelClassName="text-xs">
+            <Input type="date"  value={f.officialComplianceDate} onChange={(e) => set("officialComplianceDate", e.target.value)} />
+          </Field>
+          <Field label="Confirmed by (agency)" labelClassName="text-xs">
+            <Input  value={f.confirmedByName} onChange={(e) => set("confirmedByName", e.target.value)} />
+          </Field>
+          <Field label="Method" labelClassName="text-xs">
             <Select value={f.method} onValueChange={(v: string | null) => v && set("method", v)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => v.charAt(0).toUpperCase() + v.slice(1)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -184,15 +181,13 @@ export function AgencyConfirmDialog({ data, open, onOpenChange }: { data: CaseDa
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Reference (letter #, portal id, email subject)</Label>
-            <Input className="mt-1" value={f.reference} onChange={(e) => set("reference", e.target.value)} />
-          </div>
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Notes</Label>
-            <Textarea className="mt-1" rows={2} value={f.notes} onChange={(e) => set("notes", e.target.value)} />
-          </div>
+          </Field>
+          <Field label="Reference (letter #, portal id, email subject)" className="sm:col-span-2" labelClassName="text-xs">
+            <Input  value={f.reference} onChange={(e) => set("reference", e.target.value)} />
+          </Field>
+          <Field label="Notes" className="sm:col-span-2" labelClassName="text-xs">
+            <Textarea  rows={2} value={f.notes} onChange={(e) => set("notes", e.target.value)} />
+          </Field>
         </div>
         <Callout tone="info">Attach the confirmation letter on the Documents tab as well, so the closeout package is complete.</Callout>
         <div className="flex justify-end gap-2">
@@ -229,14 +224,12 @@ export function DeadlineChangeDialog({ data, open, onOpenChange }: { data: CaseD
         </DialogHeader>
         {!preview ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label className="text-xs">New deadline</Label>
-              <Input type="date" className="mt-1" value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-xs">Why</Label>
+            <Field label="New deadline" labelClassName="text-xs">
+              <Input type="date"  value={newDeadline} onChange={(e) => setNewDeadline(e.target.value)} />
+            </Field>
+            <Field label="Why" labelClassName="text-xs">
               <Select value={kind} onValueChange={(v: string | null) => v && setKind(v)}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger >
                   <SelectValue>{(v: string) => KINDS[v] ?? v}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -247,15 +240,13 @@ export function DeadlineChangeDialog({ data, open, onOpenChange }: { data: CaseD
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Reference</Label>
-              <Input className="mt-1" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Letter, order or email" />
-            </div>
-            <div className="sm:col-span-2">
-              <Label className="text-xs">Reason (recorded)</Label>
-              <Textarea className="mt-1" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
-            </div>
+            </Field>
+            <Field label="Reference" labelClassName="text-xs">
+              <Input  value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Letter, order or email" />
+            </Field>
+            <Field label="Reason (recorded)" className="sm:col-span-2" labelClassName="text-xs">
+              <Textarea  rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+            </Field>
           </div>
         ) : (
           <div className="space-y-2">
@@ -324,10 +315,9 @@ export function ExtensionDialog({ data, open, onOpenChange }: { data: CaseData; 
         </DialogHeader>
         {pending ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label className="text-xs">Decision</Label>
+            <Field label="Decision" labelClassName="text-xs">
               <Select value={decision} onValueChange={(v: string | null) => v && setDecision(v as typeof decision)}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger >
                   <SelectValue>{(v: string) => v.charAt(0) + v.slice(1).toLowerCase()}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -336,28 +326,24 @@ export function ExtensionDialog({ data, open, onOpenChange }: { data: CaseData; 
                   <SelectItem value="WITHDRAWN">Withdrawn</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
             {decision === "GRANTED" && (
-              <div>
-                <Label className="text-xs">Granted until (blank = as requested)</Label>
-                <Input type="date" className="mt-1" value={granted} onChange={(e) => setGranted(e.target.value)} />
-              </div>
+              <Field label="Granted until (blank = as requested)" labelClassName="text-xs">
+                <Input type="date"  value={granted} onChange={(e) => setGranted(e.target.value)} />
+              </Field>
             )}
-            <div className="sm:col-span-2">
-              <Label className="text-xs">Decision notes</Label>
-              <Textarea className="mt-1" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
+            <Field label="Decision notes" className="sm:col-span-2" labelClassName="text-xs">
+              <Textarea  rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </Field>
           </div>
         ) : (
           <div className="grid gap-3">
-            <div>
-              <Label className="text-xs">Requested deadline</Label>
-              <Input type="date" className="mt-1" value={requestedDeadline} onChange={(e) => setRequestedDeadline(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-xs">Reason given to the agency</Label>
-              <Textarea className="mt-1" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
-            </div>
+            <Field label="Requested deadline" labelClassName="text-xs">
+              <Input type="date"  value={requestedDeadline} onChange={(e) => setRequestedDeadline(e.target.value)} />
+            </Field>
+            <Field label="Reason given to the agency" labelClassName="text-xs">
+              <Textarea  rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
+            </Field>
           </div>
         )}
         <div className="flex justify-end gap-2">
@@ -419,26 +405,21 @@ export function EditCaseDialog({ data, open, onOpenChange }: { data: CaseData; o
           <DialogDescription>The compliance deadline is changed from the header&apos;s “Change deadline”, so its history and the dependent dates stay honest.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Title</Label>
-            <Input className="mt-1" value={f.title} onChange={(e) => set("title", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Agency case / citation #</Label>
-            <Input className="mt-1" value={f.agencyCaseNumber} onChange={(e) => set("agencyCaseNumber", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Parcel / folio</Label>
-            <Input className="mt-1" value={f.parcelNumber} onChange={(e) => set("parcelNumber", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Owner (as on the notice)</Label>
-            <Input className="mt-1" value={f.ownerNameSnapshot} onChange={(e) => set("ownerNameSnapshot", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Notice type</Label>
+          <Field label="Title" className="sm:col-span-2" labelClassName="text-xs">
+            <Input  value={f.title} onChange={(e) => set("title", e.target.value)} />
+          </Field>
+          <Field label="Agency case / citation #" labelClassName="text-xs">
+            <Input  value={f.agencyCaseNumber} onChange={(e) => set("agencyCaseNumber", e.target.value)} />
+          </Field>
+          <Field label="Parcel / folio" labelClassName="text-xs">
+            <Input  value={f.parcelNumber} onChange={(e) => set("parcelNumber", e.target.value)} />
+          </Field>
+          <Field label="Owner (as on the notice)" labelClassName="text-xs">
+            <Input  value={f.ownerNameSnapshot} onChange={(e) => set("ownerNameSnapshot", e.target.value)} />
+          </Field>
+          <Field label="Notice type" labelClassName="text-xs">
             <Select value={f.noticeType || "__none"} onValueChange={(v: string | null) => set("noticeType", !v || v === "__none" ? "" : v)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => (!v || v === "__none" ? "—" : (NOTICE_TYPE_LABEL[v] ?? v))}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -450,43 +431,34 @@ export function EditCaseDialog({ data, open, onOpenChange }: { data: CaseData; o
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Jurisdiction</Label>
-            <Input className="mt-1" value={f.jurisdiction} onChange={(e) => set("jurisdiction", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Department</Label>
-            <Input className="mt-1" value={f.department} onChange={(e) => set("department", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Code officer</Label>
-            <Input className="mt-1" value={f.officerName} onChange={(e) => set("officerName", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Officer phone</Label>
-            <Input className="mt-1" value={f.officerPhone} onChange={(e) => set("officerPhone", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Officer email</Label>
-            <Input className="mt-1" value={f.officerEmail} onChange={(e) => set("officerEmail", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Notice date</Label>
-            <Input type="date" className="mt-1" value={f.noticeDate} onChange={(e) => set("noticeDate", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Received</Label>
-            <Input type="date" className="mt-1" value={f.receivedAt} onChange={(e) => set("receivedAt", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Appeal deadline</Label>
-            <Input type="date" className="mt-1" value={f.appealDeadline} onChange={(e) => set("appealDeadline", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Priority</Label>
+          </Field>
+          <Field label="Jurisdiction" labelClassName="text-xs">
+            <Input  value={f.jurisdiction} onChange={(e) => set("jurisdiction", e.target.value)} />
+          </Field>
+          <Field label="Department" labelClassName="text-xs">
+            <Input  value={f.department} onChange={(e) => set("department", e.target.value)} />
+          </Field>
+          <Field label="Code officer" labelClassName="text-xs">
+            <Input  value={f.officerName} onChange={(e) => set("officerName", e.target.value)} />
+          </Field>
+          <Field label="Officer phone" labelClassName="text-xs">
+            <Input  value={f.officerPhone} onChange={(e) => set("officerPhone", e.target.value)} />
+          </Field>
+          <Field label="Officer email" labelClassName="text-xs">
+            <Input  value={f.officerEmail} onChange={(e) => set("officerEmail", e.target.value)} />
+          </Field>
+          <Field label="Notice date" labelClassName="text-xs">
+            <Input type="date"  value={f.noticeDate} onChange={(e) => set("noticeDate", e.target.value)} />
+          </Field>
+          <Field label="Received" labelClassName="text-xs">
+            <Input type="date"  value={f.receivedAt} onChange={(e) => set("receivedAt", e.target.value)} />
+          </Field>
+          <Field label="Appeal deadline" labelClassName="text-xs">
+            <Input type="date"  value={f.appealDeadline} onChange={(e) => set("appealDeadline", e.target.value)} />
+          </Field>
+          <Field label="Priority" labelClassName="text-xs">
             <Select value={f.priority} onValueChange={(v: string | null) => v && set("priority", v as typeof f.priority)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => v.charAt(0) + v.slice(1).toLowerCase()}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -497,11 +469,10 @@ export function EditCaseDialog({ data, open, onOpenChange }: { data: CaseData; o
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Severity</Label>
+          </Field>
+          <Field label="Severity" labelClassName="text-xs">
             <Select value={f.severity} onValueChange={(v: string | null) => v && set("severity", v as typeof f.severity)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => SEVERITY_LABEL[v] ?? v}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -512,16 +483,15 @@ export function EditCaseDialog({ data, open, onOpenChange }: { data: CaseData; o
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           <div>
             <Label className="text-xs">Case manager</Label>
             <AssigneePicker className="mt-1 w-full" value={f.caseManagerId} users={users} onChange={(id) => set("caseManagerId", id)} />
             {!canAssign && <p className="text-2xs text-muted-foreground">Office roles reassign cases.</p>}
           </div>
-          <div>
-            <Label className="text-xs">Responsible team</Label>
+          <Field label="Responsible team" labelClassName="text-xs">
             <Select value={f.responsibleRole || "__none"} onValueChange={(v: string | null) => set("responsibleRole", !v || v === "__none" ? "" : v)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => (!v || v === "__none" ? "—" : (WORKFLOW_ROLE_LABEL[v as keyof typeof WORKFLOW_ROLE_LABEL] ?? v))}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -533,15 +503,13 @@ export function EditCaseDialog({ data, open, onOpenChange }: { data: CaseData; o
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Estimated correction cost</Label>
-            <Input className="mt-1" inputMode="decimal" value={f.estimatedCost} onChange={(e) => set("estimatedCost", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Actual correction cost</Label>
-            <Input className="mt-1" inputMode="decimal" value={f.actualCost} onChange={(e) => set("actualCost", e.target.value)} />
-          </div>
+          </Field>
+          <Field label="Estimated correction cost" labelClassName="text-xs">
+            <Input  inputMode="decimal" value={f.estimatedCost} onChange={(e) => set("estimatedCost", e.target.value)} />
+          </Field>
+          <Field label="Actual correction cost" labelClassName="text-xs">
+            <Input  inputMode="decimal" value={f.actualCost} onChange={(e) => set("actualCost", e.target.value)} />
+          </Field>
           <div className="grid grid-cols-2 gap-2 sm:col-span-2">
             {(
               [
@@ -556,10 +524,9 @@ export function EditCaseDialog({ data, open, onOpenChange }: { data: CaseData; o
               </label>
             ))}
           </div>
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Summary</Label>
-            <Textarea className="mt-1" rows={3} value={f.summary} onChange={(e) => set("summary", e.target.value)} />
-          </div>
+          <Field label="Summary" className="sm:col-span-2" labelClassName="text-xs">
+            <Textarea  rows={3} value={f.summary} onChange={(e) => set("summary", e.target.value)} />
+          </Field>
         </div>
         <Callout tone="neutral">Changing the flags here does not re-plan the workflow; use Scope on the Workflow tab for that.</Callout>
         <div className="flex justify-end gap-2">

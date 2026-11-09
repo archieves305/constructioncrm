@@ -50,6 +50,7 @@ import { CrewLinks } from "./crew-links";
 import { attachCompletionPhotos, CompletionPhotoPicker, CompletionPhotosButton, type CompletionPhoto } from "./completion-photos";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 const METHODS = [
   "CHECK",
@@ -701,8 +702,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                 />
               )}
             </div>
-            <div>
-              <Label className="text-xs">Contract price ($)</Label>
+            <Field label="Contract price ($)" labelClassName="text-xs">
               <Input
                 type="number"
                 min={0}
@@ -710,7 +710,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
-            </div>
+            </Field>
             <div className="flex flex-col justify-end">
               <Button
                 size="sm"
@@ -1155,8 +1155,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div>
-              <Label className="text-xs">Contract price ($)</Label>
+            <Field label="Contract price ($)" labelClassName="text-xs">
               <Input
                 type="number"
                 min={0}
@@ -1164,44 +1163,37 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                 value={editAmount}
                 onChange={(e) => setEditAmount(e.target.value)}
               />
-            </div>
-            <div>
-              <Label className="text-xs">Scope / description</Label>
+            </Field>
+            <Field label="Scope / description" help="Used verbatim as the Scope of Work on the generated contract." labelClassName="text-xs">
               <Textarea
                 rows={3}
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
               />
-              <p className="mt-1 text-2xs text-muted-foreground">
-                Used verbatim as the Scope of Work on the generated contract.
-              </p>
-            </div>
-            <div>
-              <Label className="text-xs">Payment terms</Label>
+            </Field>
+            <Field label="Payment terms" labelClassName="text-xs">
               <Textarea
                 rows={2}
                 placeholder="e.g. 50% on start, balance on completion"
                 value={editPaymentTerms}
                 onChange={(e) => setEditPaymentTerms(e.target.value)}
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Start date</Label>
+              <Field label="Start date" labelClassName="text-xs">
                 <Input
                   type="date"
                   value={editStartDate}
                   onChange={(e) => setEditStartDate(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label className="text-xs">Est. completion</Label>
+              </Field>
+              <Field label="Est. completion" labelClassName="text-xs">
                 <Input
                   type="date"
                   value={editCompletionDate}
                   onChange={(e) => setEditCompletionDate(e.target.value)}
                 />
-              </div>
+              </Field>
             </div>
             {editing && !editing.crewId && (
               <div>
@@ -1210,43 +1202,38 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
               </div>
             )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <div>
-                <Label className="text-xs">Contractor license #</Label>
+              <Field label="Contractor license #" labelClassName="text-xs">
                 <Input
                   value={editLicense}
                   onChange={(e) => setEditLicense(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label className="text-xs">Insurance</Label>
+              </Field>
+              <Field label="Insurance" labelClassName="text-xs">
                 <Input
                   placeholder="Carrier / policy"
                   value={editInsurance}
                   onChange={(e) => setEditInsurance(e.target.value)}
                 />
-              </div>
+              </Field>
             </div>
-            <div>
-              <Label className="text-xs">Exclusions</Label>
+            <Field label="Exclusions" labelClassName="text-xs">
               <Textarea
                 rows={2}
                 placeholder="Work not included"
                 value={editExclusions}
                 onChange={(e) => setEditExclusions(e.target.value)}
               />
-            </div>
-            <div>
-              <Label className="text-xs">Notes</Label>
+            </Field>
+            <Field label="Notes" labelClassName="text-xs">
               <Textarea
                 rows={2}
                 placeholder="Any additional notes"
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Retainage (%)</Label>
+              <Field label="Retainage (%)" labelClassName="text-xs">
                 <Input
                   type="number"
                   step="0.01"
@@ -1254,9 +1241,8 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                   value={editRetainage}
                   onChange={(e) => setEditRetainage(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label className="text-xs">Delay damages ($/day)</Label>
+              </Field>
+              <Field label="Delay damages ($/day)" labelClassName="text-xs">
                 <Input
                   type="number"
                   step="0.01"
@@ -1264,7 +1250,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                   value={editDelay}
                   onChange={(e) => setEditDelay(e.target.value)}
                 />
-              </div>
+              </Field>
             </div>
           </div>
           <DialogFooter>
@@ -1304,8 +1290,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
               <ComplianceCallout compliance={payingContract.vendorCompliance} vendorName={vendorOf(payingContract)!.name} />
             )}
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Amount ($)</Label>
+              <Field label="Amount ($)" labelClassName="text-xs">
                 <Input
                   type="number"
                   min={0}
@@ -1313,19 +1298,17 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                   value={payAmount}
                   onChange={(e) => setPayAmount(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label className="text-xs">Date</Label>
+              </Field>
+              <Field label="Date" labelClassName="text-xs">
                 <Input
                   type="date"
                   value={payDate}
                   onChange={(e) => setPayDate(e.target.value)}
                 />
-              </div>
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Method</Label>
+              <Field label="Method" labelClassName="text-xs">
                 <Select
                   value={payMethod || "__none"}
                   onValueChange={(v: string | null) =>
@@ -1350,23 +1333,21 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label className="text-xs">Check # / ref.</Label>
+              </Field>
+              <Field label="Check # / ref." labelClassName="text-xs">
                 <Input
                   value={payReference}
                   onChange={(e) => setPayReference(e.target.value)}
                 />
-              </div>
+              </Field>
             </div>
-            <div>
-              <Label className="text-xs">Notes</Label>
+            <Field label="Notes" labelClassName="text-xs">
               <Textarea
                 rows={2}
                 value={payNotes}
                 onChange={(e) => setPayNotes(e.target.value)}
               />
-            </div>
+            </Field>
             <CompletionPhotoPicker files={payPhotos} onChange={setPayPhotos} existing={payRequest?.photos ?? []} />
           </div>
           <DialogFooter>
@@ -1406,8 +1387,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Amount ($)</Label>
+              <Field label="Amount ($)" help="Use a negative number for a credit." labelClassName="text-xs">
                 <Input
                   type="number"
                   step="0.01"
@@ -1415,51 +1395,43 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                   value={coAmount}
                   onChange={(e) => setCoAmount(e.target.value)}
                 />
-                <p className="mt-1 text-2xs text-muted-foreground">
-                  Use a negative number for a credit.
-                </p>
-              </div>
-              <div>
-                <Label className="text-xs">Date</Label>
+              </Field>
+              <Field label="Date" labelClassName="text-xs">
                 <Input
                   type="date"
                   value={coDate}
                   onChange={(e) => setCoDate(e.target.value)}
                 />
-              </div>
+              </Field>
             </div>
-            <div>
-              <Label className="text-xs">Reason / description of change</Label>
+            <Field label="Reason / description of change" labelClassName="text-xs">
               <Textarea
                 rows={2}
                 placeholder="What changed (extra demo, added scope, credit…)"
                 value={coReason}
                 onChange={(e) => setCoReason(e.target.value)}
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <div>
-                <Label className="text-xs">Added scope</Label>
+              <Field label="Added scope" labelClassName="text-xs">
                 <Textarea
                   rows={2}
                   placeholder="Scope added by this change order"
                   value={coAddedScope}
                   onChange={(e) => setCoAddedScope(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label className="text-xs">Removed scope</Label>
+              </Field>
+              <Field label="Removed scope" labelClassName="text-xs">
                 <Textarea
                   rows={2}
                   placeholder="Scope removed by this change order"
                   value={coRemovedScope}
                   onChange={(e) => setCoRemovedScope(e.target.value)}
                 />
-              </div>
+              </Field>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <div>
-                <Label className="text-xs">Time adjustment (days)</Label>
+              <Field label="Time adjustment (days)" labelClassName="text-xs">
                 <Input
                   type="number"
                   step="1"
@@ -1467,23 +1439,21 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                   value={coTimeDays}
                   onChange={(e) => setCoTimeDays(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label className="text-xs">Payment impact</Label>
+              </Field>
+              <Field label="Payment impact" labelClassName="text-xs">
                 <Input
                   placeholder="Optional"
                   value={coPaymentImpact}
                   onChange={(e) => setCoPaymentImpact(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label className="text-xs">Retainage impact</Label>
+              </Field>
+              <Field label="Retainage impact" labelClassName="text-xs">
                 <Input
                   placeholder="Optional"
                   value={coRetainageImpact}
                   onChange={(e) => setCoRetainageImpact(e.target.value)}
                 />
-              </div>
+              </Field>
             </div>
             <p className="text-2xs text-muted-foreground">
               After saving, use the <span className="font-medium">Addendum</span>{" "}

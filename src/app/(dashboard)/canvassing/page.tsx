@@ -21,7 +21,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -37,6 +36,7 @@ import {
   Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Field } from "@/components/ui/field";
 
 type DoorKnockRoute = {
   id: string;
@@ -387,8 +387,7 @@ export default function CanvassingPage() {
             <DialogTitle>Create New Route</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Route Name *</Label>
+            <Field label="Route Name" id="name" required>
               <Input
                 id="name"
                 value={formState.name}
@@ -397,9 +396,8 @@ export default function CanvassingPage() {
                 }
                 placeholder="e.g., Downtown Miami Route"
               />
-            </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
+            </Field>
+            <Field label="Description" id="description">
               <Input
                 id="description"
                 value={formState.description}
@@ -408,9 +406,8 @@ export default function CanvassingPage() {
                 }
                 placeholder="Optional notes about this route"
               />
-            </div>
-            <div>
-              <Label htmlFor="scheduledFor">Scheduled Date</Label>
+            </Field>
+            <Field label="Scheduled Date" id="scheduledFor">
               <Input
                 id="scheduledFor"
                 type="date"
@@ -419,7 +416,7 @@ export default function CanvassingPage() {
                   setFormState({ ...formState, scheduledFor: e.target.value })
                 }
               />
-            </div>
+            </Field>
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"

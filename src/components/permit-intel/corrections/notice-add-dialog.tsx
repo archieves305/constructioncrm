@@ -7,12 +7,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchJson } from "@/lib/fetch-json";
 import { formatFileSize, uploadProblem } from "@/lib/files/limits";
 import { useInvalidateCorrections } from "./use-corrections";
+import { Field } from "@/components/ui/field";
 
 const READABLE = "application/pdf,image/png,image/jpeg,image/webp";
 
@@ -100,20 +100,17 @@ export function NoticeAddForm({ permitId, aiReady, onClose }: { permitId: string
             <p className="text-xs text-muted-foreground">Scanned pages are read too. It is filed on the permit as a correction notice.</p>
           </div>
         ) : (
-          <div className="space-y-1">
-            <Label htmlFor="notice-text">The comments</Label>
+          <Field label="The comments" id="notice-text">
             <Textarea id="notice-text" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste the plan review comments from the portal or the email" />
-          </div>
+          </Field>
         )}
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="min-w-0 space-y-1">
-            <Label htmlFor="notice-day">Received</Label>
+          <Field label="Received" id="notice-day" className="min-w-0">
             <Input id="notice-day" type="date" value={receivedOn} onChange={(e) => setReceivedOn(e.target.value)} />
-          </div>
-          <div className="min-w-0 space-y-1">
-            <Label htmlFor="notice-reviewer">Reviewer (optional)</Label>
+          </Field>
+          <Field label="Reviewer (optional)" id="notice-reviewer" className="min-w-0">
             <Input id="notice-reviewer" value={reviewer} onChange={(e) => setReviewer(e.target.value)} placeholder="Read from the notice if left empty" />
-          </div>
+          </Field>
         </div>
       </div>
       <DialogFooter>

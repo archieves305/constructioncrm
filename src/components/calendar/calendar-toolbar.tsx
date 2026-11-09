@@ -11,6 +11,7 @@ import { ListToolbar } from "@/components/shared/list-toolbar";
 import { PRIORITY_LABEL, STATUS_LABEL, TASK_PRIORITIES, TASK_STATUSES } from "@/components/tasks/task-colors";
 import type { Priority, TaskStatus } from "@/components/tasks/types";
 import { activeFilterCount, type CalendarFilters } from "@/lib/calendar/url-state";
+import { Field } from "@/components/ui/field";
 
 const ANY = "__any";
 
@@ -59,8 +60,7 @@ export function CalendarToolbar({
               <JobPicker value={filters.job ?? null} onChange={(j) => onFiltersChange({ job: j?.id })} placeholder="Any job" clearable />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">Status</Label>
+              <Field label="Status" labelClassName="block text-xs text-muted-foreground">
                 <Select value={filters.status ?? ANY} onValueChange={(v) => onFiltersChange({ status: !v || v === ANY ? undefined : v })}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue>{(v: string) => (v && v !== ANY ? STATUS_LABEL[v as TaskStatus] : "Any")}</SelectValue>
@@ -74,9 +74,8 @@ export function CalendarToolbar({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">Priority</Label>
+              </Field>
+              <Field label="Priority" labelClassName="block text-xs text-muted-foreground">
                 <Select value={filters.priority ?? ANY} onValueChange={(v) => onFiltersChange({ priority: !v || v === ANY ? undefined : v })}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue>{(v: string) => (v && v !== ANY ? PRIORITY_LABEL[v as Priority] : "Any")}</SelectValue>
@@ -90,7 +89,7 @@ export function CalendarToolbar({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-sm">
               <Checkbox checked={filters.hideCompleted} onCheckedChange={(c) => onFiltersChange({ hideCompleted: Boolean(c) })} />

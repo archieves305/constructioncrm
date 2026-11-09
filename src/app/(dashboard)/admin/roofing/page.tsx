@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchJson, HttpError } from "@/lib/fetch-json";
 import { ROOF_TYPES, type RoofType } from "@/lib/roofing/types";
+import { Field } from "@/components/ui/field";
 
 type Material = {
   id: string;
@@ -241,7 +242,9 @@ function MaterialDialog({ open, onClose, onSaved, categories }: { open: boolean;
           <DialogDescription>&ldquo;Used for&rdquo; is what ties it to a takeoff rule: a takeoff prices its shingle line from a material used for Shingles.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2"><Label htmlFor="m-name">Name</Label><Input id="m-name" value={f.name} onChange={set("name")} placeholder="GAF Timberline HDZ" /></div>
+          <Field label="Name" id="m-name" className="sm:col-span-2">
+            <Input id="m-name" value={f.name} onChange={set("name")} placeholder="GAF Timberline HDZ" />
+          </Field>
           <div>
             <Label htmlFor="m-cat">Used for</Label>
             <Input id="m-cat" list="roof-categories" value={f.category} onChange={set("category")} placeholder="Shingles" />
@@ -254,9 +257,15 @@ function MaterialDialog({ open, onClose, onSaved, categories }: { open: boolean;
               {ROOF_TYPES.map((t) => <option key={t} value={t}>{ROOF_LABEL[t]}</option>)}
             </select>
           </div>
-          <div><Label htmlFor="m-unit">Sold by</Label><Input id="m-unit" value={f.unitType} onChange={set("unitType")} placeholder="bundle" /></div>
-          <div><Label htmlFor="m-cost">Price per unit</Label><Input id="m-cost" inputMode="decimal" value={f.unitCost} onChange={set("unitCost")} placeholder="42.00" /></div>
-          <div><Label htmlFor="m-sku">SKU</Label><Input id="m-sku" value={f.sku} onChange={set("sku")} /></div>
+          <Field label="Sold by" id="m-unit">
+            <Input id="m-unit" value={f.unitType} onChange={set("unitType")} placeholder="bundle" />
+          </Field>
+          <Field label="Price per unit" id="m-cost">
+            <Input id="m-cost" inputMode="decimal" value={f.unitCost} onChange={set("unitCost")} placeholder="42.00" />
+          </Field>
+          <Field label="SKU" id="m-sku">
+            <Input id="m-sku" value={f.sku} onChange={set("sku")} />
+          </Field>
           <div>
             <Label htmlFor="m-vendor">Supplier</Label>
             <select id="m-vendor" className={selectClass} value={f.vendorId} onChange={set("vendorId")}>
@@ -303,8 +312,12 @@ function PriceDialog({ material, onClose, onSaved }: { material: Material | null
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div><Label htmlFor="p-cost">Price per {material?.unitType}</Label><Input id="p-cost" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} /></div>
-          <div><Label htmlFor="p-date">From</Label><Input id="p-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div className="sm:col-span-2"><Label htmlFor="p-note">Note</Label><Input id="p-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Supplier quote, invoice number…" /></div>
+          <Field label="From" id="p-date">
+            <Input id="p-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+          <Field label="Note" id="p-note" className="sm:col-span-2">
+            <Input id="p-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Supplier quote, invoice number…" />
+          </Field>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>

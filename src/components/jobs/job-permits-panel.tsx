@@ -34,6 +34,7 @@ import {
 import { fetchJson } from "@/lib/fetch-json";
 import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
+import { Field } from "@/components/ui/field";
 
 const emptyPermitForm = {
   municipality: "",
@@ -228,8 +229,7 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
               onType={(text) => setForm((f) => ({ ...f, municipality: text, jurisdictionId: "" }))}
             />
           </div>
-          <div>
-            <Label className="text-2xs">Permit type</Label>
+          <Field label="Permit type" labelClassName="text-2xs">
             <Select
               items={permitTypes.map((t) => ({ value: t.key, label: t.name }))}
               value={form.permitTypeKey || undefined}
@@ -246,17 +246,14 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-2xs">Application #</Label>
+          </Field>
+          <Field label="Application #" labelClassName="text-2xs">
             <Input value={form.applicationNumber} onChange={(e) => set("applicationNumber", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-2xs">Permit # (once issued)</Label>
+          </Field>
+          <Field label="Permit # (once issued)" labelClassName="text-2xs">
             <Input value={form.permitNumber} onChange={(e) => set("permitNumber", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-2xs">Status</Label>
+          </Field>
+          <Field label="Status" labelClassName="text-2xs">
             <Select value={form.status} onValueChange={(v: string | null) => v && set("status", v)}>
               <SelectTrigger>
                 <SelectValue>{(v: string) => PERMIT_STATUS_LABEL[v] ?? v}</SelectValue>
@@ -269,27 +266,22 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           {!preparing && (
-            <div>
-              <Label className="text-2xs">Submitted</Label>
+            <Field label="Submitted" labelClassName="text-2xs">
               <Input type="date" value={form.submittedDate} onChange={(e) => set("submittedDate", e.target.value)} />
-            </div>
+            </Field>
           )}
-          <div>
-            <Label className="text-2xs">Expected approval</Label>
+          <Field label="Expected approval" labelClassName="text-2xs">
             <Input type="date" value={form.expectedApprovalDate} onChange={(e) => set("expectedApprovalDate", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-2xs">Expires</Label>
+          </Field>
+          <Field label="Expires" labelClassName="text-2xs">
             <Input type="date" value={form.expirationDate} onChange={(e) => set("expirationDate", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-2xs">Permit fee quoted</Label>
+          </Field>
+          <Field label="Permit fee quoted" labelClassName="text-2xs">
             <Input value={form.permitFee} inputMode="decimal" placeholder="0.00" onChange={(e) => set("permitFee", e.target.value)} />
-          </div>
-          <div className="sm:col-span-2">
-            <Label className="text-2xs">Coordinator</Label>
+          </Field>
+          <Field label="Coordinator" className="sm:col-span-2" labelClassName="text-2xs">
             <Select value={form.assignedUserId || "unassigned"} onValueChange={(v: string | null) => v && set("assignedUserId", v === "unassigned" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue>
@@ -308,11 +300,10 @@ function AddPermitForm({ jobId, users, onDone }: { jobId: string; users: Assigna
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="sm:col-span-2">
-            <Label className="text-2xs">Notes</Label>
+          </Field>
+          <Field label="Notes" className="sm:col-span-2" labelClassName="text-2xs">
             <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
-          </div>
+          </Field>
         </div>
         <div className="flex justify-end gap-2">
           {onDone && (

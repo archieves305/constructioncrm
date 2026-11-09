@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { NOTICE_TYPE_LABEL, SEVERITY_LABEL } from "../status";
 import { useCreateCase, useViolationCategories, type Category } from "../use-violations";
 import { LeadPicker, type PickedLead } from "./lead-picker";
+import { Field } from "@/components/ui/field";
 
 const STEPS = ["Property", "Notice", "Violations", "Assessment", "Review"] as const;
 
@@ -322,14 +323,12 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
                 <LeadPicker value={form.lead} onChange={(l) => setForm((f) => ({ ...f, lead: l, ownerNameSnapshot: f.ownerNameSnapshot || l.fullName }))} returnTo={returnTo} />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Label className="text-xs">Parcel / folio number</Label>
-                  <Input className="mt-1" value={form.parcelNumber} onChange={(e) => set("parcelNumber", e.target.value)} />
-                </div>
-                <div>
-                  <Label className="text-xs">Owner as printed on the notice</Label>
-                  <Input className="mt-1" value={form.ownerNameSnapshot} onChange={(e) => set("ownerNameSnapshot", e.target.value)} />
-                </div>
+                <Field label="Parcel / folio number" labelClassName="text-xs">
+                  <Input  value={form.parcelNumber} onChange={(e) => set("parcelNumber", e.target.value)} />
+                </Field>
+                <Field label="Owner as printed on the notice" labelClassName="text-xs">
+                  <Input  value={form.ownerNameSnapshot} onChange={(e) => set("ownerNameSnapshot", e.target.value)} />
+                </Field>
               </div>
               {form.lead && <JobPickerRow leadId={form.lead.id} value={form.jobId} onChange={(v) => set("jobId", v)} />}
             </>
@@ -337,14 +336,12 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
 
           {step === 1 && (
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label className="text-xs">Case title</Label>
-                <Input className="mt-1" value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Unpermitted roof replacement — 123 Main St" />
-              </div>
-              <div>
-                <Label className="text-xs">Notice type</Label>
+              <Field label="Case title" className="sm:col-span-2" labelClassName="text-xs">
+                <Input  value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Unpermitted roof replacement — 123 Main St" />
+              </Field>
+              <Field label="Notice type" labelClassName="text-xs">
                 <Select value={form.noticeType} onValueChange={(v: string | null) => v && set("noticeType", v)}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger >
                     <SelectValue>{(v: string) => NOTICE_TYPE_LABEL[v] ?? v}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -355,52 +352,40 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label className="text-xs">Agency case / citation #</Label>
-                <Input className="mt-1" value={form.agencyCaseNumber} onChange={(e) => set("agencyCaseNumber", e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Jurisdiction (city / county)</Label>
-                <Input className="mt-1" value={form.jurisdiction} onChange={(e) => set("jurisdiction", e.target.value)} placeholder={form.lead?.county ? `${form.lead.county} County` : ""} />
-              </div>
-              <div>
-                <Label className="text-xs">Department</Label>
-                <Input className="mt-1" value={form.department} onChange={(e) => set("department", e.target.value)} placeholder="Code Enforcement, Building…" />
-              </div>
-              <div>
-                <Label className="text-xs">Code officer</Label>
-                <Input className="mt-1" value={form.officerName} onChange={(e) => set("officerName", e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Officer phone</Label>
-                <Input className="mt-1" value={form.officerPhone} onChange={(e) => set("officerPhone", e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Officer email</Label>
-                <Input className="mt-1" value={form.officerEmail} onChange={(e) => set("officerEmail", e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Notice date</Label>
-                <Input type="date" className="mt-1" value={form.noticeDate} onChange={(e) => set("noticeDate", e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Received on</Label>
-                <Input type="date" className="mt-1" value={form.receivedAt} onChange={(e) => set("receivedAt", e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-xs">Compliance deadline</Label>
-                <Input type="date" className="mt-1" value={form.complianceDeadline} onChange={(e) => set("complianceDeadline", e.target.value)} />
-                <p className="mt-0.5 text-2xs text-muted-foreground">The workflow&apos;s deadline-anchored steps are dated from this.</p>
-              </div>
-              <div>
-                <Label className="text-xs">Appeal deadline</Label>
-                <Input type="date" className="mt-1" value={form.appealDeadline} onChange={(e) => set("appealDeadline", e.target.value)} />
-              </div>
-              <div className="sm:col-span-2">
-                <Label className="text-xs">Summary of the notice</Label>
-                <Textarea className="mt-1" rows={3} value={form.summary} onChange={(e) => set("summary", e.target.value)} />
-              </div>
+              </Field>
+              <Field label="Agency case / citation #" labelClassName="text-xs">
+                <Input  value={form.agencyCaseNumber} onChange={(e) => set("agencyCaseNumber", e.target.value)} />
+              </Field>
+              <Field label="Jurisdiction (city / county)" labelClassName="text-xs">
+                <Input  value={form.jurisdiction} onChange={(e) => set("jurisdiction", e.target.value)} placeholder={form.lead?.county ? `${form.lead.county} County` : ""} />
+              </Field>
+              <Field label="Department" labelClassName="text-xs">
+                <Input  value={form.department} onChange={(e) => set("department", e.target.value)} placeholder="Code Enforcement, Building…" />
+              </Field>
+              <Field label="Code officer" labelClassName="text-xs">
+                <Input  value={form.officerName} onChange={(e) => set("officerName", e.target.value)} />
+              </Field>
+              <Field label="Officer phone" labelClassName="text-xs">
+                <Input  value={form.officerPhone} onChange={(e) => set("officerPhone", e.target.value)} />
+              </Field>
+              <Field label="Officer email" labelClassName="text-xs">
+                <Input  value={form.officerEmail} onChange={(e) => set("officerEmail", e.target.value)} />
+              </Field>
+              <Field label="Notice date" labelClassName="text-xs">
+                <Input type="date"  value={form.noticeDate} onChange={(e) => set("noticeDate", e.target.value)} />
+              </Field>
+              <Field label="Received on" labelClassName="text-xs">
+                <Input type="date"  value={form.receivedAt} onChange={(e) => set("receivedAt", e.target.value)} />
+              </Field>
+              <Field label="Compliance deadline" help="The workflow&apos;s deadline-anchored steps are dated from this." labelClassName="text-xs">
+                <Input type="date"  value={form.complianceDeadline} onChange={(e) => set("complianceDeadline", e.target.value)} />
+              </Field>
+              <Field label="Appeal deadline" labelClassName="text-xs">
+                <Input type="date"  value={form.appealDeadline} onChange={(e) => set("appealDeadline", e.target.value)} />
+              </Field>
+              <Field label="Summary of the notice" className="sm:col-span-2" labelClassName="text-xs">
+                <Textarea  rows={3} value={form.summary} onChange={(e) => set("summary", e.target.value)} />
+              </Field>
             </div>
           )}
 
@@ -528,53 +513,44 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
 
               {form.hearingRequired && (
                 <section className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label className="text-xs">Hearing date and time</Label>
-                    <Input type="datetime-local" className="mt-1" value={form.hearingAt} onChange={(e) => set("hearingAt", e.target.value)} />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Location</Label>
-                    <Input className="mt-1" value={form.hearingLocation} onChange={(e) => set("hearingLocation", e.target.value)} />
-                  </div>
+                  <Field label="Hearing date and time" labelClassName="text-xs">
+                    <Input type="datetime-local"  value={form.hearingAt} onChange={(e) => set("hearingAt", e.target.value)} />
+                  </Field>
+                  <Field label="Location" labelClassName="text-xs">
+                    <Input  value={form.hearingLocation} onChange={(e) => set("hearingLocation", e.target.value)} />
+                  </Field>
                 </section>
               )}
 
               <section className="grid gap-3 sm:grid-cols-3">
-                <div>
-                  <Label className="text-xs">Initial fine</Label>
-                  <Input className="mt-1" inputMode="decimal" value={form.initialFine} onChange={(e) => set("initialFine", e.target.value)} placeholder="0.00" />
-                </div>
-                <div>
-                  <Label className="text-xs">Daily fine</Label>
-                  <Input className="mt-1" inputMode="decimal" value={form.dailyFine} onChange={(e) => set("dailyFine", e.target.value)} placeholder="0.00 / day" />
-                </div>
-                <div>
-                  <Label className="text-xs">Accrual starts</Label>
-                  <Input type="date" className="mt-1" value={form.accrualStartDate} onChange={(e) => set("accrualStartDate", e.target.value)} />
-                </div>
+                <Field label="Initial fine" labelClassName="text-xs">
+                  <Input  inputMode="decimal" value={form.initialFine} onChange={(e) => set("initialFine", e.target.value)} placeholder="0.00" />
+                </Field>
+                <Field label="Daily fine" labelClassName="text-xs">
+                  <Input  inputMode="decimal" value={form.dailyFine} onChange={(e) => set("dailyFine", e.target.value)} placeholder="0.00 / day" />
+                </Field>
+                <Field label="Accrual starts" labelClassName="text-xs">
+                  <Input type="date"  value={form.accrualStartDate} onChange={(e) => set("accrualStartDate", e.target.value)} />
+                </Field>
               </section>
               {form.lienRecorded && (
                 <section className="grid gap-3 sm:grid-cols-3">
-                  <div>
-                    <Label className="text-xs">Lien amount</Label>
-                    <Input className="mt-1" inputMode="decimal" value={form.lienAmount} onChange={(e) => set("lienAmount", e.target.value)} />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Recorded on</Label>
-                    <Input type="date" className="mt-1" value={form.lienRecordedAt} onChange={(e) => set("lienRecordedAt", e.target.value)} />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Instrument #</Label>
-                    <Input className="mt-1" value={form.lienInstrumentNumber} onChange={(e) => set("lienInstrumentNumber", e.target.value)} />
-                  </div>
+                  <Field label="Lien amount" labelClassName="text-xs">
+                    <Input  inputMode="decimal" value={form.lienAmount} onChange={(e) => set("lienAmount", e.target.value)} />
+                  </Field>
+                  <Field label="Recorded on" labelClassName="text-xs">
+                    <Input type="date"  value={form.lienRecordedAt} onChange={(e) => set("lienRecordedAt", e.target.value)} />
+                  </Field>
+                  <Field label="Instrument #" labelClassName="text-xs">
+                    <Input  value={form.lienInstrumentNumber} onChange={(e) => set("lienInstrumentNumber", e.target.value)} />
+                  </Field>
                 </section>
               )}
 
               <section className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Label className="text-xs">Priority</Label>
+                <Field label="Priority" labelClassName="text-xs">
                   <Select value={form.priority} onValueChange={(v: string | null) => v && set("priority", v as Form["priority"])}>
-                    <SelectTrigger className="mt-1">
+                    <SelectTrigger >
                       <SelectValue>{(v: string) => v.charAt(0) + v.slice(1).toLowerCase()}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -585,11 +561,10 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">Severity</Label>
+                </Field>
+                <Field label="Severity" labelClassName="text-xs">
                   <Select value={form.severity} onValueChange={(v: string | null) => v && set("severity", v as Form["severity"])}>
-                    <SelectTrigger className="mt-1">
+                    <SelectTrigger >
                       <SelectValue>{(v: string) => SEVERITY_LABEL[v] ?? v}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -600,15 +575,14 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </Field>
                 <div>
                   <Label className="text-xs">Case manager</Label>
                   <AssigneePicker className="mt-1 w-full" value={form.caseManagerId} users={users} onChange={(id) => set("caseManagerId", id)} />
                 </div>
-                <div>
-                  <Label className="text-xs">Responsible team</Label>
+                <Field label="Responsible team" labelClassName="text-xs">
                   <Select value={form.responsibleRole || "__none"} onValueChange={(v: string | null) => set("responsibleRole", !v || v === "__none" ? "" : v)}>
-                    <SelectTrigger className="mt-1">
+                    <SelectTrigger >
                       <SelectValue>{(v: string) => (!v || v === "__none" ? "—" : (WORKFLOW_ROLE_LABEL[v as keyof typeof WORKFLOW_ROLE_LABEL] ?? v))}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -620,11 +594,10 @@ export function IntakeForm({ prefill, returnedLeadId }: { prefill: { leadId?: st
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label className="text-xs">Estimated correction cost (case total)</Label>
-                  <Input className="mt-1" inputMode="decimal" value={form.estimatedCost} onChange={(e) => set("estimatedCost", e.target.value)} />
-                </div>
+                </Field>
+                <Field label="Estimated correction cost (case total)" labelClassName="text-xs">
+                  <Input  inputMode="decimal" value={form.estimatedCost} onChange={(e) => set("estimatedCost", e.target.value)} />
+                </Field>
               </section>
 
               <section className="space-y-2">
@@ -731,10 +704,9 @@ function JobPickerRow({ leadId, value, onChange }: { leadId: string; value: stri
   const jobs = data?.data ?? [];
   if (jobs.length === 0) return null;
   return (
-    <div>
-      <Label className="text-xs">Corrective job on this property (optional)</Label>
+    <Field label="Corrective job on this property (optional)" labelClassName="text-xs">
       <Select value={value ?? "__none"} onValueChange={(v: string | null) => onChange(!v || v === "__none" ? null : v)}>
-        <SelectTrigger className="mt-1">
+        <SelectTrigger >
           <SelectValue>{(v: string) => { if (!v || v === "__none") return "No job linked yet"; const j = jobs.find((x) => x.id === v); return j ? `${j.serviceType ?? j.title} · ${j.jobNumber}` : "—"; }}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -746,7 +718,7 @@ function JobPickerRow({ leadId, value, onChange }: { leadId: string; value: stri
           ))}
         </SelectContent>
       </Select>
-    </div>
+    </Field>
   );
 }
 

@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fetchJson } from "@/lib/fetch-json";
+import { Field } from "@/components/ui/field";
 
 type JobType = "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB";
 type MarginType = "PERCENT" | "FLAT";
@@ -112,8 +113,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
         <CardTitle className="text-sm">Pricing</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        <div>
-          <Label className="text-xs">Job type</Label>
+        <Field label="Job type" labelClassName="text-xs">
           <Select
             value={jobType}
             onValueChange={(v: string | null) =>
@@ -139,21 +139,10 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
               </SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </Field>
 
         {jobType === "FIXED_PRICE" ? (
-          <div>
-            <Label className="text-xs">Contract amount ($)</Label>
-            <Input
-              type="number"
-              min={0}
-              step="0.01"
-              value={signedContract ? String(Number(job.contractAmount || 0)) : contractAmount}
-              onChange={(e) => setContractAmount(e.target.value)}
-              disabled={Boolean(signedContract)}
-            />
-            <p className="mt-1 text-2xs text-muted-foreground">
-              {signedContract ? (
+          <Field label="Contract amount ($)" help={<>{signedContract ? (
                 <>
                   Set by signed contract{" "}
                   <Link href="?tab=money&sub=contract" className="text-brand-fg hover:underline">
@@ -164,12 +153,20 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
                 </>
               ) : (
                 "Profit = Contract − non-billable expenses"
-              )}
-            </p>
-          </div>
+              )}</>} labelClassName="text-xs">
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={signedContract ? String(Number(job.contractAmount || 0)) : contractAmount}
+              onChange={(e) => setContractAmount(e.target.value)}
+              disabled={Boolean(signedContract)}
+            />
+          </Field>
         ) : jobType === "OWNED_REHAB" ? (
-          <div>
-            <Label className="text-xs">Labor contract ($)</Label>
+          <Field label="Labor contract ($)" help={<>{laborFromCrews
+                ? "Set per crew in the Labor tab."
+                : "Total cost = Labor contract + Expenses. No client billing."}</>} labelClassName="text-xs">
             <Input
               type="number"
               min={0}
@@ -178,12 +175,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
               onChange={(e) => setLaborCost(e.target.value)}
               disabled={laborFromCrews}
             />
-            <p className="mt-1 text-2xs text-muted-foreground">
-              {laborFromCrews
-                ? "Set per crew in the Labor tab."
-                : "Total cost = Labor contract + Expenses. No client billing."}
-            </p>
-          </div>
+          </Field>
         ) : (
           <>
             <div>
@@ -203,8 +195,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
               )}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Margin type</Label>
+              <Field label="Margin type" labelClassName="text-xs">
                 <Select
                   value={marginType}
                   onValueChange={(v: string | null) =>
@@ -221,7 +212,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
                     <SelectItem value="FLAT">Flat $</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
               <div>
                 <Label className="text-xs">
                   Margin {marginType === "FLAT" ? "($)" : "(%)"}

@@ -17,6 +17,7 @@ import { useInvalidateWorkflow } from "@/components/workflows/use-workflow";
 import { fetchJson } from "@/lib/fetch-json";
 import { JobPersonnelScopePanel } from "./job-personnel-scope-panel";
 import { CrewLinks } from "./crew-links";
+import { Field } from "@/components/ui/field";
 
 export type CrewAssignment = {
   id: string;
@@ -125,10 +126,9 @@ export function CrewsPanel({
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label className="text-2xs">Install date (optional)</Label>
+          <Field label="Install date (optional)" labelClassName="text-2xs">
             <Input type="date" value={assignInstallDate} onChange={(e) => setAssignInstallDate(e.target.value)} />
-          </div>
+          </Field>
           <Button size="sm" disabled={!assignCrewId || assignCrew.isPending} onClick={() => assignCrew.mutate({ crewId: assignCrewId, installDate: assignInstallDate })}>
             Assign crew
           </Button>

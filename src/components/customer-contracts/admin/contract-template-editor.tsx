@@ -31,6 +31,7 @@ import {
   useUpdateContractTemplate,
   type TemplateVersionDetail,
 } from "../use-contract-templates";
+import { Field } from "@/components/ui/field";
 
 type ArticleRow = ContractArticle & { id: string };
 
@@ -259,10 +260,9 @@ function VersionEditor({ templateId, version, isAdmin, onArchive }: { templateId
           <CardTitle className="text-sm">Agreement</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <div>
-            <Label className="text-xs">Title</Label>
+          <Field label="Title" labelClassName="text-xs">
             <Input value={form.title} disabled={!editable} onChange={(e) => patch({ title: e.target.value })} />
-          </div>
+          </Field>
           <p className="text-xs text-muted-foreground">
             Articles 1–3 (Scope of Work, Contract Price, Payment Schedule) are generated from the estimate. Your articles follow as 4 onward. A blank line starts a new paragraph; a line beginning with &ldquo;- &rdquo; is a bullet.
           </p>
@@ -310,10 +310,9 @@ function VersionEditor({ templateId, version, isAdmin, onArchive }: { templateId
                         onChange={(e) => patchArticle(a.id, { title: e.target.value, ...(a.key === "" || a.key === slugKey(a.title) ? { key: slugKey(e.target.value) } : {}) })}
                       />
                     </div>
-                    <div>
-                      <Label className="text-xs">Key</Label>
+                    <Field label="Key" labelClassName="text-xs">
                       <Input value={a.key} disabled={!editable} className="font-mono text-xs" onChange={(e) => patchArticle(a.id, { key: slugKey(e.target.value) })} />
-                    </div>
+                    </Field>
                     {editable && (
                       <div className="flex items-end">
                         <Button size="icon" variant="ghost" aria-label="Remove article" onClick={() => patch({ articles: form.articles.filter((x) => x.id !== a.id) })}>
@@ -342,10 +341,9 @@ function VersionEditor({ templateId, version, isAdmin, onArchive }: { templateId
           <span className={`text-xs ${Math.abs(percentSum - 100) < 0.005 ? "text-tone-success-fg" : "text-tone-danger-fg"}`}>Sum: {Math.round(percentSum * 100) / 100}%</span>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <div>
-            <Label className="text-xs">Wording above the table</Label>
+          <Field label="Wording above the table" labelClassName="text-xs">
             <Input value={form.paymentScheduleText} disabled={!editable} onChange={(e) => patch({ paymentScheduleText: e.target.value })} />
-          </div>
+          </Field>
           <div className="space-y-2">
             {form.stages.map((s, i) => (
               <div key={s.id} className="grid gap-2 sm:grid-cols-[120px_1fr_90px_2fr_auto]">
@@ -429,10 +427,9 @@ function PublishDialog({ open, onOpenChange, version, problems, pending, onPubli
               </ul>
             </Callout>
           ) : (
-            <div>
-              <Label className="text-xs">What changed (optional)</Label>
+            <Field label="What changed (optional)" labelClassName="text-xs">
               <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
+            </Field>
           )}
           <DialogFooter>
             <Button variant="ghost" onClick={() => onOpenChange(false)}>

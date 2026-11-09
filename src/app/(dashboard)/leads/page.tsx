@@ -346,7 +346,7 @@ export default function LeadsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger aria-label="Filter by stage" className="w-[180px]">
             <SelectValue placeholder="All Stages">
               {(v: string) =>
                 !v
@@ -373,7 +373,7 @@ export default function LeadsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger aria-label="Filter by source" className="w-[180px]">
             <SelectValue placeholder="All Sources">
               {(v: string) =>
                 !v
@@ -400,7 +400,7 @@ export default function LeadsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger aria-label="Filter by assignee" className="w-[180px]">
             <SelectValue placeholder="Anyone">
               {(v: string) => {
                 if (!v) return "Anyone";
@@ -454,7 +454,7 @@ export default function LeadsPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-tone-info-fg">Assign to:</span>
             <Select value={bulkAssignTo} onValueChange={(v: string | null) => setBulkAssignTo(v ?? "")}>
-              <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectTrigger aria-label="Assign selected leads to" className="h-8 w-[180px] text-xs">
                 <SelectValue placeholder="Pick user">
                   {(v: string) => {
                     const u = assignableUsers.find((x) => x.id === v);
@@ -482,7 +482,7 @@ export default function LeadsPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-tone-info-fg">Move to stage:</span>
             <Select value={bulkStage} onValueChange={(v: string | null) => setBulkStage(v ?? "")}>
-              <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectTrigger aria-label="Move selected leads to stage" className="h-8 w-[180px] text-xs">
                 <SelectValue placeholder="Pick stage">
                   {(v: string) =>
                     stages?.find((s) => s.id === v)?.name ?? "Pick stage"
@@ -605,7 +605,7 @@ export default function LeadsPage() {
                           }
                         }}
                       >
-                        <SelectTrigger className="h-7 w-[170px] text-xs">
+                        <SelectTrigger aria-label="Assigned to" className="h-7 w-[170px] text-xs">
                           <SelectValue>
                             {(v: string) => {
                               const u = (!v || v === UNASSIGN_VALUE) ? null : (assignableUsers.find((x) => x.id === v) ?? lead.assignedUser);

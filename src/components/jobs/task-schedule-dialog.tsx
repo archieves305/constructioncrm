@@ -27,6 +27,7 @@ import { netDueForLines, requestableLines } from "@/lib/labor/payment-math";
 import { useRequestPayment } from "./labor-payment-requests";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 export type ContractTask = {
   id: string;
@@ -285,17 +286,15 @@ export function TaskScheduleDialog({
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <div>
-                      <Label className="text-3xs">Room / area</Label>
+                    <Field label="Room / area" labelClassName="text-3xs">
                       <Input
                         defaultValue={t.room ?? ""}
                         onBlur={(e) =>
                           save(t.id, "room", e.target.value.trim() || null)
                         }
                       />
-                    </div>
-                    <div>
-                      <Label className="text-3xs">Amount ($)</Label>
+                    </Field>
+                    <Field label="Amount ($)" labelClassName="text-3xs">
                       <Input
                         type="number"
                         step="0.01"
@@ -306,9 +305,8 @@ export function TaskScheduleDialog({
                           save(t.id, "paymentAmount", num(e.target.value))
                         }
                       />
-                    </div>
-                    <div>
-                      <Label className="text-3xs">Percent (%)</Label>
+                    </Field>
+                    <Field label="Percent (%)" labelClassName="text-3xs">
                       <Input
                         type="number"
                         step="0.01"
@@ -321,9 +319,8 @@ export function TaskScheduleDialog({
                           save(t.id, "paymentPercent", num(e.target.value))
                         }
                       />
-                    </div>
-                    <div>
-                      <Label className="text-3xs">Status</Label>
+                    </Field>
+                    <Field label="Status" labelClassName="text-3xs">
                       <Select
                         value={t.status}
                         onValueChange={(v: string | null) =>
@@ -343,12 +340,11 @@ export function TaskScheduleDialog({
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
+                    </Field>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <div>
-                      <Label className="text-3xs">Inspection req.</Label>
+                    <Field label="Inspection req." labelClassName="text-3xs">
                       <Select
                         value={t.inspectionRequired ? "yes" : "no"}
                         onValueChange={(v: string | null) =>
@@ -371,9 +367,8 @@ export function TaskScheduleDialog({
                           <SelectItem value="no">No</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div>
-                      <Label className="text-3xs">Inspection status</Label>
+                    </Field>
+                    <Field label="Inspection status" labelClassName="text-3xs">
                       <Select
                         value={t.inspectionStatus}
                         onValueChange={(v: string | null) =>
@@ -393,18 +388,16 @@ export function TaskScheduleDialog({
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div>
-                      <Label className="text-3xs">Approved by</Label>
+                    </Field>
+                    <Field label="Approved by" labelClassName="text-3xs">
                       <Input
                         defaultValue={t.approvedBy ?? ""}
                         onBlur={(e) =>
                           save(t.id, "approvedBy", e.target.value.trim() || null)
                         }
                       />
-                    </div>
-                    <div>
-                      <Label className="text-3xs">Approved date</Label>
+                    </Field>
+                    <Field label="Approved date" labelClassName="text-3xs">
                       <Input
                         type="date"
                         defaultValue={t.approvedDate?.slice(0, 10) ?? ""}
@@ -412,7 +405,7 @@ export function TaskScheduleDialog({
                           save(t.id, "approvedDate", e.target.value || null)
                         }
                       />
-                    </div>
+                    </Field>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -427,8 +420,7 @@ export function TaskScheduleDialog({
                         placeholder="Nobody — no task raised"
                       />
                     </div>
-                    <div>
-                      <Label className="text-3xs">Due</Label>
+                    <Field label="Due" labelClassName="text-3xs">
                       <Input
                         type="date"
                         defaultValue={t.dueDate?.slice(0, 10) ?? ""}
@@ -437,7 +429,7 @@ export function TaskScheduleDialog({
                           if (v !== (t.dueDate?.slice(0, 10) ?? null)) save(t.id, "dueDate", v);
                         }}
                       />
-                    </div>
+                    </Field>
                     <div className="flex items-end pb-1.5 text-2xs text-muted-foreground">
                       {t.paymentRequest?.status === "PAID"
                         ? "Paid"
@@ -451,15 +443,14 @@ export function TaskScheduleDialog({
                     </div>
                   </div>
 
-                  <div>
-                    <Label className="text-3xs">Description / notes</Label>
+                  <Field label="Description / notes" labelClassName="text-3xs">
                     <Input
                       defaultValue={t.description ?? ""}
                       onBlur={(e) =>
                         save(t.id, "description", e.target.value.trim() || null)
                       }
                     />
-                  </div>
+                  </Field>
                 </CardContent>
               </Card>
             ))}
@@ -481,24 +472,22 @@ export function TaskScheduleDialog({
               <span>−{money(summary.retainage)}</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-3xs">Backcharges / offsets ($)</Label>
+              <Field label="Backcharges / offsets ($)" labelClassName="text-3xs">
                 <Input
                   type="number"
                   step="0.01"
                   value={backcharges}
                   onChange={(e) => setBackcharges(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label className="text-3xs">Direct payments ($)</Label>
+              </Field>
+              <Field label="Direct payments ($)" labelClassName="text-3xs">
                 <Input
                   type="number"
                   step="0.01"
                   value={directPayments}
                   onChange={(e) => setDirectPayments(e.target.value)}
                 />
-              </div>
+              </Field>
             </div>
             <div className="flex justify-between border-t pt-2 text-sm">
               <span className="font-semibold">Net due to contractor</span>

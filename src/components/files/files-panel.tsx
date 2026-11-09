@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
@@ -22,6 +21,7 @@ import { jobLabel, type JobLabelInput } from "@/lib/labels/job";
 import { uploadForm } from "@/components/workflows/use-task-file-upload";
 import { JobPhotoGallery, jobPhotosQuery } from "@/components/photos/job-photo-gallery";
 import { FilePreviewDialog } from "./file-preview";
+import { Field } from "@/components/ui/field";
 
 export type FileRecord = {
   id: string;
@@ -415,12 +415,10 @@ function EditFileForm({ file, onClose, onSaved }: { file: FileRecord; onClose: (
         <DialogTitle>Rename or recategorise</DialogTitle>
         <DialogDescription>The file itself is not changed.</DialogDescription>
       </DialogHeader>
-      <div className="space-y-1.5">
-        <Label htmlFor="file-name">Name</Label>
+      <Field label="Name" id="file-name">
         <Input id="file-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={200} autoFocus />
-      </div>
-      <div className="space-y-1.5">
-        <Label>Category</Label>
+      </Field>
+      <Field label="Category">
         <Select value={category} onValueChange={(v: string | null) => v && setCategory(v)}>
           <SelectTrigger className="w-full" aria-label="Category">
             <SelectValue>{(v: string) => categoryLabel(v)}</SelectValue>
@@ -431,7 +429,7 @@ function EditFileForm({ file, onClose, onSaved }: { file: FileRecord; onClose: (
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </Field>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
         <Button type="submit" disabled={!name.trim() || save.isPending}>{save.isPending ? "Saving…" : "Save"}</Button>

@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { taskKeys } from "@/components/tasks/use-tasks";
 import { workflowKeys } from "@/components/workflows/use-workflow";
 import { dayOf, formatDay, formatWhen, joinWhen, RESULT_LABEL, RESULT_TONE, timeOf, typeLabel, type InspectionStep, type PermitInspection } from "./shared";
+import { Field } from "@/components/ui/field";
 
 type Outcome = { taskId: string | null; applied: boolean; stepStatus: string | null; correctionTaskId: string | null };
 type Saved = PermitInspection & { workflow?: Outcome | null; permitClosed?: boolean };
@@ -201,22 +202,18 @@ function ScheduleForm({ jobId, permitId, onDone }: { jobId: string; permitId: st
           <Label className="text-2xs">Type</Label>
           <TypeSelect value={form.type} onChange={(v) => set("type", v)} />
         </div>
-        <div>
-          <Label className="text-2xs">Date</Label>
+        <Field label="Date" labelClassName="text-2xs">
           <Input type="date" className="h-8" value={form.day} onChange={(e) => set("day", e.target.value)} />
-        </div>
-        <div>
-          <Label className="text-2xs">Time (optional)</Label>
+        </Field>
+        <Field label="Time (optional)" labelClassName="text-2xs">
           <Input type="time" className="h-8" value={form.time} disabled={!form.day} onChange={(e) => set("time", e.target.value)} />
-        </div>
-        <div className="sm:col-span-3">
-          <Label className="text-2xs">Inspector</Label>
+        </Field>
+        <Field label="Inspector" className="sm:col-span-3" labelClassName="text-2xs">
           <Input className="h-8" value={form.inspectorName} onChange={(e) => set("inspectorName", e.target.value)} />
-        </div>
-        <div className="sm:col-span-3">
-          <Label className="text-2xs">Notes</Label>
+        </Field>
+        <Field label="Notes" className="sm:col-span-3" labelClassName="text-2xs">
           <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
-        </div>
+        </Field>
       </div>
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={onDone}>
@@ -250,22 +247,18 @@ function EditForm({ jobId, insp, onDone, onCorrect, onCancelInspection, onDelete
           <Label className="text-2xs">Type</Label>
           <TypeSelect value={form.type} onChange={(v) => set("type", v)} />
         </div>
-        <div>
-          <Label className="text-2xs">Scheduled date</Label>
+        <Field label="Scheduled date" labelClassName="text-2xs">
           <Input type="date" className="h-8" value={form.day} onChange={(e) => set("day", e.target.value)} />
-        </div>
-        <div>
-          <Label className="text-2xs">Time (optional)</Label>
+        </Field>
+        <Field label="Time (optional)" labelClassName="text-2xs">
           <Input type="time" className="h-8" value={form.time} disabled={!form.day} onChange={(e) => set("time", e.target.value)} />
-        </div>
-        <div className="sm:col-span-3">
-          <Label className="text-2xs">Inspector</Label>
+        </Field>
+        <Field label="Inspector" className="sm:col-span-3" labelClassName="text-2xs">
           <Input className="h-8" value={form.inspectorName} onChange={(e) => set("inspectorName", e.target.value)} />
-        </div>
-        <div className="sm:col-span-3">
-          <Label className="text-2xs">Notes</Label>
+        </Field>
+        <Field label="Notes" className="sm:col-span-3" labelClassName="text-2xs">
           <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
-        </div>
+        </Field>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1">
@@ -364,17 +357,13 @@ function ResultDialog({ jobId, insp, steps, onClose }: { jobId: string; insp: Pe
           ))}
         </RadioGroup>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="pi-day" className="text-xs">
-              Inspected on
-            </Label>
-            <Input id="pi-day" type="date" className="mt-1 h-8" value={day} onChange={(e) => setDay(e.target.value)} />
-          </div>
+          <Field label="Inspected on" id="pi-day" labelClassName="text-xs">
+            <Input id="pi-day" type="date" className="h-8" value={day} onChange={(e) => setDay(e.target.value)} />
+          </Field>
           {steps.length > 0 && (
-            <div>
-              <Label className="text-xs">Workflow step</Label>
+            <Field label="Workflow step" labelClassName="text-xs">
               <Select value={stepId} onValueChange={(v: string | null) => v && setStepId(v)}>
-                <SelectTrigger className="mt-1 h-8">
+                <SelectTrigger className="h-8">
                   <SelectValue>{(v: string) => steps.find((s) => s.id === v)?.title ?? "Not a workflow step"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -386,7 +375,7 @@ function ResultDialog({ jobId, insp, steps, onClose }: { jobId: string; insp: Pe
                   <SelectItem value={NO_STEP}>Not a workflow step</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
           )}
         </div>
         <div>

@@ -13,6 +13,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { formatFileSize, uploadProblem } from "@/lib/files/limits";
 import { DOC_TYPE_LABEL, type VendorDocType } from "@/lib/vendors/compliance";
 import type { VendorDocument } from "./use-vendors";
+import { Field } from "@/components/ui/field";
 
 const TYPES = Object.keys(DOC_TYPE_LABEL) as VendorDocType[];
 /** A W-9 does not run out; everything else may. */
@@ -94,8 +95,7 @@ function DocumentForm({ vendorId, initialType, editing, onClose }: { vendorId: s
         </DialogDescription>
       </DialogHeader>
 
-      <div className="space-y-1.5">
-        <Label>Kind</Label>
+      <Field label="Kind">
         <Select value={type} onValueChange={(v: string | null) => v && setType(v as VendorDocType)}>
           <SelectTrigger className="w-full" aria-label="Document kind">
             <SelectValue>{(v: string) => DOC_TYPE_LABEL[v as VendorDocType] ?? v}</SelectValue>
@@ -106,29 +106,25 @@ function DocumentForm({ vendorId, initialType, editing, onClose }: { vendorId: s
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </Field>
 
       {DATED(type) && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="doc-effective">Effective</Label>
+          <Field label="Effective" id="doc-effective">
             <Input id="doc-effective" type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="doc-expires">Expires</Label>
+          </Field>
+          <Field label="Expires" id="doc-expires" help="A task is raised 30 days before this date.">
             <Input id="doc-expires" type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
-            <p className="text-xs text-muted-foreground">A task is raised 30 days before this date.</p>
-          </div>
+          </Field>
         </div>
       )}
 
       {(INSURED(type) || type === "LICENSE" || type === "WC_EXEMPTION") && (
         <div className="grid gap-3 sm:grid-cols-2">
           {INSURED(type) && (
-            <div className="space-y-1.5">
-              <Label htmlFor="doc-carrier">Carrier</Label>
+            <Field label="Carrier" id="doc-carrier">
               <Input id="doc-carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} maxLength={200} />
-            </div>
+            </Field>
           )}
           <div className="space-y-1.5">
             <Label htmlFor="doc-number">{type === "LICENSE" ? "License number" : type === "WC_EXEMPTION" ? "Exemption number" : "Policy number"}</Label>
@@ -138,8 +134,7 @@ function DocumentForm({ vendorId, initialType, editing, onClose }: { vendorId: s
       )}
 
       {!editing && (
-        <div className="space-y-1.5">
-          <Label htmlFor="doc-file">File (optional)</Label>
+        <Field label="File (optional)" id="doc-file" help={<>{file ? `${file.name} · ${formatFileSize(file.size)}` : "The dates can be recorded now and the paper added later as a new document."}</>}>
           <Input
             id="doc-file"
             type="file"
@@ -155,14 +150,12 @@ function DocumentForm({ vendorId, initialType, editing, onClose }: { vendorId: s
               setFile(picked);
             }}
           />
-          <p className="text-xs text-muted-foreground">{file ? `${file.name} · ${formatFileSize(file.size)}` : "The dates can be recorded now and the paper added later as a new document."}</p>
-        </div>
+        </Field>
       )}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="doc-notes">Notes</Label>
+      <Field label="Notes" id="doc-notes">
         <Textarea id="doc-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} />
-      </div>
+      </Field>
 
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

@@ -416,7 +416,7 @@ function CenterBar({
           <div className="flex items-center gap-2">
             <Label className="text-sm text-muted-foreground">Radius</Label>
             <Select value={radius} onValueChange={(v) => onRadius(v ?? "5")}>
-              <SelectTrigger className="w-[120px]">
+              <SelectTrigger aria-label="Radius" className="w-[120px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -568,7 +568,7 @@ function AddToRouteDialog({
         <div className="space-y-2">
           <Label>Route</Label>
           <Select items={Object.fromEntries((routes.data ?? []).map((r) => [r.id, `${r.name} (${r.totalStops} stops)`]))} value={routeId ?? undefined} onValueChange={(v) => setRouteId(v)}>
-            <SelectTrigger>
+            <SelectTrigger aria-label="Route">
               <SelectValue placeholder="Choose a route…" />
             </SelectTrigger>
             <SelectContent>

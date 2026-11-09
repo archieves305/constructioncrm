@@ -13,7 +13,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +36,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Plus, Search, Users } from "lucide-react";
+import { Field } from "@/components/ui/field";
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   W2: "Employee (W-2)",
@@ -244,43 +244,38 @@ export default function PersonnelPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="p-first">First name</Label>
+              <Field label="First name" id="p-first">
                 <Input
                   id="p-first"
                   value={form.firstName}
                   onChange={(e) => setForm({ ...form, firstName: e.target.value })}
                 />
-              </div>
-              <div>
-                <Label htmlFor="p-last">Last name</Label>
+              </Field>
+              <Field label="Last name" id="p-last">
                 <Input
                   id="p-last"
                   value={form.lastName}
                   onChange={(e) => setForm({ ...form, lastName: e.target.value })}
                 />
-              </div>
+              </Field>
             </div>
-            <div>
-              <Label htmlFor="p-phone">Phone</Label>
+            <Field label="Phone" id="p-phone">
               <Input
                 id="p-phone"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
-            </div>
-            <div>
-              <Label htmlFor="p-trade">Trade</Label>
+            </Field>
+            <Field label="Trade" id="p-trade">
               <Input
                 id="p-trade"
                 placeholder="e.g. Drywall"
                 value={form.trade}
                 onChange={(e) => setForm({ ...form, trade: e.target.value })}
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Employment</Label>
+              <Field label="Employment">
                 <Select
                   items={EMPLOYMENT_LABELS}
                   value={form.employmentType}
@@ -297,9 +292,8 @@ export default function PersonnelPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label>Pay type</Label>
+              </Field>
+              <Field label="Pay type">
                 <Select
                   items={PAY_TYPE_LABELS}
                   value={form.payType}
@@ -316,10 +310,9 @@ export default function PersonnelPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
             </div>
-            <div>
-              <Label htmlFor="p-work">Work description</Label>
+            <Field label="Work description" id="p-work" help="What this person does by default. Can be overridden per job.">
               <Input
                 id="p-work"
                 placeholder="e.g. Hangs and finishes drywall"
@@ -328,13 +321,9 @@ export default function PersonnelPage() {
                   setForm({ ...form, workDescription: e.target.value })
                 }
               />
-              <p className="text-muted-foreground mt-1 text-xs">
-                What this person does by default. Can be overridden per job.
-              </p>
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Crew (optional)</Label>
+              <Field label="Crew (optional)">
                 <Select
                   items={{ none: "None (in-house)", ...Object.fromEntries(crews.map((c) => [c.id, c.name])) }}
                   value={form.crewId || "none"}
@@ -354,7 +343,7 @@ export default function PersonnelPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
             </div>
             <p className="text-muted-foreground text-xs">
               Rates, contact details, and tax documents are added on the person&apos;s

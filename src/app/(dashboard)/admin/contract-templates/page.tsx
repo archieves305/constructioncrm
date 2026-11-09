@@ -7,7 +7,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
@@ -15,6 +14,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Callout } from "@/components/shared/callout";
 import { useSession } from "@/lib/auth/session-client";
 import { useContractTemplates, useCreateContractTemplate, useUpdateContractTemplate, type AdminTemplateRow } from "@/components/customer-contracts/use-contract-templates";
+import { Field } from "@/components/ui/field";
 
 export default function ContractTemplatesPage() {
   const { data: session } = useSession();
@@ -111,8 +111,7 @@ function NewTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChange
           <DialogTitle>New contract template</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
-          <div>
-            <Label className="text-xs">Name</Label>
+          <Field label="Name" labelClassName="text-xs">
             <Input
               value={name}
               onChange={(e) => {
@@ -121,15 +120,13 @@ function NewTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChange
               }}
               placeholder="Commercial Roofing Agreement"
             />
-          </div>
-          <div>
-            <Label className="text-xs">Key</Label>
+          </Field>
+          <Field label="Key" labelClassName="text-xs">
             <Input value={key} onChange={(e) => setKey(slug(e.target.value))} className="font-mono" />
-          </div>
-          <div>
-            <Label className="text-xs">Description</Label>
+          </Field>
+          <Field label="Description" labelClassName="text-xs">
             <Input value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
+          </Field>
           <p className="text-xs text-muted-foreground">The template starts with an empty draft. Add articles, then publish it before generating contracts from it.</p>
           <DialogFooter>
             <Button variant="ghost" onClick={() => onOpenChange(false)}>

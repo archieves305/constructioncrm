@@ -13,6 +13,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchJson } from "@/lib/fetch-json";
 import { useInvalidatePartners, usePartnerOptions, type Contact, type Interaction, type InteractionDirection, type InteractionKind, type InteractionOutcome } from "./use-partners";
+import { Field } from "@/components/ui/field";
 
 const NONE = "__none";
 
@@ -167,13 +168,12 @@ function InteractionForm({ organizationId, organizationName, contacts, ownerUser
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label>With</Label>
+        <Field label="With">
           <Select items={contactItems} value={form.contactId ?? NONE} onValueChange={(v: string | null) => set("contactId", !v || v === NONE ? null : v)}>
             <SelectTrigger className="w-full" aria-label="Contact"><SelectValue /></SelectTrigger>
             <SelectContent>{contactItems.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
+        </Field>
         <div className="space-y-1.5">
           <Label>Direction</Label>
           <div>
@@ -207,10 +207,9 @@ function InteractionForm({ organizationId, organizationName, contacts, ownerUser
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="ix-summary">What happened</Label>
+      <Field label="What happened" id="ix-summary">
         <Textarea id="ix-summary" value={form.summary} onChange={(e) => set("summary", e.target.value)} rows={3} autoFocus placeholder="Talked through their Q1 multifamily pipeline; they want our roofing capability statement before the Boynton project bids." maxLength={4000} />
-      </div>
+      </Field>
 
       {!interaction && (
         <div className="space-y-2 rounded-lg border p-3">
@@ -232,8 +231,7 @@ function InteractionForm({ organizationId, organizationName, contacts, ownerUser
                 })}
                 <Input type="date" value={form.followUpDay} onChange={(e) => set("followUpDay", e.target.value)} className="h-7 w-40 text-xs" aria-label="Follow-up date" />
               </div>
-              <div className="space-y-1.5">
-                <Label>Assign to</Label>
+              <Field label="Assign to">
                 <Select items={[{ value: NONE, label: "The account owner" }, ...(options?.owners ?? [])]} value={form.followUpAssignee ?? NONE} onValueChange={(v: string | null) => set("followUpAssignee", !v || v === NONE ? null : v)}>
                   <SelectTrigger className="w-full" aria-label="Assign to"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -241,7 +239,7 @@ function InteractionForm({ organizationId, organizationName, contacts, ownerUser
                     {(options?.owners ?? []).map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
             </div>
           )}
         </div>

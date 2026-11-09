@@ -96,7 +96,7 @@ export function TaskCard({
             value={task.priority}
             onValueChange={(v: string | null) => v && onUpdate(task.id, { priority: v as Priority })}
           >
-            <SelectTrigger className={cn("h-6 w-[88px] text-3xs uppercase", PRIORITY_OUTLINE_CLASS[task.priority])}>
+            <SelectTrigger aria-label="Priority" className={cn("h-6 w-[88px] text-3xs uppercase", PRIORITY_OUTLINE_CLASS[task.priority])}>
               <SelectValue>{(v: string) => v || task.priority}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -145,7 +145,7 @@ export function TaskCard({
             onUpdate(task.id, { status: v as TaskStatus });
           }}
         >
-          <SelectTrigger className="h-7 w-[130px] text-xs">
+          <SelectTrigger aria-label="Status" className="h-7 w-[130px] text-xs">
             <SelectValue>{(v: string) => STATUS_LABEL[v as TaskStatus] ?? task.status}</SelectValue>
           </SelectTrigger>
           <SelectContent>

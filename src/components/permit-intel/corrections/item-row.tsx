@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import type { PermitFile, PermitParty } from "../types";
 import type { CorrectionItem } from "./types";
 import { useCorrectionsWrite, useInvalidateCorrections } from "./use-corrections";
+import { Field } from "@/components/ui/field";
 
 const STATUS_TONE: Record<CorrectionStatus, Tone> = { PROPOSED: "info", OPEN: "warning", WAITING_THIRD_PARTY: "info", RESOLVED: "success", DISPUTED: "danger", WAIVED: "neutral" };
 const WORK_STATUSES = (["OPEN", "WAITING_THIRD_PARTY", "RESOLVED", "DISPUTED", "WAIVED"] as const).map((v) => ({ value: v, label: STATUS_LABEL[v] }));
@@ -296,36 +297,30 @@ export function ItemForm({ permitId, noticeId, item, parties, onClose }: { permi
       </DialogHeader>
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <div className="min-w-0 space-y-1">
-            <Label htmlFor="it-num">Department&apos;s number</Label>
+          <Field label="Department&apos;s number" id="it-num" className="min-w-0">
             <Input id="it-num" value={f.reviewerItemNumber} onChange={(e) => set("reviewerItemNumber")(e.target.value)} placeholder="B-3" />
-          </div>
-          <div className="min-w-0 space-y-1">
-            <Label htmlFor="it-disc">Discipline</Label>
+          </Field>
+          <Field label="Discipline" id="it-disc" className="min-w-0">
             <Input id="it-disc" value={f.reviewerDiscipline} onChange={(e) => set("reviewerDiscipline")(e.target.value)} placeholder="Building" />
-          </div>
-          <div className="min-w-0 space-y-1">
-            <Label htmlFor="it-page">Page</Label>
+          </Field>
+          <Field label="Page" id="it-page" className="min-w-0">
             <Input id="it-page" inputMode="numeric" value={f.sourcePage} onChange={(e) => set("sourcePage")(e.target.value.replace(/\D/g, ""))} />
-          </div>
+          </Field>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="it-text">The comment, as written</Label>
+        <Field label="The comment, as written" id="it-text">
           <Textarea id="it-text" rows={4} value={f.text} onChange={(e) => set("text")(e.target.value)} />
-        </div>
+        </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           {sel("it-cat", "Category", f.category, CATEGORY_ITEMS, set("category"))}
           {sel("it-aff", "It concerns", f.affects, TARGET_ITEMS, set("affects"))}
-          <div className="min-w-0 space-y-1">
-            <Label htmlFor="it-ref">Sheet, form or approval</Label>
+          <Field label="Sheet, form or approval" id="it-ref" className="min-w-0">
             <Input id="it-ref" value={f.affectsRef} onChange={(e) => set("affectsRef")(e.target.value)} placeholder="A-2.1" />
-          </div>
+          </Field>
           {sel("it-who", "Who must act", f.responsibleParty, PARTY_ITEMS, set("responsibleParty"))}
           {sel("it-party", "Party", f.partyId, partyItems, set("partyId"))}
-          <div className="min-w-0 space-y-1">
-            <Label htmlFor="it-due">Due</Label>
+          <Field label="Due" id="it-due" className="min-w-0">
             <Input id="it-due" type="date" value={f.dueOn} onChange={(e) => set("dueOn")(e.target.value)} />
-          </div>
+          </Field>
         </div>
       </div>
       <DialogFooter>

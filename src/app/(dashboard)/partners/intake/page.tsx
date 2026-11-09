@@ -12,12 +12,12 @@ import { useSearchParamState } from "@/components/shared/use-search-param-state"
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchJson } from "@/lib/fetch-json";
 import { IntakeCard } from "@/components/partners/intake-card";
 import { useIntakes, useInvalidateBids, type IntakeStatusFilter } from "@/components/partners/use-partners";
+import { Field } from "@/components/ui/field";
 
 export default function IntakePage() {
   return (
@@ -106,14 +106,12 @@ function PasteDialog({ open, onOpenChange, onQueued }: { open: boolean; onOpenCh
           <DialogDescription>Copy the whole email — the From and Subject lines too, if your mail program shows them — and paste it here. Nothing becomes a bid until you confirm it.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="paste-subject">Subject (if it is not in the paste)</Label>
+          <Field label="Subject (if it is not in the paste)" id="paste-subject">
             <Input id="paste-subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={500} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="paste-body">The email</Label>
+          </Field>
+          <Field label="The email" id="paste-body">
             <Textarea id="paste-body" value={body} onChange={(e) => setBody(e.target.value)} rows={14} className="font-mono text-xs" placeholder={"From: Jane Smith <jsmith@gc.com>\nSubject: Invitation to Bid – …\n\nBid Due: …"} />
-          </div>
+          </Field>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

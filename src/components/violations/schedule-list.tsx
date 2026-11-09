@@ -24,6 +24,7 @@ import { bucketOf, type DateBucket } from "@/lib/violations/dates";
 import { cn } from "@/lib/utils";
 import { HEARING_OUTCOME_LABEL, HEARING_TYPE_LABEL, INSPECTION_RESULT_TONE } from "./status";
 import { useViolationSummary, violationKeys } from "./use-violations";
+import { Field } from "@/components/ui/field";
 
 type Person = { id: string; firstName: string; lastName: string };
 type CaseRef = { id: string; caseNumber: string; title: string; jurisdiction: string | null; status: string; caseManager: Person | null; lead: { propertyAddress1: string; city: string } };
@@ -101,10 +102,9 @@ export function ScheduleList({ kind }: { kind: "hearing" | "inspection" }) {
 
       <Card className="mb-4">
         <CardContent className="flex flex-wrap items-end gap-3 pt-4">
-          <div className="min-w-[150px]">
-            <Label className="text-xs">Show</Label>
+          <Field label="Show" className="min-w-[150px]" labelClassName="text-xs">
             <Select value={status} onValueChange={(v: string | null) => setMany({ status: v ?? "upcoming" })}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => STATUS_OPTIONS.find((o) => o.value === v)?.label ?? "Upcoming"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -115,19 +115,16 @@ export function ScheduleList({ kind }: { kind: "hearing" | "inspection" }) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">From</Label>
-            <Input type="date" className="mt-1" value={from} onChange={(e) => setMany({ from: e.target.value })} />
-          </div>
-          <div>
-            <Label className="text-xs">To</Label>
-            <Input type="date" className="mt-1" value={to} onChange={(e) => setMany({ to: e.target.value })} />
-          </div>
-          <div className="min-w-[180px]">
-            <Label className="text-xs">Jurisdiction</Label>
+          </Field>
+          <Field label="From" labelClassName="text-xs">
+            <Input type="date"  value={from} onChange={(e) => setMany({ from: e.target.value })} />
+          </Field>
+          <Field label="To" labelClassName="text-xs">
+            <Input type="date"  value={to} onChange={(e) => setMany({ to: e.target.value })} />
+          </Field>
+          <Field label="Jurisdiction" className="min-w-[180px]" labelClassName="text-xs">
             <Select value={jurisdiction || "__all"} onValueChange={(v: string | null) => setMany({ jurisdiction: !v || v === "__all" ? null : v })}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => (!v || v === "__all" ? "Any" : v)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -139,7 +136,7 @@ export function ScheduleList({ kind }: { kind: "hearing" | "inspection" }) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           <div className="min-w-[180px]">
             <Label className="text-xs">Attendee</Label>
             <AssigneePicker className="mt-1 w-full" value={assignedUserId || null} onChange={(id) => setMany({ assignedUserId: id })} users={users} placeholder="Anyone" />

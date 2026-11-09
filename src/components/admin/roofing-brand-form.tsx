@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Upload, Trash2 } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field as FormField } from "@/components/ui/field";
 
 type Brand = {
   id: string;
@@ -296,16 +297,14 @@ export function RoofingBrandForm() {
               onChange={set("defaultWorkmanshipWarrantyYears")}
             />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Default underlayment description</Label>
+          <FormField label="Default underlayment description" labelClassName="text-xs">
             <Textarea
               rows={2}
               value={form.defaultUnderlaymentType}
               onChange={(e) => set("defaultUnderlaymentType")(e.target.value)}
             />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Default manufacturer warranty</Label>
+          </FormField>
+          <FormField label="Default manufacturer warranty" labelClassName="text-xs">
             <Textarea
               rows={2}
               value={form.defaultManufacturerWarranty}
@@ -313,7 +312,7 @@ export function RoofingBrandForm() {
                 set("defaultManufacturerWarranty")(e.target.value)
               }
             />
-          </div>
+          </FormField>
 
           <Separator />
 

@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchJson } from "@/lib/fetch-json";
 import { useInvalidatePartners, usePartnerOptions, type Contact, type ContactRole } from "./use-partners";
+import { Field } from "@/components/ui/field";
 
 export type ContactFormValues = {
   firstName: string;
@@ -138,23 +139,21 @@ function ContactForm({ organizationId, contactId, initial, onSaved, onClose }: {
         {text("firstName", "First name", { autoFocus: true, maxLength: 80 })}
         {text("lastName", "Last name", { maxLength: 80 })}
         {text("title", "Title", { placeholder: "Senior Estimator", maxLength: 120 })}
-        <div className="space-y-1.5">
-          <Label>Role</Label>
+        <Field label="Role">
           <Select items={options?.contactRoles ?? []} value={form.roleTag} onValueChange={(v: ContactRole | null) => v && set("roleTag", v)}>
             <SelectTrigger className="w-full" aria-label="Role"><SelectValue /></SelectTrigger>
             <SelectContent>{(options?.contactRoles ?? []).map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
+        </Field>
         {text("email", "Email", { type: "email", maxLength: 200 })}
         {text("phone", "Office phone", { type: "tel", maxLength: 40 })}
         {text("mobile", "Mobile", { type: "tel", maxLength: 40 })}
         {text("linkedinUrl", "LinkedIn", { placeholder: "https://linkedin.com/in/…", maxLength: 300 })}
         {text("office", "Office", { placeholder: "Boca Raton", maxLength: 120 })}
         {text("geography", "Covers", { placeholder: "South Florida", maxLength: 120 })}
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="contact-trades">Trades they handle</Label>
+        <Field label="Trades they handle" id="contact-trades" className="sm:col-span-2">
           <Input id="contact-trades" value={form.trades} onChange={(e) => set("trades", e.target.value)} placeholder="Roofing, Plumbing" />
-        </div>
+        </Field>
         <Rating label="Relationship strength" value={form.relationshipStrength} onChange={(v) => set("relationshipStrength", v)} />
         <Rating label="Influence on awards" value={form.influence} onChange={(v) => set("influence", v)} />
       </div>
@@ -162,10 +161,9 @@ function ContactForm({ organizationId, contactId, initial, onSaved, onClose }: {
         <input type="checkbox" checked={form.isPrimary} onChange={(e) => set("isPrimary", e.target.checked)} />
         Primary contact for this account
       </label>
-      <div className="space-y-1.5">
-        <Label htmlFor="contact-notes">Notes</Label>
+      <Field label="Notes" id="contact-notes">
         <Textarea id="contact-notes" value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} />
-      </div>
+      </Field>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
         <Button type="submit" disabled={save.isPending}>{save.isPending ? "Saving…" : contactId ? "Save" : "Add contact"}</Button>

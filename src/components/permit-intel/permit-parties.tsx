@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PARTY_ROLE_LABEL, type PermitDetail, type PermitParty } from "./types";
 import { usePermitWrite } from "./use-permit-intel";
+import { Field } from "@/components/ui/field";
 
 const ROLE_ITEMS = Object.entries(PARTY_ROLE_LABEL).map(([value, label]) => ({ value, label }));
 type Form = { role: string; name: string; email: string; phone: string; licenseNumber: string };
@@ -113,8 +113,7 @@ function PartyForm({ party, pending, onSave, onCancel }: { party: PermitParty | 
         <DialogTitle>{party ? "Edit party" : "Add a party"}</DialogTitle>
       </DialogHeader>
       <div className="grid gap-3">
-        <div className="space-y-1.5">
-          <Label>Role</Label>
+        <Field label="Role">
           <Select items={ROLE_ITEMS} value={form.role} onValueChange={(v: string | null) => v && set("role", v)}>
             <SelectTrigger>
               <SelectValue />
@@ -127,25 +126,21 @@ function PartyForm({ party, pending, onSave, onCancel }: { party: PermitParty | 
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="party-name">Name</Label>
+        </Field>
+        <Field label="Name" id="party-name">
           <Input id="party-name" value={form.name} onChange={(e) => set("name", e.target.value)} />
-        </div>
+        </Field>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="party-email">Email</Label>
+          <Field label="Email" id="party-email">
             <Input id="party-email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="party-phone">Phone</Label>
+          </Field>
+          <Field label="Phone" id="party-phone">
             <Input id="party-phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
-          </div>
+          </Field>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="party-licence">Licence number</Label>
+        <Field label="Licence number" id="party-licence">
           <Input id="party-licence" value={form.licenseNumber} onChange={(e) => set("licenseNumber", e.target.value)} placeholder="As printed on the licence" />
-        </div>
+        </Field>
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onCancel}>

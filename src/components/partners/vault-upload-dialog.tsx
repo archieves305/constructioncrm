@@ -6,13 +6,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchJson } from "@/lib/fetch-json";
 import { formatFileSize, uploadProblem } from "@/lib/files/limits";
 import { CONFIDENTIALITY_HINT, CONFIDENTIALITY_LABEL } from "@/lib/partners/vault-access";
 import { useInvalidatePartners, usePartnerOptions, type Confidentiality, type DocumentView, type Vault } from "./use-partners";
+import { Field } from "@/components/ui/field";
 
 const addMonths = (day: string, months: number) => {
   const d = new Date(`${day}T12:00:00.000Z`);
@@ -102,16 +102,14 @@ function UploadForm({ vault, initialTypeKey, replacing, onSaved, onClose }: { va
         <DialogDescription>{replacing ? `Replaces v${replacing.version} as the current one; v${replacing.version} stays in the history.` : "The newest version of each kind is the one in force."}</DialogDescription>
       </DialogHeader>
 
-      <div className="space-y-1.5">
-        <Label>Kind</Label>
+      <Field label="Kind">
         <Select items={options?.documentTypes ?? []} value={typeKey} onValueChange={(v: string | null) => v && setTypeKey(v)} disabled={Boolean(replacing)}>
           <SelectTrigger className="w-full" aria-label="Document kind"><SelectValue placeholder="Choose a kind" /></SelectTrigger>
           <SelectContent>{(options?.documentTypes ?? []).map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
         </Select>
-      </div>
+      </Field>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="vault-file">File</Label>
+      <Field label="File" id="vault-file" help={<>{file ? `${file.name} · ${formatFileSize(file.size)}` : "PDF, image or office file, up to 25 MB."}</>}>
         <Input
           id="vault-file"
           type="file"
@@ -127,17 +125,14 @@ function UploadForm({ vault, initialTypeKey, replacing, onSaved, onClose }: { va
             setFile(picked);
           }}
         />
-        <p className="text-xs text-muted-foreground">{file ? `${file.name} · ${formatFileSize(file.size)}` : "PDF, image or office file, up to 25 MB."}</p>
-      </div>
+      </Field>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="vault-title">Title</Label>
+      <Field label="Title" id="vault-title">
         <Input id="vault-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={type ? `${type.label} ${new Date().getFullYear()}` : "GL certificate 2026"} maxLength={200} />
-      </div>
+      </Field>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="vault-effective">Effective</Label>
+        <Field label="Effective" id="vault-effective">
           <Input
             id="vault-effective"
             type="date"
@@ -147,22 +142,18 @@ function UploadForm({ vault, initialTypeKey, replacing, onSaved, onClose }: { va
               if (e.target.value && !expiresAt && type?.defaultValidityMonths) setExpiresAt(addMonths(e.target.value, type.defaultValidityMonths));
             }}
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="vault-expires">Expires</Label>
+        </Field>
+        <Field label="Expires" id="vault-expires" help={<>{type?.defaultValidityMonths ? `Usually ${type.defaultValidityMonths} months. A task is raised 30 days before.` : "Leave empty for a document that does not run out."}</>}>
           <Input id="vault-expires" type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
-          <p className="text-xs text-muted-foreground">{type?.defaultValidityMonths ? `Usually ${type.defaultValidityMonths} months. A task is raised 30 days before.` : "Leave empty for a document that does not run out."}</p>
-        </div>
+        </Field>
       </div>
 
-      <div className="space-y-1.5">
-        <Label>Who may open it</Label>
+      <Field label="Who may open it" help={<>{CONFIDENTIALITY_HINT[confidentiality]}</>}>
         <Select items={confItems} value={confidentiality} onValueChange={(v: Confidentiality | null) => v && setConfidentiality(v)}>
           <SelectTrigger className="w-full" aria-label="Confidentiality"><SelectValue /></SelectTrigger>
           <SelectContent>{confItems.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">{CONFIDENTIALITY_HINT[confidentiality]}</p>
-      </div>
+      </Field>
 
       {vault.canClassify && (
         <label className="flex items-start gap-2 text-sm">
@@ -174,10 +165,9 @@ function UploadForm({ vault, initialTypeKey, replacing, onSaved, onClose }: { va
         </label>
       )}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="vault-notes">Notes</Label>
+      <Field label="Notes" id="vault-notes">
         <Textarea id="vault-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} placeholder="Carrier, policy number, who issued it" />
-      </div>
+      </Field>
 
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

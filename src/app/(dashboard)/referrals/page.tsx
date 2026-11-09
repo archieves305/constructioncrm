@@ -13,7 +13,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -39,6 +38,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { DollarSign } from "lucide-react";
+import { Field } from "@/components/ui/field";
 
 const STATUSES = ["NEW", "CONTACTED", "CONVERTED", "DECLINED"] as const;
 
@@ -132,8 +132,7 @@ export default function ReferralsPage() {
             <DialogTitle>Commission for {editing?.referredName}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Commission amount ($)</Label>
+            <Field label="Commission amount ($)">
               <Input
                 type="number"
                 min="0"
@@ -142,7 +141,7 @@ export default function ReferralsPage() {
                 onChange={(e) => setCommission(e.target.value)}
                 placeholder="e.g. 250"
               />
-            </div>
+            </Field>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"

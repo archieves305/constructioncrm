@@ -27,6 +27,7 @@ import { canManageNurture } from "@/lib/nurture/access";
 import type { PlannedSend } from "@/lib/nurture/run";
 import Link from "next/link";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 type Settings = {
   enabled: boolean;
@@ -146,24 +147,18 @@ function CadenceTab({ data, isAdmin }: { data: SettingsPayload; isAdmin: boolean
           <CardTitle className="text-sm">Follow-ups (from the rep, &ldquo;checking in&rdquo;)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <div>
-            <Label className="text-xs">Days after the anchor</Label>
+          <Field label="Days after the anchor" help="The anchor is the latest of: lead created, stage changed, estimate sent, contract sent, or a personal touch (which keeps the step but restarts the clock)." labelClassName="text-xs">
             <Input value={fuText} disabled={!isAdmin} onChange={(e) => setFuText(e.target.value)} placeholder="2, 7, 14, 30" />
-            <p className="mt-1 text-xs text-muted-foreground">The anchor is the latest of: lead created, stage changed, estimate sent, contract sent, or a personal touch (which keeps the step but restarts the clock).</p>
-          </div>
-          <div>
-            <Label className="text-xs">Then every N days</Label>
+          </Field>
+          <Field label="Then every N days" labelClassName="text-xs">
             <Input type="number" min={7} value={form.followUpEveryDaysAfter} disabled={!isAdmin} onChange={num("followUpEveryDaysAfter")} />
-          </div>
-          <div>
-            <Label className="text-xs">Skip a follow-up when the rep touched the lead within N days</Label>
+          </Field>
+          <Field label="Skip a follow-up when the rep touched the lead within N days" labelClassName="text-xs">
             <Input type="number" min={0} value={form.personalTouchSkipDays} disabled={!isAdmin} onChange={num("personalTouchSkipDays")} />
-          </div>
-          <div>
-            <Label className="text-xs">Prompt the rep for a personal touch after N quiet days</Label>
+          </Field>
+          <Field label="Prompt the rep for a personal touch after N quiet days" help="Raises a task on the rep (it shows in the morning digest); closed when a communication is logged." labelClassName="text-xs">
             <Input type="number" min={1} value={form.repPromptAfterDays} disabled={!isAdmin} onChange={num("repPromptAfterDays")} />
-            <p className="mt-1 text-xs text-muted-foreground">Raises a task on the rep (it shows in the morning digest); closed when a communication is logged.</p>
-          </div>
+          </Field>
         </CardContent>
       </Card>
 
@@ -172,19 +167,16 @@ function CadenceTab({ data, isAdmin }: { data: SettingsPayload; isAdmin: boolean
           <CardTitle className="text-sm">Nurture (company, tips — not salesy)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <div>
-            <Label className="text-xs">Days after enrolment</Label>
+          <Field label="Days after enrolment" labelClassName="text-xs">
             <Input value={nuText} disabled={!isAdmin} onChange={(e) => setNuText(e.target.value)} placeholder="4, 10, 21" />
-          </div>
+          </Field>
           <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs">Then every N days</Label>
+            <Field label="Then every N days" labelClassName="text-xs">
               <Input type="number" min={7} value={form.nurtureEveryDaysAfter} disabled={!isAdmin} onChange={num("nurtureEveryDaysAfter")} />
-            </div>
-            <div>
-              <Label className="text-xs">Offset from the monthly follow-up</Label>
+            </Field>
+            <Field label="Offset from the monthly follow-up" labelClassName="text-xs">
               <Input type="number" min={1} value={form.nurtureMonthlyOffsetDays} disabled={!isAdmin} onChange={num("nurtureMonthlyOffsetDays")} />
-            </div>
+            </Field>
           </div>
           <p className="text-xs text-muted-foreground">Pieces go out in library order, never twice to the same lead; when the library runs out, nurture pauses until new pieces are added. The nurture clock is never re-anchored.</p>
         </CardContent>
@@ -196,23 +188,19 @@ function CadenceTab({ data, isAdmin }: { data: SettingsPayload; isAdmin: boolean
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label className="text-xs">Window start (hour)</Label>
+            <Field label="Window start (hour)" labelClassName="text-xs">
               <Input type="number" min={0} max={23} value={form.sendWindowStartHour} disabled={!isAdmin} onChange={num("sendWindowStartHour")} />
-            </div>
-            <div>
-              <Label className="text-xs">Window end (hour)</Label>
+            </Field>
+            <Field label="Window end (hour)" labelClassName="text-xs">
               <Input type="number" min={1} max={24} value={form.sendWindowEndHour} disabled={!isAdmin} onChange={num("sendWindowEndHour")} />
-            </div>
-            <div>
-              <Label className="text-xs">Min. gap between emails (h)</Label>
+            </Field>
+            <Field label="Min. gap between emails (h)" labelClassName="text-xs">
               <Input type="number" min={0} value={form.minGapHours} disabled={!isAdmin} onChange={num("minGapHours")} />
-            </div>
+            </Field>
           </div>
-          <div>
-            <Label className="text-xs">Time zone</Label>
+          <Field label="Time zone" labelClassName="text-xs">
             <Input value={form.timeZone} disabled={!isAdmin} onChange={(e) => setForm((f) => ({ ...f, timeZone: e.target.value }))} />
-          </div>
+          </Field>
           <label className="flex items-center gap-2">
             <Checkbox checked={form.weekdaysOnly} disabled={!isAdmin} onCheckedChange={(c) => setForm((f) => ({ ...f, weekdaysOnly: Boolean(c) }))} /> Weekdays only
           </label>
@@ -385,23 +373,19 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
           {editing && (
             <div className="space-y-3 text-sm">
               <div className="grid gap-3 sm:grid-cols-[1fr_140px_160px]">
-                <div>
-                  <Label className="text-xs">Subject</Label>
+                <Field label="Subject" labelClassName="text-xs">
                   <Input value={editing.subject ?? ""} onChange={(e) => setEditing({ ...editing, subject: e.target.value })} />
-                </div>
+                </Field>
                 {editing.kind === "FOLLOW_UP" ? (
-                  <div>
-                    <Label className="text-xs">Step</Label>
+                  <Field label="Step" labelClassName="text-xs">
                     <Input type="number" min={1} value={editing.step ?? 1} onChange={(e) => setEditing({ ...editing, step: Number(e.target.value) })} />
-                  </div>
+                  </Field>
                 ) : (
-                  <div>
-                    <Label className="text-xs">Category</Label>
+                  <Field label="Category" labelClassName="text-xs">
                     <Input value={editing.category ?? ""} onChange={(e) => setEditing({ ...editing, category: e.target.value })} />
-                  </div>
+                  </Field>
                 )}
-                <div>
-                  <Label className="text-xs">Kind</Label>
+                <Field label="Kind" labelClassName="text-xs">
                   <Select value={editing.kind ?? "NURTURE"} onValueChange={(v: string | null) => v && setEditing({ ...editing, kind: v as Content["kind"] })}>
                     <SelectTrigger>
                       <SelectValue>{(v: string) => (v === "FOLLOW_UP" ? "Follow-up" : "Nurture")}</SelectValue>
@@ -411,7 +395,7 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
                       <SelectItem value="NURTURE">Nurture</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </Field>
               </div>
               <div>
                 <Label className="text-xs">Body (markdown; blank line = paragraph)</Label>

@@ -43,6 +43,7 @@ import {
 } from "@/lib/estimates/calc";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 type EstimateRecord = {
   id: string;
@@ -530,10 +531,8 @@ export const EstimatesPanel = forwardRef<
                   value={form.materialCost}
                   onChange={(v) => setForm((f) => ({ ...f, materialCost: v }))}
                 />
-                <div className="space-y-1">
-                  <Label className="text-xs">
-                    Material selection (brand / model)
-                  </Label>
+                <Field label="Material selection (brand / model)" help="Appears on the client proposal under &ldquo;Roofing
+                    material selected&rdquo;." labelClassName="text-xs">
                   <Input
                     placeholder="e.g., GAF Timberline HDZ — Charcoal"
                     value={form.materialSelection}
@@ -544,11 +543,7 @@ export const EstimatesPanel = forwardRef<
                       }))
                     }
                   />
-                  <p className="text-3xs text-muted-foreground">
-                    Appears on the client proposal under &ldquo;Roofing
-                    material selected&rdquo;.
-                  </p>
-                </div>
+                </Field>
               </div>
             </div>
 
@@ -562,8 +557,7 @@ export const EstimatesPanel = forwardRef<
                 and can be overridden per estimate.
               </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Existing roof type</Label>
+                <Field label="Existing roof type" labelClassName="text-xs">
                   <Input
                     placeholder="e.g., 25-year asphalt shingle, ~18 yrs old"
                     value={form.existingRoofType}
@@ -574,11 +568,8 @@ export const EstimatesPanel = forwardRef<
                       }))
                     }
                   />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">
-                    Proposed roof type (override)
-                  </Label>
+                </Field>
+                <Field label="Proposed roof type (override)" labelClassName="text-xs">
                   <Input
                     placeholder="Defaults to roof types above if blank"
                     value={form.proposedRoofTypeOverride}
@@ -589,9 +580,8 @@ export const EstimatesPanel = forwardRef<
                       }))
                     }
                   />
-                </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <Label className="text-xs">Underlayment system</Label>
+                </Field>
+                <Field label="Underlayment system" className="sm:col-span-2" labelClassName="text-xs">
                   <Textarea
                     rows={2}
                     value={form.underlaymentType}
@@ -602,9 +592,8 @@ export const EstimatesPanel = forwardRef<
                       }))
                     }
                   />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Estimated project duration</Label>
+                </Field>
+                <Field label="Estimated project duration" labelClassName="text-xs">
                   <Input
                     placeholder="e.g., 3–5 working days"
                     value={form.projectDurationText}
@@ -615,7 +604,7 @@ export const EstimatesPanel = forwardRef<
                       }))
                     }
                   />
-                </div>
+                </Field>
                 <div className="flex items-end">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -633,10 +622,7 @@ export const EstimatesPanel = forwardRef<
                     </Label>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">
-                    Plywood sheets included (allowance)
-                  </Label>
+                <Field label="Plywood sheets included (allowance)" labelClassName="text-xs">
                   <Input
                     type="number"
                     min="0"
@@ -648,11 +634,8 @@ export const EstimatesPanel = forwardRef<
                       }))
                     }
                   />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">
-                    Additional plywood ($ per sheet)
-                  </Label>
+                </Field>
+                <Field label="Additional plywood ($ per sheet)" labelClassName="text-xs">
                   <Input
                     type="number"
                     min="0"
@@ -665,11 +648,8 @@ export const EstimatesPanel = forwardRef<
                       }))
                     }
                   />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">
-                    Workmanship warranty (years)
-                  </Label>
+                </Field>
+                <Field label="Workmanship warranty (years)" labelClassName="text-xs">
                   <Input
                     type="number"
                     min="0"
@@ -681,9 +661,8 @@ export const EstimatesPanel = forwardRef<
                       }))
                     }
                   />
-                </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <Label className="text-xs">Manufacturer warranty</Label>
+                </Field>
+                <Field label="Manufacturer warranty" className="sm:col-span-2" labelClassName="text-xs">
                   <Textarea
                     rows={2}
                     value={form.manufacturerWarranty}
@@ -694,7 +673,7 @@ export const EstimatesPanel = forwardRef<
                       }))
                     }
                   />
-                </div>
+                </Field>
                 <div className="flex items-center gap-2 sm:col-span-2">
                   <Checkbox
                     id="estimate-only"
@@ -818,8 +797,7 @@ export const EstimatesPanel = forwardRef<
                     setForm((f) => ({ ...f, salesTaxPercent: v }))
                   }
                 />
-                <div className="space-y-1">
-                  <Label className="text-xs">Validity (days)</Label>
+                <Field label="Validity (days)" labelClassName="text-xs">
                   <Input
                     type="number"
                     min="1"
@@ -829,7 +807,7 @@ export const EstimatesPanel = forwardRef<
                       setForm((f) => ({ ...f, validityDays: e.target.value }))
                     }
                   />
-                </div>
+                </Field>
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-3 rounded border p-3">
@@ -870,10 +848,7 @@ export const EstimatesPanel = forwardRef<
               </div>
             </div>
 
-            <div>
-              <Label className="text-xs">
-                Special terms for this client (appears on both PDFs)
-              </Label>
+            <Field label="Special terms for this client (appears on both PDFs)" labelClassName="text-xs">
               <Textarea
                 rows={3}
                 value={form.specialTerms}
@@ -882,7 +857,7 @@ export const EstimatesPanel = forwardRef<
                 }
                 placeholder="e.g., Color upgrade to GAF Timberline HDZ Charcoal at no extra charge."
               />
-            </div>
+            </Field>
 
             <Separator />
 
@@ -946,8 +921,7 @@ function RoofTypesEditor({
             key={i}
             className="grid grid-cols-1 items-end gap-2 rounded border p-2 sm:grid-cols-[1fr_120px_140px_auto]"
           >
-            <div className="space-y-1">
-              <Label className="text-xs">Material</Label>
+            <Field label="Material" labelClassName="text-xs">
               <Select
                 value={row.material}
                 onValueChange={(v: string | null) => {
@@ -968,9 +942,8 @@ function RoofTypesEditor({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Squares</Label>
+            </Field>
+            <Field label="Squares" labelClassName="text-xs">
               <Input
                 type="number"
                 min="0"
@@ -983,9 +956,8 @@ function RoofTypesEditor({
                   onChange(next);
                 }}
               />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">$ / square</Label>
+            </Field>
+            <Field label="$ / square" labelClassName="text-xs">
               <Input
                 type="number"
                 min="0"
@@ -1001,7 +973,7 @@ function RoofTypesEditor({
                   onChange(next);
                 }}
               />
-            </div>
+            </Field>
             <Button aria-label="Remove row"
               type="button"
               variant="ghost"

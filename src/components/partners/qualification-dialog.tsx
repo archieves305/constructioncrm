@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { fetchJson } from "@/lib/fetch-json";
 import { useInvalidatePartners, usePartnerOptions, type Qualification, type QualificationStatus } from "./use-partners";
+import { Field } from "@/components/ui/field";
 
 const NONE = "__none";
 const dayOf = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "");
@@ -78,49 +79,39 @@ function QualificationForm({ organizationId, editing, onSaved, onClose }: { orga
         <DialogDescription>{editing ? "Where the application stands and its dates." : "The GC prequalification: which platform, who runs it on our side, and what they ask for."}</DialogDescription>
       </DialogHeader>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="q-platform">Platform</Label>
+        <Field label="Platform" id="q-platform">
           <Input id="q-platform" value={form.platform} onChange={(e) => set("platform", e.target.value)} placeholder="TradeTapp, their own form…" maxLength={120} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Status</Label>
+        </Field>
+        <Field label="Status">
           <Select items={statusItems} value={form.status} onValueChange={(v: QualificationStatus | null) => v && set("status", v)}>
             <SelectTrigger className="w-full" aria-label="Status"><SelectValue /></SelectTrigger>
             <SelectContent>{statusItems.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="q-portal">Portal URL</Label>
+        </Field>
+        <Field label="Portal URL" id="q-portal" className="sm:col-span-2">
           <Input id="q-portal" value={form.portalUrl} onChange={(e) => set("portalUrl", e.target.value)} placeholder="https://…" type="url" maxLength={300} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="q-hint">Portal login hint</Label>
+        </Field>
+        <Field label="Portal login hint" id="q-hint">
           <Input id="q-hint" value={form.portalUsernameHint} onChange={(e) => set("portalUsernameHint", e.target.value)} placeholder="richard@… (never the password)" maxLength={120} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Runs it on our side</Label>
+        </Field>
+        <Field label="Runs it on our side">
           <Select items={owners} value={form.ownerUserId ?? NONE} onValueChange={(v: string | null) => set("ownerUserId", !v || v === NONE ? null : v)}>
             <SelectTrigger className="w-full" aria-label="Owner"><SelectValue /></SelectTrigger>
             <SelectContent>{owners.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="q-submitted">Submitted</Label>
+        </Field>
+        <Field label="Submitted" id="q-submitted">
           <Input id="q-submitted" type="date" value={form.submittedAt} onChange={(e) => set("submittedAt", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="q-approved">Approved</Label>
+        </Field>
+        <Field label="Approved" id="q-approved">
           <Input id="q-approved" type="date" value={form.approvedAt} onChange={(e) => set("approvedAt", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="q-expires">Expires</Label>
+        </Field>
+        <Field label="Expires" id="q-expires" help="Left empty on approval, it is set from the longest validity on the checklist.">
           <Input id="q-expires" type="date" value={form.expiresAt} onChange={(e) => set("expiresAt", e.target.value)} />
-          <p className="text-xs text-muted-foreground">Left empty on approval, it is set from the longest validity on the checklist.</p>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="q-renewal">Renewal due</Label>
+        </Field>
+        <Field label="Renewal due" id="q-renewal">
           <Input id="q-renewal" type="date" value={form.renewalDueAt} onChange={(e) => set("renewalDueAt", e.target.value)} />
-        </div>
+        </Field>
       </div>
       {!editing && (
         <div className="space-y-1.5">
@@ -135,10 +126,9 @@ function QualificationForm({ organizationId, editing, onSaved, onClose }: { orga
           <p className="text-xs text-muted-foreground">Starts from the default set under Admin → Business Development; adjust per GC.</p>
         </div>
       )}
-      <div className="space-y-1.5">
-        <Label htmlFor="q-notes">Notes</Label>
+      <Field label="Notes" id="q-notes">
         <Textarea id="q-notes" value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} maxLength={5000} />
-      </div>
+      </Field>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
         <Button type="submit" disabled={save.isPending}>{save.isPending ? "Saving…" : editing ? "Save" : "Start"}</Button>

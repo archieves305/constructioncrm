@@ -5,10 +5,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchJson } from "@/lib/fetch-json";
 import { KIND_LABEL, useVendorOptions, type VendorLink } from "./use-vendors";
+import { Field } from "@/components/ui/field";
 
 /** Connect a payee spelling, a crew or a typed contractor name to a vendor that already exists. */
 export function LinkVendorDialog({
@@ -63,8 +63,7 @@ function LinkForm({ link, title, description, onClose }: { link: VendorLink; tit
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
-      <div className="space-y-1.5">
-        <Label>Vendor</Label>
+      <Field label="Vendor">
         <Select value={vendorId} onValueChange={(v: string | null) => setVendorId(v ?? "")}>
           <SelectTrigger className="w-full" aria-label="Vendor">
             <SelectValue placeholder={isLoading ? "Loading…" : vendors.length ? "Choose a vendor" : "No vendors yet"}>
@@ -79,7 +78,7 @@ function LinkForm({ link, title, description, onClose }: { link: VendorLink; tit
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </Field>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
         <Button disabled={!vendorId || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Linking…" : "Link"}</Button>

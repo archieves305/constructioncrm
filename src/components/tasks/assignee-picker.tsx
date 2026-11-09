@@ -3,6 +3,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
+import { useFieldId } from "@/components/ui/field";
 import { fullName, type UserOption } from "./types";
 
 const NONE = "__none";
@@ -19,6 +20,7 @@ export function AssigneePicker({
   className,
   size = "default",
   placeholder = "Unassigned",
+  "aria-label": ariaLabel = "Assigned to",
 }: {
   value: string | null;
   onChange: (userId: string | null) => void;
@@ -26,11 +28,14 @@ export function AssigneePicker({
   className?: string;
   size?: "sm" | "default";
   placeholder?: string;
+  /** Used when the picker is not inside a <Field> (whose label names it then). */
+  "aria-label"?: string;
 }) {
+  const inField = Boolean(useFieldId());
   const byId = new Map(users.map((u) => [u.id, u]));
   return (
     <Select value={value ?? NONE} onValueChange={(v: string | null) => onChange(!v || v === NONE ? null : v)}>
-      <SelectTrigger className={cn(size === "sm" ? "h-7 text-xs" : "h-9", className)}>
+      <SelectTrigger aria-label={inField ? undefined : ariaLabel} className={cn(size === "sm" ? "h-7 text-xs" : "h-9", className)}>
         <SelectValue>
           {(v: string) => {
             const u = v && v !== NONE ? byId.get(v) : null;

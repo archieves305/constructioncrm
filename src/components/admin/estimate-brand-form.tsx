@@ -5,11 +5,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Trash2 } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 type Brand = {
   id: string;
@@ -175,14 +175,13 @@ export function EstimateBrandForm() {
           <CardTitle className="text-base">Company name</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="space-y-1 max-w-sm">
-            <Label className="text-xs">Company name (title on PDF)</Label>
+          <Field label="Company name (title on PDF)" className="max-w-sm" labelClassName="text-xs">
             <Input
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               placeholder="Knu Construction"
             />
-          </div>
+          </Field>
           <Button onClick={() => save.mutate()} disabled={save.isPending}>
             Save
           </Button>

@@ -11,6 +11,7 @@ import type {
 } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 
 type AddressAutofillProps = {
   accessToken: string;
@@ -135,14 +136,13 @@ export function AddressAutofillFields<T extends FieldValues>({
           </p>
         )}
       </div>
-      <div className="md:col-span-2">
-        <Label htmlFor="propertyAddress2">Address Line 2</Label>
+      <Field label="Address Line 2" id="propertyAddress2" className="md:col-span-2">
         <Input
           id="propertyAddress2"
           autoComplete="address-line2"
           {...register("propertyAddress2" as Path<T>)}
         />
-      </div>
+      </Field>
       <div>
         <Label htmlFor="city">City *</Label>
         <Input
@@ -152,18 +152,16 @@ export function AddressAutofillFields<T extends FieldValues>({
         />
         {fieldError("city")}
       </div>
-      <div>
-        <Label htmlFor="county">County</Label>
+      <Field label="County" id="county">
         <Input id="county" {...register("county" as Path<T>)} />
-      </div>
-      <div>
-        <Label htmlFor="state">State</Label>
+      </Field>
+      <Field label="State" id="state">
         <Input
           id="state"
           autoComplete="address-level1"
           {...register("state" as Path<T>)}
         />
-      </div>
+      </Field>
       <div>
         <Label htmlFor="zipCode">ZIP Code *</Label>
         <Input

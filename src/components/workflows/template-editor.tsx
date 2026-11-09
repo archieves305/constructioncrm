@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SortableList } from "@/components/ui/sortable-list";
@@ -24,6 +23,7 @@ import { TaskEditorSheet } from "./task-editor-sheet";
 import { WorkflowOutline, type TemplateOutline } from "./workflow-outline";
 import { useAdminTemplate, useEditorMutations, useEditorVersion } from "./use-workflow";
 import type { AdminVersionSummary, EditorPhase, EditorTask, EditorVersion, ValidationResultData } from "./types";
+import { Field } from "@/components/ui/field";
 
 const STATUS_PILL: Record<string, string> = {
   DRAFT: "bg-tone-warning-soft text-tone-warning-fg",
@@ -428,12 +428,9 @@ function PublishDialog({ open, onOpenChange, version, pending, onPublish }: { op
             New workflow applies will use this version. Jobs already on an older version keep it until someone upgrades them from their Workflow tab. The draft is validated first; publishing fails if anything is wrong.
           </DialogDescription>
         </DialogHeader>
-        <div>
-          <Label htmlFor="pub-notes" className="text-xs">
-            What changed (optional)
-          </Label>
-          <Textarea id="pub-notes" rows={3} className="mt-1" value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </div>
+        <Field label="What changed (optional)" id="pub-notes" labelClassName="text-xs">
+          <Textarea id="pub-notes" rows={3}  value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </Field>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
@@ -458,18 +455,12 @@ export function DuplicateDialog({ open, onOpenChange, sourceName, pending, onDup
           <DialogDescription>A new trade template whose first draft is a copy of this one.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div>
-            <Label htmlFor="dup-name" className="text-xs">
-              Name
-            </Label>
-            <Input id="dup-name" className="mt-1" value={name} onChange={(e) => { setName(e.target.value); setKey(slugKey(e.target.value)); }} />
-          </div>
-          <div>
-            <Label htmlFor="dup-key" className="text-xs">
-              Key
-            </Label>
-            <Input id="dup-key" className="mt-1 font-mono text-xs" value={key} onChange={(e) => setKey(e.target.value)} />
-          </div>
+          <Field label="Name" id="dup-name" labelClassName="text-xs">
+            <Input id="dup-name"  value={name} onChange={(e) => { setName(e.target.value); setKey(slugKey(e.target.value)); }} />
+          </Field>
+          <Field label="Key" id="dup-key" labelClassName="text-xs">
+            <Input id="dup-key" className="font-mono text-xs" value={key} onChange={(e) => setKey(e.target.value)} />
+          </Field>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -497,26 +488,17 @@ function MetaDialog({ open, onOpenChange, template, pending, onSave }: { open: b
           <DialogDescription>Name and description apply to every version. An inactive template is hidden from Apply.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div>
-            <Label htmlFor="meta-name" className="text-xs">
-              Name
-            </Label>
-            <Input id="meta-name" className="mt-1" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
+          <Field label="Name" id="meta-name" labelClassName="text-xs">
+            <Input id="meta-name"  value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
           {template.kind !== "CORE" && (
-            <div>
-              <Label htmlFor="meta-trade" className="text-xs">
-                Trade label
-              </Label>
-              <Input id="meta-trade" className="mt-1" value={trade} onChange={(e) => setTrade(e.target.value)} />
-            </div>
+            <Field label="Trade label" id="meta-trade" labelClassName="text-xs">
+              <Input id="meta-trade"  value={trade} onChange={(e) => setTrade(e.target.value)} />
+            </Field>
           )}
-          <div>
-            <Label htmlFor="meta-desc" className="text-xs">
-              Description
-            </Label>
-            <Textarea id="meta-desc" rows={2} className="mt-1" value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
+          <Field label="Description" id="meta-desc" labelClassName="text-xs">
+            <Textarea id="meta-desc" rows={2}  value={description} onChange={(e) => setDescription(e.target.value)} />
+          </Field>
           {template.kind !== "CORE" && (
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} /> Active (offered when applying a workflow)

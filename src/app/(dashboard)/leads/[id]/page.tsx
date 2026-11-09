@@ -316,7 +316,7 @@ export default function LeadDetailPage() {
                 value={lead.assignedUser?.id || ""}
                 onValueChange={(v: string | null) => v && assignLead.mutate(v)}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Assigned to">
                   <SelectValue placeholder="Reassign..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -668,7 +668,7 @@ function CommLogForm({
     <div className="space-y-2">
       <div className="flex gap-2">
         <Select value={type} onValueChange={(v: string | null) => setType(v ?? "CALL")}>
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger aria-label="Contact type" className="w-[120px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

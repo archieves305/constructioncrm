@@ -39,6 +39,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 type JobSplit = {
   jobId: string;
@@ -352,10 +353,9 @@ export default function PayrollPage() {
                     ))}
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <Label>Reference (check # etc.)</Label>
+                <Field label="Reference (check # etc.)">
                   <Input value={reference} onChange={(e) => setReference(e.target.value)} />
-                </div>
+                </Field>
               </div>
               <p className="text-muted-foreground text-xs">
                 Posts {money(payFor.gross)} as labor expenses across{" "}

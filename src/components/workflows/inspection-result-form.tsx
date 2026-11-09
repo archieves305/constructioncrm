@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useRecordInspection } from "./use-workflow";
 import { subjectOfTask } from "./types";
 import type { WorkflowTaskItem } from "./types";
+import { Field } from "@/components/ui/field";
 
 const RESULTS = [
   { value: "PASS", label: "Passed", hint: "Completes this step." },
@@ -82,12 +83,9 @@ export function InspectionResultForm({ task, canRecord }: { task: WorkflowTaskIt
         ))}
       </RadioGroup>
       <div className="grid gap-2 sm:grid-cols-2">
-        <div>
-          <Label htmlFor="insp-date" className="text-xs">
-            Inspected on
-          </Label>
-          <Input id="insp-date" type="date" className="mt-1 h-8" value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
+        <Field label="Inspected on" id="insp-date" labelClassName="text-xs">
+          <Input id="insp-date" type="date" className="h-8" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
       </div>
       <div>
         <Label htmlFor="insp-notes" className="text-xs">

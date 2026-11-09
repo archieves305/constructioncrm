@@ -22,6 +22,7 @@ import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 import { INSPECTION_RESULT_TONE } from "./status";
 import { useCaseAction, type CaseData } from "./use-violations";
+import { Field } from "@/components/ui/field";
 
 type Inspection = CaseData["inspections"][number];
 
@@ -104,10 +105,9 @@ function RequestInspectionDialog({ open, onOpenChange, data }: { open: boolean; 
           <DialogDescription>A reinspection request marks the case as awaiting the agency.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label className="text-xs">Kind</Label>
+          <Field label="Kind" labelClassName="text-xs">
             <Select value={kind} onValueChange={(v: string | null) => v && setKind(v as typeof kind)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => v.charAt(0) + v.slice(1).toLowerCase()}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -116,23 +116,20 @@ function RequestInspectionDialog({ open, onOpenChange, data }: { open: boolean; 
                 <SelectItem value="FINAL">Final</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Scheduled for (if known)</Label>
-            <Input type="datetime-local" className="mt-1" value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} />
-          </div>
+          </Field>
+          <Field label="Scheduled for (if known)" labelClassName="text-xs">
+            <Input type="datetime-local"  value={scheduledFor} onChange={(e) => setScheduledFor(e.target.value)} />
+          </Field>
           <div>
             <Label className="text-xs">Our attendee</Label>
             <AssigneePicker className="mt-1 w-full" value={attendee} users={users} onChange={setAttendee} />
           </div>
-          <div>
-            <Label className="text-xs">Inspector</Label>
-            <Input className="mt-1" value={inspector} onChange={(e) => setInspector(e.target.value)} />
-          </div>
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Notes</Label>
-            <Textarea className="mt-1" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Confirmation number, access arrangements…" />
-          </div>
+          <Field label="Inspector" labelClassName="text-xs">
+            <Input  value={inspector} onChange={(e) => setInspector(e.target.value)} />
+          </Field>
+          <Field label="Notes" className="sm:col-span-2" labelClassName="text-xs">
+            <Textarea  rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Confirmation number, access arrangements…" />
+          </Field>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -217,14 +214,12 @@ export function InspectionResultDialog({ inspection, data, onClose }: { inspecti
           </div>
         )}
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label className="text-xs">Inspected on</Label>
-            <Input type="date" className="mt-1" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} />
-          </div>
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Inspector notes</Label>
-            <Textarea className="mt-1" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
+          <Field label="Inspected on" labelClassName="text-xs">
+            <Input type="date"  value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} />
+          </Field>
+          <Field label="Inspector notes" className="sm:col-span-2" labelClassName="text-xs">
+            <Textarea  rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </Field>
         </div>
         {result === "PASS" && data.permissions.canConfirmAgency && (
           <label className="flex items-start gap-2 rounded-md border border-dashed p-2.5 text-sm">

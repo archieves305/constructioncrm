@@ -15,6 +15,7 @@ import { findCycle } from "@/lib/workflows/dependencies";
 import { cn } from "@/lib/utils";
 import type { EditorChecklistItem, EditorTask, EditorVersion, TaskTemplateInput, WorkflowRole } from "./types";
 import type { TaskDependencyKind, WorkflowAnchor, WorkflowEvidenceType } from "@/generated/prisma/client";
+import { Field } from "@/components/ui/field";
 
 const ANCHORS: { value: WorkflowAnchor; label: string }[] = [
   { value: "PREDECESSOR", label: "Predecessor finished" },
@@ -161,32 +162,22 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
         </p>
       </SheetHeader>
       <div className="space-y-5 px-6 py-5">
-        <div>
-          <Label htmlFor="st-title" className="text-xs">
-            Title
-          </Label>
-          <Input id="st-title" autoFocus className="mt-1" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Submit permit package" />
-        </div>
+        <Field label="Title" id="st-title" labelClassName="text-xs">
+          <Input id="st-title" autoFocus  value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Submit permit package" />
+        </Field>
         {!task && (
-          <div>
-            <Label htmlFor="st-key" className="text-xs">
-              Key (optional — made from the title if blank)
-            </Label>
-            <Input id="st-key" className="mt-1 font-mono text-xs" value={key} onChange={(e) => setKey(e.target.value)} placeholder="submit_permit_package" />
-          </div>
+          <Field label="Key (optional — made from the title if blank)" id="st-key" labelClassName="text-xs">
+            <Input id="st-key" className="font-mono text-xs" value={key} onChange={(e) => setKey(e.target.value)} placeholder="submit_permit_package" />
+          </Field>
         )}
-        <div>
-          <Label htmlFor="st-desc" className="text-xs">
-            Instructions (optional)
-          </Label>
-          <Textarea id="st-desc" rows={2} className="mt-1" value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
+        <Field label="Instructions (optional)" id="st-desc" labelClassName="text-xs">
+          <Textarea id="st-desc" rows={2}  value={description} onChange={(e) => setDescription(e.target.value)} />
+        </Field>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label className="text-xs">Role</Label>
+          <Field label="Role" labelClassName="text-xs">
             <Select value={role} onValueChange={(v: string | null) => v && setRole(v as WorkflowRole)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => WORKFLOW_ROLE_LABEL[v as WorkflowRole] ?? v}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -197,11 +188,10 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Priority</Label>
+          </Field>
+          <Field label="Priority" labelClassName="text-xs">
             <Select value={priority} onValueChange={(v: string | null) => v && setPriority(v as typeof priority)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => v.charAt(0) + v.slice(1).toLowerCase()}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -212,11 +202,10 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Due date counts from</Label>
+          </Field>
+          <Field label="Due date counts from" labelClassName="text-xs">
             <Select value={anchor} onValueChange={(v: string | null) => v && setAnchor(v as WorkflowAnchor)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => ANCHORS.find((a) => a.value === v)?.label ?? v}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -227,7 +216,7 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label htmlFor="st-offset" className="text-xs">
@@ -236,12 +225,9 @@ function Body({ version, task, phaseId, onCancel, onSave, onDelete, pending }: {
               <Input id="st-offset" type="number" className="mt-1" value={offset} onChange={(e) => setOffset(e.target.value)} />
               {!DATE_ANCHORS.has(anchor) && Number(offset) < 0 && <p className="text-2xs text-tone-danger-fg">Negative only from a date anchor (target start, compliance deadline, hearing date).</p>}
             </div>
-            <div>
-              <Label htmlFor="st-dur" className="text-xs">
-                Duration (optional)
-              </Label>
-              <Input id="st-dur" type="number" className="mt-1" value={duration} onChange={(e) => setDuration(e.target.value)} />
-            </div>
+            <Field label="Duration (optional)" id="st-dur" labelClassName="text-xs">
+              <Input id="st-dur" type="number"  value={duration} onChange={(e) => setDuration(e.target.value)} />
+            </Field>
           </div>
         </div>
 

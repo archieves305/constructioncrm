@@ -19,6 +19,7 @@ import { canManageJobMoney } from "@/lib/money/access";
 import { toneClasses, type Tone } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 import { attachCompletionPhotos, CompletionPhotoPicker, CompletionPhotosButton, type CompletionPhoto } from "./completion-photos";
+import { Field } from "@/components/ui/field";
 
 type Person = { id: string; firstName: string; lastName: string };
 
@@ -248,14 +249,12 @@ export function LaborPaymentRequests({
           <div className="space-y-3">
             {vendorName && <ComplianceCallout compliance={vendorCompliance} vendorName={vendorName} />}
             <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs">Amount ($)</Label>
+              <Field label="Amount ($)" labelClassName="text-xs">
                 <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
-              </div>
-              <div>
-                <Label className="text-xs">Needed by</Label>
+              </Field>
+              <Field label="Needed by" labelClassName="text-xs">
                 <Input type="date" value={neededBy} onChange={(e) => setNeededBy(e.target.value)} />
-              </div>
+              </Field>
             </div>
             <div>
               <Label className="text-xs">Send to</Label>
@@ -272,10 +271,9 @@ export function LaborPaymentRequests({
                   : "This job has no accountant yet — pick someone, or set the Accounting default under Admin → Workflow Roles."}
               </p>
             </div>
-            <div>
-              <Label className="text-xs">What it is for (optional)</Label>
+            <Field label="What it is for (optional)" labelClassName="text-xs">
               <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Second draw — tile and cabinets complete" />
-            </div>
+            </Field>
             <CompletionPhotoPicker files={photos} onChange={setPhotos} />
           </div>
           <DialogFooter>

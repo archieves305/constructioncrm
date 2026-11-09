@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { X } from "lucide-react";
+import { Field } from "@/components/ui/field";
 
 const PAY_TYPE_LABELS: Record<string, string> = {
   CONTRACT: "Contract",
@@ -128,8 +129,7 @@ export function JobPersonnelScopePanel({ jobId }: { jobId: string }) {
               </SelectContent>
             </Select>
           </div>
-          <div className="min-w-[150px]">
-            <Label className="text-2xs">Pay type</Label>
+          <Field label="Pay type" className="min-w-[150px]" labelClassName="text-2xs">
             <Select items={{ [INHERIT]: selected ? `Profile default (${PAY_TYPE_LABELS[selected.payType] ?? selected.payType})` : "Profile default", ...PAY_TYPE_LABELS }} value={payType} onValueChange={(v) => v && setPayType(v)}>
               <SelectTrigger>
                 <SelectValue />
@@ -147,7 +147,7 @@ export function JobPersonnelScopePanel({ jobId }: { jobId: string }) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           <div className="min-w-[220px] flex-[2]">
             <Label className="text-2xs">Work description on this job</Label>
             <Input

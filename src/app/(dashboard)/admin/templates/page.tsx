@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/rich-text-editor";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 type Template = {
   id: string;
@@ -247,8 +248,7 @@ export default function TemplatesPage() {
                       </p>
                     )}
                   </div>
-                  <div>
-                    <Label htmlFor="tpl-channel">Channel</Label>
+                  <Field label="Channel" id="tpl-channel">
                     <Select
                       value={form.channel}
                       onValueChange={(v) =>
@@ -266,7 +266,7 @@ export default function TemplatesPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
+                  </Field>
                 </div>
 
                 <div>

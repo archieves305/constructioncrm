@@ -41,6 +41,7 @@ import { TaskWorkflowBlock } from "@/components/workflows/task-workflow-block";
 import { TaskAttachments } from "./task-attachments";
 import type { WorkflowTaskItem } from "@/components/workflows/types";
 import { usePrompt } from "@/components/shared/confirm-provider";
+import { Field as FormField } from "@/components/ui/field";
 
 type TaskDetail = TaskListItem &
   Omit<WorkflowTaskItem, keyof TaskListItem | "dependencies"> & {
@@ -420,10 +421,9 @@ export function TaskDetailSheet({
               {mayEdit && <ScheduleSection task={task} canEdit onPatch={(p) => patch.mutate(p)} pending={patch.isPending} />}
 
               <div className="flex flex-wrap items-end gap-4">
-                <div>
-                  <Label className="text-xs">Status</Label>
+                <FormField label="Status" labelClassName="text-xs">
                   <Select value={task.status} onValueChange={(v) => v && changeStatus(v as TaskStatus)}>
-                    <SelectTrigger className="mt-1 h-8 w-[190px] text-sm">
+                    <SelectTrigger className="h-8 w-[190px] text-sm">
                       <SelectValue>{(v: string) => STATUS_LABEL[v as TaskStatus] ?? v}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -434,7 +434,7 @@ export function TaskDetailSheet({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
                 {mayNudge && (
                   <Button
                     size="sm"

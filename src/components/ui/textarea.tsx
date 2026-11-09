@@ -1,8 +1,12 @@
+"use client"
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { useFieldControlProps } from "./field-context"
 
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
+  const field = useFieldControlProps(props)
   return (
     <textarea
       data-slot="textarea"
@@ -11,6 +15,7 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
         className
       )}
       {...props}
+      {...field}
     />
   )
 }

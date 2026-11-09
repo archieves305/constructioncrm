@@ -27,6 +27,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { useSession } from "@/lib/auth/session-client";
 import { canWriteLeads } from "@/lib/access/roles";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Field } from "@/components/ui/field";
 
 type ContactMatch = {
   firstName: string;
@@ -39,6 +40,8 @@ type ContactMatch = {
   latestLeadId: string;
 };
 
+
+const PROPERTY_TYPE_ITEMS = { RESIDENTIAL: "Residential", COMMERCIAL: "Commercial" };
 export default function NewLeadPage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -251,34 +254,24 @@ export default function NewLeadPage() {
               </div>
             )}
             <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="firstName">First Name *</Label>
+            <Field label="First Name" id="firstName" required error={errors.firstName?.message}>
               <Input id="firstName" {...register("firstName")} />
-              {errors.firstName && <p className="mt-1 text-xs text-tone-danger-fg">{errors.firstName.message}</p>}
-            </div>
-            <div>
-              <Label htmlFor="lastName">Last Name *</Label>
+            </Field>
+            <Field label="Last Name" id="lastName" required error={errors.lastName?.message}>
               <Input id="lastName" {...register("lastName")} />
-              {errors.lastName && <p className="mt-1 text-xs text-tone-danger-fg">{errors.lastName.message}</p>}
-            </div>
-            <div>
-              <Label htmlFor="primaryPhone">Primary Phone *</Label>
+            </Field>
+            <Field label="Primary Phone" id="primaryPhone" required error={errors.primaryPhone?.message}>
               <Input id="primaryPhone" {...register("primaryPhone")} />
-              {errors.primaryPhone && <p className="mt-1 text-xs text-tone-danger-fg">{errors.primaryPhone.message}</p>}
-            </div>
-            <div>
-              <Label htmlFor="secondaryPhone">Secondary Phone</Label>
+            </Field>
+            <Field label="Secondary Phone" id="secondaryPhone">
               <Input id="secondaryPhone" {...register("secondaryPhone")} />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
+            </Field>
+            <Field label="Email" id="email" error={errors.email?.message}>
               <Input id="email" type="email" {...register("email")} />
-              {errors.email && <p className="mt-1 text-xs text-tone-danger-fg">{errors.email.message}</p>}
-            </div>
-            <div>
-              <Label htmlFor="companyName">Company Name</Label>
+            </Field>
+            <Field label="Company Name" id="companyName">
               <Input id="companyName" {...register("companyName")} />
-            </div>
+            </Field>
             </div>
           </CardContent>
         </Card>
@@ -301,8 +294,7 @@ export default function NewLeadPage() {
             <CardTitle className="text-base">Lead Details</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label>Source</Label>
+            <Field label="Source">
               <Select items={sourceItems} onValueChange={(v: string | null) => setValue("sourceId", v ?? undefined)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select source" />
@@ -315,13 +307,11 @@ export default function NewLeadPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="sourceDetail">Source Detail / Campaign</Label>
+            </Field>
+            <Field label="Source Detail / Campaign" id="sourceDetail">
               <Input id="sourceDetail" {...register("sourceDetail")} />
-            </div>
-            <div>
-              <Label>Assign To</Label>
+            </Field>
+            <Field label="Assign To">
               <Select items={repItems} onValueChange={(v: string | null) => setValue("assignedUserId", v ?? undefined)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select rep" />
@@ -334,10 +324,10 @@ export default function NewLeadPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label>Property Type</Label>
+            </Field>
+            <Field label="Property Type">
               <Select
+                items={PROPERTY_TYPE_ITEMS}
                 defaultValue="RESIDENTIAL"
                 onValueChange={(v: string | null) => setValue("propertyType", (v ?? "RESIDENTIAL") as "RESIDENTIAL" | "COMMERCIAL")}
               >
@@ -349,23 +339,21 @@ export default function NewLeadPage() {
                   <SelectItem value="COMMERCIAL">Commercial</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="estimatedJobValue">Estimated Job Value ($)</Label>
+            </Field>
+            <Field label="Estimated Job Value ($)" id="estimatedJobValue">
               <Input
                 id="estimatedJobValue"
                 type="number"
                 {...register("estimatedJobValue", { setValueAs: (v) => (v === "" || v == null || Number.isNaN(Number(v)) ? null : Number(v)) })}
               />
-            </div>
-            <div>
-              <Label htmlFor="nextFollowUpAt">Next Follow-Up</Label>
+            </Field>
+            <Field label="Next Follow-Up" id="nextFollowUpAt">
               <Input
                 id="nextFollowUpAt"
                 type="datetime-local"
                 {...register("nextFollowUpAt")}
               />
-            </div>
+            </Field>
           </CardContent>
         </Card>
 
@@ -435,15 +423,14 @@ export default function NewLeadPage() {
                 <Label htmlFor="urgent">Urgent</Label>
               </div>
             </div>
-            <div>
-              <Label htmlFor="notesSummary">Notes</Label>
+            <Field label="Notes" id="notesSummary">
               <Textarea
                 id="notesSummary"
                 {...register("notesSummary")}
                 rows={3}
                 placeholder="Initial notes about this lead..."
               />
-            </div>
+            </Field>
           </CardContent>
         </Card>
 

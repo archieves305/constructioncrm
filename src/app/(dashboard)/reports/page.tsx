@@ -6,7 +6,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Download } from "lucide-react";
 import { toCsv, downloadCsv } from "@/lib/csv";
 import { fetchJson, HttpError, retryServerErrors } from "@/lib/fetch-json";
@@ -26,6 +25,7 @@ import {
 } from "recharts";
 import { useSession } from "@/lib/auth/session-client";
 import { canViewWorkflowReports } from "@/lib/workflows/access";
+import { Field } from "@/components/ui/field";
 
 export default function ReportsPage() {
   const [dateFrom, setDateFrom] = useState("");
@@ -129,24 +129,22 @@ export default function ReportsPage() {
       />
 
       <div className="mb-6 flex gap-4">
-        <div>
-          <Label className="text-xs">From</Label>
+        <Field label="From" labelClassName="text-xs">
           <Input
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
             className="w-[160px]"
           />
-        </div>
-        <div>
-          <Label className="text-xs">To</Label>
+        </Field>
+        <Field label="To" labelClassName="text-xs">
           <Input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
             className="w-[160px]"
           />
-        </div>
+        </Field>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

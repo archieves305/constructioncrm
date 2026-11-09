@@ -12,11 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
+import { Field } from "@/components/ui/field";
 
 type Device = {
   id: string;
@@ -160,15 +160,14 @@ export default function PhonesPage() {
                 : null}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="revoke-reason">Why (kept in the audit log)</Label>
+          <Field label="Why (kept in the audit log)" id="revoke-reason">
             <Textarea
               id="revoke-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Phone lost on site"
             />
-          </div>
+          </Field>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRevoking(null)}>
               Cancel

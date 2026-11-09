@@ -8,7 +8,6 @@ import { useSession } from "@/lib/auth/session-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -29,6 +28,7 @@ import {
 } from "@/components/customer-contracts/use-customer-contracts";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 const money = (v: string | number) => `$${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -273,14 +273,12 @@ function SendContractDialog({
           </div>
         ) : (
           <div className="space-y-3 text-sm">
-            <div>
-              <Label className="text-xs">Send to</Label>
+            <Field label="Send to" labelClassName="text-xs">
               <Input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="customer@example.com" />
-            </div>
-            <div>
-              <Label className="text-xs">Message (optional)</Label>
+            </Field>
+            <Field label="Message (optional)" labelClassName="text-xs">
               <Textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Shown above the Review & Sign button." />
-            </div>
+            </Field>
             <p className="text-xs text-muted-foreground">
               The customer gets the agreement as a PDF plus a private signing link that expires 30 days after sending.
               {state?.resend ? " Resending issues a fresh link; the previous link stops working." : ""}
@@ -330,10 +328,9 @@ function VoidContractDialog({ jobId, contract, onOpenChange }: { jobId: string; 
               ? "The signed agreement stays on file as evidence, but the job's contract amount set by it is reversed."
               : "The customer's signing link stops working immediately. The contract stays in the list for the record."}
           </p>
-          <div>
-            <Label className="text-xs">Reason</Label>
+          <Field label="Reason" labelClassName="text-xs">
             <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
-          </div>
+          </Field>
           <DialogFooter>
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel

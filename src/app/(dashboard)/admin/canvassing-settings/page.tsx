@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { Field } from "@/components/ui/field";
 
 type Band = { min: number; max: number | null; points: number };
 type Tier = { min: number; label: string };
@@ -445,28 +446,23 @@ export default function CanvassingSettingsPage() {
           <CardTitle className="text-base">Scripts & compliance</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="script">Default opening script</Label>
+          <Field label="Default opening script" id="script" help="Use [Owner Name] and [Canvasser Name] as placeholders.">
             <Textarea
               id="script"
               rows={4}
               value={draft.defaultOpeningScript}
               onChange={(e) => patch({ defaultOpeningScript: e.target.value })}
             />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Use [Owner Name] and [Canvasser Name] as placeholders.
-            </p>
-          </div>
+          </Field>
           <Separator />
-          <div>
-            <Label htmlFor="disclaimer">Compliance disclaimer</Label>
+          <Field label="Compliance disclaimer" id="disclaimer">
             <Textarea
               id="disclaimer"
               rows={4}
               value={draft.complianceDisclaimer}
               onChange={(e) => patch({ complianceDisclaimer: e.target.value })}
             />
-          </div>
+          </Field>
         </CardContent>
       </Card>
 

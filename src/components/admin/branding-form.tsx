@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchJson } from "@/lib/fetch-json";
+import { Field } from "@/components/ui/field";
 
 type Brand = {
   companyName: string;
@@ -96,19 +97,17 @@ export function BrandingForm() {
           <CardTitle className="text-base">Company</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <Label className="text-xs">Company name</Label>
+          <Field label="Company name" labelClassName="text-xs">
             <Input
               value={form.companyName}
               onChange={(e) => setForm({ ...form, companyName: e.target.value })}
               placeholder="Knu Construction"
             />
-          </div>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Logo URL</Label>
+            <Field label="Logo URL" labelClassName="text-xs">
               <Input {...field("logoUrl")} placeholder="https://..." />
-            </div>
+            </Field>
             <div>
               <Label className="text-xs">Brand color (hex)</Label>
               <div className="flex gap-2">
@@ -149,28 +148,24 @@ export function BrandingForm() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Office phone</Label>
+            <Field label="Office phone" labelClassName="text-xs">
               <Input {...field("officePhone")} placeholder="(561) 910-0142" />
-            </div>
-            <div>
-              <Label className="text-xs">Mobile / cell</Label>
+            </Field>
+            <Field label="Mobile / cell" labelClassName="text-xs">
               <Input {...field("mobilePhone")} placeholder="(561) 785-9122" />
-            </div>
+            </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Contact email</Label>
+            <Field label="Contact email" labelClassName="text-xs">
               <Input
                 type="email"
                 {...field("contactEmail")}
                 placeholder="info@knuconstruction.com"
               />
-            </div>
-            <div>
-              <Label className="text-xs">Website</Label>
+            </Field>
+            <Field label="Website" labelClassName="text-xs">
               <Input {...field("website")} placeholder="knuconstruction.com" />
-            </div>
+            </Field>
           </div>
         </CardContent>
       </Card>
@@ -195,8 +190,7 @@ export function BrandingForm() {
               placeholder='<strong>Knu Construction</strong><br/>2500 N Federal Highway...'
             />
           </div>
-          <div>
-            <Label className="text-xs">Signature (plain text fallback)</Label>
+          <Field label="Signature (plain text fallback)" labelClassName="text-xs">
             <Textarea
               rows={4}
               value={form.signatureText ?? ""}
@@ -205,7 +199,7 @@ export function BrandingForm() {
               }
               placeholder="Knu Construction&#10;2500 N Federal Highway..."
             />
-          </div>
+          </Field>
         </CardContent>
       </Card>
 

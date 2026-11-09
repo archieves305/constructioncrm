@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,6 +21,7 @@ import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 import { ITEM_STATUSES, ITEM_STATUS_LABEL, ITEM_STATUS_TONE } from "./status";
 import { money, useCaseAction, useViolationCategories, violationKeys, type CaseData } from "./use-violations";
+import { Field } from "@/components/ui/field";
 
 type Item = CaseData["items"][number];
 
@@ -177,10 +177,9 @@ export function ItemDialog({ open, onOpenChange, caseId, item }: { open: boolean
           <DialogDescription>One item per violation cited on the notice.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label className="text-xs">Category</Label>
+          <Field label="Category" labelClassName="text-xs">
             <Select value={form.categoryId || "__none"} onValueChange={(v: string | null) => set("categoryId", !v || v === "__none" ? "" : v)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => (!v || v === "__none" ? "Pick a category" : (categories.find((c) => c.id === v)?.name ?? "—"))}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -192,27 +191,22 @@ export function ItemDialog({ open, onOpenChange, caseId, item }: { open: boolean
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Code section</Label>
-            <Input className="mt-1" value={form.codeSection} onChange={(e) => set("codeSection", e.target.value)} placeholder="e.g. Sec. 8-5(b)" />
-          </div>
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Description (as cited)</Label>
-            <Textarea className="mt-1" rows={3} value={form.description} onChange={(e) => set("description", e.target.value)} />
-          </div>
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Required corrective action</Label>
-            <Textarea className="mt-1" rows={2} value={form.correctiveAction} onChange={(e) => set("correctiveAction", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Responsible trade</Label>
-            <Input className="mt-1" value={form.responsibleTrade} onChange={(e) => set("responsibleTrade", e.target.value)} placeholder="Roofing, Electrical…" />
-          </div>
-          <div>
-            <Label className="text-xs">Permit requirement</Label>
+          </Field>
+          <Field label="Code section" labelClassName="text-xs">
+            <Input  value={form.codeSection} onChange={(e) => set("codeSection", e.target.value)} placeholder="e.g. Sec. 8-5(b)" />
+          </Field>
+          <Field label="Description (as cited)" className="sm:col-span-2" labelClassName="text-xs">
+            <Textarea  rows={3} value={form.description} onChange={(e) => set("description", e.target.value)} />
+          </Field>
+          <Field label="Required corrective action" className="sm:col-span-2" labelClassName="text-xs">
+            <Textarea  rows={2} value={form.correctiveAction} onChange={(e) => set("correctiveAction", e.target.value)} />
+          </Field>
+          <Field label="Responsible trade" labelClassName="text-xs">
+            <Input  value={form.responsibleTrade} onChange={(e) => set("responsibleTrade", e.target.value)} placeholder="Roofing, Electrical…" />
+          </Field>
+          <Field label="Permit requirement" labelClassName="text-xs">
             <Select value={form.permitRequirement} onValueChange={(v: string | null) => v && set("permitRequirement", v)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => PERMIT_OPTIONS.find((o) => o.value === v)?.label ?? v}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -223,24 +217,20 @@ export function ItemDialog({ open, onOpenChange, caseId, item }: { open: boolean
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Contractor (if external)</Label>
-            <Input className="mt-1" value={form.contractorName} onChange={(e) => set("contractorName", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Target completion</Label>
-            <Input type="date" className="mt-1" value={form.targetCompletionAt} onChange={(e) => set("targetCompletionAt", e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Estimated cost</Label>
-            <Input className="mt-1" inputMode="decimal" value={form.estimatedCost} onChange={(e) => set("estimatedCost", e.target.value)} placeholder="0.00" />
-          </div>
+          </Field>
+          <Field label="Contractor (if external)" labelClassName="text-xs">
+            <Input  value={form.contractorName} onChange={(e) => set("contractorName", e.target.value)} />
+          </Field>
+          <Field label="Target completion" labelClassName="text-xs">
+            <Input type="date"  value={form.targetCompletionAt} onChange={(e) => set("targetCompletionAt", e.target.value)} />
+          </Field>
+          <Field label="Estimated cost" labelClassName="text-xs">
+            <Input  inputMode="decimal" value={form.estimatedCost} onChange={(e) => set("estimatedCost", e.target.value)} placeholder="0.00" />
+          </Field>
           {item && (
-            <div>
-              <Label className="text-xs">Actual cost</Label>
-              <Input className="mt-1" inputMode="decimal" value={form.actualCost} onChange={(e) => set("actualCost", e.target.value)} placeholder="0.00" />
-            </div>
+            <Field label="Actual cost" labelClassName="text-xs">
+              <Input  inputMode="decimal" value={form.actualCost} onChange={(e) => set("actualCost", e.target.value)} placeholder="0.00" />
+            </Field>
           )}
         </div>
         <div className="flex justify-end gap-2">

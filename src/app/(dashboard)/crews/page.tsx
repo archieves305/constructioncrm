@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { VendorSelect } from "@/components/vendors/vendor-select";
 import { fetchJson } from "@/lib/fetch-json";
+import { Field } from "@/components/ui/field";
 
 const COMMON_TRADES = [
   "Roofing",
@@ -352,33 +353,30 @@ export default function CrewsPage() {
             <DialogTitle>{editingId ? "Edit Crew" : "New Crew"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Crew name</Label>
+            <Field label="Crew name">
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="e.g. Alpha Roofing Crew"
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <Label>Phone</Label>
+              <Field label="Phone">
                 <Input
                   type="tel"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   placeholder="+1 555 123 4567"
                 />
-              </div>
-              <div>
-                <Label>Email</Label>
+              </Field>
+              <Field label="Email">
                 <Input
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="foreman@example.com"
                 />
-              </div>
+              </Field>
             </div>
 
             {editingId && (

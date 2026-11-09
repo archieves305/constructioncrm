@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { fetchJson } from "@/lib/fetch-json";
+import { Field } from "@/components/ui/field";
 
 function toDatetimeLocal(value: string | null | undefined): string {
   if (!value) return "";
@@ -32,6 +33,8 @@ function toDatetimeLocal(value: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+
+const PROPERTY_TYPE_ITEMS = { RESIDENTIAL: "Residential", COMMERCIAL: "Commercial" };
 export default function EditLeadPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -175,50 +178,24 @@ export default function EditLeadPage() {
             <CardTitle className="text-base">Customer</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="firstName">First Name *</Label>
+            <Field label="First Name" id="firstName" required error={errors.firstName?.message}>
               <Input id="firstName" {...register("firstName")} />
-              {errors.firstName && (
-                <p className="mt-1 text-xs text-tone-danger-fg">
-                  {errors.firstName.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="lastName">Last Name *</Label>
+            </Field>
+            <Field label="Last Name" id="lastName" required error={errors.lastName?.message}>
               <Input id="lastName" {...register("lastName")} />
-              {errors.lastName && (
-                <p className="mt-1 text-xs text-tone-danger-fg">
-                  {errors.lastName.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="primaryPhone">Primary Phone *</Label>
+            </Field>
+            <Field label="Primary Phone" id="primaryPhone" required error={errors.primaryPhone?.message}>
               <Input id="primaryPhone" {...register("primaryPhone")} />
-              {errors.primaryPhone && (
-                <p className="mt-1 text-xs text-tone-danger-fg">
-                  {errors.primaryPhone.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="secondaryPhone">Secondary Phone</Label>
+            </Field>
+            <Field label="Secondary Phone" id="secondaryPhone">
               <Input id="secondaryPhone" {...register("secondaryPhone")} />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
+            </Field>
+            <Field label="Email" id="email" error={errors.email?.message}>
               <Input id="email" type="email" {...register("email")} />
-              {errors.email && (
-                <p className="mt-1 text-xs text-tone-danger-fg">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="companyName">Company Name</Label>
+            </Field>
+            <Field label="Company Name" id="companyName">
               <Input id="companyName" {...register("companyName")} />
-            </div>
+            </Field>
           </CardContent>
         </Card>
 
@@ -240,8 +217,7 @@ export default function EditLeadPage() {
             <CardTitle className="text-base">Lead Details</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label>Source</Label>
+            <Field label="Source">
               <Select
                 items={(sources ?? []).map((s: { id: string; name: string }) => ({ value: s.id, label: s.name }))}
                 value={watch("sourceId") ?? ""}
@@ -260,13 +236,11 @@ export default function EditLeadPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="sourceDetail">Source Detail / Campaign</Label>
+            </Field>
+            <Field label="Source Detail / Campaign" id="sourceDetail">
               <Input id="sourceDetail" {...register("sourceDetail")} />
-            </div>
-            <div>
-              <Label>Assign To</Label>
+            </Field>
+            <Field label="Assign To">
               <Select
                 items={(users ?? []).map((u: { id: string; firstName: string; lastName: string }) => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }))}
                 value={watch("assignedUserId") ?? ""}
@@ -299,10 +273,10 @@ export default function EditLeadPage() {
                     )}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label>Property Type</Label>
+            </Field>
+            <Field label="Property Type">
               <Select
+                items={PROPERTY_TYPE_ITEMS}
                 value={watch("propertyType") ?? "RESIDENTIAL"}
                 onValueChange={(v: string | null) =>
                   setValue(
@@ -320,23 +294,21 @@ export default function EditLeadPage() {
                   <SelectItem value="COMMERCIAL">Commercial</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="estimatedJobValue">Estimated Job Value ($)</Label>
+            </Field>
+            <Field label="Estimated Job Value ($)" id="estimatedJobValue">
               <Input
                 id="estimatedJobValue"
                 type="number"
                 {...register("estimatedJobValue", { valueAsNumber: true })}
               />
-            </div>
-            <div>
-              <Label htmlFor="nextFollowUpAt">Next Follow-Up</Label>
+            </Field>
+            <Field label="Next Follow-Up" id="nextFollowUpAt">
               <Input
                 id="nextFollowUpAt"
                 type="datetime-local"
                 {...register("nextFollowUpAt")}
               />
-            </div>
+            </Field>
           </CardContent>
         </Card>
 
@@ -425,14 +397,13 @@ export default function EditLeadPage() {
                 <Label htmlFor="urgent">Urgent</Label>
               </div>
             </div>
-            <div>
-              <Label htmlFor="notesSummary">Notes</Label>
+            <Field label="Notes" id="notesSummary">
               <Textarea
                 id="notesSummary"
                 {...register("notesSummary")}
                 rows={3}
               />
-            </div>
+            </Field>
           </CardContent>
         </Card>
 

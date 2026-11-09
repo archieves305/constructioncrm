@@ -10,7 +10,6 @@ import { fetchJson } from "@/lib/fetch-json";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,6 +44,7 @@ import {
   Calendar,
   DoorOpen,
 } from "lucide-react";
+import { Field } from "@/components/ui/field";
 
 type StopStatus = "PENDING" | "VISITED" | "SKIPPED";
 
@@ -623,24 +623,21 @@ function EditRouteDialog({
           <DialogTitle>Edit route</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="edit-name">Route Name</Label>
+          <Field label="Route Name" id="edit-name">
             <Input
               id="edit-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-          </div>
-          <div>
-            <Label htmlFor="edit-desc">Description</Label>
+          </Field>
+          <Field label="Description" id="edit-desc">
             <Textarea
               id="edit-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-          </div>
-          <div>
-            <Label htmlFor="edit-status">Status</Label>
+          </Field>
+          <Field label="Status" id="edit-status">
             <Select
               value={status}
               onValueChange={(v) => setStatus(v as Route["status"])}
@@ -655,16 +652,15 @@ function EditRouteDialog({
                 <SelectItem value="ARCHIVED">Archived</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label htmlFor="edit-date">Scheduled Date</Label>
+          </Field>
+          <Field label="Scheduled Date" id="edit-date">
             <Input
               id="edit-date"
               type="date"
               value={scheduledFor}
               onChange={(e) => setScheduledFor(e.target.value)}
             />
-          </div>
+          </Field>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -722,8 +718,7 @@ function LogKnockDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="knock-outcome">Outcome</Label>
+          <Field label="Outcome" id="knock-outcome">
             <Select
               value={outcome}
               onValueChange={(v) => setOutcome(v as Outcome)}
@@ -739,16 +734,15 @@ function LogKnockDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label htmlFor="knock-notes">Notes</Label>
+          </Field>
+          <Field label="Notes" id="knock-notes">
             <Textarea
               id="knock-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Optional notes about this knock"
             />
-          </div>
+          </Field>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

@@ -16,6 +16,7 @@ import { PERMIT_STATUS_LABEL } from "./status";
 import { ReconcilePreviewPanel } from "./reconcile-preview-panel";
 import { useReconcile, useReconcilePreview, useWorkflowTemplates } from "./use-workflow";
 import { subjectInfoOf, toSubjectRef, type JobWorkflowData, type ReconcileChange, type ReconcilePlanData, type SubjectLike } from "./types";
+import { Field } from "@/components/ui/field";
 
 export type ReconcileMode =
   | { kind: "permit" }
@@ -142,12 +143,9 @@ function ReconcileBody({ subject, data, mode, onClose }: { subject: SubjectLike;
             </Label>
             <Textarea id="rc-reason" rows={2} className="mt-1" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={permitStatus === "NOT_REQUIRED" ? "Who confirmed the exemption, and how" : "What changed"} />
           </div>
-          <div>
-            <Label htmlFor="rc-jur" className="text-xs">
-              Jurisdiction
-            </Label>
-            <Input id="rc-jur" className="mt-1" value={jurisdiction} onChange={(e) => setJurisdiction(e.target.value)} />
-          </div>
+          <Field label="Jurisdiction" id="rc-jur" labelClassName="text-xs">
+            <Input id="rc-jur"  value={jurisdiction} onChange={(e) => setJurisdiction(e.target.value)} />
+          </Field>
         </div>
       )}
 

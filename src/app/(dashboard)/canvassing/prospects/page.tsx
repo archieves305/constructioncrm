@@ -9,7 +9,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -32,6 +31,7 @@ import { ArrowLeft, DoorOpen, FileText, ListChecks, MapPin, Search, Trash2, User
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { CanvasserSummaryModal } from "@/components/canvassing/canvasser-summary-modal";
+import { Field } from "@/components/ui/field";
 
 type Outcome =
   | "NO_ANSWER"
@@ -397,8 +397,7 @@ function KnockDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="outcome">Outcome</Label>
+          <Field label="Outcome" id="outcome">
             <Select value={outcome} onValueChange={(v) => setOutcome(v as Outcome)}>
               <SelectTrigger id="outcome">
                 <SelectValue />
@@ -411,16 +410,15 @@ function KnockDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label htmlFor="notes">Notes</Label>
+          </Field>
+          <Field label="Notes" id="notes">
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Optional notes"
             />
-          </div>
+          </Field>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
@@ -497,22 +495,18 @@ function PromoteDialog({
           address. A phone number is required.
         </p>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="fn">First name</Label>
+          <Field label="First name" id="fn">
             <Input id="fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-          </div>
-          <div>
-            <Label htmlFor="ln">Last name</Label>
+          </Field>
+          <Field label="Last name" id="ln">
             <Input id="ln" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-          </div>
-          <div>
-            <Label htmlFor="ph">Phone *</Label>
+          </Field>
+          <Field label="Phone" id="ph" required>
             <Input id="ph" value={primaryPhone} onChange={(e) => setPhone(e.target.value)} />
-          </div>
-          <div>
-            <Label htmlFor="em">Email</Label>
+          </Field>
+          <Field label="Email" id="em">
             <Input id="em" value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
+          </Field>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

@@ -23,6 +23,7 @@ import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 import { BidFormDialog } from "./bid-form-dialog";
 import { BID_STATUS_TONE, personName, useBid, useBidAction, useBidOptions, type BidDetail, type BidOutcome, type BidStatus, type LossReason, type ScoreResult, type SliderKey, type Sliders, type SubmissionKind, type SubmissionMethod } from "./use-partners";
+import { Field } from "@/components/ui/field";
 
 const usd = (n: number | null | undefined) => (n == null ? "—" : n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }));
 const when = (iso: string | null) => (iso ? format(new Date(iso), "EEE MMM d, yyyy · h:mm a") : null);
@@ -435,8 +436,7 @@ function SubmissionForm({ bid: b, onClose }: { bid: BidDetail; onClose: () => vo
         <DialogDescription>The price as it went to {b.organization.name}. It is kept as sent; a later change is a new version.</DialogDescription>
       </DialogHeader>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label>From estimate</Label>
+        <Field label="From estimate" help="Its price and cost are kept with the submission, so the margin at bid time survives later edits." className="sm:col-span-2">
           <Select items={estItems} value={form.estimate} onValueChange={(v: string | null) => {
             const picked = estimateItems.find((e) => e.value === v);
             setForm((f) => ({ ...f, estimate: v ?? NONE, amount: picked && !f.amount ? String(picked.total) : f.amount }));
@@ -444,54 +444,44 @@ function SubmissionForm({ bid: b, onClose }: { bid: BidDetail; onClose: () => vo
             <SelectTrigger className="w-full" aria-label="Estimate"><SelectValue /></SelectTrigger>
             <SelectContent>{estItems.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}</SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">Its price and cost are kept with the submission, so the margin at bid time survives later edits.</p>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="s-amount">Amount</Label>
+        </Field>
+        <Field label="Amount" id="s-amount">
           <Input id="s-amount" type="number" min={0} step="0.01" inputMode="decimal" value={form.amount} onChange={(e) => set("amount", e.target.value)} required />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="s-date">Sent</Label>
+        </Field>
+        <Field label="Sent" id="s-date">
           <Input id="s-date" type="date" value={form.submittedAt} onChange={(e) => set("submittedAt", e.target.value)} required />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Kind</Label>
+        </Field>
+        <Field label="Kind">
           <Select items={options?.submissionKinds ?? []} value={form.kind} onValueChange={(v: SubmissionKind | null) => v && set("kind", v)}>
             <SelectTrigger className="w-full" aria-label="Kind"><SelectValue /></SelectTrigger>
             <SelectContent>{(options?.submissionKinds ?? []).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label>How</Label>
+        </Field>
+        <Field label="How">
           <Select items={options?.submissionMethods ?? []} value={form.method} onValueChange={(v: SubmissionMethod | null) => v && set("method", v)}>
             <SelectTrigger className="w-full" aria-label="Method"><SelectValue /></SelectTrigger>
             <SelectContent>{(options?.submissionMethods ?? []).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label>To</Label>
+        </Field>
+        <Field label="To">
           <Select items={contactItems} value={form.recipientContactId} onValueChange={(v: string | null) => set("recipientContactId", v ?? NONE)}>
             <SelectTrigger className="w-full" aria-label="Recipient"><SelectValue /></SelectTrigger>
             <SelectContent>{contactItems.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="s-hours">Estimating hours so far</Label>
+        </Field>
+        <Field label="Estimating hours so far" id="s-hours">
           <Input id="s-hours" type="number" min={0} step="0.5" value={form.estimatingHours} onChange={(e) => set("estimatingHours", e.target.value)} />
-        </div>
+        </Field>
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="s-clar">Clarifications</Label>
+      <Field label="Clarifications" id="s-clar">
         <Textarea id="s-clar" rows={2} value={form.clarifications} onChange={(e) => set("clarifications", e.target.value)} maxLength={5000} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="s-excl">Exclusions</Label>
+      </Field>
+      <Field label="Exclusions" id="s-excl">
         <Textarea id="s-excl" rows={2} value={form.exclusions} onChange={(e) => set("exclusions", e.target.value)} maxLength={5000} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="s-alt">Alternates</Label>
+      </Field>
+      <Field label="Alternates" id="s-alt">
         <Textarea id="s-alt" rows={2} value={form.alternates} onChange={(e) => set("alternates", e.target.value)} maxLength={5000} />
-      </div>
+      </Field>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
         <Button type="submit" variant="brand" disabled={!form.amount || save.isPending}>{save.isPending ? "Saving…" : "Record"}</Button>
@@ -533,50 +523,42 @@ function CloseForm({ initial, bid: b, onClose }: { initial: BidOutcome; bid: Bid
         <DialogDescription>{awarded ? "Marks the lead Won and creates the job: progress billing, 10% retainage, no deposit." : "Records how it ended. The lead is marked Lost unless the bid is being rebid."}</DialogDescription>
       </DialogHeader>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label>Outcome</Label>
+        <Field label="Outcome">
           <Select items={outcomes} value={form.outcome} onValueChange={(v: BidOutcome | null) => v && set("outcome", v)}>
             <SelectTrigger className="w-full" aria-label="Outcome"><SelectValue /></SelectTrigger>
             <SelectContent>{outcomes.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="o-date">Decided on</Label>
+        </Field>
+        <Field label="Decided on" id="o-date">
           <Input id="o-date" type="date" value={form.outcomeAt} onChange={(e) => set("outcomeAt", e.target.value)} />
-        </div>
+        </Field>
         {awarded && (
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="o-amount">Awarded amount</Label>
+          <Field label="Awarded amount" id="o-amount" help="Becomes the job&apos;s contract amount." className="sm:col-span-2">
             <Input id="o-amount" type="number" min={0} step="0.01" value={form.awardedAmount} onChange={(e) => set("awardedAmount", e.target.value)} required />
-            <p className="text-xs text-muted-foreground">Becomes the job&apos;s contract amount.</p>
-          </div>
+          </Field>
         )}
         {lost && (
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Why it was lost</Label>
+          <Field label="Why it was lost" className="sm:col-span-2">
             <Select items={options?.lossReasons ?? []} value={form.lossReason || null} onValueChange={(v: LossReason | null) => set("lossReason", v ?? "")}>
               <SelectTrigger className="w-full" aria-label="Loss reason"><SelectValue placeholder="Pick a reason" /></SelectTrigger>
               <SelectContent>{(options?.lossReasons ?? []).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
+          </Field>
         )}
         {!awarded && (
           <>
-            <div className="space-y-1.5">
-              <Label htmlFor="o-winner">Went to</Label>
+            <Field label="Went to" id="o-winner">
               <Input id="o-winner" value={form.winningContractor} onChange={(e) => set("winningContractor", e.target.value)} maxLength={200} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="o-price">Their price</Label>
+            </Field>
+            <Field label="Their price" id="o-price">
               <Input id="o-price" type="number" min={0} step="0.01" value={form.winningPrice} onChange={(e) => set("winningPrice", e.target.value)} />
-            </div>
+            </Field>
           </>
         )}
       </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="o-notes">Notes</Label>
+      <Field label="Notes" id="o-notes">
         <Textarea id="o-notes" rows={2} value={form.outcomeNotes} onChange={(e) => set("outcomeNotes", e.target.value)} maxLength={5000} placeholder="What the GC said" />
-      </div>
+      </Field>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
         <Button type="submit" variant={awarded ? "brand" : "default"} disabled={!ok || close.isPending}>{close.isPending ? "Saving…" : awarded ? "Award and create the job" : "Close the bid"}</Button>

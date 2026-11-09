@@ -12,7 +12,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,6 +21,7 @@ import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { formatFileSize } from "@/lib/files/limits";
 import { useJurisdictions, usePermitTypes } from "../use-permit-intel";
 import type { TemplateRow } from "./types";
+import { Field } from "@/components/ui/field";
 
 export const formKeys = { list: ["permit-forms"] as const, one: (id: string) => ["permit-forms", id] as const };
 
@@ -169,12 +169,10 @@ function UploadForm({ onClose }: { onClose: () => void }) {
             {file.name} · {formatFileSize(file.size)}
           </p>
         )}
-        <div className="space-y-1">
-          <Label htmlFor="form-name">Name</Label>
+        <Field label="Name" id="form-name">
           <Input id="form-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Universal permit application (Palm Beach County)" />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="form-j">Jurisdiction</Label>
+        </Field>
+        <Field label="Jurisdiction" id="form-j">
           <Select items={jItems} value={jurisdictionId} onValueChange={(v: string | null) => v && setJurisdictionId(v)}>
             <SelectTrigger id="form-j" className="w-full">
               <SelectValue />
@@ -187,12 +185,11 @@ function UploadForm({ onClose }: { onClose: () => void }) {
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
         {jurisdictionId === ANY && (
-          <div className="space-y-1">
-            <Label htmlFor="form-county">County (offered on every permit in it)</Label>
+          <Field label="County (offered on every permit in it)" id="form-county">
             <Input id="form-county" value={county} onChange={(e) => setCounty(e.target.value)} placeholder="Palm Beach — leave empty for anywhere" />
-          </div>
+          </Field>
         )}
         <div className="space-y-1">
           <p className="text-sm font-medium">Permit types (none ticked = every type)</p>

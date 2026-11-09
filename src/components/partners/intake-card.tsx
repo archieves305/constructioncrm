@@ -11,11 +11,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { BidFormDialog, type BidFormPrefill } from "./bid-form-dialog";
 import { useBids, useIntakeAction, useIntakeEmail, useOrganizations, type IntakeItem, type ParsedDate } from "./use-partners";
+import { Field as FormField } from "@/components/ui/field";
 
 const PLATFORM: Record<string, string> = { BUILDINGCONNECTED: "BuildingConnected", PROCORE: "Procore", PLANHUB: "PlanHub", SMARTBID: "SmartBid", CONSTRUCTCONNECT: "ConstructConnect", TEXTURA: "Textura", EMAIL: "Email", OTHER: "Other" };
 const CHANNEL: Record<string, string> = { manual: "pasted", mailersend: "forwarded", outlook: "Outlook" };
@@ -169,13 +169,12 @@ function AttachDialog({ item, onClose }: { item: IntakeItem; onClose: () => void
           <DialogDescription>The email goes on the bid&apos;s history and counts as a touch from the GC. Tick what it changes; nothing else moves.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Bid</Label>
+          <FormField label="Bid">
             <Select items={items} value={bidId} onValueChange={(v: string | null) => setBidId(v)}>
               <SelectTrigger className="w-full" aria-label="Bid"><SelectValue placeholder={bids.isLoading ? "Loading…" : "Pick the bid"} /></SelectTrigger>
               <SelectContent>{items.map((b) => <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
+          </FormField>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={countAddendum} onCheckedChange={(c) => setCountAddendum(Boolean(c))} />
             Count it as an addendum{chosen ? ` (makes ${chosen.addendaCount + 1})` : ""}
@@ -206,10 +205,9 @@ function DismissDialog({ item, onClose }: { item: IntakeItem; onClose: () => voi
           <DialogTitle>Dismiss this email</DialogTitle>
           <DialogDescription>It leaves the queue and stays on record under Dismissed. No bid is created.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-1.5">
-          <Label htmlFor="dismiss-reason">Why (optional)</Label>
+        <FormField label="Why (optional)" id="dismiss-reason">
           <Input id="dismiss-reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="Not our trade, a newsletter, already logged…" />
-        </div>
+        </FormField>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button variant="destructive" disabled={dismiss.isPending} onClick={() => dismiss.mutate({ id: item.id, body: { reason } }, { onSuccess: onClose })}>Dismiss</Button>

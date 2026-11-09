@@ -26,6 +26,7 @@ import { FormTemplates } from "@/components/permit-intel/forms/form-templates";
 import { KnowledgeAdmin } from "@/components/permit-intel/knowledge-admin";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { PERMIT_DOC_TYPES, permitDocLabel } from "@/lib/permit-intel/doc-types";
+import { Field } from "@/components/ui/field";
 
 type Requirement = {
   id: string;
@@ -185,12 +186,10 @@ function JurisdictionForm({ j, onClose }: { j: JurisdictionOption | null; onClos
       </DialogHeader>
       <div className="grid gap-3">
         <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-          <div className="space-y-1.5">
-            <Label htmlFor="j-name">Name</Label>
+          <Field label="Name" id="j-name">
             <Input id="j-name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="City of Palm Beach" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Kind</Label>
+          </Field>
+          <Field label="Kind">
             <Select items={KIND_ITEMS} value={form.kind} onValueChange={(v: string | null) => v && set("kind", v)}>
               <SelectTrigger>
                 <SelectValue />
@@ -203,15 +202,13 @@ function JurisdictionForm({ j, onClose }: { j: JurisdictionOption | null; onClos
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="j-county">County</Label>
+          <Field label="County" id="j-county">
             <Input id="j-county" value={form.county} onChange={(e) => set("county", e.target.value)} placeholder="Palm Beach" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Submitted by</Label>
+          </Field>
+          <Field label="Submitted by">
             <Select items={METHOD_ITEMS} value={form.submissionMethod} onValueChange={(v: string | null) => v && set("submissionMethod", v)}>
               <SelectTrigger>
                 <SelectValue />
@@ -224,26 +221,20 @@ function JurisdictionForm({ j, onClose }: { j: JurisdictionOption | null; onClos
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="j-portal">Permit portal link</Label>
+        <Field label="Permit portal link" id="j-portal">
           <Input id="j-portal" value={form.portalUrl} onChange={(e) => set("portalUrl", e.target.value)} placeholder="https://…" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="j-web">Building department website</Label>
+        </Field>
+        <Field label="Building department website" id="j-web" help="Where the document assistant starts looking for forms and checklists.">
           <Input id="j-web" value={form.websiteUrl} onChange={(e) => set("websiteUrl", e.target.value)} placeholder="https://… (the permits / building page)" />
-          <p className="text-xs text-muted-foreground">Where the document assistant starts looking for forms and checklists.</p>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="j-hosts">Other sites it may open</Label>
+        </Field>
+        <Field label="Other sites it may open" id="j-hosts" help="Sites the department links to for its forms. The state and Miami-Dade product-approval sites are always allowed.">
           <Input id="j-hosts" value={form.allowedHosts} onChange={(e) => set("allowedHosts", e.target.value)} placeholder="discover.pbc.gov, municode.com" />
-          <p className="text-xs text-muted-foreground">Sites the department links to for its forms. The state and Miami-Dade product-approval sites are always allowed.</p>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="j-days">Days in review before it counts as slow</Label>
+        </Field>
+        <Field label="Days in review before it counts as slow" id="j-days">
           <Input id="j-days" inputMode="numeric" value={form.reviewDaysTarget} onChange={(e) => set("reviewDaysTarget", e.target.value.replace(/\D/g, ""))} placeholder="Leave empty for the 7 / 14 defaults" />
-        </div>
+        </Field>
         <label className="flex items-center gap-2 text-sm">
           <Checkbox checked={form.hvhz} onCheckedChange={(v) => set("hvhz", v === true)} /> High-Velocity Hurricane Zone (Miami-Dade, Broward)
         </label>
@@ -252,10 +243,9 @@ function JurisdictionForm({ j, onClose }: { j: JurisdictionOption | null; onClos
             <Checkbox checked={form.isActive} onCheckedChange={(v) => set("isActive", v === true)} /> In use (off hides it from the permit form)
           </label>
         )}
-        <div className="space-y-1.5">
-          <Label htmlFor="j-notes">Notes</Label>
+        <Field label="Notes" id="j-notes">
           <Textarea id="j-notes" rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
-        </div>
+        </Field>
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onClose}>
@@ -388,10 +378,9 @@ function RequirementForm({ r, onClose }: { r: Requirement | null; onClose: () =>
         <DialogTitle>{r ? "Edit requirement" : "Add a requirement"}</DialogTitle>
       </DialogHeader>
       <div className="grid gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="r-title">What is required</Label>
+        <Field label="What is required" id="r-title">
           <Input id="r-title" value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Recorded notice of commencement" />
-        </div>
+        </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Jurisdiction</Label>
@@ -411,15 +400,13 @@ function RequirementForm({ r, onClose }: { r: Requirement | null; onClose: () =>
           {pick(RELIABILITY_ITEMS, form.reliability, (v) => set("reliability", v as typeof form.reliability))}
         </div>
         {form.reliability === "OFFICIAL" && (
-          <div className="space-y-1.5">
-            <Label htmlFor="r-src">Source link</Label>
+          <Field label="Source link" id="r-src">
             <Input id="r-src" value={form.sourceUrl} onChange={(e) => set("sourceUrl", e.target.value)} placeholder="The department's published checklist" />
-          </div>
+          </Field>
         )}
-        <div className="space-y-1.5">
-          <Label htmlFor="r-body">Details</Label>
+        <Field label="Details" id="r-body">
           <Textarea id="r-body" rows={2} value={form.body} onChange={(e) => set("body", e.target.value)} />
-        </div>
+        </Field>
         <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={form.required} onCheckedChange={(v) => set("required", v === true)} /> Required (off = recommended)

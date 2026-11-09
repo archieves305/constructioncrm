@@ -21,6 +21,7 @@ import { fetchJson, HttpError, retryServerErrors } from "@/lib/fetch-json";
 import { canManageNotificationSettings } from "@/lib/notifications/access";
 import type { TickResult } from "@/lib/notifications/digest/run";
 import { toneClasses, type Tone } from "@/lib/ui/tones";
+import { Field } from "@/components/ui/field";
 
 type Settings = {
   enabled: boolean;
@@ -176,26 +177,21 @@ function DeliveryTab({ data, isAdmin }: { data: Payload; isAdmin: boolean }) {
             </span>
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label className="text-xs">Digest times (HH:MM, company time)</Label>
-              <Input value={windows} onChange={(e) => setWindows(e.target.value)} disabled={!isAdmin} placeholder="08:00, 12:00, 15:30, 18:00" className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Time zone</Label>
-              <Input value={form.timeZone} onChange={(e) => setForm((f) => ({ ...f, timeZone: e.target.value }))} disabled={!isAdmin} className="mt-1" />
-            </div>
+            <Field label="Digest times (HH:MM, company time)" labelClassName="text-xs">
+              <Input value={windows} onChange={(e) => setWindows(e.target.value)} disabled={!isAdmin} placeholder="08:00, 12:00, 15:30, 18:00"  />
+            </Field>
+            <Field label="Time zone" labelClassName="text-xs">
+              <Input value={form.timeZone} onChange={(e) => setForm((f) => ({ ...f, timeZone: e.target.value }))} disabled={!isAdmin}  />
+            </Field>
             <label className="flex items-center gap-2 text-sm sm:col-span-2">
               <Checkbox checked={form.weekdaysOnly} disabled={!isAdmin} onCheckedChange={(v) => setForm((f) => ({ ...f, weekdaysOnly: Boolean(v) }))} /> Weekdays only (weekend activity waits for Monday morning; urgent mail still goes)
             </label>
-            <div>
-              <Label className="text-xs">Catch-up grace (minutes)</Label>
-              <Input type="number" value={form.catchUpGraceMinutes} onChange={num("catchUpGraceMinutes")} disabled={!isAdmin} className="mt-1" />
-              <p className="mt-0.5 text-2xs text-muted-foreground">How long after a time the tick may still send that digest.</p>
-            </div>
-            <div>
-              <Label className="text-xs">Keep rows for (days)</Label>
-              <Input type="number" value={form.retentionDays} onChange={num("retentionDays")} disabled={!isAdmin} className="mt-1" />
-            </div>
+            <Field label="Catch-up grace (minutes)" help="How long after a time the tick may still send that digest." labelClassName="text-xs">
+              <Input type="number" value={form.catchUpGraceMinutes} onChange={num("catchUpGraceMinutes")} disabled={!isAdmin}  />
+            </Field>
+            <Field label="Keep rows for (days)" labelClassName="text-xs">
+              <Input type="number" value={form.retentionDays} onChange={num("retentionDays")} disabled={!isAdmin}  />
+            </Field>
           </div>
           {isAdmin && (
             <Button onClick={submit} disabled={save.isPending}>
@@ -211,20 +207,15 @@ function DeliveryTab({ data, isAdmin }: { data: Payload; isAdmin: boolean }) {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label className="text-xs">Immediate mails per person per hour</Label>
-              <Input type="number" value={form.maxImmediatePerUserPerHour} onChange={num("maxImmediatePerUserPerHour")} disabled={!isAdmin} className="mt-1" />
-              <p className="mt-0.5 text-2xs text-muted-foreground">Past this, the rest wait for the next digest (mentions, nudges and escalations excepted).</p>
-            </div>
-            <div>
-              <Label className="text-xs">Collapse an engine batch from</Label>
-              <Input type="number" value={form.batchCollapseThreshold} onChange={num("batchCollapseThreshold")} disabled={!isAdmin} className="mt-1" />
-              <p className="mt-0.5 text-2xs text-muted-foreground">Steps from one workflow run become one digest line at this size.</p>
-            </div>
-            <div>
-              <Label className="text-xs">Storm threshold (rows / 10 min)</Label>
-              <Input type="number" value={form.stormThresholdPer10Min} onChange={num("stormThresholdPer10Min")} disabled={!isAdmin} className="mt-1" />
-            </div>
+            <Field label="Immediate mails per person per hour" help="Past this, the rest wait for the next digest (mentions, nudges and escalations excepted)." labelClassName="text-xs">
+              <Input type="number" value={form.maxImmediatePerUserPerHour} onChange={num("maxImmediatePerUserPerHour")} disabled={!isAdmin}  />
+            </Field>
+            <Field label="Collapse an engine batch from" help="Steps from one workflow run become one digest line at this size." labelClassName="text-xs">
+              <Input type="number" value={form.batchCollapseThreshold} onChange={num("batchCollapseThreshold")} disabled={!isAdmin}  />
+            </Field>
+            <Field label="Storm threshold (rows / 10 min)" labelClassName="text-xs">
+              <Input type="number" value={form.stormThresholdPer10Min} onChange={num("stormThresholdPer10Min")} disabled={!isAdmin}  />
+            </Field>
             <div>
               <Label className="text-xs">Digest: subjects per section · items per subject</Label>
               <div className="mt-1 flex gap-2">

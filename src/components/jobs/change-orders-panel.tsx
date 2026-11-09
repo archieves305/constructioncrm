@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -39,6 +38,7 @@ import {
 } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 type ChangeOrder = {
   id: string;
@@ -620,23 +620,21 @@ export function ChangeOrdersPanel({
               {isProgress &&
                 " On this progress-billed job, approval adds the change order to the schedule of values; it is billed on the next payment application as the work is completed."}
             </p>
-            <div>
-              <Label>Approved/rejected by</Label>
+            <Field label="Approved/rejected by">
               <Input
                 value={decideName}
                 onChange={(e) => setDecideName(e.target.value)}
                 placeholder="Customer name (defaults to you)"
               />
-            </div>
-            <div>
-              <Label>Reason (for rejection)</Label>
+            </Field>
+            <Field label="Reason (for rejection)">
               <Textarea
                 rows={2}
                 value={decideReason}
                 onChange={(e) => setDecideReason(e.target.value)}
                 placeholder="Optional"
               />
-            </div>
+            </Field>
           </div>
           <DialogFooter>
             <Button
@@ -664,55 +662,50 @@ export function ChangeOrdersPanel({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div>
-              <Label>Title</Label>
+            <Field label="Title">
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Add bathroom tile"
               />
-            </div>
-            <div>
-              <Label>Scope / description (shown to customer)</Label>
+            </Field>
+            <Field label="Scope / description (shown to customer)">
               <Textarea
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe the additional work"
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Customer price *</Label>
+              <Field label="Customer price" required>
                 <Input
                   inputMode="decimal"
                   value={customerPrice}
                   onChange={(e) => setCustomerPrice(e.target.value)}
                   placeholder="0.00"
                 />
-              </div>
-              <div>
-                <Label>Crew cost (internal)</Label>
+              </Field>
+              <Field label="Crew cost (internal)">
                 <Input
                   inputMode="decimal"
                   value={crewCost}
                   onChange={(e) => setCrewCost(e.target.value)}
                   placeholder="optional"
                 />
-              </div>
-              <div className="col-span-2">
-                <Label>Other cost — materials, subs (internal)</Label>
+              </Field>
+              <Field label="Other cost — materials, subs (internal)" help="Once approved, crew and other cost are added to the job&apos;s expected cost." className="col-span-2">
                 <Input
                   inputMode="decimal"
                   value={materialCost}
                   onChange={(e) => setMaterialCost(e.target.value)}
                   placeholder="optional"
                 />
-                <p className="mt-1 text-xs text-muted-foreground">Once approved, crew and other cost are added to the job&apos;s expected cost.</p>
-              </div>
+              </Field>
             </div>
-            <div>
-              <Label>Linked crew contract (optional)</Label>
+            <Field label="Linked crew contract (optional)" help={<><Link2 className="mr-1 inline h-3 w-3" />
+                When set with a crew cost, approval also files a labor change
+                order so crew totals stay correct.</>}>
               <Select
                 items={{ [NO_CREW]: "None", ...Object.fromEntries(contracts.map((c) => [c.id, contractName(c)])) }}
                 value={laborContractId}
@@ -732,12 +725,7 @@ export function ChangeOrdersPanel({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="mt-1 text-xs text-muted-foreground">
-                <Link2 className="mr-1 inline h-3 w-3" />
-                When set with a crew cost, approval also files a labor change
-                order so crew totals stay correct.
-              </p>
-            </div>
+            </Field>
             {!["FIXED_PRICE"].includes(jobType) && (
               <p className="text-xs text-tone-warning-fg">
                 This is a {jobType.replace("_", "-").toLowerCase()} job — the

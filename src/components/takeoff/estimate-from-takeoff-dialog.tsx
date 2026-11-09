@@ -7,12 +7,12 @@ import { Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Callout } from "@/components/shared/callout";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchJson } from "@/lib/fetch-json";
 import type { LeftOutReason } from "@/lib/takeoff/roofing/to-measurement";
+import { Field } from "@/components/ui/field";
 
 type Preview = {
   takeoff: { id: string; number: string };
@@ -122,13 +122,12 @@ export function EstimateFromTakeoffDialog({ takeoffId, leadId, onOpenChange }: {
                   ))}
                 </ul>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="takeoff-rise">Pitch for an area the plans give no slope</Label>
+              <Field label="Pitch for an area the plans give no slope" id="takeoff-rise">
                 <Select items={PITCHES} value={rise} onValueChange={(v) => v && setRise(v)}>
                   <SelectTrigger id="takeoff-rise" className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>{PITCHES.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent>
                 </Select>
-              </div>
+              </Field>
               {p.warnings.map((w) => <Callout key={w} tone="warning">{w}</Callout>)}
               {shown.length > 0 && (
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border p-3" data-testid="takeoff-values">

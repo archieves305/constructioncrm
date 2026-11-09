@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
@@ -41,6 +40,7 @@ import {
   money,
 } from "@/components/estimates/generic-estimate-types";
 import { fetchJson } from "@/lib/fetch-json";
+import { Field } from "@/components/ui/field";
 
 export type DialogMode =
   | { kind: "create"; category: string }
@@ -364,8 +364,7 @@ export function GenericEstimateDialog({
         ) : (
           <div className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-xs">Estimate name</Label>
+              <Field label="Estimate name" labelClassName="text-xs">
                 <Input
                   value={form.name}
                   onChange={(e) =>
@@ -373,9 +372,8 @@ export function GenericEstimateDialog({
                   }
                   placeholder="e.g., Master bath drywall"
                 />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Valid for (days)</Label>
+              </Field>
+              <Field label="Valid for (days)" labelClassName="text-xs">
                 <Input
                   type="number"
                   value={form.validityDays}
@@ -383,7 +381,7 @@ export function GenericEstimateDialog({
                     setForm({ ...form, validityDays: e.target.value })
                   }
                 />
-              </div>
+              </Field>
             </div>
 
             <Separator />
@@ -415,8 +413,7 @@ export function GenericEstimateDialog({
             <div>
               <h3 className="mb-2 text-sm font-semibold">Pricing</h3>
               <div className="grid gap-3 sm:grid-cols-4">
-                <div className="space-y-1">
-                  <Label className="text-xs">Overhead %</Label>
+                <Field label="Overhead %" labelClassName="text-xs">
                   <Input
                     type="number"
                     aria-label="Overhead percent"
@@ -425,9 +422,8 @@ export function GenericEstimateDialog({
                       setForm({ ...form, overheadPercent: e.target.value })
                     }
                   />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Margin %</Label>
+                </Field>
+                <Field label="Margin %" labelClassName="text-xs">
                   <Input
                     type="number"
                     value={form.marginPercent}
@@ -435,9 +431,8 @@ export function GenericEstimateDialog({
                       setForm({ ...form, marginPercent: e.target.value })
                     }
                   />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Sales tax %</Label>
+                </Field>
+                <Field label="Sales tax %" labelClassName="text-xs">
                   <Input
                     type="number"
                     value={form.salesTaxPercent}
@@ -445,9 +440,8 @@ export function GenericEstimateDialog({
                       setForm({ ...form, salesTaxPercent: e.target.value })
                     }
                   />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Discount %</Label>
+                </Field>
+                <Field label="Discount %" labelClassName="text-xs">
                   <Input
                     type="number"
                     value={form.discountPercent}
@@ -456,7 +450,7 @@ export function GenericEstimateDialog({
                       setForm({ ...form, discountPercent: e.target.value })
                     }
                   />
-                </div>
+                </Field>
               </div>
               <label className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Checkbox
@@ -470,17 +464,15 @@ export function GenericEstimateDialog({
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-xs">Notes</Label>
+              <Field label="Notes" labelClassName="text-xs">
                 <Textarea
                   rows={3}
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   placeholder="Clarifications shown to the client."
                 />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Exclusions</Label>
+              </Field>
+              <Field label="Exclusions" labelClassName="text-xs">
                 <Textarea
                   rows={3}
                   value={form.exclusions}
@@ -489,7 +481,7 @@ export function GenericEstimateDialog({
                   }
                   placeholder="Work explicitly not included."
                 />
-              </div>
+              </Field>
             </div>
 
             <div className="rounded-md border bg-muted/40 p-3 text-sm">

@@ -35,6 +35,7 @@ import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { JobPicker } from "@/components/shared/job-picker";
 import { isPastDue } from "@/lib/calendar/status";
+import { Field } from "@/components/ui/field";
 
 type JobOption = {
   id: string;
@@ -380,13 +381,12 @@ export default function TasksPage() {
               className="mt-1 w-full"
             />
           </div>
-          <div className="min-w-[140px]">
-            <Label className="text-xs">Priority</Label>
+          <Field label="Priority" className="min-w-[140px]" labelClassName="text-xs">
             <Select
               value={filterPriority || ALL}
               onValueChange={(v: string | null) => setFilterPriority(!v || v === ALL ? "" : v)}
             >
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => (!v || v === ALL ? "All" : v)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -398,7 +398,7 @@ export default function TasksPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           <div className="min-w-[180px]">
             <Label className="text-xs">Job</Label>
             <JobPicker value={filterJob || null} onChange={(j) => setFilterJob(j?.id ?? "")} placeholder="All jobs" className="mt-1" />
@@ -411,13 +411,12 @@ export default function TasksPage() {
               </button>
             </div>
           )}
-          <div className="min-w-[180px]">
-            <Label className="text-xs">Job stage</Label>
+          <Field label="Job stage" className="min-w-[180px]" labelClassName="text-xs">
             <Select
               value={filterStage || ALL}
               onValueChange={(v: string | null) => setFilterStage(!v || v === ALL ? "" : v)}
             >
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>
                   {(v: string) => (!v || v === ALL ? "All stages" : stages.find((s) => s.id === v)?.name || "—")}
                 </SelectValue>
@@ -431,11 +430,10 @@ export default function TasksPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="min-w-[150px]">
-            <Label className="text-xs">Source</Label>
+          </Field>
+          <Field label="Source" className="min-w-[150px]" labelClassName="text-xs">
             <Select value={filterSource || ALL} onValueChange={(v: string | null) => setFilterSource(!v || v === ALL ? "" : (v as "manual" | "workflow"))}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => (!v || v === ALL ? "All sources" : v === "manual" ? "Manual" : "Workflow steps")}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -444,7 +442,7 @@ export default function TasksPage() {
                 <SelectItem value="workflow">Workflow steps</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           <label className="flex items-center gap-2 pb-2 text-sm text-muted-foreground">
             <Checkbox checked={overdueOnly} onCheckedChange={(c) => setOverdueOnly(Boolean(c))} />
             Overdue only
@@ -490,6 +488,7 @@ export default function TasksPage() {
             />
             <Input
               type="date"
+              aria-label="Due date"
               value={quickAdd.dueAt}
               onChange={(e) => setQuickAdd({ ...quickAdd, dueAt: e.target.value })}
               className="w-[160px]"

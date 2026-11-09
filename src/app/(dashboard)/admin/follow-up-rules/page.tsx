@@ -35,6 +35,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { enumItems, enumLabel } from "@/lib/ui/enum-label";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 const LEAD_TRIGGERS = ["LEAD_CREATED", "LEAD_STAGE_CHANGED", "LEAD_ASSIGNED"] as const;
 const PERMIT_TRIGGERS = [
@@ -236,14 +237,13 @@ export default function FollowUpRulesPage() {
             <DialogTitle>{editingId ? "Edit Rule" : "New Rule"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Name</Label>
+            <Field label="Name">
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="e.g. Welcome SMS 5m after creation"
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Trigger</Label>
@@ -284,8 +284,7 @@ export default function FollowUpRulesPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Delay (minutes)</Label>
+              <Field label="Delay (minutes)">
                 <Input
                   type="number"
                   min={0}
@@ -294,11 +293,11 @@ export default function FollowUpRulesPage() {
                     setForm({ ...form, delayMinutes: Number(e.target.value) })
                   }
                 />
-              </div>
+              </Field>
             </div>
             {form.triggerEvent === "LEAD_STAGE_CHANGED" && (
-              <div>
-                <Label>Target Stage</Label>
+              <Field label="Target Stage" help="Only fire when the lead enters this stage. Leave as &quot;any
+                  stage&quot; to fire on every stage change.">
                 <Select
                   items={{ __any: "— any stage —", ...Object.fromEntries(stages.map((s) => [s.id, s.name])) }}
                   value={form.targetStageId || "__any"}
@@ -321,14 +320,9 @@ export default function FollowUpRulesPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Only fire when the lead enters this stage. Leave as &quot;any
-                  stage&quot; to fire on every stage change.
-                </p>
-              </div>
+              </Field>
             )}
-            <div>
-              <Label>Message Template (optional)</Label>
+            <Field label="Message Template (optional)">
               <Select
                 items={{ __none: "— no message —", ...Object.fromEntries(templates.map((t) => [t.id, `${t.name} (${t.channel})`])) }}
                 value={form.messageTemplateId || "__none"}
@@ -351,7 +345,7 @@ export default function FollowUpRulesPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
             <div className="rounded border p-3 space-y-3">
               <div className="text-sm font-medium">Task to create (optional)</div>

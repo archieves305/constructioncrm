@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { fetchJson } from "@/lib/fetch-json";
 import { KIND_LABEL, type VendorKind, type VendorLink } from "./use-vendors";
+import { Field } from "@/components/ui/field";
 
 export type VendorFormValues = {
   name: string;
@@ -113,11 +114,9 @@ function VendorForm({
         {linkNote && <DialogDescription>{linkNote}</DialogDescription>}
       </DialogHeader>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="vendor-name">Name</Label>
+      <Field label="Name" id="vendor-name" help="Expenses whose payee contains this name attach to the vendor automatically.">
         <Input id="vendor-name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Home Depot" autoFocus maxLength={120} />
-        <p className="text-xs text-muted-foreground">Expenses whose payee contains this name attach to the vendor automatically.</p>
-      </div>
+      </Field>
 
       <div className="space-y-1.5">
         <Label>Kind</Label>
@@ -127,33 +126,27 @@ function VendorForm({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="vendor-trade">Trade</Label>
+        <Field label="Trade" id="vendor-trade">
           <Input id="vendor-trade" value={form.trade} onChange={(e) => set("trade", e.target.value)} placeholder="Electrical" maxLength={120} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="vendor-contact">Contact</Label>
+        </Field>
+        <Field label="Contact" id="vendor-contact">
           <Input id="vendor-contact" value={form.contactName} onChange={(e) => set("contactName", e.target.value)} maxLength={120} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="vendor-phone">Phone</Label>
+        </Field>
+        <Field label="Phone" id="vendor-phone">
           <Input id="vendor-phone" type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} maxLength={40} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="vendor-email">Email</Label>
+        </Field>
+        <Field label="Email" id="vendor-email">
           <Input id="vendor-email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} maxLength={200} />
-        </div>
+        </Field>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="vendor-address">Address</Label>
+      <Field label="Address" id="vendor-address">
         <Input id="vendor-address" value={form.address} onChange={(e) => set("address", e.target.value)} maxLength={300} />
-      </div>
+      </Field>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="vendor-notes">Notes</Label>
+      <Field label="Notes" id="vendor-notes">
         <Textarea id="vendor-notes" value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} />
-      </div>
+      </Field>
 
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

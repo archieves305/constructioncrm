@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchJson } from "@/lib/fetch-json";
 import { displayPhone } from "@/lib/crews/contact";
+import { Field } from "@/components/ui/field";
 
 export type CrewContactCrew = { id: string; name: string; foremanName?: string | null; phone?: string | null; language?: string | null };
 
@@ -69,14 +70,12 @@ export function CrewContact({ contractId, label, crew, canEdit, onChanged }: { c
 function ContactFields({ foreman, setForeman, phone, setPhone, language, setLanguage }: { foreman: string; setForeman: (v: string) => void; phone: string; setPhone: (v: string) => void; language: string; setLanguage: (v: string) => void }) {
   return (
     <div className="space-y-3">
-      <div className="space-y-1">
-        <Label htmlFor="crew-foreman">Foreman</Label>
+      <Field label="Foreman" id="crew-foreman">
         <Input id="crew-foreman" value={foreman} onChange={(e) => setForeman(e.target.value)} placeholder="Name of the person to reach" />
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="crew-phone">Mobile phone</Label>
+      </Field>
+      <Field label="Mobile phone" id="crew-phone">
         <Input id="crew-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(561) 555-0123" inputMode="tel" />
-      </div>
+      </Field>
       <div className="space-y-1">
         <Label>Language for links</Label>
         <div className="flex gap-2">

@@ -18,6 +18,7 @@ import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import { useAssignableUsers } from "@/components/tasks/use-tasks";
 import { HEARING_OUTCOME_LABEL, HEARING_TYPE_LABEL } from "./status";
 import { money, useCaseAction, type CaseData } from "./use-violations";
+import { Field } from "@/components/ui/field";
 
 type Hearing = CaseData["hearings"][number];
 
@@ -103,10 +104,9 @@ function ScheduleHearingDialog({ open, onOpenChange, data }: { open: boolean; on
           <DialogDescription>The workflow&apos;s hearing-prep steps get their dates from this.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label className="text-xs">Type</Label>
+          <Field label="Type" labelClassName="text-xs">
             <Select value={type} onValueChange={(v: string | null) => v && setType(v)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => HEARING_TYPE_LABEL[v] ?? v}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -117,23 +117,20 @@ function ScheduleHearingDialog({ open, onOpenChange, data }: { open: boolean; on
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Date and time</Label>
-            <Input type="datetime-local" className="mt-1" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Location</Label>
-            <Input className="mt-1" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Room, address or virtual link" />
-          </div>
+          </Field>
+          <Field label="Date and time" labelClassName="text-xs">
+            <Input type="datetime-local"  value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
+          </Field>
+          <Field label="Location" labelClassName="text-xs">
+            <Input  value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Room, address or virtual link" />
+          </Field>
           <div>
             <Label className="text-xs">Attendee</Label>
             <AssigneePicker className="mt-1 w-full" value={attendee} users={users} onChange={setAttendee} />
           </div>
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Notes</Label>
-            <Textarea className="mt-1" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
+          <Field label="Notes" className="sm:col-span-2" labelClassName="text-xs">
+            <Textarea  rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </Field>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -166,10 +163,9 @@ function HearingOutcomeDialog({ hearing, data, onClose }: { hearing: Hearing | n
           <DialogDescription>Ordered fines go to the ledger; an order deadline can move the case&apos;s compliance deadline.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Outcome</Label>
+          <Field label="Outcome" className="sm:col-span-2" labelClassName="text-xs">
             <Select value={outcome} onValueChange={(v: string | null) => v && setOutcome(v)}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger >
                 <SelectValue>{(v: string) => HEARING_OUTCOME_LABEL[v] ?? v}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -180,26 +176,22 @@ function HearingOutcomeDialog({ hearing, data, onClose }: { hearing: Hearing | n
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           {continued ? (
-            <div className="sm:col-span-2">
-              <Label className="text-xs">Continued to</Label>
-              <Input type="datetime-local" className="mt-1" value={continueTo} onChange={(e) => setContinueTo(e.target.value)} />
-            </div>
+            <Field label="Continued to" className="sm:col-span-2" labelClassName="text-xs">
+              <Input type="datetime-local"  value={continueTo} onChange={(e) => setContinueTo(e.target.value)} />
+            </Field>
           ) : (
             <>
-              <div>
-                <Label className="text-xs">Fine imposed</Label>
-                <Input className="mt-1" inputMode="decimal" value={fine} onChange={(e) => setFine(e.target.value)} placeholder="0.00" />
-              </div>
-              <div>
-                <Label className="text-xs">Daily fine ordered</Label>
-                <Input className="mt-1" inputMode="decimal" value={daily} onChange={(e) => setDaily(e.target.value)} placeholder="0.00 per day" />
-              </div>
-              <div>
-                <Label className="text-xs">Order deadline</Label>
-                <Input type="date" className="mt-1" value={orderDeadline} onChange={(e) => setOrderDeadline(e.target.value)} />
-              </div>
+              <Field label="Fine imposed" labelClassName="text-xs">
+                <Input  inputMode="decimal" value={fine} onChange={(e) => setFine(e.target.value)} placeholder="0.00" />
+              </Field>
+              <Field label="Daily fine ordered" labelClassName="text-xs">
+                <Input  inputMode="decimal" value={daily} onChange={(e) => setDaily(e.target.value)} placeholder="0.00 per day" />
+              </Field>
+              <Field label="Order deadline" labelClassName="text-xs">
+                <Input type="date"  value={orderDeadline} onChange={(e) => setOrderDeadline(e.target.value)} />
+              </Field>
               {orderDeadline && (
                 <label className="flex items-center gap-2 self-end pb-2 text-sm">
                   <Checkbox checked={applyDeadline} onCheckedChange={(v) => setApplyDeadline(Boolean(v))} /> Make it the case&apos;s compliance deadline
@@ -207,10 +199,9 @@ function HearingOutcomeDialog({ hearing, data, onClose }: { hearing: Hearing | n
               )}
             </>
           )}
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Notes from the order</Label>
-            <Textarea className="mt-1" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
+          <Field label="Notes from the order" className="sm:col-span-2" labelClassName="text-xs">
+            <Textarea  rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </Field>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>

@@ -34,6 +34,7 @@ import { formatFileSize, uploadProblem } from "@/lib/files/limits";
 import { preparedUpload } from "@/components/workflows/use-task-file-upload";
 import { FilePreviewDialog } from "@/components/files/file-preview";
 import { useConfirm, usePrompt } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 const TYPES = [
   "MATERIAL",
@@ -152,8 +153,7 @@ function ExpenseFields({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
-        <div>
-          <Label className="text-xs">Type</Label>
+        <Field label="Type" labelClassName="text-xs">
           <Select
             value={form.type}
             onValueChange={(v: string | null) =>
@@ -173,7 +173,7 @@ function ExpenseFields({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
         <div>
           <Label className="text-xs">Vendor</Label>
           <Input
@@ -189,8 +189,7 @@ function ExpenseFields({
             ))}
           </datalist>
         </div>
-        <div>
-          <Label className="text-xs">Amount ($)</Label>
+        <Field label="Amount ($)" labelClassName="text-xs">
           <Input
             type="number"
             min={0}
@@ -198,15 +197,14 @@ function ExpenseFields({
             value={form.amount}
             onChange={(e) => setForm({ ...form, amount: e.target.value })}
           />
-        </div>
-        <div>
-          <Label className="text-xs">Date</Label>
+        </Field>
+        <Field label="Date" labelClassName="text-xs">
           <Input
             type="date"
             value={form.incurredDate}
             onChange={(e) => setForm({ ...form, incurredDate: e.target.value })}
           />
-        </div>
+        </Field>
         <div className="flex flex-col justify-end">
           {showBillable ? (
             <Label className="mb-1 flex items-center gap-2 text-xs">
@@ -225,8 +223,7 @@ function ExpenseFields({
         </div>
       </div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <div>
-          <Label className="text-xs">Paid method</Label>
+        <Field label="Paid method" labelClassName="text-xs">
           <Select
             value={form.paidMethod || "__none"}
             onValueChange={(v: string | null) =>
@@ -250,7 +247,7 @@ function ExpenseFields({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
         <div className="sm:col-span-2">
           <Label className="text-xs">Paid from (account / card)</Label>
           <div className="flex gap-2">
@@ -1216,8 +1213,7 @@ export function ExpensesPanel({
             showBillable={!rollsUp}
           />
           {commitmentChoices.length > 0 && (
-            <div>
-              <Label className="text-xs">Commitment</Label>
+            <Field label="Commitment" help="An approved expense against a commitment lowers what is still open on it." labelClassName="text-xs">
               <Select value={editCommitmentId || "__none"} onValueChange={(v: string | null) => setEditCommitmentId(!v || v === "__none" ? "" : v)}>
                 <SelectTrigger className="w-full" aria-label="Commitment">
                   <SelectValue>
@@ -1236,8 +1232,7 @@ export function ExpensesPanel({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="mt-1 text-2xs text-muted-foreground">An approved expense against a commitment lowers what is still open on it.</p>
-            </div>
+            </Field>
           )}
           {editing && (
             <div>

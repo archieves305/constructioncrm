@@ -57,6 +57,7 @@ export function TeamPersonField({
         users={users.filter((u) => u.isActive || u.id === value?.id)}
         size="sm"
         placeholder="Not set"
+        aria-label={label}
         className="min-w-0 flex-1"
       />
     </span>

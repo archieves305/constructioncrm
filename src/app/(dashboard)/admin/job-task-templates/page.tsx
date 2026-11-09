@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 
@@ -190,8 +191,7 @@ export default function JobTaskTemplatesPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div>
-              <Label>Job stage (trigger)</Label>
+            <Field label="Job stage (trigger)">
               <Select
                 value={form.stageId || "__none"}
                 onValueChange={(v: string | null) =>
@@ -218,17 +218,15 @@ export default function JobTaskTemplatesPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label>Task title</Label>
+            </Field>
+            <Field label="Task title">
               <Input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="e.g. Order materials"
               />
-            </div>
-            <div>
-              <Label>Description</Label>
+            </Field>
+            <Field label="Description">
               <Textarea
                 rows={2}
                 value={form.description}
@@ -236,10 +234,9 @@ export default function JobTaskTemplatesPage() {
                   setForm({ ...form, description: e.target.value })
                 }
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Priority</Label>
+              <Field label="Priority">
                 <Select
                   value={form.priority}
                   onValueChange={(v: string | null) =>
@@ -260,9 +257,8 @@ export default function JobTaskTemplatesPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label>Due in (days after stage entry)</Label>
+              </Field>
+              <Field label="Due in (days after stage entry)">
                 <Input
                   type="number"
                   min={0}
@@ -272,10 +268,9 @@ export default function JobTaskTemplatesPage() {
                   }
                   placeholder="e.g. 5"
                 />
-              </div>
+              </Field>
             </div>
-            <div>
-              <Label>Default assignee</Label>
+            <Field label="Default assignee">
               <Select
                 value={form.defaultAssignedUserId || "__none"}
                 onValueChange={(v: string | null) =>
@@ -303,7 +298,7 @@ export default function JobTaskTemplatesPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"

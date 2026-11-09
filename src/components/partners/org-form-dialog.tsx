@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { fetchJson } from "@/lib/fetch-json";
 import { useInvalidatePartners, usePartnerOptions, type OrgDetail, type OrganizationKind, type PartnerStage, type Priority } from "./use-partners";
+import { Field } from "@/components/ui/field";
 
 export type OrgFormValues = {
   name: string;
@@ -211,17 +212,15 @@ function OrgForm({ organizationId, initial, canAdmin, onSaved, onClose }: { orga
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company</h3>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="org-name">Name</Label>
+          <Field label="Name" id="org-name" className="sm:col-span-2">
             <Input id="org-name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Kaufman Lynn Construction" autoFocus maxLength={120} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Kind</Label>
+          </Field>
+          <Field label="Kind">
             <Select items={options?.kinds ?? []} value={form.kind} onValueChange={(v: OrganizationKind | null) => v && set("kind", v)}>
               <SelectTrigger className="w-full" aria-label="Kind"><SelectValue /></SelectTrigger>
               <SelectContent>{(options?.kinds ?? []).map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}</SelectContent>
             </Select>
-          </div>
+          </Field>
           {field("website", "Website", { placeholder: "https://…", type: "url" })}
           {field("phone", "Phone", { type: "tel", maxLength: 40 })}
           {field("email", "Email", { type: "email", maxLength: 200 })}
@@ -232,10 +231,9 @@ function OrgForm({ organizationId, initial, canAdmin, onSaved, onClose }: { orga
             {field("state", "State", { maxLength: 2 })}
             {field("zipCode", "ZIP", { maxLength: 12 })}
           </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="org-localOffices">Local offices</Label>
+          <Field label="Local offices" id="org-localOffices" className="sm:col-span-2">
             <Input id="org-localOffices" value={form.localOffices} onChange={(e) => set("localOffices", e.target.value)} placeholder="Boca Raton · Orlando" maxLength={1000} />
-          </div>
+          </Field>
         </div>
       </section>
 
@@ -253,8 +251,7 @@ function OrgForm({ organizationId, initial, canAdmin, onSaved, onClose }: { orga
             </Select>
             {ownerLocked && <p className="text-xs text-muted-foreground">A manager changes the owner from the account menu.</p>}
           </div>
-          <div className="space-y-1.5">
-            <Label>Priority</Label>
+          <Field label="Priority">
             <Select items={[{ value: NONE, label: "Not set" }, ...(options?.priorities ?? [])]} value={form.priority ?? NONE} onValueChange={(v: string | null) => set("priority", !v || v === NONE ? null : (v as Priority))}>
               <SelectTrigger className="w-full" aria-label="Priority"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -262,15 +259,14 @@ function OrgForm({ organizationId, initial, canAdmin, onSaved, onClose }: { orga
                 {(options?.priorities ?? []).map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
           {!editing && (
-            <div className="space-y-1.5">
-              <Label>Starting stage</Label>
+            <Field label="Starting stage">
               <Select items={options?.stages ?? []} value={form.stage} onValueChange={(v: PartnerStage | null) => v && set("stage", v)}>
                 <SelectTrigger className="w-full" aria-label="Starting stage"><SelectValue /></SelectTrigger>
                 <SelectContent>{(options?.stages ?? []).filter((s) => !s.isClosed).map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
               </Select>
-            </div>
+            </Field>
           )}
           {field("potentialAnnualRevenue", "Potential annual revenue ($)", { type: "number", min: 0, step: 1000, inputMode: "numeric" })}
           {field("paymentTermsDays", "Payment terms (days)", { type: "number", min: 0, max: 180, inputMode: "numeric" })}
@@ -295,10 +291,9 @@ function OrgForm({ organizationId, initial, canAdmin, onSaved, onClose }: { orga
             ))}
           </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="org-notes">Notes</Label>
+        <Field label="Notes" id="org-notes">
           <Textarea id="org-notes" value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} placeholder="How we know them, who introduced us, what they build" />
-        </div>
+        </Field>
       </section>
 
       <Collapsible open={profileOpen} onOpenChange={setProfileOpen}>
@@ -314,15 +309,13 @@ function OrgForm({ organizationId, initial, canAdmin, onSaved, onClose }: { orga
             {field("typicalProjectSize", "Typical project size", { placeholder: "$20–80M" })}
             {field("biddingPlatform", "Bidding platform", { placeholder: "BuildingConnected" })}
             {field("prequalPlatform", "Prequalification platform", { placeholder: "TradeTapp" })}
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="org-vendorRegistrationUrl">Vendor registration URL</Label>
+            <Field label="Vendor registration URL" id="org-vendorRegistrationUrl" className="sm:col-span-2">
               <Input id="org-vendorRegistrationUrl" value={form.vendorRegistrationUrl} onChange={(e) => set("vendorRegistrationUrl", e.target.value)} placeholder="https://…" type="url" />
-            </div>
+            </Field>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="org-requirementsNotes">Insurance, bonding, safety and financial requirements</Label>
+          <Field label="Insurance, bonding, safety and financial requirements" id="org-requirementsNotes">
             <Textarea id="org-requirementsNotes" value={form.requirementsNotes} onChange={(e) => set("requirementsNotes", e.target.value)} rows={3} placeholder="$2M GL / $5M umbrella · EMR under 1.0 · bonding for jobs over $500k · audited financials" />
-          </div>
+          </Field>
         </CollapsibleContent>
       </Collapsible>
 

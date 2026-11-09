@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Eye, EyeOff, FileText, Trash2, Upload } from "lucide-react";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { Field } from "@/components/ui/field";
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   W2: "Employee (W-2)",
@@ -365,56 +366,45 @@ export default function PersonnelDetailPage({
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>First name</Label>
+              <Field label="First name">
                 <Input value={form.firstName ?? ""} onChange={(e) => set("firstName", e.target.value)} />
-              </div>
-              <div>
-                <Label>Last name</Label>
+              </Field>
+              <Field label="Last name">
                 <Input value={form.lastName ?? ""} onChange={(e) => set("lastName", e.target.value)} />
-              </div>
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Phone</Label>
+              <Field label="Phone">
                 <Input value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} />
-              </div>
-              <div>
-                <Label>Email</Label>
+              </Field>
+              <Field label="Email">
                 <Input value={form.email ?? ""} onChange={(e) => set("email", e.target.value)} />
-              </div>
+              </Field>
             </div>
-            <div>
-              <Label>Address</Label>
+            <Field label="Address">
               <Input value={form.address1 ?? ""} onChange={(e) => set("address1", e.target.value)} placeholder="Street" />
-            </div>
+            </Field>
             <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>City</Label>
+              <Field label="City">
                 <Input value={form.city ?? ""} onChange={(e) => set("city", e.target.value)} />
-              </div>
-              <div>
-                <Label>State</Label>
+              </Field>
+              <Field label="State">
                 <Input value={form.state ?? ""} onChange={(e) => set("state", e.target.value)} />
-              </div>
-              <div>
-                <Label>ZIP</Label>
+              </Field>
+              <Field label="ZIP">
                 <Input value={form.zipCode ?? ""} onChange={(e) => set("zipCode", e.target.value)} />
-              </div>
+              </Field>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Emergency contact</Label>
+              <Field label="Emergency contact">
                 <Input value={form.emergencyContactName ?? ""} onChange={(e) => set("emergencyContactName", e.target.value)} />
-              </div>
-              <div>
-                <Label>Contact phone</Label>
+              </Field>
+              <Field label="Contact phone">
                 <Input value={form.emergencyContactPhone ?? ""} onChange={(e) => set("emergencyContactPhone", e.target.value)} />
-              </div>
-              <div>
-                <Label>Relation</Label>
+              </Field>
+              <Field label="Relation">
                 <Input value={form.emergencyContactRelation ?? ""} onChange={(e) => set("emergencyContactRelation", e.target.value)} />
-              </div>
+              </Field>
             </div>
           </CardContent>
         </Card>
@@ -425,18 +415,15 @@ export default function PersonnelDetailPage({
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Trade</Label>
+              <Field label="Trade">
                 <Input value={form.trade ?? ""} onChange={(e) => set("trade", e.target.value)} />
-              </div>
-              <div>
-                <Label>Title / role on site</Label>
+              </Field>
+              <Field label="Title / role on site">
                 <Input value={form.title ?? ""} onChange={(e) => set("title", e.target.value)} />
-              </div>
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Employment type</Label>
+              <Field label="Employment type">
                 <Select value={form.employmentType ?? "W2"} onValueChange={(v) => v && set("employmentType", v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -445,9 +432,8 @@ export default function PersonnelDetailPage({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label>Pay type</Label>
+              </Field>
+              <Field label="Pay type">
                 <Select value={form.payType ?? "HOURLY"} onValueChange={(v) => v && set("payType", v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -456,22 +442,17 @@ export default function PersonnelDetailPage({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
             </div>
-            <div>
-              <Label>Work description</Label>
+            <Field label="Work description" help="Default scope of work. A job can override this on its Crew tab.">
               <Input
                 placeholder="e.g. Hangs and finishes drywall"
                 value={form.workDescription ?? ""}
                 onChange={(e) => set("workDescription", e.target.value)}
               />
-              <p className="text-muted-foreground mt-1 text-xs">
-                Default scope of work. A job can override this on its Crew tab.
-              </p>
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Status</Label>
+              <Field label="Status">
                 <Select value={form.status ?? "ACTIVE"} onValueChange={(v) => v && set("status", v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -480,13 +461,12 @@ export default function PersonnelDetailPage({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Start date</Label>
+              <Field label="Start date">
                 <Input type="date" value={form.startDate ?? ""} onChange={(e) => set("startDate", e.target.value)} />
-              </div>
+              </Field>
               {showRate && (
                 <div>
                   <Label>Hourly rate ($)</Label>
@@ -506,18 +486,16 @@ export default function PersonnelDetailPage({
                 </div>
               )}
             </div>
-            <div>
-              <Label>Company / entity</Label>
+            <Field label="Company / entity">
               <Input
                 value={form.entityName ?? ""}
                 onChange={(e) => set("entityName", e.target.value)}
                 placeholder={person.crew ? `Crew: ${person.crew.name}` : "e.g. ABC Drywall LLC"}
               />
-            </div>
-            <div>
-              <Label>Notes</Label>
+            </Field>
+            <Field label="Notes">
               <Textarea rows={3} value={form.notes ?? ""} onChange={(e) => set("notes", e.target.value)} />
-            </div>
+            </Field>
           </CardContent>
         </Card>
 

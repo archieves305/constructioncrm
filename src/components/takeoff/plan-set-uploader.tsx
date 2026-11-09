@@ -12,6 +12,7 @@ import { MAX_PLAN_UPLOAD_BYTES, planUploadProblem } from "@/lib/takeoff/limits";
 import { DOCUMENT_KIND_LABEL, type PlanDocumentKindName } from "@/lib/takeoff/types";
 import { cn } from "@/lib/utils";
 import { errorText, planKeys, type PlanDocument } from "./use-plan-sets";
+import { Field } from "@/components/ui/field";
 
 /**
  * Drop a PDF (or several) onto a plan set. Each file becomes a document with
@@ -77,14 +78,12 @@ export function PlanSetUploader({ planSetId, leadId, hasDocuments, onUploaded }:
             {(Object.keys(DOCUMENT_KIND_LABEL) as PlanDocumentKindName[]).map((k) => <option key={k} value={k}>{DOCUMENT_KIND_LABEL[k]}</option>)}
           </select>
         </div>
-        <div className="space-y-1">
-          <Label htmlFor="plan-label">Label</Label>
+        <Field label="Label" id="plan-label">
           <Input id="plan-label" placeholder="Bid set, Addendum 1…" value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="plan-rev">Revision</Label>
+        </Field>
+        <Field label="Revision" id="plan-rev">
           <Input id="plan-rev" placeholder="Rev 2" value={revision} onChange={(e) => setRevision(e.target.value)} maxLength={40} />
-        </div>
+        </Field>
       </div>
       <div
         className={cn("flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center text-sm", over ? "border-primary bg-primary/5" : "border-muted-foreground/30")}

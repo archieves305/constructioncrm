@@ -410,7 +410,7 @@ export default function JobsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger aria-label="Filter by stage" className="w-[200px]">
             <SelectValue placeholder="All Stages">
               {(v: string) =>
                 !v
@@ -447,7 +447,7 @@ export default function JobsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger aria-label="Filter by sales rep" className="w-[180px]">
             <SelectValue placeholder="Anyone">
               {(v: string) => {
                 if (!v) return "Anyone";
@@ -478,7 +478,7 @@ export default function JobsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="h-8 w-[170px] text-xs">
+          <SelectTrigger aria-label="Filter by trade" className="h-8 w-[170px] text-xs">
             <SelectValue placeholder="Any trade">
               {(v: string) => (!v ? "Any trade" : tradeOptions.find((t) => t.key === v)?.name ?? "Any trade")}
             </SelectValue>
@@ -497,7 +497,7 @@ export default function JobsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="h-8 w-[190px] text-xs">
+          <SelectTrigger aria-label="Filter by permit status" className="h-8 w-[190px] text-xs">
             <SelectValue placeholder="Any permit status">
               {(v: string) => (!v ? "Any permit status" : PERMIT_FILTER_OPTIONS.find((o) => o.value === v)?.label ?? "Any permit status")}
             </SelectValue>
@@ -516,7 +516,7 @@ export default function JobsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="h-8 w-[230px] text-xs">
+          <SelectTrigger aria-label="Filter by workflow phase" className="h-8 w-[230px] text-xs">
             <SelectValue placeholder="Any phase">
               {(v: string) => (!v ? "Any phase" : phaseLabel(v) ?? v)}
             </SelectValue>
@@ -561,7 +561,7 @@ export default function JobsPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-tone-info-fg">Assign rep:</span>
             <Select value={bulkAssignTo} onValueChange={(v: string | null) => setBulkAssignTo(v ?? "")}>
-              <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectTrigger aria-label="Assign selected jobs to" className="h-8 w-[180px] text-xs">
                 <SelectValue placeholder="Pick user">
                   {(v: string) => {
                     const u = assignableUsers.find((x) => x.id === v);
@@ -589,7 +589,7 @@ export default function JobsPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-tone-info-fg">Move to stage:</span>
             <Select value={bulkStage} onValueChange={(v: string | null) => setBulkStage(v ?? "")}>
-              <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectTrigger aria-label="Move selected jobs to stage" className="h-8 w-[180px] text-xs">
                 <SelectValue placeholder="Pick stage">
                   {(v: string) =>
                     stages?.find((s) => s.id === v)?.name ?? "Pick stage"
@@ -768,7 +768,7 @@ export default function JobsPage() {
                           }
                         }}
                       >
-                        <SelectTrigger className="h-7 w-[160px] text-xs">
+                        <SelectTrigger aria-label="Sales rep" className="h-7 w-[160px] text-xs">
                           <SelectValue>
                             {(v: string) => {
                               const u = (!v || v === UNASSIGN_VALUE) ? null : (assignableUsers.find((x) => x.id === v) ?? job.salesRep);
