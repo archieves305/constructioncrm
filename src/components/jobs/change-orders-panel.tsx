@@ -6,7 +6,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth/session-client";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +38,8 @@ import {
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { statusLabel } from "@/lib/ui/status";
 
 type ChangeOrder = {
   id: string;
@@ -71,13 +72,6 @@ type LaborContractOption = {
   crew: { name: string } | null;
 };
 
-const STATUS_STYLES: Record<ChangeOrder["status"], string> = {
-  DRAFT: "bg-surface-muted text-fg-secondary",
-  SENT: "bg-tone-info-soft text-tone-info-fg",
-  APPROVED: "bg-tone-success-soft text-tone-success-fg",
-  REJECTED: "bg-tone-danger-soft text-tone-danger-fg",
-  VOID: "bg-surface-muted text-muted-foreground",
-};
 
 function money(v: string | number | null) {
   if (v == null) return "—";
@@ -316,9 +310,7 @@ export function ChangeOrdersPanel({
                       {co.title ? (
                         <span className="text-fg-secondary">— {co.title}</span>
                       ) : null}
-                      <Badge className={STATUS_STYLES[co.status]}>
-                        {co.status}
-                      </Badge>
+                      <StatusBadge kind="changeOrder" value={co.status} />
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
                       Customer price{" "}
@@ -456,9 +448,7 @@ export function ChangeOrdersPanel({
                 </span>
               ) : null}
               {viewing && (
-                <Badge className={STATUS_STYLES[viewing.status]}>
-                  {viewing.status}
-                </Badge>
+                <StatusBadge kind="changeOrder" value={viewing.status} />
               )}
             </DialogTitle>
           </DialogHeader>
@@ -534,7 +524,7 @@ export function ChangeOrdersPanel({
               {viewing.invoice && (
                 <div className="flex items-center gap-1 rounded-md bg-tone-success-soft px-3 py-2 text-sm text-tone-success-fg">
                   <FileText className="h-4 w-4" />
-                  Invoice {viewing.invoice.invoiceNumber} · {viewing.invoice.status}
+                  Invoice {viewing.invoice.invoiceNumber} · {statusLabel("invoice", viewing.invoice.status)}
                 </div>
               )}
               {viewing.sovLine && (

@@ -19,6 +19,7 @@ import { useAssignableUsers } from "@/components/tasks/use-tasks";
 import { HEARING_OUTCOME_LABEL, HEARING_TYPE_LABEL } from "./status";
 import { money, useCaseAction, type CaseData } from "./use-violations";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 type Hearing = CaseData["hearings"][number];
 
@@ -51,9 +52,7 @@ export function HearingsPanel({ data }: { data: CaseData }) {
                 {h.outcome ? (
                   <Badge className="border-0 bg-tone-info-soft text-3xs text-tone-info-fg">{HEARING_OUTCOME_LABEL[h.outcome] ?? h.outcome}</Badge>
                 ) : (
-                  <Badge variant="outline" className="text-3xs text-muted-foreground">
-                    {h.status.toLowerCase()}
-                  </Badge>
+                  <StatusBadge kind="hearing" value={h.status} />
                 )}
                 <span className="ml-auto flex items-center gap-2">
                   <UserAvatar user={h.attendee} size="xs" title={h.attendee ? `Attendee: ${h.attendee.firstName} ${h.attendee.lastName}` : "No attendee"} />

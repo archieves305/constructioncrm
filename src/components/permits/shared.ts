@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import type { Tone } from "@/lib/ui/tones";
+import { statusItems, statusTones } from "@/lib/ui/status";
 
 /** Client-side shapes and wording for permits and their inspections. */
 
@@ -56,57 +57,15 @@ export const jobPermitsKey = (jobId: string) => ["job", jobId, "permits"] as con
 
 export const PERMIT_STATUS_OPTIONS = ["PREPARING", "APPLIED", "CORRECTIONS", "IN_PROGRESS", "ISSUED", "FINAL", "EXPIRED", "DENIED"] as const;
 
-export const PERMIT_STATUS_LABEL: Record<string, string> = {
-  PREPARING: "Preparing",
-  APPLIED: "Applied",
-  CORRECTIONS: "Corrections",
-  IN_PROGRESS: "In progress",
-  ISSUED: "Issued",
-  FINAL: "Final",
-  EXPIRED: "Expired",
-  DENIED: "Denied",
-  UNKNOWN: "Unknown",
-};
+export const PERMIT_STATUS_LABEL: Record<string, string> = statusItems("permit");
 
-export const PERMIT_STATUS_TONE: Record<string, Tone> = {
-  PREPARING: "neutral",
-  APPLIED: "info",
-  CORRECTIONS: "warning",
-  IN_PROGRESS: "info",
-  ISSUED: "success",
-  FINAL: "success",
-  EXPIRED: "danger",
-  DENIED: "danger",
-  UNKNOWN: "neutral",
-};
+export const PERMIT_STATUS_TONE: Record<string, Tone> = statusTones("permit");
 
-export const RESULT_LABEL: Record<string, string> = {
-  SCHEDULED: "Scheduled",
-  PASS: "Passed",
-  FAIL: "Failed",
-  CONDITIONAL: "Passed with conditions",
-  CANCELLED: "Cancelled",
-};
+export const RESULT_LABEL: Record<string, string> = statusItems("inspectionResult");
 
-export const RESULT_TONE: Record<string, Tone> = {
-  SCHEDULED: "info",
-  PASS: "success",
-  FAIL: "danger",
-  CONDITIONAL: "warning",
-  CANCELLED: "neutral",
-};
+export const RESULT_TONE: Record<string, Tone> = statusTones("inspectionResult");
 
-export const INSPECTION_TYPE_LABEL: Record<string, string> = {
-  ROUGH: "Rough",
-  FRAMING: "Framing",
-  ELECTRICAL: "Electrical",
-  PLUMBING: "Plumbing",
-  MECHANICAL: "Mechanical",
-  ROOFING_IN_PROGRESS: "Roofing in-progress",
-  ROOFING_FINAL: "Roofing final",
-  FINAL: "Final",
-  OTHER: "Other",
-};
+export const INSPECTION_TYPE_LABEL: Record<string, string> = statusItems("inspectionType");
 
 export const typeLabel = (t: string) => INSPECTION_TYPE_LABEL[t] ?? t;
 

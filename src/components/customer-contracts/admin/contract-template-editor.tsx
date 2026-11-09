@@ -32,6 +32,7 @@ import {
   type TemplateVersionDetail,
 } from "../use-contract-templates";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 type ArticleRow = ContractArticle & { id: string };
 
@@ -210,9 +211,7 @@ function VersionEditor({ templateId, version, isAdmin, onArchive }: { templateId
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <Badge variant="outline">v{version.version}</Badge>
-          <Badge className={version.status === "PUBLISHED" ? "bg-tone-success-soft text-tone-success-fg" : version.status === "DRAFT" ? "bg-tone-info-soft text-tone-info-fg" : ""} variant={version.status === "PUBLISHED" || version.status === "DRAFT" ? undefined : "outline"}>
-            {version.status.toLowerCase()}
-          </Badge>
+          <StatusBadge kind="templateVersion" value={version.status} />
           <span className="text-xs text-muted-foreground">
             {version.status === "PUBLISHED" && version.publishedAt ? `Published ${new Date(version.publishedAt).toLocaleDateString()}${version.publishedBy ? ` by ${version.publishedBy.firstName} ${version.publishedBy.lastName}` : ""} · ` : ""}
             used by {version._count.contracts} contract{version._count.contracts === 1 ? "" : "s"}

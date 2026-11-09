@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { INSPECTION_RESULT_TONE } from "./status";
 import { useCaseAction, type CaseData } from "./use-violations";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 type Inspection = CaseData["inspections"][number];
 
@@ -51,16 +52,12 @@ export function InspectionsPanel({ data }: { data: CaseData }) {
           {data.inspections.map((i) => (
             <li key={i.id} id={`inspection-${i.id}`} className="rounded-lg border bg-white p-3 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="text-3xs capitalize">
-                  {i.kind.toLowerCase()}
-                </Badge>
+                <StatusBadge kind="agencyInspectionKind" value={i.kind} dot={false} />
                 <span className="font-medium">{i.scheduledFor ? format(new Date(i.scheduledFor), "EEE MMM d, yyyy · h:mm a") : `Requested ${format(new Date(i.requestedAt), "MMM d, yyyy")}`}</span>
                 {i.result ? (
                   <Badge className={cn("border-0 text-3xs", toneClasses(INSPECTION_RESULT_TONE[i.result] ?? "neutral").pill)}>{i.result}</Badge>
                 ) : (
-                  <Badge variant="outline" className="text-3xs text-muted-foreground">
-                    {i.status.toLowerCase()}
-                  </Badge>
+                  <StatusBadge kind="agencyInspection" value={i.status} />
                 )}
                 {i.inspectorName && <span className="text-xs text-muted-foreground">Inspector: {i.inspectorName}</span>}
                 <span className="ml-auto flex items-center gap-2">

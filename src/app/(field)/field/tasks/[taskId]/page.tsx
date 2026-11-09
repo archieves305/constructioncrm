@@ -19,10 +19,10 @@ import { ArrowLeft, Camera, Paperclip } from "lucide-react";
 import { formatTimeRange } from "@/lib/calendar/agenda";
 import { cn } from "@/lib/utils";
 import { fetchJson } from "@/lib/fetch-json";
-import { PRIORITY_BADGE_CLASS, STATUS_BADGE_CLASS, STATUS_LABEL } from "@/components/tasks/task-colors";
 import { taskKeys } from "@/components/tasks/use-tasks";
 import { useTaskFileUpload } from "@/components/workflows/use-task-file-upload";
 import { FilePreviewDialog } from "@/components/files/file-preview";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 /**
  * Field-mode task view.
@@ -181,12 +181,8 @@ export default function FieldTaskPage({
           </h1>
 
           <div className="flex flex-wrap gap-1.5">
-            <Badge className={cn("border-0", STATUS_BADGE_CLASS[task.status])}>
-              {STATUS_LABEL[task.status]}
-            </Badge>
-            <Badge className={cn("border-0", PRIORITY_BADGE_CLASS[task.priority])}>
-              {task.priority}
-            </Badge>
+            <StatusBadge kind="task" value={task.status} />
+            <StatusBadge kind="priority" value={task.priority} />
             {task.dueAt && (
               <Badge variant="outline">
                 {task.allDay === false && task.scheduledStart

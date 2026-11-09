@@ -24,6 +24,7 @@ import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { toneClasses } from "@/lib/ui/tones";
 import { EVENT_LABEL } from "./status";
 import { useCaseAction, violationKeys, type CaseData } from "./use-violations";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 type Person = { id: string; firstName: string; lastName: string };
 
@@ -64,9 +65,7 @@ export function PermitsPanel({ data, onSetPermit }: { data: CaseData; onSetPermi
             <ul className="space-y-2">
               {data.job.permits.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-lg border bg-white p-3 text-sm">
-                  <Badge variant="outline" className="text-3xs">
-                    {p.status}
-                  </Badge>
+                  <StatusBadge kind="permit" value={p.status} />
                   <span className="font-medium">{p.permitNumber ?? "No number yet"}</span>
                   <span className="text-xs text-muted-foreground">{p.permitType ?? ""} · {p.municipality}</span>
                   <span className="ml-auto text-xs text-muted-foreground">

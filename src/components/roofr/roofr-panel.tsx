@@ -7,9 +7,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Home, AlertTriangle } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 type RoofrOrderStatus = "REQUESTED" | "COMPLETED" | "CANCELLED" | "FAILED";
 
@@ -25,12 +25,6 @@ type RoofrOrder = {
   createdBy: { firstName: string; lastName: string } | null;
 };
 
-const STATUS_VARIANTS: Record<RoofrOrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  REQUESTED: "secondary",
-  COMPLETED: "default",
-  CANCELLED: "outline",
-  FAILED: "destructive",
-};
 
 export function RoofrPanel({ leadId }: { leadId: string }) {
   const qc = useQueryClient();
@@ -122,9 +116,7 @@ export function RoofrPanel({ leadId }: { leadId: string }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2">
-                      <Badge variant={STATUS_VARIANTS[o.status]}>
-                        {o.status}
-                      </Badge>
+                      <StatusBadge kind="roofrOrder" value={o.status} />
                       {o.externalOrderId && (
                         <span className="text-xs text-muted-foreground">
                           Roofr #{o.externalOrderId}

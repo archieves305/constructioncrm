@@ -45,6 +45,7 @@ import {
   DoorOpen,
 } from "lucide-react";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 type StopStatus = "PENDING" | "VISITED" | "SKIPPED";
 
@@ -116,20 +117,6 @@ type ProspectSearchResult = {
 const propertyLabel = (p: { ownerName: string | null; propertyAddress1: string | null }) =>
   p.propertyAddress1 || p.ownerName || "Unknown property";
 
-const statusBadgeVariant = (status: string) => {
-  switch (status) {
-    case "VISITED":
-    case "COMPLETED":
-      return "default" as const;
-    case "IN_PROGRESS":
-      return "secondary" as const;
-    case "SKIPPED":
-    case "ARCHIVED":
-      return "outline" as const;
-    default:
-      return "default" as const;
-  }
-};
 
 export default function RouteDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -317,9 +304,7 @@ export default function RouteDetailPage() {
       {/* Summary */}
       <Card>
         <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-6 text-sm text-muted-foreground">
-          <Badge variant={statusBadgeVariant(route.status)}>
-            {route.status.replace("_", " ")}
-          </Badge>
+          <StatusBadge kind="route" value={route.status} />
           {route.assignedTo && (
             <span className="flex items-center gap-1">
               <User className="h-4 w-4" />

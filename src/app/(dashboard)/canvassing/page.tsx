@@ -10,7 +10,6 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { useSession } from "@/lib/auth/session-client";
 import { canWriteLeads } from "@/lib/access/roles";
 import { fetchJson } from "@/lib/fetch-json";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -37,6 +36,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 type DoorKnockRoute = {
   id: string;
@@ -164,20 +164,6 @@ export default function CanvassingPage() {
     createRouteMutation.mutate(formState);
   };
 
-  const statusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "PLANNED":
-        return "default";
-      case "IN_PROGRESS":
-        return "secondary";
-      case "COMPLETED":
-        return "default";
-      case "ARCHIVED":
-        return "outline";
-      default:
-        return "default";
-    }
-  };
 
   if (session && !canCanvass) {
     return (
@@ -317,9 +303,7 @@ export default function CanvassingPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-semibold">{route.name}</h3>
-                      <Badge variant={statusBadgeVariant(route.status)}>
-                        {route.status.replace("_", " ")}
-                      </Badge>
+                      <StatusBadge kind="route" value={route.status} />
                     </div>
                     {route.description && (
                       <p className="text-sm text-muted-foreground mb-3">

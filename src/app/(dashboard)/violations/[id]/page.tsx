@@ -42,6 +42,7 @@ import { ItemsPanel } from "@/components/violations/items-panel";
 import { LinkJobDialog } from "@/components/violations/link-job-dialog";
 import { NOTICE_TYPE_LABEL, SEVERITY_LABEL, SEVERITY_TONE } from "@/components/violations/status";
 import { money, useCaseAction, useViolationCase, violationKeys, type CaseData } from "@/components/violations/use-violations";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 const TABS = [
   { value: "overview", label: "Overview" },
@@ -364,9 +365,7 @@ function Overview({ data, onSetTab }: { data: CaseData; onSetTab: (t: string) =>
                     <span className="font-mono text-xs text-muted-foreground">#{i.itemNumber}</span>
                     <span className="min-w-0 flex-1 truncate">{i.description}</span>
                     {i.category && <span className="text-2xs text-muted-foreground">{i.category.name}</span>}
-                    <Badge variant="outline" className="text-3xs">
-                      {i.status.toLowerCase().replace("_", " ")}
-                    </Badge>
+                    <StatusBadge kind="violationItem" value={i.status} />
                   </li>
                 ))}
               </ul>

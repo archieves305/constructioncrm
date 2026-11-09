@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 import { HEARING_OUTCOME_LABEL, HEARING_TYPE_LABEL, INSPECTION_RESULT_TONE } from "./status";
 import { useViolationSummary, violationKeys } from "./use-violations";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { statusLabel } from "@/lib/ui/status";
 
 type Person = { id: string; firstName: string; lastName: string };
 type CaseRef = { id: string; caseNumber: string; title: string; jurisdiction: string | null; status: string; caseManager: Person | null; lead: { propertyAddress1: string; city: string } };
@@ -169,7 +171,7 @@ export function ScheduleList({ kind }: { kind: "hearing" | "inspection" }) {
                       <Link href={`/violations/${r.case.id}?tab=${path}#${kind}-${r.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-surface-subtle">
                         <span className="w-28 shrink-0 tabular-nums text-xs text-muted-foreground">{d ? format(new Date(d), "EEE MMM d · h:mm a") : "requested " + format(new Date((r as InspectionRow).requestedAt), "MMM d")}</span>
                         <Badge variant="outline" className="text-3xs">
-                          {"type" in r ? HEARING_TYPE_LABEL[r.type] ?? r.type : r.kind.toLowerCase()}
+                          {"type" in r ? HEARING_TYPE_LABEL[r.type] ?? r.type : statusLabel("agencyInspectionKind", r.kind)}
                         </Badge>
                         <span className="font-mono text-brand-fg">{r.case.caseNumber}</span>
                         <span className="min-w-0 flex-1 truncate">
@@ -181,9 +183,7 @@ export function ScheduleList({ kind }: { kind: "hearing" | "inspection" }) {
                         {result ? (
                           <Badge className={cn("border-0 text-3xs", toneClasses(INSPECTION_RESULT_TONE[result] ?? "neutral").pill)}>{HEARING_OUTCOME_LABEL[result] ?? result}</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-3xs text-muted-foreground">
-                            {r.status.toLowerCase()}
-                          </Badge>
+                          <StatusBadge kind={"type" in r ? "hearing" : "agencyInspection"} value={r.status} />
                         )}
                         <UserAvatar user={r.attendee ?? r.case.caseManager} size="xs" title={r.attendee ? "Attendee" : "Case manager"} />
                       </Link>

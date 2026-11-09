@@ -35,6 +35,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 
@@ -375,14 +376,7 @@ export default function JobTaskTemplatesPage() {
                     </TableCell>
                     <TableCell className="font-medium">{t.title}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          t.priority === "URGENT" ? "destructive" : "outline"
-                        }
-                        className="text-xs"
-                      >
-                        {t.priority}
-                      </Badge>
+                      <StatusBadge kind="priority" value={t.priority} />
                     </TableCell>
                     <TableCell className="text-sm">
                       {t.relativeDueInDays !== null

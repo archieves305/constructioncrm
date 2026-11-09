@@ -43,6 +43,7 @@ import { isPast, isToday } from "date-fns";
 import { computeApplication, type ComputedApplication } from "@/lib/billing/g702";
 import { useConfirm } from "@/components/shared/confirm-provider";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 type InvoicePayment = {
   id: string;
@@ -671,12 +672,7 @@ export function InvoicesPanel({
                       )}
                       <span className="font-mono text-sm font-medium">{inv.invoiceNumber}</span>
                       <span className="text-sm font-medium">{money0(inv.amount)}</span>
-                      <Badge
-                        variant={inv.status === "PAID" ? "default" : inv.status === "VOID" ? "secondary" : "outline"}
-                        className="text-3xs"
-                      >
-                        {inv.status}
-                      </Badge>
+                      <StatusBadge kind="invoice" value={inv.status} />
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {inv.periodTo && (

@@ -35,6 +35,7 @@ import { preparedUpload } from "@/components/workflows/use-task-file-upload";
 import { FilePreviewDialog } from "@/components/files/file-preview";
 import { useConfirm, usePrompt } from "@/components/shared/confirm-provider";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 const TYPES = [
   "MATERIAL",
@@ -1002,9 +1003,7 @@ export function ExpensesPanel({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Receipt className="h-4 w-4 text-muted-foreground" />
-                      <Badge variant="outline" className="text-3xs">
-                        {e.type.replace(/_/g, " ")}
-                      </Badge>
+                      <StatusBadge kind="expenseType" value={e.type} dot={false} />
                       {e.vendorRecord ? (
                         <Link
                           href={`/vendors/${e.vendorRecord.id}`}

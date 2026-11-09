@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +24,7 @@ import { canDeleteTask, canEditTask, canNudgeTask } from "@/lib/tasks/access";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { nudgeCooldownRemainingMs } from "@/lib/tasks/nudge-policy";
 import { Textarea } from "@/components/ui/textarea";
-import { PRIORITY_BADGE_CLASS, STATUS_BADGE_CLASS, STATUS_LABEL, TASK_STATUSES } from "./task-colors";
+import { STATUS_LABEL, TASK_STATUSES } from "./task-colors";
 import { taskKeys, useInvalidateTasks } from "./use-tasks";
 import type { Person, TaskListItem, TaskStatus, UserOption } from "./types";
 import { fetchJson } from "@/lib/fetch-json";
@@ -42,6 +41,7 @@ import { TaskAttachments } from "./task-attachments";
 import type { WorkflowTaskItem } from "@/components/workflows/types";
 import { usePrompt } from "@/components/shared/confirm-provider";
 import { Field as FormField } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 type TaskDetail = TaskListItem &
   Omit<WorkflowTaskItem, keyof TaskListItem | "dependencies"> & {
@@ -344,12 +344,8 @@ export function TaskDetailSheet({
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <Badge className={cn("border-0", STATUS_BADGE_CLASS[task.status])}>
-                  {STATUS_LABEL[task.status]}
-                </Badge>
-                <Badge className={cn("border-0", PRIORITY_BADGE_CLASS[task.priority])}>
-                  {task.priority}
-                </Badge>
+                <StatusBadge kind="task" value={task.status} />
+                <StatusBadge kind="priority" value={task.priority} />
                 <TaskEntityChip task={task} />
                 <AutoSourceChip sourceKey={task.sourceKey} />
               </div>

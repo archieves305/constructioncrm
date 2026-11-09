@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Copy, Eye, FilePlus2, Pencil, Plus, ShieldAlert, Trash2, Upload, Archive } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -24,6 +23,7 @@ import { WorkflowOutline, type TemplateOutline } from "./workflow-outline";
 import { useAdminTemplate, useEditorMutations, useEditorVersion } from "./use-workflow";
 import type { AdminVersionSummary, EditorPhase, EditorTask, EditorVersion, ValidationResultData } from "./types";
 import { Field } from "@/components/ui/field";
+import { StatusBadge } from "@/components/shared/status-badge";
 
 const STATUS_PILL: Record<string, string> = {
   DRAFT: "bg-tone-warning-soft text-tone-warning-fg",
@@ -284,9 +284,7 @@ export function TemplateEditor({ templateId, versionId }: { templateId: string; 
                               <span className="text-sm font-medium">{t.title}</span>
                               <span className="text-2xs text-muted-foreground">{WORKFLOW_ROLE_LABEL[t.role]}</span>
                               {t.priority !== "MEDIUM" && (
-                                <Badge variant="outline" className="text-3xs">
-                                  {t.priority}
-                                </Badge>
+                                <StatusBadge kind="priority" value={t.priority} />
                               )}
                               {issues.length > 0 && <span className="rounded-full bg-tone-danger-soft px-1.5 text-3xs text-tone-danger-fg">{issues.length} problem{issues.length === 1 ? "" : "s"}</span>}
                             </span>
