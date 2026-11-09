@@ -12,11 +12,17 @@ import { deriveTaskState, WORKFLOW_STATE_LABEL, WORKFLOW_STATE_PILL } from "@/co
 import { stepHasOpenRequirement } from "@/lib/workflows/step-requirements";
 import type { Priority, TaskListItem, TaskStatus, UpdatePatch, UserOption } from "./types";
 import { isPastDue } from "@/lib/calendar/status";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { undoPatch } from "@/lib/tasks/quick-done";
 
 /**
- * One task as an editable row: tick it done, retitle via the sheet, and change
- * priority / due / assignee inline. Lifted verbatim from the tasks page so the
- * list and board there and the entity panels elsewhere are the same card.
+ * One task as a row. From 768 px up it is editable in place: tick it done,
+ * change priority / due / assignee / status inline. On a phone the values are
+ * text and a tap opens the sheet (Mark done is there), so a mis-tap while
+ * scrolling never changes anything. Shared by the tasks list and board and
+ * the entity panels.
  */
 export function TaskCard({
   task,
@@ -42,16 +48,23 @@ export function TaskCard({
 
   return (
     <div className="flex items-start gap-3 rounded-lg border bg-white p-3">
+      {/* The tick (and Base UI's hidden input beside it) only from 768 px up. */}
+      <div className="hidden md:block">
       <Checkbox
         className="mt-1"
         checked={task.status === "COMPLETED"}
         aria-label={task.status === "COMPLETED" ? "Reopen task" : "Mark task complete"}
-        onCheckedChange={(checked) =>
+        onCheckedChange={(checked) => {
           // A step with a checklist to finish or a gate opens instead: the
           // sheet shows what it needs, where a bare tick would only be refused.
-          checked && stepHasOpenRequirement(task) ? onOpen(task.id) : onUpdate(task.id, { status: checked ? "COMPLETED" : "PENDING" })
-        }
+          if (checked && stepHasOpenRequirement(task)) return onOpen(task.id);
+          if (!checked) return onUpdate(task.id, { status: "PENDING" });
+          const prior = { status: task.status, blockedReason: task.blockedReason };
+          onUpdate(task.id, { status: "COMPLETED" });
+          toast.success(`Done: ${task.title}`, { action: { label: "Undo", onClick: () => onUpdate(task.id, undoPatch(prior) as UpdatePatch) } });
+        }}
       />
+      </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <button
@@ -91,7 +104,24 @@ export function TaskCard({
         {task.status === "BLOCKED" && task.blockedReason && (
           <div className="mt-0.5 truncate text-2xs text-tone-warning-fg">Blocked — {task.blockedReason}</div>
         )}
-        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+        {/* Phone: the values as text; the whole row opens the sheet. */}
+        <button
+          type="button"
+          onClick={() => onOpen(task.id)}
+          className="mt-1.5 flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-left text-xs text-muted-foreground md:hidden"
+          aria-label={`Open ${task.title}`}
+        >
+          <StatusBadge kind="task" value={task.status} />
+          <StatusBadge kind="priority" value={task.priority} dot={false} />
+          <span className={cn(overdue && "font-semibold text-tone-danger-fg")}>
+            {task.dueAt ? `Due ${format(new Date(task.dueAt), "MMM d")}` : "No date"}
+          </span>
+          <span className="truncate">{task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : "Unassigned"}</span>
+        </button>
+        <div className="mt-1.5 md:hidden empty:hidden">
+          <TaskEntityChip task={task} />
+        </div>
+        <div className="mt-1.5 hidden flex-wrap items-center gap-2 text-xs md:flex">
           <Select
             value={task.priority}
             onValueChange={(v: string | null) => v && onUpdate(task.id, { priority: v as Priority })}
@@ -132,6 +162,7 @@ export function TaskCard({
         </div>
       </div>
       {mode === "list" && (
+        <div className="hidden md:block">
         <Select
           value={task.status}
           onValueChange={(v: string | null) => {
@@ -156,6 +187,7 @@ export function TaskCard({
             ))}
           </SelectContent>
         </Select>
+        </div>
       )}
     </div>
   );

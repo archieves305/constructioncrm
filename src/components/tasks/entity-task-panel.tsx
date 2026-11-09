@@ -16,9 +16,11 @@ import { AddTaskDialog } from "./add-task-dialog";
 import { TaskCountBadge } from "./task-count-badge";
 import { TaskDetailSheet } from "./task-detail-sheet";
 import { PRIORITY_DOT_CLASS, PRIORITY_LABEL } from "./task-colors";
-import { primaryLink, type TaskEntityContext, type TaskListItem } from "./types";
+import { primaryLink, type TaskEntityContext, type TaskListItem, type UpdatePatch } from "./types";
 import { useAssignableUsers, useTasks, useUpdateTask } from "./use-tasks";
 import { isPastDue } from "@/lib/calendar/status";
+import { toast } from "sonner";
+import { undoPatch } from "@/lib/tasks/quick-done";
 
 /**
  * The tasks that belong to one record — a lead, a job, an invoice, a daily
@@ -123,9 +125,15 @@ export function EntityTaskPanel({
               key={t.id}
               task={t}
               compact={compact}
-              onToggle={(checked) =>
-                checked && stepHasOpenRequirement(t) ? setOpenTaskId(t.id) : update.mutate({ id: t.id, patch: { status: checked ? "COMPLETED" : "PENDING" } })
-              }
+              onToggle={(checked) => {
+                if (checked && stepHasOpenRequirement(t)) return setOpenTaskId(t.id);
+                if (!checked) return update.mutate({ id: t.id, patch: { status: "PENDING" } });
+                const prior = { status: t.status, blockedReason: t.blockedReason };
+                update.mutate(
+                  { id: t.id, patch: { status: "COMPLETED" } },
+                  { onSuccess: () => toast.success(`Done: ${t.title}`, { action: { label: "Undo", onClick: () => update.mutate({ id: t.id, patch: undoPatch(prior) as UpdatePatch }) } }) },
+                );
+              }}
               onOpen={() => setOpenTaskId(t.id)}
             />
           ))}

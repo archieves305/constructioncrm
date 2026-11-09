@@ -126,6 +126,33 @@ flows.task = async () => {
     expect(done === "COMPLETED/true" && open === "PENDING/false", `got ${done} then ${open}`);
     return true;
   });
+  await rec.step("Phone: the row shows values as text; two taps (row, Mark done) complete it; Undo restores In progress", async () => {
+    ok(await api("PATCH", `/api/tasks/${state.taskId}`, { status: "IN_PROGRESS" }), "in progress");
+    await page.setViewportSize({ width: 400, height: 860 });
+    try {
+      await go(`/tasks?scope=all&q=${encodeURIComponent(`QA task ${STAMP}`)}`);
+      await page.waitForTimeout(800);
+      const row = page.getByRole("button", { name: `Open QA task ${STAMP}` });
+      expect(await row.count() === 1, "row not found");
+      const card = row.locator("xpath=ancestor::div[contains(@class,'rounded-lg')][1]");
+      const editable = await card.evaluate((el) =>
+        [...el.querySelectorAll("input,[role=combobox],[role=checkbox]")].filter((n) => n.getBoundingClientRect().width > 0).map((n) => n.outerHTML.slice(0, 80)),
+      );
+      expect(editable.length === 0, `editable controls visible on the phone row: ${editable.join(", ")}`);
+      await row.click();
+      await page.getByRole("button", { name: "Mark done" }).click();
+      await page.waitForTimeout(1500);
+      const afterDone = sql(`select status from tasks where id = '${state.taskId}'`);
+      expect(afterDone === "COMPLETED", `after Done: ${afterDone}`);
+      await page.getByRole("button", { name: "Undo" }).click();
+      await page.waitForTimeout(1500);
+      const afterUndo = sql(`select status || '/' || (completed_at is not null) from tasks where id = '${state.taskId}'`);
+      expect(afterUndo === "IN_PROGRESS/false", `after Undo: ${afterUndo}`);
+      return "2 taps; Undo → IN_PROGRESS";
+    } finally {
+      await page.setViewportSize({ width: 1440, height: 900 });
+    }
+  });
 };
 
 flows.taskvis = async () => {

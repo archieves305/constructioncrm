@@ -29,7 +29,7 @@ import { taskKeys, useInvalidateTasks } from "./use-tasks";
 import type { Person, TaskListItem, TaskStatus, UserOption } from "./types";
 import { fetchJson } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
-import { X, Plus, BellRing, AlarmClock, Pencil, Trash2, MapPin, Phone, Briefcase } from "lucide-react";
+import { CheckCircle2, RotateCcw, X, Plus, BellRing, AlarmClock, Pencil, Trash2, MapPin, Phone, Briefcase } from "lucide-react";
 import Link from "next/link";
 import { AssigneePicker } from "./assignee-picker";
 import { ScheduleSection } from "./schedule-section";
@@ -42,6 +42,7 @@ import type { WorkflowTaskItem } from "@/components/workflows/types";
 import { usePrompt } from "@/components/shared/confirm-provider";
 import { Field as FormField } from "@/components/ui/field";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { canQuickComplete, canQuickReopen, undoPatch } from "@/lib/tasks/quick-done";
 
 type TaskDetail = TaskListItem &
   Omit<WorkflowTaskItem, keyof TaskListItem | "dependencies"> & {
@@ -258,6 +259,22 @@ export function TaskDetailSheet({
     patch.mutate({ status: next });
   }
 
+  // Done is one tap; Undo in the toast puts the task back as it was.
+  function markDone() {
+    if (!task) return;
+    const prior = { status: task.status, blockedReason: task.blockedReason };
+    const title = task.title;
+    patch.mutate(
+      { status: "COMPLETED" },
+      {
+        onSuccess: () =>
+          toast.success(`Done: ${title}`, {
+            action: { label: "Undo", onClick: () => patch.mutate(undoPatch(prior)) },
+          }),
+      },
+    );
+  }
+
   const watcherIds = new Set(task?.watchers.map((w) => w.user.id) ?? []);
   const addableWatchers = users.filter((u) => u.isActive && !watcherIds.has(u.id));
 
@@ -351,6 +368,16 @@ export function TaskDetailSheet({
                 <AutoSourceChip sourceKey={task.sourceKey} />
               </div>
               <QuickLinks task={task} />
+              {mayEdit && canQuickComplete(task) && (
+                <Button className="mt-2 h-11 w-full sm:h-9 sm:w-auto sm:self-start" loading={patch.isPending} onClick={markDone}>
+                  <CheckCircle2 className="size-4" /> Mark done
+                </Button>
+              )}
+              {mayEdit && canQuickReopen(task) && (
+                <Button variant="outline" className="mt-2 h-11 w-full sm:h-9 sm:w-auto sm:self-start" loading={patch.isPending} onClick={() => patch.mutate({ status: "PENDING" })}>
+                  <RotateCcw className="size-4" /> Reopen
+                </Button>
+              )}
             </SheetHeader>
 
             <div className="space-y-5 px-6 py-5">
