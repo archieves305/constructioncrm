@@ -15,6 +15,8 @@ interface KpiCardProps {
   tone?: "success" | "danger" | "warning";
   /** Rendered under the value — a progress bar, a sub-line. */
   children?: React.ReactNode;
+  /** One short tile (label, value, one line) for a row of figures above the fold. */
+  compact?: boolean;
 }
 
 const VALUE_TONE = {
@@ -23,8 +25,26 @@ const VALUE_TONE = {
   warning: "text-tone-warning-fg",
 } as const;
 
-export function KpiCard({ title, value, description, icon: Icon, trend, href, tone, children }: KpiCardProps) {
-  const card = (
+export function KpiCard({ title, value, description, icon: Icon, trend, href, tone, children, compact }: KpiCardProps) {
+  const card = compact ? (
+    <div
+      className={cn(
+        "flex h-full min-w-0 flex-col rounded-lg border bg-card px-3 py-2",
+        href && "transition-colors hover:bg-surface-subtle",
+      )}
+    >
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Icon className="size-3.5 shrink-0" aria-hidden />
+        <span className="truncate">{title}</span>
+      </div>
+      <div className={cn("text-lg leading-tight font-semibold tabular-nums", tone && VALUE_TONE[tone])}>{value}</div>
+      {description && (
+        <p className="truncate text-2xs text-muted-foreground" title={description}>
+          {description}
+        </p>
+      )}
+    </div>
+  ) : (
     <Card className={cn(href && "h-full transition-shadow hover:shadow-md hover:ring-1 hover:ring-border-strong")}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -50,7 +70,7 @@ export function KpiCard({ title, value, description, icon: Icon, trend, href, to
     </Card>
   );
   return href ? (
-    <Link href={href} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <Link href={href} className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       {card}
     </Link>
   ) : (

@@ -574,7 +574,24 @@ flows.overlays = async () => {
   });
 };
 
-const ORDER = ["lead", "task", "taskvis", "files", "permit", "expense", "crewpay", "co", "log", "calendar", "vendor", "bulk", "pickers", "font", "phone", "lists", "overlays"];
+flows.dashboard = async () => {
+  await rec.step("Folding Business development is remembered across a reload, and unfolds again", async () => {
+    await go("/");
+    const btn = page.getByRole("button", { name: /^Business development/ });
+    if (!(await btn.count())) return "no Business development strip for this role (skipped)";
+    if ((await btn.getAttribute("aria-expanded")) === "false") await btn.click();
+    await btn.click();
+    expect((await btn.getAttribute("aria-expanded")) === "false", "did not fold");
+    await go("/");
+    const again = page.getByRole("button", { name: /^Business development/ });
+    expect((await again.getAttribute("aria-expanded")) === "false", "fold forgotten after reload");
+    await again.click();
+    expect((await again.getAttribute("aria-expanded")) === "true", "did not unfold");
+    return true;
+  });
+};
+
+const ORDER = ["lead", "task", "taskvis", "files", "permit", "expense", "crewpay", "co", "log", "calendar", "vendor", "bulk", "pickers", "font", "phone", "lists", "overlays", "dashboard"];
 for (const name of ORDER) {
   if (only && !only.test(name)) continue;
   rec.group = name;

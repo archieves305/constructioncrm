@@ -6,7 +6,7 @@
 // Screenshots in qa-out/shots/<role>/.
 import fs from "node:fs";
 import path from "node:path";
-import { assertLocalDatabase, BASE, launch, newContext, OUT, recorder, waitForServer } from "./lib.mjs";
+import { assertLocalDatabase, BASE, expect, launch, newContext, OUT, recorder, waitForServer } from "./lib.mjs";
 import { pagesWithUrls } from "./pages.mjs";
 
 assertLocalDatabase();
@@ -78,5 +78,29 @@ for (const p of pagesWithUrls()) {
     });
   }
 }
+// T-19: the work to act on comes first — Needs attention and My tasks are on
+// screen at 1440 × 900 without scrolling, for every role this pass runs as.
+if (!only) {
+  rec.group = "fold";
+  await rec.step("Dashboard: Needs attention and My tasks above the fold at 1440 × 900", async () => {
+    const ctx = await newContext(browser, { width: 1440, height: 900 });
+    const page = await ctx.newPage();
+    try {
+      await page.goto(BASE + "/", { waitUntil: "networkidle", timeout: 90000 });
+      await page.waitForTimeout(1500);
+      const tops = await page.evaluate(() => {
+        const find = (t) => [...document.querySelectorAll("[data-slot=card-title]")].find((el) => el.textContent?.trim().startsWith(t));
+        const r = (el) => (el ? Math.round(el.getBoundingClientRect().top) : null);
+        return { attention: r(find("Needs attention")), tasks: r(find("My tasks")), vh: innerHeight };
+      });
+      expect(tops.attention !== null && tops.tasks !== null, `cards missing: ${JSON.stringify(tops)}`);
+      expect(tops.attention < tops.vh && tops.tasks + 40 < tops.vh, `below the fold: ${JSON.stringify(tops)}`);
+      return `Needs attention at ${tops.attention}px, My tasks at ${tops.tasks}px of ${tops.vh}`;
+    } finally {
+      await ctx.close();
+    }
+  });
+}
+
 await browser.close();
 process.exit(rec.finish() ? 1 : 0);

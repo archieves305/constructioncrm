@@ -329,3 +329,17 @@ export type OwnerSummary = {
   /** Σ projected profit of open billable jobs that have an expected cost; the rest are counted, not guessed. */
   expectedGrossProfit: { total: number; jobs: number; jobsWithoutBaseline: number };
 };
+
+/** True when every figure on the strip is zero. */
+export function ownerSummaryIsEmpty(d: OwnerSummary): boolean {
+  return (
+    d.newLeadsToday === 0 &&
+    d.uncontacted === 0 &&
+    d.pipeline.leads === 0 &&
+    d.pipeline.value === 0 &&
+    d.estimatesOut.count === 0 &&
+    d.activeJobs === 0 &&
+    d.expectedGrossProfit.total === 0 &&
+    d.expectedGrossProfit.jobs === 0
+  );
+}

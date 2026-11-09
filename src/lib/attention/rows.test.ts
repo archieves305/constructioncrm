@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ATTENTION_KEYS, ATTENTION_ROWS, attentionHref, attentionRowsFor, canSeeAttentionRow, isAttentionKey, visibleAttention, type AttentionCount } from "./rows";
+import { ATTENTION_KEYS, ATTENTION_ROWS, attentionHref, attentionRowsFor, canSeeAttentionRow, isAttentionKey, ownerSummaryIsEmpty, visibleAttention, type AttentionCount } from "./rows";
 
 const keys = (role: Parameters<typeof attentionRowsFor>[0]) => attentionRowsFor(role).map((r) => r.key);
 
@@ -58,5 +58,15 @@ describe("attention rows", () => {
       row("violation-deadlines", "danger", 3),
     ]);
     expect(out.map((r) => r.key)).toEqual(["violation-deadlines", "permits-expiring", "pending-expenses", "quiet-jobs"]);
+  });
+});
+
+describe("ownerSummaryIsEmpty", () => {
+  const zero = { newLeadsToday: 0, uncontacted: 0, pipeline: { leads: 0, value: 0 }, estimatesOut: { count: 0, total: 0 }, activeJobs: 0, expectedGrossProfit: { total: 0, jobs: 0, jobsWithoutBaseline: 0 } };
+  it("is empty only when every figure is zero", () => {
+    expect(ownerSummaryIsEmpty(zero)).toBe(true);
+    expect(ownerSummaryIsEmpty({ ...zero, expectedGrossProfit: { total: 0, jobs: 0, jobsWithoutBaseline: 3 } })).toBe(true);
+    expect(ownerSummaryIsEmpty({ ...zero, activeJobs: 1 })).toBe(false);
+    expect(ownerSummaryIsEmpty({ ...zero, pipeline: { leads: 2, value: 0 } })).toBe(false);
   });
 });

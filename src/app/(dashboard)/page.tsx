@@ -9,6 +9,7 @@ import { WorkflowHealthWidget } from "@/components/dashboard/workflow-health-wid
 import { NeedsAttention } from "@/components/dashboard/needs-attention";
 import { OwnerStrip } from "@/components/dashboard/owner-strip";
 import { BusinessDevelopmentStrip } from "@/components/partners/bd-strip";
+import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { useListScope } from "@/components/shared/use-list-scope";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -91,19 +92,19 @@ export default function DashboardPage() {
         actions={scopeToggle}
       />
 
-      <OwnerStrip scope={scope} />
+      {/* Act first: what needs someone, then the day, then the figures. */}
       <NeedsAttention scope={scope} />
-      <BusinessDevelopmentStrip />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <TodayWidget />
         <MyTasksWidget />
-        <WorkflowHealthWidget className="lg:col-span-2" scope={scope} />
       </div>
 
-      <h2 className="mt-8 mb-3 text-sm font-semibold text-muted-foreground">
-        Sales · {scope === "mine" ? "your leads" : "all leads"}
-      </h2>
+      <OwnerStrip scope={scope} />
+      <WorkflowHealthWidget className="mt-6" scope={scope} />
+      <BusinessDevelopmentStrip />
+
+      <CollapsibleSection id="dashboard-sales" title={`Sales · ${scope === "mine" ? "your leads" : "all leads"}`} className="mt-8">
       {isLoading ? (
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -244,6 +245,7 @@ export default function DashboardPage() {
           </div>
         </>
       )}
+      </CollapsibleSection>
     </div>
   );
 }
