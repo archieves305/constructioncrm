@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { createPaymentRequestBody, guestLinkCreated, type PhoneLaborContractDto } from "@crm/mobile-api";
+import { createPaymentRequestBody, guestLinkCreated, statusLabel, type PhoneLaborContractDto } from "@crm/mobile-api";
 import { api, ApiError } from "@/api/client";
 import { useJob, useLaborContracts, usePaymentRequests } from "@/api/queries";
 import { useOnline } from "@/cache/net";
@@ -19,7 +19,6 @@ import { Chips } from "@/ui/Chips";
 import { Empty, LoadError, Loading } from "@/ui/states";
 import { TOUCH, useTheme } from "@/ui/theme";
 
-const STATUS: Record<string, string> = { REQUESTED: "Waiting for payment", PAID: "Paid", CANCELLED: "Withdrawn", CLOSED_UNPAID: "Closed, not paid" };
 
 /**
  * A job's crew contracts on the phone: what each is worth, what has been
@@ -56,7 +55,7 @@ export default function CrewPayments() {
       {contracts.isPending ? (
         <Loading />
       ) : contracts.isError && !contracts.data ? (
-        <LoadError error={contracts.error} onRetry={() => contracts.refetch()} />
+        <LoadError error={contracts.error} noun="crew contract list" onRetry={() => contracts.refetch()} />
       ) : contracts.data && contracts.data.length === 0 ? (
         <Empty title="No crew contracts on this job" body="Crew contracts are set up on the web, under the job's Field → Labor." />
       ) : (
@@ -172,12 +171,12 @@ function ContractCard({ contract: c, jobId, address }: { contract: PhoneLaborCon
 
       {open.map((r) => (
         <Text key={r.id} style={{ color: t.warn, fontSize: 14 }}>
-          {dollars(r.amount)} requested{r.neededBy ? ` · needed ${shortDate(r.neededBy)}` : ""} · {STATUS[r.status]}
+          {dollars(r.amount)} requested{r.neededBy ? ` · needed ${shortDate(r.neededBy)}` : ""} · {statusLabel("paymentRequest", r.status)}
         </Text>
       ))}
       {recent.map((r) => (
         <Text key={r.id} style={{ color: t.muted, fontSize: 13 }}>
-          {dollars(r.amount)} · {STATUS[r.status]} · {shortDate(r.createdAt)}
+          {dollars(r.amount)} · {statusLabel("paymentRequest", r.status)} · {shortDate(r.createdAt)}
         </Text>
       ))}
 
@@ -219,7 +218,7 @@ function ContractCard({ contract: c, jobId, address }: { contract: PhoneLaborCon
           {photos.length ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
               {photos.map((p, i) => (
-                <Pressable key={`${p.uri}${i}`} accessibilityLabel="Remove photo" onPress={() => setPhotos((x) => x.filter((_, j) => j !== i))}>
+                <Pressable key={`${p.uri}${i}`} accessibilityRole="button" accessibilityLabel="Remove photo" onPress={() => setPhotos((x) => x.filter((_, j) => j !== i))}>
                   <Image source={{ uri: p.uri }} style={{ width: 64, height: 64, borderRadius: 8 }} />
                   <Ionicons name="close-circle" size={20} color="#fff" style={{ position: "absolute", top: 2, right: 2 }} />
                 </Pressable>

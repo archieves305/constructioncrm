@@ -10,8 +10,9 @@ export function PickSheet({ title, options, visible, onPick, onClose }: { title:
   const t = useTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable accessibilityLabel="Close" onPress={onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
-        <Pressable onPress={() => undefined} style={{ maxHeight: "75%" }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
+        {/* Swallows taps on the sheet so they don't close it; not a control for VoiceOver. */}
+        <Pressable accessible={false} onPress={() => undefined} style={{ maxHeight: "75%" }}>
           <Card style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 28, gap: 4 }}>
             <Text style={[s.h2, { color: t.text, marginBottom: 6 }]}>{title}</Text>
             <ScrollView>

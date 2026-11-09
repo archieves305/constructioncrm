@@ -43,7 +43,7 @@ export default function LeadScreen() {
   const [busy, setBusy] = useState(false);
 
   if (lead.isPending) return <Loading />;
-  if (lead.isError || !lead.data) return <LoadError error={lead.error} onRetry={() => lead.refetch()} />;
+  if (lead.isError || !lead.data) return <LoadError error={lead.error} noun="lead" onRetry={() => lead.refetch()} />;
   const l = lead.data;
   const tel = dialable(l.phone);
   const due = followUpLine(l.nextFollowUpAt, l.lastContactAt);

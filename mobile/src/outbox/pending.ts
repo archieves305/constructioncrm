@@ -48,7 +48,7 @@ export function pendingFor(ops: OutboxOp[], taskId: string): PendingView {
 /** The task update body for a status change, with what the phone last saw. */
 export function statusChange(
   seen: { status: string; blockedReason: string | null },
-  next: { status: "COMPLETED" | "BLOCKED" | "PENDING"; blockedReason?: string | null },
+  next: { status: "COMPLETED" | "BLOCKED" | "PENDING" | "IN_PROGRESS"; blockedReason?: string | null },
 ) {
   const body: Record<string, unknown> = { status: next.status, expect: { status: seen.status } };
   if (next.blockedReason !== undefined) {

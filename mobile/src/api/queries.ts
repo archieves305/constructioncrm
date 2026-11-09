@@ -119,8 +119,11 @@ export const useOwnerSummary = (enabled: boolean) =>
   useQuery({ queryKey: ["owner", "summary"], enabled, queryFn: () => api("/api/attention/owner?scope=all", { schema: ownerSummary }) });
 export const useAttention = (enabled = true) =>
   useQuery({ queryKey: ["attention", "rows"], enabled, queryFn: () => api("/api/attention?scope=all", { schema: attentionCounts }) });
-export const useAttentionList = (key: string) =>
-  useQuery({ queryKey: ["attention", "list", key], queryFn: () => api(`/api/attention/${encodeURIComponent(key)}?scope=all`, { schema: attentionList }) });
+/** "Needs attention" on the person's own work, for every role (the server floors own-only roles to theirs). */
+export const useAttentionMine = () =>
+  useQuery({ queryKey: ["attention", "rows", "mine"], queryFn: () => api("/api/attention?scope=mine", { schema: attentionCounts }) });
+export const useAttentionList = (key: string, scope: "mine" | "all" = "all") =>
+  useQuery({ queryKey: ["attention", "list", key, scope], queryFn: () => api(`/api/attention/${encodeURIComponent(key)}?scope=${scope}`, { schema: attentionList }) });
 
 /** A job's log for one day, or null when nobody has started it. */
 export function useDailyLog(jobId: string, date: string) {

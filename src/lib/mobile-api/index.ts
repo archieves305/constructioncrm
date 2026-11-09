@@ -888,3 +888,10 @@ export const logContactRequest = z.object({
   direction: z.enum(["OUTBOUND", "INBOUND"]),
   body: z.string().trim().min(1).max(4000),
 });
+
+// Wording shared with the web, so a refusal, a missing record and a status
+// read the same on the phone as on crm.careyos.com.
+export * from "./messages";
+export * from "./query-status";
+export * from "./status";
+export * from "./quick-done";

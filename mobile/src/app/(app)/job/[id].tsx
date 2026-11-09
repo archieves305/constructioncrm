@@ -43,7 +43,7 @@ export default function JobScreen() {
   if ((job.isError && job.data === undefined))
     return (
       <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
-        <LoadError error={job.error} onRetry={() => job.refetch()} />
+        <LoadError error={job.error} noun="job" onRetry={() => job.refetch()} />
       </View>
     );
 
@@ -138,7 +138,7 @@ export default function JobScreen() {
       {tasks.isPending ? (
         <Loading />
       ) : (tasks.isError && tasks.data === undefined) ? (
-        <LoadError error={tasks.error} onRetry={() => tasks.refetch()} />
+        <LoadError error={tasks.error} noun="task list" onRetry={() => tasks.refetch()} />
       ) : open.length === 0 ? (
         <Empty title="No open tasks on this job" />
       ) : (
@@ -173,7 +173,7 @@ export default function JobScreen() {
       {files.isPending ? (
         <Loading />
       ) : (files.isError && files.data === undefined) ? (
-        <LoadError error={files.error} onRetry={() => files.refetch()} />
+        <LoadError error={files.error} noun="file list" onRetry={() => files.refetch()} />
       ) : (
         <>
           <DocList files={[...files.data.files, ...files.data.leadFiles].filter((f) => f.category !== "PHOTOS").slice(0, 5)} hidePhotoCount />

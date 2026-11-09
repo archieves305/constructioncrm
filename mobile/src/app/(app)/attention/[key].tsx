@@ -13,8 +13,8 @@ import { TOUCH, useTheme } from "@/ui/theme";
 export default function AttentionListScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { key, label } = useLocalSearchParams<{ key: string; label?: string }>();
-  const list = useAttentionList(key);
+  const { key, label, scope } = useLocalSearchParams<{ key: string; label?: string; scope?: string }>();
+  const list = useAttentionList(key, scope === "mine" ? "mine" : "all");
   return (
     <FlatList
       style={{ backgroundColor: t.bg }}

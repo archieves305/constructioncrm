@@ -1,24 +1,13 @@
-import type { InspectionDto } from "@crm/mobile-api";
+import { STATUS, type InspectionDto } from "@crm/mobile-api";
 
-export const TYPE_LABEL: Record<InspectionDto["type"], string> = {
-  ROUGH: "Rough",
-  FRAMING: "Framing",
-  ELECTRICAL: "Electrical",
-  PLUMBING: "Plumbing",
-  MECHANICAL: "Mechanical",
-  ROOFING_IN_PROGRESS: "Roofing in progress",
-  ROOFING_FINAL: "Roofing final",
-  FINAL: "Final",
-  OTHER: "Other",
-};
+/** Labels from the shared status registry, so a phone and the web name an inspection the same way. */
+export const TYPE_LABEL = Object.fromEntries(
+  Object.entries(STATUS.inspectionType).map(([k, v]) => [k, v.label]),
+) as Record<InspectionDto["type"], string>;
 
-export const RESULT_LABEL: Record<InspectionDto["result"], string> = {
-  SCHEDULED: "Booked",
-  PASS: "Passed",
-  FAIL: "Failed",
-  CONDITIONAL: "Passed with conditions",
-  CANCELLED: "Cancelled",
-};
+export const RESULT_LABEL = Object.fromEntries(
+  Object.entries(STATUS.inspectionResult).map(([k, v]) => [k, v.label]),
+) as Record<InspectionDto["result"], string>;
 
 /** What recording each result will do, before the person confirms (matches the web's wording). */
 export const RESULT_EFFECT: Record<"PASS" | "FAIL" | "CONDITIONAL" | "CANCELLED", string> = {

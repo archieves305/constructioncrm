@@ -8,6 +8,7 @@ import { useSession } from "@/auth/session";
 import { useCalendarRange, useOverdue, useToday } from "@/api/queries";
 import { SavedNote } from "@/cache/SavedNote";
 import { OwnerStrip } from "@/ui/OwnerStrip";
+import { NeedsAttention } from "@/ui/NeedsAttention";
 import { usePush } from "@/push/push";
 import { addDays, dayKey } from "@/lib/format";
 import { groupByDay, orderDay } from "@/lib/calendar";
@@ -129,7 +130,8 @@ export default function Today() {
       </View>
 
       <SavedNote />
-      <OwnerStrip />
+      {/* Act first, as the web dashboard: what needs you, then the day, then the figures. */}
+      <NeedsAttention />
       {push.state === "undetermined" ? (
         <Card>
           <Text style={[s.h2, { color: t.text }]}>Get a buzz when work comes in</Text>
@@ -215,6 +217,7 @@ export default function Today() {
           {showDone ? done.map((i) => <ItemCard key={i.id} item={i} />) : null}
         </View>
       ) : null}
+      <OwnerStrip />
     </ScrollView>
   );
 }

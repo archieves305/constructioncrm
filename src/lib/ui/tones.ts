@@ -3,7 +3,8 @@
  * classes it can see in source, so nothing here is ever built from a
  * template string — look a tone up, get its full class strings.
  */
-export type Tone = "neutral" | "info" | "warning" | "danger" | "success";
+export type { Tone } from "@/lib/mobile-api/status";
+import type { Tone } from "@/lib/mobile-api/status";
 
 export type ToneClasses = {
   /** Tinted chip: soft background + readable text. */

@@ -15,15 +15,9 @@ import { Button, Card, Notice, s } from "@/ui/components";
 import { OpRow } from "@/ui/OpRow";
 import { DocRow } from "@/ui/DocList";
 import { LoadError, Loading } from "@/ui/states";
+import { StatusBadge } from "@/ui/StatusBadge";
+import { canQuickComplete, undoPatch } from "@crm/mobile-api";
 import { TOUCH, useTheme } from "@/ui/theme";
-
-const STATUS: Record<string, string> = {
-  PENDING: "To do",
-  IN_PROGRESS: "In progress",
-  BLOCKED: "Blocked",
-  COMPLETED: "Done",
-  CANCELLED: "Cancelled",
-};
 
 /** A task: Done, Blocked / Unblock, notes. Changes go through the outbox. */
 export default function TaskScreen() {
@@ -39,13 +33,20 @@ export default function TaskScreen() {
   const [reason, setReason] = useState("");
   const [completeOpen, setCompleteOpen] = useState(false);
   const [picking, setPicking] = useState<"owner" | "due" | null>(null);
+  // After Done: the status it had, so Undo can put it back (as the web's toast does).
+  const [undo, setUndo] = useState<{ status: string; blockedReason: string | null } | null>(null);
+  useEffect(() => {
+    if (!undo) return;
+    const timer = setTimeout(() => setUndo(null), 10_000);
+    return () => clearTimeout(timer);
+  }, [undo]);
   const people = useAssignable();
 
   if (task.isPending) return <Loading />;
   if ((task.isError && task.data === undefined))
     return (
       <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
-        <LoadError error={task.error} onRetry={() => task.refetch()} />
+        <LoadError error={task.error} noun="task" onRetry={() => task.refetch()} />
       </View>
     );
 
@@ -156,10 +157,10 @@ export default function TaskScreen() {
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
             <View>
               <Text style={[s.label, { color: t.muted }]}>Status</Text>
-              <Text style={[s.body, { color: status === "BLOCKED" ? t.warn : status === "COMPLETED" ? t.ok : t.text, fontWeight: "600" }]}>
-                {STATUS[status] ?? status}
-                {pending.waiting ? " · sending" : ""}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+                <StatusBadge kind="task" value={status} />
+                {pending.waiting ? <Text style={{ color: t.muted, fontSize: 13 }}>sending</Text> : null}
+              </View>
             </View>
             <Pressable accessibilityRole="button" accessibilityLabel={`Due ${due}. Change the date`} disabled={!open} onPress={() => setPicking("due")} style={{ minHeight: TOUCH - 8 }}>
               <Text style={[s.label, { color: t.muted }]}>Due</Text>
@@ -217,12 +218,42 @@ export default function TaskScreen() {
             onPress={() => router.push({ pathname: "/photo", params: { taskId: k.id, label: `${address ? `${address} · ` : ""}${k.title}` } })}
           />
         ) : null}
+        {undo && status === "COMPLETED" ? (
+          <Card>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <Text style={[s.body, { color: t.text, flex: 1 }]} accessibilityLiveRegion="polite">Marked done.</Text>
+              <Button
+                label="Undo"
+                kind="secondary"
+                onPress={() => {
+                  const back = undoPatch(undo) as Parameters<typeof statusChange>[1];
+                  void outbox.enqueue({
+                    kind: "task.update",
+                    targetId: k.id,
+                    method: "PATCH",
+                    path: `/api/tasks/${k.id}`,
+                    body: statusChange({ status: "COMPLETED", blockedReason: undo.blockedReason }, back),
+                    label: `Undo done · ${k.title}`,
+                  });
+                  setUndo(null);
+                }}
+              />
+            </View>
+          </Card>
+        ) : null}
         {k.viewer.canEdit && open ? (
           <View style={{ gap: 10 }}>
             {openLines.length > 0 ? (
               <Button label={`Complete… (${openLines.length} to tick)`} onPress={() => setCompleteOpen(true)} />
             ) : (
-              <Button label="Done" onPress={() => void (lines.length ? complete([]) : change("Mark done", { status: "COMPLETED" }))} />
+              <Button
+                label="Done"
+                onPress={() => {
+                  if (lines.length) return void complete([]);
+                  if (canQuickComplete({ ...seen, workflowTaskKey: k.workflowTaskKey })) setUndo(seen);
+                  void change("Mark done", { status: "COMPLETED" });
+                }}
+              />
             )}
             {status === "BLOCKED" ? (
               <Button

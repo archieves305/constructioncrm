@@ -16,6 +16,7 @@ import { preparePhoto } from "@/photos/prepare";
 import { useOutbox } from "@/outbox/useOutbox";
 import { Button, Card, Notice, s } from "@/ui/components";
 import { OpRow } from "@/ui/OpRow";
+import { StatusBadge } from "@/ui/StatusBadge";
 import { LoadError, Loading } from "@/ui/states";
 import { TOUCH, useTheme } from "@/ui/theme";
 
@@ -205,7 +206,7 @@ export default function DailyLogScreen() {
   if ((log.isError && log.data === undefined))
     return (
       <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
-        <LoadError error={log.error} onRetry={() => log.refetch()} />
+        <LoadError error={log.error} noun="daily log" onRetry={() => log.refetch()} />
       </View>
     );
 
@@ -221,11 +222,14 @@ export default function DailyLogScreen() {
       <View>
         {address ? <Text style={{ color: t.muted, fontSize: 15 }}>{address}</Text> : null}
         <Text style={[s.h1, { color: t.text, fontSize: 24 }]}>{longDay(date)}</Text>
-        <Text style={{ color: status === "APPROVED" ? t.ok : status === "SUBMITTED" ? t.brand : t.muted, fontSize: 14, fontWeight: "600" }}>
-          {status === "APPROVED" ? "Approved" : status === "SUBMITTED" ? (submitQueued ? "Submitted · sending" : "Submitted") : log.data ? "Draft" : "Not started"}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 2 }}>
+          {log.data || submitQueued ? <StatusBadge kind="dailyLog" value={status} /> : <Text style={{ color: t.muted, fontSize: 14, fontWeight: "600" }}>Not started</Text>}
+        <Text style={{ color: t.muted, fontSize: 14, fontWeight: "600" }}>
+          {submitQueued ? "sending" : ""}
           {dirty ? " · unsaved changes on this phone" : waiting.some((o) => o.kind === "log.save") ? " · saving" : ""}
           {photosWaiting ? ` · ${photosWaiting} photo${photosWaiting === 1 ? "" : "s"} waiting` : ""}
         </Text>
+        </View>
       </View>
 
       {log.data?.returnNote && status === "DRAFT" ? <Notice tone="warn" text={`Sent back by the office: ${log.data.returnNote}`} /> : null}

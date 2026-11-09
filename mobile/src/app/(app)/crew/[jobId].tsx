@@ -161,7 +161,7 @@ export default function CrewHours() {
   if ((sheet.isError && sheet.data === undefined))
     return (
       <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
-        <LoadError error={sheet.error} onRetry={() => sheet.refetch()} />
+        <LoadError error={sheet.error} noun="crew sheet" onRetry={() => sheet.refetch()} />
       </View>
     );
   const noCrewAccess = crew.error instanceof ApiError && crew.error.status === 403;
@@ -256,6 +256,7 @@ export default function CrewHours() {
                     value={e.absenceReason ?? ""}
                     onChangeText={(v) => update(e.id, { absenceReason: v })}
                     placeholder="Reason (sick, no-show…)"
+                    accessibilityLabel="Reason for being absent"
                     placeholderTextColor={t.muted}
                     maxLength={200}
                     style={{ minHeight: TOUCH, borderRadius: 10, borderWidth: 1, borderColor: t.border, backgroundColor: t.card, color: t.text, paddingHorizontal: 12, fontSize: 16 }}

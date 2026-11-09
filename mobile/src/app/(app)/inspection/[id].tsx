@@ -53,7 +53,7 @@ export default function InspectionScreen() {
   if ((q.isError && q.data === undefined))
     return (
       <View style={{ padding: 16, flex: 1, backgroundColor: t.bg }}>
-        <LoadError error={q.error} onRetry={() => q.refetch()} />
+        <LoadError error={q.error} noun="inspection" onRetry={() => q.refetch()} />
       </View>
     );
   const i = q.data.find((x) => x.id === id);

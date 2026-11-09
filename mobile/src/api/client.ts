@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { firstFieldMessage } from "@crm/mobile-api";
 import { APP_VERSION, CRM_URL } from "@/config";
 import { readToken } from "@/auth/storage";
 
@@ -84,15 +85,18 @@ export async function api<S extends z.ZodTypeAny | undefined = undefined>(
 
   const data: unknown = isJson ? await res.json().catch(() => null) : null;
   if (!res.ok) {
-    const body = (data ?? {}) as { error?: unknown; code?: unknown };
+    const body = (data ?? {}) as { error?: unknown; code?: unknown; fields?: unknown };
+    // A field refusal names the field, as the web does ("Amount must be 0 or more").
+    const fieldSentence = body.error === "Validation failed" ? firstFieldMessage(body.fields) : null;
     const message =
-      typeof body.error === "string"
+      fieldSentence ??
+      (typeof body.error === "string"
         ? body.error
         : res.status === 403
           ? "You don't have access to this"
           : res.status === 404
             ? "Not found, or not available to you"
-            : `The CRM answered ${res.status}`;
+            : `The CRM answered ${res.status}`);
     throw new ApiError(message, res.status, typeof body.code === "string" ? body.code : undefined, data);
   }
   if (!isJson) throw new ApiError("Unexpected answer from the CRM", res.status, "not_json");

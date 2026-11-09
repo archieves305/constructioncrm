@@ -121,7 +121,7 @@ export default function NewExpense() {
       {receipts.length ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
           {receipts.map((r, i) => (
-            <Pressable key={`${r.uri}${i}`} accessibilityLabel="Remove receipt photo" onPress={() => setReceipts((x) => x.filter((_, j) => j !== i))}>
+            <Pressable key={`${r.uri}${i}`} accessibilityRole="button" accessibilityLabel="Remove receipt photo" onPress={() => setReceipts((x) => x.filter((_, j) => j !== i))}>
               <Image source={{ uri: r.uri }} style={{ width: 72, height: 72, borderRadius: 8 }} />
               <Ionicons name="close-circle" size={20} color="#fff" style={{ position: "absolute", top: 2, right: 2 }} />
             </Pressable>

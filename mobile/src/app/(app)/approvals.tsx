@@ -98,6 +98,7 @@ function NoteBox({ value, onChange, placeholder }: { value: string; onChange: (v
       value={value}
       onChangeText={onChange}
       placeholder={placeholder}
+      accessibilityLabel={placeholder}
       placeholderTextColor={t.muted}
       multiline
       style={{ minHeight: TOUCH, borderRadius: 10, borderWidth: 1, borderColor: t.border, backgroundColor: t.bg, color: t.text, padding: 10, fontSize: 16 }}
