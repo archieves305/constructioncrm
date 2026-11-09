@@ -61,7 +61,7 @@ export function PermitProducts({ detail }: { detail: PermitDetail }) {
         data.products.map((p) => <ProductCard key={p.id} p={p} canEdit={data.permissions.canEdit} onChanged={refresh} />)
       )}
       <Dialog open={adding} onOpenChange={setAdding}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent size="md">
           {adding && (
             <AddProduct
               permitId={permit.id}

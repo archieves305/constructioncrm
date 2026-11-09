@@ -508,7 +508,7 @@ export const EstimatesPanel = forwardRef<
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="w-full max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent size="xl" className="overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>
               {editingId ? "Edit roofing estimate" : "New roofing estimate"}

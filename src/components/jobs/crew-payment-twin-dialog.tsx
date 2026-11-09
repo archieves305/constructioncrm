@@ -53,7 +53,7 @@ export function CrewPaymentTwinDialog({ check, jobId, onClose }: { check: TwinCh
 
   return (
     <Dialog open={Boolean(check) && rows.length > 0} onOpenChange={(v) => { if (!v) { setDone(new Set()); onClose(); } }}>
-      <DialogContent className="sm:max-w-lg" data-testid="crew-twin-dialog">
+      <DialogContent size="md"  data-testid="crew-twin-dialog">
         <DialogHeader>
           <DialogTitle>Is this payment already on the job?</DialogTitle>
           <DialogDescription>

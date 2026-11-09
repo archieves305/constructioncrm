@@ -348,7 +348,7 @@ export default function CrewsPage() {
 
       {/* Edit / Create dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Crew" : "New Crew"}</DialogTitle>
           </DialogHeader>

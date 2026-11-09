@@ -86,13 +86,13 @@ export function PermitCycles({ detail }: { detail: PermitDetail }) {
       )}
 
       <Dialog open={freezing} onOpenChange={setFreezing}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">{freezing && <FreezeForm detail={detail} onClose={() => setFreezing(false)} />}</DialogContent>
+        <DialogContent size="lg">{freezing && <FreezeForm detail={detail} onClose={() => setFreezing(false)} />}</DialogContent>
       </Dialog>
       <Dialog open={!!answering} onOpenChange={(o) => !o && setAnswering(null)}>
-        <DialogContent className="sm:max-w-md">{answering && <AnswerForm detail={detail} cycle={answering} onClose={() => setAnswering(null)} />}</DialogContent>
+        <DialogContent size="md">{answering && <AnswerForm detail={detail} cycle={answering} onClose={() => setAnswering(null)} />}</DialogContent>
       </Dialog>
       <Dialog open={manual} onOpenChange={setManual}>
-        <DialogContent className="sm:max-w-md">{manual && <ManualForm detail={detail} onClose={() => setManual(false)} />}</DialogContent>
+        <DialogContent size="md">{manual && <ManualForm detail={detail} onClose={() => setManual(false)} />}</DialogContent>
       </Dialog>
     </div>
   );

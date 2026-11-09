@@ -185,7 +185,7 @@ export default function JobTaskTemplatesPage() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>
               {editingId ? "Edit Template" : "New Template"}

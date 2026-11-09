@@ -1200,7 +1200,7 @@ export function ExpensesPanel({
 
       {/* Edit dialog (manual expenses only) */}
       <Dialog open={Boolean(editing)} onOpenChange={(o: boolean) => !o && setEditing(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>Edit expense</DialogTitle>
           </DialogHeader>

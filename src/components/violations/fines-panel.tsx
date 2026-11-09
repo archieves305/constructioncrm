@@ -176,7 +176,7 @@ function EntryDialog({ open, onOpenChange, caseId }: { open: boolean; onOpenChan
   const needsAmount = ["OFFICIAL_BALANCE", "FINE_IMPOSED", "ADMIN_COST", "PAYMENT", "ACCRUAL_STARTED"].includes(type);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Add a ledger entry</DialogTitle>
           <DialogDescription>Official figures only. The case&apos;s balance, payments and accrual dates are mirrored from these rows.</DialogDescription>
@@ -230,7 +230,7 @@ function TermsDialog({ open, onOpenChange, data }: { open: boolean; onOpenChange
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Fine terms</DialogTitle>
           <DialogDescription>From the notice or order. The estimate is computed from these; only the official stop date stops it.</DialogDescription>
@@ -300,7 +300,7 @@ function LienDialog({ mode, onClose, caseId }: { mode: "record" | "release" | nu
   const pending = record.isPending || release.isPending;
   return (
     <Dialog open={Boolean(mode)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{mode === "record" ? "Record a lien" : "Record the lien release"}</DialogTitle>
           <DialogDescription>From the recorded instrument. Goes to the ledger and the case.</DialogDescription>

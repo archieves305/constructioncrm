@@ -193,7 +193,7 @@ export function JobPhotoGallery({ jobId, readOnly = false, order = "newest" }: {
       )}
 
       <Dialog open={current !== null} onOpenChange={(o) => !o && setOpenKey(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent size="xl">
           {current && (
             <>
               <DialogHeader>

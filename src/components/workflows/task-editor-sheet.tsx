@@ -73,7 +73,7 @@ export function TaskEditorSheet({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-2xl">
+      <SheetContent size="xl" className="flex w-full flex-col gap-0 overflow-y-auto p-0">
         {open && <Body version={version} task={task} phaseId={phaseId} onCancel={() => onOpenChange(false)} onSave={onSave} onDelete={onDelete} pending={pending} />}
       </SheetContent>
     </Sheet>

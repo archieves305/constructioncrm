@@ -16,7 +16,7 @@ export function OwnerDialog({ open, onOpenChange, organizationId, current }: { o
   const items = [{ value: NONE, label: "Nobody" }, ...(options?.owners ?? [])];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Relationship owner</DialogTitle>
           <DialogDescription>One person owns each account so two people never court the same GC without knowing. Open follow-ups move with it.</DialogDescription>

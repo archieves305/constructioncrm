@@ -163,7 +163,7 @@ export function CanvasserSummaryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-md gap-0 overflow-y-auto p-0">
+      <DialogContent size="md" className="gap-0 p-0">
         <DialogHeader className="sticky top-0 z-10 border-b bg-white px-4 py-3">
           <DialogTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Canvasser Summary

@@ -100,7 +100,7 @@ function PromptDialog({ opts, onDone }: { opts: PromptOptions; onDone: (v: strin
   const submit = () => ok && onDone(value.trim());
   return (
     <Dialog open onOpenChange={(o) => !o && onDone(null)}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{opts.title}</DialogTitle>
           {opts.description && <DialogDescription>{opts.description}</DialogDescription>}

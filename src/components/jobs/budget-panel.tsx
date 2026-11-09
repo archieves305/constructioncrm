@@ -553,7 +553,7 @@ export function BudgetPanel({
 
       {/* Allocation editor dialog */}
       <Dialog open={Boolean(target)} onOpenChange={(o: boolean) => !o && setTarget(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>
               Allocate {target?.name}

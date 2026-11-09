@@ -500,7 +500,54 @@ flows.lists = async () => {
   });
 };
 
-const ORDER = ["lead", "task", "taskvis", "files", "permit", "expense", "crewpay", "co", "log", "calendar", "vendor", "bulk", "pickers", "font", "phone", "lists"];
+flows.overlays = async () => {
+  const measure = () => page.evaluate(() => {
+    const d = document.querySelector("[data-slot=dialog-content]");
+    if (!d) return null;
+    const r = d.getBoundingClientRect();
+    return { size: d.getAttribute("data-size"), w: Math.round(r.width), h: Math.round(r.height), vh: innerHeight, vw: innerWidth, scrolls: getComputedStyle(d).overflowY };
+  });
+  const openNewTask = async () => {
+    await go("/tasks");
+    await page.getByRole("button", { name: /^New task/ }).first().click();
+    await page.waitForSelector("[data-slot=dialog-content]", { timeout: 10000 });
+    await page.waitForTimeout(400);
+  };
+  await rec.step("New task opens at the md size: 512 px on a desktop, scrolling inside the screen", async () => {
+    await openNewTask();
+    const m = await measure();
+    expect(m && m.size === "md", `size ${m?.size}`);
+    expect(m.w === 512, `width ${m.w}`);
+    expect(m.h <= m.vh - 32 && m.scrolls === "auto", `height ${m.h} / ${m.vh}, overflow ${m.scrolls}`);
+    await page.keyboard.press("Escape");
+    return `${m.w}×${m.h}`;
+  });
+  await rec.step("At 400 px the same dialog is the phone's width less 1 rem a side", async () => {
+    await page.setViewportSize({ width: 400, height: 760 });
+    try {
+      await openNewTask();
+      const m = await measure();
+      expect(m.w === m.vw - 32, `width ${m.w} of ${m.vw}`);
+      expect(m.h <= m.vh - 32, `height ${m.h} of ${m.vh}`);
+      await page.keyboard.press("Escape");
+      return `${m.w}×${m.h}`;
+    } finally {
+      await page.setViewportSize({ width: 1440, height: 900 });
+    }
+  });
+  await rec.step("Pages moved onto PageHeader show one title each", async () => {
+    const out = [];
+    for (const path of ["/crew-submissions", "/reports/labor/payroll", "/admin/contract-templates"]) {
+      await go(path);
+      const n = await page.locator("h1").count();
+      expect(n === 1, `${path}: ${n} h1`);
+      out.push(`${path} ${await page.locator("h1").first().innerText()}`);
+    }
+    return out.join("; ");
+  });
+};
+
+const ORDER = ["lead", "task", "taskvis", "files", "permit", "expense", "crewpay", "co", "log", "calendar", "vendor", "bulk", "pickers", "font", "phone", "lists", "overlays"];
 for (const name of ORDER) {
   if (only && !only.test(name)) continue;
   rec.group = name;

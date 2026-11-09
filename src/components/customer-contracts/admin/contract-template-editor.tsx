@@ -1,10 +1,10 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/page-header";
 import { useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, FilePlus2, Plus, Rocket, Save, Star, Trash2 } from "lucide-react";
+import { Eye, FilePlus2, Plus, Rocket, Save, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,26 +86,25 @@ export function ContractTemplateEditor({ templateId, versionId }: { templateId: 
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3 sm:items-center">
-        <div className="min-w-0">
-          <h1 className="flex flex-wrap items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
-            <Link href="/admin/contract-templates" className="text-muted-foreground hover:text-foreground" aria-label="Back to templates">
-              <ArrowLeft className="size-5" />
-            </Link>
-            {template.name}
-            {template.isDefault && (
-              <Badge className="bg-tone-success-soft text-tone-success-fg">
-                <Star className="mr-1 size-3" /> Default
-              </Badge>
-            )}
-          </h1>
-          <div className="text-sm text-muted-foreground">
+      <PageHeader
+        back={{ href: "/admin/contract-templates", label: "Back to templates" }}
+        title={template.name}
+        badge={
+          template.isDefault ? (
+            <Badge className="bg-tone-success-soft text-tone-success-fg">
+              <Star className="mr-1 size-3" /> Default
+            </Badge>
+          ) : undefined
+        }
+        description={
+          <>
             <span className="font-mono text-xs">{template.key}</span>
             {template.description ? ` · ${template.description}` : ""}
-          </div>
-        </div>
-        {isAdmin && (
-          <div className="flex flex-wrap items-center gap-2">
+          </>
+        }
+        actions={
+          isAdmin ? (
+            <>
             {!template.isDefault && published && (
               <Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ isDefault: true })}>
                 Set as default
@@ -116,9 +115,10 @@ export function ContractTemplateEditor({ templateId, versionId }: { templateId: 
                 <FilePlus2 className="size-4" /> New draft{published ? ` from v${published.version}` : ""}
               </Button>
             )}
-          </div>
-        )}
-      </div>
+            </>
+          ) : undefined
+        }
+      />
 
       {versions.length > 1 && (
         <div className="mb-4">
@@ -411,7 +411,7 @@ function PublishDialog({ open, onOpenChange, version, problems, pending, onPubli
   const [notes, setNotes] = useState("");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Publish v{version.version}</DialogTitle>
         </DialogHeader>

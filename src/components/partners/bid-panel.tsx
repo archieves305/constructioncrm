@@ -388,7 +388,7 @@ type EstimateOption = { value: string; label: string; total: number };
 function SubmissionDialog({ open, onOpenChange, bid: b }: { open: boolean; onOpenChange: (o: boolean) => void; bid: BidDetail }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">{open && <SubmissionForm bid={b} onClose={() => onOpenChange(false)} />}</DialogContent>
+      <DialogContent size="md">{open && <SubmissionForm bid={b} onClose={() => onOpenChange(false)} />}</DialogContent>
     </Dialog>
   );
 }
@@ -493,7 +493,7 @@ function SubmissionForm({ bid: b, onClose }: { bid: BidDetail; onClose: () => vo
 function CloseDialog({ outcome, onOpenChange, bid: b }: { outcome: BidOutcome | null; onOpenChange: (o: boolean) => void; bid: BidDetail }) {
   return (
     <Dialog open={outcome !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">{outcome && <CloseForm key={outcome} initial={outcome} bid={b} onClose={() => onOpenChange(false)} />}</DialogContent>
+      <DialogContent size="md">{outcome && <CloseForm key={outcome} initial={outcome} bid={b} onClose={() => onOpenChange(false)} />}</DialogContent>
     </Dialog>
   );
 }

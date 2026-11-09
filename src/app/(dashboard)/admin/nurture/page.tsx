@@ -366,7 +366,7 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
       )}
 
       <Dialog open={Boolean(editing)} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent size="xl">
           <DialogHeader>
             <DialogTitle>{editing?.id ? "Edit piece" : "New piece"}</DialogTitle>
           </DialogHeader>
@@ -425,7 +425,7 @@ function LibraryTab({ isAdmin }: { isAdmin: boolean }) {
       </Dialog>
 
       <Dialog open={Boolean(preview)} onOpenChange={(o) => !o && setPreview(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent size="xl">
           <DialogHeader>
             <DialogTitle>{preview?.subject}</DialogTitle>
           </DialogHeader>

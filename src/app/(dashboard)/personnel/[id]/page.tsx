@@ -1,7 +1,7 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Breadcrumb } from "@/components/shared/breadcrumb";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { QueryState } from "@/components/shared/query-state";
 import { fetchJson } from "@/lib/fetch-json";
@@ -342,22 +342,21 @@ export default function PersonnelDetailPage({
 
   return (
     <div className="space-y-6 p-6">
-      <Breadcrumb items={[{ label: "Field" }, { label: "Personnel", href: "/personnel" }, { label: `${person.firstName} ${person.lastName}` }]} />
-      <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold">
-          {person.firstName} {person.lastName}
-        </h1>
-        <Badge variant={person.isActive ? "default" : "secondary"}>
-          {STATUS_LABELS[person.status] ?? person.status}
-        </Badge>
-        <div className="flex-1" />
-        <Button
-          onClick={() => save.mutate()}
-          disabled={!dirty || save.isPending}
-        >
-          {save.isPending ? "Saving…" : dirty ? "Save changes" : "Saved"}
-        </Button>
-      </div>
+      <PageHeader
+        breadcrumb={[{ label: "Field" }, { label: "Personnel", href: "/personnel" }, { label: `${person.firstName} ${person.lastName}` }]}
+        title={`${person.firstName} ${person.lastName}`}
+        badge={<Badge variant={person.isActive ? "default" : "secondary"}>{STATUS_LABELS[person.status] ?? person.status}</Badge>}
+        actions={
+          <>
+            <Button
+              onClick={() => save.mutate()}
+              disabled={!dirty || save.isPending}
+            >
+              {save.isPending ? "Saving…" : dirty ? "Save changes" : "Saved"}
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

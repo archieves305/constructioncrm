@@ -80,7 +80,7 @@ export function CommandPalette({ open, onOpenChange, role }: { open: boolean; on
     : [...(needle ? [] : recent.map((r) => `recent:${r.href}`)), ...pageHits.map((p) => `page:${p.href}`)];
   const current = ordered.includes(selected) ? selected : (ordered[0] ?? "");
   return (
-    <CommandDialog open={open} onOpenChange={handleOpenChange} title="Search" description="Find a job, lead, case or page" className="sm:max-w-xl">
+    <CommandDialog open={open} onOpenChange={handleOpenChange} title="Search" description="Find a job, lead, case or page">
       <Command shouldFilter={false} value={current} onValueChange={setSelected}>
         <CommandInput value={q} onValueChange={setQ} placeholder="Search by address, customer, job #, phone — or a page…" />
         <CommandList className="max-h-[60vh]">

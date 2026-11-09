@@ -136,7 +136,7 @@ export function NurtureCard({ leadId }: { leadId: string }) {
       </CardContent>
 
       <Dialog open={touchOpen} onOpenChange={setTouchOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>Log a personal touch</DialogTitle>
           </DialogHeader>

@@ -221,7 +221,7 @@ export function TemplateEditor({ id }: { id: string }) {
       </Card>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">{editing && <FieldMapForm templateId={id} field={editing} map={maps.get(editing.name)} onClose={() => setEditing(null)} />}</DialogContent>
+        <DialogContent size="md">{editing && <FieldMapForm templateId={id} field={editing} map={maps.get(editing.name)} onClose={() => setEditing(null)} />}</DialogContent>
       </Dialog>
       <ConfirmDialog
         open={confirm === "publish"}

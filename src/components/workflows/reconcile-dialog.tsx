@@ -34,7 +34,7 @@ export type ReconcileMode =
 export function ReconcileDialog({ subject, data, mode, open, onOpenChange }: { subject: SubjectLike; data: JobWorkflowData; mode: ReconcileMode; open: boolean; onOpenChange: (o: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent size="lg">
         {open && <ReconcileBody subject={subject} data={data} mode={mode} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>

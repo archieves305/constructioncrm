@@ -63,10 +63,10 @@ export function PermitCorrections({ detail }: { detail: PermitDetail }) {
       <MessagesCard data={data} onOpen={setOpen} onNew={() => setDrafting([])} />
 
       <Dialog open={adding} onOpenChange={setAdding}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">{adding && <NoticeAddForm permitId={permit.id} aiReady={data.permissions.aiReady} onClose={() => setAdding(false)} />}</DialogContent>
+        <DialogContent size="md">{adding && <NoticeAddForm permitId={permit.id} aiReady={data.permissions.aiReady} onClose={() => setAdding(false)} />}</DialogContent>
       </Dialog>
       <Dialog open={!!drafting} onOpenChange={(o) => !o && setDrafting(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent size="md">
           {drafting && (
             <DraftForm
               permitId={permit.id}
@@ -83,7 +83,7 @@ export function PermitCorrections({ detail }: { detail: PermitDetail }) {
         </DialogContent>
       </Dialog>
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent size="lg">
           {open && <MessageEditor key={open.id} message={open} permitId={permit.id} files={files} items={allItems} canSend={data.permissions.canSend} onClose={() => setOpen(null)} />}
         </DialogContent>
       </Dialog>

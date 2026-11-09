@@ -81,7 +81,7 @@ export function GenerateContractDialog({
 
   return (
     <Dialog open={Boolean(source)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Generate contract from {source?.estimateNumber}</DialogTitle>
         </DialogHeader>

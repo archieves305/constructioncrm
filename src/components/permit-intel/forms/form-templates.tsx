@@ -100,7 +100,7 @@ export function FormTemplates() {
         </Card>
       )}
       <Dialog open={adding} onOpenChange={setAdding}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">{adding && <UploadForm onClose={() => setAdding(false)} />}</DialogContent>
+        <DialogContent size="md">{adding && <UploadForm onClose={() => setAdding(false)} />}</DialogContent>
       </Dialog>
     </div>
   );

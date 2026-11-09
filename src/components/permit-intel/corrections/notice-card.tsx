@@ -210,7 +210,7 @@ export function NoticeCard({
       </CardContent>
 
       <Dialog open={adding} onOpenChange={setAdding}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">{adding && <ItemForm permitId={permitId} noticeId={n.id} parties={parties} onClose={() => setAdding(false)} />}</DialogContent>
+        <DialogContent size="md">{adding && <ItemForm permitId={permitId} noticeId={n.id} parties={parties} onClose={() => setAdding(false)} />}</DialogContent>
       </Dialog>
       <ConfirmDialog
         open={confirming}

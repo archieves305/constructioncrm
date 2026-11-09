@@ -123,3 +123,27 @@ ESLint in `src/app`, `src/components`, `src/hooks` and `src/lib/ui`. The
 Type scale below `text-xs`: `text-3xs` (10 px: counts, kbd) and `text-2xs`
 (11 px: meta lines). `text-[Npx]` is for documented exceptions only (2 left).
 `scripts/qa/ui-measure.sh` prints the counts the Phase B exit check reads.
+
+## Page headers and dialog sizes (T-16, 2026-11-09)
+
+- **Every office page shows `PageHeader`** (title, optional `badge` beside it,
+  `back` link on an editor, one-line `description`, `actions` on the right,
+  `breadcrumb` on records) — or `EntityHeader` on a job / lead / permit /
+  case / partner record. `scripts/qa/page-headers.mjs` follows each page's
+  imports two levels and fails on an office page with neither (71 / 71).
+  Kept their own header on purpose, listed by the script with the reason:
+  public pages, the sign-in bounce, field mode (phone shell), the plan viewer
+  and the takeoff workspace.
+- **Dialogs and sheets take a `size`, never a width**
+  (`src/components/ui/overlay-size.ts`; ESLint refuses `max-w-*` in the
+  className of `DialogContent` / `SheetContent` / `CommandDialog`).
+  Dialog: `sm` 384 px (default — a confirmation, one field) · `md` 512 (a
+  form) · `lg` 672 (two columns, a short table) · `xl` 896 (a document
+  beside its fields) · `full` 1152 (a workspace). Below 640 px every dialog
+  is the screen less 1 rem a side, and every dialog scrolls inside
+  `100dvh − 2rem`. Side sheets: `sm` 384 · `md` 512 · `lg` 576 · `xl` 672,
+  the whole width on a phone.
+- Found while migrating: 11 dialogs set `max-w-lg` / `max-w-md` without the
+  `sm:` prefix, which the component's own `sm:max-w-sm` beat from 640 px up —
+  they were 384 px on a desktop. They now get the width they asked for.
+  `scripts/codemods/overlay-sizes-2026-11.py` did the 84 tags.

@@ -49,7 +49,7 @@ export function CalibrateDialog({ sheet, planSetId, mode, points, open, onOpenCh
   const v = proposal?.verification ?? failure?.verification ?? null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{mode === "auto" ? "Check the printed scale" : "Calibrate from a dimension"}</DialogTitle>
           <DialogDescription>{sheet.sheetNumber ?? `Page ${sheet.pageNumber}`}{sheet.title ? ` · ${sheet.title}` : ""}</DialogDescription>

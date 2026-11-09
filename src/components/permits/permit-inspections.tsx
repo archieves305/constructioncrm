@@ -341,7 +341,7 @@ function ResultDialog({ jobId, insp, steps, onClose }: { jobId: string; insp: Pe
   const same = result === insp.result;
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{insp.result === "SCHEDULED" ? "Record inspection result" : "Change inspection result"}</DialogTitle>
           <DialogDescription>

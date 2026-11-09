@@ -91,12 +91,7 @@ export function ApplyWorkflowDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cn(
-          "max-h-[92vh] overflow-y-auto",
-          mode === "permit-only" ? "sm:max-w-xl" : "sm:max-w-3xl",
-        )}
-      >
+      <DialogContent size={mode === "permit-only" ? "lg" : "xl"}>
         {open && ready ? (
           <ApplyWorkflowBody
             subject={ref}

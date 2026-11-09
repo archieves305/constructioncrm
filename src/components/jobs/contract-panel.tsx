@@ -248,7 +248,7 @@ function SendContractDialog({
   }
   return (
     <Dialog open={Boolean(state)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{state?.resend ? `Resend ${c?.contractNumber}` : `Send ${c?.contractNumber} for signature`}</DialogTitle>
         </DialogHeader>
@@ -318,7 +318,7 @@ function VoidContractDialog({ jobId, contract, onOpenChange }: { jobId: string; 
   }
   return (
     <Dialog open={Boolean(contract)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Void {contract?.contractNumber}</DialogTitle>
         </DialogHeader>
@@ -368,7 +368,7 @@ function ContractCertificateDialog({ contract: c, onOpenChange }: { contract: Co
     : [];
   return (
     <Dialog open={Boolean(c)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Signature certificate</DialogTitle>
         </DialogHeader>

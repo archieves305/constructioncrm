@@ -217,7 +217,7 @@ export default function TemplatesPage() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] sm:max-w-6xl p-0 gap-0 grid grid-rows-[auto_minmax(0,1fr)_auto]">
+        <DialogContent size="full" className="p-0 gap-0 grid grid-rows-[auto_minmax(0,1fr)_auto]">
           <DialogHeader className="border-b px-5 py-3">
             <DialogTitle>{editingId ? "Edit Template" : "New Template"}</DialogTitle>
           </DialogHeader>

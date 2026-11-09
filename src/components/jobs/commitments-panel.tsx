@@ -251,7 +251,7 @@ function CommitmentDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         {open && <CommitmentForm jobId={jobId} data={data} editing={editing ?? null} onSaved={onSaved} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>

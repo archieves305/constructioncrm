@@ -33,7 +33,7 @@ export function bandLabel(band: number): string {
 export function PhaseEditorDialog({ phase, open, onOpenChange, onSave, pending }: { phase: EditorPhase | null; open: boolean; onOpenChange: (o: boolean) => void; onSave: (input: PhaseInput) => void; pending?: boolean }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">{open && <Body phase={phase} onCancel={() => onOpenChange(false)} onSave={onSave} pending={pending} />}</DialogContent>
+      <DialogContent size="md">{open && <Body phase={phase} onCancel={() => onOpenChange(false)} onSave={onSave} pending={pending} />}</DialogContent>
     </Dialog>
   );
 }

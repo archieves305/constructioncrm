@@ -24,7 +24,7 @@ export function LinkVendorDialog({
 }) {
   return (
     <Dialog open={Boolean(link)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent size="md">
         {link && <LinkForm link={link} title={title} description={description} onClose={onClose} />}
       </DialogContent>
     </Dialog>

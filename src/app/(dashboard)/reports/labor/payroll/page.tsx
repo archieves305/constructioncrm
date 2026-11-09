@@ -1,7 +1,7 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/page-header";
 import { useState } from "react";
-import { Breadcrumb } from "@/components/shared/breadcrumb";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { QueryState } from "@/components/shared/query-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -160,18 +160,21 @@ export default function PayrollPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <Breadcrumb items={[{ label: "Money" }, { label: "Labor Reports", href: "/reports/labor" }, { label: "Weekly Payroll" }]} />
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold">Weekly Payroll</h1>
-        <div className="flex-1" />
-        {data && (
-          <a href={`/api/reports/field-labor/payroll-export?weekStart=${data.weekStart}`} download>
-            <Button variant="outline" size="sm">
-              <Download className="mr-1 h-4 w-4" /> CSV
-            </Button>
-          </a>
-        )}
-      </div>
+      <PageHeader
+        breadcrumb={[{ label: "Money" }, { label: "Labor Reports", href: "/reports/labor" }, { label: "Weekly Payroll" }]}
+        title="Weekly payroll"
+        actions={
+          <>
+            {data && (
+              <a href={`/api/reports/field-labor/payroll-export?weekStart=${data.weekStart}`} download>
+                <Button variant="outline" size="sm">
+                  <Download className="mr-1 h-4 w-4" /> CSV
+                </Button>
+              </a>
+            )}
+          </>
+        }
+      />
 
       <Card>
         <CardContent className="flex flex-wrap items-center gap-3 py-4">

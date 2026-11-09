@@ -97,7 +97,7 @@ function ScheduleHearingDialog({ open, onOpenChange, data }: { open: boolean; on
   const schedule = useCaseAction<Record<string, unknown>, unknown>(data.id, "/hearings", { success: "Hearing scheduled" });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Schedule a hearing</DialogTitle>
           <DialogDescription>The workflow&apos;s hearing-prep steps get their dates from this.</DialogDescription>
@@ -156,7 +156,7 @@ function HearingOutcomeDialog({ hearing, data, onClose }: { hearing: Hearing | n
   const continued = outcome === "CONTINUED";
   return (
     <Dialog open={Boolean(hearing)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Record the hearing outcome</DialogTitle>
           <DialogDescription>Ordered fines go to the ledger; an order deadline can move the case&apos;s compliance deadline.</DialogDescription>

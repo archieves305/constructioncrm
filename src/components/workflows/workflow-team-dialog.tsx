@@ -48,7 +48,7 @@ export function WorkflowTeamDialog({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Workflow team</DialogTitle>
           <DialogDescription>

@@ -39,7 +39,7 @@ export function FilePreviewDialog({
   const file = index === null ? null : (files[index] ?? null);
   return (
     <Dialog open={Boolean(file)} onOpenChange={(open) => !open && onIndexChange(null)}>
-      <DialogContent className="flex max-h-[92vh] flex-col gap-3 sm:max-w-4xl">
+      <DialogContent size="xl" className="flex flex-col gap-3">
         {file && index !== null && (
           <Preview key={file.id} file={file} position={files.length > 1 ? `${index + 1} of ${files.length}` : null} onPrev={index > 0 ? () => onIndexChange(index - 1) : undefined} onNext={index < files.length - 1 ? () => onIndexChange(index + 1) : undefined} onChanged={onChanged} />
         )}

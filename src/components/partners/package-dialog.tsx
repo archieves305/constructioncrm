@@ -26,7 +26,7 @@ export function PackageDialog({ qualificationId, open, onOpenChange }: { qualifi
   const p = preview.data;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Prequalification package{p ? ` for ${p.organizationName}` : ""}</DialogTitle>
           <DialogDescription>One zip of the vault documents this checklist asks for, with a contents sheet. Only documents approved for sending, in date and on file go in.</DialogDescription>

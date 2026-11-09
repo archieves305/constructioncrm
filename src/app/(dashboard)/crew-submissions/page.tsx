@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/page-header";
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -56,10 +57,7 @@ function CrewSubmissions() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">From crews</h1>
-        <p className="text-sm text-muted-foreground">Sent through crew links. Nothing counts until someone here accepts it.</p>
-      </div>
+      <PageHeader title="From crews" description="Sent through crew links. Nothing counts until someone here accepts it." />
       {!list.data ? <QueryState query={list} noun="crew submission list" /> : null}
       {list.data && pending.length === 0 ? (
         <p className="rounded border p-4 text-sm text-muted-foreground">Nothing waiting. Send a crew a link from a job&apos;s Field → Labor or Crews tab.</p>

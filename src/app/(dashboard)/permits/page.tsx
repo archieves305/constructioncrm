@@ -468,7 +468,7 @@ function PermitDetailDrawer({
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+      <SheetContent size="lg" className="w-full overflow-y-auto">
         <SheetHeader className="border-b">
           <SheetTitle>
             Permit · {permit.permitType || "General"}

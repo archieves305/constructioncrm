@@ -16,7 +16,7 @@ export function VaultPreviewDialog({ doc, onClose }: { doc: DocumentView | null;
   const isPdf = doc?.fileType === "application/pdf";
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92vh] sm:max-w-4xl">
+      <DialogContent size="xl">
         {doc && (
           <>
             <DialogHeader>

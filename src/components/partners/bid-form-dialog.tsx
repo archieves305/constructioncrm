@@ -102,7 +102,7 @@ function initialForm(bid: Bid | null, organizationId: string | null): Form {
 export function BidFormDialog({ open, onOpenChange, organizationId, editing, onSaved, prefill, intakeId }: { open: boolean; onOpenChange: (o: boolean) => void; organizationId?: string | null; editing?: Bid | null; onSaved?: (b: Bid) => void; prefill?: BidFormPrefill; intakeId?: string | null }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent size="lg">
         {open && <BidForm organizationId={organizationId ?? null} editing={editing ?? null} onSaved={onSaved} prefill={prefill} intakeId={intakeId ?? null} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>

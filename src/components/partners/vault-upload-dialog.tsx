@@ -43,7 +43,7 @@ export function VaultUploadDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent size="md">
         {open && <UploadForm vault={vault} initialTypeKey={initialTypeKey} replacing={replacing ?? null} onSaved={onSaved} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>

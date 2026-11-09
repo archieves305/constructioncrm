@@ -4,6 +4,7 @@ import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
 
 import { cn } from "@/lib/utils"
+import type { DialogSize } from "@/components/ui/overlay-size"
 import {
   Dialog,
   DialogContent,
@@ -39,8 +40,10 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  size = "lg",
   ...props
 }: Omit<React.ComponentProps<typeof Dialog>, "children"> & {
+  size?: DialogSize
   title?: string
   description?: string
   className?: string
@@ -59,6 +62,7 @@ function CommandDialog({
           className
         )}
         showCloseButton={showCloseButton}
+        size={size}
       >
         {children}
       </DialogContent>

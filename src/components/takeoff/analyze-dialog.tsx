@@ -41,7 +41,7 @@ export function AnalyzeDialog({ open, onOpenChange, roofPlans, otherSheets, shee
   );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" data-testid="analyze-dialog">
+      <DialogContent size="md"  data-testid="analyze-dialog">
         <DialogHeader>
           <DialogTitle>Analyze with AI</DialogTitle>
           <DialogDescription>The model reads the specifications and labels the roof plans you tick. Code measures what it names; every row arrives as a proposal to review.</DialogDescription>

@@ -42,7 +42,7 @@ export function DocumentDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         {open && <DocumentForm vendorId={vendorId} initialType={initialType} editing={editing ?? null} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>

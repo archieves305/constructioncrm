@@ -34,6 +34,11 @@ const eslintConfig = defineConfig([
             "CallExpression[callee.property.name='then'][callee.object.type='CallExpression'][callee.object.callee.name='fetch'][arguments.0.body.callee.property.name='json']",
           message: "Use fetchJson from @/lib/fetch-json: it throws on a non-2xx answer instead of returning the error body as data.",
         },
+        {
+          selector:
+            "JSXOpeningElement[name.name=/^(DialogContent|SheetContent|CommandDialog)$/] JSXAttribute[name.name='className'] Literal[value=/(^|\\s)(sm:|md:|lg:)?max-w-/]",
+          message: "Give a dialog or sheet a size (size=\"sm\" | \"md\" | \"lg\" | \"xl\" | \"full\") instead of a hand-set width — see src/components/ui/overlay-size.ts.",
+        },
       ],
     },
   },

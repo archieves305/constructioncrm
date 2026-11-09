@@ -212,7 +212,7 @@ export function TaskScheduleDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o: boolean) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Task &amp; payment schedule — {contractName}</DialogTitle>
         </DialogHeader>

@@ -113,7 +113,7 @@ export function PermitAssistant({ permitId, onChanged }: { permitId: string; onC
         {run ? <RunView run={run} canDecide={data.canRun} canMakeForms={data.canMakeForms} onDecided={refresh} /> : null}
       </CardContent>
       <Dialog open={starting} onOpenChange={setStarting}>
-        <DialogContent className="sm:max-w-lg">{starting && <StartForm permitId={permitId} data={data} onDone={() => (setStarting(false), refresh())} />}</DialogContent>
+        <DialogContent size="md">{starting && <StartForm permitId={permitId} data={data} onDone={() => (setStarting(false), refresh())} />}</DialogContent>
       </Dialog>
     </Card>
   );

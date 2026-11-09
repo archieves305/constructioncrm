@@ -274,8 +274,9 @@ export function TaskDetailSheet({
   return (
     <Sheet open={Boolean(taskId)} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
+        size="xl"
         side={isPhone ? "bottom" : "right"}
-        className={cn("flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-2xl", isPhone && "max-h-[92dvh] rounded-t-xl")}
+        className={cn("flex w-full flex-col gap-0 overflow-y-auto p-0", isPhone && "max-h-[92dvh] rounded-t-xl")}
       >
         {isLoading || !task ? (
           <div className="p-6 text-sm text-muted-foreground">Loading…</div>

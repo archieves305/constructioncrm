@@ -106,7 +106,7 @@ function NewTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/^[0-9]/, "t$&");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>New contract template</DialogTitle>
         </DialogHeader>

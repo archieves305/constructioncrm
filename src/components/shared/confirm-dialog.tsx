@@ -61,7 +61,7 @@ export function ConfirmDialog({
   };
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}

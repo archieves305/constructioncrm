@@ -171,7 +171,7 @@ export function ItemDialog({ open, onOpenChange, caseId, item }: { open: boolean
   };
   return (
     <Dialog open={open} onOpenChange={reset}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{item ? `Item ${item.itemNumber}` : "Add a violation item"}</DialogTitle>
           <DialogDescription>One item per violation cited on the notice.</DialogDescription>
@@ -250,7 +250,7 @@ function ItemSheet({ item, data, canEdit, onClose }: { item: Item | null; data: 
   const [editing, setEditing] = useState(false);
   return (
     <Sheet open={Boolean(item)} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+      <SheetContent size="lg" className="w-full overflow-y-auto">
         {item && (
           <>
             <SheetHeader>

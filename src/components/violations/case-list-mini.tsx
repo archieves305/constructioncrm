@@ -83,7 +83,7 @@ function LinkCaseDialog({ open, onOpenChange, jobId, leadId }: { open: boolean; 
   const rows = data?.data ?? [];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Link an existing case</DialogTitle>
           <DialogDescription>Open cases on this property that have no corrective job yet.</DialogDescription>

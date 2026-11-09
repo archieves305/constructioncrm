@@ -52,7 +52,7 @@ export function VendorFormDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         {open && (
           <VendorForm vendorId={vendorId} initial={initial} link={link} linkNote={linkNote} onSaved={onSaved} onClose={() => onOpenChange(false)} />
         )}

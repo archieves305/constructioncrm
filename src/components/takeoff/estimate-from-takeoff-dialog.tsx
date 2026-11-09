@@ -97,7 +97,7 @@ export function EstimateFromTakeoffDialog({ takeoffId, leadId, onOpenChange }: {
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg" data-testid="estimate-from-takeoff">
+      <DialogContent size="md"  data-testid="estimate-from-takeoff">
         <DialogHeader>
           <DialogTitle>Use for an estimate</DialogTitle>
           <DialogDescription>The reviewed rows on the sheets you tick become a roof measurement on the lead. The estimate builder prices it with the takeoff rules and the price book, as it does a Roofr report.</DialogDescription>

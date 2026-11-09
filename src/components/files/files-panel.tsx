@@ -377,7 +377,7 @@ function Chip({ active, tone, onClick, children }: { active: boolean; tone?: "wa
 function EditFileDialog({ file, onClose, onSaved }: { file: FileRecord | null; onClose: () => void; onSaved: () => void }) {
   return (
     <Dialog open={Boolean(file)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">{file && <EditFileForm key={file.id} file={file} onClose={onClose} onSaved={onSaved} />}</DialogContent>
+      <DialogContent size="md">{file && <EditFileForm key={file.id} file={file} onClose={onClose} onSaved={onSaved} />}</DialogContent>
     </Dialog>
   );
 }

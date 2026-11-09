@@ -232,7 +232,7 @@ export function ItemRow({
       )}
 
       <Dialog open={editing} onOpenChange={setEditing}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">{editing && <ItemForm permitId={permitId} item={item} parties={parties} onClose={() => setEditing(false)} />}</DialogContent>
+        <DialogContent size="md">{editing && <ItemForm permitId={permitId} item={item} parties={parties} onClose={() => setEditing(false)} />}</DialogContent>
       </Dialog>
     </li>
   );

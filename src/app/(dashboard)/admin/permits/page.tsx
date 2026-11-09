@@ -151,7 +151,7 @@ function Jurisdictions() {
         </Card>
       )}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">{editing && <JurisdictionForm j={editing.j} onClose={() => setEditing(null)} />}</DialogContent>
+        <DialogContent size="md">{editing && <JurisdictionForm j={editing.j} onClose={() => setEditing(null)} />}</DialogContent>
       </Dialog>
     </div>
   );
@@ -323,7 +323,7 @@ function Requirements() {
         </Card>
       )}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">{editing && <RequirementForm r={editing.r} onClose={() => setEditing(null)} />}</DialogContent>
+        <DialogContent size="md">{editing && <RequirementForm r={editing.r} onClose={() => setEditing(null)} />}</DialogContent>
       </Dialog>
     </div>
   );

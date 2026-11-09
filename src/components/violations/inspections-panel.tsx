@@ -96,7 +96,7 @@ function RequestInspectionDialog({ open, onOpenChange, data }: { open: boolean; 
   const request = useCaseAction<Record<string, unknown>, unknown>(data.id, "/inspections", { success: "Inspection requested" });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Request an agency inspection</DialogTitle>
           <DialogDescription>A reinspection request marks the case as awaiting the agency.</DialogDescription>
@@ -168,7 +168,7 @@ export function InspectionResultDialog({ inspection, data, onClose }: { inspecti
   const openItems = data.items.filter((i) => i.status !== "WITHDRAWN");
   return (
     <Dialog open={Boolean(inspection)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Record the inspection result</DialogTitle>
           <DialogDescription>{inspectionStep ? `Also records it on the workflow step “${inspectionStep.title}”.` : "No open reinspection step on the workflow — the result is recorded on the case only."}</DialogDescription>

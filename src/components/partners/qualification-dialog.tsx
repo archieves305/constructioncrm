@@ -20,7 +20,7 @@ const dayOf = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "");
 export function QualificationDialog({ open, onOpenChange, organizationId, editing, onSaved }: { open: boolean; onOpenChange: (o: boolean) => void; organizationId: string; editing?: Qualification | null; onSaved?: (q: Qualification) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent size="md">
         {open && <QualificationForm organizationId={organizationId} editing={editing ?? null} onSaved={onSaved} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>

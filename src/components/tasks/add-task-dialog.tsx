@@ -243,7 +243,8 @@ export function AddTaskDialog({
   return (
     <Dialog open={open} onOpenChange={(o) => (attaching ? undefined : onOpenChange(o))}>
       <DialogContent
-        className="gap-0 p-0 sm:max-w-lg"
+        size="md"
+        className="gap-0 p-0"
         onKeyDown={(e) => {
           if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
             e.preventDefault();

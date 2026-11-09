@@ -20,7 +20,7 @@ import type { CatchUpData, SubjectLike, WorkflowPhaseItem } from "./types";
 export function CatchUpDialog({ subject, phase, open, onOpenChange }: { subject: SubjectLike; phase: WorkflowPhaseItem | null; open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent size="lg">
         {open && phase && <Body subject={subject} phase={phase} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>

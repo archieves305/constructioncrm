@@ -232,7 +232,7 @@ export default function FollowUpRulesPage() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Rule" : "New Rule"}</DialogTitle>
           </DialogHeader>

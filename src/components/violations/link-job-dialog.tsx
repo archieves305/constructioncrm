@@ -22,7 +22,7 @@ export function LinkJobDialog({ data, open, onOpenChange }: { data: CaseData; op
   const rows = jobs?.data ?? [];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Link the corrective job</DialogTitle>
           <DialogDescription>Jobs on this property. The case&apos;s permit and corrective-work steps read from the linked job.</DialogDescription>

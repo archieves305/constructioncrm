@@ -1,7 +1,7 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/page-header";
 import { use, useState } from "react";
-import { Breadcrumb } from "@/components/shared/breadcrumb";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { QueryState } from "@/components/shared/query-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -193,89 +193,90 @@ export default function DailyLogReviewPage({
 
   return (
     <div className="space-y-6 p-6">
-      <Breadcrumb items={[{ label: "Jobs", href: "/jobs" }, { label: "Job", href: `/jobs/${jobId}?tab=field&sub=daily-logs` }, { label: "Daily log" }]} />
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold">
-          Daily Log — {format(new Date(`${date}T12:00:00`), "EEEE, MMM d, yyyy")}
-        </h1>
-        <Badge className={badge.className}>{badge.label}</Badge>
-        <div className="flex-1" />
-        <a
-          href={`/api/jobs/${jobId}/daily-logs/${date}/pdf`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <Button variant="outline">
-            <FileDown className="mr-1 h-4 w-4" /> PDF
-          </Button>
-        </a>
-        {canModerate && log.status === "SUBMITTED" && (
+      <PageHeader
+        breadcrumb={[{ label: "Jobs", href: "/jobs" }, { label: "Job", href: `/jobs/${jobId}?tab=field&sub=daily-logs` }, { label: "Daily log" }]}
+        title={`Daily log — ${format(new Date(`${date}T12:00:00`), "EEEE, MMM d, yyyy")}`}
+        badge={<Badge className={badge.className}>{badge.label}</Badge>}
+        actions={
           <>
-            <Button
-              variant="outline"
-              onClick={() => setReturnOpen(true)}
-              disabled={transition.isPending}
+            <a
+              href={`/api/jobs/${jobId}/daily-logs/${date}/pdf`}
+              target="_blank"
+              rel="noreferrer"
             >
-              <Undo2 className="mr-1 h-4 w-4" /> Return to draft
-            </Button>
-            <Button
-              onClick={async () => {
-                // Force a conscious look at the crew count — a day submitted
-                // with fewer workers than expected is the main thing to catch.
-                if (
-                  await confirmAction(
-                    `Approve this day — ${present.length} worker${present.length === 1 ? "" : "s"}, ${log.totals.totalHours}h total?`,
-                  )
-                ) {
-                  transition.mutate({ action: "approve" });
-                }
-              }}
-              disabled={transition.isPending}
-            >
-              <CheckCircle2 className="mr-1 h-4 w-4" /> Approve
-            </Button>
+              <Button variant="outline">
+                <FileDown className="mr-1 h-4 w-4" /> PDF
+              </Button>
+            </a>
+            {canModerate && log.status === "SUBMITTED" && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setReturnOpen(true)}
+                  disabled={transition.isPending}
+                >
+                  <Undo2 className="mr-1 h-4 w-4" /> Return to draft
+                </Button>
+                <Button
+                  onClick={async () => {
+                    // Force a conscious look at the crew count — a day submitted
+                    // with fewer workers than expected is the main thing to catch.
+                    if (
+                      await confirmAction(
+                        `Approve this day — ${present.length} worker${present.length === 1 ? "" : "s"}, ${log.totals.totalHours}h total?`,
+                      )
+                    ) {
+                      transition.mutate({ action: "approve" });
+                    }
+                  }}
+                  disabled={transition.isPending}
+                >
+                  <CheckCircle2 className="mr-1 h-4 w-4" /> Approve
+                </Button>
+              </>
+            )}
+            {canAmendApproved && log.status === "APPROVED" && (
+              // This page is read-only; the editor lives in field mode, which
+              // admin/accounting can reach.
+              <Link href={`/field/jobs/${jobId}/daily/${date}`}>
+                <Button variant="outline">
+                  <Pencil className="mr-1 h-4 w-4" /> Edit approved day
+                </Button>
+              </Link>
+            )}
+            {role === "ADMIN" && log.status === "APPROVED" && (
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (await confirmAction({ title: "Reopen this approved log?", description: "Its hours become editable again until it is approved a second time.", confirmLabel: "Reopen", tone: "warning" })) {
+                    transition.mutate({ action: "reopen" });
+                  }
+                }}
+                disabled={transition.isPending}
+              >
+                <RotateCcw className="mr-1 h-4 w-4" /> Reopen
+              </Button>
+            )}
+            {(log.status === "DRAFT" || role === "ADMIN") && (
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (
+                    await confirmAction(
+                      `Delete this daily log? Crew hours, notes, and the day's report will be removed.${log.status !== "DRAFT" ? " This log was already " + log.status.toLowerCase() + "." : ""}`,
+                    )
+                  ) {
+                    deleteLog.mutate();
+                  }
+                }}
+                disabled={deleteLog.isPending}
+              >
+                <Trash2 className="mr-1 h-4 w-4 text-tone-danger-fg" /> Delete
+              </Button>
+            )}
           </>
-        )}
-        {canAmendApproved && log.status === "APPROVED" && (
-          // This page is read-only; the editor lives in field mode, which
-          // admin/accounting can reach.
-          <Link href={`/field/jobs/${jobId}/daily/${date}`}>
-            <Button variant="outline">
-              <Pencil className="mr-1 h-4 w-4" /> Edit approved day
-            </Button>
-          </Link>
-        )}
-        {role === "ADMIN" && log.status === "APPROVED" && (
-          <Button
-            variant="outline"
-            onClick={async () => {
-              if (await confirmAction({ title: "Reopen this approved log?", description: "Its hours become editable again until it is approved a second time.", confirmLabel: "Reopen", tone: "warning" })) {
-                transition.mutate({ action: "reopen" });
-              }
-            }}
-            disabled={transition.isPending}
-          >
-            <RotateCcw className="mr-1 h-4 w-4" /> Reopen
-          </Button>
-        )}
-        {(log.status === "DRAFT" || role === "ADMIN") && (
-          <Button
-            variant="outline"
-            onClick={async () => {
-              if (
-                await confirmAction(
-                  `Delete this daily log? Crew hours, notes, and the day's report will be removed.${log.status !== "DRAFT" ? " This log was already " + log.status.toLowerCase() + "." : ""}`,
-                )
-              ) {
-                deleteLog.mutate();
-              }
-            }}
-            disabled={deleteLog.isPending}
-          >
-            <Trash2 className="mr-1 h-4 w-4 text-tone-danger-fg" /> Delete
-          </Button>
-        )}
-      </div>
+        }
+      />
 
       <div className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 text-sm">
         <span>

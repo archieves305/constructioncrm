@@ -153,7 +153,7 @@ export function AgencyConfirmDialog({ data, open, onOpenChange }: { data: CaseDa
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Record the agency&apos;s compliance confirmation</DialogTitle>
           <DialogDescription>The formal confirmation from the issuing agency. This is what allows the case to close; construction completion never counts.</DialogDescription>
@@ -217,7 +217,7 @@ export function DeadlineChangeDialog({ data, open, onOpenChange }: { data: CaseD
   const KINDS: Record<string, string> = { AGENCY_RESCHEDULE: "Agency rescheduled", EXTENSION_GRANTED: "Extension granted", HEARING_ORDER: "Set by a hearing order", CORRECTION: "Correcting a data-entry error" };
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) setPreview(null); onOpenChange(o); }}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{preview ? "Review the date changes" : "Change the compliance deadline"}</DialogTitle>
           <DialogDescription>{preview ? "Every open step anchored to the deadline moves with it; hand-edited dates are kept." : `Currently ${data.currentDeadline ? format(new Date(data.currentDeadline), "MMM d, yyyy") : "not set"}. Nothing changes until you confirm the preview.`}</DialogDescription>
@@ -308,7 +308,7 @@ export function ExtensionDialog({ data, open, onOpenChange }: { data: CaseData; 
   const decide = useCaseAction<Record<string, unknown>>(data.id, `/extension/${pending?.id ?? ""}`, { success: (r) => ((r as { result?: { moved: number } }).result?.moved ? "Extension granted — deadline and dependent steps moved" : "Extension decision recorded") });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{pending ? "Record the agency's decision" : "Request a compliance-deadline extension"}</DialogTitle>
           <DialogDescription>{pending ? `Requested ${format(new Date(pending.requestedDeadline), "MMM d, yyyy")}. Granting moves the current deadline and previews nothing — the dependent steps move as the deadline-change path does.` : "Recorded on the case; the request itself goes to the agency by letter, portal or email."}</DialogDescription>
@@ -399,7 +399,7 @@ export function EditCaseDialog({ data, open, onOpenChange }: { data: CaseData; o
   const canAssign = data.permissions.canAssign;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Edit {data.caseNumber}</DialogTitle>
           <DialogDescription>The compliance deadline is changed from the header&apos;s “Change deadline”, so its history and the dependent dates stay honest.</DialogDescription>

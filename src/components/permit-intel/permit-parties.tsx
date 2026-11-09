@@ -67,7 +67,7 @@ export function PermitParties({ detail }: { detail: PermitDetail }) {
         )}
       </CardContent>
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent size="md">
           {editing && (
             <PartyForm
               party={editing.party}

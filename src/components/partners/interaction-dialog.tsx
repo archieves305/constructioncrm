@@ -79,7 +79,7 @@ export function InteractionDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent size="md">
         {open && (
           <InteractionForm organizationId={organizationId} organizationName={organizationName} contacts={contacts} ownerUserId={ownerUserId} interaction={interaction ?? null} leadId={leadId ?? null} onSaved={onSaved} onClose={() => onOpenChange(false)} />
         )}

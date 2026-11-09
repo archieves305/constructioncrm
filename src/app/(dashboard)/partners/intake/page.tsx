@@ -100,7 +100,7 @@ function PasteDialog({ open, onOpenChange, onQueued }: { open: boolean; onOpenCh
   });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Paste a bid invitation</DialogTitle>
           <DialogDescription>Copy the whole email — the From and Subject lines too, if your mail program shows them — and paste it here. Nothing becomes a bid until you confirm it.</DialogDescription>
