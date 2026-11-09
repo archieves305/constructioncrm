@@ -263,6 +263,10 @@ export function logsAwaitingWhere(ctx: AttentionContext): Prisma.DailyLogWhereIn
   return { status: "SUBMITTED", job: jobScope(ctx) };
 }
 
+export function crewSubmissionsWhere(ctx: AttentionContext): Prisma.GuestSubmissionWhereInput {
+  return { status: "PENDING", job: jobScope(ctx) };
+}
+
 export function depositsMissingWhere(ctx: AttentionContext): Prisma.JobWhereInput {
   return { AND: [OPEN_JOB, jobScope(ctx), { depositRequired: { gt: 0 }, depositReceived: { lt: prisma.job.fields.depositRequired } }] };
 }
@@ -302,6 +306,7 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "contracts-awaiting": (ctx) => prisma.customerContract.count({ where: contractsAwaitingWhere(ctx) }),
   "pending-expenses": (ctx) => prisma.jobExpense.count({ where: pendingExpensesWhere(ctx) }),
   "logs-awaiting": (ctx) => prisma.dailyLog.count({ where: logsAwaitingWhere(ctx) }),
+  "crew-submissions": (ctx) => prisma.guestSubmission.count({ where: crewSubmissionsWhere(ctx) }),
   "deposits-missing": (ctx) => prisma.job.count({ where: depositsMissingWhere(ctx) }),
   "quiet-jobs": (ctx) => prisma.job.count({ where: quietJobsWhere(ctx) }),
   "partner-follow-ups": (ctx) => prisma.task.count({ where: partnerFollowUpsWhere(ctx) }),
@@ -513,6 +518,16 @@ const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionCon
       const ymd = l.logDate.toISOString().slice(0, 10);
       return item(l.id, jobLabel(l.job), `Log for ${pinDay(l.logDate)}${l.submittedAt ? ` · submitted ${day(l.submittedAt)}` : ""}`, l.logDate, `/jobs/${l.job.id}/daily-logs/${ymd}`);
     });
+  },
+  "crew-submissions": async (ctx) => {
+    const rows = await prisma.guestSubmission.findMany({
+      where: crewSubmissionsWhere(ctx),
+      orderBy: { createdAt: "asc" },
+      take,
+      select: { id: true, purpose: true, createdAt: true, job: { select: JOB_LABEL_SELECT }, link: { select: { recipientName: true } } },
+    });
+    const what: Record<string, string> = { CREW_PHOTOS: "sent photos", CREW_PAYMENT: "requested a payment", INSTALL_CONFIRM: "answered the install day" };
+    return rows.map((r) => item(r.id, jobLabel(r.job), `${r.link.recipientName ?? "A crew"} ${what[r.purpose] ?? "sent something"}`, r.createdAt, `/crew-submissions?id=${r.id}`));
   },
   "deposits-missing": async (ctx) => {
     const rows = await prisma.job.findMany({

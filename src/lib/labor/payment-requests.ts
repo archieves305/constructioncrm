@@ -1,5 +1,6 @@
 import type { TaskStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { pushToUsers } from "@/lib/mobile/push-send";
 import { recordAudit } from "@/lib/audit/record";
 import { formatAddressLine } from "@/lib/labels/address";
 import { logger } from "@/lib/logger";
@@ -132,7 +133,7 @@ export async function createPaymentRequest(input: {
 
 /** The payment was recorded against the request: mark it paid and finish its task. */
 export async function settleRequestOnPayment(requestId: string, laborPaymentId: string, actorUserId: string): Promise<void> {
-  const r = await prisma.laborPaymentRequest.findUnique({ where: { id: requestId }, select: { id: true, status: true, taskId: true } });
+  const r = await prisma.laborPaymentRequest.findUnique({ where: { id: requestId }, select: { id: true, status: true, taskId: true, requestedByUserId: true, laborContract: { select: { jobId: true } } } });
   if (!r || r.status !== "REQUESTED") return;
   // Status first: closing the task runs `onRequestTaskClosed`, which must find it already paid.
   await prisma.laborPaymentRequest.update({ where: { id: r.id }, data: { status: "PAID", laborPaymentId, resolvedAt: new Date() } });
@@ -140,6 +141,10 @@ export async function settleRequestOnPayment(requestId: string, laborPaymentId: 
   await prisma.file.updateMany({ where: { laborPaymentRequestId: r.id, laborPaymentId: null }, data: { laborPaymentId } });
   if (r.taskId) await closeTask(r.taskId, "COMPLETED", actorUserId);
   await recordAudit({ actorUserId, entityType: "LaborPaymentRequest", entityId: r.id, action: "paid", after: { laborPaymentId } });
+  // Tell whoever asked (the PM in the field) that the crew has been paid; not the person who recorded it.
+  if (r.requestedByUserId && r.requestedByUserId !== actorUserId) {
+    void pushToUsers({ userIds: [r.requestedByUserId], kind: "crew_payment.paid", subject: { jobId: r.laborContract.jobId } });
+  }
 }
 
 export async function cancelPaymentRequest(requestId: string, actorUserId: string): Promise<void> {

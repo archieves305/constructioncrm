@@ -83,7 +83,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
     if (status !== "signedIn" || !last) return;
     if (last.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
     const path = (last.notification.request.content.data as { path?: unknown } | undefined)?.path;
-    if (typeof path === "string" && /^\/(task|job)\/[A-Za-z0-9_-]+$/.test(path)) {
+    if (typeof path === "string" && (/^\/(task|job)\/[A-Za-z0-9_-]+$/.test(path) || path === "/crew-submissions")) {
       router.push(path as never);
     }
   }, [last, status, router]);

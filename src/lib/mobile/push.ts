@@ -21,6 +21,9 @@ export const PUSH_KINDS: Readonly<Record<string, string>> = {
   "case.item_assigned": "Violation item assigned",
   "case.inspection_scheduled": "Inspection scheduled",
   "case.escalated": "Violation deadline escalated",
+  "crew.submission": "A crew sent something to review",
+  "crew_payment.paid": "Crew payment recorded",
+  "my_day": "Your day",
 };
 
 export type PushDecisionInput = {
@@ -56,7 +59,9 @@ export function pushMessageFor(kind: string, address: string | null, path: strin
 }
 
 /** The app's screen for a CRM link, or null to just open the app. */
-export function appPathFor(subject: { taskId?: string | null; jobId?: string | null }): string {
+export function appPathFor(subject: { taskId?: string | null; jobId?: string | null }, kind?: string): string {
+  // A crew submission opens the review screen, not the job.
+  if (kind === "crew.submission") return "/crew-submissions";
   if (subject.taskId) return `/task/${subject.taskId}`;
   if (subject.jobId) return `/job/${subject.jobId}`;
   return "/";

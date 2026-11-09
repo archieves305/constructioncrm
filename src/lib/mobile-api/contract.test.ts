@@ -298,3 +298,46 @@ describe("usage events contract", () => {
     expect(usageBatchSchema.safeParse({ source: "phone", events: PHONE_USAGE_EVENTS.map((event) => ({ event, at: new Date().toISOString() })) }).success).toBe(true);
   });
 });
+
+describe("crew guest links contract", () => {
+  it("the CRM's submission rows and created links parse", async () => {
+    const { crewSubmissions, guestLinkCreated } = await import("./index");
+    const row = { id: "s1", purpose: "CREW_PAYMENT", status: "PENDING", createdAt: "2026-11-09T12:00:00.000Z", jobId: "j1", jobNumber: "JOB-00001", street: "2500 North Federal Highway, Boca Raton", from: "Jesús", language: "es", answer: { amount: 1234.5, note: "Marcos" }, photoCount: 1, reviewNote: null, reviewedBy: null, reviewedAt: null, result: null };
+    expect(crewSubmissions.safeParse([row]).success).toBe(true);
+    expect(guestLinkCreated.safeParse({ id: "l1", url: "https://crm.careyos.com/g/abc", message: "Hola", phone: null, recipientName: null, language: "es", expiresAt: "2026-11-16T00:00:00.000Z" }).success).toBe(true);
+  });
+});
+
+describe("approvals inbox contract", () => {
+  it("the phone's approver list matches who the CRM lets decide", async () => {
+    const { APPROVER_ROLES } = await import("./index");
+    const { canApproveJobCosts } = await import("@/lib/expenses/permissions");
+    const { canApproveLog } = await import("@/lib/labor/permissions");
+    const { canManageJobMoney } = await import("@/lib/money/access");
+    for (const r of ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "CREW_LEAD", "READ_ONLY"] as const)
+      expect(APPROVER_ROLES.includes(r as never)).toBe(canApproveJobCosts(r) || canApproveLog(r) || canManageJobMoney(r));
+  });
+});
+
+describe("phone expenses contract", () => {
+  it("expense types the phone offers are CRM expense types", async () => {
+    const { PHONE_EXPENSE_TYPES } = await import("./index");
+    const { JobExpenseType } = await import("@/generated/prisma/client");
+    for (const t of PHONE_EXPENSE_TYPES) expect(Object.values(JobExpenseType)).toContain(t);
+  });
+});
+
+describe("phone leads contract", () => {
+  it("lead roles are the CRM's lead-writing roles", async () => {
+    const { LEAD_ROLES } = await import("./index");
+    const { canWriteLeads } = await import("@/lib/access/roles");
+    for (const r of ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "CREW_LEAD", "READ_ONLY"] as const)
+      expect(LEAD_ROLES.includes(r as never)).toBe(canWriteLeads(r));
+  });
+  it("contact types are CRM communication types", async () => {
+    const { logContactRequest } = await import("./index");
+    const { CommunicationType, CommunicationDirection } = await import("@/generated/prisma/client");
+    for (const t of logContactRequest.shape.communicationType.options) expect(Object.values(CommunicationType)).toContain(t);
+    for (const t of logContactRequest.shape.direction.options) expect(Object.values(CommunicationDirection)).toContain(t);
+  });
+});

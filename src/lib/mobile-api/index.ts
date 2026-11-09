@@ -48,6 +48,8 @@ export const sessionUser = z.object({
   firstName: z.string(),
   lastName: z.string(),
   role: z.enum(ROLE_NAMES),
+  /** May enter job costs (role or the canEnterJobCosts grant). Sent by bootstrap; older servers leave it out. */
+  canEnterCosts: z.boolean().optional(),
 });
 export type SessionUserDto = z.infer<typeof sessionUser>;
 
@@ -759,6 +761,13 @@ export const PHONE_USAGE_EVENTS = [
   "tasks_bulk_changed",
   "note_saved",
   "voice_draft_used",
+  "leads_opened",
+  "lead_called",
+  "lead_texted",
+  "lead_photo_added",
+  "approvals_opened",
+  "expense_added",
+  "crew_link_sent",
 ] as const;
 export type PhoneUsageEvent = (typeof PHONE_USAGE_EVENTS)[number];
 
@@ -769,4 +778,113 @@ export const usageSummary = z.object({
   phonePeople: z.number(),
   events: z.record(z.string(), z.number()),
   top: z.array(z.object({ event: z.string(), subject: z.string().nullable(), count: z.number() })),
+});
+
+// ---------------------------------------------------------------------------
+// Release 2: crew guest links (POST /api/guest-links, GET /api/guest-submissions,
+// POST /api/guest-submissions/[id]). The phone sends a link with its own share
+// sheet and reviews what crews send.
+// ---------------------------------------------------------------------------
+
+export const guestLinkCreated = z.object({
+  id: z.string(),
+  url: z.string(),
+  message: z.string(),
+  phone: z.string().nullable(),
+  recipientName: z.string().nullable(),
+  language: z.string(),
+  expiresAt: z.string(),
+});
+
+export const crewSubmission = z.object({
+  id: z.string(),
+  purpose: z.enum(["CREW_PHOTOS", "CREW_PAYMENT", "INSTALL_CONFIRM"]),
+  status: z.enum(["PENDING", "ACCEPTED", "REJECTED"]),
+  createdAt: z.string(),
+  jobId: z.string(),
+  jobNumber: z.string(),
+  street: z.string(),
+  from: z.string().nullable(),
+  language: z.string(),
+  answer: z.object({ amount: z.number().optional(), note: z.string().optional(), answer: z.enum(["yes", "no", "change"]).optional() }).passthrough(),
+  photoCount: z.number(),
+  reviewNote: z.string().nullable(),
+  reviewedBy: z.string().nullable(),
+  reviewedAt: z.string().nullable(),
+});
+export const crewSubmissions = z.array(crewSubmission);
+export type CrewSubmissionDto = z.infer<typeof crewSubmission>;
+
+/** Who may review crew submissions on the phone (the server also limits a PM to their own jobs). */
+export const CREW_REVIEW_ROLES = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP"] as const;
+
+/** GET /api/mobile/approvals: what waits on the signed-in person (each list only for the roles that decide it). */
+export const approvalsInbox = z.object({
+  expenses: z.array(z.object({ id: z.string(), amount: z.number(), vendor: z.string().nullable(), description: z.string().nullable(), type: z.string(), date: z.string(), jobId: z.string(), street: z.string(), enteredBy: z.string(), receipts: z.number() })),
+  logs: z.array(z.object({ id: z.string(), date: z.string(), jobId: z.string(), street: z.string(), submittedBy: z.string().nullable(), submittedAt: z.string().nullable(), workPerformed: z.string().nullable(), crewEntries: z.number() })),
+  paymentRequests: z.array(z.object({ id: z.string(), amount: z.number(), neededBy: z.string().nullable(), crew: z.string(), jobId: z.string(), street: z.string() })),
+  crewSubmissionsWaiting: z.number(),
+});
+export type ApprovalsInboxDto = z.infer<typeof approvalsInbox>;
+/** Who sees the Approvals inbox on the phone (anyone else has nothing in it). */
+export const APPROVER_ROLES = ["ADMIN", "MANAGER", "OFFICE_STAFF"] as const;
+
+/** POST /api/jobs/[id]/expenses from the phone (queued: phone-made id, then receipts by expenseId). */
+export const PHONE_EXPENSE_TYPES = ["MATERIAL", "EQUIPMENT", "PERMIT_FEE", "OTHER"] as const;
+export const createExpenseRequest = z.object({
+  id: z.string().regex(CLIENT_ID),
+  type: z.enum(PHONE_EXPENSE_TYPES),
+  vendor: z.string().trim().max(120).optional(),
+  description: z.string().trim().max(2000).optional(),
+  amount: z.number().positive().max(1_000_000),
+  /** yyyy-MM-dd */
+  incurredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+// ---------------------------------------------------------------------------
+// Release 2: leads on the phone (GET /api/mobile/leads, /api/mobile/leads/[id];
+// writes through POST /api/leads/[id]/communications, /stage, PATCH /api/leads/[id]).
+// ---------------------------------------------------------------------------
+
+/** Who gets Leads on the phone (canWriteLeads). */
+export const LEAD_ROLES = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING"] as const;
+
+export const phoneLeadRow = z.object({
+  id: z.string(),
+  name: z.string(),
+  phone: z.string().nullable(),
+  street: z.string(),
+  stage: z.string(),
+  nextFollowUpAt: z.string().nullable(),
+  lastContactAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+export const phoneLeadList = z.array(phoneLeadRow);
+export type PhoneLeadRowDto = z.infer<typeof phoneLeadRow>;
+
+export const phoneLead = z.object({
+  id: z.string(),
+  name: z.string(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  street: z.string(),
+  cityLine: z.string(),
+  stageId: z.string(),
+  stage: z.string(),
+  closed: z.boolean(),
+  owner: z.string().nullable(),
+  nextFollowUpAt: z.string().nullable(),
+  lastContactAt: z.string().nullable(),
+  jobs: z.array(z.object({ id: z.string(), jobNumber: z.string() })),
+  stages: z.array(z.object({ id: z.string(), name: z.string(), isLost: z.boolean() })),
+  contacts: z.array(z.object({ id: z.string(), type: z.string(), direction: z.string(), body: z.string(), at: z.string(), by: z.string().nullable() })),
+  photoIds: z.array(z.string()),
+});
+export type PhoneLeadDto = z.infer<typeof phoneLead>;
+
+/** POST /api/leads/[id]/communications from the phone (queued, Idempotency-Key). */
+export const logContactRequest = z.object({
+  communicationType: z.enum(["CALL", "SMS", "EMAIL"]),
+  direction: z.enum(["OUTBOUND", "INBOUND"]),
+  body: z.string().trim().min(1).max(4000),
 });

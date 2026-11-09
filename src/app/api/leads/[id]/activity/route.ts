@@ -25,7 +25,13 @@ export async function GET(
     .filter((x): x is ActivityType => (Object.values(ActivityType) as string[]).includes(x));
 
   const activities = await prisma.activityLog.findMany({
-    where: { leadId: id, ...(types.length ? { activityType: { in: types } } : {}) },
+    where: {
+      leadId: id,
+      ...(types.length ? { activityType: { in: types } } : {}),
+      // ?notesOnly=1: notes people wrote, not the CRM's own NOTE lines (an
+      // expense's "Expense added … $" line carries money the phone never shows).
+      ...(searchParams.get("notesOnly") === "1" ? { activityType: "NOTE" as const, title: "Note added", createdByUserId: { not: null } } : {}),
+    },
     include: {
       createdBy: { select: { firstName: true, lastName: true } },
     },

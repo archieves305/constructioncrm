@@ -1,4 +1,4 @@
-import { OWNER_ROLES } from "@crm/mobile-api";
+import { APPROVER_ROLES, CREW_REVIEW_ROLES, LEAD_ROLES, OWNER_ROLES } from "@crm/mobile-api";
 import { Alert, Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
@@ -108,6 +108,30 @@ export default function More() {
           />
         </View>
       </Card>
+      {(LEAD_ROLES as readonly string[]).includes(user?.role ?? "") ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push("/leads")}>
+          <Card>
+            <Text style={[s.h2, { color: t.text }]}>Leads</Text>
+            <Text style={[s.body, { color: t.muted }]}>Who to call today, log the call, move the stage, site photos.</Text>
+          </Card>
+        </Pressable>
+      ) : null}
+      {(APPROVER_ROLES as readonly string[]).includes(user?.role ?? "") ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push("/approvals")}>
+          <Card>
+            <Text style={[s.h2, { color: t.text }]}>Approvals</Text>
+            <Text style={[s.body, { color: t.muted }]}>Charges, daily logs and crew requests waiting on you.</Text>
+          </Card>
+        </Pressable>
+      ) : null}
+      {(CREW_REVIEW_ROLES as readonly string[]).includes(user?.role ?? "") ? (
+        <Pressable accessibilityRole="button" onPress={() => router.push("/crew-submissions")}>
+          <Card>
+            <Text style={[s.h2, { color: t.text }]}>From crews</Text>
+            <Text style={[s.body, { color: t.muted }]}>Photos, payment requests and day answers crews sent through their links.</Text>
+          </Card>
+        </Pressable>
+      ) : null}
       {(OWNER_ROLES as readonly string[]).includes(user?.role ?? "") ? (
         <Pressable accessibilityRole="button" onPress={() => router.push("/owner")}>
           <Card>

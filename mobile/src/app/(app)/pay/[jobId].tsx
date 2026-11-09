@@ -1,11 +1,12 @@
+import { track } from "@/usage/track";
 import { useState } from "react";
-import { Alert, Image, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Image, Pressable, RefreshControl, ScrollView, Share, Text, TextInput, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { createPaymentRequestBody, type PhoneLaborContractDto } from "@crm/mobile-api";
+import { createPaymentRequestBody, guestLinkCreated, type PhoneLaborContractDto } from "@crm/mobile-api";
 import { api, ApiError } from "@/api/client";
 import { useJob, useLaborContracts, usePaymentRequests } from "@/api/queries";
 import { useOnline } from "@/cache/net";
@@ -66,6 +67,28 @@ export default function CrewPayments() {
       </Text>
     </ScrollView>
   );
+}
+
+/**
+ * A crew link (payment request or photos) sent with the phone's own share
+ * sheet: text or WhatsApp, from your number, in the crew's language. What the
+ * crew sends waits under More → From crews until someone accepts it.
+ */
+function sendLink(contractId: string, crewName: string) {
+  const make = async (purpose: "CREW_PAYMENT" | "CREW_PHOTOS") => {
+    try {
+      const link = await api("/api/guest-links", { method: "POST", body: { purpose, laborContractId: contractId }, schema: guestLinkCreated });
+      track("crew_link_sent");
+      await Share.share({ message: link.message });
+    } catch (e) {
+      Alert.alert("Couldn't make the link", e instanceof ApiError ? e.message : String(e));
+    }
+  };
+  Alert.alert(`Link for ${crewName}`, "What should the crew send? The link works once.", [
+    { text: "Payment request with photos", onPress: () => void make("CREW_PAYMENT") },
+    { text: "Photos of the work", onPress: () => void make("CREW_PHOTOS") },
+    { text: "Cancel", style: "cancel" },
+  ]);
 }
 
 function ContractCard({ contract: c, jobId, address }: { contract: PhoneLaborContractDto; jobId: string; address: string }) {
@@ -158,6 +181,7 @@ function ContractCard({ contract: c, jobId, address }: { contract: PhoneLaborCon
         </Text>
       ))}
 
+      <Button label="Send a link to the crew…" kind="secondary" disabled={!online} onPress={() => sendLink(c.id, name)} />
       {asking ? (
         <View style={{ gap: 10, marginTop: 6 }}>
           <Text style={[s.label, { color: t.muted }]}>Amount</Text>

@@ -615,7 +615,7 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="labor">
-              <LaborContractsPanel jobId={id} />
+              <LaborContractsPanel jobId={id} projectManagerId={job.projectManagerId ?? null} />
             </TabsContent>
 
             <TabsContent value="change-orders">
@@ -627,7 +627,7 @@ export default function JobDetailPage() {
             </TabsContent>
 
             <TabsContent value="crews">
-              <CrewsPanel jobId={id} crewAssignments={job.crewAssignments ?? []} targetStartDate={job.targetStartDate ?? null} canSetStart={Boolean(workflow?.permissions.canCoordinate)} />
+              <CrewsPanel jobId={id} crewAssignments={job.crewAssignments ?? []} targetStartDate={job.targetStartDate ?? null} canSetStart={Boolean(workflow?.permissions.canCoordinate)} canSendLinks={moneyView === "full" && session?.user.role !== "READ_ONLY"} />
             </TabsContent>
 
             <TabsContent value="daily-logs">

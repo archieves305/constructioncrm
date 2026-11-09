@@ -26,6 +26,7 @@ export const ATTENTION_KEYS = [
   "contracts-awaiting",
   "pending-expenses",
   "logs-awaiting",
+  "crew-submissions",
   "deposits-missing",
   "quiet-jobs",
   "partner-follow-ups",
@@ -159,6 +160,13 @@ export const ATTENTION_ROWS: readonly AttentionRowDef[] = [
     label: "Daily logs to review",
     description: "Daily logs submitted from the field and not yet approved.",
     tone: "info",
+    roles: OFFICE,
+  },
+  {
+    key: "crew-submissions",
+    label: "From crews, to review",
+    description: "Photos, payment requests and day answers crews sent through their links.",
+    tone: "warning",
     roles: OFFICE,
   },
   {

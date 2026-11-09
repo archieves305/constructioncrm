@@ -53,6 +53,26 @@ export default function AppLayout() {
         options={{ headerShown: true, title: "Request materials", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
       />
       <Stack.Screen
+        name="leads"
+        options={{ headerShown: true, title: "Leads", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="lead/[id]"
+        options={{ headerShown: true, title: "Lead", headerBackTitle: "Leads", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="expense/new"
+        options={{ headerShown: true, title: "Add an expense", headerBackTitle: "Job", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="approvals"
+        options={{ headerShown: true, title: "Approvals", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="crew-submissions"
+        options={{ headerShown: true, title: "From crews", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
         name="owner"
         options={{ headerShown: true, title: "Owner summary", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
       />

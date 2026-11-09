@@ -54,3 +54,11 @@ describe("helpers", () => {
     expect(tokenIsDead({ status: "ok" })).toBe(false);
   });
 });
+
+import { appPathFor as pathFor2 } from "./push";
+describe("crew submission pushes", () => {
+  it("open the review screen", () => {
+    expect(pathFor2({ jobId: "j1" }, "crew.submission")).toBe("/crew-submissions");
+    expect(pathFor2({ jobId: "j1" })).toBe("/job/j1");
+  });
+});

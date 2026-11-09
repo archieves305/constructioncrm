@@ -22,6 +22,13 @@ export const USAGE_EVENTS = [
   "tasks_bulk_changed",
   "note_saved",
   "voice_draft_used",
+  "leads_opened",
+  "lead_called",
+  "lead_texted",
+  "lead_photo_added",
+  "approvals_opened",
+  "expense_added",
+  "crew_link_sent",
   // the web CRM
   "page_viewed",
 ] as const;

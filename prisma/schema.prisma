@@ -562,12 +562,14 @@ model User {
   permitAssistDecisions PermitAssistItem[] @relation("PermitAssistItemDecidedBy")
 
   /// Phone notifications from the KNU Field app (CAREYOS_MOBILE_APP_PLAN.md §D.4).
-  pushEnabled          Boolean        @default(true) @map("push_enabled")
-  mobileDevices        MobileDevice[] @relation("MobileDeviceOwner")
-  mobileDevicesRevoked MobileDevice[] @relation("MobileDeviceRevokedBy")
+  pushEnabled              Boolean           @default(true) @map("push_enabled")
+  mobileDevices            MobileDevice[]    @relation("MobileDeviceOwner")
+  mobileDevicesRevoked     MobileDevice[]    @relation("MobileDeviceRevokedBy")
+  usageEvents              UsageEvent[]
+  guestLinksCreated        GuestLink[]       @relation("GuestLinkCreatedBy")
+  guestSubmissionsReviewed GuestSubmission[] @relation("GuestSubmissionReviewedBy")
 
   @@map("users")
-  usageEvents UsageEvent[]
 }
 
 model PasswordResetToken {
@@ -1499,6 +1501,8 @@ model Job {
   violationCases     CodeViolationCase[]
   customerContracts  CustomerContract[]
   notificationRows   Notification[]
+  guestLinks         GuestLink[]
+  guestSubmissions   GuestSubmission[]
 
   @@index([leadId])
   @@index([currentStageId])
@@ -1621,19 +1625,19 @@ model JobPermitInspection {
 // ─── CRM 2.0: Crews + Scheduling ───────────────────────────────────────────
 
 model Crew {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  email     String?
+  id          String   @id @default(cuid())
+  name        String
+  phone       String?
+  email       String?
   /// Who to reach on the crew (guest links, later texts): the foreman's name; `phone` is theirs, stored +1XXXXXXXXXX.
-  foremanName String? @map("foreman_name")
+  foremanName String?  @map("foreman_name")
   /// The foreman's language for links and messages: "en" or "es".
-  language    String  @default("en")
-  trades    String[] @default([])
-  counties  String[] @default([])
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  language    String   @default("en")
+  trades      String[] @default([])
+  counties    String[] @default([])
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // The vendor record this crew belongs to (insurance, W-9 and spend live
   // there). Null until someone links it under Vendors → Unmatched.
@@ -1795,11 +1799,15 @@ model VendorSettings {
 }
 
 model CrewAssignment {
-  id           String    @id @default(cuid())
-  jobId        String    @map("job_id")
-  crewId       String    @map("crew_id")
-  assignedDate DateTime  @default(now()) @map("assigned_date")
-  installDate  DateTime? @map("install_date")
+  id             String      @id @default(cuid())
+  jobId          String      @map("job_id")
+  crewId         String      @map("crew_id")
+  assignedDate   DateTime    @default(now()) @map("assigned_date")
+  installDate    DateTime?   @map("install_date")
+  /// The crew's answer through a guest link: CONFIRMED | CANT_MAKE_IT | CHANGE_REQUESTED.
+  confirmation   String?     @map("confirmation")
+  confirmationAt DateTime?   @map("confirmation_at")
+  guestLinks     GuestLink[]
 
   job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
   crew Crew @relation(fields: [crewId], references: [id])
@@ -1848,6 +1856,7 @@ model LaborContract {
   generatedDocuments   GeneratedDocument[]
   tasks                LaborContractTask[]
   paymentRequests      LaborPaymentRequest[]
+  guestLinks           GuestLink[]
 
   @@index([jobId])
   @@index([vendorId])
@@ -6908,4 +6917,65 @@ model UsageEvent {
   @@index([event, at])
   @@index([userId, at])
   @@map("usage_events")
+}
+
+/// A secure link the office sends to a crew (Release 2, guest links step 1).
+/// Only the SHA-256 of the link's code is stored; the code itself is shown once.
+/// One purpose, one job, one crew; expires, can be revoked, takes one submission.
+model GuestLink {
+  id               String    @id @default(cuid())
+  tokenHash        String    @unique @map("token_hash")
+  /// CREW_PHOTOS | CREW_PAYMENT | INSTALL_CONFIRM (src/lib/guest/purposes.ts)
+  purpose          String
+  jobId            String    @map("job_id")
+  laborContractId  String?   @map("labor_contract_id")
+  crewAssignmentId String?   @map("crew_assignment_id")
+  crewId           String?   @map("crew_id")
+  recipientName    String?   @map("recipient_name")
+  language         String    @default("en")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  firstOpenedAt    DateTime? @map("first_opened_at")
+  submittedAt      DateTime? @map("submitted_at")
+  createdByUserId  String    @map("created_by_user_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  job            Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  laborContract  LaborContract?    @relation(fields: [laborContractId], references: [id], onDelete: SetNull)
+  crewAssignment CrewAssignment?   @relation(fields: [crewAssignmentId], references: [id], onDelete: SetNull)
+  createdBy      User              @relation("GuestLinkCreatedBy", fields: [createdByUserId], references: [id])
+  submissions    GuestSubmission[]
+
+  @@index([jobId])
+  @@index([laborContractId])
+  @@map("guest_links")
+}
+
+/// What a crew sent through a guest link. Nothing takes effect until a person
+/// accepts it: photos stay out of the job's files (held as storage keys) and a
+/// payment request is only created on acceptance.
+model GuestSubmission {
+  id               String    @id @default(cuid())
+  linkId           String    @map("link_id")
+  jobId            String    @map("job_id")
+  purpose          String
+  payload          Json
+  /// Stored photo files waiting for review: [{ key, name, type, bytes }].
+  photos           Json      @default("[]")
+  /// PENDING | ACCEPTED | REJECTED
+  status           String    @default("PENDING")
+  reviewNote       String?   @map("review_note")
+  reviewedByUserId String?   @map("reviewed_by_user_id")
+  reviewedAt       DateTime? @map("reviewed_at")
+  /// What acceptance made: a payment request id, or file ids.
+  result           Json?
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  link       GuestLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  job        Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reviewedBy User?     @relation("GuestSubmissionReviewedBy", fields: [reviewedByUserId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([jobId])
+  @@map("guest_submissions")
 }

@@ -35,6 +35,7 @@ export const NOTIFICATION_KINDS = [
   "contract.outcome",
   "lead.follow_up",
   "lead.new",
+  "crew.submission",
 ] as const;
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
@@ -318,6 +319,14 @@ export const KINDS: Record<NotificationKind, KindSpec> = {
     defaultClass: "IMMEDIATE",
     collapsible: false,
     actionRequired: () => false,
+  },
+  "crew.submission": {
+    label: "Crew sent photos, a payment request or a day answer",
+    category: "JOB_ACTIVITY",
+    section: "ACTION_REQUIRED",
+    defaultClass: "DIGEST",
+    collapsible: true,
+    actionRequired: () => true,
   },
   "contract.outcome": {
     label: "Contract signed or declined",

@@ -3,6 +3,7 @@ import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { env } from "@/lib/env";
 import type { BootstrapResponse } from "@/lib/mobile-api";
 import { deviceForToken } from "@/lib/mobile/device-service";
+import { canEnterJobCosts, getCostGrants } from "@/lib/expenses/permissions";
 
 /** Builds below this are asked to update. Raised with breaking API changes. */
 const DEFAULT_MIN_APP_VERSION = "0.1.0";
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
       : null;
 
   const body: BootstrapResponse = {
-    user: session.user,
+    user: { ...session.user, canEnterCosts: canEnterJobCosts(session.user.role, await getCostGrants(session.user.id)) },
     minAppVersion: env.MOBILE_MIN_APP_VERSION ?? DEFAULT_MIN_APP_VERSION,
     device,
     serverTime: new Date().toISOString(),

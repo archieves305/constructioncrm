@@ -14,6 +14,7 @@ import { Button, Card, s } from "@/ui/components";
 import { TaskRow } from "@/ui/TaskRow";
 import { Empty, LoadError, Loading } from "@/ui/states";
 import { useTheme } from "@/ui/theme";
+import { useSession } from "@/auth/session";
 
 function Row({ label, value }: { label: string; value: string | null }) {
   const t = useTheme();
@@ -31,6 +32,7 @@ function Row({ label, value }: { label: string; value: string | null }) {
 export default function JobScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { user } = useSession();
   const { id } = useLocalSearchParams<{ id: string }>();
   const job = useJob(id);
   const tasks = useJobTasks(id);
@@ -109,6 +111,7 @@ export default function JobScreen() {
         </View>
       </View>
       <Button label="Clock crew in / out" kind="secondary" onPress={() => router.push({ pathname: "/crew/[jobId]", params: { jobId: j.id } })} />
+      {user?.canEnterCosts ? <Button label="Add an expense (receipt)" kind="secondary" onPress={() => router.push({ pathname: "/expense/new", params: { jobId: j.id } })} /> : null}
       <View style={{ flexDirection: "row", gap: 10 }}>
         <View style={{ flex: 1 }}>
           <Button label="Request materials" kind="secondary" onPress={() => router.push({ pathname: "/materials", params: { jobId: j.id } })} />

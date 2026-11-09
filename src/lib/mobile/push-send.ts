@@ -39,7 +39,13 @@ async function addressFor(subject: PushSubject): Promise<string | null> {
   return null;
 }
 
-export async function pushToUsers(input: { userIds: string[]; kind: string; subject: PushSubject }): Promise<{ sent: number; cleared: number }> {
+export async function pushToUsers(input: {
+  userIds: string[];
+  kind: string;
+  subject: PushSubject;
+  /** Your own words instead of the kind's title and the address (the morning "my day" count). */
+  text?: { title: string; body: string; path: string };
+}): Promise<{ sent: number; cleared: number }> {
   try {
     if (input.userIds.length === 0) return { sent: 0, cleared: 0 };
     const devices = await prisma.mobileDevice.findMany({
@@ -55,7 +61,9 @@ export async function pushToUsers(input: { userIds: string[]; kind: string; subj
     const targets = devices.filter((d) => isExpoPushToken(d.pushToken));
     if (targets.length === 0) return { sent: 0, cleared: 0 };
 
-    const message = pushMessageFor(input.kind, await addressFor(input.subject), appPathFor(input.subject));
+    const message = input.text
+      ? { title: input.text.title, body: input.text.body, data: { path: input.text.path } }
+      : pushMessageFor(input.kind, await addressFor(input.subject), appPathFor(input.subject, input.kind));
     let sent = 0;
     let cleared = 0;
     for (const batch of chunk(targets)) {

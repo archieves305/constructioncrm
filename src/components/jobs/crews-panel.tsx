@@ -16,11 +16,14 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { useInvalidateWorkflow } from "@/components/workflows/use-workflow";
 import { fetchJson } from "@/lib/fetch-json";
 import { JobPersonnelScopePanel } from "./job-personnel-scope-panel";
+import { CrewLinks } from "./crew-links";
 
 export type CrewAssignment = {
   id: string;
-  crew: { name: string; trades: string[] };
+  crew: { name: string; trades: string[]; phone?: string | null };
   installDate: string | null;
+  /** The crew's answer through a crew link: CONFIRMED | CANT_MAKE_IT | CHANGE_REQUESTED. */
+  confirmation?: string | null;
   /** The open get-ready task the install date raised, if any. */
   installTask?: { id: string; dueAt: string | null; assignedTo: { firstName: string; lastName: string } | null } | null;
 };
@@ -40,12 +43,15 @@ export function CrewsPanel({
   crewAssignments,
   targetStartDate = null,
   canSetStart = false,
+  canSendLinks = false,
 }: {
   jobId: string;
   crewAssignments: CrewAssignment[];
   targetStartDate?: string | null;
   /** The viewer may set the job's start date (offered when the job has none). */
   canSetStart?: boolean;
+  /** Office roles and the job's PM: may ask the crew to confirm its day. */
+  canSendLinks?: boolean;
 }) {
   const invalidate = useInvalidateWorkflow({ kind: "job", id: jobId });
   const [assignCrewId, setAssignCrewId] = useState("");
@@ -132,7 +138,7 @@ export function CrewsPanel({
         </CardContent>
       </Card>
       {crewAssignments.map((ca) => (
-        <CrewRow key={`${ca.id}:${dayOf(ca.installDate)}`} jobId={jobId} assignment={ca} onSaved={saved} onRemove={() => setRemoving(ca)} />
+        <CrewRow key={`${ca.id}:${dayOf(ca.installDate)}`} jobId={jobId} assignment={ca} onSaved={saved} onRemove={() => setRemoving(ca)} canSendLinks={canSendLinks} />
       ))}
       {crewAssignments.length === 0 && <EmptyState icon={Hammer} title="No crews assigned" description="Pick a crew above; field mode reads from this." />}
       <JobPersonnelScopePanel jobId={jobId} />
@@ -155,11 +161,13 @@ function CrewRow({
   assignment,
   onSaved,
   onRemove,
+  canSendLinks,
 }: {
   jobId: string;
   assignment: CrewAssignment;
   onSaved: (message: string, day: string | null) => void;
   onRemove: () => void;
+  canSendLinks: boolean;
 }) {
   const current = dayOf(assignment.installDate);
   const [draft, setDraft] = useState(current);
@@ -190,6 +198,16 @@ function CrewRow({
               {task.dueAt ? `, due ${longDay(dayOf(task.dueAt))}` : ""}
             </p>
           )}
+          {assignment.confirmation ? (
+            <p className={`mt-0.5 text-[11px] ${assignment.confirmation === "CONFIRMED" ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
+              {assignment.confirmation === "CONFIRMED" ? "Crew confirmed the day" : assignment.confirmation === "CANT_MAKE_IT" ? "Crew can't make the day" : "Crew asked for a different day"}
+            </p>
+          ) : null}
+          {current ? (
+            <div className="mt-1">
+              <CrewLinks jobId={jobId} crewAssignmentId={assignment.id} purposes={["INSTALL_CONFIRM"]} canSend={canSendLinks} hasPhone={Boolean(assignment.crew.phone)} />
+            </div>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <Input

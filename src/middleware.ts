@@ -26,6 +26,9 @@ const PUBLIC_PREFIXES = [
   "/action",
   "/co",
   "/sign",
+  // Crew guest links (src/lib/guest): the page and its two public calls.
+  "/g",
+  "/api/g",
   "/api/co",
   "/api/sign",
   "/api/auth",

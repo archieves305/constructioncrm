@@ -177,7 +177,7 @@ export const useLeadNotes = (leadId: string | null | undefined) =>
   useQuery({
     queryKey: ["leadNotes", leadId],
     enabled: Boolean(leadId),
-    queryFn: () => api(`/api/leads/${encodeURIComponent(leadId!)}/activity?type=NOTE&pageSize=30`, { schema: leadNotes }),
+    queryFn: () => api(`/api/leads/${encodeURIComponent(leadId!)}/activity?notesOnly=1&pageSize=30`, { schema: leadNotes }),
   });
 
 /** This week's use of the CRM and the app (owner roles). */

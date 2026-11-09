@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withIdempotency } from "@/lib/api/idempotency";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
@@ -39,6 +40,8 @@ const METHODS = [
 ] as const;
 
 const createSchema = z.object({
+  /** A phone-made id (KNU Field queues the expense, then its receipt, without signal). */
+  id: z.string().regex(/^[a-z][a-z0-9]{19,31}$/).optional(),
   type: z.enum(TYPES).default("OTHER"),
   vendor: z.string().max(120).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
@@ -95,10 +98,19 @@ export async function POST(
   }
 
   const { id } = await context.params;
+  // A resend from the phone (same Idempotency-Key, or the same phone-made id) gets the first answer.
+  return withIdempotency(request, session.user.id, `POST /api/jobs/${id}/expenses`, async () => {
   const body = await request.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
   if (!parsed.success)
     return badRequest(parsed.error.issues[0]?.message || "invalid payload");
+  if (parsed.data.id) {
+    const existing = await prisma.jobExpense.findUnique({ where: { id: parsed.data.id }, select: { id: true, jobId: true, createdByUserId: true } });
+    if (existing) {
+      if (existing.jobId !== id || existing.createdByUserId !== session.user.id) return NextResponse.json({ error: "That id is already used", code: "id_taken" }, { status: 409 });
+      return NextResponse.json(existing, { status: 200 });
+    }
+  }
 
   const job = await prisma.job.findUnique({
     where: { id },
@@ -129,6 +141,7 @@ export async function POST(
   const [expense] = await prisma.$transaction([
     prisma.jobExpense.create({
       data: {
+        ...(parsed.data.id ? { id: parsed.data.id } : {}),
         jobId: id,
         type: parsed.data.type,
         vendor: parsed.data.vendor?.trim() || null,
@@ -185,4 +198,5 @@ export async function POST(
   });
 
   return NextResponse.json(expense, { status: 201 });
+  });
 }

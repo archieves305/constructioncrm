@@ -46,6 +46,7 @@ import { useSession } from "@/lib/auth/session-client";
 import { canManageJobMoney } from "@/lib/money/access";
 import { CrewPaymentTwinDialog, type PossibleDuplicate, type TwinCheck } from "./crew-payment-twin-dialog";
 import { CrewContact } from "./crew-contact";
+import { CrewLinks } from "./crew-links";
 import { attachCompletionPhotos, CompletionPhotoPicker, CompletionPhotosButton, type CompletionPhoto } from "./completion-photos";
 
 const METHODS = [
@@ -188,7 +189,7 @@ function vendorOf(c: LaborContract): { id: string; name: string } | null {
   return c.vendor ?? c.crew?.vendor ?? null;
 }
 
-export function LaborContractsPanel({ jobId }: { jobId: string }) {
+export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }: { jobId: string; projectManagerId?: string | null }) {
   const qc = useQueryClient();
 
   const { data: contracts = [], isLoading } = useQuery<LaborContract[]>({
@@ -355,6 +356,8 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
   // Recording a payment is the office's; anyone on the job may request one.
   const { data: session } = useSession();
   const canRecord = canManageJobMoney(session?.user.role);
+  // The job's project manager may send crew links too (the server checks: canRunGuestLinks).
+  const canSendLinks = Boolean(session?.user.id && jobPmId && session.user.id === jobPmId);
 
   const openPay = (c: LaborContract, request: PaymentRequestRow | null = null) => {
     setPayAmount(request ? String(Number(request.amount)) : "");
@@ -870,6 +873,7 @@ export function LaborContractsPanel({ jobId }: { jobId: string }) {
                       qc.invalidateQueries({ queryKey: ["crews", "active"] });
                     }}
                   />
+                  {c.crew ? <CrewLinks jobId={jobId} laborContractId={c.id} purposes={["CREW_PAYMENT", "CREW_PHOTOS"]} canSend={canRecord || canSendLinks} hasPhone={Boolean(c.crew.phone)} /> : null}
 
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     <div>

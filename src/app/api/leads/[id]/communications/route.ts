@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { onPersonalTouch } from "@/lib/nurture/hooks";
 import { guardLead } from "@/lib/access/records";
+import { withIdempotency } from "@/lib/api/idempotency";
 
 export async function GET(
   _request: NextRequest,
@@ -33,6 +34,8 @@ export async function POST(
   const { id } = await params;
   const denied = await guardLead(session.user, id, "write");
   if (denied) return denied;
+  // A call logged on the phone without signal is sent later; a resend gets the first answer.
+  return withIdempotency(request, session.user.id, `POST /api/leads/${id}/communications`, async () => {
   const body = await request.json();
 
   if (!body.communicationType || !body.body?.trim()) {
@@ -76,4 +79,5 @@ export async function POST(
   await onPersonalTouch(id, new Date(), "communication");
 
   return NextResponse.json(communication, { status: 201 });
+  });
 }
