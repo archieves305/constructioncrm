@@ -11,6 +11,8 @@ import { createTask, TaskLinkError } from "@/lib/tasks/create";
 import { parseDueAt } from "@/lib/tasks/dates";
 import { applySchedule, EMPTY_SCHEDULE } from "@/lib/calendar/schedule";
 import { canCreateTasks } from "@/lib/access/roles";
+import { parseSort, TASK_SORT_DEFAULT, TASK_SORT_KEYS } from "@/lib/lists/sort";
+import { taskOrderBy } from "@/lib/lists/sort-order";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -22,7 +24,8 @@ export async function GET(request: NextRequest) {
   const tasks = await prisma.task.findMany({
     where,
     include: TASK_LIST_INCLUDE,
-    orderBy: [{ dueAt: "asc" }, { priority: "desc" }],
+    // ?sort=&dir= through the allow-list in lib/lists/sort.ts (default: due date, then priority).
+    orderBy: taskOrderBy(parseSort(request.nextUrl.searchParams, TASK_SORT_KEYS, TASK_SORT_DEFAULT)),
   });
 
   return NextResponse.json(tasks);

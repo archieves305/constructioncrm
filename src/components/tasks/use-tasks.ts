@@ -55,6 +55,9 @@ export type TaskListFilters = {
   includeInactive?: boolean;
   /** Tasks nobody owns (the attention list's "Nobody" line links here). */
   unassigned?: boolean;
+  /** A key from TASK_SORT_KEYS (lib/lists/sort.ts) and its direction; the API allow-lists both. */
+  sort?: string;
+  dir?: "asc" | "desc";
 };
 
 function toQuery(filters: TaskListFilters): string {

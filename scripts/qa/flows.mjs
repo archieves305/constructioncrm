@@ -455,7 +455,52 @@ flows.phone = async () => {
   await page.setViewportSize({ width: 1440, height: 900 });
 };
 
-const ORDER = ["lead", "task", "taskvis", "files", "permit", "expense", "crewpay", "co", "log", "calendar", "vendor", "bulk", "pickers", "font", "phone"];
+flows.lists = async () => {
+  await rec.step("Jobs: clicking Contract sorts high to low, keeps it in the URL, and the rows follow", async () => {
+    await go("/jobs?scope=all&closed=1");
+    await page.getByRole("button", { name: /^Contract/ }).click();
+    await page.waitForURL(/sort=contract/, { timeout: 10000 });
+    await page.waitForTimeout(1500);
+    expect(/dir=desc/.test(page.url()), `url ${page.url()}`);
+    const amounts = await page.$$eval("table tbody tr td:nth-child(7)", (tds) => tds.map((td) => Number((td.textContent || "").replace(/[^0-9.]/g, "").replace(/\.$/, ""))));
+    expect(amounts.length > 1, `only ${amounts.length} rows`);
+    for (let i = 1; i < amounts.length; i++) expect(amounts[i - 1] >= amounts[i], `not descending: ${amounts.join(", ")}`);
+    expect((await page.getByRole("columnheader", { name: /Contract/ }).getAttribute("aria-sort")) === "descending", "aria-sort missing");
+    return `${amounts.length} rows, ${amounts[0]} → ${amounts.at(-1)}`;
+  });
+  await rec.step("Jobs: reloading the sorted URL keeps the order; a bad sort key falls back", async () => {
+    await go("/jobs?scope=all&closed=1&sort=contract&dir=asc");
+    expect((await page.getByRole("columnheader", { name: /Contract/ }).getAttribute("aria-sort")) === "ascending", "sort not restored from the URL");
+    const r = await api("GET", "/api/jobs?scope=all&sort=passwordHash&dir=asc");
+    expect(r.status === 200, `bad key answered ${r.status}`);
+    return true;
+  });
+  await rec.step("Leads and Tasks sort from the URL / control", async () => {
+    await go("/leads?scope=all&sort=name&dir=asc");
+    expect((await page.getByRole("columnheader", { name: /Name/ }).getAttribute("aria-sort")) === "ascending", "leads sort not shown");
+    const t = await api("GET", "/api/tasks?sort=priority&dir=desc");
+    expect(t.status === 200 && Array.isArray(t.body), `tasks ${t.status}`);
+    const rank = { URGENT: 3, HIGH: 2, MEDIUM: 1, LOW: 0 };
+    const ps = t.body.map((x) => rank[x.priority]);
+    for (let i = 1; i < ps.length; i++) expect(ps[i - 1] >= ps[i], "tasks not by priority");
+    return `${t.body.length} tasks`;
+  });
+  await rec.step("At 400 px the Jobs list is cards with a Sort picker, not a sideways table", async () => {
+    await page.setViewportSize({ width: 400, height: 860 });
+    try {
+      await go("/jobs?scope=all&closed=1");
+      const m = await page.evaluate(() => ({ cards: document.querySelectorAll("ul[aria-label=Jobs] > li").length, overflow: document.documentElement.scrollWidth > innerWidth + 1, sort: !!document.querySelector("#phone-sort") }));
+      expect(m.cards > 0, "no cards");
+      expect(!m.overflow, "sideways scroll");
+      expect(m.sort, "no sort picker");
+      return `${m.cards} cards`;
+    } finally {
+      await page.setViewportSize({ width: 1440, height: 900 });
+    }
+  });
+};
+
+const ORDER = ["lead", "task", "taskvis", "files", "permit", "expense", "crewpay", "co", "log", "calendar", "vendor", "bulk", "pickers", "font", "phone", "lists"];
 for (const name of ORDER) {
   if (only && !only.test(name)) continue;
   rec.group = name;

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { jobLabel } from "@/lib/labels/job";
 import { formatAddressLine } from "@/lib/labels/address";
 import { JobRef } from "@/components/shared/entity-label";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
@@ -13,9 +13,6 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 import { Search, Download, ListChecks, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toCsv, downloadCsv } from "@/lib/csv";
@@ -28,8 +25,9 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { ListScope } from "@/lib/lists/scope";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { DataTable, useListSort } from "@/components/shared/data-table";
+import { JOB_SORT_DEFAULT, JOB_SORT_KEYS } from "@/lib/lists/sort";
 import { StagePillSelect } from "@/components/shared/stage-pill-select";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
@@ -111,6 +109,8 @@ export default function JobsPage() {
     workflowUnassigned: initial.get("workflowUnassigned") === "1",
   });
   const [page, setPage] = useState(1);
+  const resetPage = useCallback(() => setPage(1), []);
+  const jobSort = useListSort(JOB_SORT_KEYS, JOB_SORT_DEFAULT, resetPage);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAssignTo, setBulkAssignTo] = useState("");
   const [bulkStage, setBulkStage] = useState("");
@@ -126,6 +126,8 @@ export default function JobsPage() {
   if (phaseKey) params.set("phaseKey", phaseKey);
   for (const t of WORKFLOW_TOGGLES) if (toggles[t.key]) params.set(t.key, "1");
   params.set("page", String(page));
+  params.set("sort", jobSort.state.key);
+  params.set("dir", jobSort.state.dir);
   params.set("withTaskCounts", "true");
   params.set("withWorkflow", "true");
   const workflowFilterCount =
@@ -136,14 +138,13 @@ export default function JobsPage() {
     isLoading,
     error: jobsError,
     refetch: refetchJobs,
-    isRefetching: isRefetchingJobs,
   } = useQuery<{
     data: JobRow[];
     total: number;
     page: number;
     totalPages: number;
   }>({
-    queryKey: ["jobs", scope, search, stageId, showClosed, salesRepFilter, workflowTrade, permitFilter, phaseKey, toggles, page],
+    queryKey: ["jobs", scope, search, stageId, showClosed, salesRepFilter, workflowTrade, permitFilter, phaseKey, toggles, page, jobSort.state.key, jobSort.state.dir],
     queryFn: () => fetchJson(`/api/jobs?${params.toString()}`),
     retry: retryServerErrors,
     enabled: scopeReady && view === "table",
@@ -253,27 +254,6 @@ export default function JobsPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  const allRowIds = data?.data?.map((j) => j.id) ?? [];
-  const allSelected = allRowIds.length > 0 && allRowIds.every((id) => selected.has(id));
-
-  function toggleRow(id: string) {
-    setSelected((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    setSelected((s) => {
-      if (allSelected) return new Set();
-      const next = new Set(s);
-      for (const id of allRowIds) next.add(id);
-      return next;
-    });
-  }
 
   return (
     <div>
@@ -618,189 +598,184 @@ export default function JobsPage() {
         </div>
       )}
 
-      <div className="rounded-lg border bg-white">
-        <Table containerClassName="max-h-[calc(100dvh-16rem)]">
-          <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-white">
-            <TableRow>
-              <TableHead className="w-8">
-                <Checkbox checked={allSelected} onCheckedChange={() => toggleAll()} aria-label="Select all on page" />
-              </TableHead>
-              <TableHead>Property</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead className="hidden md:table-cell">Service</TableHead>
-              <TableHead>Stage</TableHead>
-              <TableHead className="hidden md:table-cell">Phase</TableHead>
-              <TableHead className="text-right">Contract</TableHead>
-              <TableHead className="hidden md:table-cell">Deposit</TableHead>
-              <TableHead className="hidden md:table-cell">Permit</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-              <TableHead className="hidden md:table-cell">Next Action</TableHead>
-              <TableHead className="hidden md:table-cell">Rep</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={12} className="py-2">
-                    <Skeleton className="h-8 w-full" />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : jobsError ? (
-              // "No jobs found" for a failed request made the connection
-              // exhaustion outage look like every job had been deleted.
-              <TableRow>
-                <TableCell colSpan={12} className="py-8 text-center">
-                  <p className="font-medium">Couldn&apos;t load jobs</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {jobsError instanceof Error
-                      ? jobsError.message
-                      : "Something went wrong loading jobs."}
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3"
-                    onClick={() => refetchJobs()}
-                    disabled={isRefetchingJobs}
-                  >
-                    {isRefetchingJobs ? "Retrying..." : "Try again"}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ) : !data?.data?.length ? (
-              <TableRow>
-                <TableCell colSpan={12}>
-                  <EmptyState icon={Briefcase} title="No jobs match" description="Try clearing a filter, or win a lead to start a job." />
-                </TableCell>
-              </TableRow>
-            ) : (
-              data.data.map((job) => {
-                const depositPct = Number(job.depositRequired) > 0
-                  ? Math.round((Number(job.depositReceived) / Number(job.depositRequired)) * 100)
-                  : 0;
-                const hasPermit = job.permits?.length > 0;
-                const permitStatus = hasPermit ? job.permits[0].status : null;
-                const taskCount = job.taskCounts?.pending ?? 0;
-                const overdueTasks = job.taskCounts?.overdue ?? 0;
-
+      <div className="rounded-lg border bg-white max-sm:border-0 max-sm:bg-transparent">
+        <DataTable
+          caption="Jobs"
+          rows={data?.data}
+          rowKey={(job) => job.id}
+          onRowClick={(job) => router.push(`/jobs/${job.id}`)}
+          sort={jobSort}
+          loading={isLoading}
+          error={jobsError}
+          onRetry={() => refetchJobs()}
+          empty={<EmptyState icon={Briefcase} title="No jobs match" description="Try clearing a filter, or win a lead to start a job." />}
+          selection={{ selected, onChange: setSelected, label: (job) => jobLabel(job).primary }}
+          containerClassName="max-h-[calc(100dvh-16rem)]"
+          columns={[
+            {
+              key: "property",
+              header: "Property",
+              sortKey: "property",
+              card: "title",
+              className: "max-w-64",
+              cell: (job) => <JobRef job={job} href={null} customer={false} trade={false} />,
+            },
+            {
+              key: "customer",
+              header: "Customer",
+              sortKey: "customer",
+              card: "subtitle",
+              cell: (job) => (
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{job.lead.fullName}</div>
+                  </div>
+                  <TaskCountBadge open={job.taskCounts?.pending ?? 0} overdue={job.taskCounts?.overdue ?? 0} compact />
+                </div>
+              ),
+            },
+            {
+              key: "service",
+              header: "Service",
+              sortKey: "service",
+              hideBelowMd: true,
+              card: "hidden",
+              cell: (job) => <Badge variant="outline" className="text-xs">{job.serviceType}</Badge>,
+            },
+            {
+              key: "stage",
+              header: "Stage",
+              sortKey: "stage",
+              interactive: true,
+              cell: (job) => (
+                <StagePillSelect
+                  value={job.currentStageId}
+                  stages={stages ?? []}
+                  onChange={(stageId) => changeStage.mutate({ jobId: job.id, stageId })}
+                />
+              ),
+            },
+            {
+              key: "phase",
+              header: "Phase",
+              hideBelowMd: true,
+              card: "hidden",
+              className: "max-w-[200px]",
+              cell: (job) => <WorkflowPhaseCell jobId={job.id} summary={job.workflow} />,
+            },
+            {
+              key: "contract",
+              header: "Contract",
+              sortKey: "contract",
+              firstDir: "desc",
+              headClassName: "text-right",
+              className: "text-right font-medium",
+              cell: (job) => (
+                <>
+                  <div>${Number(job.contractAmount).toLocaleString()}</div>
+                  {job.jobType === "COST_PLUS" && <div className="text-3xs font-normal text-muted-foreground">Cost+</div>}
+                  {job.jobType === "OWNED_REHAB" && <div className="text-3xs font-normal text-muted-foreground">Owned</div>}
+                </>
+              ),
+            },
+            {
+              key: "deposit",
+              header: "Deposit",
+              hideBelowMd: true,
+              card: "hidden",
+              cell: (job) => {
+                const depositPct = Number(job.depositRequired) > 0 ? Math.round((Number(job.depositReceived) / Number(job.depositRequired)) * 100) : 0;
                 return (
-                  <TableRow
-                    key={job.id}
-                    className={`h-12 cursor-pointer hover:bg-surface-subtle ${
-                      selected.has(job.id) ? "bg-brand-soft/60" : ""
-                    }`}
-                    onClick={() => router.push(`/jobs/${job.id}`)}
-                  >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selected.has(job.id)}
-                        onCheckedChange={() => toggleRow(job.id)}
-                        aria-label={`Select ${jobLabel(job).primary}`}
-                      />
-                    </TableCell>
-                    <TableCell className="max-w-64">
-                      <JobRef job={job} href={null} customer={false} trade={false} />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">{job.lead.fullName}</div>
-                        </div>
-                        <TaskCountBadge open={taskCount} overdue={overdueTasks} compact />
-                      </div>
-                    </TableCell>
-                    <TableCell><Badge variant="outline" className="hidden md:table-cell text-xs">{job.serviceType}</Badge></TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <StagePillSelect
-                        value={job.currentStageId}
-                        stages={stages ?? []}
-                        onChange={(stageId) => changeStage.mutate({ jobId: job.id, stageId })}
-                      />
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell max-w-[200px]">
-                      <WorkflowPhaseCell jobId={job.id} summary={job.workflow} />
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      <div>${Number(job.contractAmount).toLocaleString()}</div>
-                      {job.jobType === "COST_PLUS" && (
-                        <div className="text-3xs font-normal text-muted-foreground">Cost+</div>
-                      )}
-                      {job.jobType === "OWNED_REHAB" && (
-                        <div className="text-3xs font-normal text-muted-foreground">Owned</div>
-                      )}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <div className="flex items-center gap-2">
-                        <Progress
-                          value={depositPct}
-                          className="h-1.5 w-16"
-                          indicatorClassName={depositPct >= 100 ? "bg-tone-success" : "bg-tone-warning"}
-                          label={`Deposit ${depositPct}%`}
-                        />
-                        <span className="text-xs tabular-nums text-muted-foreground">{depositPct}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <div className="flex flex-col items-start gap-0.5">
-                        {job.workflow && <PermitStatusPill status={job.workflow.permitStatus} compact />}
-                        {(hasPermit || !job.workflow) && <PermitBadge status={hasPermit ? permitStatus : null} />}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <span className={Number(job.balanceDue) > 0 ? "font-medium" : "text-tone-success-fg"}>
-                        ${Number(job.balanceDue).toLocaleString()}
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {job.nextAction ? (
-                        <span className="inline-block max-w-[220px] truncate rounded-md bg-tone-warning-soft px-2 py-0.5 text-xs text-tone-warning-fg" title={job.nextAction}>{job.nextAction}</span>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
-                      <Select
-                        value={job.salesRep?.id ?? UNASSIGN_VALUE}
-                        onValueChange={(v: string | null) => {
-                          if (!v || v === UNASSIGN_VALUE) return;
-                          if (v !== job.salesRep?.id) {
-                            assignJob.mutate({ jobId: job.id, salesRepId: v });
-                          }
-                        }}
-                      >
-                        <SelectTrigger aria-label="Sales rep" className="h-7 w-[160px] text-xs">
-                          <SelectValue>
-                            {(v: string) => {
-                              const u = (!v || v === UNASSIGN_VALUE) ? null : (assignableUsers.find((x) => x.id === v) ?? job.salesRep);
-                              return (
-                                <span className="flex items-center gap-1.5 truncate">
-                                  <UserAvatar user={u ?? null} size="xs" />
-                                  {u ? `${u.firstName} ${u.lastName[0]}.` : "Unassigned"}
-                                </span>
-                              );
-                            }}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {!job.salesRep && (
-                            <SelectItem value={UNASSIGN_VALUE} disabled>
-                              Unassigned
-                            </SelectItem>
-                          )}
-                          {assignableUsers.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.firstName} {u.lastName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                  </TableRow>
+                  <div className="flex items-center gap-2">
+                    <Progress value={depositPct} className="h-1.5 w-16" indicatorClassName={depositPct >= 100 ? "bg-tone-success" : "bg-tone-warning"} label={`Deposit ${depositPct}%`} />
+                    <span className="text-xs tabular-nums text-muted-foreground">{depositPct}%</span>
+                  </div>
                 );
-              })
-            )}
-          </TableBody>
-        </Table>
+              },
+            },
+            {
+              key: "permit",
+              header: "Permit",
+              hideBelowMd: true,
+              card: "hidden",
+              cell: (job) => {
+                const hasPermit = job.permits?.length > 0;
+                return (
+                  <div className="flex flex-col items-start gap-0.5">
+                    {job.workflow && <PermitStatusPill status={job.workflow.permitStatus} compact />}
+                    {(hasPermit || !job.workflow) && <PermitBadge status={hasPermit ? job.permits[0].status : null} />}
+                  </div>
+                );
+              },
+            },
+            {
+              key: "balance",
+              header: "Balance",
+              sortKey: "balance",
+              firstDir: "desc",
+              headClassName: "text-right",
+              className: "text-right tabular-nums",
+              cell: (job) => (
+                <span className={Number(job.balanceDue) > 0 ? "font-medium" : "text-tone-success-fg"}>${Number(job.balanceDue).toLocaleString()}</span>
+              ),
+            },
+            {
+              key: "nextAction",
+              header: "Next Action",
+              sortKey: "nextAction",
+              hideBelowMd: true,
+              cardLabel: "Next",
+              cell: (job) =>
+                job.nextAction ? (
+                  <span className="inline-block max-w-[220px] truncate rounded-md bg-tone-warning-soft px-2 py-0.5 text-xs text-tone-warning-fg" title={job.nextAction}>{job.nextAction}</span>
+                ) : (
+                  "—"
+                ),
+            },
+            {
+              key: "rep",
+              header: "Rep",
+              sortKey: "rep",
+              hideBelowMd: true,
+              interactive: true,
+              cell: (job) => (
+                <Select
+                  value={job.salesRep?.id ?? UNASSIGN_VALUE}
+                  onValueChange={(v: string | null) => {
+                    if (!v || v === UNASSIGN_VALUE) return;
+                    if (v !== job.salesRep?.id) assignJob.mutate({ jobId: job.id, salesRepId: v });
+                  }}
+                >
+                  <SelectTrigger aria-label="Sales rep" className="h-7 w-[160px] text-xs">
+                    <SelectValue>
+                      {(v: string) => {
+                        const u = !v || v === UNASSIGN_VALUE ? null : (assignableUsers.find((x) => x.id === v) ?? job.salesRep);
+                        return (
+                          <span className="flex items-center gap-1.5 truncate">
+                            <UserAvatar user={u ?? null} size="xs" />
+                            {u ? `${u.firstName} ${u.lastName[0]}.` : "Unassigned"}
+                          </span>
+                        );
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!job.salesRep && (
+                      <SelectItem value={UNASSIGN_VALUE} disabled>
+                        Unassigned
+                      </SelectItem>
+                    )}
+                    {assignableUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ),
+            },
+          ]}
+        />
       </div>
 
       {data?.totalPages && data.totalPages > 1 ? (

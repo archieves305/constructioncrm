@@ -8,6 +8,8 @@ import { createLeadSchema, leadIssuesMessage } from "@/lib/validators/lead";
 import { emitLeadEvent } from "@/lib/follow-ups/events";
 import { buildLeadListWhere, parseLeadListParams } from "@/lib/leads/query";
 import { guardLeadCreate } from "@/lib/access/records";
+import { LEAD_SORT_DEFAULT, LEAD_SORT_KEYS, parseSort } from "@/lib/lists/sort";
+import { leadOrderBy } from "@/lib/lists/sort-order";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -34,7 +36,8 @@ export async function GET(request: NextRequest) {
         stageHistory: { orderBy: { changedAt: "desc" }, take: 1, select: { changedAt: true } },
       },
       // The call list runs most overdue first, never-contacted (no date) at the top.
-      orderBy: params.callListBefore ? [{ nextFollowUpAt: { sort: "asc", nulls: "first" } }, { createdAt: "asc" }] : { createdAt: "desc" },
+      // ?sort=&dir= through the allow-list in lib/lists/sort.ts; the call list keeps its own order.
+      orderBy: params.callListBefore ? [{ nextFollowUpAt: { sort: "asc", nulls: "first" } }, { createdAt: "asc" }] : leadOrderBy(parseSort(searchParams, LEAD_SORT_KEYS, LEAD_SORT_DEFAULT)),
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

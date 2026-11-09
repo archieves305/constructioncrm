@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
@@ -15,19 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, AlertTriangle, Download, ListChecks, X, Users } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { DataTable, useListSort } from "@/components/shared/data-table";
+import { LEAD_SORT_DEFAULT, LEAD_SORT_KEYS } from "@/lib/lists/sort";
 import { StagePillSelect } from "@/components/shared/stage-pill-select";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { TaskCountBadge } from "@/components/tasks/task-count-badge";
@@ -88,6 +79,8 @@ export default function LeadsPage() {
   // The call list: follow-up due today or earlier, or never contacted — most overdue first.
   const [callList, setCallList] = useState(getUrl("callList") === "1");
   const [page, setPage] = useState(1);
+  const resetPage = useCallback(() => setPage(1), []);
+  const leadSort = useListSort(LEAD_SORT_KEYS, LEAD_SORT_DEFAULT, resetPage);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAssignTo, setBulkAssignTo] = useState<string>("");
   const [bulkStage, setBulkStage] = useState<string>("");
@@ -101,15 +94,17 @@ export default function LeadsPage() {
   if (includeClosed) params.set("includeClosed", "true");
   if (callList) params.set("callList", "1");
   params.set("page", String(page));
+  params.set("sort", leadSort.state.key);
+  params.set("dir", leadSort.state.dir);
   params.set("withTaskCounts", "true");
 
-  const { data, isLoading } = useQuery<{
+  const { data, isLoading, error: leadsError, refetch: refetchLeads } = useQuery<{
     data: Lead[];
     total: number;
     page: number;
     totalPages: number;
   }>({
-    queryKey: ["leads", scope, search, stageId, sourceId, assigneeFilter, includeClosed, callList, page, "withCounts"],
+    queryKey: ["leads", scope, search, stageId, sourceId, assigneeFilter, includeClosed, callList, page, leadSort.state.key, leadSort.state.dir, "withCounts"],
     queryFn: () => fetchJson(`/api/leads?${params.toString()}`),
     retry: retryServerErrors,
     enabled: scopeReady && view === "table",
@@ -215,27 +210,6 @@ export default function LeadsPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  const allRowIds = data?.data?.map((l) => l.id) ?? [];
-  const allSelected = allRowIds.length > 0 && allRowIds.every((id) => selected.has(id));
-
-  function toggleRow(id: string) {
-    setSelected((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    setSelected((s) => {
-      if (allSelected) return new Set();
-      const next = new Set(s);
-      for (const id of allRowIds) next.add(id);
-      return next;
-    });
-  }
 
   return (
     <div>
@@ -513,157 +487,139 @@ export default function LeadsPage() {
         </div>
       )}
 
-      <div className="rounded-md border bg-white">
-        <Table containerClassName="max-h-[calc(100dvh-16rem)]">
-          <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-white">
-            <TableRow>
-              <TableHead className="w-8">
-                <Checkbox checked={allSelected} onCheckedChange={() => toggleAll()} aria-label="Select all on page" />
-              </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead className="hidden md:table-cell">Phone</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead>Stage</TableHead>
-              <TableHead className="hidden md:table-cell">Source</TableHead>
-              <TableHead>Assigned To</TableHead>
-              <TableHead className="hidden md:table-cell">Services</TableHead>
-              <TableHead className="hidden md:table-cell">Created</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={10} className="py-2">
-                    <Skeleton className="h-8 w-full" />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : !data?.data?.length ? (
-              <TableRow>
-                <TableCell colSpan={10}>
-                  <EmptyState icon={Users} title="No leads match" description="Try clearing a filter, or add a new lead." />
-                </TableCell>
-              </TableRow>
-            ) : (
-              data.data.map((lead) => {
-                const isOverdue =
-                  lead.nextFollowUpAt && new Date(lead.nextFollowUpAt) < new Date();
-                const taskCount = lead.taskCounts?.pending ?? 0;
-                const overdueTasks = lead.taskCounts?.overdue ?? 0;
-
+      <div className="rounded-md border bg-white max-sm:border-0 max-sm:bg-transparent">
+        <DataTable
+          caption="Leads"
+          rows={data?.data}
+          rowKey={(lead) => lead.id}
+          onRowClick={(lead) => router.push(`/leads/${lead.id}`)}
+          // The call list keeps its own order (most overdue first).
+          sort={callList ? undefined : leadSort}
+          loading={isLoading}
+          error={leadsError}
+          onRetry={() => refetchLeads()}
+          empty={<EmptyState icon={Users} title="No leads match" description="Try clearing a filter, or add a new lead." />}
+          selection={{ selected, onChange: setSelected, label: (lead) => lead.fullName }}
+          containerClassName="max-h-[calc(100dvh-16rem)]"
+          columns={[
+            {
+              key: "name",
+              header: "Name",
+              sortKey: "name",
+              card: "title",
+              className: "font-medium",
+              cell: (lead) => {
+                const isOverdue = lead.nextFollowUpAt && new Date(lead.nextFollowUpAt) < new Date();
                 return (
-                  <TableRow
-                    key={lead.id}
-                    className={`h-12 cursor-pointer hover:bg-surface-subtle ${
-                      selected.has(lead.id) ? "bg-brand-soft/60" : ""
-                    }`}
-                    onClick={() => router.push(`/leads/${lead.id}`)}
-                  >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selected.has(lead.id)}
-                        onCheckedChange={() => toggleRow(lead.id)}
-                        aria-label={`Select ${lead.fullName}`}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {lead.fullName}
-                        {lead.isDuplicateFlag && (
-                          <Badge variant="destructive" className="text-3xs px-1 py-0">
-                            DUP
-                          </Badge>
-                        )}
-                        {isOverdue && (
-                          <AlertTriangle className="h-3.5 w-3.5 text-tone-danger" aria-label="Follow-up overdue" />
-                        )}
-                        <TaskCountBadge open={taskCount} overdue={overdueTasks} compact />
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">{lead.primaryPhone}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">
-                      {lead.propertyAddress1}, {lead.city}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <StagePillSelect
-                        value={lead.currentStageId}
-                        stages={stages ?? []}
-                        className="w-[170px]"
-                        onChange={(stageId) => changeStage.mutate({ leadId: lead.id, stageId })}
-                      />
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">{lead.source?.name || "—"}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select
-                        value={lead.assignedUser?.id ?? UNASSIGN_VALUE}
-                        onValueChange={(v: string | null) => {
-                          if (!v || v === UNASSIGN_VALUE) return;
-                          if (v !== lead.assignedUser?.id) {
-                            assignLead.mutate({ leadId: lead.id, assignedUserId: v });
-                          }
-                        }}
-                      >
-                        <SelectTrigger aria-label="Assigned to" className="h-7 w-[170px] text-xs">
-                          <SelectValue>
-                            {(v: string) => {
-                              const u = (!v || v === UNASSIGN_VALUE) ? null : (assignableUsers.find((x) => x.id === v) ?? lead.assignedUser);
-                              return (
-                                <span className="flex items-center gap-1.5 truncate">
-                                  <UserAvatar user={u ?? null} size="xs" />
-                                  {u ? `${u.firstName} ${u.lastName}` : "Unassigned"}
-                                </span>
-                              );
-                            }}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {!lead.assignedUser && (
-                            <SelectItem value={UNASSIGN_VALUE} disabled>
-                              Unassigned
-                            </SelectItem>
-                          )}
-                          {assignableUsers.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.firstName} {u.lastName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <div className="flex flex-wrap gap-1">
-                        {lead.services.slice(0, 2).map((s, i) => (
-                          <Badge key={i} variant="outline" className="text-3xs">
-                            {s.serviceCategory.name}
-                          </Badge>
-                        ))}
-                        {lead.services.length > 2 && (
-                          <Badge variant="outline" className="text-3xs">
-                            +{lead.services.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground">
-                      {format(new Date(lead.createdAt), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/leads/${lead.id}`}
-                        className="text-tone-info-fg hover:underline text-sm"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        View
-                      </Link>
-                    </TableCell>
-                  </TableRow>
+                  <div className="flex items-center gap-2">
+                    {lead.fullName}
+                    {lead.isDuplicateFlag && (
+                      <Badge variant="destructive" className="text-3xs px-1 py-0">
+                        DUP
+                      </Badge>
+                    )}
+                    {isOverdue && <AlertTriangle className="h-3.5 w-3.5 text-tone-danger" aria-label="Follow-up overdue" />}
+                    <TaskCountBadge open={lead.taskCounts?.pending ?? 0} overdue={lead.taskCounts?.overdue ?? 0} compact />
+                  </div>
                 );
-              })
-            )}
-          </TableBody>
-        </Table>
+              },
+            },
+            { key: "phone", header: "Phone", hideBelowMd: true, cell: (lead) => lead.primaryPhone },
+            {
+              key: "address",
+              header: "Address",
+              sortKey: "address",
+              card: "subtitle",
+              className: "max-w-[200px] truncate",
+              cell: (lead) => (
+                <>
+                  {lead.propertyAddress1}, {lead.city}
+                </>
+              ),
+            },
+            {
+              key: "stage",
+              header: "Stage",
+              sortKey: "stage",
+              interactive: true,
+              cell: (lead) => (
+                <StagePillSelect value={lead.currentStageId} stages={stages ?? []} className="w-[170px]" onChange={(stageId) => changeStage.mutate({ leadId: lead.id, stageId })} />
+              ),
+            },
+            { key: "source", header: "Source", sortKey: "source", hideBelowMd: true, cell: (lead) => lead.source?.name || "—" },
+            {
+              key: "assignee",
+              header: "Assigned To",
+              sortKey: "assignee",
+              interactive: true,
+              cardLabel: "Assigned",
+              cell: (lead) => (
+                <Select
+                  value={lead.assignedUser?.id ?? UNASSIGN_VALUE}
+                  onValueChange={(v: string | null) => {
+                    if (!v || v === UNASSIGN_VALUE) return;
+                    if (v !== lead.assignedUser?.id) assignLead.mutate({ leadId: lead.id, assignedUserId: v });
+                  }}
+                >
+                  <SelectTrigger aria-label="Assigned to" className="h-7 w-[170px] text-xs">
+                    <SelectValue>
+                      {(v: string) => {
+                        const u = !v || v === UNASSIGN_VALUE ? null : (assignableUsers.find((x) => x.id === v) ?? lead.assignedUser);
+                        return (
+                          <span className="flex items-center gap-1.5 truncate">
+                            <UserAvatar user={u ?? null} size="xs" />
+                            {u ? `${u.firstName} ${u.lastName}` : "Unassigned"}
+                          </span>
+                        );
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!lead.assignedUser && (
+                      <SelectItem value={UNASSIGN_VALUE} disabled>
+                        Unassigned
+                      </SelectItem>
+                    )}
+                    {assignableUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ),
+            },
+            {
+              key: "services",
+              header: "Services",
+              hideBelowMd: true,
+              card: "hidden",
+              cell: (lead) => (
+                <div className="flex flex-wrap gap-1">
+                  {lead.services.slice(0, 2).map((sv, i) => (
+                    <Badge key={i} variant="outline" className="text-3xs">
+                      {sv.serviceCategory.name}
+                    </Badge>
+                  ))}
+                  {lead.services.length > 2 && (
+                    <Badge variant="outline" className="text-3xs">
+                      +{lead.services.length - 2}
+                    </Badge>
+                  )}
+                </div>
+              ),
+            },
+            {
+              key: "created",
+              header: "Created",
+              sortKey: "created",
+              firstDir: "desc",
+              hideBelowMd: true,
+              className: "text-muted-foreground",
+              cell: (lead) => format(new Date(lead.createdAt), "MMM d, yyyy"),
+            },
+          ]}
+        />
       </div>
 
       {data?.totalPages && data.totalPages > 1 ? (

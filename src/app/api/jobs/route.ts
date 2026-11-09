@@ -6,6 +6,8 @@ import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { buildJobListWhere, hasWorkflowFilter, parseJobListParams } from "@/lib/jobs/query";
 import { loadJobWorkflowSummaries } from "@/lib/workflows/summary";
 import { overdueWhere } from "@/lib/calendar/status";
+import { JOB_SORT_DEFAULT, JOB_SORT_KEYS, parseSort } from "@/lib/lists/sort";
+import { jobOrderBy } from "@/lib/lists/sort-order";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -35,7 +37,8 @@ export async function GET(request: NextRequest) {
         // Latest stage change only, so boards can say "6d in stage".
         stageHistory: { orderBy: { changedAt: "desc" }, take: 1, select: { changedAt: true } },
       },
-      orderBy: { createdAt: "desc" },
+      // ?sort=&dir= through the allow-list in lib/lists/sort.ts; never a raw column.
+      orderBy: jobOrderBy(parseSort(searchParams, JOB_SORT_KEYS, JOB_SORT_DEFAULT)),
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

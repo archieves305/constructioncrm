@@ -20,6 +20,8 @@ import { cn } from "@/lib/utils";
 import { fetchJson } from "@/lib/fetch-json";
 import { useSession } from "@/lib/auth/session-client";
 import { canCreateTasks } from "@/lib/access/roles";
+import { useListSort } from "@/components/shared/data-table";
+import { TASK_SORT_DEFAULT, TASK_SORT_KEYS } from "@/lib/lists/sort";
 import { TaskDetailSheet } from "@/components/tasks/task-detail-sheet";
 import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
 import { TaskCard } from "@/components/tasks/task-card";
@@ -48,6 +50,17 @@ type StageOption = { id: string; name: string; stageOrder: number };
 
 const ALL = "__all";
 
+
+/** The task list's orders, in words; the first is the default. */
+const TASK_SORT_ITEMS: Record<string, string> = {
+  "due:asc": "Due date, soonest first",
+  "due:desc": "Due date, latest first",
+  "priority:desc": "Priority, highest first",
+  "created:desc": "Newest first",
+  "created:asc": "Oldest first",
+  "title:asc": "Title, A to Z",
+  "assignee:asc": "Assignee, A to Z",
+};
 export default function TasksPage() {
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -121,6 +134,7 @@ export default function TasksPage() {
   const listDefaultAssignee = newTaskAssigneeFor(effectiveAssignee);
   const quickAddAssignee = quickAdd.assignedUserId === undefined ? (listDefaultAssignee ?? null) : quickAdd.assignedUserId;
 
+  const taskSort = useListSort(TASK_SORT_KEYS, TASK_SORT_DEFAULT);
   const { data: tasks = [], isLoading } = useTasks(
     {
       search: q || undefined,
@@ -136,6 +150,8 @@ export default function TasksPage() {
       blocked: blockedOnly || undefined,
       includeInactive: showInactive || undefined,
       unassigned: flagOn("unassigned") || undefined,
+      // The default order (due date, then priority) stays out of the URL and the request.
+      ...(taskSort.state.key === TASK_SORT_DEFAULT.key && taskSort.state.dir === TASK_SORT_DEFAULT.dir ? {} : { sort: taskSort.state.key, dir: taskSort.state.dir }),
     },
   );
 
@@ -334,6 +350,26 @@ export default function TasksPage() {
                 { value: "board", label: "Board", icon: LayoutGrid },
               ]}
             />
+            <Select
+              items={TASK_SORT_ITEMS}
+              value={`${taskSort.state.key}:${taskSort.state.dir}`}
+              onValueChange={(v: string | null) => {
+                if (!v) return;
+                const [key, dir] = v.split(":");
+                taskSort.onChange({ key, dir: dir as "asc" | "desc" });
+              }}
+            >
+              <SelectTrigger aria-label="Sort tasks" className="w-[190px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(TASK_SORT_ITEMS).map(([v, label]) => (
+                  <SelectItem key={v} value={v}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant="outline" onClick={() => setShowFilters((f) => !f)} aria-expanded={showFilters}>
               <SlidersHorizontal className="h-4 w-4" />
               Filters
