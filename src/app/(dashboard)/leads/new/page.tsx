@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import type { CreateLeadInput } from "@/lib/validators/lead";
+import { useForm, type Resolver } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { createLeadSchema, type CreateLeadInput } from "@/lib/validators/lead";
 import { PageHeader } from "@/components/shared/page-header";
 import { AddressAutofillFields } from "@/components/shared/address-autofill-fields";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,8 @@ export default function NewLeadPage() {
     watch,
     formState: { errors },
   } = useForm<CreateLeadInput>({
+    // The server's own schema, so a missing field is shown before any request is made.
+    resolver: zodResolver(createLeadSchema) as Resolver<CreateLeadInput>,
     defaultValues: {
       state: "FL",
       propertyType: "RESIDENTIAL",
@@ -337,7 +340,7 @@ export default function NewLeadPage() {
               <Input
                 id="estimatedJobValue"
                 type="number"
-                {...register("estimatedJobValue", { valueAsNumber: true })}
+                {...register("estimatedJobValue", { setValueAs: (v) => (v === "" || v == null || Number.isNaN(Number(v)) ? null : Number(v)) })}
               />
             </div>
             <div>

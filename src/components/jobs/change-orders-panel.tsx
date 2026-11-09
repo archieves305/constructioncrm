@@ -711,6 +711,7 @@ export function ChangeOrdersPanel({
             <div>
               <Label>Linked crew contract (optional)</Label>
               <Select
+                items={{ [NO_CREW]: "None", ...Object.fromEntries(contracts.map((c) => [c.id, contractName(c)])) }}
                 value={laborContractId}
                 onValueChange={(v: string | null) =>
                   setLaborContractId(v ?? NO_CREW)

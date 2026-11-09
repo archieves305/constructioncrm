@@ -87,12 +87,23 @@ export function AddressAutofillFields<T extends FieldValues>({
     if (f.postcode) set("zipCode", f.postcode);
   };
 
+  const address1Field = register("propertyAddress1" as Path<T>);
   const address1Input = (
     <Input
       id="propertyAddress1"
       autoComplete="address-line1"
       placeholder={token ? "Start typing an address..." : undefined}
-      {...register("propertyAddress1" as Path<T>)}
+      {...address1Field}
+      onBlur={(e) => {
+        void address1Field.onBlur(e);
+        // Mapbox's suggestion list stays open over the next field when focus
+        // moves on by Tab or a tap elsewhere; it closes on Escape. Wait long
+        // enough for a click on a suggestion to land first.
+        const input = e.currentTarget;
+        window.setTimeout(() => {
+          if (document.activeElement !== input) input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        }, 200);
+      }}
     />
   );
 

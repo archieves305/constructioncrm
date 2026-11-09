@@ -26,7 +26,7 @@ export function PriorityChips({
             aria-checked={active}
             onClick={() => onChange(p)}
             className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
+              "inline-flex h-11 items-center gap-1.5 rounded-md px-2.5 sm:h-7 text-xs font-medium transition-colors",
               active
                 ? cn("ring-1 shadow-sm", PRIORITY_SELECTED_CLASS[p])
                 : "text-gray-600 hover:bg-white hover:text-gray-900",

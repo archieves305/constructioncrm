@@ -188,8 +188,12 @@ export function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-export function forbidden() {
-  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+/**
+ * 403. Pass a sentence saying who may do it ("Only an admin or a manager can
+ * approve change orders.") — the toast shows it. Name roles only, never record data.
+ */
+export function forbidden(message = "Forbidden") {
+  return NextResponse.json({ error: message }, { status: 403 });
 }
 
 export function badRequest(message: string) {

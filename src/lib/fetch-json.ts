@@ -1,3 +1,5 @@
+import { firstFieldMessage } from "@/lib/validation/messages";
+
 /**
  * Client-side JSON fetch that fails loudly.
  *
@@ -29,11 +31,20 @@ export class HttpError extends Error {
   }
 }
 
-/** The server's own `{ error }` message when it sent one, else a generic line. */
+/**
+ * The server's own `{ error }` message when it sent one, else a generic line.
+ * `validateBody`'s "Validation failed" is replaced by the first field's message.
+ */
 async function messageFor(response: Response): Promise<{ message: string; body: unknown }> {
   try {
     const body = await response.json();
-    if (body && typeof body.error === "string" && body.error) return { message: body.error, body };
+    if (body && typeof body.error === "string" && body.error) {
+      if (body.error === "Validation failed") {
+        const field = firstFieldMessage(body.fields);
+        if (field) return { message: field, body };
+      }
+      return { message: body.error, body };
+    }
     return { message: `Request failed (${response.status})`, body };
   } catch {
     // Non-JSON body (an HTML error page, or nothing at all).

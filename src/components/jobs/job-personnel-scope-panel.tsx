@@ -111,6 +111,7 @@ export function JobPersonnelScopePanel({ jobId }: { jobId: string }) {
           <div className="min-w-[200px] flex-1">
             <Label className="text-[11px]">Person</Label>
             <Select
+              items={Object.fromEntries(roster.map((p) => [p.id, `${p.lastName}, ${p.firstName}${p.trade ? ` — ${p.trade}` : ""}`]))}
               value={personnelId || undefined}
               onValueChange={(v) => v && setPersonnelId(v)}
             >
@@ -129,7 +130,7 @@ export function JobPersonnelScopePanel({ jobId }: { jobId: string }) {
           </div>
           <div className="min-w-[150px]">
             <Label className="text-[11px]">Pay type</Label>
-            <Select value={payType} onValueChange={(v) => v && setPayType(v)}>
+            <Select items={{ [INHERIT]: selected ? `Profile default (${PAY_TYPE_LABELS[selected.payType] ?? selected.payType})` : "Profile default", ...PAY_TYPE_LABELS }} value={payType} onValueChange={(v) => v && setPayType(v)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

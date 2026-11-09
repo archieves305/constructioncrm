@@ -68,7 +68,7 @@ export function JobPicker({
         disabled={disabled}
         aria-label="Job"
         className={cn(
-          "flex h-9 w-full items-center gap-2 rounded-md border bg-white px-3 text-left text-sm shadow-xs hover:bg-gray-50 disabled:opacity-50",
+          "flex h-11 sm:h-9 w-full items-center gap-2 rounded-md border bg-white px-3 text-left text-sm shadow-xs hover:bg-gray-50 disabled:opacity-50",
           className,
         )}
       >

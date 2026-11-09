@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { enumItems, enumLabel } from "@/lib/ui/enum-label";
 
 const LEAD_TRIGGERS = ["LEAD_CREATED", "LEAD_STAGE_CHANGED", "LEAD_ASSIGNED"] as const;
 const PERMIT_TRIGGERS = [
@@ -244,6 +245,7 @@ export default function FollowUpRulesPage() {
               <div>
                 <Label>Trigger</Label>
                 <Select
+                  items={enumItems(TRIGGERS)}
                   value={form.triggerEvent}
                   onValueChange={(v) =>
                     setForm({
@@ -261,19 +263,19 @@ export default function FollowUpRulesPage() {
                     <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Lead events</div>
                     {LEAD_TRIGGERS.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {t.replace(/_/g, " ")}
+                        {enumLabel(t)}
                       </SelectItem>
                     ))}
                     <div className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Permit events (retired — no longer fire)</div>
                     {PERMIT_TRIGGERS.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {t.replace(/_/g, " ")}
+                        {enumLabel(t)}
                       </SelectItem>
                     ))}
                     <div className="mt-1 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">Inspection events (retired — no longer fire)</div>
                     {INSPECTION_TRIGGERS.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {t.replace(/_/g, " ")}
+                        {enumLabel(t)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -295,6 +297,7 @@ export default function FollowUpRulesPage() {
               <div>
                 <Label>Target Stage</Label>
                 <Select
+                  items={{ __any: "— any stage —", ...Object.fromEntries(stages.map((s) => [s.id, s.name])) }}
                   value={form.targetStageId || "__any"}
                   onValueChange={(v) =>
                     setForm({
@@ -324,6 +327,7 @@ export default function FollowUpRulesPage() {
             <div>
               <Label>Message Template (optional)</Label>
               <Select
+                items={{ __none: "— no message —", ...Object.fromEntries(templates.map((t) => [t.id, `${t.name} (${t.channel})`])) }}
                 value={form.messageTemplateId || "__none"}
                 onValueChange={(v) =>
                   setForm({
@@ -368,6 +372,7 @@ export default function FollowUpRulesPage() {
                   onChange={(e) => setForm({ ...form, taskDueInDays: e.target.value })}
                 />
                 <Select
+                  items={enumItems(["LOW", "MEDIUM", "HIGH", "URGENT"])}
                   value={form.taskPriority}
                   onValueChange={(v) =>
                     setForm({ ...form, taskPriority: v as FormState["taskPriority"] })
@@ -379,7 +384,7 @@ export default function FollowUpRulesPage() {
                   <SelectContent>
                     {["LOW", "MEDIUM", "HIGH", "URGENT"].map((p) => (
                       <SelectItem key={p} value={p}>
-                        {p}
+                        {enumLabel(p)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -438,7 +443,7 @@ export default function FollowUpRulesPage() {
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{r.triggerEvent.replace(/_/g, " ")}</Badge>
+                      <Badge variant="outline">{enumLabel(r.triggerEvent)}</Badge>
                       {r.targetStage && (
                         <div className="mt-1 text-xs text-muted-foreground">
                           → {r.targetStage.name}

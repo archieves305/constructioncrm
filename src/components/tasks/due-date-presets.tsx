@@ -42,7 +42,7 @@ export function DueDatePresets({
             type="button"
             onClick={() => onChange(ymd(p.date))}
             className={cn(
-              "h-7 rounded-full border px-2.5 text-xs transition-colors",
+              "h-11 rounded-full border px-2.5 text-xs transition-colors sm:h-7",
               active
                 ? "border-gray-900 bg-gray-900 text-white"
                 : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50",
@@ -58,7 +58,7 @@ export function DueDatePresets({
           type="date"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-[150px] pl-7 text-xs"
+          className="h-11 w-[150px] pl-7 text-xs sm:h-7"
           aria-label="Due date"
         />
       </span>

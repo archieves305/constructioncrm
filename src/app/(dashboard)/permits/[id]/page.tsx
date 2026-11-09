@@ -26,6 +26,7 @@ import { OUTCOME_LABEL, type HistoryRow, type PermitDetail } from "@/components/
 import { permitIntelKeys, useInvalidatePermit, usePermitDetail } from "@/components/permit-intel/use-permit-intel";
 import { fetchJson, HttpError } from "@/lib/fetch-json";
 import { jobLabel } from "@/lib/labels/job";
+import { enumLabel } from "@/lib/ui/enum-label";
 import { toneClasses } from "@/lib/ui/tones";
 import { cn } from "@/lib/utils";
 
@@ -58,13 +59,13 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
   const { permit, permissions } = data;
   const job = jobLabel(permit.job, { customer: true, trade: false });
   const notice = expiryNotice(permit);
-  const title = `${permit.permitType ?? "Permit"}${permit.permitNumber ? ` #${permit.permitNumber}` : ""}`;
+  const title = permitTitle(permit.permitType, permit.permitNumber);
 
   return (
     <div>
       <EntityHeader
         breadcrumb={[{ label: "Permits", href: "/permits" }, { label: title }]}
-        title={title}
+        title={`${title} — ${job.primary}`}
         subtitle={
           <>
             <Link href={`/jobs/${permit.jobId}?tab=permits`} className="hover:underline">
@@ -85,7 +86,7 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
         }
       />
       <Tabs value={tab} onValueChange={(v) => v && url.set("tab", v === "overview" ? null : String(v))}>
-        <TabsList className="h-auto w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto">
+        <TabsList className="h-auto w-full max-w-full justify-start overflow-x-auto overflow-y-hidden [scrollbar-width:thin] group-data-horizontal/tabs:h-auto [&>*]:flex-none">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="documents">Documents ({data.files.length})</TabsTrigger>
           <TabsTrigger value="forms">Forms</TabsTrigger>
@@ -141,6 +142,14 @@ export default function PermitPage({ params }: { params: Promise<{ id: string }>
       </Tabs>
     </div>
   );
+}
+
+/** "BUILDING" (typed before the catalog) or "Reroof" → "Building permit" / "Reroof permit", plus the number. */
+function permitTitle(type: string | null, number: string | null): string {
+  const raw = type?.trim() || "";
+  const words = raw && /^[A-Z0-9_ ]+$/.test(raw) ? enumLabel(raw) : raw;
+  const base = !words ? "Permit" : /permit/i.test(words) ? words : `${words} permit`;
+  return number ? `${base} #${number}` : base;
 }
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {

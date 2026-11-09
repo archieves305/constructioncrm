@@ -207,7 +207,7 @@ export default function PermitCenterPage() {
       />
 
       <div className="mb-3 flex flex-wrap gap-2">
-        <Select value={filterCoordinator} onValueChange={(v: string | null) => setFilterCoordinator(!v || v === "all" ? "" : v)}>
+        <Select items={{ "": "Anyone", all: "Anyone", unassigned: "Unassigned", ...Object.fromEntries(users.map((u) => [u.id, `${u.firstName} ${u.lastName}`])) }} value={filterCoordinator} onValueChange={(v: string | null) => setFilterCoordinator(!v || v === "all" ? "" : v)}>
           <SelectTrigger className="w-[200px]" aria-label="Coordinator"><SelectValue placeholder="Anyone" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Anyone</SelectItem>

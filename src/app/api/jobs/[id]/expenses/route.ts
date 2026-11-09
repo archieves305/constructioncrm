@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { firstIssueMessage } from "@/lib/validation/messages";
 import { withIdempotency } from "@/lib/api/idempotency";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
@@ -103,7 +104,7 @@ export async function POST(
   const body = await request.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
   if (!parsed.success)
-    return badRequest(parsed.error.issues[0]?.message || "invalid payload");
+    return badRequest(firstIssueMessage(parsed.error.issues));
   if (parsed.data.id) {
     const existing = await prisma.jobExpense.findUnique({ where: { id: parsed.data.id }, select: { id: true, jobId: true, createdByUserId: true } });
     if (existing) {

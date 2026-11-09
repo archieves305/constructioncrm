@@ -56,3 +56,6 @@ next-env.d.ts
 
 # Local copy of the 3310 NE 37th test plan set (20 MB) — never committed
 /3310 NE 37 st/
+
+# browser regression suite output (scripts/qa)
+/qa-out/

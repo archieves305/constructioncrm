@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 import { badRequest, getSession, unauthorized } from "@/lib/auth/helpers";
 import { guardSheet } from "@/lib/takeoff/route-guards";
-import { renderPathFor } from "@/lib/takeoff/sheet-cache";
+import { PlanSourceMissingError, renderPathFor } from "@/lib/takeoff/sheet-cache";
 
 /**
  * The sheet as a PNG at 72 or 144 dpi, rendered on first request and kept
@@ -18,7 +18,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const dpiRaw = request.nextUrl.searchParams.get("dpi") ?? "72";
   if (dpiRaw !== "72" && dpiRaw !== "144") return badRequest("dpi must be 72 or 144");
   const dpi = Number(dpiRaw) as 72 | 144;
-  const path = await renderPathFor(id, dpi);
+  let path: string | null;
+  try {
+    path = await renderPathFor(id, dpi);
+  } catch (err) {
+    if (err instanceof PlanSourceMissingError) return NextResponse.json({ error: err.message, code: "source_missing" }, { status: 410 });
+    throw err;
+  }
   if (!path) return NextResponse.json({ error: "This sheet has no render yet" }, { status: 404 });
   const data = await fs.readFile(path).catch(() => null);
   if (!data) return NextResponse.json({ error: "The render is missing on disk" }, { status: 410 });

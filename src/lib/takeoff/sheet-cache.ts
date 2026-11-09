@@ -25,6 +25,14 @@ export async function readSheetGeometry(sheet: { geometryKey: string | null }): 
   }
 }
 
+/** The plan set's PDF is not in the store (lost with the old uploads, or removed). */
+export class PlanSourceMissingError extends Error {
+  constructor() {
+    super("The plan file is missing — upload the plan set again");
+    this.name = "PlanSourceMissingError";
+  }
+}
+
 /**
  * The absolute path of a sheet's render at `dpi`, rendering it first when it
  * is not there yet (the 144 dpi level is made on first use, not at index time).
@@ -37,6 +45,8 @@ export async function renderPathFor(sheetId: string, dpi: 72 | 144): Promise<str
   if (!sheet) return null;
   const key = dpi === 72 ? sheet.renderKey72 : sheet.renderKey144;
   if (key && (await fileExists(key))) return resolveStoragePath(key);
+  // Check before forking the worker, which would only fail with ENOENT (a 500).
+  if (!(await fileExists(sheet.planDocument.file.storageKey))) throw new PlanSourceMissingError();
   const dirKey = documentArtifactKey(sheet.planDocument.id);
   const outDir = await ensureStorageDir(dirKey);
   const pdfPath = resolveStoragePath(sheet.planDocument.file.storageKey);

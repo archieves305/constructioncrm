@@ -147,6 +147,7 @@ export function FieldAssignmentsPanel({ jobId }: { jobId: string }) {
         {canManage && (
           <div className="flex items-center gap-2">
             <Select
+              items={Object.fromEntries(candidates.map((u) => [u.id, `${u.firstName} ${u.lastName}${u.role.name === "CREW_LEAD" ? " (Crew Lead)" : ""}`]))}
               value={selectedUserId || undefined}
               onValueChange={(v) => v && setSelectedUserId(v)}
             >

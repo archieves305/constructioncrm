@@ -28,7 +28,7 @@ import { STATUS_LABEL, STATUS_TONE, TASK_PRIORITIES, TASK_STATUSES } from "@/com
 import { useAssignableUsers, useCreateTask, useTaskSummary, useTasks, useUpdateTask } from "@/components/tasks/use-tasks";
 import type { TaskListItem, TaskStatus, UpdatePatch, UserOption } from "@/components/tasks/types";
 import { useSearchParamState } from "@/components/shared/use-search-param-state";
-import { resolveTaskScope, taskAssigneeFor, type ListScope } from "@/lib/lists/scope";
+import { createdOutsideList, newTaskAssigneeFor, resolveTaskScope, taskAssigneeFor, type ListScope } from "@/lib/lists/scope";
 import { useDebouncedValue } from "@/components/shared/use-debounced-value";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -107,13 +107,16 @@ export default function TasksPage() {
   const setShowInactive = (v: boolean) => setUrl({ includeInactive: v ? "1" : null });
   const [search, setSearch] = useState(getUrl("q") ?? "");
   const q = useDebouncedValue(search.trim(), 300);
-  const [quickAdd, setQuickAdd] = useState({ title: "", dueAt: "", assignedUserId: null as string | null });
+  const [quickAdd, setQuickAdd] = useState({ title: "", dueAt: "", assignedUserId: undefined as string | null | undefined });
 
   // A "me" filter from the URL resolves to the real id once the session is
   // known, so the assignee dropdown shows the right name. The API accepts
   // "me" too, so the list is correct even before that.
   const effectiveAssignee = taskAssigneeFor({ explicit: filterAssignee, scope, userId: session?.user.id });
   const mineActive = Boolean(session) && effectiveAssignee === session?.user.id;
+  // A new task goes to the person the list shows, so it does not vanish on Create.
+  const listDefaultAssignee = newTaskAssigneeFor(effectiveAssignee);
+  const quickAddAssignee = quickAdd.assignedUserId === undefined ? (listDefaultAssignee ?? null) : quickAdd.assignedUserId;
 
   const { data: tasks = [], isLoading } = useTasks(
     {
@@ -192,18 +195,30 @@ export default function TasksPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Say so when the new task will not be in the list the person is looking at.
+  function announceCreated(task: TaskListItem, done: string) {
+    if (!createdOutsideList(task.assignedTo?.id, effectiveAssignee)) {
+      toast.success(done);
+      return;
+    }
+    const who = task.assignedTo ? `assigned to ${task.assignedTo.firstName}` : "unassigned";
+    toast.success(`${done} — ${who}, so it is not in this list`, {
+      action: { label: "Show everyone", onClick: () => setUrl({ assignedUserId: null, scope: "all" }) },
+    });
+  }
+
   function submitQuickAdd() {
     if (!quickAdd.title.trim()) return;
     create.mutate(
       {
         title: quickAdd.title.trim(),
         dueAt: quickAdd.dueAt || undefined,
-        assignedUserId: quickAdd.assignedUserId || undefined,
+        assignedUserId: quickAddAssignee || undefined,
       },
       {
-        onSuccess: () => {
-          setQuickAdd({ title: "", dueAt: "", assignedUserId: null });
-          toast.success("Task added");
+        onSuccess: (task) => {
+          setQuickAdd({ title: "", dueAt: "", assignedUserId: undefined });
+          announceCreated(task, "Task added");
         },
       },
     );
@@ -476,7 +491,7 @@ export default function TasksPage() {
               className="w-[160px]"
             />
             <AssigneePicker
-              value={quickAdd.assignedUserId}
+              value={quickAddAssignee}
               onChange={(id) => setQuickAdd({ ...quickAdd, assignedUserId: id })}
               users={users}
               className="w-[180px]"
@@ -489,7 +504,15 @@ export default function TasksPage() {
         </Card>
       )}
 
-      <AddTaskDialog open={open} onOpenChange={setOpen} allowJobPicker />
+      <AddTaskDialog
+        open={open}
+        onOpenChange={setOpen}
+        allowJobPicker
+        defaults={listDefaultAssignee ? { assignedUserId: listDefaultAssignee } : undefined}
+        onCreated={(task) => {
+          if (createdOutsideList(task.assignedTo?.id, effectiveAssignee)) announceCreated(task, "Created");
+        }}
+      />
 
       {isLoading ? (
         <ListSkeleton rows={6} />

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { firstIssueMessage } from "@/lib/validation/messages";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createProspectSchema } from "@/lib/validators/prospect";
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const parsed = createProspectSchema.safeParse(body);
   if (!parsed.success) {
-    return badRequest(JSON.stringify(parsed.error.issues));
+    return badRequest(firstIssueMessage(parsed.error.issues));
   }
   const input = parsed.data;
 

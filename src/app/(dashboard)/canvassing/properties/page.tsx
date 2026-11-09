@@ -567,7 +567,7 @@ function AddToRouteDialog({
         </DialogHeader>
         <div className="space-y-2">
           <Label>Route</Label>
-          <Select value={routeId ?? undefined} onValueChange={(v) => setRouteId(v)}>
+          <Select items={Object.fromEntries((routes.data ?? []).map((r) => [r.id, `${r.name} (${r.totalStops} stops)`]))} value={routeId ?? undefined} onValueChange={(v) => setRouteId(v)}>
             <SelectTrigger>
               <SelectValue placeholder="Choose a route…" />
             </SelectTrigger>

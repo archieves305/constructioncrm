@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveTaskScope, taskAssigneeFor } from "./scope";
+import { createdOutsideList, newTaskAssigneeFor, resolveTaskScope, taskAssigneeFor } from "./scope";
 import type { RoleName } from "@/generated/prisma/enums";
 import { effectiveListScope, isScopeForced, parseListScope, resolveClientScope, scopeToPref } from "./scope";
 
@@ -65,5 +65,19 @@ describe("resolveTaskScope / taskAssigneeFor", () => {
     expect(taskAssigneeFor({ explicit: null, scope: "mine", userId: "u1" })).toBe("u1");
     expect(taskAssigneeFor({ explicit: null, scope: "mine", userId: null })).toBe("me");
     expect(taskAssigneeFor({ explicit: null, scope: "all", userId: "u1" })).toBe("");
+  });
+});
+
+describe("newTaskAssigneeFor / createdOutsideList", () => {
+  it("defaults a new task to the person the list shows", () => {
+    expect(newTaskAssigneeFor("u1")).toBe("u1");
+    expect(newTaskAssigneeFor("")).toBeUndefined();
+    expect(newTaskAssigneeFor("me")).toBeUndefined();
+  });
+  it("flags a task that will not appear in the filtered list", () => {
+    expect(createdOutsideList(null, "u1")).toBe(true);
+    expect(createdOutsideList("u2", "u1")).toBe(true);
+    expect(createdOutsideList("u1", "u1")).toBe(false);
+    expect(createdOutsideList(null, "")).toBe(false);
   });
 });

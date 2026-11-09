@@ -55,3 +55,13 @@ describe("retryServerErrors", () => {
     expect(retryServerErrors(0, new TypeError("Failed to fetch"))).toBe(true);
   });
 });
+
+describe("fetchJson validation messages", () => {
+  it("replaces 'Validation failed' with the first field's message", async () => {
+    mockFetch(respond(400, { error: "Validation failed", fields: { customerPrice: ["Too small: expected number to be >0"] } }));
+    await expect(fetchJson("/api/x", { method: "POST" })).rejects.toMatchObject({
+      status: 400,
+      message: "Customer price must be greater than 0",
+    });
+  });
+});

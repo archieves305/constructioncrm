@@ -276,6 +276,7 @@ export default function PersonnelPage() {
               <div>
                 <Label>Employment</Label>
                 <Select
+                  items={EMPLOYMENT_LABELS}
                   value={form.employmentType}
                   onValueChange={(v) => v && setForm({ ...form, employmentType: v })}
                 >
@@ -294,6 +295,7 @@ export default function PersonnelPage() {
               <div>
                 <Label>Pay type</Label>
                 <Select
+                  items={PAY_TYPE_LABELS}
                   value={form.payType}
                   onValueChange={(v) => v && setForm({ ...form, payType: v })}
                 >
@@ -328,6 +330,7 @@ export default function PersonnelPage() {
               <div>
                 <Label>Crew (optional)</Label>
                 <Select
+                  items={{ none: "None (in-house)", ...Object.fromEntries(crews.map((c) => [c.id, c.name])) }}
                   value={form.crewId || "none"}
                   onValueChange={(v) =>
                     v && setForm({ ...form, crewId: v === "none" ? "" : v })

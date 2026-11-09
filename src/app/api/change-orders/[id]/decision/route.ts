@@ -22,7 +22,7 @@ export async function POST(
 ) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (!canDecideChangeOrder(session.user.role)) return forbidden();
+  if (!canDecideChangeOrder(session.user.role)) return forbidden("Only an admin or a manager can approve or decline change orders.");
 
   const { id } = await context.params;
   const v = await validateBody(request, schema);

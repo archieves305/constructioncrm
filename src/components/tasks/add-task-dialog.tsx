@@ -267,7 +267,7 @@ export function AddTaskDialog({
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="What needs doing?"
-              className="h-10 text-base font-medium"
+              className="h-11 text-base font-medium sm:h-10"
               aria-label="Task title"
             />
             <Textarea
@@ -283,7 +283,7 @@ export function AddTaskDialog({
                 type="button"
                 onClick={() => fileInput.current?.click()}
                 disabled={Boolean(attaching)}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                className="inline-flex min-h-11 items-center gap-1 text-xs text-muted-foreground hover:text-foreground sm:min-h-0"
               >
                 <Paperclip className="size-3.5" />
                 Attach files
@@ -328,9 +328,9 @@ export function AddTaskDialog({
                 </label>
                 {!form.allDay && (
                   <div className="flex items-center gap-2 text-sm">
-                    <Input type="time" step={900} className="h-7 w-[110px] text-xs" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} aria-label="Start time" />
+                    <Input type="time" step={900} className="h-11 w-[110px] text-xs sm:h-7" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} aria-label="Start time" />
                     <span className="text-muted-foreground">to</span>
-                    <Input type="time" step={900} className="h-7 w-[110px] text-xs" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} aria-label="End time" />
+                    <Input type="time" step={900} className="h-11 w-[110px] text-xs sm:h-7" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} aria-label="End time" />
                   </div>
                 )}
               </div>
@@ -339,7 +339,7 @@ export function AddTaskDialog({
               <Label className="text-xs text-muted-foreground">Remind me on</Label>
               <Input
                 type="date"
-                className="h-7 w-[150px] text-xs"
+                className="h-11 w-[150px] text-xs sm:h-7"
                 value={form.remindAt}
                 onChange={(e) => setForm({ ...form, remindAt: e.target.value })}
                 aria-label="Reminder date"
@@ -371,7 +371,7 @@ export function AddTaskDialog({
               <button
                 type="button"
                 onClick={() => setShowWatchers((s) => !s)}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                className="inline-flex min-h-11 items-center gap-1 sm:min-h-0 text-xs text-muted-foreground hover:text-foreground"
               >
                 <Eye className="size-3.5" />
                 Watchers{form.watcherIds.length ? ` (${form.watcherIds.length})` : ""}

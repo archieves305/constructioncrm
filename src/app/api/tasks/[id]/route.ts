@@ -114,7 +114,7 @@ export async function DELETE(
     select: { id: true, title: true, assignedUserId: true, createdByUserId: true, sourceKey: true, jobId: true, leadId: true, workflowTaskKey: true },
   });
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
-  if (!canDeleteTask(session.user, task)) return forbidden();
+  if (!canDeleteTask(session.user, task)) return forbidden("Only the person who raised this task, an admin, a manager or office staff can delete it.");
   // A workflow step is part of a plan other steps depend on. It is skipped
   // (with a reason, on the timeline), never deleted.
   if (task.workflowTaskKey) {

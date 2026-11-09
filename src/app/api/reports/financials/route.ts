@@ -8,7 +8,7 @@ import { getArAging, getFinancialSummary, getProgressPositions } from "@/lib/ser
 export async function GET() {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (!canViewCompanyFinancials(session.user.role)) return forbidden();
+  if (!canViewCompanyFinancials(session.user.role)) return forbidden("Only an admin, a manager, office staff or a read-only viewer can see the company financials.");
 
   const [aging, summary, progress, jobCosts] = await Promise.all([
     getArAging(),

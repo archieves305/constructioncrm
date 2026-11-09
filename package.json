@@ -14,7 +14,12 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "npx tsx prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "db:reset": "prisma migrate reset --force && npx tsx prisma/seed.ts"
+    "db:reset": "prisma migrate reset --force && npx tsx prisma/seed.ts",
+    "qa": "bash scripts/qa/run.sh",
+    "qa:flows": "bash scripts/qa/run.sh flows",
+    "qa:smoke": "bash scripts/qa/run.sh smoke",
+    "qa:axe": "bash scripts/qa/run.sh axe",
+    "qa:roles": "bash scripts/qa/run.sh roles"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",
@@ -69,8 +74,10 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "axe-core": "4.10.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "playwright-core": "1.58.2",
     "prisma": "^7.7.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",

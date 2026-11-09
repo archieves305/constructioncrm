@@ -64,3 +64,17 @@ export function taskAssigneeFor(input: { explicit: string | null | undefined; sc
   if (input.explicit) return input.explicit === "me" ? (input.userId ?? "me") : input.explicit;
   return input.scope === "mine" ? (input.userId ?? "me") : "";
 }
+
+/**
+ * Whom a task created from a list should go to by default: the person the list
+ * is showing (Mine = me, or an explicit assignee filter), so the new task stays
+ * in view. Everyone → nobody. "me" not yet resolved to an id → nobody.
+ */
+export function newTaskAssigneeFor(listAssignee: string): string | undefined {
+  return listAssignee && listAssignee !== "me" ? listAssignee : undefined;
+}
+
+/** True when a task just created will not appear in a list filtered to `listAssignee`. */
+export function createdOutsideList(taskAssigneeId: string | null | undefined, listAssignee: string): boolean {
+  return Boolean(listAssignee) && listAssignee !== "me" && (taskAssigneeId ?? "") !== listAssignee;
+}

@@ -4,7 +4,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { guardJob } from "@/lib/access/records";
 import { canWriteProduction } from "@/lib/access/roles";
-import { isPermitStatus, statusStamps } from "@/lib/permits/rules";
+import { statusStamps } from "@/lib/permits/rules";
+import { readPermitCreate } from "@/lib/permits/create-input";
 import { inspectionStepsForJob, PermitError, recordFields } from "@/lib/permits/service";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -45,46 +46,47 @@ export async function POST(
   const { id } = await params;
   const denied = await guardJob(session.user, id, "write");
   if (denied) return denied;
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  const checked = readPermitCreate(body);
+  if (!checked.ok) return badRequest(checked.error);
+  const input = checked.value;
 
-  if (!body.municipality && !body.jurisdictionId) return badRequest("municipality or jurisdictionId is required");
   let record: Prisma.JobPermitUncheckedUpdateInput;
   try {
-    record = await recordFields(body);
+    record = await recordFields(body as Record<string, unknown>);
   } catch (err) {
     if (err instanceof PermitError) return NextResponse.json({ error: err.message }, { status: err.status });
     throw err;
   }
   // a permit still being put together has not been submitted
-  const preparing = body.status === "PREPARING";
-  const status = body.status || "APPLIED";
-  if (!isPermitStatus(status)) return badRequest("status is not a permit status");
+  const status = input.status;
+  const preparing = status === "PREPARING";
   // A permit entered as already issued or final carries today's date unless one is given.
-  const approvedDate = body.approvedDate ? new Date(body.approvedDate) : null;
+  const approvedDate = input.approvedDate;
   const stamps = statusStamps(status, { approvedDate, finalPassedDate: null }, new Date());
 
   const permit = await prisma.jobPermit.create({
     data: {
       jobId: id,
-      municipality: (record.municipality as string | undefined) ?? String(body.municipality).trim(),
-      permitType: body.permitType || null,
-      permitNumber: body.permitNumber?.trim() || null,
-      submittedDate: body.submittedDate ? new Date(body.submittedDate) : preparing ? null : new Date(),
-      expectedApprovalDate: body.expectedApprovalDate ? new Date(body.expectedApprovalDate) : null,
-      expirationDate: body.expirationDate ? new Date(body.expirationDate) : null,
+      municipality: (record.municipality as string | undefined) ?? input.municipality ?? "",
+      permitType: input.permitType,
+      permitNumber: input.permitNumber,
+      submittedDate: input.submittedDate !== undefined ? input.submittedDate : preparing ? null : new Date(),
+      expectedApprovalDate: input.expectedApprovalDate,
+      expirationDate: input.expirationDate,
       approvedDate: approvedDate ?? stamps.approvedDate ?? null,
       finalPassedDate: stamps.finalPassedDate ?? null,
       status,
-      assignedUserId: body.assignedUserId ?? null,
-      inspectorName: body.inspectorName ?? null,
-      permitFee: body.permitFee != null && body.permitFee !== "" ? body.permitFee : null,
-      notes: body.notes ?? null,
+      assignedUserId: input.assignedUserId,
+      inspectorName: input.inspectorName,
+      permitFee: input.permitFee,
+      notes: input.notes,
       jurisdictionId: (record.jurisdictionId as string | null | undefined) ?? null,
       permitTypeKey: (record.permitTypeKey as string | null | undefined) ?? null,
       applicationNumber: (record.applicationNumber as string | null | undefined) ?? null,
       scopeDescription: (record.scopeDescription as string | null | undefined) ?? null,
       valuation: (record.valuation as string | null | undefined) ?? null,
-      ...(record.permitType !== undefined && !body.permitType ? { permitType: record.permitType as string } : {}),
+      ...(record.permitType !== undefined && !input.permitType ? { permitType: record.permitType as string } : {}),
     },
   });
 

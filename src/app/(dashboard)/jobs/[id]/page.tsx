@@ -466,12 +466,14 @@ export default function JobDetailPage() {
               { value: "invoices", label: "Invoices" },
               { value: "expenses", label: "Expenses" },
               { value: "change-orders", label: "Change orders" },
+              // The same panel as Field → Labor, so crew pay sits with the rest of the money.
+              { value: "crew-pay", label: "Crew contracts & payments" },
               { value: "contract", label: awaitingSignature > 0 ? `Contract (${awaitingSignature})` : "Contract" },
               { value: "budget", label: "Budget" },
               { value: "commitments", label: "Commitments" },
             ];
             // Cost panels (expenses, budget, commitments, crew labor) only for a full money view.
-            const COST_PANELS = new Set(["expenses", "budget", "commitments", "labor"]);
+            const COST_PANELS = new Set(["expenses", "budget", "commitments", "labor", "crew-pay"]);
             const MONEY = moneyView === "full" ? MONEY_ALL : MONEY_ALL.filter((m) => !COST_PANELS.has(m.value));
             const moneyDefault = MONEY.some((m) => m.value === moneyNext.panel) ? moneyNext.panel : MONEY[0].value;
             const FIELD_ALL = [
@@ -551,7 +553,7 @@ export default function JobDetailPage() {
               <CostSummaryCard
                 jobId={id}
                 onOpenBudget={() => setTab("money", "budget")}
-                onOpenLabor={() => setTab("field", "labor")}
+                onOpenLabor={() => setTab("money", "crew-pay")}
                 onOpenCommitments={() => setTab("money", "commitments")}
               />
             )}
@@ -617,6 +619,9 @@ export default function JobDetailPage() {
             <TabsContent value="labor">
               <LaborContractsPanel jobId={id} projectManagerId={job.projectManagerId ?? null} />
             </TabsContent>
+            <TabsContent value="crew-pay">
+              <LaborContractsPanel jobId={id} projectManagerId={job.projectManagerId ?? null} />
+            </TabsContent>
 
             <TabsContent value="change-orders">
               <ChangeOrdersPanel jobId={id} jobType={job.jobType} billingMethod={job.billingMethod} />
@@ -664,7 +669,7 @@ export default function JobDetailPage() {
             )}
 
             <TabsContent value="commitments">
-              <CommitmentsPanel jobId={id} onOpenLabor={() => setTab("field", "labor")} />
+              <CommitmentsPanel jobId={id} onOpenLabor={() => setTab("money", "crew-pay")} />
             </TabsContent>
 
             <TabsContent value="violations">

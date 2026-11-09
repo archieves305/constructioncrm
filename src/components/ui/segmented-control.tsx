@@ -38,7 +38,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => !active && onValueChange(o.value)}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md font-medium transition-colors disabled:opacity-50",
-              size === "sm" ? "h-6 px-2 text-xs" : "h-7 px-2.5 text-xs",
+              size === "sm" ? "h-11 px-2 text-xs sm:h-6" : "h-11 px-2.5 text-xs sm:h-7",
               active ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200" : "text-gray-600 hover:text-gray-900",
             )}
           >

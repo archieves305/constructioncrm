@@ -64,18 +64,28 @@ export function PlanViewer({ sheet, className, overlay, options, cursor, onViewC
 function SheetImages({ sheet, want144 }: { sheet: Sheet; want144: boolean }) {
   const [loaded72, setLoaded72] = useState(false);
   const [loaded144, setLoaded144] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // null = fine; a string = why the render failed (the route's own message, e.g. the PDF is missing).
+  const [failed, setFailed] = useState<string | null>(null);
+  const src72 = `/api/plan-sheets/${sheet.id}/render?dpi=72`;
+  function onFail() {
+    setFailed("Couldn't render this sheet.");
+    // An <img> error carries no status or body; ask once more for the route's message.
+    fetch(src72)
+      .then((r) => (r.ok ? null : r.json()))
+      .then((b) => { if (b && typeof b.error === "string") setFailed(b.error); })
+      .catch(() => undefined);
+  }
   return (
     <>
       {!loaded72 && !failed && <Skeleton className="absolute inset-0" />}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={`/api/plan-sheets/${sheet.id}/render?dpi=72`}
+        src={src72}
         alt={sheet.sheetNumber ? `Sheet ${sheet.sheetNumber}` : `Page ${sheet.pageNumber}`}
         data-level="72"
         draggable={false}
         onLoad={() => setLoaded72(true)}
-        onError={() => setFailed(true)}
+        onError={onFail}
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
       />
       {want144 && (
@@ -89,7 +99,7 @@ function SheetImages({ sheet, want144 }: { sheet: Sheet; want144: boolean }) {
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: loaded144 ? 1 : 0, transition: "opacity 150ms" }}
         />
       )}
-      {failed && <p className="absolute inset-x-0 top-3 text-center text-sm text-tone-danger-fg" style={{ fontSize: 24 }}>Couldn&apos;t render this sheet.</p>}
+      {failed && <p role="alert" className="absolute inset-x-0 top-3 px-6 text-center text-sm text-tone-danger-fg" style={{ fontSize: 24 }}>{failed}</p>}
     </>
   );
 }

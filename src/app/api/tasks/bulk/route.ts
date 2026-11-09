@@ -24,7 +24,7 @@ const schema = z.discriminatedUnion("action", [
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (!MANAGERS.includes(session.user.role)) return forbidden();
+  if (!MANAGERS.includes(session.user.role)) return forbidden("Only an admin or a manager can change tasks in bulk.");
   const v = await validateBody(request, schema);
   if (!v.ok) return v.response;
   const body = v.data;
