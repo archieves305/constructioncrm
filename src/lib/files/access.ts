@@ -11,7 +11,7 @@ import { jobsInvolvingUserWhere, leadsInvolvingUserWhere } from "@/lib/jobs/invo
 type Viewer = { id: string; role: RoleName };
 
 /** Roles that work one customer or job at a time; everyone else reads every file. */
-const OWN_ONLY: readonly RoleName[] = ["SALES_REP", "CREW_LEAD"];
+const OWN_ONLY: readonly RoleName[] = ["SALES_REP", "CREW_LEAD", "CREW_MEMBER"];
 
 const OFFICE: readonly RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF"];
 

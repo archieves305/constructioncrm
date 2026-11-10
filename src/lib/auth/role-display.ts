@@ -8,6 +8,7 @@ const DISPLAY: Record<RoleName, string> = {
   MARKETING: "Marketing",
   READ_ONLY: "Read Only",
   CREW_LEAD: "Crew Lead",
+  CREW_MEMBER: "Crew Member",
 };
 
 const DESCRIPTIONS: Record<RoleName, string> = {
@@ -19,6 +20,7 @@ const DESCRIPTIONS: Record<RoleName, string> = {
   READ_ONLY: "View-only system access.",
   CREW_LEAD:
     "Field access to assigned jobs: daily logs, hours, photos, issues. No financials.",
+  CREW_MEMBER: "A crew worker: their jobs and tasks, photos, problems and materials. No logs, crew hours or financials.",
 };
 
 export const SELECTABLE_ROLES: RoleName[] = [
@@ -27,6 +29,7 @@ export const SELECTABLE_ROLES: RoleName[] = [
   "SALES_REP",
   "OFFICE_STAFF",
   "CREW_LEAD",
+  "CREW_MEMBER",
 ];
 
 export function roleDisplayName(name: RoleName): string {

@@ -1,3 +1,4 @@
+import { isCrewRole } from "@/lib/access/roles";
 import type { FileCategory, Prisma, RoleName } from "@/generated/prisma/client";
 import { fileReadWhere } from "./access";
 import { prisma } from "@/lib/db/prisma";
@@ -42,6 +43,6 @@ export async function crewFileCategories(): Promise<FileCategory[]> {
  */
 export async function fileReadWhereFor(viewer: { id: string; role: RoleName }): Promise<Prisma.FileWhereInput> {
   const base = fileReadWhere(viewer);
-  if (viewer.role !== "CREW_LEAD") return base;
+  if (!isCrewRole(viewer.role)) return base;
   return { AND: [base, crewFileWhere(viewer.id, await crewFileCategories())] };
 }

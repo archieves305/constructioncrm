@@ -105,17 +105,15 @@ flows.task = async () => {
   });
   await rec.step("Open the sheet and add a note", async () => {
     await go(`/tasks?scope=all&task=${state.taskId}`);
-    await page.waitForTimeout(800);
-    const box = page.getByRole("dialog").getByRole("textbox").last();
+    // The sheet's note box, by its own placeholder (not "the last textbox": the page has others).
+    const box = page.getByRole("dialog").getByPlaceholder(/Add a note/);
+    await box.waitFor({ timeout: 15000 });
     await box.fill("QA note");
-    await page.keyboard.press("Meta+Enter");
-    await page.waitForTimeout(1200);
-    let t = await page.getByRole("dialog").innerText();
-    if (!t.includes("QA note")) {
-      const send = page.getByRole("dialog").getByRole("button", { name: /add note|post|send|comment/i }).first();
-      if (await send.count()) { await send.click(); await page.waitForTimeout(1200); t = await page.getByRole("dialog").innerText(); }
-    }
-    expect(t.includes("QA note"), "note not shown");
+    await page.getByRole("dialog").getByRole("button", { name: "Post note" }).click();
+    // The posted note shows once the sheet refetches; on a busy dev server that can take a few seconds.
+    await page.getByRole("dialog").getByText("QA note", { exact: false }).first().waitFor({ timeout: 15000 });
+    const saved = sql(`select count(*) from task_events where task_id = '${state.taskId}' and body = 'QA note'`);
+    expect(saved === "1", `notes saved: ${saved}`);
     return true;
   });
   await rec.step("Complete, then reopen: completedAt follows", async () => {

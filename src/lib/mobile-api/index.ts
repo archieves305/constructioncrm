@@ -40,6 +40,7 @@ export const ROLE_NAMES = [
   "MARKETING",
   "READ_ONLY",
   "CREW_LEAD",
+  "CREW_MEMBER",
 ] as const;
 
 export const sessionUser = z.object({

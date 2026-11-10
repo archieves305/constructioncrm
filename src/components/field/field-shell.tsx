@@ -34,7 +34,7 @@ export function FieldShell({ user, children }: FieldShellProps) {
     };
   }, []);
 
-  const isOfficeUser = user.role !== "CREW_LEAD" && user.role !== "READ_ONLY";
+  const isOfficeUser = user.role !== "CREW_LEAD" && user.role !== "CREW_MEMBER" && user.role !== "READ_ONLY";
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface-subtle">

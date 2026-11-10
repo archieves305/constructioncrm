@@ -11,7 +11,7 @@ import { crewFileCategories } from "@/lib/files/crew-visibility";
  * sheet render route, which applies the same rule). A crew lead gets them
  * only while plan sets are among the kinds of file crews may see.
  */
-const CREW = ["CREW_LEAD", "CREW_MEMBER"];
+const CREW: string[] = ["CREW_LEAD", "CREW_MEMBER"];
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();

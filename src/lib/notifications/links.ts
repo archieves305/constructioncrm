@@ -1,3 +1,4 @@
+import { isCrewRole } from "@/lib/access/roles";
 import type { RoleName } from "@/generated/prisma/client";
 import { env } from "@/lib/env";
 
@@ -7,7 +8,7 @@ import { env } from "@/lib/env";
  * office task drawer link would bounce them off the shell.
  */
 export function hrefForRole(href: string, role: RoleName): string {
-  if (role !== "CREW_LEAD") return href;
+  if (!isCrewRole(role)) return href;
   const task = href.match(/^\/tasks\?task=([^&]+)/);
   if (task) return `/field/tasks/${task[1]}`;
   const job = href.match(/^\/jobs\/([^/?]+)/);

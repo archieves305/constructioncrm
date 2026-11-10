@@ -122,7 +122,7 @@ function sectionHtml(section: DigestSection, groups: DigestModel["sections"][num
       return `${groupHeading(g.label, g.code, g.href ? absoluteUrl(hrefForRole(g.href, role)) : null)}${table(rows)}${more}`;
     })
     .join("");
-  const moreGroups = hiddenGroups > 0 ? moreLine(absoluteUrl(role === "CREW_LEAD" ? "/field/tasks" : "/tasks?scope=mine"), `+${hiddenGroups} more ${hiddenGroups === 1 ? "subject" : "subjects"}`) : "";
+  const moreGroups = hiddenGroups > 0 ? moreLine(absoluteUrl(role === "CREW_LEAD" || role === "CREW_MEMBER" ? "/field/tasks" : "/tasks?scope=mine"), `+${hiddenGroups} more ${hiddenGroups === 1 ? "subject" : "subjects"}`) : "";
   return `${sectionHeading(DIGEST_SECTION_LABEL[section], count, accent)}${body}${moreGroups}`;
 }
 

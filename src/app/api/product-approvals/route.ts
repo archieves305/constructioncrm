@@ -1,3 +1,4 @@
+import { isCrewRole } from "@/lib/access/roles";
 import { NextRequest, NextResponse, after } from "next/server";
 import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/helpers";
 import { canManageApprovals } from "@/lib/permit-intel/access";
@@ -11,7 +12,7 @@ import { AI_RATE } from "@/lib/permit-intel/route";
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (session.user.role === "CREW_LEAD") return forbidden();
+  if (isCrewRole(session.user.role)) return forbidden();
   const p = request.nextUrl.searchParams;
   const q = p.get("q");
   if (q && q.length > 120) return badRequest("The search is too long");

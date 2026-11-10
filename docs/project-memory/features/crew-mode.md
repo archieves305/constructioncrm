@@ -107,3 +107,37 @@ The app tests include `mobile/src/lib/crew.test.ts` and the VoiceOver scan.
   also clears its unsent changes (`clearFor`). An ordinary sign-out keeps them.
 - **Foreman-only actions:** `isForeman` hides the log, the crew sheet and New task
   from a CREW_MEMBER, ready for that role.
+
+## Release 2 (built 2026-11-09)
+
+- **CREW_MEMBER role** (a W2 worker). Migrations `20261123120000_crew_member_role`
+  (enum value) and `20261123121000_crew_member_seed` (the roles row; separate,
+  because a new enum value can't be used in the transaction that adds it). The
+  portal needs it too: `~/careyos` branch `crm-crew-member` (`9e520a0`) adds it to
+  `config/apps.config.ts` appRoles. Deploy the portal before granting anyone the
+  role.
+  - `isCrewRole()` (`lib/access/roles.ts`) covers both crew roles:
+    - field-mode confinement and the own-only lists;
+    - hidden customer contact and the crew document rule;
+    - the "crews are refused" checks: permit forms and library, product
+      approvals, guest submissions, permit intelligence;
+    - task links and digests.
+  - Kept for CREW_LEAD only: the weekly hours email, recording inspections,
+    completing workflow steps, creating personnel and reading the roster.
+  - Field access level "contribute" (`jobFieldAccess`): a crew member on a job
+    may post field issues and photos, and refuses the log, crew sheet,
+    signature, areas and approvals (all still "write").
+  - `canCreateTasks` excludes CREW_MEMBER: they report a problem instead.
+- **A crew is refused a lead's records** (gap found in QA): `guardLead` answers
+  404 to a crew role unless the caller passes `allowCrew`. Only the slim lead
+  view (`crewLeadView`: name, address, jobs) and plan reading opt in. Messages
+  carry the customer's address and number in `fromValue` / `toValue`.
+- **Worker ↔ login:** the KNU Field login card on a worker's page
+  (`PUT /api/personnel/[id]/login`, personnel managers, one login per worker,
+  audited). Linking it puts the worker's crew's jobs in their crew mode.
+- **The field on the web daily log:** "From the field this day" (`CrewDayCard`)
+  shows the day's photos and problems on the job.
+- QA: `scripts/qa/crew-member.mjs` (in `run.sh all` / `crew`). The crew pass gained
+  the lead sub-route refusals.
+
+Self clock-in was dropped (ruling P-3). Spanish waits until a W2 worker needs it.

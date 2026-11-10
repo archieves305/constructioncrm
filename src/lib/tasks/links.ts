@@ -15,7 +15,7 @@ import type { RoleName } from "@/generated/prisma/client";
  * still behind, which is where they want to be next anyway.
  */
 export function taskUrlForRole(taskId: string, role: RoleName): string {
-  return role === "CREW_LEAD"
+  return role === "CREW_LEAD" || role === "CREW_MEMBER"
     ? `${env.APP_BASE_URL}/field/tasks/${taskId}`
     : `${env.APP_BASE_URL}/tasks?task=${taskId}`;
 }

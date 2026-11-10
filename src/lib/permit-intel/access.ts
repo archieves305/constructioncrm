@@ -1,3 +1,4 @@
+import { isCrewRole } from "@/lib/access/roles";
 import type { RoleName } from "@/generated/prisma/client";
 
 /**
@@ -35,7 +36,7 @@ export const canConfirmCorrections = canSubmitPermit;
  * roles. `involved` is that rule's answer for this viewer and job.
  */
 export function canSendPermitMessage(viewer: Viewer, involved: boolean): boolean {
-  if (viewer.role === "READ_ONLY" || viewer.role === "CREW_LEAD") return false;
+  if (viewer.role === "READ_ONLY" || isCrewRole(viewer.role)) return false;
   return viewer.role === "ADMIN" || viewer.role === "MANAGER" || viewer.role === "OFFICE_STAFF" || involved;
 }
 

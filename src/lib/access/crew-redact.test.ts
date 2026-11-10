@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { forViewer, redactCustomerContact } from "./crew-redact";
+import { crewLeadView, forViewer, redactCustomerContact } from "./crew-redact";
 
 const job = {
   id: "j1",
@@ -29,5 +29,15 @@ describe("crew redaction", () => {
     expect(forViewer("CREW_LEAD", job).lead.primaryPhone).toBeNull();
     expect(forViewer("ADMIN", job).lead.primaryPhone).toBe("305-555-0100");
     expect(forViewer("SALES_REP", job).lead.email).toBe("c@example.com");
+  });
+});
+
+describe("a lead as a crew sees it", () => {
+  it("keeps who, where and the jobs; drops messages, history and contact", () => {
+    const v = crewLeadView({ id: "l1", fullName: "A Customer", propertyAddress1: "1 Main St", city: "Miami", jobs: [{ id: "j1" }], ...({ primaryPhone: "305", email: "c@x", communications: [{ toValue: "c@x" }] } as object) } as Parameters<typeof crewLeadView>[0]);
+    expect(Object.keys(v)).not.toContain("communications");
+    expect(JSON.stringify(v)).not.toContain("c@x");
+    expect(v.propertyAddress1).toBe("1 Main St");
+    expect(v.jobs).toEqual([{ id: "j1" }]);
   });
 });

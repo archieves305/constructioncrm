@@ -1,3 +1,4 @@
+import { isCrewRole } from "@/lib/access/roles";
 import { NextRequest, NextResponse, after } from "next/server";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { canManageApprovals } from "@/lib/permit-intel/access";
@@ -13,7 +14,7 @@ type Context = { params: Promise<{ id: string }> };
 export async function GET(_request: NextRequest, { params }: Context) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (session.user.role === "CREW_LEAD") return forbidden();
+  if (isCrewRole(session.user.role)) return forbidden();
   const { id } = await params;
   const a = await loadApproval(id);
   if (!a) return NextResponse.json({ error: "Approval not found" }, { status: 404 });

@@ -97,6 +97,17 @@ await rec.step("No customer phone or email in the job, lead, list, task or calen
   return `${urls.length} answers clean`;
 });
 
+await rec.step("The lead's messages, notes, activity and estimates are refused to a crew lead", async () => {
+  const leadId = sql(`select lead_id from jobs where id = '${job}'`);
+  const out = [];
+  for (const sub of ["communications", "notes", "activity", "estimates", "template-estimates"]) {
+    const r = await call("GET", `/api/leads/${leadId}/${sub}`);
+    expect([403, 404, 405].includes(r.status), `${sub} answered ${r.status}`);
+    out.push(`${sub} ${r.status}`);
+  }
+  return out.join(", ");
+});
+
 rec.group = "crew day and week";
 await rec.step("Today shows the job first, with the start time and the PM to call", async () => {
   const r = await call("GET", `/api/mobile/crew/today?date=${today}`);

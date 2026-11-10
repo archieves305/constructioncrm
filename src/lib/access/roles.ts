@@ -7,7 +7,14 @@ import type { RoleName } from "@/generated/prisma/client";
  */
 
 /** Roles that work one customer or job at a time: by-id access follows the same "involved" rule as their lists. */
-const OWN_ONLY: readonly RoleName[] = ["SALES_REP", "CREW_LEAD"];
+const OWN_ONLY: readonly RoleName[] = ["SALES_REP", "CREW_LEAD", "CREW_MEMBER"];
+
+/** The field roles: a crew lead (foreman) and a crew member (W2 worker). Confined to field mode; never shown money or customer contact. */
+export const CREW_ROLES: readonly RoleName[] = ["CREW_LEAD", "CREW_MEMBER"];
+
+export function isCrewRole(role: RoleName | string | null | undefined): boolean {
+  return CREW_ROLES.includes(role as RoleName);
+}
 
 export function isOwnOnlyRole(role: RoleName): boolean {
   return OWN_ONLY.includes(role);
@@ -50,5 +57,6 @@ export function canManageReferrals(role: RoleName): boolean {
 
 /** Raise a task (anyone who works in the CRM; a read-only account only looks). */
 export function canCreateTasks(role: RoleName | null | undefined): boolean {
-  return Boolean(role) && role !== "READ_ONLY";
+  // A crew member reports a problem instead; the office or foreman makes the task.
+  return Boolean(role) && role !== "READ_ONLY" && role !== "CREW_MEMBER";
 }

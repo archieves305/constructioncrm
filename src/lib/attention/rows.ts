@@ -65,7 +65,7 @@ const PRODUCTION: readonly RoleName[] = [...OFFICE, "SALES_REP"];
 const PRODUCTION_VIEW: readonly RoleName[] = [...PRODUCTION, "READ_ONLY"];
 /** Who sees a job's cost and profit across jobs (`jobMoneyView` "full" by role). */
 const MONEY_VIEW: readonly RoleName[] = [...OFFICE, "READ_ONLY"];
-const EVERYONE: readonly RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "READ_ONLY", "CREW_LEAD"];
+const EVERYONE: readonly RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "READ_ONLY", "CREW_LEAD", "CREW_MEMBER"];
 
 export type AttentionRowDef = {
   key: AttentionKey;

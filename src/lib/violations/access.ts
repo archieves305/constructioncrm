@@ -22,7 +22,7 @@ export type CaseScope = {
 
 const ADMIN_MANAGER: ReadonlySet<RoleName> = new Set<RoleName>(["ADMIN", "MANAGER"]);
 const OFFICE: ReadonlySet<RoleName> = new Set<RoleName>(["ADMIN", "MANAGER", "OFFICE_STAFF"]);
-const OWN_ONLY: ReadonlySet<RoleName> = new Set<RoleName>(["SALES_REP", "CREW_LEAD", "MARKETING"]);
+const OWN_ONLY: ReadonlySet<RoleName> = new Set<RoleName>(["SALES_REP", "CREW_LEAD", "CREW_MEMBER", "MARKETING"]);
 
 export function isOnCase(user: ViolationActor, scope: CaseScope): boolean {
   return (

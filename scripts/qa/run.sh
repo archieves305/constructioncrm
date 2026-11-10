@@ -85,6 +85,9 @@ if [[ "$WHAT" =~ ^(all|crew)$ ]]; then
   [ "$WHAT" = crew ] && { start_server "$ADMIN_EMAIL" ADMIN; run scripts/qa/flows.mjs "^(lead)$"; }
   start_server "$REP_EMAIL" CREW_LEAD
   run scripts/qa/crew.mjs
+  # Release 2: the same account as a crew member (finish() puts it back).
+  start_server "$REP_EMAIL" CREW_MEMBER
+  run scripts/qa/crew-member.mjs
 fi
 if [ "$WHAT" = smoke-roles ]; then
   # Only the page sweep as the rep and as READ_ONLY (to recheck a flaky pass).

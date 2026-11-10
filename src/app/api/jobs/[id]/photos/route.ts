@@ -89,7 +89,7 @@ export async function GET(request: NextRequest, context: Context) {
 // skip-if-exists instead of duplicating.
 export async function POST(request: NextRequest, context: Context) {
   const { id: jobId } = await context.params;
-  const ctx = await requireJobFieldAccess(jobId, "write");
+  const ctx = await requireJobFieldAccess(jobId, "contribute");
   if ("response" in ctx) return ctx.response;
 
   const form = await request.formData();

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { jobsInvolvingUserWhere, leadsInvolvingUserWhere } from "@/lib/jobs/involvement";
 import { prospectVisibilityWhere } from "@/lib/prospects/access";
 import { COST_HIDDEN_MESSAGE, jobMoneyView, MONEY_HIDDEN_MESSAGE, type JobMoneyView } from "@/lib/money/access";
-import { canDeleteJob, canManageReferrals, canWriteLeads, canWriteProduction, isOwnOnlyRole } from "./roles";
+import { canDeleteJob, canManageReferrals, canWriteLeads, canWriteProduction, isCrewRole, isOwnOnlyRole } from "./roles";
 
 /**
  * By-id guards for leads and jobs.
@@ -35,9 +35,14 @@ const notFound = (what: string) => NextResponse.json({ error: `${what} not found
 const LEAD_WRITE_DENIED = "Your role cannot change leads.";
 const PRODUCTION_WRITE_DENIED = "Your role cannot change jobs, permits or change orders.";
 
-/** Null when allowed; otherwise the response to return. */
-export async function guardLead(viewer: Viewer, leadId: string, mode: Mode): Promise<NextResponse | null> {
+/**
+ * Null when allowed; otherwise the response to return. A crew (lead or member)
+ * is refused a lead's records — its messages, estimates, notes, history — unless
+ * the caller opts in (`allowCrew`): the slim lead view and plan reading do.
+ */
+export async function guardLead(viewer: Viewer, leadId: string, mode: Mode, opts: { allowCrew?: boolean } = {}): Promise<NextResponse | null> {
   if (mode === "write" && !canWriteLeads(viewer.role)) return forbidden(LEAD_WRITE_DENIED);
+  if (isCrewRole(viewer.role) && !opts.allowCrew) return notFound("Lead");
   if (!isOwnOnlyRole(viewer.role)) return null;
   const hit = await prisma.lead.findFirst({ where: { AND: [{ id: leadId }, leadAccessWhere(viewer)] }, select: { id: true } });
   return hit ? null : notFound("Lead");

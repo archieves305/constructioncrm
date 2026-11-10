@@ -1,3 +1,4 @@
+import { isCrewRole } from "@/lib/access/roles";
 import { NextResponse } from "next/server";
 import { crewFileCategories } from "@/lib/files/crew-visibility";
 import type { SessionUser } from "@/lib/auth/helpers";
@@ -22,7 +23,7 @@ function roleGate(user: SessionUser, mode: Mode): NextResponse | null {
 const notFound = (what: string) => NextResponse.json({ error: `${what} not found` }, { status: 404 });
 
 export async function guardLeadForTakeoff(user: SessionUser, leadId: string, mode: Mode): Promise<NextResponse | null> {
-  return roleGate(user, mode) ?? (await guardLead(user, leadId, mode === "read" ? "read" : "write"));
+  return roleGate(user, mode) ?? (await guardLead(user, leadId, mode === "read" ? "read" : "write", { allowCrew: mode === "read" }));
 }
 
 export async function guardPlanSet(user: SessionUser, planSetId: string, mode: Mode): Promise<NextResponse | null> {
@@ -37,12 +38,12 @@ export async function guardSheet(user: SessionUser, sheetId: string, mode: Mode)
   const gate = roleGate(user, mode);
   if (gate) return gate;
   // A crew sees plans only while the office shares plan sets with crews.
-  if ((user.role === "CREW_LEAD" || (user.role as string) === "CREW_MEMBER") && !(await crewFileCategories()).includes("PLAN_SET")) {
+  if (isCrewRole(user.role) && !(await crewFileCategories()).includes("PLAN_SET")) {
     return NextResponse.json({ error: "The office hasn't shared plans with crews." }, { status: 403 });
   }
   const s = await sheetLead(sheetId);
   if (!s) return notFound("Sheet");
-  return guardLead(user, s.leadId, mode === "read" ? "read" : "write");
+  return guardLead(user, s.leadId, mode === "read" ? "read" : "write", { allowCrew: mode === "read" });
 }
 
 export async function guardTakeoffJob(user: SessionUser, jobId: string, mode: Mode): Promise<NextResponse | null> {

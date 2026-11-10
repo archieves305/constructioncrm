@@ -31,7 +31,7 @@ export type NavSection = {
   items: NavItem[];
 };
 
-const ALL_ROLES: RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "CREW_LEAD", "READ_ONLY"];
+const ALL_ROLES: RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "CREW_LEAD", "CREW_MEMBER", "READ_ONLY"];
 /** Canvassing routes answer only the lead-writing roles (`guardCanvassing`). */
 export const CANVASS_ROLES: RoleName[] = ALL_ROLES.filter(canWriteLeads);
 const OFFICE: RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF"];

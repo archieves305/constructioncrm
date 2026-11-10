@@ -71,7 +71,8 @@ export function canViewPayroll(role: RoleName, grants: FieldGrants): boolean {
 
 // ── Job-scoped field access (daily logs, labor sheets, photos) ─────────────
 
-export type FieldAccess = "none" | "read" | "write";
+/** "contribute": add photos, problems and materials to a job, but not keep its log or crew sheet (a crew member). */
+export type FieldAccess = "none" | "read" | "contribute" | "write";
 
 type JobScope = {
   projectManagerId: string | null;
@@ -94,6 +95,8 @@ export function jobFieldAccess(
       return "write";
     case "CREW_LEAD":
       return hasAssignment || job.projectManagerId === viewer.id ? "write" : "none";
+    case "CREW_MEMBER":
+      return hasAssignment ? "contribute" : "none";
     case "SALES_REP":
       return job.salesRepId === viewer.id ? "read" : "none";
     case "READ_ONLY":
@@ -119,7 +122,7 @@ export async function resolveJobFieldAccess(
   // belong to, an open step of theirs. This used to be the field assignment
   // alone, so a crew lead could open a job's files but not its logs.
   let hasAssignment = false;
-  if (viewer.role === "CREW_LEAD") {
+  if (viewer.role === "CREW_LEAD" || viewer.role === "CREW_MEMBER") {
     hasAssignment = Boolean(
       await prisma.job.findFirst({ where: { AND: [{ id: jobId }, jobsInvolvingUserWhere(viewer.id)] }, select: { id: true } }),
     );

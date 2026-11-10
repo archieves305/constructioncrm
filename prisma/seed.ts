@@ -43,6 +43,10 @@ async function main() {
         description:
           "Field access to assigned jobs: daily logs, hours, photos, issues. No financials.",
       },
+      {
+        name: "CREW_MEMBER" as const,
+        description: "A crew worker: their jobs, their tasks, photos, problems and materials. No logs, crew hours or financials.",
+      },
     ].map((r) =>
       prisma.role.upsert({
         where: { name: r.name },

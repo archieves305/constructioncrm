@@ -44,6 +44,7 @@ const ROLE_NAMES: readonly RoleName[] = [
   "MARKETING",
   "READ_ONLY",
   "CREW_LEAD",
+  "CREW_MEMBER",
 ];
 
 /**
@@ -215,6 +216,7 @@ const ROLE_HIERARCHY: Record<RoleName, number> = {
   SALES_REP: 60,
   OFFICE_STAFF: 50,
   CREW_LEAD: 45,
+  CREW_MEMBER: 40,
   MARKETING: 40,
   READ_ONLY: 10,
 };

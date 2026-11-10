@@ -1,3 +1,4 @@
+import { isCrewRole } from "@/lib/access/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
@@ -11,7 +12,7 @@ import { jobsInvolvingUserWhere } from "@/lib/jobs/involvement";
 // yesterday's log status for the home-screen tiles. Office roles see all
 // open jobs; CREW_LEAD sees the jobs they are on (jobsInvolvingUserWhere, the
 // rule every job guard uses).
-const FIELD_ROLES = new Set(["ADMIN", "MANAGER", "OFFICE_STAFF", "CREW_LEAD", "READ_ONLY"]);
+const FIELD_ROLES = new Set(["ADMIN", "MANAGER", "OFFICE_STAFF", "CREW_LEAD", "CREW_MEMBER", "READ_ONLY"]);
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
   const where: Record<string, unknown> = {
     currentStage: { isClosed: false },
   };
-  if (session.user.role === "CREW_LEAD") {
+  if (isCrewRole(session.user.role)) {
     Object.assign(where, jobsInvolvingUserWhere(session.user.id));
   }
 

@@ -1,3 +1,4 @@
+import { isCrewRole } from "@/lib/access/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { searchLibrary } from "@/lib/permit-intel/library";
@@ -6,7 +7,7 @@ import { searchLibrary } from "@/lib/permit-intel/library";
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (session.user.role === "CREW_LEAD") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (isCrewRole(session.user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const p = request.nextUrl.searchParams;
   const day = (k: string) => {
     const v = p.get(k);

@@ -1,5 +1,8 @@
 "use client";
 
+import { PersonnelLoginCard } from "@/components/personnel/personnel-login-card";
+import { canManagePersonnel } from "@/lib/labor/roles";
+import { useSession } from "@/lib/auth/session-client";
 import { PageHeader } from "@/components/shared/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
@@ -113,6 +116,7 @@ export default function PersonnelDetailPage({
   const confirmAction = useConfirm();
   const { id } = use(params);
   const qc = useQueryClient();
+  const viewerRole = useSession().data?.user.role;
 
   const personQuery = useQuery<PersonnelDetail>({
     queryKey: ["personnel", id],
@@ -337,6 +341,7 @@ export default function PersonnelDetailPage({
   }
 
   const canSensitive = grants?.canViewSensitivePersonnel ?? false;
+  const canLink = viewerRole ? canManagePersonnel(viewerRole) : false;
   const canRates = grants?.canEditPayRates ?? false;
   const showRate = person.hourlyRate !== undefined;
 
@@ -591,6 +596,8 @@ export default function PersonnelDetailPage({
             </div>
           </CardContent>
         </Card>
+
+        {canLink ? <PersonnelLoginCard personnelId={id} /> : null}
 
         <Card>
           <CardHeader>

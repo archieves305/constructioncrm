@@ -201,7 +201,7 @@ export function buildDigest(rows: DigestRowInput[], opts: BuildOptions): DigestM
 
   const bySection = new Map<DigestSection, Map<string, DigestGroup>>();
   for (const it of items) {
-    if (opts.role === "CREW_LEAD" && CREW_LEAD_DROPS.has(it.section)) continue;
+    if ((opts.role === "CREW_LEAD" || opts.role === "CREW_MEMBER") && CREW_LEAD_DROPS.has(it.section)) continue;
     if (!bySection.has(it.section)) bySection.set(it.section, new Map());
     const groups = bySection.get(it.section)!;
     if (!groups.has(it.subject.key)) groups.set(it.subject.key, { ...it.subject, items: [], hidden: 0 });

@@ -19,7 +19,7 @@ export type FieldRouteContext = {
  */
 export async function requireJobFieldAccess(
   jobId: string,
-  min: "read" | "write",
+  min: "read" | "contribute" | "write",
 ): Promise<FieldRouteContext | { response: NextResponse }> {
   const session = await getSession();
   if (!session?.user) return { response: unauthorized() };
@@ -31,7 +31,8 @@ export async function requireJobFieldAccess(
   if (!job) {
     return { response: NextResponse.json({ error: "Not found" }, { status: 404 }) };
   }
-  if (access === "none" || (min === "write" && access !== "write")) {
+  const enough = min === "read" ? access !== "none" : min === "contribute" ? access === "contribute" || access === "write" : access === "write";
+  if (!enough) {
     return { response: forbidden() };
   }
   return { session, access, job };

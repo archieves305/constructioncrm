@@ -1,3 +1,4 @@
+import { isCrewRole } from "@/lib/access/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest, context: Context) {
 // against ping-pong.
 export async function POST(request: NextRequest, context: Context) {
   const { id: jobId } = await context.params;
-  const ctx = await requireJobFieldAccess(jobId, "write");
+  const ctx = await requireJobFieldAccess(jobId, "contribute");
   if ("response" in ctx) return ctx.response;
 
   return withIdempotency(request, ctx.session.user.id, `POST /api/jobs/${jobId}/field-issues`, async () => {
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest, context: Context) {
     // (the Purchasing slot, else the company default), not into an unowned task.
     // A problem a crew lead reports with nobody named goes to the job's PM
     // (purchasing first for materials): a crew never leaves it unowned.
-    const crewRaised = ctx.session.user.role === "CREW_LEAD";
+    const crewRaised = isCrewRole(ctx.session.user.role);
     const assignedUserId =
       d.assignedUserId ||
       (d.type === "MATERIAL_REQUEST" ? await userForJobRole(jobId, "PURCHASING") : null) ||

@@ -1,3 +1,4 @@
+import { isCrewRole } from "@/lib/access/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { approvalBytes } from "@/lib/permit-intel/approvals";
@@ -9,7 +10,7 @@ type Context = { params: Promise<{ id: string }> };
 export async function GET(_request: NextRequest, { params }: Context) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (session.user.role === "CREW_LEAD") return forbidden();
+  if (isCrewRole(session.user.role)) return forbidden();
   const { id } = await params;
   try {
     const { bytes, fileName } = await approvalBytes(id);

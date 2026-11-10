@@ -21,6 +21,7 @@ const FULL_ACCESS: ReadonlySet<RoleName> = new Set<RoleName>([
 const OWN_ONLY: ReadonlySet<RoleName> = new Set<RoleName>([
   "SALES_REP",
   "CREW_LEAD",
+  "CREW_MEMBER",
   "MARKETING",
 ]);
 

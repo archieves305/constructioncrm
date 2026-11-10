@@ -1,5 +1,6 @@
 "use client";
 
+import { CrewDayCard } from "@/components/field/crew-day-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { use, useState } from "react";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
@@ -277,6 +278,8 @@ export default function DailyLogReviewPage({
           </>
         }
       />
+
+      <CrewDayCard jobId={jobId} date={date} />
 
       <div className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 text-sm">
         <span>

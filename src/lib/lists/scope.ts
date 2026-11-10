@@ -14,7 +14,7 @@ export type ListScopePref = "MINE" | "ALL";
  * Roles pinned to Mine whatever they ask for. Explicit list, never hasMinRole.
  * MARKETING is deliberately absent: it needs every lead for campaigns.
  */
-export const SCOPE_FLOOR_ROLES: readonly RoleName[] = ["SALES_REP", "CREW_LEAD"];
+export const SCOPE_FLOOR_ROLES: readonly RoleName[] = ["SALES_REP", "CREW_LEAD", "CREW_MEMBER"];
 
 export function parseListScope(v: string | null | undefined): ListScope | undefined {
   return v === "mine" || v === "all" ? v : undefined;

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
-  if (!canCreateTasks(session.user.role)) return forbidden("A read-only account can look at tasks but not raise them.");
+  if (!canCreateTasks(session.user.role)) return forbidden(session.user.role === "CREW_MEMBER" ? "A crew member reports a problem instead of raising a task; the office or the foreman makes the task." : "A read-only account can look at tasks but not raise them.");
 
   // A task created on a phone that lost signal may be sent twice.
   const user = session.user;

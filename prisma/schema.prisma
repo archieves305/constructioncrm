@@ -33,6 +33,7 @@ enum RoleName {
   MARKETING
   READ_ONLY
   CREW_LEAD
+  CREW_MEMBER
 }
 
 enum EmploymentType {

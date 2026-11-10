@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { forViewer } from "@/lib/access/crew-redact";
+import { crewLeadView, hidesCustomerContact } from "@/lib/access/crew-redact";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { updateLeadSchema, leadIssuesMessage } from "@/lib/validators/lead";
@@ -14,7 +14,7 @@ export async function GET(
   if (!session?.user) return unauthorized();
 
   const { id } = await params;
-  const denied = await guardLead(session.user, id, "read");
+  const denied = await guardLead(session.user, id, "read", { allowCrew: true });
   if (denied) return denied;
 
   const lead = await prisma.lead.findUnique({
@@ -77,7 +77,8 @@ export async function GET(
     return NextResponse.json({ error: "Lead not found" }, { status: 404 });
   }
 
-  return NextResponse.json(forViewer(session.user.role, lead));
+  if (hidesCustomerContact(session.user.role)) return NextResponse.json(crewLeadView(lead));
+  return NextResponse.json(lead);
 }
 
 export async function PATCH(
