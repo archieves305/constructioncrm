@@ -101,7 +101,9 @@ export async function api<S extends z.ZodTypeAny | undefined = undefined>(
           ? "You don't have access to this"
           : res.status === 404
             ? "Not found, or not available to you"
-            : `The CRM answered ${res.status}`);
+            : res.status >= 500
+              ? `The CRM isn't answering right now (${res.status}). Try again in a few minutes.`
+              : `The CRM answered ${res.status}`);
     throw new ApiError(message, res.status, typeof body.code === "string" ? body.code : undefined, data);
   }
   if (!isJson) throw new ApiError("Unexpected answer from the CRM", res.status, "not_json");

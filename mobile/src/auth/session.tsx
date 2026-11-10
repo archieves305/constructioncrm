@@ -30,7 +30,9 @@ import {
 } from "./storage";
 
 /**
- * Sign-in with CareyOS (CAREYOS_MOBILE_APP_PLAN.md §D.3):
+ * Sign-in with CareyOS. The app's own screen posts the email and password to
+ * the portal's /api/sso/mobile-login and gets the phone token back directly.
+ * The browser path is kept as a fallback (CAREYOS_MOBILE_APP_PLAN.md §D.3):
  *   1. open the portal's launch page in the system browser with a PKCE challenge;
  *   2. the portal sends the person back with a handoff token;
  *   3. exchange it, with the verifier, for the ordinary 7-day session token;
@@ -49,7 +51,10 @@ type SessionValue = {
   /** Why the person is on the sign-in screen, in plain words. */
   notice: string | null;
   busy: boolean;
+  /** Sign in with the browser sheet (CareyOS's own page). */
   signIn: () => Promise<void>;
+  /** Sign in on the app's own screen with the CareyOS email and password. */
+  signInWithPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
   minAppVersion: string | null;
@@ -83,6 +88,37 @@ async function exchangeHandoff(handoff: string, verifier: string): Promise<strin
   if (res.ok && body.allowed === false) throw new ApiError(SIGN_IN_ERRORS.access_denied, 403, "access_denied");
   if (!res.ok || !body.token) throw new ApiError("Sign-in expired. Please try again.", res.status, "exchange_failed");
   return body.token;
+}
+
+/**
+ * The app's own sign-in screen: email + password straight to the portal,
+ * which answers with the same phone session token the PKCE exchange gives.
+ */
+async function passwordLogin(email: string, password: string): Promise<string> {
+  let res: Response;
+  try {
+    res = await fetch(`${PORTAL_URL}/api/sso/mobile-login?app=${APP_ID}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), password }),
+    });
+  } catch {
+    throw new ApiError("No connection. Check the phone's signal and try again.", 0, "offline");
+  }
+  const body = (await res.json().catch(() => ({}))) as {
+    allowed?: boolean;
+    token?: string;
+    error?: string;
+    retryAfter?: number;
+  };
+  if (res.ok && body.token) return body.token;
+  if (res.status === 401) throw new ApiError("That email and password don't match a CareyOS account.", 401, "invalid_credentials");
+  if (res.status === 403 || body.allowed === false) throw new ApiError(SIGN_IN_ERRORS.access_denied, 403, "access_denied");
+  if (res.status === 429) {
+    const mins = Math.max(1, Math.ceil((body.retryAfter ?? 900) / 60));
+    throw new ApiError(`Too many tries. Wait ${mins} minute${mins === 1 ? "" : "s"} and try again.`, 429, "too_many_attempts");
+  }
+  throw new ApiError("CareyOS couldn't sign you in just now. Please try again.", res.status, "login_failed");
 }
 
 async function registerThisPhone(token?: string): Promise<MobileDeviceDto> {
@@ -184,6 +220,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => setSignedOutHandler(null);
   }, [forget, refresh]);
 
+  /** Both sign-in paths end here: register this phone, keep the token, read who we are. */
+  const finishSignIn = useCallback(
+    async (token: string) => {
+      try {
+        setDevice(await registerThisPhone(token));
+      } catch (e) {
+        if (e instanceof ApiError && e.code === "device_revoked") throw new ApiError(SIGN_IN_ERRORS.device_revoked, 403, e.code);
+        throw e;
+      }
+      await saveToken(token);
+      await refresh();
+    },
+    [refresh],
+  );
+
   const signIn = useCallback(async () => {
     setBusy(true);
     setNotice(null);
@@ -202,15 +253,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const handoff = queryParams?.sso ? String(queryParams.sso) : null;
       if (!handoff) throw new ApiError("Sign-in didn't finish. Please try again.", 0, "no_handoff");
 
-      const token = await exchangeHandoff(handoff, verifier);
-      try {
-        setDevice(await registerThisPhone(token));
-      } catch (e) {
-        if (e instanceof ApiError && e.code === "device_revoked") throw new ApiError(SIGN_IN_ERRORS.device_revoked, 403, e.code);
-        throw e;
-      }
-      await saveToken(token);
-      await refresh();
+      await finishSignIn(await exchangeHandoff(handoff, verifier));
     } catch (e) {
       await wipeSession();
       setNotice(e instanceof Error ? e.message : String(e));
@@ -218,7 +261,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } finally {
       setBusy(false);
     }
-  }, [refresh]);
+  }, [finishSignIn]);
+
+  const signInWithPassword = useCallback(
+    async (email: string, password: string) => {
+      setBusy(true);
+      setNotice(null);
+      try {
+        await finishSignIn(await passwordLogin(email, password));
+      } catch (e) {
+        await wipeSession();
+        setNotice(e instanceof Error ? e.message : String(e));
+        setStatus("signedOut");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [finishSignIn],
+  );
 
   const signOut = useCallback(async () => {
     signingOut.current = true;
@@ -235,8 +295,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [forget]);
 
   const value = useMemo(
-    () => ({ status, user, device, offline, notice, busy, signIn, signOut, refresh, minAppVersion }),
-    [status, user, device, offline, notice, busy, signIn, signOut, refresh, minAppVersion],
+    () => ({ status, user, device, offline, notice, busy, signIn, signInWithPassword, signOut, refresh, minAppVersion }),
+    [status, user, device, offline, notice, busy, signIn, signInWithPassword, signOut, refresh, minAppVersion],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
