@@ -2,7 +2,7 @@
 // each step asserting what should happen. Writes throw-away records named "QA …";
 // run.sh dumps the dev database first and restores it afterwards.
 // usage: node scripts/qa/flows.mjs [flowRegex]
-import { firstFieldMessage } from "../../src/lib/validation/messages.ts";
+import { firstFieldMessage } from "../../src/lib/mobile-api/messages.ts";
 import { apiFor, assertLocalDatabase, BASE, expect, launch, newContext, readState, recorder, samplePdf, sql, waitForServer, writeState } from "./lib.mjs";
 
 assertLocalDatabase();
