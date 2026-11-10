@@ -2,7 +2,8 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { ALLOWED_MIME, MAX_UPLOAD_BYTES, fileExists, saveFile } from "@/lib/files/storage";
-import { canEditFile, fileReadWhere, permitLockOf } from "@/lib/files/access";
+import { canEditFile, permitLockOf } from "@/lib/files/access";
+import { fileReadWhereFor } from "@/lib/files/crew-visibility";
 import { contentMatchesType } from "@/lib/files/sniff";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
 import { recordAudit } from "@/lib/audit/record";
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const existing = await prisma.file.findFirst({ where: { AND: [{ id }, fileReadWhere(session.user)] }, include: { _count: { select: { generatedDocuments: true, permitSubmissions: true } } } });
+  const existing = await prisma.file.findFirst({ where: { AND: [{ id }, (await fileReadWhereFor(session.user))] }, include: { _count: { select: { generatedDocuments: true, permitSubmissions: true } } } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const verdict = canEditFile(session.user, {
     ...existing,

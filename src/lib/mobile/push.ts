@@ -22,6 +22,7 @@ export const PUSH_KINDS: Readonly<Record<string, string>> = {
   "case.inspection_scheduled": "Inspection scheduled",
   "case.escalated": "Violation deadline escalated",
   "crew.submission": "A crew sent something to review",
+  "crew.scheduled": "Install day set",
   "crew_payment.paid": "Crew payment recorded",
   "my_day": "Your day",
 };
@@ -62,6 +63,8 @@ export function pushMessageFor(kind: string, address: string | null, path: strin
 export function appPathFor(subject: { taskId?: string | null; jobId?: string | null }, kind?: string): string {
   // A crew submission opens the review screen, not the job.
   if (kind === "crew.submission") return "/crew-submissions";
+  // An install day opens the crew's week, where it is answered.
+  if (kind === "crew.scheduled") return "/jobs";
   if (subject.taskId) return `/task/${subject.taskId}`;
   if (subject.jobId) return `/job/${subject.jobId}`;
   return "/";

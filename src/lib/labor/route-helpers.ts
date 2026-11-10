@@ -8,6 +8,8 @@ type Session = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 export type FieldRouteContext = {
   session: Session;
   access: FieldAccess;
+  /** The job's scope fields, already loaded by the access check. */
+  job: { id: string; projectManagerId: string | null; salesRepId: string | null };
 };
 
 /**
@@ -32,7 +34,7 @@ export async function requireJobFieldAccess(
   if (access === "none" || (min === "write" && access !== "write")) {
     return { response: forbidden() };
   }
-  return { session, access };
+  return { session, access, job };
 }
 
 export function validateDateParam(date: string): NextResponse | null {

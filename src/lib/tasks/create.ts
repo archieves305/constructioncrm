@@ -38,7 +38,9 @@ export type TaskSource =
   /** Sent from a CareyOS Work board item (src/lib/integrations/work). */
   | "work"
   /** A crew's answer through a guest link, accepted by the office (src/lib/guest). */
-  | "guest_link";
+  | "guest_link"
+  /** A crew lead's answer or report from the KNU Field crew mode. */
+  | "crew_app";
 
 /**
  * Workflow placement. `taskKey` null = a manual task added inside a phase:

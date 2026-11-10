@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,6 +55,7 @@ type UserRow = {
   canViewPayrollReports: boolean;
   canEnterJobCosts: boolean;
   canViewRestrictedDocuments: boolean;
+  phone: string | null;
 };
 
 const GRANT_OPTIONS = [
@@ -143,6 +145,16 @@ export default function AdminUsersPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const changePhone = useMutation({
+    mutationFn: ({ id, phone }: { id: string; phone: string }) =>
+      fetchJson(`/api/admin/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: phone.trim() || null }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("Phone saved");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const changeRole = useMutation({
     mutationFn: async ({ id, roleId }: { id: string; roleId: string }) => {
       const res = await fetch(`/api/admin/users/${id}`, {
@@ -204,6 +216,7 @@ export default function AdminUsersPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Work phone</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -212,7 +225,7 @@ export default function AdminUsersPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8">
                     Loading...
                   </TableCell>
                 </TableRow>
@@ -223,6 +236,23 @@ export default function AdminUsersPage() {
                       {user.firstName} {user.lastName}
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      {isAdmin ? (
+                        <Input
+                          key={`${user.id}-${user.phone ?? ""}`}
+                          defaultValue={user.phone ?? ""}
+                          inputMode="tel"
+                          placeholder="For crews to call"
+                          aria-label={`Work phone for ${user.firstName} ${user.lastName}`}
+                          className="h-8 w-40"
+                          onBlur={(e) => {
+                            if ((e.target.value.trim() || null) !== (user.phone ?? null)) changePhone.mutate({ id: user.id, phone: e.target.value });
+                          }}
+                        />
+                      ) : (
+                        user.phone ?? "—"
+                      )}
+                    </TableCell>
                     <TableCell>
                       {isAdmin ? (
                         <Select

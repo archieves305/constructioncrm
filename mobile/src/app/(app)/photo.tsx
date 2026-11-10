@@ -8,6 +8,7 @@ import { addressLine } from "@/lib/format";
 import { preparePhoto } from "@/photos/prepare";
 import { useOutbox } from "@/outbox/useOutbox";
 import { Button, Card, Notice, s } from "@/ui/components";
+import { Chips } from "@/ui/Chips";
 import { Loading } from "@/ui/states";
 import { TOUCH, useTheme } from "@/ui/theme";
 
@@ -28,6 +29,8 @@ export default function PhotoScreen() {
   const [targetLabel, setTargetLabel] = useState<string | undefined>(params.label);
   const [shots, setShots] = useState<Shot[]>([]);
   const [saving, setSaving] = useState(false);
+  // Before / during / after: one tap, optional. It tells the office what the photo shows.
+  const [phase, setPhase] = useState<"" | "BEFORE" | "DURING" | "AFTER">("");
   const taskId = params.taskId;
   const hasTarget = Boolean(taskId || jobId);
 
@@ -59,6 +62,7 @@ export default function PhotoScreen() {
         if (taskId) fields.taskId = taskId;
         else if (jobId) fields.jobId = jobId;
         if (p.takenAt) fields.takenAt = p.takenAt;
+        if (phase) fields.phase = phase;
         await outbox.enqueue({
           kind: "file.upload",
           targetId: taskId ?? jobId!,
@@ -125,6 +129,17 @@ export default function PhotoScreen() {
           <Button label="From library" kind="secondary" onPress={() => void pickPhotos()} />
         </View>
       </View>
+      <Chips<"" | "BEFORE" | "DURING" | "AFTER">
+        label="These photos show"
+        value={phase}
+        onChange={setPhase}
+        options={[
+          { value: "BEFORE", label: "Before" },
+          { value: "DURING", label: "During" },
+          { value: "AFTER", label: "After" },
+          { value: "", label: "Not sure" },
+        ]}
+      />
       {shots.length > 0 ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {shots.map((shot) => (

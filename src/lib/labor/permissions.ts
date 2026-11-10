@@ -1,4 +1,5 @@
 import type { RoleName } from "@/generated/prisma/client";
+import { jobsInvolvingUserWhere } from "@/lib/jobs/involvement";
 import { prisma } from "@/lib/db/prisma";
 import { OFFICE_ROLES } from "./roles";
 
@@ -113,13 +114,14 @@ export async function resolveJobFieldAccess(
   });
   if (!job) return { job: null, access: "none" };
 
+  // A crew lead is "on the job" by the one rule every job guard uses
+  // (jobsInvolvingUserWhere): a field assignment, PM, a team slot, a crew they
+  // belong to, an open step of theirs. This used to be the field assignment
+  // alone, so a crew lead could open a job's files but not its logs.
   let hasAssignment = false;
   if (viewer.role === "CREW_LEAD") {
     hasAssignment = Boolean(
-      await prisma.jobFieldAssignment.findUnique({
-        where: { jobId_userId: { jobId, userId: viewer.id } },
-        select: { id: true },
-      }),
+      await prisma.job.findFirst({ where: { AND: [{ id: jobId }, jobsInvolvingUserWhere(viewer.id)] }, select: { id: true } }),
     );
   }
   return { job, access: jobFieldAccess(viewer, job, hasAssignment) };

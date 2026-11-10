@@ -5,10 +5,12 @@ import { fromDbDate, isIsoDate, toDbDate, addDays } from "@/lib/labor/dates";
 import { taskVisibilityFilter } from "@/lib/tasks/access";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { overdueWhere } from "@/lib/calendar/status";
+import { jobsInvolvingUserWhere } from "@/lib/jobs/involvement";
 
 // Jobs the signed-in user works with in field mode, with today's and
 // yesterday's log status for the home-screen tiles. Office roles see all
-// open jobs; CREW_LEAD sees jobs they're field-assigned to or PM of.
+// open jobs; CREW_LEAD sees the jobs they are on (jobsInvolvingUserWhere, the
+// rule every job guard uses).
 const FIELD_ROLES = new Set(["ADMIN", "MANAGER", "OFFICE_STAFF", "CREW_LEAD", "READ_ONLY"]);
 
 export async function GET(request: NextRequest) {
@@ -28,10 +30,7 @@ export async function GET(request: NextRequest) {
     currentStage: { isClosed: false },
   };
   if (session.user.role === "CREW_LEAD") {
-    where.OR = [
-      { projectManagerId: session.user.id },
-      { fieldAssignments: { some: { userId: session.user.id } } },
-    ];
+    Object.assign(where, jobsInvolvingUserWhere(session.user.id));
   }
 
   const jobs = await prisma.job.findMany({

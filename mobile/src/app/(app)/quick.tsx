@@ -3,8 +3,10 @@ import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { s } from "@/ui/components";
 import { TOUCH, useTheme } from "@/ui/theme";
+import { useSession } from "@/auth/session";
+import { isCrewRole, isForeman } from "@/lib/crew";
 
-const ACTIONS: { icon: keyof typeof Ionicons.glyphMap; label: string; when: string; href?: "/photo" | "/new-task" | "/voice-task" | "/issue/new" | "/log-pick" | "/log-pick?next=files" | "/log-pick?next=video" | "/materials" }[] = [
+const ACTIONS: { icon: keyof typeof Ionicons.glyphMap; label: string; when: string; href?: "/photo" | "/problem" | "/new-task" | "/voice-task" | "/issue/new" | "/log-pick" | "/log-pick?next=files" | "/log-pick?next=video" | "/materials" }[] = [
   { icon: "camera-outline", label: "Take photo", when: "", href: "/photo" },
   { icon: "videocam-outline", label: "Add video", when: "", href: "/log-pick?next=video" },
   { icon: "checkbox-outline", label: "New task", when: "", href: "/new-task" },
@@ -15,13 +17,24 @@ const ACTIONS: { icon: keyof typeof Ionicons.glyphMap; label: string; when: stri
   { icon: "cube-outline", label: "Request materials", when: "", href: "/materials" },
 ];
 
-/** The Add sheet behind the centre tab button. Actions arrive in Phase 2. */
+/** The crew mode's Add sheet: the few things done from a site, biggest first. */
+const CREW_ACTIONS: typeof ACTIONS = [
+  { icon: "camera-outline", label: "Take photo", when: "", href: "/photo" },
+  { icon: "warning-outline", label: "Report a problem", when: "", href: "/problem" },
+  { icon: "cube-outline", label: "Request materials", when: "", href: "/materials" },
+  { icon: "videocam-outline", label: "Add video", when: "", href: "/log-pick?next=video" },
+  { icon: "clipboard-outline", label: "Daily log", when: "", href: "/log-pick" },
+];
+
+/** The Add sheet behind the centre tab button. */
 export default function Quick() {
   const t = useTheme();
   const router = useRouter();
+  const { user } = useSession();
+  const actions = isCrewRole(user?.role) ? CREW_ACTIONS.filter((a) => isForeman(user?.role) || a.href !== "/log-pick") : ACTIONS;
   return (
     <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={[s.scroll, { gap: 8 }]}>
-      {ACTIONS.map((a) => (
+      {actions.map((a) => (
         <Pressable
           key={a.label}
           disabled={!a.href}

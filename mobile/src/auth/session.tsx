@@ -16,6 +16,7 @@ import { deleteAllDocuments } from "@/docs/open";
 import { clearAllDrafts } from "@/lib/drafts";
 import { clearSavedCopy } from "@/cache/persist";
 import { setCrashUser } from "@/lib/sentry";
+import { clearFor } from "@/outbox/outbox";
 import { Image } from "expo-image";
 import { forgetImageToken } from "@/ui/AuthImage";
 import { newPkce } from "./pkce";
@@ -110,7 +111,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signingOut = useRef(false);
 
   const forget = useCallback(
-    async (why: string | null) => {
+    async (why: string | null, dropUnsent = false) => {
+      // A phone an admin removed keeps nothing of the company's: its unsent
+      // changes go too. An ordinary sign-out keeps them for the next sign-in.
+      if (dropUnsent) {
+        const stored = await readCachedUser().catch(() => null);
+        if (stored?.id) await clearFor(stored.id).catch(() => undefined);
+      }
       await wipeSession();
       deleteAllDocuments();
       await clearAllDrafts().catch(() => undefined);
@@ -168,9 +175,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setSignedOutHandler(() => {
+    setSignedOutHandler((code) => {
       if (signingOut.current) return;
-      void forget("You were signed out. Please sign in again.");
+      if (code === "device_revoked") void forget("This phone was removed from KNU Field by the office. Everything it kept has been cleared.", true);
+      else void forget("You were signed out. Please sign in again.");
     });
     void refresh();
     return () => setSignedOutHandler(null);

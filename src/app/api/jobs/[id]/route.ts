@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { forViewer } from "@/lib/access/crew-redact";
 import { prisma } from "@/lib/db/prisma";
 import { rescheduleTargetStart } from "@/lib/workflows/reschedule";
 import { reassignUnresolved } from "@/lib/workflows/roles";
@@ -46,7 +47,7 @@ export async function GET(
         },
       },
       salesRep: { select: { id: true, firstName: true, lastName: true } },
-      projectManager: { select: { id: true, firstName: true, lastName: true } },
+      projectManager: { select: { id: true, firstName: true, lastName: true, phone: true } },
       stageHistory: {
         include: {
           fromStage: true,
@@ -78,7 +79,7 @@ export async function GET(
   const crewAssignments = job.crewAssignments.map((a) => ({ ...a, installTask: installTasks.get(a.id) ?? null }));
 
   const view = jobMoneyView(session.user, job);
-  return NextResponse.json(redactJobMoney({ ...job, crewAssignments }, view));
+  return NextResponse.json(forViewer(session.user.role, redactJobMoney({ ...job, crewAssignments }, view)));
 }
 
 export async function PATCH(

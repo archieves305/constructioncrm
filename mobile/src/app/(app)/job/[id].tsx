@@ -15,6 +15,7 @@ import { TaskRow } from "@/ui/TaskRow";
 import { Empty, LoadError, Loading } from "@/ui/states";
 import { useTheme } from "@/ui/theme";
 import { useSession } from "@/auth/session";
+import { isCrewRole, isForeman } from "@/lib/crew";
 
 function Row({ label, value }: { label: string; value: string | null }) {
   const t = useTheme();
@@ -49,7 +50,11 @@ export default function JobScreen() {
 
   const j = job.data;
   const address = fullAddress(j.lead);
-  const phone = dialable(j.lead?.primaryPhone);
+  // A crew lead calls the PM, not the customer: the CRM never sends a crew the customer's number.
+  const crew = isCrewRole(user?.role);
+  const foreman = isForeman(user?.role);
+  const pmPhone = dialable(j.projectManager?.phone ?? null);
+  const phone = crew ? pmPhone : dialable(j.lead?.primaryPhone);
   const open = (tasks.data ?? []).filter((x) => x.status !== "COMPLETED" && x.status !== "CANCELLED");
 
   return (
@@ -86,7 +91,7 @@ export default function JobScreen() {
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Button label="Call" kind="secondary" disabled={!phone} onPress={() => phone && Linking.openURL(`tel:${phone}`)} />
+          <Button label={crew ? "Call PM" : "Call"} kind="secondary" disabled={!phone} onPress={() => phone && Linking.openURL(`tel:${phone}`)} />
         </View>
       </View>
 
@@ -98,19 +103,29 @@ export default function JobScreen() {
             onPress={() => router.push({ pathname: "/photo", params: { jobId: j.id, label: addressLine(j.lead) ?? j.jobNumber } })}
           />
         </View>
-        <View style={{ flex: 1 }}>
-          <Button label="New task" kind="secondary" onPress={() => router.push({ pathname: "/new-task", params: { jobId: j.id } })} />
-        </View>
+        {foreman ? (
+          <View style={{ flex: 1 }}>
+            <Button label="New task" kind="secondary" onPress={() => router.push({ pathname: "/new-task", params: { jobId: j.id } })} />
+          </View>
+        ) : null}
       </View>
       <View style={{ flexDirection: "row", gap: 10 }}>
         <View style={{ flex: 1 }}>
           <Button label="Files & photos" kind="secondary" onPress={() => router.push({ pathname: "/files/[jobId]", params: { jobId: j.id } })} />
         </View>
         <View style={{ flex: 1 }}>
-          <Button label="Today's log" kind="secondary" onPress={() => router.push({ pathname: "/log/[jobId]", params: { jobId: j.id } })} />
+          <Button label="Plans" kind="secondary" onPress={() => router.push({ pathname: "/plans/[jobId]", params: { jobId: j.id } })} />
         </View>
+        {foreman ? (
+          <View style={{ flex: 1 }}>
+            <Button label="Today's log" kind="secondary" onPress={() => router.push({ pathname: "/log/[jobId]", params: { jobId: j.id } })} />
+          </View>
+        ) : null}
       </View>
-      <Button label="Clock crew in / out" kind="secondary" onPress={() => router.push({ pathname: "/crew/[jobId]", params: { jobId: j.id } })} />
+      {crew ? (
+        <Button label="Report a problem" kind="secondary" onPress={() => router.push({ pathname: "/problem", params: { jobId: j.id } })} />
+      ) : null}
+      {foreman ? <Button label="Clock crew in / out" kind="secondary" onPress={() => router.push({ pathname: "/crew/[jobId]", params: { jobId: j.id } })} /> : null}
       {user?.canEnterCosts ? <Button label="Add an expense (receipt)" kind="secondary" onPress={() => router.push({ pathname: "/expense/new", params: { jobId: j.id } })} /> : null}
       <View style={{ flexDirection: "row", gap: 10 }}>
         <View style={{ flex: 1 }}>

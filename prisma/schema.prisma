@@ -266,6 +266,13 @@ enum ChannelType {
   OTHER
 }
 
+/// A field photo's stage of the work.
+enum PhotoPhase {
+  BEFORE
+  DURING
+  AFTER
+}
+
 enum FileCategory {
   PHOTOS
   ESTIMATE
@@ -377,6 +384,8 @@ model Role {
 model User {
   id           String   @id @default(cuid())
   firstName    String   @map("first_name")
+  /// A work number crews can call ("Call the PM"); optional, set by an admin.
+  phone        String?  @map("phone")
   lastName     String   @map("last_name")
   email        String   @unique
   passwordHash String   @map("password_hash")
@@ -1156,6 +1165,11 @@ model File {
   // When the photo was taken, read from the camera's EXIF on upload. Null when
   // the image carried no date (screenshots, edited copies, PDFs).
   takenAt               DateTime?                @map("taken_at")
+  /// Crew visibility override: null follows LaborSettings.crewFileCategories,
+  /// true shows this file to crews, false hides it.
+  crewVisible           Boolean?                 @map("crew_visible")
+  /// A field photo's stage of the work, set when it is taken.
+  phase                 PhotoPhase?
   // A permit's document (Permit Intelligence): the permit, and its type from
   // the code list in lib/permit-intel/doc-types.ts. The file also carries the
   // permit's job and lead, so it shows on the job's Files tab.
@@ -1807,6 +1821,10 @@ model CrewAssignment {
   /// The crew's answer through a guest link: CONFIRMED | CANT_MAKE_IT | CHANGE_REQUESTED.
   confirmation   String?     @map("confirmation")
   confirmationAt DateTime?   @map("confirmation_at")
+  /// When the crew starts on the install day, minutes after midnight (office time).
+  startMinutes   Int?        @map("start_minutes")
+  /// Who answered in the app (null when the answer came through a guest link).
+  confirmedByUserId String?  @map("confirmed_by_user_id")
   guestLinks     GuestLink[]
 
   job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -3362,6 +3380,9 @@ model LaborSettings {
   bookkeeperEmail     String?  @map("bookkeeper_email")
   // When true, payroll exports/emails only count hours on APPROVED logs.
   payrollApprovedOnly Boolean  @default(false) @map("payroll_approved_only")
+  /// The kinds of job file a crew lead (or crew member) may open. An admin sets
+  /// it; a single file can still be shown or hidden with File.crewVisible.
+  crewFileCategories  FileCategory[] @default([PLAN_SET, PHOTOS, VIDEO, PERMIT, INSPECTION]) @map("crew_file_categories")
   updatedByUserId     String?  @map("updated_by_user_id")
   updatedAt           DateTime @updatedAt @map("updated_at")
 

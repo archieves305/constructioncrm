@@ -30,9 +30,13 @@ export class ApiError extends Error {
   }
 }
 
-let onSignedOut: (() => void) | null = null;
-/** The session provider registers what to do when the CRM refuses the token. */
-export function setSignedOutHandler(fn: (() => void) | null): void {
+let onSignedOut: ((code: string | null) => void) | null = null;
+/**
+ * The session provider registers what to do when the CRM refuses the token.
+ * `code` is "device_revoked" when an admin removed this phone (the app then
+ * drops its unsent changes too), else null.
+ */
+export function setSignedOutHandler(fn: ((code: string | null) => void) | null): void {
   onSignedOut = fn;
 }
 
@@ -78,7 +82,8 @@ export async function api<S extends z.ZodTypeAny | undefined = undefined>(
 
   const isJson = (res.headers.get("content-type") ?? "").includes("application/json");
   if (res.status === 401 || (res.redirected && !isJson)) {
-    onSignedOut?.();
+    const refusal = isJson ? ((await res.json().catch(() => null)) as { code?: unknown } | null) : null;
+    onSignedOut?.(typeof refusal?.code === "string" ? refusal.code : null);
     throw new ApiError("Signed out. Please sign in again.", 401, "signed_out");
   }
   if (res.status === 204) return undefined as never;

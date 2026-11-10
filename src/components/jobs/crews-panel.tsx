@@ -25,6 +25,10 @@ export type CrewAssignment = {
   installDate: string | null;
   /** The crew's answer through a crew link: CONFIRMED | CANT_MAKE_IT | CHANGE_REQUESTED. */
   confirmation?: string | null;
+  /** Set when a crew lead answered in KNU Field rather than through a link. */
+  confirmedByUserId?: string | null;
+  /** When the crew starts that day, minutes after midnight. */
+  startMinutes?: number | null;
   /** The open get-ready task the install date raised, if any. */
   installTask?: { id: string; dueAt: string | null; assignedTo: { firstName: string; lastName: string } | null } | null;
 };
@@ -170,16 +174,19 @@ function CrewRow({
   canSendLinks: boolean;
 }) {
   const current = dayOf(assignment.installDate);
+  const currentTime = toClock(assignment.startMinutes ?? null);
   const [draft, setDraft] = useState(current);
+  const [time, setTime] = useState(currentTime);
 
   const save = useMutation({
-    mutationFn: (day: string) =>
+    mutationFn: ({ day, clock }: { day: string; clock: string }) =>
       fetchJson(`/api/jobs/${jobId}/crews/${assignment.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ installDate: day || null }),
+        body: JSON.stringify({ installDate: day || null, startMinutes: day && clock ? fromClock(clock) : null }),
       }),
-    onSuccess: (_d, day) => onSaved(day ? `${assignment.crew.name} installs ${longDay(day)}` : "Install date cleared", day || null),
+    onSuccess: (_d, { day, clock }) =>
+      onSaved(day ? `${assignment.crew.name} installs ${longDay(day)}${clock ? ` at ${clockLabel(clock)}` : ""}` : "Install date cleared", day || null),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -201,6 +208,7 @@ function CrewRow({
           {assignment.confirmation ? (
             <p className={`mt-0.5 text-2xs ${assignment.confirmation === "CONFIRMED" ? "text-tone-success-fg" : "text-tone-warning-fg"}`}>
               {assignment.confirmation === "CONFIRMED" ? "Crew confirmed the day" : assignment.confirmation === "CANT_MAKE_IT" ? "Crew can't make the day" : "Crew asked for a different day"}
+              {assignment.confirmedByUserId ? " (in KNU Field)" : ""}
             </p>
           ) : null}
           {current ? (
@@ -217,8 +225,16 @@ function CrewRow({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
           />
-          {draft !== current && (
-            <Button size="sm" disabled={save.isPending} onClick={() => save.mutate(draft)}>
+          <Input
+            type="time"
+            aria-label={`Start time for ${assignment.crew.name}`}
+            className="h-8 w-[110px] text-xs"
+            value={time}
+            disabled={!draft}
+            onChange={(e) => setTime(e.target.value)}
+          />
+          {(draft !== current || time !== currentTime) && (
+            <Button size="sm" disabled={save.isPending} onClick={() => save.mutate({ day: draft, clock: draft ? time : "" })}>
               {draft ? "Save" : "Clear"}
             </Button>
           )}
@@ -229,4 +245,19 @@ function CrewRow({
       </CardContent>
     </Card>
   );
+}
+
+/** minutes after midnight ↔ "HH:MM" for a time input. */
+function toClock(m: number | null): string {
+  return m == null ? "" : `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+function fromClock(v: string): number | null {
+  const m = /^(\d{2}):(\d{2})$/.exec(v);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+function clockLabel(v: string): string {
+  const m = fromClock(v);
+  if (m == null) return v;
+  const h = Math.floor(m / 60);
+  return `${h % 12 || 12}:${String(m % 60).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }

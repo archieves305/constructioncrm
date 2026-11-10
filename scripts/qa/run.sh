@@ -3,7 +3,7 @@
 #   dump → exact row counts → dev server as ADMIN: flows, smoke, axe →
 #   dev server as SALES_REP: roles, smoke → dev server as READ_ONLY: smoke →
 #   restore → row counts must match.
-# usage: scripts/qa/run.sh [all|flows|smoke|axe|roles]   (default all)
+# usage: scripts/qa/run.sh [all|flows|smoke|axe|roles|crew|smoke-roles]   (default all)
 # Needs: the local Postgres in .env, the cached Chromium headless shell
 # (or QA_CHROMIUM), port 4000 free. Mail, SMS and AI keys are blanked, so nothing is sent.
 set -uo pipefail
@@ -79,4 +79,17 @@ if [[ "$WHAT" =~ ^(all|roles)$ ]]; then
     start_server "$REP_EMAIL" READ_ONLY
     run scripts/qa/smoke.mjs
   fi
+fi
+if [[ "$WHAT" =~ ^(all|crew)$ ]]; then
+  # The crew mode (Release 1): the rep account as a crew lead on flows.mjs's job.
+  [ "$WHAT" = crew ] && { start_server "$ADMIN_EMAIL" ADMIN; run scripts/qa/flows.mjs "^(lead)$"; }
+  start_server "$REP_EMAIL" CREW_LEAD
+  run scripts/qa/crew.mjs
+fi
+if [ "$WHAT" = smoke-roles ]; then
+  # Only the page sweep as the rep and as READ_ONLY (to recheck a flaky pass).
+  start_server "$REP_EMAIL" SALES_REP
+  run scripts/qa/smoke.mjs
+  start_server "$REP_EMAIL" READ_ONLY
+  run scripts/qa/smoke.mjs
 fi

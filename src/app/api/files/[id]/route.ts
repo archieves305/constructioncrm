@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import type { RoleName } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { readFile, deleteFile, fileExists } from "@/lib/files/storage";
-import { canDeleteFile, canEditFile, fileReadWhere, permitLockOf } from "@/lib/files/access";
+import { canDeleteFile, canEditFile, permitLockOf } from "@/lib/files/access";
+import { fileReadWhereFor } from "@/lib/files/crew-visibility";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
 import { cleanFileName, UPLOAD_CATEGORIES } from "@/lib/files/scope";
 import { validateBody } from "@/lib/validation/body";
@@ -14,8 +16,8 @@ import { parseRange } from "@/lib/files/range";
 type Context = { params: Promise<{ id: string }> };
 
 /** The file within the viewer's scope, with whether the CRM generated it. Outside the scope reads as "not found", so ids cannot be probed. */
-async function loadFile(viewer: { id: string; role: Parameters<typeof fileReadWhere>[0]["role"] }, id: string) {
-  const file = await prisma.file.findFirst({ where: { AND: [{ id }, fileReadWhere(viewer)] }, include: { _count: { select: { generatedDocuments: true, permitSubmissions: true } } } });
+async function loadFile(viewer: { id: string; role: RoleName }, id: string) {
+  const file = await prisma.file.findFirst({ where: { AND: [{ id }, (await fileReadWhereFor(viewer))] }, include: { _count: { select: { generatedDocuments: true, permitSubmissions: true } } } });
   return file ? { ...file, generated: file._count.generatedDocuments > 0, permitLock: permitLockOf({ permitDocType: file.permitDocType, permitSubmissionCount: file._count.permitSubmissions }) } : null;
 }
 
@@ -76,6 +78,9 @@ const updateSchema = z.object({
   jobId: z.string().max(60).nullable().optional(),
   // A permit document's type (lib/permit-intel/doc-types.ts); null leaves it unclassified.
   permitDocType: z.string().max(60).nullable().optional(),
+  // Crew visibility override (ADMIN / MANAGER): true shows it to crews, false
+  // hides it, null follows the kind's setting (lib/files/crew-visibility.ts).
+  crewVisible: z.boolean().nullable().optional(),
 });
 
 /** Rename, recategorise, or move a file between a job and its lead. */
@@ -86,12 +91,20 @@ export async function PATCH(request: NextRequest, context: Context) {
   const { id } = await context.params;
   const file = await loadFile(session.user, id);
   if (!file) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const verdict = canEditFile(session.user, file);
-  if (!verdict.ok) return NextResponse.json({ error: verdict.reason }, { status: 403 });
-
   const v = await validateBody(request, updateSchema);
   if (!v.ok) return v.response;
-  const data: { fileName?: string; category?: (typeof file)["category"]; jobId?: string | null; permitDocType?: string | null } = {};
+  // Showing or hiding a file to crews is an office decision, and works on any
+  // file (a generated one too); every other change needs the edit right.
+  const onlyCrew = Object.keys(v.data).every((k) => k === "crewVisible");
+  if (v.data.crewVisible !== undefined && !["ADMIN", "MANAGER"].includes(session.user.role)) {
+    return NextResponse.json({ error: "Only an admin or a manager decides what crews see." }, { status: 403 });
+  }
+  if (!onlyCrew) {
+    const verdict = canEditFile(session.user, file);
+    if (!verdict.ok) return NextResponse.json({ error: verdict.reason }, { status: 403 });
+  }
+  const data: { fileName?: string; category?: (typeof file)["category"]; jobId?: string | null; permitDocType?: string | null; crewVisible?: boolean | null } = {};
+  if (v.data.crewVisible !== undefined) data.crewVisible = v.data.crewVisible;
   if (v.data.fileName !== undefined) {
     const name = cleanFileName(v.data.fileName, file.fileName);
     if (!name) return badRequest("Give the file a name");
@@ -122,8 +135,8 @@ export async function PATCH(request: NextRequest, context: Context) {
     entityType: "File",
     entityId: id,
     action: "update",
-    before: { fileName: file.fileName, category: file.category, jobId: file.jobId, permitDocType: file.permitDocType },
-    after: { fileName: updated.fileName, category: updated.category, jobId: updated.jobId, permitDocType: updated.permitDocType },
+    before: { fileName: file.fileName, category: file.category, jobId: file.jobId, permitDocType: file.permitDocType, crewVisible: file.crewVisible },
+    after: { fileName: updated.fileName, category: updated.category, jobId: updated.jobId, permitDocType: updated.permitDocType, crewVisible: updated.crewVisible },
   });
   return NextResponse.json((await presentFiles([updated]))[0]);
 }

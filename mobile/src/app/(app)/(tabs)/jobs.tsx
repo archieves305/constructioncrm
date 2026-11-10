@@ -1,4 +1,7 @@
 import { SavedNote } from "@/cache/SavedNote";
+import { CrewWeek } from "@/ui/CrewWeek";
+import { isCrewRole } from "@/lib/crew";
+import { useSession } from "@/auth/session";
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -53,7 +56,7 @@ function JobRow({ job }: { job: JobListItemDto }) {
 }
 
 /** My jobs: the web's "Mine" list (jobs you have a role on), open ones. */
-export default function Jobs() {
+function OfficeJobs() {
   const t = useTheme();
   const jobs = useMyJobs();
   const [q, setQ] = useState("");
@@ -106,4 +109,10 @@ export default function Jobs() {
       )}
     </View>
   );
+}
+
+/** A crew role sees the crew mode's screen here; everyone else the office one. */
+export default function Screen() {
+  const { user } = useSession();
+  return isCrewRole(user?.role) ? <CrewWeek /> : <OfficeJobs />;
 }

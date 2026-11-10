@@ -6,6 +6,9 @@ import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 import { pinAllDay, todayKey, type DayKey } from "@/lib/time/zone";
 import { userForJobRole } from "@/lib/workflows/roles";
 import { installTaskPrefix, planInstallTask } from "./install";
+import { notify } from "@/lib/notifications/notify";
+import { formatAddressLine } from "@/lib/labels/address";
+import { dayOfDate } from "@/lib/permits/alerts";
 
 /**
  * A crew's install date as an ordinary task for the person who has to have
@@ -97,4 +100,45 @@ export async function openInstallTasks(assignmentIds: string[]): Promise<Map<str
     if (id) out.set(id, { id: t.id, status: t.status, dueAt: t.dueAt?.toISOString() ?? null, assignedTo: t.assignedTo });
   }
   return out;
+}
+
+/**
+ * Tell the crew an install day was set, moved or given a start time: the
+ * job's field-assigned crew leads and any crew member with a login, never the
+ * person who made the change. On a crew phone it buzzes (kind crew.scheduled)
+ * and opens the week, where they answer Got it / Can't make it. Best effort:
+ * a failure is logged, the date change stands.
+ */
+export async function notifyCrewOfInstall(assignmentId: string, actorUserId: string | null): Promise<void> {
+  try {
+    const a = await prisma.crewAssignment.findUnique({
+      where: { id: assignmentId },
+      select: {
+        installDate: true,
+        startMinutes: true,
+        jobId: true,
+        crew: { select: { name: true, members: { where: { userId: { not: null } }, select: { userId: true } } } },
+        job: { select: { leadId: true, lead: { select: { propertyAddress1: true, city: true } }, fieldAssignments: { select: { userId: true } } } },
+      },
+    });
+    if (!a?.installDate) return;
+    const ids = new Set<string>([...a.job.fieldAssignments.map((f) => f.userId), ...a.crew.members.map((m) => m.userId as string)]);
+    if (actorUserId) ids.delete(actorUserId);
+    if (!ids.size) return;
+    const day = dayOfDate(a.installDate);
+    const when = new Date(`${day}T12:00:00.000Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+    const start = a.startMinutes != null ? ` at ${Math.floor(a.startMinutes / 60) % 12 || 12}:${String(a.startMinutes % 60).padStart(2, "0")} ${a.startMinutes < 720 ? "AM" : "PM"}` : "";
+    const where = formatAddressLine(a.job.lead) || "the job";
+    await notify({
+      kind: "crew.scheduled",
+      candidates: [...ids].map((userId) => ({ userId, reason: "owner" as const })),
+      actorUserId,
+      subject: { type: "job", id: assignmentId, jobId: a.jobId, leadId: a.job.leadId },
+      title: `${a.crew.name}: ${when}${start} · ${where}`,
+      body: "Open KNU Field to say Got it or Can't make it.",
+      href: `/jobs/${a.jobId}?tab=field&sub=crews`,
+    });
+  } catch (err) {
+    logger.exception(err, { where: "crews.notifyCrewOfInstall", assignmentId });
+  }
 }

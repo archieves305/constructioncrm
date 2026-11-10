@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { forViewer } from "@/lib/access/crew-redact";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { visibilityScopeFor } from "@/lib/workflows/visibility";
@@ -48,5 +49,5 @@ export async function GET(request: NextRequest) {
     truncated,
     items: [...tasks, ...overlays.sort(compareDayItems)],
   };
-  return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(forViewer(session.user.role, body), { headers: { "Cache-Control": "no-store" } });
 }

@@ -18,6 +18,9 @@ import {
   paymentRequestList,
   attentionCounts,
   attentionList,
+  crewToday,
+  crewWeek,
+  planSheetList,
   jobList,
   taskDetail,
   taskList,
@@ -101,6 +104,14 @@ export const q = {
 export const useToday = (day = dayKey()) => useQuery(q.today(day));
 export const useOverdue = (day = dayKey()) => useQuery(q.overdue(day));
 export const useMyJobs = () => useQuery(q.myJobs());
+/** The crew mode's day and week: the jobs this person is on, as the crew sees them (no money, no customer contact). */
+export const useCrewToday = (day: string) =>
+  useQuery({ queryKey: ["crew", "today", day], queryFn: () => api(`/api/mobile/crew/today?date=${day}`, { schema: crewToday }) });
+/** A job's plan sheets, each with the image path the phone opens. */
+export const usePlanSheets = (jobId: string) =>
+  useQuery({ queryKey: ["plans", "job", jobId], enabled: Boolean(jobId), queryFn: () => api(`/api/jobs/${encodeURIComponent(jobId)}/plan-sheets`, { schema: planSheetList }) });
+export const useCrewWeek = (from: string) =>
+  useQuery({ queryKey: ["crew", "week", from], queryFn: () => api(`/api/mobile/crew/week?from=${from}`, { schema: crewWeek }) });
 export const useJob = (id: string) => useQuery(q.job(id));
 export const useJobTasks = (jobId: string) => useQuery(q.jobTasks(jobId));
 export function useMyTasks() {
@@ -111,7 +122,7 @@ export const useTask = (id: string) => useQuery(q.task(id));
 export const useJobFiles = (jobId: string) => useQuery(q.jobFiles(jobId));
 export const useInspections = () => useQuery(q.inspections());
 export const useCalendarRange = (from: string, to: string, enabled = true) => useQuery({ ...q.range(from, to), enabled });
-export const useJobIssues = (jobId: string) => useQuery(q.jobIssues(jobId));
+export const useJobIssues = (jobId: string) => useQuery({ ...q.jobIssues(jobId), enabled: Boolean(jobId) });
 export const useJobGallery = (jobId: string) => useQuery(q.jobGallery(jobId));
 
 /** The owner's numbers and the dashboard's "Needs attention" (not kept offline: company money). */

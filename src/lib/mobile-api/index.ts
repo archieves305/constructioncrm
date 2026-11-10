@@ -92,7 +92,13 @@ export function needsUpdate(appVersion: string, minAppVersion: string): boolean 
 // the CRM's tests first.
 // ---------------------------------------------------------------------------
 
-const person = z.object({ id: z.string(), firstName: z.string(), lastName: z.string() });
+const person = z.object({
+  id: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
+  /** A staff member's work number; sent on a job's PM so a crew lead can call them. */
+  phone: z.string().nullable().optional(),
+});
 export type PersonDto = z.infer<typeof person>;
 
 export const leadLabel = z.object({
@@ -895,3 +901,4 @@ export * from "./messages";
 export * from "./query-status";
 export * from "./status";
 export * from "./quick-done";
+export * from "./crew";

@@ -3,12 +3,12 @@ import { Alert, FlatList, Pressable, ScrollView, Text, TextInput, View } from "r
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { createFieldIssueRequest, type MaterialLine } from "@crm/mobile-api";
-import { useMyJobs } from "@/api/queries";
-import { addDays, addressLine, dayKey } from "@/lib/format";
+import { useJobIssues, useMyJobs } from "@/api/queries";
+import { addDays, addressLine, dayKey, shortDate } from "@/lib/format";
 import { clientId } from "@/lib/ids";
-import { filledLines, materialsText, materialsTitle } from "@/lib/materials";
+import { filledLines, MATERIAL_STATUS, materialsText, materialsTitle, pastItems } from "@/lib/materials";
 import { useOutbox } from "@/outbox/useOutbox";
-import { Button, Notice, s } from "@/ui/components";
+import { Button, Card, Notice, s } from "@/ui/components";
 import { Chips } from "@/ui/Chips";
 import { Loading } from "@/ui/states";
 import { TOUCH, useTheme } from "@/ui/theme";
@@ -41,6 +41,16 @@ export default function RequestMaterials() {
   const [saving, setSaving] = useState(false);
 
   const job = jobs.data?.data.find((j) => j.id === jobId);
+  // This job's earlier requests: their status, and their items to ask for again.
+  const issues = useJobIssues(jobId);
+  const requests = (issues.data ?? []).filter((x) => x.type === "MATERIAL_REQUEST").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const again = pastItems(requests);
+  const addAgain = (text: string) =>
+    setLines((ls) => {
+      const i = ls.findIndex((l) => !l.item.trim() && !l.qty.trim());
+      const line = { ...blank(), item: text };
+      return i >= 0 ? ls.map((l, j) => (j === i ? line : l)) : [...ls, line];
+    });
   const setLine = (i: number, patch: Partial<MaterialLine>) =>
     setLines((ls) => {
       const next = ls.map((l, j) => (j === i ? { ...l, ...patch } : l));
@@ -110,6 +120,24 @@ export default function RequestMaterials() {
       {job ? <Text style={{ color: t.muted, fontSize: 15 }}>{addressLine(job.lead) ?? job.title}</Text> : null}
 
       <Text style={[s.label, { color: t.muted }]}>What you need</Text>
+      {again.length ? (
+        <View style={{ gap: 6 }}>
+          <Text style={{ color: t.muted, fontSize: 13 }}>Asked for before on this job</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+            {again.map((text) => (
+              <Pressable
+                key={text}
+                accessibilityRole="button"
+                accessibilityLabel={`Add ${text}`}
+                onPress={() => addAgain(text)}
+                style={{ minHeight: 36, paddingHorizontal: 12, borderRadius: 18, borderWidth: 1, borderColor: t.border, backgroundColor: t.card, justifyContent: "center" }}
+              >
+                <Text style={{ color: t.text, fontSize: 14 }}>+ {text}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
       {lines.map((l, i) => (
         <View key={i} style={{ gap: 6, paddingBottom: 8, borderBottomWidth: i < lines.length - 1 ? 1 : 0, borderBottomColor: t.border }}>
           <View style={{ flexDirection: "row", gap: 8 }}>
@@ -201,6 +229,20 @@ export default function RequestMaterials() {
       />
       <Notice text="Goes to the job's purchasing person as a task, and shows under the job's Issues & punch. Works without signal." />
       <Button label={saving ? "Saving…" : "Send request"} disabled={saving || !filledLines(lines).length} onPress={() => void save()} />
+
+      {requests.length ? (
+        <View style={{ gap: 8, marginTop: 8 }}>
+          <Text style={[s.h2, { color: t.text }]} accessibilityRole="header">Requests on this job</Text>
+          {requests.slice(0, 10).map((r) => (
+            <Card key={r.id}>
+              <Text style={[s.body, { color: t.text, fontWeight: "600" }]} numberOfLines={2}>{r.title}</Text>
+              <Text style={{ color: r.status === "COMPLETED" ? t.ok : r.status === "BLOCKED" ? t.warn : t.muted, fontSize: 14, fontWeight: "600" }}>
+                {MATERIAL_STATUS[r.status] ?? r.status} · {shortDate(r.createdAt)}
+              </Text>
+            </Card>
+          ))}
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

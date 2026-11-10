@@ -102,7 +102,13 @@ export async function POST(request: NextRequest, context: Context) {
 
     // A material request nobody was named for goes to whoever buys for the job
     // (the Purchasing slot, else the company default), not into an unowned task.
-    const assignedUserId = d.assignedUserId || (d.type === "MATERIAL_REQUEST" ? await userForJobRole(jobId, "PURCHASING") : null);
+    // A problem a crew lead reports with nobody named goes to the job's PM
+    // (purchasing first for materials): a crew never leaves it unowned.
+    const crewRaised = ctx.session.user.role === "CREW_LEAD";
+    const assignedUserId =
+      d.assignedUserId ||
+      (d.type === "MATERIAL_REQUEST" ? await userForJobRole(jobId, "PURCHASING") : null) ||
+      (crewRaised ? ctx.job.projectManagerId : null);
 
     const issue = await prisma.$transaction(async (tx) => {
       const created = await tx.fieldIssue.create({

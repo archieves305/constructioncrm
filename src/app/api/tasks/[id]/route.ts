@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { forViewer } from "@/lib/access/crew-redact";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
@@ -24,7 +25,7 @@ export async function GET(
   if (!canViewTask(session.user, task, await visibilityScopeFor(session.user))) return forbidden();
 
   // What this viewer may do, so the sheet does not have to guess from ownership alone.
-  return NextResponse.json({ ...task, viewer: await taskRightsFor(session.user, task) });
+  return NextResponse.json(forViewer(session.user.role, { ...task, viewer: await taskRightsFor(session.user, task) }));
 }
 
 export async function PATCH(

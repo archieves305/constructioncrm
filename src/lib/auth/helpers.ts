@@ -132,6 +132,8 @@ export const getSession = cache(async (): Promise<Session | null> => {
     const refusal = await refusalForToken(result.bearerTokenHash);
     if (refusal) {
       logger.info("refused a phone token", { email, refusal });
+      // The 401 says so, and the app then clears what it kept (unsent work too).
+      if (refusal === "device_revoked") requestNotes().refusal = "device_revoked";
       return null;
     }
   }
@@ -184,8 +186,15 @@ export async function requireRole(...roles: RoleName[]): Promise<Session> {
   return session;
 }
 
+/**
+ * One object per request (React `cache`), for what getSession learned that a
+ * later 401 should say: today only that the phone was revoked by an admin.
+ */
+const requestNotes = cache((): { refusal: string | null } => ({ refusal: null }));
+
 export function unauthorized() {
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const code = requestNotes().refusal;
+  return NextResponse.json(code ? { error: "This phone was removed from KNU Field.", code } : { error: "Unauthorized" }, { status: 401 });
 }
 
 /**

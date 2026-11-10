@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { forViewer } from "@/lib/access/crew-redact";
 import { LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
 import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
@@ -84,5 +85,5 @@ export async function GET(request: NextRequest) {
     ...(workflowByJob && { workflow: workflowByJob.get(j.id) ?? null }),
   }));
 
-  return NextResponse.json({ data: enriched, total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
+  return NextResponse.json(forViewer(session.user.role, { data: enriched, total, page, pageSize, totalPages: Math.ceil(total / pageSize) }));
 }

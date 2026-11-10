@@ -10,7 +10,8 @@ import { isVideoType, MAX_VIDEO_BYTES } from "@/lib/files/limits";
 import { isPermitDocType } from "@/lib/permit-intel/doc-types";
 import { indexPermitFileText } from "@/lib/permit-intel/library";
 import { taskRightsFor } from "@/lib/workflows/visibility";
-import { fileReadWhere } from "@/lib/files/access";
+
+import { fileReadWhereFor } from "@/lib/files/crew-visibility";
 import { FILE_LIST_INCLUDE, presentFiles } from "@/lib/files/list";
 import { guardJob } from "@/lib/access/records";
 import { canEnterJobCosts, getCostGrants, COST_DENIED_MESSAGE } from "@/lib/expenses/permissions";
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
   const violationItemId = request.nextUrl.searchParams.get("violationItemId");
   const jobId = request.nextUrl.searchParams.get("jobId");
   if (!leadId && !taskId && !violationCaseId && !violationItemId && !jobId) return badRequest("jobId, leadId, taskId, violationCaseId or violationItemId is required");
-  const scope = fileReadWhere(session.user);
+  const scope = (await fileReadWhereFor(session.user));
 
   // A job: its own files, and beside them the lead's documents that belong to
   // no job (estimates, things uploaded before the job existed).
@@ -246,6 +247,8 @@ export async function POST(request: NextRequest) {
         permitId,
         permitDocType,
         takenAt: file.type.startsWith("image/") ? parseTakenAt(form.get("takenAt")) : null,
+        // Before / during / after, from the phone's photo screen.
+        phase: file.type.startsWith("image/") ? photoPhase(form.get("phase")) : null,
       },
       include: FILE_LIST_INCLUDE,
     });
@@ -261,4 +264,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json((await presentFiles([record]))[0], { status: 201 });
   });
+}
+
+function photoPhase(v: FormDataEntryValue | null): "BEFORE" | "DURING" | "AFTER" | null {
+  return v === "BEFORE" || v === "DURING" || v === "AFTER" ? v : null;
 }

@@ -36,6 +36,7 @@ export const NOTIFICATION_KINDS = [
   "lead.follow_up",
   "lead.new",
   "crew.submission",
+  "crew.scheduled",
 ] as const;
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
@@ -319,6 +320,15 @@ export const KINDS: Record<NotificationKind, KindSpec> = {
     defaultClass: "IMMEDIATE",
     collapsible: false,
     actionRequired: () => false,
+  },
+  "crew.scheduled": {
+    label: "Install day set or moved for your crew",
+    category: "JOB_ACTIVITY",
+    section: "UPCOMING",
+    // A crew lead needs a changed day the same day; it is rare, so it buzzes.
+    defaultClass: "IMMEDIATE",
+    collapsible: false,
+    actionRequired: () => true,
   },
   "crew.submission": {
     label: "Crew sent photos, a payment request or a day answer",

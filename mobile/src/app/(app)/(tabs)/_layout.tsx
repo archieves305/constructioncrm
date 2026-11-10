@@ -3,14 +3,20 @@ import { Tabs, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { SyncBadge } from "@/ui/SyncBadge";
 import { useTheme } from "@/ui/theme";
+import { useSession } from "@/auth/session";
+import { isCrewRole } from "@/lib/crew";
 
 /**
  * Today · Jobs · (+) · Tasks · More (CAREYOS_MOBILE_APP_PLAN.md §E). The
  * centre button is not a screen: it opens the Add sheet over whatever is open.
+ * A crew role gets the crew mode instead: Today · Week · (+) · Me, with its
+ * tasks inside each job (docs/audits/crew-experience).
  */
 export default function TabsLayout() {
   const t = useTheme();
   const router = useRouter();
+  const { user } = useSession();
+  const crew = isCrewRole(user?.role);
   return (
     <Tabs
       screenOptions={{
@@ -30,7 +36,10 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="jobs"
-        options={{ title: "Jobs", tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={String(color)} size={size} /> }}
+        options={{
+          title: crew ? "Week" : "Jobs",
+          tabBarIcon: ({ color, size }) => <Ionicons name={crew ? "calendar-outline" : "home-outline"} color={String(color)} size={size} />,
+        }}
       />
       <Tabs.Screen
         name="add"
@@ -63,11 +72,14 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="tasks"
-        options={{ title: "Tasks", tabBarIcon: ({ color, size }) => <Ionicons name="checkbox-outline" color={String(color)} size={size} /> }}
+        options={{ title: "Tasks", href: crew ? null : undefined, tabBarIcon: ({ color, size }) => <Ionicons name="checkbox-outline" color={String(color)} size={size} /> }}
       />
       <Tabs.Screen
         name="more"
-        options={{ title: "More", tabBarIcon: ({ color, size }) => <Ionicons name="menu-outline" color={String(color)} size={size} /> }}
+        options={{
+          title: crew ? "Me" : "More",
+          tabBarIcon: ({ color, size }) => <Ionicons name={crew ? "person-circle-outline" : "menu-outline"} color={String(color)} size={size} />,
+        }}
       />
     </Tabs>
   );

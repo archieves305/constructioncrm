@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { forViewer } from "@/lib/access/crew-redact";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { updateLeadSchema, leadIssuesMessage } from "@/lib/validators/lead";
@@ -76,7 +77,7 @@ export async function GET(
     return NextResponse.json({ error: "Lead not found" }, { status: 404 });
   }
 
-  return NextResponse.json(lead);
+  return NextResponse.json(forViewer(session.user.role, lead));
 }
 
 export async function PATCH(

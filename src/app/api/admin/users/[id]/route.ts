@@ -33,6 +33,8 @@ const updateUserSchema = z
     canViewPayrollReports: z.boolean().optional(),
     canEnterJobCosts: z.boolean().optional(),
     canViewRestrictedDocuments: z.boolean().optional(),
+    // A work number crews can call (the PM on a crew phone). Empty clears it.
+    phone: z.string().trim().max(30).regex(/^[0-9+()\-. ]*$/, "Use digits, spaces and + ( ) - . only").nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "No fields to update",
@@ -93,6 +95,7 @@ export async function PATCH(
   if (body.email !== undefined) updateData.email = body.email;
   if (body.roleId !== undefined) updateData.roleId = body.roleId;
   if (body.isActive !== undefined) updateData.isActive = body.isActive;
+  if (body.phone !== undefined) updateData.phone = body.phone ? body.phone : null;
 
   // Field-module grants (SSN/doc access, pay-rate edits, payroll reports).
   // ADMIN-only route; every change is audited below.

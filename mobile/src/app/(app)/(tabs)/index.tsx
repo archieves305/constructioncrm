@@ -1,4 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
+import { CrewToday } from "@/ui/CrewToday";
+import { isCrewRole } from "@/lib/crew";
 import { track } from "@/usage/track";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -35,7 +37,7 @@ function shortDay(key: string): string {
  * a day at a time; Week shows the next seven days grouped by date, from the
  * same calendar the web uses.
  */
-export default function Today() {
+function OfficeToday() {
   const t = useTheme();
   useEffect(() => track("today_opened"), []);
   const qc = useQueryClient();
@@ -220,4 +222,10 @@ export default function Today() {
       <OwnerStrip />
     </ScrollView>
   );
+}
+
+/** A crew role sees the crew mode's screen here; everyone else the office one. */
+export default function Screen() {
+  const { user } = useSession();
+  return isCrewRole(user?.role) ? <CrewToday /> : <OfficeToday />;
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { guardJob } from "@/lib/access/records";
-import { syncInstallTask } from "@/lib/crews/install-run";
+import { notifyCrewOfInstall, syncInstallTask } from "@/lib/crews/install-run";
 import { parseDueAt } from "@/lib/tasks/dates";
 import { validateBody } from "@/lib/validation/body";
 import { settleJobGates } from "@/lib/workflows/gates";
@@ -50,6 +50,7 @@ export async function POST(
 
   // The install date's get-ready task, and the checklist line that restates it.
   const installTask = await syncInstallTask(assignment.id, session.user.id);
+  if (assignment.installDate) await notifyCrewOfInstall(assignment.id, session.user.id);
   if (installDate) await settleJobGates(id, session.user.id);
 
   return NextResponse.json({ ...assignment, installTask }, { status: 201 });

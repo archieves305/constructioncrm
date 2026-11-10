@@ -17,6 +17,7 @@ import { useOutbox } from "@/outbox/useOutbox";
 import { Button, Card, Notice, s } from "@/ui/components";
 import { OpRow } from "@/ui/OpRow";
 import { StatusBadge } from "@/ui/StatusBadge";
+import { CrewContributions } from "@/ui/CrewContributions";
 import { LoadError, Loading } from "@/ui/states";
 import { TOUCH, useTheme } from "@/ui/theme";
 
@@ -348,6 +349,7 @@ export default function DailyLogScreen() {
           <Button label="Submit to the office" kind="secondary" disabled={filled === 0 && !log.data} onPress={submit} />
         </>
       ) : null}
+      <CrewContributions jobId={jobId} date={date} />
       <Text style={{ color: t.muted, fontSize: 13 }}>
         What you type is kept on this phone until you save. Saved changes, photos and submitting are sent when there is signal.
       </Text>

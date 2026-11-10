@@ -8,6 +8,7 @@ import type { JobLabel } from "@/components/tasks/types";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
+import { CrewDocumentsSettings } from "@/components/crews/crew-documents-settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -252,6 +253,10 @@ export default function CrewsPage() {
           </Button>
         }
       />
+
+      <div className="mb-4">
+        <CrewDocumentsSettings />
+      </div>
 
       {/* Search + filters */}
       <Card className="mb-4">

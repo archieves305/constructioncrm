@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { requireJobFieldAccess } from "@/lib/labor/route-helpers";
 import { fromDbDate, isIsoDate, toDbDate } from "@/lib/labor/dates";
-import { fileReadWhere } from "@/lib/files/access";
+
+import { fileReadWhereFor } from "@/lib/files/crew-visibility";
 import { fileExists } from "@/lib/files/storage";
 import { mergeGallery } from "@/lib/photos/gallery";
 import { jobMoneyView } from "@/lib/money/access";
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest, context: Context) {
           { jobId, fileType: { startsWith: "image/" }, category: { not: "RECEIPT" } },
           // A file's day is the day it was taken when the camera said so, else its upload day.
           fromOk || toOk ? { OR: [{ takenAt: inRange }, { takenAt: null, createdAt: inRange }] } : {},
-          fileReadWhere(ctx.session.user),
+          (await fileReadWhereFor(ctx.session.user)),
         ],
       },
       orderBy: { createdAt: dir },
