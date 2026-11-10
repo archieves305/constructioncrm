@@ -21,9 +21,15 @@ import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
  *  - `sourceKey = "work:<idempotencyKey>"`, unique for these rows (migration
  *    20261112120000_work_integration): a retried send returns the same task.
  *  - Work may cancel only tasks it created.
+ *  - The job is optional (2026-11-10, "Send to KNU"): without one, an office
+ *    sender must name an assignee; the task is then visible to that person
+ *    (crews included, see lib/tasks/access.ts) and to office roles.
  */
 
 export const SOURCE_KEY_PREFIX = "work:";
+
+/** Roles that may send Work a task with no job (explicit list; never hasMinRole). */
+const STANDALONE_SENDERS: ReadonlySet<RoleName> = new Set<RoleName>(["ADMIN", "MANAGER", "OFFICE_STAFF"]);
 
 export class WorkApiError extends Error {
   constructor(
@@ -149,7 +155,8 @@ export async function listActiveUsers() {
 export const createFromWorkSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(200),
   actingEmail: z.string().trim().email(),
-  jobId: z.string().trim().min(1),
+  /** Optional: a task with no job (e.g. Equifirst maintenance sent to KNU) must name an assignee. */
+  jobId: z.string().trim().min(1).nullish(),
   title: z.string().trim().min(1).max(255),
   description: z.string().max(20_000).nullish(),
   assigneeEmail: z.string().trim().email().nullish(),
@@ -188,8 +195,16 @@ export async function createFromWork(raw: unknown): Promise<{ task: WorkTaskView
   // Access first, THEN the idempotent replay: a replayed key must never hand
   // the task to someone who couldn't have created it.
   const viewer = await actingUser(input.actingEmail);
-  const job = await prisma.job.findFirst({ where: { AND: [{ id: input.jobId }, jobAccessWhere(viewer)] }, select: { id: true } });
-  if (!job) throw new WorkApiError(404, "Job not found, or not one this person can see in the CRM.");
+  let job: { id: string } | null = null;
+  if (input.jobId) {
+    job = await prisma.job.findFirst({ where: { AND: [{ id: input.jobId }, jobAccessWhere(viewer)] }, select: { id: true } });
+    if (!job) throw new WorkApiError(404, "Job not found, or not one this person can see in the CRM.");
+  } else {
+    // No job: only office roles send one, and someone must own it (it has no job
+    // team to fall back on). Crews see it because it is assigned to them.
+    if (!STANDALONE_SENDERS.has(viewer.role)) throw new WorkApiError(403, "Only office staff can send a task without a job.");
+    if (!input.assigneeEmail) throw new WorkApiError(400, "assigneeEmail: a task without a job must be assigned to someone.");
+  }
 
   const existing = await findByKey(sourceKey);
   if (existing) return { task: toView(existing), created: false };
@@ -219,7 +234,7 @@ export async function createFromWork(raw: unknown): Promise<{ task: WorkTaskView
         dueAt: input.dueDate ? new Date(`${input.dueDate}T12:00:00.000Z`) : null,
         assignedUserId,
         createdByUserId: viewer.id,
-        jobId: job.id,
+        jobId: job?.id ?? null,
         watcherUserIds: watchers.map((w) => w.id),
         source: "work",
         sourceKey,

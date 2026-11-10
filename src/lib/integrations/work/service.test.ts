@@ -122,6 +122,27 @@ describe("createFromWork", () => {
   });
 });
 
+describe("createFromWork without a job (Send to KNU)", () => {
+  it("creates a stand-alone task assigned to the named person", async () => {
+    const { created } = await createFromWork({ ...body, jobId: null });
+    expect(created).toBe(true);
+    expect(db.job.findFirst).not.toHaveBeenCalled();
+    expect(createTask.mock.calls[0][0]).toMatchObject({ jobId: null, assignedUserId: "u-jose", source: "work" });
+  });
+  it("refuses a stand-alone task with nobody to own it", async () => {
+    await expect(createFromWork({ ...body, jobId: undefined, assigneeEmail: null })).rejects.toThrow("must be assigned");
+    expect(createTask).not.toHaveBeenCalled();
+  });
+  it("lets only office roles send one", async () => {
+    db.user.findFirst.mockImplementation(async ({ where }: { where: { email: string } }) =>
+      where.email === "richard@rcareylaw.com" ? { id: "u-richard", role: { name: "SALES_REP" } } : { id: "u-jose" },
+    );
+    await expect(createFromWork({ ...body, jobId: null })).rejects.toMatchObject({ status: 403 });
+    // With a job the old rule applies (the job's visibility).
+    await expect(createFromWork(body)).resolves.toMatchObject({ created: true });
+  });
+});
+
 describe("reads and cancel", () => {
   it("only reports tasks Work created", async () => {
     db.task.findMany.mockResolvedValue([row()]);
