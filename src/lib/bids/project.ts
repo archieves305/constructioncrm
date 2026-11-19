@@ -6,6 +6,7 @@ import { PartnerError } from "@/lib/partners/errors";
 import { BID_SELECT, createBid, moveLeadStage, presentBid, type BidInput } from "@/lib/partners/bids";
 import { bidProjectNumber, canMovePrime, canMoveProject, canMoveScope, derivedProjectStage, opportunityOutcome, projectAddressKey, projectNameKey, projectStageNeeds } from "./states";
 import { onPrimeAwarded } from "./events";
+import { planhubSuggestion } from "./planhub/plan";
 
 /**
  * PlanHub bid projects: one project, many GC opportunities (each the
@@ -294,6 +295,10 @@ const PROJECT_SELECT = {
   createdAt: true,
   updatedAt: true,
   owner: PERSON,
+  planhubStage: true,
+  planhubStageAt: true,
+  planhubDueAt: true,
+  planhubSeenAt: true,
   scopes: { orderBy: { sortOrder: "asc" as const }, select: { id: true, label: true, serviceCategoryId: true, serviceCategory: { select: { name: true } } } },
 } satisfies Prisma.BidProjectSelect;
 
@@ -312,8 +317,15 @@ export async function getProject(id: string, viewer: Viewer) {
       versions: { orderBy: { version: "desc" }, select: { id: true, version: true, status: true, total: true, bundleAdjustment: true, proposalDate: true, validUntil: true, organizationId: true, verifiedAt: true, createdAt: true, organization: { select: { name: true } }, file: { select: { id: true, fileName: true } }, lines: { orderBy: { sortOrder: "asc" }, select: { scopeId: true, kind: true, amount: true, description: true } }, _count: { select: { submissions: true } } } },
     },
   });
+  const subs = await prisma.bidSubmission.groupBy({ by: ["bidInvitationId"], where: { bidInvitation: { bidProjectId: id } }, _count: { _all: true } });
+  const subsByBid = new Map(subs.map((s) => [s.bidInvitationId, s._count._all]));
+  const planhub = planhubSuggestion({
+    planhubStage: project.planhubStage,
+    opportunities: total === 0 ? [] : opportunities.map((o) => ({ submissions: subsByBid.get(o.id) ?? 0, awards: o.awards.length, scopes: o.scopes })),
+  });
   return {
     ...project,
+    planhubSuggestion: planhub,
     proposals: proposals.map((p) => ({ ...p, versions: p.versions.map((v) => ({ ...v, total: v.total === null ? null : Number(v.total), bundleAdjustment: v.bundleAdjustment === null ? null : Number(v.bundleAdjustment), lines: v.lines.map((l) => ({ ...l, amount: Number(l.amount) })), submissions: v._count.submissions })) })),
     opportunities: opportunities.map((o) => ({
       ...presentBid(o),

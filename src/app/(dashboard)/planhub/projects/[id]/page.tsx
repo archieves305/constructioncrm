@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { BID_OUTCOME_LABEL, BID_STATUS_LABEL } from "@/lib/partners/bid-state";
 import { useBidOptions } from "@/components/partners/use-partners";
 import { Pill } from "@/components/bids/pill";
+import { PLANHUB_STAGE_LABEL } from "@/lib/bids/planhub/parse";
 import { AddGcDialog, AwardDialog, ConfirmAwardDialog, ProjectStageDialog, ScopeDecisionDialog } from "@/components/bids/project-dialogs";
 import { RecordSubmissionDialog } from "@/components/bids/record-submission-dialog";
 import { UploadEstimateButton } from "@/components/bids/upload-estimate-dialog";
@@ -55,6 +56,10 @@ function Project({ project: p }: { project: ProjectDetail }) {
         <div className="rounded-md border bg-tone-warning-soft p-3 text-sm">{STAGE_LABEL[p.stage]}: {p.stageReason}{p.stageReviewAt && <> — look again on {when(p.stageReviewAt)}</>}</div>
       )}
 
+      {p.planhubSuggestion && (
+        <div className="rounded-md border bg-tone-info-soft p-3 text-sm">{p.planhubSuggestion.text}</div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="min-w-0 lg:col-span-1">
           <CardHeader><CardTitle className="text-base">Project</CardTitle></CardHeader>
@@ -67,6 +72,8 @@ function Project({ project: p }: { project: ProjectDetail }) {
             <Row label="Prime award expected">{when(p.expectedPrimeAwardAt)}</Row>
             <Row label="Expected start">{when(p.expectedStartAt)}</Row>
             <Row label="KNU owner">{personLabel(p.owner)}</Row>
+            <Row label="PlanHub column">{p.planhubStage ? `${PLANHUB_STAGE_LABEL[p.planhubStage]}${p.planhubStageAt ? ` · since ${when(p.planhubStageAt, "MMM d")}` : ""}` : "—"}</Row>
+            <Row label="Due to the GC (PlanHub)">{when(p.planhubDueAt, "MMM d, yyyy")}</Row>
             <Row label="PlanHub">{p.platformUrl ? <a className="inline-flex items-center gap-1 underline" href={p.platformUrl} target="_blank" rel="noreferrer">Open <ExternalLink className="size-3" /></a> : (p.platformRef ?? "—")}</Row>
             <div className="pt-2">
               <p className="mb-1 text-xs font-medium text-muted-foreground">Scopes</p>

@@ -550,6 +550,7 @@ model User {
   bidSubmissionsMade                BidSubmission[]           @relation("BidSubmittedBy")
   bidProjectsOwned                  BidProject[]              @relation("BidProjectOwner")
   bidProjectsCreated                BidProject[]              @relation("BidProjectCreatedBy")
+  planhubSnapshots                  PlanhubSnapshot[]
   bidsAsPm                          BidInvitation[]           @relation("BidPm")
   roofMaterialPricesCreated         RoofMaterialPrice[]       @relation("RoofMaterialPriceCreatedBy")
   vendorComplianceOwnerOf           VendorSettings[]          @relation("VendorComplianceOwner")
@@ -6134,6 +6135,13 @@ model BidProject {
   notes                String?         @db.Text
   ownerUserId          String?         @map("owner_user_id")
   createdByUserId      String          @map("created_by_user_id")
+  // What the PlanHub Bid Board said last ("Send to CRM"): the card's name it
+  // is matched by, its column, and the GC's due date shown on the card.
+  planhubName          String?         @map("planhub_name")
+  planhubStage         PlanhubStage?   @map("planhub_stage")
+  planhubStageAt       DateTime?       @map("planhub_stage_at")
+  planhubDueAt         DateTime?       @map("planhub_due_at")
+  planhubSeenAt        DateTime?       @map("planhub_seen_at")
   createdAt            DateTime        @default(now()) @map("created_at")
   updatedAt            DateTime        @updatedAt @map("updated_at")
 
@@ -7445,4 +7453,38 @@ model GuestSubmission {
   @@index([status, createdAt])
   @@index([jobId])
   @@map("guest_submissions")
+}
+
+/// A PlanHub Bid Board column.
+enum PlanhubStage {
+  SAVED
+  ESTIMATING
+  BIDDING
+  SUBMITTED
+  WON
+  LOST
+}
+
+enum PlanhubPageKind {
+  BOARD
+  PROJECT
+}
+
+/// One "Send to CRM" click on a PlanHub page: what was on the screen, how it
+/// was read, and what a person applied. Kept as the audit trail of the sync.
+model PlanhubSnapshot {
+  id              String          @id @default(cuid())
+  kind            PlanhubPageKind
+  url             String
+  text            String          @db.Text
+  parsed          Json
+  applied         Json?
+  appliedAt       DateTime?       @map("applied_at")
+  createdByUserId String          @map("created_by_user_id")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  createdBy User @relation(fields: [createdByUserId], references: [id])
+
+  @@index([createdAt])
+  @@map("planhub_snapshots")
 }

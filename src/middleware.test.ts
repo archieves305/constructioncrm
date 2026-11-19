@@ -41,6 +41,7 @@ describe("middleware public path allowlist", () => {
     "/api/sign/TOKEN",
     "/api/sign/TOKEN/pdf",
     "/_next/static/chunk.js",
+    "/planhub-send.js?v=1",
   ];
 
   for (const path of publicPaths) {
@@ -62,6 +63,7 @@ describe("middleware public path allowlist", () => {
     "/api/cool",
     "/api/signing-keys",
     "/actions",
+    "/planhub/import",
   ];
 
   for (const path of privatePathsThatSharePrefixText) {

@@ -1,7 +1,7 @@
 import type { ElementType } from "react";
 import type { RoleName } from "@/generated/prisma/client";
 import { BarChart3, BellRing, Briefcase, Building2, FolderKanban, Calendar, CheckSquare, ClipboardCheck, ClipboardList, DollarSign, FileSignature, FolderLock, Gauge, Gavel, Hammer, Handshake, HardHat, Inbox, Landmark, LayoutDashboard, ListChecks, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Settings, Shield, Smartphone, Sparkles, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
-import { PARTNER_VIEW_ROLES } from "@/lib/partners/access";
+import { PARTNER_MANAGE_ROLES, PARTNER_VIEW_ROLES } from "@/lib/partners/access";
 import { canWriteLeads } from "@/lib/access/roles";
 
 /**
@@ -37,6 +37,7 @@ export const CANVASS_ROLES: RoleName[] = ALL_ROLES.filter(canWriteLeads);
 const OFFICE: RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF"];
 const VIOLATION_VIEWERS: RoleName[] = ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "MARKETING", "READ_ONLY"];
 const PARTNER_VIEWERS: RoleName[] = [...PARTNER_VIEW_ROLES];
+const PARTNER_MANAGERS: RoleName[] = [...PARTNER_MANAGE_ROLES];
 
 /**
  * Eleven entries for an admin (it was 41 links). One item per thing people
@@ -92,6 +93,7 @@ export const navSections: NavSection[] = [
     items: [
       { href: "/planhub", label: "Follow-ups", icon: ListChecks, match: "exact", hint: "Each GC you priced a job for, with its next call or email, deadlines, and who has decided" },
       { href: "/planhub/projects", label: "Projects", icon: FolderKanban, hint: "The jobs being bid on PlanHub — one row per job, however many GCs bid it" },
+      { href: "/planhub/import", label: "From PlanHub", icon: Inbox, hint: "Send your PlanHub Bid Board and project pages here with the Send to CRM bookmark", roles: PARTNER_MANAGERS },
     ],
   },
   {

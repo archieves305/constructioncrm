@@ -599,6 +599,47 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-11-19 — PlanHub "Send to CRM" (built + dev-QA'd on `planhub-sync`, not deployed)
+
+Richard asked for a login bot that scrapes his PlanHub Saved Bid Board into the CRM.
+PlanHub's Terms of Use (§4) ban scrapers and bots, and §6 makes him keep his password
+confidential. **Ruled:** a bookmark he clicks in his own signed-in browser, with no
+password stored. Submitted, Won and Lost are suggestions only. Looked at the real
+pages read-only through Claude in Chrome:
+- the board shows only the name, "DUE DEC 04" (no year), the column and the bid value;
+- a project's page (`/leads/details/<id>/project-info`) shows the address, one GC with
+  its contact, the due date with its time, and the trades;
+- neither page sends a COOP or CSP header, so the `postMessage` hand-off works.
+
+Built:
+- Migration `20261126120000_planhub_sync`: `bid_projects.planhub_name`, `_stage`,
+  `_stage_at`, `_due_at`, `_seen_at`; the `PlanhubSnapshot` table.
+- Pure `src/lib/bids/planhub/parse.ts`. Deterministic, no AI. A card's year is the one
+  nearest today; the address is split after the street word.
+- Pure `plan.ts`: board matching by the PlanHub name, changes, fill-blanks-only,
+  trade mapping, `planhubSuggestion` (derived on read).
+- `sync.ts`: `readSnapshot`, `applyBoard`, `applyProject`. A new GC becomes an
+  account and contact, then `addOpportunity` TRACKING due at PlanHub's time.
+- Routes `POST /api/bid-projects/planhub/{read,apply}` (`canManagePartners`).
+- Page `/planhub/import` with the bookmark link, the review and a paste fallback; nav
+  entry "From PlanHub".
+- `public/planhub-send.js`, made public in the middleware.
+- The project page shows the PlanHub column and the reminder.
+
+Gate: typecheck clean, lint clean on the touched files, 2212 tests (+28), build clean.
+
+Dev QA:
+- API 20/20: 10 projects created; a second send changes nothing; a column move is
+  applied; the project page matched by board name; LEGO added with its contact and
+  the 2 PM due date; the RECORD_SENT reminder; a resend makes no duplicate.
+- Headless Chromium 12/12, with a stand-in planhub.com page loading the real script:
+  the popup hand-off, columns, 1440 / 400 px, no page errors.
+- Roles: MARKETING 403, SALES_REP 200. QA rows were removed.
+
+Not proven: the real board at full width (one column per stage) and Chrome's
+pop-up prompt on PlanHub. That is the first live click after the deploy.
+**Deploy carries the migration.**
+
 ### 2026-11-18 — PlanHub bid management, Stage 1b: Upload Estimate, AI reading, review, record as sent (built + dev-QA'd on `planhub-1a`, merged to `main` 2026-11-18)
 
 Migration `20261125120000_bid_proposals_unfiled` (a proposal waits without a project until confirmed; supporting files / pasted text on the version). `src/lib/bids/proposal-plan.ts` (pure, tested: answer schema, `draftFromExtraction` — trades by name and usual words, a validity period becomes a flagged expiry, a negative unsplit line becomes the bundle discount, a total the lines miss becomes a conflict; `confirmProblems`; `amountForScopes` — a GC bidding part of a bundle never gets the discount; `quotedByScope`), `xlsx-text.ts` (exceljs → `A1=value` text), prompt `bid_proposal_extract` v3 (Opus; documents as data), `proposals.ts` (upload with sha256 dedupe, claimed background reading with stale restart, review save, read again, `confirmVersion`: files on a new or chosen project, creates scopes, same proposal number = next version and the old one SUPERSEDED, adds / updates GCs, Estimating → Ready to submit only with a verified version and a recipient email — never Submitted), `submissions.ts` (`recordSubmissions`: one submission per GC with recipients and the version; `addSubmission` takes `proposalVersionId`, recipients, evidence). Intake: a PlanHub id names the project (`findExistingBid` no longer suggests another GC's bid), cards suggest the project, `fileIntakeOnProject` + `POST /api/partners/intake/[id]/project`. Files: a proposal, award or submission evidence file counts as generated (never deleted or replaced); a rep reads files on projects they work. UI: Upload estimate (PlanHub page + project), `/planhub/proposals/[id]` review, project Proposals card, Record as sent dialog, intake "Add this GC to BP-n / Start a PlanHub project". **Found in QA: the structured-output API refuses more than 16 nullable fields and too large a grammar — the schema is one flat object of strings plus an evidence list.** Gate: typecheck clean, lint 5/21, 2181 tests, build clean. Dev QA (mail blank): API 35/35 with real readings on a synthetic proposal PDF (19 s; every value and source right, a planted instruction ignored) and an xlsx (cell `Bid Summary!B6`), $0.12 for three readings; headless Chromium 14/14 at 1440 / 400 px; SALES_REP 404 on others' uploads / projects; AI off → FAILED with typing by hand. Still needed: real PlanHub emails and real KNU proposals to check the reader on.

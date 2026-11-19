@@ -1,6 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { PlanhubStageKey } from "@/lib/bids/planhub/parse";
+import type { Suggestion } from "@/lib/bids/planhub/plan";
 import { toast } from "sonner";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import type { Bid, LossReason } from "@/components/partners/use-partners";
@@ -50,6 +52,11 @@ export type ProjectDetail = {
   stage: ProjectStage;
   stageReason: string | null;
   stageReviewAt: string | null;
+  planhubStage: PlanhubStageKey | null;
+  planhubStageAt: string | null;
+  planhubDueAt: string | null;
+  planhubSeenAt: string | null;
+  planhubSuggestion: Suggestion | null;
   ownerBidDueAt: string | null;
   expectedPrimeAwardAt: string | null;
   expectedStartAt: string | null;

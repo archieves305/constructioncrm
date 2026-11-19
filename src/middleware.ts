@@ -37,6 +37,8 @@ const PUBLIC_PREFIXES = [
   "/api/cron",
   "/api/integrations",
   "/_next",
+  // The "Send to CRM" bookmarklet's script, loaded into a PlanHub page (no data in it).
+  "/planhub-send.js",
 ];
 
 /**
