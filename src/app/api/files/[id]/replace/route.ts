@@ -21,11 +21,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (!session?.user) return unauthorized();
 
   const { id } = await context.params;
-  const existing = await prisma.file.findFirst({ where: { AND: [{ id }, (await fileReadWhereFor(session.user))] }, include: { _count: { select: { generatedDocuments: true, permitSubmissions: true } } } });
+  const existing = await prisma.file.findFirst({ where: { AND: [{ id }, (await fileReadWhereFor(session.user))] }, include: { _count: { select: { generatedDocuments: true, permitSubmissions: true, bidProposalVersions: true, bidAwardEvidence: true, bidSubmissionEvidence: true } } } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const verdict = canEditFile(session.user, {
     ...existing,
-    generated: existing._count.generatedDocuments > 0,
+    generated: (existing._count.generatedDocuments + existing._count.bidProposalVersions + existing._count.bidAwardEvidence + existing._count.bidSubmissionEvidence > 0),
     permitLock: permitLockOf({ permitDocType: existing.permitDocType, permitSubmissionCount: existing._count.permitSubmissions }),
   });
   if (!verdict.ok) return NextResponse.json({ error: verdict.reason }, { status: 403 });

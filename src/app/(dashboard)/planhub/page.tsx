@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { BID_OUTCOME_LABEL, BID_STATUS_LABEL } from "@/lib/partners/bid-state";
 import { Pill } from "@/components/bids/pill";
 import { NewProjectDialog } from "@/components/bids/project-dialogs";
+import { UploadEstimateButton } from "@/components/bids/upload-estimate-dialog";
 import { personLabel, PRIME_LABEL, PRIME_TONE, QUEUE_HINT, QUEUE_LABEL, SCOPE_LABEL, SCOPE_TONE, usd, useQueue, useQueueCounts, type Opportunity, type Queue } from "@/components/bids/use-bid-projects";
 
 const QUEUES: Queue[] = ["mine", "gc_awarded", "deadlines", "ready", "awaiting", "unassigned", "history"];
@@ -52,7 +53,8 @@ function PlanHub() {
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" render={<Link href="/planhub/projects" />} nativeButton={false}><FolderKanban className="mr-1.5 size-4" /> Projects</Button>
-            {list.data?.canManage && <Button variant="brand" size="sm" onClick={() => setCreating(true)}><Plus className="mr-1.5 size-4" /> New project</Button>}
+            {list.data?.canManage && <Button variant="outline" size="sm" onClick={() => setCreating(true)}><Plus className="mr-1.5 size-4" /> New project</Button>}
+            {list.data?.canManage && <UploadEstimateButton />}
           </div>
         }
       />

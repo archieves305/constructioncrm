@@ -14,7 +14,9 @@ import { BID_OUTCOME_LABEL, BID_STATUS_LABEL } from "@/lib/partners/bid-state";
 import { useBidOptions } from "@/components/partners/use-partners";
 import { Pill } from "@/components/bids/pill";
 import { AddGcDialog, AwardDialog, ConfirmAwardDialog, ProjectStageDialog, ScopeDecisionDialog } from "@/components/bids/project-dialogs";
-import { personLabel, PRIME_LABEL, PRIME_TONE, SCOPE_LABEL, SCOPE_TONE, STAGE_LABEL, STAGE_TONE, useBidProjectAction, useProject, usd, type Award, type Opportunity, type PrimeStatus, type ProjectDetail } from "@/components/bids/use-bid-projects";
+import { RecordSubmissionDialog } from "@/components/bids/record-submission-dialog";
+import { UploadEstimateButton } from "@/components/bids/upload-estimate-dialog";
+import { personLabel, PRIME_LABEL, PRIME_TONE, SCOPE_LABEL, SCOPE_TONE, STAGE_LABEL, STAGE_TONE, useBidProjectAction, useProject, usd, type Award, type Opportunity, type PrimeStatus, type ProjectDetail, type ProposalVersionRow } from "@/components/bids/use-bid-projects";
 
 const when = (d: string | null, f = "MMM d, yyyy") => (d ? format(new Date(d), f) : "—");
 
@@ -43,6 +45,7 @@ function Project({ project: p }: { project: ProjectDetail }) {
           can.canManage ? (
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => setStaging(true)}>Project status…</Button>
+              <UploadEstimateButton projectId={p.id} variant="outline" />
               <Button variant="brand" size="sm" onClick={() => setAddingGc(true)} disabled={p.stage === "CANCELLED" || p.stage === "CLOSED"}><Plus className="mr-1.5 size-4" /> Add a GC</Button>
             </div>
           ) : undefined
@@ -75,6 +78,7 @@ function Project({ project: p }: { project: ProjectDetail }) {
         </Card>
 
         <div className="min-w-0 space-y-3 lg:col-span-2">
+          <Proposals project={p} />
           <h2 className="text-sm font-semibold">GCs bidding this project ({p.opportunities.length}{p.hiddenOpportunities ? ` · ${p.hiddenOpportunities} not yours` : ""})</h2>
           {p.opportunities.length === 0 ? (
             <EmptyState icon={FolderKanban} title="No GC yet" description="Add each general contractor you are pricing this job for." action={can.canManage ? <Button variant="brand" onClick={() => setAddingGc(true)}><Plus className="mr-1.5 size-4" />Add a GC</Button> : undefined} />
@@ -86,6 +90,42 @@ function Project({ project: p }: { project: ProjectDetail }) {
       <AddGcDialog project={p} open={addingGc} onOpenChange={setAddingGc} />
       <ProjectStageDialog project={p} open={staging} onOpenChange={setStaging} />
     </div>
+  );
+}
+
+const VERSION_TONE = { EXTRACTING: "info", REVIEW: "warning", FAILED: "danger", VERIFIED: "success", SUPERSEDED: "neutral" } as const;
+const VERSION_LABEL = { EXTRACTING: "Reading", REVIEW: "Needs checking", FAILED: "Type the values", VERIFIED: "Checked", SUPERSEDED: "Superseded" } as const;
+
+function Proposals({ project: p }: { project: ProjectDetail }) {
+  const [sending, setSending] = useState<ProposalVersionRow | null>(null);
+  const versions = p.proposals.flatMap((pr) => pr.versions.map((v) => ({ ...v, title: pr.number ? `${pr.number} · ${pr.title}` : pr.title })));
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <CardTitle className="text-base">Proposals</CardTitle>
+        {p.permissions.canManage && versions.length === 0 && <UploadEstimateButton projectId={p.id} variant="outline" />}
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm">
+        {versions.length === 0 && <p className="text-muted-foreground">No proposal yet. Upload KNU&rsquo;s estimate: the AI reads it and you check it before it can be recorded as sent.</p>}
+        {versions.map((v) => (
+          <div key={v.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <Link href={`/planhub/proposals/${v.id}`} className="font-medium hover:underline">{v.title} · v{v.version}</Link>
+                <Pill tone={VERSION_TONE[v.status]}>{VERSION_LABEL[v.status]}</Pill>
+                {v.organization && <Pill tone="info">For {v.organization.name} only</Pill>}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {v.total != null ? usd(v.total) : "No total yet"}{v.validUntil ? ` · good until ${when(v.validUntil)}` : ""} · {v.submissions} sent{v.file ? <> · <a className="underline" href={`/api/files/${v.file.id}`} target="_blank" rel="noreferrer">{v.file.fileName}</a></> : null}
+              </p>
+            </div>
+            {p.permissions.canManage && v.status === "VERIFIED" && <Button size="sm" variant="brand" onClick={() => setSending(v)}>Record as sent…</Button>}
+            {p.permissions.canManage && (v.status === "REVIEW" || v.status === "FAILED") && <Button size="sm" variant="outline" render={<Link href={`/planhub/proposals/${v.id}`} />} nativeButton={false}>Check it</Button>}
+          </div>
+        ))}
+      </CardContent>
+      {sending && <RecordSubmissionDialog project={p} version={sending} open onOpenChange={(o) => !o && setSending(null)} />}
+    </Card>
   );
 }
 

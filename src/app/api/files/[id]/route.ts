@@ -17,8 +17,8 @@ type Context = { params: Promise<{ id: string }> };
 
 /** The file within the viewer's scope, with whether the CRM generated it. Outside the scope reads as "not found", so ids cannot be probed. */
 async function loadFile(viewer: { id: string; role: RoleName }, id: string) {
-  const file = await prisma.file.findFirst({ where: { AND: [{ id }, (await fileReadWhereFor(viewer))] }, include: { _count: { select: { generatedDocuments: true, permitSubmissions: true } } } });
-  return file ? { ...file, generated: file._count.generatedDocuments > 0, permitLock: permitLockOf({ permitDocType: file.permitDocType, permitSubmissionCount: file._count.permitSubmissions }) } : null;
+  const file = await prisma.file.findFirst({ where: { AND: [{ id }, (await fileReadWhereFor(viewer))] }, include: { _count: { select: { generatedDocuments: true, permitSubmissions: true, bidProposalVersions: true, bidAwardEvidence: true, bidSubmissionEvidence: true } } } });
+  return file ? { ...file, generated: (file._count.generatedDocuments + file._count.bidProposalVersions + file._count.bidAwardEvidence + file._count.bidSubmissionEvidence > 0), permitLock: permitLockOf({ permitDocType: file.permitDocType, permitSubmissionCount: file._count.permitSubmissions }) } : null;
 }
 
 export async function GET(request: NextRequest, context: Context) {

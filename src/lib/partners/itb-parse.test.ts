@@ -153,6 +153,12 @@ describe("matchAccount", () => {
 });
 
 describe("findExistingBid", () => {
+  it("on PlanHub the project id matches only the same GC's bid", () => {
+    const planhub = [{ id: "p1", number: "BID-00001", organizationId: "gc-a", projectName: "Towne Hotel", platformRef: "ph-77", status: "SUBMITTED" }];
+    expect(findExistingBid({ platformRef: "ph-77", projectName: "Towne Hotel", platform: "PLANHUB" }, "gc-b", planhub)).toBeNull();
+    expect(findExistingBid({ platformRef: "ph-77", projectName: "Towne Hotel", platform: "PLANHUB" }, null, planhub)).toBeNull();
+    expect(findExistingBid({ platformRef: "ph-77", projectName: "x", platform: "PLANHUB" }, "gc-a", planhub)?.id).toBe("p1");
+  });
   const bids = [
     { id: "b1", number: "BID-00001", organizationId: "kl", projectName: "Pompano Beach Senior Living — drywall", platformRef: null, status: "ESTIMATING" },
     { id: "b2", number: "BID-00002", organizationId: "mi", projectName: "Other", platformRef: "998877", status: "INVITED" },

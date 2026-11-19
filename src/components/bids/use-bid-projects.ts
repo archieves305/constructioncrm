@@ -57,9 +57,28 @@ export type ProjectDetail = {
   owner: Person | null;
   scopes: { id: string; label: string; serviceCategoryId: string; serviceCategory: { name: string } }[];
   opportunities: (Opportunity & { awards: Award[] })[];
+  proposals: ProposalRow[];
   hiddenOpportunities: number;
   permissions: { canManage: boolean; canAdmin: boolean };
 };
+
+export type ProposalVersionRow = {
+  id: string;
+  version: number;
+  status: "EXTRACTING" | "REVIEW" | "VERIFIED" | "FAILED" | "SUPERSEDED";
+  total: number | null;
+  bundleAdjustment: number | null;
+  proposalDate: string | null;
+  validUntil: string | null;
+  organizationId: string | null;
+  organization: { name: string } | null;
+  verifiedAt: string | null;
+  createdAt: string;
+  file: { id: string; fileName: string } | null;
+  lines: { scopeId: string | null; kind: string; amount: number; description: string | null }[];
+  submissions: number;
+};
+export type ProposalRow = { id: string; number: string | null; title: string; versions: ProposalVersionRow[] };
 
 export type ProjectRow = {
   id: string;

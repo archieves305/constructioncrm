@@ -6214,12 +6214,12 @@ model BidAward {
 
 model BidProposal {
   id           String   @id @default(cuid())
-  bidProjectId String   @map("bid_project_id")
+  bidProjectId String?  @map("bid_project_id")
   number       String? // the proposal number printed on the document
   title        String
   createdAt    DateTime @default(now()) @map("created_at")
 
-  bidProject BidProject           @relation(fields: [bidProjectId], references: [id], onDelete: Cascade)
+  bidProject BidProject?          @relation(fields: [bidProjectId], references: [id], onDelete: Cascade)
   versions   BidProposalVersion[]
 
   @@index([bidProjectId])
@@ -6227,36 +6227,40 @@ model BidProposal {
 }
 
 model BidProposalVersion {
-  id               String            @id @default(cuid())
-  bidProposalId    String            @map("bid_proposal_id")
-  bidProjectId     String            @map("bid_project_id")
-  version          Int
-  fileId           String?           @map("file_id")
-  sha256           String?
-  status           BidProposalStatus @default(EXTRACTING)
-  extractAttempts  Int               @default(0) @map("extract_attempts")
-  extractStartedAt DateTime?         @map("extract_started_at")
-  extractError     String?           @map("extract_error") @db.Text
-  aiCallId         String?           @map("ai_call_id")
+  id                String            @id @default(cuid())
+  bidProposalId     String            @map("bid_proposal_id")
+  bidProjectId      String?           @map("bid_project_id")
+  version           Int
+  fileId            String?           @map("file_id")
+  sha256            String?
+  status            BidProposalStatus @default(EXTRACTING)
+  extractAttempts   Int               @default(0) @map("extract_attempts")
+  extractStartedAt  DateTime?         @map("extract_started_at")
+  extractError      String?           @map("extract_error") @db.Text
+  aiCallId          String?           @map("ai_call_id")
   // { fields: { name: {value, source, confidence} }, conflicts: [...] } as the reader returned it.
-  extracted        Json?
-  proposalDate     DateTime?         @map("proposal_date")
-  validUntil       DateTime?         @map("valid_until")
-  currency         String            @default("USD")
-  total            Decimal?          @db.Decimal(12, 2)
+  extracted         Json?
+  proposalDate      DateTime?         @map("proposal_date")
+  validUntil        DateTime?         @map("valid_until")
+  currency          String            @default("USD")
+  total             Decimal?          @db.Decimal(12, 2)
   // A bundle price below the sum of its scope lines: total = Σ BASE lines + adjustment.
-  bundleAdjustment Decimal?          @map("bundle_adjustment") @db.Decimal(12, 2)
-  inclusions       String?           @db.Text
-  exclusions       String?           @db.Text
-  alternates       String?           @db.Text
-  clarifications   String?           @db.Text
+  bundleAdjustment  Decimal?          @map("bundle_adjustment") @db.Decimal(12, 2)
+  inclusions        String?           @db.Text
+  exclusions        String?           @db.Text
+  alternates        String?           @db.Text
+  clarifications    String?           @db.Text
   // A GC-specific variant (its own price or document); null = for every GC.
-  organizationId   String?           @map("organization_id")
-  verifiedByUserId String?           @map("verified_by_user_id")
-  verifiedAt       DateTime?         @map("verified_at")
-  createdByUserId  String            @map("created_by_user_id")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
+  organizationId    String?           @map("organization_id")
+  // Documents read with it (the PlanHub invitation email, a saved project page): File ids.
+  supportingFileIds String[]          @default([]) @map("supporting_file_ids")
+  // Text pasted beside the upload (an invitation email body).
+  supportingText    String?           @map("supporting_text") @db.Text
+  verifiedByUserId  String?           @map("verified_by_user_id")
+  verifiedAt        DateTime?         @map("verified_at")
+  createdByUserId   String            @map("created_by_user_id")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
 
   proposal     BidProposal       @relation(fields: [bidProposalId], references: [id], onDelete: Cascade)
   file         File?             @relation("BidProposalFile", fields: [fileId], references: [id], onDelete: SetNull)

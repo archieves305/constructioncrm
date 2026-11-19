@@ -71,3 +71,55 @@ export const awardSchema = z
   .object({ kind: z.enum(["VERBAL", "WRITTEN", "EXECUTED"]), scopeIds: z.array(id).min(1).max(20), amount, awardedAt: when, evidenceFileId: id.nullish(), notes: text(5000) })
   .refine((v) => v.kind === "VERBAL" || Boolean(v.evidenceFileId), { message: "Attach the award letter, LOI or signed subcontract", path: ["evidenceFileId"] });
 export const confirmAwardSchema = z.object({ kind: z.enum(["WRITTEN", "EXECUTED"]), amount: amount.optional(), evidenceFileId: id, awardedAt: when });
+
+// ── Stage 1b: proposals ──────────────────────────────────────────────────
+
+const reviewField = z.object({ value: z.string().max(2000), source: z.string().max(200).nullable(), confidence: z.number().min(0).max(1).nullable(), state: z.enum(["ok", "uncertain", "missing"]) });
+const lineKind = z.enum(["BASE", "ALTERNATE", "ALLOWANCE", "UNIT"]);
+export const reviewDraftSchema = z.object({
+  fields: z.record(z.string(), reviewField),
+  lines: z.array(z.object({ serviceCategoryId: id.nullable(), tradeText: z.string().max(200), description: z.string().max(2000), kind: lineKind, amount: z.number().min(-1_000_000_000).max(1_000_000_000), source: z.string().max(200).nullable(), confidence: z.number().min(0).max(1).nullable() })).max(200),
+  bundleOnly: z.boolean(),
+  inclusions: z.string().max(20_000),
+  exclusions: z.string().max(20_000),
+  clarifications: z.string().max(20_000),
+  alternates: z.string().max(20_000),
+  gcContacts: z.array(z.object({ name: z.string().max(200), email: z.string().max(320).nullable(), phone: z.string().max(60).nullable(), title: z.string().max(200).nullable(), source: z.string().max(200).nullable() })).max(50),
+  conflicts: z.array(z.object({ field: z.string().max(100), values: z.array(z.object({ value: z.string().max(2000), source: z.string().max(200).nullable() })).max(10) })).max(50),
+  summary: z.string().max(4000),
+  documentKind: z.enum(["proposal", "estimate", "invitation", "other"]),
+});
+
+export const confirmProposalSchema = z.object({
+  project: z.union([z.object({ id }), z.object({ create: z.object(projectFields), force: z.boolean().optional() })]),
+  proposalNumber: text(120),
+  proposalDate: when,
+  validUntil: when,
+  total: z.number().positive().max(1_000_000_000),
+  bundleAdjustment: z.number().min(-1_000_000_000).max(0),
+  lines: z.array(z.object({ serviceCategoryId: id.nullable(), kind: lineKind, description: text(2000), amount: z.number().min(0).max(1_000_000_000) })).min(1).max(200),
+  inclusions: text(20_000),
+  exclusions: text(20_000),
+  alternates: text(20_000),
+  clarifications: text(20_000),
+  organizationId: id.nullish(),
+  gcs: z.array(z.object({ organizationId: id, contactId: id.nullish(), bidDueAt: when, estimatorUserId: id.nullish() })).max(30),
+});
+
+export const recordSubmissionsSchema = z.object({
+  versionId: id,
+  entries: z.array(z.object({ bidId: id, recipientContactIds: z.array(id).max(20), method: z.enum(["PLATFORM", "EMAIL", "PORTAL", "HAND", "OTHER"]), submittedAt: when, amount: z.number().positive().max(1_000_000_000).nullish(), evidenceFileId: id.nullish() })).min(1).max(30),
+});
+
+/** A PlanHub invitation email filed under a bid project (existing, or started from the email). */
+export const intakeToProjectSchema = z
+  .object({
+    projectId: id.nullish(),
+    createProject: z.object({ ...projectFields }).nullish(),
+    organizationId: id,
+    contactId: id.nullish(),
+    scopeServiceCategoryIds: z.array(id).min(1, "Pick the scopes KNU is bidding").max(20),
+    bidDueAt: when,
+    estimatorUserId: id.nullish(),
+  })
+  .refine((v) => Boolean(v.projectId) || Boolean(v.createProject), { message: "Pick the project, or start one from the email", path: ["projectId"] });

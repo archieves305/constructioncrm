@@ -10,7 +10,7 @@ export const FILE_LIST_INCLUDE = {
   task: { select: { id: true, title: true } },
   // A receipt says which expense it is for.
   expense: { select: { id: true, vendor: true, amount: true, incurredDate: true } },
-  _count: { select: { generatedDocuments: true, permitSubmissions: true } },
+  _count: { select: { generatedDocuments: true, permitSubmissions: true, bidProposalVersions: true, bidAwardEvidence: true, bidSubmissionEvidence: true } },
 } satisfies Prisma.FileInclude;
 
 type Row = Prisma.FileGetPayload<{ include: typeof FILE_LIST_INCLUDE }>;
@@ -32,7 +32,7 @@ export async function presentFiles(rows: readonly Row[]) {
       ...rest,
       expense: rest.expense ? { ...rest.expense, amount: Number(rest.expense.amount) } : null,
       missing: !present[i],
-      generated: _count.generatedDocuments > 0,
+      generated: (_count.generatedDocuments + _count.bidProposalVersions + _count.bidAwardEvidence + _count.bidSubmissionEvidence > 0),
       // a permit document sent in a frozen package, or issued by the department: kept as it is
       permitLock: permitLockOf({ permitDocType: rest.permitDocType, permitSubmissionCount: _count.permitSubmissions }),
     };

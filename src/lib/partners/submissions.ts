@@ -24,12 +24,17 @@ export type SubmissionInput = {
   fileId?: string | null;
   /** Hours spent on this bid, recorded with the submission. */
   estimatingHours?: number | null;
+  /** PlanHub bid projects: the checked proposal version that went out, everyone it went to, and proof it was sent. */
+  proposalVersionId?: string | null;
+  recipientContactIds?: string[];
+  evidenceFileId?: string | null;
+  confirmedVia?: "manual" | "email" | "platform" | null;
 };
 
 const clean = (v: string | null | undefined) => v?.trim() || null;
 
 export async function addSubmission(bidId: string, input: SubmissionInput, actorUserId: string) {
-  const bid = await prisma.bidInvitation.findUnique({ where: { id: bidId }, select: { id: true, leadId: true, organizationId: true, status: true, number: true, submissions: { select: { version: true }, orderBy: { version: "desc" }, take: 1 } } });
+  const bid = await prisma.bidInvitation.findUnique({ where: { id: bidId }, select: { id: true, leadId: true, organizationId: true, bidProjectId: true, status: true, number: true, submissions: { select: { version: true }, orderBy: { version: "desc" }, take: 1 } } });
   if (!bid) throw new PartnerError(404, "Bid not found");
   if (bid.status === "CLOSED") throw new PartnerError(409, "The bid is closed; reopen it to record another submission");
   if (input.estimateId && input.roofEstimateId) throw new PartnerError(400, "A submission links one estimate, not two");
@@ -52,6 +57,19 @@ export async function addSubmission(bidId: string, input: SubmissionInput, actor
     const f = await prisma.file.findUnique({ where: { id: input.fileId }, select: { leadId: true } });
     if (!f || f.leadId !== bid.leadId) throw new PartnerError(400, "fileId: not a file on this bid");
   }
+  const recipients = [...new Set([...(input.recipientContactIds ?? []), ...(input.recipientContactId ? [input.recipientContactId] : [])])];
+  const people = recipients.length ? await prisma.contact.findMany({ where: { id: { in: recipients } }, select: { id: true, organizationId: true, firstName: true, lastName: true, email: true } }) : [];
+  if (people.length !== recipients.length || people.some((c) => c.organizationId !== bid.organizationId)) throw new PartnerError(400, "recipientContactIds: someone is not at this account");
+  if (input.proposalVersionId) {
+    const pv = await prisma.bidProposalVersion.findUnique({ where: { id: input.proposalVersionId }, select: { status: true, bidProjectId: true, organizationId: true } });
+    if (!pv || !bid.bidProjectId || pv.bidProjectId !== bid.bidProjectId) throw new PartnerError(400, "proposalVersionId: not a proposal on this bid's project");
+    if (pv.status !== "VERIFIED") throw new PartnerError(409, "Only a checked (confirmed) proposal can be recorded as sent");
+    if (pv.organizationId && pv.organizationId !== bid.organizationId) throw new PartnerError(400, "That proposal version is priced for a different GC");
+  }
+  if (input.evidenceFileId) {
+    const f = await prisma.file.findUnique({ where: { id: input.evidenceFileId }, select: { leadId: true, bidProjectId: true } });
+    if (!f || (f.leadId !== bid.leadId && (!bid.bidProjectId || f.bidProjectId !== bid.bidProjectId))) throw new PartnerError(400, "evidenceFileId: not a file on this bid or its project");
+  }
   const version = (bid.submissions[0]?.version ?? 0) + 1;
   const submittedAt = input.submittedAt ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(input.submittedAt) ? `${input.submittedAt}T12:00:00.000Z` : input.submittedAt) : new Date();
   if (Number.isNaN(submittedAt.getTime())) throw new PartnerError(400, "submittedAt: not a date");
@@ -67,12 +85,16 @@ export async function addSubmission(bidId: string, input: SubmissionInput, actor
         ...snapshot,
         submittedAt,
         method: input.method ?? "PLATFORM",
-        recipientContactId: input.recipientContactId ?? null,
+        recipientContactId: input.recipientContactId ?? recipients[0] ?? null,
         alternates: clean(input.alternates),
         clarifications: clean(input.clarifications),
         exclusions: clean(input.exclusions),
         fileId: input.fileId ?? null,
         submittedByUserId: actorUserId,
+        proposalVersionId: input.proposalVersionId ?? null,
+        evidenceFileId: input.evidenceFileId ?? null,
+        confirmedVia: input.confirmedVia ?? null,
+        recipients: { create: people.map((c) => ({ contactId: c.id, emailSnapshot: c.email, nameSnapshot: `${c.firstName} ${c.lastName}`.trim() })) },
       },
       select: { id: true },
     });
@@ -81,11 +103,11 @@ export async function addSubmission(bidId: string, input: SubmissionInput, actor
     if (bid.status === "SHORTLISTED") data.status = "SUBMITTED";
     if (input.estimatingHours !== undefined && input.estimatingHours !== null) data.estimatingHours = input.estimatingHours;
     await tx.bidInvitation.update({ where: { id: bidId }, data });
-    await tx.interaction.create({ data: { organizationId: bid.organizationId, contactId: input.recipientContactId ?? null, leadId: bid.leadId, userId: actorUserId, kind: "BID_DISCUSSION", direction: "OUTBOUND", outcome: "SENT", occurredAt: submittedAt, summary: `Bid ${bid.number} v${version} submitted: ${input.amount.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}` } });
+    await tx.interaction.create({ data: { organizationId: bid.organizationId, contactId: input.recipientContactId ?? recipients[0] ?? null, leadId: bid.leadId, bidInvitationId: bidId, userId: actorUserId, kind: "BID_DISCUSSION", direction: "OUTBOUND", outcome: "SENT", occurredAt: submittedAt, summary: `Bid ${bid.number} v${version} submitted: ${input.amount.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}` } });
     await advanceLastContact(tx, bid.organizationId, submittedAt);
     return s;
   });
-  await recordAudit({ actorUserId, entityType: "BidSubmission", entityId: created.id, action: version === 1 ? "bid_submitted" : "bid_revised", after: { bidId, version, amount: input.amount, estimateId: input.estimateId ?? null, roofEstimateId: input.roofEstimateId ?? null, method: input.method ?? "PLATFORM" } });
+  await recordAudit({ actorUserId, entityType: "BidSubmission", entityId: created.id, action: version === 1 ? "bid_submitted" : "bid_revised", after: { bidId, version, amount: input.amount, estimateId: input.estimateId ?? null, roofEstimateId: input.roofEstimateId ?? null, method: input.method ?? "PLATFORM", proposalVersionId: input.proposalVersionId ?? null, recipients, evidenceFileId: input.evidenceFileId ?? null } });
   return presentBid(await prisma.bidInvitation.findUniqueOrThrow({ where: { id: bidId }, select: BID_SELECT }));
 }
 

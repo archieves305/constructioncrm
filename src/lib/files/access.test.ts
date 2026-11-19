@@ -11,10 +11,11 @@ describe("fileReadWhere", () => {
     }
   });
 
-  it("narrows a sales rep and a crew lead to their own uploads, leads, tasks and cases", () => {
+  it("narrows a sales rep and a crew lead to their own uploads, leads, tasks, cases and bid projects", () => {
     for (const role of ["SALES_REP", "CREW_LEAD"]) {
       const where = fileReadWhere({ id: "u1", role: role as never });
-      expect(where.OR).toHaveLength(5);
+      expect(where.OR).toHaveLength(6);
+      expect(where.OR?.[5]).toHaveProperty("bidProject");
       expect(where.OR?.[2]).toHaveProperty("job");
       expect(where.OR?.[0]).toEqual({ uploadedByUserId: "u1" });
     }

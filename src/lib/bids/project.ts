@@ -304,8 +304,17 @@ export async function getProject(id: string, viewer: Viewer) {
   const total = await prisma.bidInvitation.count({ where: { bidProjectId: id } });
   // An own-only role that can open none of the project's GCs does not see the project.
   if (total > 0 && opportunities.length === 0 && project.owner?.id !== viewer.id) throw new PartnerError(404, "Project not found");
+  const proposals = await prisma.bidProposal.findMany({
+    where: { bidProjectId: id },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true, number: true, title: true,
+      versions: { orderBy: { version: "desc" }, select: { id: true, version: true, status: true, total: true, bundleAdjustment: true, proposalDate: true, validUntil: true, organizationId: true, verifiedAt: true, createdAt: true, organization: { select: { name: true } }, file: { select: { id: true, fileName: true } }, lines: { orderBy: { sortOrder: "asc" }, select: { scopeId: true, kind: true, amount: true, description: true } }, _count: { select: { submissions: true } } } },
+    },
+  });
   return {
     ...project,
+    proposals: proposals.map((p) => ({ ...p, versions: p.versions.map((v) => ({ ...v, total: v.total === null ? null : Number(v.total), bundleAdjustment: v.bundleAdjustment === null ? null : Number(v.bundleAdjustment), lines: v.lines.map((l) => ({ ...l, amount: Number(l.amount) })), submissions: v._count.submissions })) })),
     opportunities: opportunities.map((o) => ({
       ...presentBid(o),
       owner: o.lead.assignedUser,

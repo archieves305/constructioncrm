@@ -626,6 +626,8 @@ export type IntakeItem = {
   bidInvitation: { id: string; number: string; leadId: string; projectName: string } | null;
   resolvedBy: Person | null;
   existingBid: { id: string; number: string; leadId: string; projectName: string; status: BidStatus; bidDueAt: string | null; addendaCount: number } | null;
+  /** The PlanHub bid project the email is about (its PlanHub id, else its address). */
+  existingProject: { id: string; number: string; name: string; matchedBy: string } | null;
   suggestedTradeIds: string[];
 };
 export type IntakeList = { rows: IntakeItem[]; counts: Record<IntakeStatusFilter, number>; channels: { mailersend: boolean; outlook: boolean } };

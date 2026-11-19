@@ -39,6 +39,8 @@ export function fileReadWhere(viewer: Viewer): Prisma.FileWhereInput {
         },
       },
       { violationCase: { OR: [{ caseManagerId: viewer.id }, { workflow: { team: { some: { userId: viewer.id } } } }] } },
+      // A PlanHub bid project's documents: its owner, and whoever works one of its GCs.
+      { bidProject: { OR: [{ ownerUserId: viewer.id }, { opportunities: { some: { lead: leadsInvolvingUserWhere(viewer.id) } } }] } },
     ],
   };
 }

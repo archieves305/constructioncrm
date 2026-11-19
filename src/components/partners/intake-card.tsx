@@ -14,7 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { BidFormDialog, type BidFormPrefill } from "./bid-form-dialog";
-import { useBids, useIntakeAction, useIntakeEmail, useOrganizations, type IntakeItem, type ParsedDate } from "./use-partners";
+import { useBidOptions, useBids, useIntakeAction, useIntakeEmail, useOrganizations, useInvalidateBids, type IntakeItem, type OrgDetail, type ParsedDate } from "./use-partners";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { Field as FormField } from "@/components/ui/field";
 
 const PLATFORM: Record<string, string> = { BUILDINGCONNECTED: "BuildingConnected", PROCORE: "Procore", PLANHUB: "PlanHub", SMARTBID: "SmartBid", CONSTRUCTCONNECT: "ConstructConnect", TEXTURA: "Textura", EMAIL: "Email", OTHER: "Other" };
@@ -62,6 +66,7 @@ export function IntakeCard({ item, highlight }: { item: IntakeItem; highlight?: 
   const p = item.parsed;
   const [creating, setCreating] = useState(false);
   const [attaching, setAttaching] = useState(false);
+  const [filing, setFiling] = useState(false);
   const [dismissing, setDismissing] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const email = useIntakeEmail(showEmail ? item.id : null);
@@ -116,6 +121,11 @@ export function IntakeCard({ item, highlight }: { item: IntakeItem; highlight?: 
           {!item.organizationId && open && <span className="text-xs text-tone-warning-fg">No account matched — pick one, or create the account first under GC Partnerships.</span>}
         </div>
 
+        {item.existingProject && open && (
+          <Callout tone="info" className="mt-2">
+            PlanHub project <Link href={`/planhub/projects/${item.existingProject.id}`} className="font-medium text-brand hover:underline">{item.existingProject.number}</Link> — {item.existingProject.name} ({item.existingProject.matchedBy === "platform" ? "same PlanHub project" : "same address"}). Another GC inviting KNU to it is a new GC on that project.
+          </Callout>
+        )}
         {item.existingBid && open && (
           <Callout tone="info">
             Looks like <Link href={`/leads/${item.existingBid.leadId}?tab=bid`} className="font-medium text-brand hover:underline">{item.existingBid.number}</Link> — {item.existingBid.projectName}
@@ -132,6 +142,7 @@ export function IntakeCard({ item, highlight }: { item: IntakeItem; highlight?: 
         )}
 
         <div className="flex flex-wrap items-center gap-2">
+          {open && <Button size="sm" variant={item.existingProject && !item.existingBid ? "brand" : "outline"} onClick={() => setFiling(true)}><Plus className="mr-1.5 size-4" />{item.existingProject ? `Add this GC to ${item.existingProject.number}` : "Start a PlanHub project"}</Button>}
           {open && item.existingBid && <Button size="sm" variant="brand" onClick={() => setAttaching(true)}><Link2 className="mr-1.5 size-4" />File on {item.existingBid.number}</Button>}
           {open && <Button size="sm" variant={item.existingBid ? "outline" : "brand"} onClick={() => setCreating(true)}><Plus className="mr-1.5 size-4" />{item.existingBid ? "Create a new bid" : "Create bid"}</Button>}
           {open && !item.existingBid && item.organizationId && <Button size="sm" variant="outline" onClick={() => setAttaching(true)}><Link2 className="mr-1.5 size-4" />File on a bid…</Button>}
@@ -144,6 +155,7 @@ export function IntakeCard({ item, highlight }: { item: IntakeItem; highlight?: 
       </CardContent>
       <BidFormDialog open={creating} onOpenChange={setCreating} organizationId={item.organizationId} prefill={prefillFromIntake(item)} intakeId={item.id} />
       {attaching && <AttachDialog item={item} onClose={() => setAttaching(false)} />}
+      {filing && <ProjectDialog item={item} onClose={() => setFiling(false)} />}
       {dismissing && <DismissDialog item={item} onClose={() => setDismissing(false)} />}
     </Card>
   );
@@ -217,3 +229,94 @@ function DismissDialog({ item, onClose }: { item: IntakeItem; onClose: () => voi
   );
 }
 
+
+/** A PlanHub invitation filed under a bid project: an existing one, or one started from the email. */
+function ProjectDialog({ item, onClose }: { item: IntakeItem; onClose: () => void }) {
+  const router = useRouter();
+  const invalidate = useInvalidateBids();
+  const { data: options } = useBidOptions();
+  const p = item.parsed;
+  const accounts = useOrganizations(new URLSearchParams({ pageSize: "500" }));
+  const [organizationId, setOrganizationId] = useState<string | null>(item.organizationId);
+  const [contactId, setContactId] = useState<string>(item.contactId ?? NONE);
+  const [trades, setTrades] = useState<string[]>(item.suggestedTradeIds);
+  const [name, setName] = useState(p.projectName ?? "");
+  const [address1, setAddress1] = useState(p.address?.address1 ?? "");
+  const [city, setCity] = useState(p.address?.city ?? "");
+  const [zipCode, setZipCode] = useState(p.address?.zipCode ?? "");
+  const [bidDueAt, setBidDueAt] = useState(local(p.bidDue));
+  const org = useQuery<OrgDetail>({ queryKey: ["partners", "detail", organizationId], queryFn: () => fetchJson(`/api/partners/${organizationId}`), retry: retryServerErrors, enabled: Boolean(organizationId) });
+  const contacts = (org.data?.organization.contacts ?? []).filter((c) => c.isActive);
+  const existing = item.existingProject;
+  const file = useMutation({
+    mutationFn: () =>
+      fetchJson<{ projectId: string; bid: { number: string } }>(`/api/partners/intake/${item.id}/project`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: existing?.id ?? null,
+          createProject: existing ? null : { name, address1: address1 || null, city: city || null, state: p.address?.state ?? "FL", zipCode: zipCode || null, source: p.platform, platformRef: p.platform === "PLANHUB" ? p.platformRef : null, platformUrl: p.platformUrl },
+          organizationId,
+          contactId: contactId === NONE ? null : contactId,
+          scopeServiceCategoryIds: trades,
+          bidDueAt: bidDueAt ? new Date(bidDueAt).toISOString() : null,
+        }),
+      }),
+    onSuccess: (r) => {
+      invalidate();
+      toast.success(`${r.bid.number} added to the project`);
+      onClose();
+      router.push(`/planhub/projects/${r.projectId}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const accountItems = (accounts.data?.rows ?? []).map((o) => ({ value: o.id, label: o.name }));
+  const contactItems = [{ value: NONE, label: "No one yet" }, ...contacts.map((c) => ({ value: c.id, label: `${c.firstName} ${c.lastName}` }))];
+  const ok = Boolean(organizationId) && trades.length > 0 && (existing || (name.trim().length >= 2 && address1.trim() && city.trim() && zipCode.trim()));
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent size="lg">
+        <DialogHeader>
+          <DialogTitle>{existing ? `Add this GC to ${existing.number}` : "Start a PlanHub project from this email"}</DialogTitle>
+          <DialogDescription>{existing ? `${existing.name}: the GC who sent this invitation becomes its own opportunity on the project.` : "The project is made from the email's fields; check them. The GC who sent it becomes its first opportunity."}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {!existing && (
+            <>
+              <FormField label="Project name" id="ip-name" className="sm:col-span-2"><Input id="ip-name" value={name} onChange={(e) => setName(e.target.value)} /></FormField>
+              <FormField label="Street" id="ip-a1" className="sm:col-span-2"><Input id="ip-a1" value={address1} onChange={(e) => setAddress1(e.target.value)} /></FormField>
+              <FormField label="City" id="ip-city"><Input id="ip-city" value={city} onChange={(e) => setCity(e.target.value)} /></FormField>
+              <FormField label="Zip" id="ip-zip"><Input id="ip-zip" value={zipCode} onChange={(e) => setZipCode(e.target.value)} /></FormField>
+            </>
+          )}
+          <FormField label="GC">
+            <Select items={accountItems} value={organizationId} onValueChange={(v: string | null) => { setOrganizationId(v); setContactId(NONE); }}>
+              <SelectTrigger className="w-full" aria-label="GC"><SelectValue placeholder="Pick the GC" /></SelectTrigger>
+              <SelectContent>{accountItems.map((a) => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </FormField>
+          <FormField label="GC contact">
+            <Select items={contactItems} value={contactId} onValueChange={(v: string | null) => setContactId(v ?? NONE)} disabled={!organizationId}>
+              <SelectTrigger className="w-full" aria-label="GC contact"><SelectValue /></SelectTrigger>
+              <SelectContent>{contactItems.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </FormField>
+          <FormField label="Sub proposals due to this GC" id="ip-due"><Input id="ip-due" type="datetime-local" value={bidDueAt} onChange={(e) => setBidDueAt(e.target.value)} /></FormField>
+          <div className="space-y-1.5 sm:col-span-2">
+            <p className="text-sm font-medium">Scopes KNU is bidding</p>
+            <div className="flex flex-wrap gap-1.5">
+              {(options?.trades ?? []).map((t) => {
+                const on = trades.includes(t.value);
+                return <Button key={t.value} type="button" size="sm" variant={on ? "default" : "outline"} className="h-7 rounded-full text-xs" aria-pressed={on} onClick={() => setTrades(on ? trades.filter((x) => x !== t.value) : [...trades, t.value])}>{t.label}</Button>;
+              })}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="brand" disabled={!ok || file.isPending} onClick={() => file.mutate()}>{file.isPending ? "Filing…" : existing ? "Add the GC" : "Create the project"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

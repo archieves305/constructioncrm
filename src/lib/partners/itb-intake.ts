@@ -10,6 +10,7 @@ import { createBid, updateBid, type CreateBidInput } from "./bids";
 import { PartnerError } from "./errors";
 import { followUpOwnerId } from "./follow-up-run";
 import { advanceLastContact } from "./interactions";
+import { addOpportunity, addScopes, createProject, findProjectMatches, type ProjectInput } from "@/lib/bids/project";
 import { domainMatches, domainOf, emailOf, findExistingBid, FREE_MAIL_DOMAINS, htmlToText, isPlatformDomain, matchAccount, parseItbEmail, senderAllowed, suggestTrades, type AccountCandidate, type ParsedItb } from "./itb-parse";
 
 /**
@@ -188,11 +189,19 @@ async function present(rows: IntakeRow[]) {
     prisma.serviceCategory.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
   ]);
   const byId = new Map(bids.map((b) => [b.id, b]));
+  // The PlanHub bid project the email is about: its PlanHub id, else its address (Stage 1b).
+  const projects = new Map<string, { id: string; number: string; name: string; matchedBy: string } | null>();
+  for (const r of rows) {
+    const parsed = r.parsed as unknown as ParsedItb;
+    const m = await findProjectMatches({ source: parsed.platform, platformRef: parsed.platform === "PLANHUB" ? parsed.platformRef : null, address1: parsed.address?.address1 ?? null, zipCode: parsed.address?.zipCode ?? null, name: null });
+    projects.set(r.id, m[0] ? { id: m[0].id, number: m[0].number, name: m[0].name, matchedBy: m[0].matchedBy } : null);
+  }
   return rows.map((r) => {
     const parsed = r.parsed as unknown as ParsedItb;
     return {
       ...r,
       parsed,
+      existingProject: projects.get(r.id) ?? null,
       existingBid: r.existingBidId ? (byId.get(r.existingBidId) ?? null) : null,
       suggestedTradeIds: suggestTrades(`${parsed.scope ?? ""}\n${parsed.originalSubject}\n${parsed.projectName ?? ""}`, trades),
     };
@@ -257,6 +266,32 @@ export async function createBidFromIntake(id: string, input: CreateBidInput, act
   await prisma.activityLog.create({ data: { leadId: bid.leadId, activityType: "EMAIL_LOGGED", title: "Invitation email filed", description: `${it.subject} — forwarded by ${it.forwardedBy ?? "email"}`, metadataJson: { bidIntakeId: id }, createdByUserId: actorUserId } });
   await recordAudit({ actorUserId, entityType: "BidIntake", entityId: id, action: "bid_intake_create", after: { bidId: bid.id, number: bid.number } });
   return bid;
+}
+
+/**
+ * A PlanHub invitation filed under a bid project: this GC becomes an
+ * opportunity on the project (an existing one, or one made now from the
+ * email's fields), with the scopes the person picked.
+ */
+export async function fileIntakeOnProject(id: string, input: { projectId: string | null; createProject: (ProjectInput & { name: string; scopes: { serviceCategoryId: string }[] }) | null; organizationId: string; contactId: string | null; scopeServiceCategoryIds: string[]; bidDueAt: string | null; estimatorUserId: string | null }, actorUserId: string) {
+  const it = await openIntake(id);
+  let projectId = input.projectId;
+  if (!projectId) {
+    if (!input.createProject) throw new PartnerError(400, "Pick the project, or start one from the email");
+    projectId = (await createProject({ ...input.createProject, source: it.platform, platformRef: input.createProject.platformRef ?? (it.platform === "PLANHUB" ? it.parsed.platformRef : null), platformUrl: input.createProject.platformUrl ?? it.parsed.platformUrl }, actorUserId, true)).id;
+  }
+  if (input.scopeServiceCategoryIds.length) await addScopes(projectId, input.scopeServiceCategoryIds.map((serviceCategoryId) => ({ serviceCategoryId })), actorUserId);
+  const scopes = await prisma.bidProjectScope.findMany({ where: { bidProjectId: projectId, serviceCategoryId: { in: input.scopeServiceCategoryIds } }, select: { id: true } });
+  const bid = await addOpportunity(projectId, { organizationId: input.organizationId, contactId: input.contactId, scopeIds: scopes.map((s) => s.id), bidDueAt: input.bidDueAt, estimatorUserId: input.estimatorUserId, status: "INVITED", signalSource: `email:${it.platform}`, platformUrl: it.parsed.platformUrl, scopeSummary: it.parsed.scope }, actorUserId);
+  try {
+    await resolve(id, { status: "CREATED", bidInvitationId: bid.id, organizationId: bid.organizationId }, actorUserId, `Filed under ${bid.bidProject?.number ?? "the project"} as ${bid.number}`, "COMPLETED");
+  } catch (err) {
+    logger.exception(err, { where: "partners.itb.fileIntakeOnProject", intakeId: id, bidId: bid.id });
+  }
+  await prisma.inboundEmailEvent.update({ where: { id: it.inboundEmailEventId }, data: { leadId: bid.leadId } });
+  await prisma.activityLog.create({ data: { leadId: bid.leadId, activityType: "EMAIL_LOGGED", title: "Invitation email filed", description: `${it.subject} — forwarded by ${it.forwardedBy ?? "email"}`, metadataJson: { bidIntakeId: id }, createdByUserId: actorUserId } });
+  await recordAudit({ actorUserId, entityType: "BidIntake", entityId: id, action: "bid_intake_project", after: { projectId, bidId: bid.id, number: bid.number } });
+  return { projectId, bid };
 }
 
 /** File the email on a bid already logged: an addendum, a new date, or just the record. */

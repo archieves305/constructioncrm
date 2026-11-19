@@ -498,10 +498,17 @@ export function matchAccount(p: Pick<ParsedItb, "originalFrom" | "contactEmail" 
 
 export type BidCandidate = { id: string; number: string; organizationId: string; projectName: string; platformRef: string | null; status: string };
 
-/** An invitation already logged: the platform's own id, else the same account and project. */
-export function findExistingBid(p: Pick<ParsedItb, "platformRef" | "projectName">, organizationId: string | null, bids: readonly BidCandidate[]): BidCandidate | null {
+/**
+ * An invitation already logged: the platform's own id, else the same account
+ * and project. A PlanHub id names the project, not one GC's invitation (every
+ * GC bidding it shares it), so on PlanHub the id matches only the same
+ * account's bid; another GC's invitation to the same project is a new GC on
+ * that project (`BidProject.platformRef`), never "the same bid".
+ */
+export function findExistingBid(p: Pick<ParsedItb, "platformRef" | "projectName"> & { platform?: BidPlatform }, organizationId: string | null, bids: readonly BidCandidate[]): BidCandidate | null {
   if (p.platformRef) {
-    const hit = bids.find((b) => b.platformRef && b.platformRef === p.platformRef);
+    const perProject = p.platform === "PLANHUB";
+    const hit = bids.find((b) => b.platformRef && b.platformRef === p.platformRef && (!perProject || (organizationId !== null && b.organizationId === organizationId)));
     if (hit) return hit;
   }
   if (!organizationId || !p.projectName) return null;
