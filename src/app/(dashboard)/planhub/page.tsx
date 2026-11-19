@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { groupByJob, type JobGroup } from "@/lib/bids/group";
 import { BID_OUTCOME_LABEL, BID_STATUS_LABEL } from "@/lib/partners/bid-state";
 import { Pill } from "@/components/bids/pill";
 import { NewProjectDialog } from "@/components/bids/project-dialogs";
@@ -43,13 +44,14 @@ function PlanHub() {
   const list = useQueue(queue, params);
   const counts = useQueueCounts();
   const rows = list.data?.rows ?? [];
+  const jobs = useMemo(() => groupByJob(list.data?.rows ?? []), [list.data]);
 
   return (
     <div>
       <PageHeader
         title="PlanHub Bids"
         breadcrumb={[{ label: "PlanHub Bids" }]}
-        description="Every GC you sent a price to, tracked on its own: what to do next, what is due, and who has decided."
+        description="Each job you are bidding, with every GC on it underneath: what to do next, what is due, and who has decided."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" render={<Link href="/planhub/projects" />} nativeButton={false}><FolderKanban className="mr-1.5 size-4" /> Projects</Button>
@@ -83,8 +85,9 @@ function PlanHub() {
       ) : rows.length === 0 ? (
         <EmptyState icon={FolderKanban} title="Nothing here" description={queue === "mine" ? "No open GC opportunities are yours. Start a project, or pick one up from Unassigned." : "Nothing in this queue right now."} />
       ) : (
-        <div className="space-y-2">
-          {rows.map((o) => <OpportunityRow key={o.id} o={o} queue={queue} />)}
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">{jobs.length} job{jobs.length === 1 ? "" : "s"} · {rows.length} GC{rows.length === 1 ? "" : "s"}</p>
+          {jobs.map((g) => <JobCard key={g.key} g={g} queue={queue} />)}
         </div>
       )}
       <NewProjectDialog open={creating} onOpenChange={setCreating} />
@@ -92,37 +95,63 @@ function PlanHub() {
   );
 }
 
-function OpportunityRow({ o, queue }: { o: Opportunity; queue: Queue }) {
+function JobCard({ g, queue }: { g: JobGroup<Opportunity>; queue: Queue }) {
+  const now = new Date();
+  const next = g.nextAt ? new Date(g.nextAt) : null;
+  const due = g.dueAt ? new Date(g.dueAt) : null;
+  const scopes = [...new Set(g.rows.flatMap((o) => o.scopes.map((s) => s.scope.label)))];
+  const href = g.project ? `/planhub/projects/${g.project.id}` : `/leads/${g.rows[0].leadId}?tab=bid`;
+  return (
+    <Card className="gap-0 overflow-hidden py-0">
+      <CardContent className="p-0">
+        <div className="flex flex-col gap-1 border-b bg-muted/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2">
+              <Link href={href} className="truncate font-semibold hover:underline">{g.name}</Link>
+              {g.project && <span className="font-mono text-2xs text-muted-foreground">{g.project.number}</span>}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {g.rows.length} GC{g.rows.length === 1 ? "" : "s"}
+              {scopes.length > 0 && <> · {scopes.join(", ")}</>}
+              {due && queue !== "history" && <> · first due {format(due, "MMM d, h:mm a")}</>}
+            </p>
+          </div>
+          {next && queue !== "history" && <p className={cn("shrink-0 text-xs", next < now ? "font-medium text-tone-danger-fg" : "text-foreground")}>Next: {format(next, "EEE MMM d, h:mm a")}</p>}
+        </div>
+        <ul className="divide-y">
+          {g.rows.map((o) => <GcRow key={o.id} o={o} queue={queue} />)}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function GcRow({ o, queue }: { o: Opportunity; queue: Queue }) {
   const due = o.bidDueAt ? new Date(o.bidDueAt) : null;
   const late = due && due < new Date() && ["TRACKING", "INVITED", "DECIDING", "ESTIMATING", "READY_TO_SUBMIT"].includes(o.status);
   const next = o.nextActionAt ? new Date(o.nextActionAt) : null;
   const phone = o.contact?.mobile ?? o.contact?.phone ?? null;
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <Link href={o.bidProject ? `/planhub/projects/${o.bidProject.id}` : `/leads/${o.leadId}?tab=bid`} className="truncate font-medium hover:underline">{o.projectName}</Link>
-            <span className="text-sm text-muted-foreground">· {o.organization.name}</span>
-            <span className="font-mono text-2xs text-muted-foreground">{o.number}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Pill tone={o.status === "CLOSED" ? "neutral" : "info"}>{o.status === "CLOSED" ? (o.outcome ? BID_OUTCOME_LABEL[o.outcome] : "Closed") : BID_STATUS_LABEL[o.status]}</Pill>
-            {o.primeStatus !== "UNKNOWN" && <Pill tone={PRIME_TONE[o.primeStatus]}>{PRIME_LABEL[o.primeStatus]}</Pill>}
-            {o.scopes.map((s) => <Pill key={s.id} tone={SCOPE_TONE[s.status]}>{s.scope.label}: {SCOPE_LABEL[s.status]}</Pill>)}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {personLabel(o.owner)}
-            {o.latestAmount != null && <> · sent {usd(o.latestAmount)}</>}
-            {due && queue !== "history" && <span className={cn(late && "font-medium text-tone-danger-fg")}> · due to GC {format(due, "MMM d, h:mm a")}{late ? ` (${formatDistanceToNowStrict(due)} late)` : ""}</span>}
-          </p>
-          {next && queue !== "history" && <p className={cn("text-xs", next < new Date() ? "font-medium text-tone-danger-fg" : "text-foreground")}>Next: {o.nextActionLabel ?? "Follow up"} · {format(next, "EEE MMM d, h:mm a")}</p>}
+    <li className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Link href={`/partners/${o.organizationId}`} className="font-medium hover:underline">{o.organization.name}</Link>
+          <span className="font-mono text-2xs text-muted-foreground">{o.number}</span>
+          <Pill tone={o.status === "CLOSED" ? "neutral" : "info"}>{o.status === "CLOSED" ? (o.outcome ? BID_OUTCOME_LABEL[o.outcome] : "Closed") : BID_STATUS_LABEL[o.status]}</Pill>
+          {o.primeStatus !== "UNKNOWN" && <Pill tone={PRIME_TONE[o.primeStatus]}>{PRIME_LABEL[o.primeStatus]}</Pill>}
+          {o.scopes.filter((s) => s.status !== "PENDING").map((s) => <Pill key={s.id} tone={SCOPE_TONE[s.status]}>{s.scope.label}: {SCOPE_LABEL[s.status]}</Pill>)}
         </div>
-        <div className="flex shrink-0 gap-2">
-          {phone && <Button variant="outline" size="sm" render={<a href={`tel:${phone.replace(/[^\d+]/g, "")}`} />} nativeButton={false}><Phone className="mr-1.5 size-4" /> Call</Button>}
-          <Button variant="outline" size="sm" render={<Link href={`/leads/${o.leadId}?tab=bid`} />} nativeButton={false}>Open</Button>
-        </div>
-      </CardContent>
-    </Card>
+        <p className="text-xs text-muted-foreground">
+          {o.contact ? `${o.contact.firstName} ${o.contact.lastName}` : "No contact"} · {personLabel(o.owner)}
+          {o.latestAmount != null && <> · sent {usd(o.latestAmount)}</>}
+          {due && queue !== "history" && <span className={cn(late && "font-medium text-tone-danger-fg")}> · due {format(due, "MMM d, h:mm a")}{late ? ` (${formatDistanceToNowStrict(due)} late)` : ""}</span>}
+        </p>
+        {next && queue !== "history" && <p className={cn("text-xs", next < new Date() ? "font-medium text-tone-danger-fg" : "text-foreground")}>Next: {o.nextActionLabel ?? "Follow up"} · {format(next, "EEE MMM d, h:mm a")}</p>}
+      </div>
+      <div className="flex shrink-0 gap-2">
+        {phone && <Button variant="outline" size="sm" render={<a href={`tel:${phone.replace(/[^\d+]/g, "")}`} />} nativeButton={false}><Phone className="mr-1.5 size-4" /> Call</Button>}
+        <Button variant="outline" size="sm" render={<Link href={`/leads/${o.leadId}?tab=bid`} />} nativeButton={false}>Open</Button>
+      </div>
+    </li>
   );
 }
