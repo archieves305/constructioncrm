@@ -1,5 +1,6 @@
 "use client";
 
+import { introCallsLine, type IntroCallToast } from "@/components/bids/intro-call-toast";
 import { useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ export function RecordSubmissionDialog({ project, version, open, onOpenChange }:
   const [entries, setEntries] = useState<Record<string, Entry>>(() => Object.fromEntries(eligible.map((o) => [o.id, { on: o.status === "READY_TO_SUBMIT", recipients: o.contactId ? [o.contactId] : [], method: "PLATFORM", submittedAt: today, amount: "" }])));
   const orgs = useQueries({ queries: eligible.map((o) => ({ queryKey: ["partners", "detail", o.organizationId], queryFn: () => fetchJson<OrgDetail>(`/api/partners/${o.organizationId}`), retry: retryServerErrors, enabled: open })) });
   const vLines = useMemo(() => ({ bundleAdjustment: version.bundleAdjustment ?? 0, lines: version.lines }), [version]);
-  const save = useBidProjectAction<Record<string, unknown>, { submitted: { number: string; amount: number }[] }>(`/api/bid-projects/${project.id}/submissions`, "POST", (r) => `Recorded as sent to ${r.submitted.length} GC(s)`);
+  const save = useBidProjectAction<Record<string, unknown>, { submitted: { number: string; amount: number; introCall?: IntroCallToast }[] }>(`/api/bid-projects/${project.id}/submissions`, "POST", (r) => `Recorded as sent to ${r.submitted.length} GC(s)${introCallsLine(r.submitted.map((x) => x.introCall))}`);
   const chosen = eligible.filter((o) => entries[o.id]?.on);
   const set = (id: string, patch: Partial<Entry>) => setEntries((e) => ({ ...e, [id]: { ...e[id]!, ...patch } }));
   const missingRecipients = chosen.some((o) => entries[o.id]!.method === "EMAIL" && entries[o.id]!.recipients.length === 0);

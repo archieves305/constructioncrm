@@ -4,6 +4,8 @@ import { recordAudit } from "@/lib/audit/record";
 import { BID_SELECT, presentBid } from "./bids";
 import { PartnerError } from "./errors";
 import { advanceLastContact } from "./interactions";
+import { onBidSubmitted, type IntroCallResult } from "@/lib/bids/events";
+import { logger } from "@/lib/logger";
 
 /**
  * A bid as it went out: append-only. Each row snapshots the linked estimate's
@@ -107,8 +109,17 @@ export async function addSubmission(bidId: string, input: SubmissionInput, actor
     await advanceLastContact(tx, bid.organizationId, submittedAt);
     return s;
   });
+  // The first submission to this GC raises the PM's call; a failure here never undoes the record.
+  let introCall: IntroCallResult = { raised: false, assigneeName: null, dueLabel: null };
+  if (version === 1) {
+    try {
+      introCall = await onBidSubmitted(bidId, created.id, actorUserId);
+    } catch (err) {
+      logger.error("bid intro call not raised", { bidId, submissionId: created.id, err: err instanceof Error ? err.message : String(err) });
+    }
+  }
   await recordAudit({ actorUserId, entityType: "BidSubmission", entityId: created.id, action: version === 1 ? "bid_submitted" : "bid_revised", after: { bidId, version, amount: input.amount, estimateId: input.estimateId ?? null, roofEstimateId: input.roofEstimateId ?? null, method: input.method ?? "PLATFORM", proposalVersionId: input.proposalVersionId ?? null, recipients, evidenceFileId: input.evidenceFileId ?? null } });
-  return presentBid(await prisma.bidInvitation.findUniqueOrThrow({ where: { id: bidId }, select: BID_SELECT }));
+  return { ...presentBid(await prisma.bidInvitation.findUniqueOrThrow({ where: { id: bidId }, select: BID_SELECT })), introCall };
 }
 
 /** Only a manager, only within a day of recording it — a submission is a record. */

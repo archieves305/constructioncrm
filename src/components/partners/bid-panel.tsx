@@ -1,5 +1,6 @@
 "use client";
 
+import { introCallsLine, type IntroCallToast } from "@/components/bids/intro-call-toast";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -405,7 +406,7 @@ function SubmissionForm({ bid: b, onClose }: { bid: BidDetail; onClose: () => vo
   const first = b.submissions.length === 0;
   const [form, setForm] = useState({ amount: "", estimate: NONE, kind: (first ? "ORIGINAL" : "REVISED") as SubmissionKind, method: (b.platform === "EMAIL" ? "EMAIL" : "PLATFORM") as SubmissionMethod, submittedAt: format(new Date(), "yyyy-MM-dd"), recipientContactId: b.contactId ?? NONE, clarifications: "", exclusions: "", alternates: "", estimatingHours: b.estimatingHours != null ? String(b.estimatingHours) : "" });
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
-  const save = useBidAction(b.id, "/submissions", (r: BidDetail) => `${r.number} v${r.submissions[0]?.version ?? 1} recorded`);
+  const save = useBidAction(b.id, "/submissions", (r: BidDetail & { introCall?: IntroCallToast }) => `${r.number} v${r.submissions[0]?.version ?? 1} recorded${introCallsLine([r.introCall])}`);
   const contactItems = [{ value: NONE, label: "—" }, ...(b.contact ? [{ value: b.contact.id, label: `${b.contact.firstName} ${b.contact.lastName}` }] : [])];
   const estItems = [{ value: NONE, label: "None" }, ...estimateItems];
   return (

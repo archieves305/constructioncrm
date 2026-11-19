@@ -4,6 +4,7 @@ import { leadAccessWhere } from "@/lib/access/records";
 import { PartnerError } from "@/lib/partners/errors";
 import { addSubmission } from "@/lib/partners/submissions";
 import { amountForScopes, quotedByScope } from "./proposal-plan";
+import type { IntroCallResult } from "./events";
 
 /**
  * "Send version vN to…": record that a checked proposal version went to
@@ -29,20 +30,20 @@ export async function recordSubmissions(projectId: string, input: { versionId: s
     if (v.organizationId && v.organizationId !== b.organizationId) throw new PartnerError(400, `This version is priced for one GC only; ${b.number} is another`);
   }
   for (const e of input.entries) if (e.method === "EMAIL" && e.recipientContactIds.length === 0) throw new PartnerError(400, "Say who it was emailed to");
-  const out: { bidId: string; number: string; amount: number }[] = [];
+  const out: { bidId: string; number: string; amount: number; introCall: IntroCallResult }[] = [];
   for (const e of input.entries) {
     const b = bids.find((x) => x.id === e.bidId)!;
     const scopeIds = b.scopes.map((s) => s.scopeId);
     const amount = e.amount ?? amountForScopes(version, scopeIds);
     if (!(amount > 0)) throw new PartnerError(400, `${b.number}: the proposal prices none of this GC's scopes; give the amount sent`);
-    await addSubmission(e.bidId, { amount, method: e.method, submittedAt: e.submittedAt, recipientContactIds: e.recipientContactIds, proposalVersionId: v.id, evidenceFileId: e.evidenceFileId ?? null, confirmedVia: "manual", exclusions: v.exclusions, alternates: v.alternates, clarifications: v.clarifications }, viewer.id);
+    const made = await addSubmission(e.bidId, { amount, method: e.method, submittedAt: e.submittedAt, recipientContactIds: e.recipientContactIds, proposalVersionId: v.id, evidenceFileId: e.evidenceFileId ?? null, confirmedVia: "manual", exclusions: v.exclusions, alternates: v.alternates, clarifications: v.clarifications }, viewer.id);
     // Per-scope quotes come from the version's lines; a GC-specific total has no split, so it leaves them alone.
     const quoted = e.amount == null ? quotedByScope(version, scopeIds) : new Map<string, number | null>();
     for (const s of b.scopes) {
       const q = quoted.get(s.scopeId);
       if (q !== undefined && q !== null) await prisma.bidOpportunityScope.update({ where: { id: s.id }, data: { quotedAmount: q } });
     }
-    out.push({ bidId: b.id, number: b.number, amount });
+    out.push({ bidId: b.id, number: b.number, amount, introCall: made.introCall });
   }
   return { submitted: out };
 }

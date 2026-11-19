@@ -3,6 +3,9 @@ import { createTask } from "@/lib/tasks/create";
 import { addWorkingDays } from "@/lib/time/working-days";
 import { atLocalTime, todayKey } from "@/lib/time/zone";
 import { loadHolidays } from "./holidays";
+import { absoluteUrl } from "@/lib/notifications/links";
+import { APP_TIME_ZONE } from "@/lib/time/zone";
+import { INTRO_CALL_SLOT, dueLabel, introCallPlan, type IntroCallContact } from "./intro-call";
 
 /**
  * Bid events that raise work. Every raise writes its BidFollowUpAction row
@@ -24,7 +27,7 @@ export async function opportunityOwnerId(bidId: string, fallbackUserId: string):
 }
 
 /** Raise one follow-up action and its task (a half-hour call window from `dueAt`), once per slot. Returns false when the slot was already raised. */
-export async function raiseActionTask(input: { bidId: string; slotKey: string; kind: "CALL" | "REVIEW" | "URGENT_CALL"; reason: string; dueAt: Date; title: string; description: string; priority: "MEDIUM" | "HIGH" | "URGENT"; actorUserId: string | null; planInputs?: Record<string, unknown> }): Promise<boolean> {
+export async function raiseActionTask(input: { bidId: string; slotKey: string; kind: "CALL" | "REVIEW" | "URGENT_CALL"; reason: string; dueAt: Date; title: string; description: string; priority: "MEDIUM" | "HIGH" | "URGENT"; actorUserId: string | null; planInputs?: Record<string, unknown>; assigneeUserId?: string | null }): Promise<boolean> {
   const bid = await prisma.bidInvitation.findUnique({ where: { id: input.bidId }, select: { leadId: true, organizationId: true } });
   if (!bid) return false;
   try {
@@ -33,7 +36,7 @@ export async function raiseActionTask(input: { bidId: string; slotKey: string; k
     if ((e as { code?: string }).code === "P2002") return false;
     throw e;
   }
-  const owner = await opportunityOwnerId(input.bidId, input.actorUserId ?? "");
+  const owner = input.assigneeUserId || (await opportunityOwnerId(input.bidId, input.actorUserId ?? ""));
   const task = await createTask(
     { title: input.title, description: input.description, priority: input.priority, scheduledStart: input.dueAt, dueAt: new Date(input.dueAt.getTime() + 30 * 60_000), allDay: false, assignedUserId: owner || null, createdByUserId: owner || input.actorUserId || "", leadId: bid.leadId, source: "auto", sourceKey: bidTaskKey(input.bidId, input.slotKey) },
     { actorUserId: input.actorUserId, notify: "after" },
@@ -62,4 +65,64 @@ export async function onPrimeAwarded(bidId: string, actorUserId: string) {
     actorUserId,
     planInputs: { rule: "prime_awarded", on: today },
   });
+}
+
+export type IntroCallResult = { raised: boolean; assigneeName: string | null; dueLabel: string | null };
+
+const fullName = (c: { firstName: string; lastName: string }) => `${c.firstName} ${c.lastName}`.trim();
+
+/**
+ * A bid went out to a GC for the first time: the bid's PM (else its owner)
+ * calls the GC's estimator the next business morning — an introduction when
+ * KNU has never bid to that GC, a "the bid is in" call when it has. Once per
+ * GC per bid (slot `intro_call`); a revision raises nothing.
+ */
+export async function onBidSubmitted(bidId: string, submissionId: string, actorUserId: string): Promise<IntroCallResult> {
+  const none: IntroCallResult = { raised: false, assigneeName: null, dueLabel: null };
+  const b = await prisma.bidInvitation.findUnique({
+    where: { id: bidId },
+    select: {
+      id: true, number: true, projectName: true, organizationId: true,
+      organization: { select: { name: true } },
+      pmUser: { select: { id: true, firstName: true, lastName: true, isActive: true } },
+      contact: { select: { firstName: true, lastName: true, title: true, phone: true, mobile: true, email: true, isActive: true } },
+      bidProject: { select: { name: true, timeZone: true } },
+      scopes: { select: { scope: { select: { label: true, sortOrder: true } } } },
+      lead: { select: { services: { select: { serviceCategory: { select: { name: true } } } } } },
+    },
+  });
+  const s = await prisma.bidSubmission.findUnique({ where: { id: submissionId }, select: { submittedAt: true, amount: true, recipients: { select: { contact: { select: { firstName: true, lastName: true, title: true, phone: true, mobile: true, email: true } } } } } });
+  if (!b || !s) return none;
+
+  // Known GC: a submission on another of their bids, or a bid they awarded us.
+  const earlier = await prisma.bidInvitation.count({ where: { organizationId: b.organizationId, id: { not: b.id }, OR: [{ submissions: { some: {} } }, { outcome: "AWARDED" }] } });
+
+  let contacts: IntroCallContact[] = s.recipients.flatMap((r) => (r.contact ? [{ ...r.contact, name: fullName(r.contact) }] : []));
+  if (!contacts.length && b.contact?.isActive) contacts = [{ ...b.contact, name: fullName(b.contact) }];
+  if (!contacts.length) {
+    const primary = await prisma.contact.findFirst({ where: { organizationId: b.organizationId, isActive: true }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], select: { firstName: true, lastName: true, title: true, phone: true, mobile: true, email: true } });
+    if (primary) contacts = [{ ...primary, name: fullName(primary) }];
+  }
+
+  const scopes = b.scopes.length
+    ? [...b.scopes].sort((x, y) => x.scope.sortOrder - y.scope.sortOrder).map((x) => x.scope.label)
+    : b.lead.services.map((x) => x.serviceCategory.name);
+  const tz = b.bidProject?.timeZone ?? APP_TIME_ZONE;
+  const plan = introCallPlan({
+    submittedAt: s.submittedAt, now: new Date(), holidays: await loadHolidays(), tz,
+    isFirstWithGc: earlier === 0, gc: b.organization.name, project: b.bidProject?.name ?? b.projectName, bidNumber: b.number,
+    scopes, amount: Number(s.amount), contacts, accountUrl: absoluteUrl(`/partners/${b.organizationId}`),
+  });
+  if (!plan) return none;
+
+  const pm = b.pmUser?.isActive ? b.pmUser : null;
+  const assigneeId = pm?.id ?? (await opportunityOwnerId(bidId, actorUserId));
+  const raised = await raiseActionTask({
+    bidId, slotKey: INTRO_CALL_SLOT, kind: "CALL", reason: "intro_call", dueAt: plan.dueAt,
+    title: plan.title, description: plan.description, priority: "HIGH", actorUserId, assigneeUserId: assigneeId,
+    planInputs: { rule: "intro_call", firstWithGc: earlier === 0, submissionId, dueDay: plan.dueDay, assignedTo: pm ? "pm" : "owner" },
+  });
+  if (!raised) return none;
+  const who = pm ?? (await prisma.user.findUnique({ where: { id: assigneeId }, select: { firstName: true, lastName: true } }));
+  return { raised: true, assigneeName: who ? fullName(who) : null, dueLabel: dueLabel(plan.dueAt, tz) };
 }

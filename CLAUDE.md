@@ -868,6 +868,20 @@ backup `postgres-2026-11-21-145149.dump`. Unassign dry run on prod: 266
 untouched steps (Lisette 136, Richard 78, Erica 33, Elizabeth 18, Jorge 1)
 across 13 jobs + 3 cases; 1 in-progress step kept. Richard: "go" → `--yes`
 unassigned 266, failed 0; re-run 0.
+### 2026-11-19 — Call the GC after a bid goes out (built + dev-QA'd on `intro-call`, not deployed)
+
+"a task set automatically for the Project manager to Call the Estimator/Contractor once we submit a bid". Plan
+`~/.claude/plans/soft-hopping-lobster.md`: the PlanHub cadence's first slot (`intro_call`) built ahead of the
+rest of Stage 1c; not a job workflow step (no job exists at bid time). Rulings: the bid's PM, else its owner;
+next business day 9:00 in the project's zone; first bid to a GC = "introduce KNU", a known GC (an earlier
+submission or an award) = "confirm they have it"; once per GC per bid (revisions raise nothing). Pure
+`src/lib/bids/intro-call.ts` (+ test; 14-day cutoff for back-dated submissions, who-to-call from the
+recipients → the bid's contact → the account's primary → "find the estimator"); `onBidSubmitted` in
+`events.ts` through `raiseActionTask` (new optional `assigneeUserId`); `addSubmission` calls it on version 1,
+a failure is logged and never undoes the submission, and returns `introCall`; both submission toasts name who
+and when. No migration, no cron. Gate: typecheck clean, lint clean on the touched files, 2225 tests (+7), build
+clean. Dev QA through the service 13/13 (new / known GC, PM / owner, contact fallbacks, revision, back-dated,
+raised twice), dev DB restored. Toasts not clicked in a browser.
 
 ### 2026-10-30 — CareyOS Work integration endpoints (built + dev-QA'd on `feat/work-integration`, not deployed)
 
