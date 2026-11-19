@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Bookmark, ClipboardPaste, Send } from "lucide-react";
@@ -185,6 +186,7 @@ function BoardReview({ snapshotId, rows, onDone }: { snapshotId: string; rows: B
 
 function ProjectReview({ snapshotId, plan, onDone }: { snapshotId: string; plan: ProjectPlan; onDone: () => void }) {
   const invalidate = useInvalidateBids();
+  const router = useRouter();
   const { data: options } = useBidOptions();
   const page = plan.page;
   const base = plan.current;
@@ -197,22 +199,27 @@ function ProjectReview({ snapshotId, plan, onDone }: { snapshotId: string; plan:
     zipCode: base?.zipCode ?? page.address?.zipCode ?? "",
   });
   const [trades, setTrades] = useState<string[]>(() => [...new Set([...(base?.scopeTradeIds ?? []), ...plan.trades.map((t) => t.serviceCategoryId).filter((x): x is string => Boolean(x))])]);
-  const [gcChoice, setGcChoice] = useState<string>(plan.gc?.match?.organizationId ?? (page.gc ? "new" : ""));
-  const [addContact, setAddContact] = useState(Boolean(page.gc?.contactName));
+  // Per GC on the page: the account to use ("" = don't add). A GC PlanHub lists as only prospective starts unticked.
+  const [gcChoice, setGcChoice] = useState<string[]>(() => page.gcs.map((g, i) => (/PROSPECTIVE/i.test(g.status ?? "") ? "" : (plan.gcs[i]?.match?.organizationId ?? "new"))));
+  const [addContact, setAddContact] = useState(true);
   const [busy, setBusy] = useState(false);
+  // Only trades KNU bids (the picker's list) can be scopes; a PlanHub trade that maps elsewhere is dropped.
+  const offered = new Set((options?.trades ?? []).map((t) => t.value));
+  const chosen = options ? trades.filter((t) => offered.has(t)) : trades;
   const tradeName = (id: string) => options?.trades.find((t) => t.value === id)?.label ?? "Trade";
 
   const apply = async () => {
     setBusy(true);
     try {
-      const out = await fetchJson<{ projectId: string; created: boolean; bid: { number: string } | null }>("/api/bid-projects/planhub/apply", {
+      const out = await fetchJson<{ projectId: string; created: boolean; bids: { number: string; created: boolean }[] }>("/api/bid-projects/planhub/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "PROJECT", snapshotId, projectId, project: { name: form.name, address1: form.address1 || null, city: form.city || null, state: form.state || null, zipCode: form.zipCode || null }, scopeTradeIds: trades, gc: { organizationId: gcChoice || null, addContact } }),
+        body: JSON.stringify({ kind: "PROJECT", snapshotId, projectId, project: { name: form.name, address1: form.address1 || null, city: form.city || null, state: form.state || null, zipCode: form.zipCode || null }, scopeTradeIds: chosen, gcs: gcChoice.flatMap((organizationId, index) => (organizationId ? [{ index, organizationId, addContact }] : [])) }),
       });
-      toast.success(`${out.created ? "Project created" : "Project updated"}${out.bid ? ` · GC ${out.bid.number}` : ""}`);
+      const added = out.bids.filter((b) => b.created).length;
+      toast.success(`${out.created ? "Project created" : "Project updated"}${added ? ` · ${added} GC${added === 1 ? "" : "s"} added` : ""}`);
       invalidate();
-      window.location.href = `/planhub/projects/${out.projectId}`;
+      router.push(`/planhub/projects/${out.projectId}`);
     } catch (err) {
       toast.error((err as Error).message);
       setBusy(false);
@@ -251,22 +258,30 @@ function ProjectReview({ snapshotId, plan, onDone }: { snapshotId: string; plan:
       <Card className="min-w-0">
         <CardHeader><CardTitle className="text-base">GC and scopes</CardTitle></CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {page.gc ? (
-            <div className="space-y-1">
-              <p className="font-medium">{page.gc.name}</p>
-              <p className="text-xs text-muted-foreground">{[page.gc.contactName, page.gc.contactEmail, page.gc.contactPhone].filter(Boolean).join(" · ") || "No contact shown"}</p>
-              <select className={selectCls} aria-label="GC account" value={gcChoice} onChange={(e) => setGcChoice(e.target.value)}>
-                {plan.gc?.match && <option value={plan.gc.match.organizationId}>{plan.gc.match.name} (matched by {plan.gc.match.how})</option>}
-                <option value="new">Create the account &ldquo;{page.gc.name}&rdquo;</option>
-                <option value="">Don&rsquo;t add the GC</option>
-              </select>
-              {plan.gc?.onProject && <p className="text-xs text-muted-foreground">Already on this project as {plan.gc.onProject.number}.</p>}
-              {page.gc.contactName && gcChoice && (
-                <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="size-4" checked={addContact} onChange={(e) => setAddContact(e.target.checked)} /> Add {page.gc.contactName} as a contact if they are not there yet</label>
-              )}
-            </div>
-          ) : (
-            <p className="text-muted-foreground">The page showed no GC.</p>
+          {page.gcs.length === 0 && <p className="text-muted-foreground">The page showed no GC.</p>}
+          {page.gcs.map((g, i) => {
+            const row = plan.gcs[i];
+            return (
+              <div key={i} className="space-y-1 rounded-md border p-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{g.name}</span>
+                  {g.status && <Pill tone={/BIDDING/i.test(g.status) ? "info" : "neutral"}>{g.status.charAt(0) + g.status.slice(1).toLowerCase()}</Pill>}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {[g.contactName, g.contactEmail, g.contactPhone].filter(Boolean).join(" · ") || "No contact shown"}
+                  {g.bidDueAt && <> · due {format(new Date(g.bidDueAt), g.bidDueHasTime ? "MMM d, h:mm a" : "MMM d")}</>}
+                </p>
+                <select className={selectCls} aria-label={`Account for ${g.name}`} value={gcChoice[i]} onChange={(e) => setGcChoice((c) => c.map((x, k) => (k === i ? e.target.value : x)))}>
+                  {row?.match && <option value={row.match.organizationId}>{row.match.name} (matched by {row.match.how})</option>}
+                  <option value="new">Create the account &ldquo;{g.name}&rdquo;</option>
+                  <option value="">Don&rsquo;t add this GC</option>
+                </select>
+                {row?.onProject && <p className="text-xs text-muted-foreground">Already on this project as {row.onProject.number}.</p>}
+              </div>
+            );
+          })}
+          {page.gcs.some((g, i) => g.contactName && gcChoice[i]) && (
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" className="size-4" checked={addContact} onChange={(e) => setAddContact(e.target.checked)} /> Add the named contacts if they are not there yet</label>
           )}
           <div>
             <p className="mb-1 text-xs font-medium text-muted-foreground">Scopes KNU is pricing</p>
@@ -278,7 +293,7 @@ function ProjectReview({ snapshotId, plan, onDone }: { snapshotId: string; plan:
                 );
               })}
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">PlanHub lists: {page.trades.join(", ") || "—"}{page.moreTrades ? ` (${page.moreTrades} in all)` : ""}. Ticked: {trades.map(tradeName).join(", ") || "none"}.</p>
+            <p className="mt-1 text-xs text-muted-foreground">PlanHub lists: {page.trades.join(", ") || "—"}{page.moreTrades ? ` (${page.moreTrades} in all)` : ""}. Ticked: {chosen.map(tradeName).join(", ") || "none"}.</p>
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" size="sm" onClick={onDone}>Cancel</Button>

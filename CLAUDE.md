@@ -639,6 +639,27 @@ Dev QA:
 Not proven: the real board at full width (one column per stage) and Chrome's
 pop-up prompt on PlanHub. That is the first live click after the deploy.
 **Deploy carries the migration.**
+**Deployed 2026-11-19 as `4a77010`** (BUILD_ID `BbiK55k150ptffwFHq2DZ` →
+`uKK85GN9NSzN1MM-lljj9`, migration applied, smoke 307 ×2, journal clean, backup
+`postgres-2026-11-19-132057.dump`).
+
+**Fix the same day.** Richard's first click on Burlington said "no GC", but the page
+lists three. Causes:
+- **Several GCs.** A project with several GCs shows a "General Contractors" list (each
+  GC with its email, phone, status and own due date, and no named person); only the
+  single-GC "About us" block had been read. Now `ProjectPage.gcs[]`.
+- **Columns.** A narrow board shows one column at a time behind a picker, and calls
+  Submitted `bid_submitted`. The bookmark now steps through the picker, collecting
+  every column, and puts it back. On his real board: 19 cards (10 Saved, 7 Bidding,
+  2 Bid submitted).
+- **Pop-up.** The CRM window now opens before the slow read, because Chrome blocks a
+  pop-up opened long after the click.
+
+The review lists each GC with its own account choice; a Prospective GC starts
+unticked. A new account takes the page's email and phone when no person is named.
+Trades outside KNU's list are never ticked.
+
+Gate: 2215 tests, lint and typecheck clean. API QA 24/24, headless 20/20.
 
 ### 2026-11-18 — PlanHub bid management, Stage 1b: Upload Estimate, AI reading, review, record as sent (built + dev-QA'd on `planhub-1a`, merged to `main` 2026-11-18)
 

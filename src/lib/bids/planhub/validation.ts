@@ -27,6 +27,6 @@ export const planhubApplySchema = z.discriminatedUnion("kind", [
       zipCode: z.string().trim().max(10).nullable(),
     }),
     scopeTradeIds: z.array(id).max(60),
-    gc: z.object({ organizationId: z.union([id, z.literal("new")]).nullable(), addContact: z.boolean() }),
+    gcs: z.array(z.object({ index: z.number().int().min(0), organizationId: z.union([id, z.literal("new")]), addContact: z.boolean() })).max(30),
   }),
 ]);

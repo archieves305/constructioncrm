@@ -6,7 +6,7 @@ import { matchAccount, normalizeName } from "@/lib/partners/itb-parse";
 import { createOrganization } from "@/lib/partners/service";
 import { createContact } from "@/lib/partners/contacts";
 import { addOpportunity, addScopes, createProject, findProjectMatches, updateProject } from "../project";
-import { readPage, splitAddress, splitPersonName, type BoardCard, type PlanhubPayload, type ProjectPage } from "./parse";
+import { readPage, splitAddress, splitPersonName, type BoardCard, type PlanhubPayload, type ProjectPage, type ProjectPageGc } from "./parse";
 import { boardUpdate, dueInstant, planBoard, projectFills, tradeMatches, type BoardProjectCandidate, type BoardRow, type FillField } from "./plan";
 
 /**
@@ -27,11 +27,13 @@ export type ProjectPlan = {
   current: { name: string; address1: string | null; city: string | null; state: string | null; zipCode: string | null; projectType: string | null; scopeTradeIds: string[] } | null;
   fills: { field: FillField; to: string }[];
   trades: { trade: string; serviceCategoryId: string | null }[];
-  gc: {
+  /** One row per GC on the page, in the page's order (`index` = position in `page.gcs`). */
+  gcs: {
+    index: number;
     match: { organizationId: string; name: string; how: string } | null;
     contactId: string | null;
     onProject: { bidId: string; number: string } | null;
-  } | null;
+  }[];
 };
 
 export type ReadResult =
@@ -61,14 +63,14 @@ async function planProject(page: ProjectPage): Promise<ProjectPlan> {
   const current = sure ? await prisma.bidProject.findUnique({ where: { id: sure.id }, select: { name: true, address1: true, city: true, state: true, zipCode: true, projectType: true, platformRef: true, platformUrl: true, scopes: { select: { serviceCategoryId: true } } } }) : null;
   const categories = await prisma.serviceCategory.findMany({ where: { isActive: true }, select: { id: true, name: true } });
 
-  let gc: ProjectPlan["gc"] = null;
-  if (page.gc) {
-    const accounts = await accountCandidates();
-    const hit = matchAccount({ originalFrom: { name: null, email: null }, contactEmail: page.gc.contactEmail, gcName: page.gc.name }, accounts);
+  const accounts = page.gcs.length ? await accountCandidates() : [];
+  const onProjectRows = sure ? await prisma.bidInvitation.findMany({ where: { bidProjectId: sure.id }, select: { id: true, number: true, organizationId: true } }) : [];
+  const gcs: ProjectPlan["gcs"] = page.gcs.map((g, index) => {
+    const hit = matchAccount({ originalFrom: { name: null, email: null }, contactEmail: g.contactEmail, gcName: g.name }, accounts);
     const org = hit ? accounts.find((a) => a.id === hit.organizationId) : null;
-    const onProject = hit && sure ? await prisma.bidInvitation.findFirst({ where: { bidProjectId: sure.id, organizationId: hit.organizationId }, select: { id: true, number: true } }) : null;
-    gc = { match: org ? { organizationId: org.id, name: org.name, how: hit!.how } : null, contactId: hit?.contactId ?? null, onProject: onProject ? { bidId: onProject.id, number: onProject.number } : null };
-  }
+    const on = hit ? onProjectRows.find((b) => b.organizationId === hit.organizationId) : null;
+    return { index, match: org ? { organizationId: org.id, name: org.name, how: hit!.how } : null, contactId: hit?.contactId ?? null, onProject: on ? { bidId: on.id, number: on.number } : null };
+  });
   return {
     page,
     match: sure,
@@ -76,7 +78,7 @@ async function planProject(page: ProjectPage): Promise<ProjectPlan> {
     current: current ? { name: current.name, address1: current.address1, city: current.city, state: current.state, zipCode: current.zipCode, projectType: current.projectType, scopeTradeIds: current.scopes.map((s) => s.serviceCategoryId) } : null,
     fills: projectFills(page, current),
     trades: tradeMatches(page.trades, categories),
-    gc,
+    gcs,
   };
 }
 
@@ -134,7 +136,8 @@ export type ProjectApply = {
   projectId: string | "new";
   project: { name: string; address1: string | null; city: string | null; state: string | null; zipCode: string | null };
   scopeTradeIds: string[];
-  gc: { organizationId: string | "new" | null; addContact: boolean };
+  /** The GCs to add, by their position on the page; a GC left out is not added. */
+  gcs: { index: number; organizationId: string | "new"; addContact: boolean }[];
 };
 
 /**
@@ -175,37 +178,48 @@ export async function applyProject(input: ProjectApply, viewer: Viewer, now = ne
     if (add.length) await addScopes(projectId, add.map((serviceCategoryId) => ({ serviceCategoryId })), viewer.id);
   }
 
-  let bid: { id: string; number: string } | null = null;
-  let organizationId: string | null = null;
-  if (page.gc && input.gc.organizationId) {
-    let orgId: string;
-    if (input.gc.organizationId === "new") {
-      const a = splitAddress(page.gc.addressText);
-      const org = await createOrganization({ name: page.gc.name, kind: "GENERAL_CONTRACTOR", website: page.gc.website, phone: page.gc.contactPhone, address1: a?.address1 ?? null, city: a?.city ?? null, state: a?.state ?? null, zipCode: a?.zipCode ?? null, ownerUserId: viewer.id, notes: "Added from PlanHub" }, viewer.id, viewer);
-      orgId = org.organization.id;
-    } else {
-      orgId = input.gc.organizationId;
-    }
-    organizationId = orgId;
-    let contactId: string | null = null;
-    if (page.gc.contactEmail) contactId = (await prisma.contact.findFirst({ where: { organizationId: orgId, email: { equals: page.gc.contactEmail, mode: "insensitive" } }, select: { id: true } }))?.id ?? null;
-    const person = splitPersonName(page.gc.contactName);
-    if (!contactId && input.gc.addContact && person) {
-      const c = await createContact(orgId, { ...person, email: page.gc.contactEmail, phone: page.gc.contactPhone, roleTag: "ESTIMATOR" }, viewer.id);
-      contactId = c.id;
-    }
-    const existing = await prisma.bidInvitation.findFirst({ where: { bidProjectId: projectId, organizationId: orgId }, select: { id: true, number: true, bidDueAt: true } });
-    if (existing) {
-      bid = existing;
-      if (page.bidDueAt && !existing.bidDueAt) await prisma.bidInvitation.update({ where: { id: existing.id }, data: { bidDueAt: new Date(page.bidDueAt) } });
-    } else {
-      const scopes = await prisma.bidProjectScope.findMany({ where: { bidProjectId: projectId, ...(input.scopeTradeIds.length ? { serviceCategoryId: { in: input.scopeTradeIds } } : {}) }, select: { id: true } });
-      if (!scopes.length) throw new PartnerError(400, "scopeTradeIds: tick at least one trade KNU is pricing, so the GC has a scope to bid");
-      const b = await addOpportunity(projectId, { organizationId: orgId, contactId, scopeIds: scopes.map((s) => s.id), status: "TRACKING", bidDueAt: page.bidDueAt, prevailingWage: page.prevailingWage ?? undefined, signalSource: "planhub:send", platformRef: page.platformRef, platformUrl: page.platformUrl }, viewer.id);
-      bid = { id: b.id, number: b.number };
-    }
+  const bids: { id: string; number: string; organizationId: string; created: boolean }[] = [];
+  for (const choice of input.gcs) {
+    const gc = page.gcs[choice.index];
+    if (!gc) throw new PartnerError(400, "gcs: a GC is not on that page");
+    bids.push(await addGc(projectId, page, gc, choice, input.scopeTradeIds, viewer));
   }
-  await prisma.planhubSnapshot.update({ where: { id: snap.id }, data: { appliedAt: now, applied: { projectId, created, organizationId, bidId: bid?.id ?? null } } });
-  await recordAudit({ actorUserId: viewer.id, entityType: "BidProject", entityId: projectId, action: "planhub_project", after: { snapshotId: snap.id, platformRef: page.platformRef, created, organizationId, bidId: bid?.id ?? null } });
-  return { projectId, created, bid };
+  const bid = bids[0] ?? null;
+  await prisma.planhubSnapshot.update({ where: { id: snap.id }, data: { appliedAt: now, applied: { projectId, created, bids } as unknown as Prisma.InputJsonValue } });
+  await recordAudit({ actorUserId: viewer.id, entityType: "BidProject", entityId: projectId, action: "planhub_project", after: { snapshotId: snap.id, platformRef: page.platformRef, created, bids } });
+  return { projectId, created, bid, bids };
+}
+
+/**
+ * One GC from the page onto the project: its account (new when asked — with
+ * the page's email and phone on it when PlanHub names no person), a contact
+ * when the page names one, and an opportunity due at this GC's own time. A GC
+ * already on the project gets only a missing due date.
+ */
+async function addGc(projectId: string, page: ProjectPage, gc: ProjectPageGc, choice: { organizationId: string | "new"; addContact: boolean }, scopeTradeIds: string[], viewer: Viewer) {
+  const person = splitPersonName(gc.contactName);
+  let orgId: string;
+  if (choice.organizationId === "new") {
+    const a = splitAddress(gc.addressText);
+    const org = await createOrganization({ name: gc.name, kind: "GENERAL_CONTRACTOR", website: gc.website, phone: gc.contactPhone, email: person ? null : gc.contactEmail, address1: a?.address1 ?? null, city: a?.city ?? null, state: a?.state ?? null, zipCode: a?.zipCode ?? null, ownerUserId: viewer.id, notes: "Added from PlanHub" }, viewer.id, viewer);
+    orgId = org.organization.id;
+  } else {
+    orgId = choice.organizationId;
+  }
+  let contactId: string | null = null;
+  if (gc.contactEmail) contactId = (await prisma.contact.findFirst({ where: { organizationId: orgId, email: { equals: gc.contactEmail, mode: "insensitive" } }, select: { id: true } }))?.id ?? null;
+  if (!contactId && choice.addContact && person) {
+    const c = await createContact(orgId, { ...person, email: gc.contactEmail, phone: gc.contactPhone, roleTag: "ESTIMATOR" }, viewer.id);
+    contactId = c.id;
+  }
+  const due = gc.bidDueAt ?? page.bidDueAt;
+  const existing = await prisma.bidInvitation.findFirst({ where: { bidProjectId: projectId, organizationId: orgId }, select: { id: true, number: true, bidDueAt: true } });
+  if (existing) {
+    if (due && !existing.bidDueAt) await prisma.bidInvitation.update({ where: { id: existing.id }, data: { bidDueAt: new Date(due) } });
+    return { id: existing.id, number: existing.number, organizationId: orgId, created: false };
+  }
+  const scopes = await prisma.bidProjectScope.findMany({ where: { bidProjectId: projectId, ...(scopeTradeIds.length ? { serviceCategoryId: { in: scopeTradeIds } } : {}) }, select: { id: true } });
+  if (!scopes.length) throw new PartnerError(400, "scopeTradeIds: tick at least one trade KNU is pricing, so the GC has a scope to bid");
+  const b = await addOpportunity(projectId, { organizationId: orgId, contactId, scopeIds: scopes.map((s) => s.id), status: "TRACKING", bidDueAt: due, prevailingWage: page.prevailingWage ?? undefined, signalSource: "planhub:send", platformRef: page.platformRef, platformUrl: page.platformUrl }, viewer.id);
+  return { id: b.id, number: b.number, organizationId: orgId, created: true };
 }

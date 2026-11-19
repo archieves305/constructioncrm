@@ -57,6 +57,11 @@ describe("parseBoard", () => {
       { name: "Paulette Burdick Park", stage: "ESTIMATING", dueOn: "2026-12-02", dueText: "DUE DEC 02", bidValue: 0 },
     ]);
   });
+  it("knows the narrow board's column names", () => {
+    const text = "bid_submitted\nPLANHUB\nBurlington #TBD\nBid Value: $0\nDUE NOV 20";
+    expect(parseBoard({ url: BOARD_URL, text }, NOW).map((c) => c.stage)).toEqual(["SUBMITTED"]);
+    expect(parseBoard({ url: BOARD_URL, text: "", cards: [{ text: "PLANHUB\nX Job\nBid Value: $0", column: "bid_submitted" }] }, NOW)[0].stage).toBe("SUBMITTED");
+  });
   it("splits columns by the lone stage words", () => {
     const text = "saved\nPLANHUB\nA Job\nBid Value: $0\nDUE DEC 01\nwon\nPLANHUB\nB Job\nBid Value: $5\nDUE DEC 02";
     expect(parseBoard({ url: BOARD_URL, text }, NOW).map((c) => [c.name, c.stage])).toEqual([["A Job", "SAVED"], ["B Job", "WON"]]);
@@ -85,11 +90,30 @@ describe("parseProjectPage", () => {
     expect(p.bidDueAt).toBe("2026-11-30T19:00:00.000Z");
     expect(p.bidDueHasTime).toBe(true);
   });
-  it("reads the GC and its contact", () => {
-    expect(p.gc).toEqual({ name: "LEGO Construction Co.", website: "http://www.legocc.com/", addressText: "1011 Sunnybrrok Rd suite 905, Miami, FL, 33136", contactName: "Pat Example", contactEmail: "pat@example.com", contactPhone: "(305) 555-0100" });
+  it("reads the one GC and its contact", () => {
+    expect(p.gcs).toEqual([{ name: "LEGO Construction Co.", website: "http://www.legocc.com/", addressText: "1011 Sunnybrrok Rd suite 905, Miami, FL, 33136", contactName: "Pat Example", contactEmail: "pat@example.com", contactPhone: "(305) 555-0100", status: "BIDDING", bidDueAt: "2026-11-30T19:00:00.000Z", bidDueHasTime: true }]);
   });
   it("is what readPage returns for a project address", () => {
     expect(readPage({ url: PROJECT_URL, text: fixture("project-609262.txt") }, NOW).kind).toBe("PROJECT");
+  });
+});
+
+describe("parseProjectPage with several GCs", () => {
+  const p = parseProjectPage({ url: "https://subcontractor.planhub.com/leads/details/600155/project-info", text: fixture("project-600155.txt") }, "600155");
+  it("lists every GC with its email, phone, status and due date", () => {
+    expect(p.name).toBe("Burlington #TBD - Las Americas V - Miami, FL");
+    expect(p.gcs.map((g) => [g.name, g.contactEmail, g.contactPhone, g.status, g.bidDueAt])).toEqual([
+      ["TDS Construction Inc", "estimating@tds.example.com", "(941) 555-0101", "BIDDING", "2026-11-20T19:00:00.000Z"],
+      ["Windecker Construction LLC", "estimating@windecker.example.com", "(201) 555-0102", "BIDDING", "2026-11-20T19:00:00.000Z"],
+      ["Suncon Inc.", "tim@suncon.example.com", null, "PROSPECTIVE", "2026-11-20T19:00:00.000Z"],
+    ]);
+    expect(p.gcs.every((g) => g.contactName === null)).toBe(true);
+  });
+  it("still reads the project around the list", () => {
+    expect(p.address).toMatchObject({ address1: "11815 SW 26th St", city: "Miami", zipCode: "33175" });
+    expect(p.projectType).toBe("Tenant Build-Out");
+    expect(p.prevailingWage).toBeNull();
+    expect(p.moreTrades).toBe(52);
   });
 });
 

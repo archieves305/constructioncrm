@@ -19,7 +19,19 @@ export type PlanhubPayload = { url: string; text: string; cards?: { text: string
 
 export type BoardCard = { name: string; stage: PlanhubStageKey | null; dueOn: DayKey | null; dueText: string | null; bidValue: number | null };
 
-export type ProjectPageGc = { name: string; website: string | null; addressText: string | null; contactName: string | null; contactEmail: string | null; contactPhone: string | null };
+export type ProjectPageGc = {
+  name: string;
+  website: string | null;
+  addressText: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  /** The GC's status on PlanHub ("BIDDING", "PROSPECTIVE"); null when the page shows none. */
+  status: string | null;
+  /** This GC's own due date (each GC on a project may set its own). */
+  bidDueAt: string | null;
+  bidDueHasTime: boolean;
+};
 
 export type ProjectPage = {
   platformRef: string;
@@ -38,7 +50,8 @@ export type ProjectPage = {
   projectType: string | null;
   buildingUse: string | null;
   prevailingWage: boolean | null;
-  gc: ProjectPageGc | null;
+  /** Every GC the page lists: one ("About us") or several ("General Contractors"). */
+  gcs: ProjectPageGc[];
 };
 
 export type ReadPage = { kind: "BOARD"; cards: BoardCard[] } | { kind: "PROJECT"; project: ProjectPage } | { kind: "UNKNOWN"; reason: string };
@@ -67,7 +80,7 @@ export function canonicalProjectUrl(url: string, ref: string): string {
 }
 
 const ICON = /^[a-z]+(?:_[a-z]+)*$/;
-const ICON_WORDS = new Set(["check", "add", "map", "person", "mail", "phone", "language", "business", "construction", "assignment", "home_work", "calendar_month", "pin_drop", "open_in_new", "local_offer", "history", "arrow_right", "bar_chart", "expand_more", "auto_awesome", "arrow_circle_up", "send", "bookmark", "navigate_before", "close", "edit", "star", "more_vert"]);
+const ICON_WORDS = new Set(["check", "add", "map", "person", "mail", "phone", "language", "business", "construction", "assignment", "home_work", "calendar_month", "pin_drop", "open_in_new", "local_offer", "history", "arrow_right", "bar_chart", "expand_more", "auto_awesome", "arrow_circle_up", "send", "bookmark", "navigate_before", "close", "edit", "star", "more_vert", "question_mark"]);
 
 function lines(text: string): string[] {
   return text
@@ -80,9 +93,10 @@ function lines(text: string): string[] {
 const isIcon = (l: string) => ICON_WORDS.has(l) || (ICON.test(l) && l.includes("_"));
 
 export function stageOf(word: string | null | undefined): PlanhubStageKey | null {
-  const w = word?.trim().toUpperCase();
+  const w = word?.trim().toUpperCase().replace(/[\s-]+/g, "_");
   if (!w) return null;
-  if (w === "SUBMITTING") return "SUBMITTED";
+  // The narrow board's column picker says "bid_submitted"; a help page says "Submitting".
+  if (w === "SUBMITTING" || w === "BID_SUBMITTED") return "SUBMITTED";
   return (PLANHUB_STAGES as readonly string[]).includes(w) ? (w as PlanhubStageKey) : null;
 }
 
@@ -144,10 +158,11 @@ export function parseBoard(payload: PlanhubPayload, now: Date): BoardCard[] {
     }
     return dedupeCards(out);
   }
-  const ls = lines(payload.text).filter((l) => !isIcon(l));
+  // Stage words are read before icon words are dropped ("bid_submitted" looks like an icon name).
+  const ls = lines(payload.text).filter((l) => (/^[a-z_]+$/.test(l) && stageOf(l)) || !isIcon(l));
   let stage: PlanhubStageKey | null = null;
   for (let i = 0; i < ls.length; i++) {
-    const asStage = /^[a-z]+$/i.test(ls[i]) && ls[i] === ls[i].toLowerCase() ? stageOf(ls[i]) : null;
+    const asStage = /^[a-z_]+$/.test(ls[i]) ? stageOf(ls[i]) : null;
     if (asStage) {
       stage = asStage;
       continue;
@@ -254,32 +269,9 @@ export function parseProjectPage(payload: PlanhubPayload, ref: string): ProjectP
     description = parts.join(" ").replace(/\.\.\.$/, "…") || null;
   }
 
-  // The GC block ("About us"), read from the raw lines: its icons say what each value is.
-  let gc: ProjectPageGc | null = null;
-  const gi = all.findIndex((l) => l === "About us");
-  if (gi >= 0) {
-    const block: string[] = [];
-    for (let i = gi + 1; i < all.length && !/^(special instructions|market intelligence|intend to bid)$/i.test(all[i]); i++) block.push(all[i]);
-    const gcName = block.find((l) => !isIcon(l)) ?? null;
-    const iconned = (icon: string) => {
-      const k = block.indexOf(icon);
-      return k >= 0 && block[k + 1] && !isIcon(block[k + 1]) ? block[k + 1] : null;
-    };
-    if (gcName && !/^view profile$/i.test(gcName)) {
-      const website = block.find((l) => /^https?:\/\//i.test(l)) ?? null;
-      const contact = iconned("person");
-      gc = {
-        name: gcName,
-        website,
-        addressText: iconned("pin_drop"),
-        contactName: contact ? contact.replace(/\s*\((?:primary )?contact\)\s*$/i, "").trim() || null : null,
-        contactEmail: iconned("mail")?.toLowerCase() ?? null,
-        contactPhone: iconned("phone"),
-      };
-    }
-  }
-
   const dueLine = ls.find((l) => /^DUE \d{1,2}\/\d{1,2}\/\d{4}/i.test(l)) ?? (after("Bid Due Date") ? `DUE ${after("Bid Due Date")}` : null);
+  const gcs = parseGcs(all, parseDueLine(dueLine));
+
   const due = parseDueLine(dueLine);
   const labor = after("Sector Labor Status");
 
@@ -300,8 +292,78 @@ export function parseProjectPage(payload: PlanhubPayload, ref: string): ProjectP
     projectType: after("Project Type"),
     buildingUse: after("Building Use"),
     prevailingWage: labor ? /prevailing/i.test(labor) : null,
-    gc,
+    gcs,
   };
+}
+
+const AVATAR = /^[A-Z0-9]{1,3}$/;
+const GC_END = /^(special instructions|market intelligence|intend to bid)$/i;
+
+/**
+ * The GCs on a project's page. One GC: an "About us" block (name, website,
+ * office address, a named primary contact). Several: a "General Contractors"
+ * list, each GC with an email, a phone, its status and its own due date, and
+ * ending at its "Special Instructions" link. Icon words say what each value is.
+ */
+function parseGcs(all: string[], pageDue: { at: string; hasTime: boolean } | null): ProjectPageGc[] {
+  const after = (block: string[], icon: string) => {
+    const k = block.indexOf(icon);
+    const v = k >= 0 ? block[k + 1] : null;
+    return v && !isIcon(v) && !/^not provided$/i.test(v) ? v : null;
+  };
+  const statusOf = (block: string[]) => {
+    const k = block.indexOf("local_offer");
+    for (let i = k + 1; k >= 0 && i < Math.min(block.length, k + 4); i++) if (/^[A-Z][A-Z _]+$/.test(block[i]) && !/^DUE\b/.test(block[i])) return block[i];
+    return null;
+  };
+  const dueOf = (block: string[]) => parseDueLine(block.find((l) => /^DUE \d{1,2}\/\d{1,2}\/\d{4}/i.test(l))) ?? pageDue;
+
+  const li = all.findIndex((l) => l === "General Contractors");
+  if (li >= 0) {
+    const out: ProjectPageGc[] = [];
+    let block: string[] = [];
+    const flush = () => {
+      const name = block.find((l) => !isIcon(l) && !AVATAR.test(l) && !/^all bidding statuses$/i.test(l));
+      if (name && (block.includes("mail") || block.includes("phone") || block.some((l) => /^DUE\b/.test(l)))) {
+        const due = dueOf(block);
+        out.push({ name, website: null, addressText: null, contactName: after(block, "person"), contactEmail: after(block, "mail")?.toLowerCase() ?? null, contactPhone: after(block, "phone"), status: statusOf(block), bidDueAt: due?.at ?? null, bidDueHasTime: due?.hasTime ?? false });
+      }
+      block = [];
+    };
+    for (let i = li + 1; i < all.length; i++) {
+      const l = all[i];
+      if (/^(market intelligence|intend to bid|bar_chart)$/i.test(l)) break;
+      if (l === "Special Instructions") {
+        flush();
+        continue;
+      }
+      block.push(l);
+    }
+    flush();
+    return out;
+  }
+
+  const gi = all.findIndex((l) => l === "About us");
+  if (gi < 0) return [];
+  const block: string[] = [];
+  for (let i = gi + 1; i < all.length && !GC_END.test(all[i]); i++) block.push(all[i]);
+  const name = block.find((l) => !isIcon(l) && !AVATAR.test(l));
+  if (!name || /^view profile$/i.test(name)) return [];
+  const contact = after(block, "person");
+  const due = dueOf(block);
+  return [
+    {
+      name,
+      website: block.find((l) => /^https?:\/\//i.test(l)) ?? null,
+      addressText: after(block, "pin_drop"),
+      contactName: contact ? contact.replace(/\s*\((?:primary )?contact\)\s*$/i, "").trim() || null : null,
+      contactEmail: after(block, "mail")?.toLowerCase() ?? null,
+      contactPhone: after(block, "phone"),
+      status: statusOf(block),
+      bidDueAt: due?.at ?? null,
+      bidDueHasTime: due?.hasTime ?? false,
+    },
+  ];
 }
 
 export function readPage(payload: PlanhubPayload, now: Date = new Date()): ReadPage {
