@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { format, subDays } from "date-fns";
-import { Download, Plus, Users } from "lucide-react";
+import { Download, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
@@ -17,9 +17,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { lastTouchLabel } from "@/lib/partners/derive";
 import { cn } from "@/lib/utils";
-import { ContactFormDialog } from "@/components/partners/contact-form-dialog";
+import { ContactFormDialog, contactFormValues } from "@/components/partners/contact-form-dialog";
+import { RemoveContactDialog } from "@/components/partners/remove-contact-dialog";
 import { PartnerStageBadge } from "@/components/partners/stage-badges";
-import { useContactsAcross, useOrganizations, usePartnerOptions } from "@/components/partners/use-partners";
+import { useContactsAcross, useOrganizations, usePartnerOptions, type ContactRow } from "@/components/partners/use-partners";
 
 const ALL = "__all";
 
@@ -43,6 +44,8 @@ function Contacts() {
   const q = useDebouncedValue(search.trim(), 300);
   const [adding, setAdding] = useState<string | null>(null);
   const [pickingAccount, setPickingAccount] = useState(false);
+  const [editing, setEditing] = useState<ContactRow | null>(null);
+  const [removing, setRemoving] = useState<ContactRow | null>(null);
 
   const { data: options } = usePartnerOptions();
   const accounts = useOrganizations(new URLSearchParams({ pageSize: "500", sort: "name" }), pickingAccount || Boolean(organizationId));
@@ -141,6 +144,7 @@ function Contacts() {
                   <TableHead className="hidden lg:table-cell">Email</TableHead>
                   <TableHead className="hidden lg:table-cell">Covers</TableHead>
                   <TableHead>Last touch</TableHead>
+                  {canManage && <TableHead className="w-20"><span className="sr-only">Actions</span></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -161,6 +165,12 @@ function Contacts() {
                     <TableCell className="hidden text-sm lg:table-cell">{c.email ? <a href={`mailto:${c.email}`} className="break-all hover:underline">{c.email}</a> : "—"}</TableCell>
                     <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">{[c.geography, c.trades.join(", ")].filter(Boolean).join(" · ") || "—"}</TableCell>
                     <TableCell className={cn("whitespace-nowrap text-sm", !c.lastContactAt && "text-muted-foreground")}>{lastTouchLabel(c.lastContactAt, now)}</TableCell>
+                    {canManage && (
+                      <TableCell className="whitespace-nowrap text-right">
+                        <Button variant="ghost" size="icon" aria-label={`Edit ${c.firstName} ${c.lastName}`} onClick={() => setEditing(c)}><Pencil className="size-4" /></Button>
+                        <Button variant="ghost" size="icon" aria-label={`Remove ${c.firstName} ${c.lastName}`} onClick={() => setRemoving(c)}><Trash2 className="size-4" /></Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -189,6 +199,8 @@ function Contacts() {
         </Card>
       )}
       {adding && <ContactFormDialog open onOpenChange={(o) => !o && setAdding(null)} organizationId={adding} />}
+      {editing && <ContactFormDialog open onOpenChange={(o) => !o && setEditing(null)} organizationId={editing.organization.id} contactId={editing.id} initial={contactFormValues(editing)} />}
+      <RemoveContactDialog contact={removing} open={Boolean(removing)} onOpenChange={(o) => !o && setRemoving(null)} />
     </div>
   );
 }

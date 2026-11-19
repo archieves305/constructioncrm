@@ -27,6 +27,7 @@ import { lastTouchLabel } from "@/lib/partners/derive";
 import { stageDef, stagesAsStageLike } from "@/lib/partners/stages";
 import { cn } from "@/lib/utils";
 import { ContactFormDialog, contactFormValues } from "@/components/partners/contact-form-dialog";
+import { RemoveContactDialog } from "@/components/partners/remove-contact-dialog";
 import { InteractionDialog } from "@/components/partners/interaction-dialog";
 import { OrgFormDialog, orgFormValues } from "@/components/partners/org-form-dialog";
 import { OwnerDialog } from "@/components/partners/owner-dialog";
@@ -178,7 +179,7 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
-          <OverviewTab data={data} now={now} onLog={() => setLogging({ open: true })} onAddContact={() => setContactDialog({ open: true })} />
+          <OverviewTab data={data} now={now} onLog={() => setLogging({ open: true })} onAddContact={() => setContactDialog({ open: true })} onEditContact={(c) => setContactDialog({ open: true, contact: c })} />
         </TabsContent>
 
         <TabsContent value="contacts" className="mt-4">
@@ -267,7 +268,7 @@ export default function PartnerPage({ params }: { params: Promise<{ id: string }
   );
 }
 
-function OverviewTab({ data, now, onLog, onAddContact }: { data: OrgDetail; now: Date; onLog: () => void; onAddContact: () => void }) {
+function OverviewTab({ data, now, onLog, onAddContact, onEditContact }: { data: OrgDetail; now: Date; onLog: () => void; onAddContact: () => void; onEditContact: (c: Contact) => void }) {
   const { organization: org, openTasks, permissions } = data;
   const primary = org.contacts.find((c) => c.isPrimary && c.isActive) ?? org.contacts.find((c) => c.isActive) ?? null;
   const recent = useInteractions(org.id);
@@ -359,7 +360,12 @@ function OverviewTab({ data, now, onLog, onAddContact }: { data: OrgDetail; now:
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="text-base">Primary contact</CardTitle>
-            {permissions.canManage && <Button size="sm" variant="outline" onClick={onAddContact}><Plus className="mr-1 size-4" /> Add contact</Button>}
+            {permissions.canManage && (
+              <div className="flex gap-2">
+                {primary && <Button size="sm" variant="outline" onClick={() => onEditContact(primary)}><Pencil className="mr-1 size-4" /> Edit</Button>}
+                <Button size="sm" variant="outline" onClick={onAddContact}><Plus className="mr-1 size-4" /> Add contact</Button>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="text-sm">
             {primary ? (
@@ -409,6 +415,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function ContactsTab({ org, canManage, now, onAdd, onEdit }: { org: OrgDetail["organization"]; canManage: boolean; now: Date; onAdd: () => void; onEdit: (c: Contact) => void }) {
   const invalidate = useInvalidatePartners();
+  const [removing, setRemoving] = useState<Contact | null>(null);
   const { data: options } = usePartnerOptions();
   const patch = useMutation({
     mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) => fetchJson(`/api/contacts/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
@@ -435,7 +442,7 @@ function ContactsTab({ org, canManage, now, onAdd, onEdit }: { org: OrgDetail["o
               <TableHead className="hidden md:table-cell">Email</TableHead>
               <TableHead className="hidden lg:table-cell">Rating</TableHead>
               <TableHead className="hidden sm:table-cell">Last touch</TableHead>
-              {canManage && <TableHead className="w-10" />}
+              {canManage && <TableHead className="w-28"><span className="sr-only">Actions</span></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -457,13 +464,14 @@ function ContactsTab({ org, canManage, now, onAdd, onEdit }: { org: OrgDetail["o
                 <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">{[c.relationshipStrength ? `strength ${c.relationshipStrength}/5` : null, c.influence ? `influence ${c.influence}/5` : null].filter(Boolean).join(" · ") || "—"}</TableCell>
                 <TableCell className="hidden text-sm sm:table-cell">{lastTouchLabel(c.lastContactAt, now)}</TableCell>
                 {canManage && (
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap text-right">
+                    <Button variant="ghost" size="icon" aria-label={`Edit ${c.firstName} ${c.lastName}`} onClick={() => onEdit(c)}><Pencil className="size-4" /></Button>
+                    <Button variant="ghost" size="icon" aria-label={`Remove ${c.firstName} ${c.lastName}`} onClick={() => setRemoving(c)}><Trash2 className="size-4" /></Button>
                     <DropdownMenu>
-                      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${c.firstName}`} />}>
+                      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`More for ${c.firstName}`} />}>
                         <MoreHorizontal className="size-4" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit(c)}><Pencil className="size-4" /> Edit</DropdownMenuItem>
                         {!c.isPrimary && c.isActive && <DropdownMenuItem onClick={() => patch.mutate({ id: c.id, body: { isPrimary: true } })}><Star className="size-4" /> Make primary</DropdownMenuItem>}
                         <DropdownMenuItem onClick={() => patch.mutate({ id: c.id, body: { isActive: !c.isActive, ...(c.isActive ? { isPrimary: false } : {}) } })}>
                           {c.isActive ? "Mark inactive" : "Mark active"}
@@ -477,6 +485,7 @@ function ContactsTab({ org, canManage, now, onAdd, onEdit }: { org: OrgDetail["o
           </TableBody>
         </Table>
       </CardContent>
+      <RemoveContactDialog contact={removing} open={Boolean(removing)} onOpenChange={(o) => !o && setRemoving(null)} />
     </Card>
   );
 }

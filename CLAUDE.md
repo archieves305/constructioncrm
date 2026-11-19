@@ -668,6 +668,17 @@ the queue's order. Its header shows the GC count, the scopes, the first due date
 the soonest next step. Gate: 2218 tests, build clean; headless at 1440 / 400 px with no
 page errors and no sideways scroll.
 
+**GC contacts: edit and remove (same day, Richard).**
+- **Visible buttons.** The account's Contacts tab and Business Development → Contacts
+  show Edit and Remove on each row; the account's Overview "Primary contact" card has
+  Edit.
+- **Remove.** `removeContact` (`src/lib/partners/contacts.ts`) deletes a contact that
+  nothing refers to. A contact on an interaction, lead, bid, submission, intake or
+  permit party is marked inactive (and not primary) instead, so those records keep
+  the name. `DELETE /api/contacts/[id]` returns `{ removed }`, and the toast says which.
+- **Checks.** Dev QA 9/10 (the miss was the test reading the toast); 2218 tests, build
+  clean.
+
 ### 2026-11-18 — PlanHub bid management, Stage 1b: Upload Estimate, AI reading, review, record as sent (built + dev-QA'd on `planhub-1a`, merged to `main` 2026-11-18)
 
 Migration `20261125120000_bid_proposals_unfiled` (a proposal waits without a project until confirmed; supporting files / pasted text on the version). `src/lib/bids/proposal-plan.ts` (pure, tested: answer schema, `draftFromExtraction` — trades by name and usual words, a validity period becomes a flagged expiry, a negative unsplit line becomes the bundle discount, a total the lines miss becomes a conflict; `confirmProblems`; `amountForScopes` — a GC bidding part of a bundle never gets the discount; `quotedByScope`), `xlsx-text.ts` (exceljs → `A1=value` text), prompt `bid_proposal_extract` v3 (Opus; documents as data), `proposals.ts` (upload with sha256 dedupe, claimed background reading with stale restart, review save, read again, `confirmVersion`: files on a new or chosen project, creates scopes, same proposal number = next version and the old one SUPERSEDED, adds / updates GCs, Estimating → Ready to submit only with a verified version and a recipient email — never Submitted), `submissions.ts` (`recordSubmissions`: one submission per GC with recipients and the version; `addSubmission` takes `proposalVersionId`, recipients, evidence). Intake: a PlanHub id names the project (`findExistingBid` no longer suggests another GC's bid), cards suggest the project, `fileIntakeOnProject` + `POST /api/partners/intake/[id]/project`. Files: a proposal, award or submission evidence file counts as generated (never deleted or replaced); a rep reads files on projects they work. UI: Upload estimate (PlanHub page + project), `/planhub/proposals/[id]` review, project Proposals card, Record as sent dialog, intake "Add this GC to BP-n / Start a PlanHub project". **Found in QA: the structured-output API refuses more than 16 nullable fields and too large a grammar — the schema is one flat object of strings plus an evidence list.** Gate: typecheck clean, lint 5/21, 2181 tests, build clean. Dev QA (mail blank): API 35/35 with real readings on a synthetic proposal PDF (19 s; every value and source right, a planted instruction ignored) and an xlsx (cell `Bid Summary!B6`), $0.12 for three readings; headless Chromium 14/14 at 1440 / 400 px; SALES_REP 404 on others' uploads / projects; AI off → FAILED with typing by hand. Still needed: real PlanHub emails and real KNU proposals to check the reader on.

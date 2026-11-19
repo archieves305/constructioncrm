@@ -80,6 +80,32 @@ export async function updateContact(id: string, patch: Partial<ContactInput>, ac
   return contact;
 }
 
+/**
+ * Remove a contact. One that nothing points at (no interaction, lead, bid,
+ * submission, intake or permit party) is deleted; one with history is marked
+ * inactive instead, so the interactions and bids it is on keep their name.
+ */
+export async function removeContact(id: string, actorUserId: string): Promise<{ removed: "deleted" | "deactivated" }> {
+  const c = await prisma.contact.findUnique({
+    where: { id },
+    select: {
+      ...CONTACT_SELECT,
+      _count: { select: { interactions: true, permitParties: true, leads: true, bidInvitations: true, bidIntakes: true, submissionsReceived: true, bidPurchasing: true, bidRecipientRows: true } },
+    },
+  });
+  if (!c) throw new PartnerError(404, "Contact not found");
+  const history = Object.values(c._count).some((n) => n > 0);
+  if (history) {
+    await updateContact(id, { isActive: false, isPrimary: false }, actorUserId);
+    return { removed: "deactivated" };
+  }
+  const { _count, ...before } = c;
+  void _count;
+  await prisma.contact.delete({ where: { id } });
+  await recordAudit({ actorUserId, entityType: "Contact", entityId: id, action: "delete", before });
+  return { removed: "deleted" };
+}
+
 export async function listContacts(params: ContactListParams) {
   const where = buildContactListWhere(params);
   const [rows, total] = await Promise.all([

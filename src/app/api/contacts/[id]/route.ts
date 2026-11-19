@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { canManagePartners, PARTNER_DENIED_MESSAGE } from "@/lib/partners/access";
-import { updateContact, type ContactInput } from "@/lib/partners/contacts";
+import { removeContact, updateContact, type ContactInput } from "@/lib/partners/contacts";
 import { partnerErrorResponse, updateContactSchema } from "@/lib/partners/validation";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -21,15 +21,17 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
   }
 }
 
-/** A contact is never deleted — people move; the record is deactivated and kept on the interactions it is on. */
+/**
+ * Remove a contact: deleted when nothing refers to it, otherwise marked
+ * inactive so the interactions and bids it is on keep the person's name.
+ */
 export async function DELETE(_request: NextRequest, { params }: Ctx) {
   const session = await getSession();
   if (!session?.user) return unauthorized();
   if (!canManagePartners(session.user.role)) return NextResponse.json({ error: PARTNER_DENIED_MESSAGE }, { status: 403 });
   const { id } = await params;
   try {
-    await updateContact(id, { isActive: false, isPrimary: false }, session.user.id);
-    return new NextResponse(null, { status: 204 });
+    return NextResponse.json(await removeContact(id, session.user.id));
   } catch (err) {
     return partnerErrorResponse(err);
   }
