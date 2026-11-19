@@ -74,6 +74,21 @@ export const BID_SELECT = {
   awardedAmount: true,
   contractReceivedAt: true,
   needsReview: true,
+  bidProjectId: true,
+  primeStatus: true,
+  pmUserId: true,
+  purchasingContactId: true,
+  cadenceAnchorAt: true,
+  requestedFollowUpAt: true,
+  pausedUntil: true,
+  pauseScope: true,
+  pauseReason: true,
+  nextActionAt: true,
+  nextActionLabel: true,
+  lastMeaningfulContactAt: true,
+  bidProject: { select: { id: true, number: true, name: true, stage: true } },
+  pmUser: PERSON,
+  scopes: { orderBy: { scope: { sortOrder: "asc" as const } }, select: { id: true, status: true, quotedAmount: true, awardId: true, lossReason: true, decidedAt: true, scope: { select: { id: true, label: true, serviceCategoryId: true } } } },
   createdAt: true,
   updatedAt: true,
   estimator: PERSON,
@@ -115,6 +130,7 @@ export function presentBid(b: BidRow) {
     estimatingHours: num(b.estimatingHours),
     winningPrice: num(b.winningPrice),
     awardedAmount: num(b.awardedAmount),
+    scopes: b.scopes.map((sc) => ({ ...sc, quotedAmount: num(sc.quotedAmount) })),
     lead: { ...b.lead, estimatedJobValue: num(b.lead.estimatedJobValue), jobs: b.lead.jobs.map((j) => ({ ...j, contractAmount: Number(j.contractAmount) })), trades: b.lead.services.map((s) => s.serviceCategory) },
     submissions: b.submissions.map((s) => ({ ...s, amount: Number(s.amount), snapshotTotalPrice: num(s.snapshotTotalPrice), snapshotSubtotalCost: num(s.snapshotSubtotalCost) })),
     latestAmount: latestAmount(b.submissions.map((s) => ({ version: s.version, amount: Number(s.amount) }))),
@@ -172,6 +188,11 @@ export type CreateBidInput = BidInput & {
   tradeIds: string[];
   /** Set by an intake ("email:BUILDINGCONNECTED") so the bid says where it came from. */
   signalSource?: string | null;
+  /** PlanHub bid projects: the project this GC opportunity belongs to, and the project's scopes it bids. */
+  bidProjectId?: string | null;
+  scopeIds?: string[];
+  pmUserId?: string | null;
+  purchasingContactId?: string | null;
   site: { address1: string; address2?: string | null; city: string; state?: string; zipCode: string; county?: string | null };
 };
 
@@ -218,6 +239,12 @@ export async function createBid(input: CreateBidInput, actorUserId: string) {
   const firstName = contact?.firstName ?? org.name;
   const lastName = contact?.lastName ?? "";
 
+  if (input.bidProjectId) {
+    const scopes = input.scopeIds?.length ? await prisma.bidProjectScope.count({ where: { id: { in: input.scopeIds }, bidProjectId: input.bidProjectId } }) : 0;
+    if (!input.scopeIds?.length || scopes !== input.scopeIds.length) throw new PartnerError(400, "scopeIds: pick the project's scopes this GC is bidding");
+    const twin = await prisma.bidInvitation.findFirst({ where: { bidProjectId: input.bidProjectId, organizationId: org.id }, select: { number: true } });
+    if (twin) throw new PartnerError(409, `${org.name} is already on this project (${twin.number}); add the scope to that opportunity instead`);
+  }
   const created = await prisma.$transaction(async (tx) => {
     const lead = await tx.lead.create({
       data: {
@@ -263,7 +290,11 @@ export async function createBid(input: CreateBidInput, actorUserId: string) {
         estimatorUserId: input.estimatorUserId ?? null,
         invitedAt: status === "INVITED" ? (whenOf(input.invitedAt) ?? new Date()) : (whenOf(input.invitedAt) ?? null),
         signalSource: input.signalSource ?? null,
+        bidProjectId: input.bidProjectId ?? null,
+        pmUserId: input.pmUserId ?? null,
+        purchasingContactId: input.purchasingContactId ?? null,
         createdByUserId: actorUserId,
+        ...(input.bidProjectId && input.scopeIds?.length ? { scopes: { create: input.scopeIds.map((scopeId) => ({ scopeId })) } } : {}),
       },
       select: BID_SELECT,
     });
@@ -310,6 +341,10 @@ export async function setBidStatus(id: string, status: BidStatus, waitingOn: str
   if (status === "CLOSED") throw new PartnerError(400, "Close the bid with an outcome instead");
   if (before.status === "CLOSED") throw new PartnerError(409, "A closed bid is reopened, not moved");
   if (!canTransition(before.status, status)) throw new PartnerError(409, `A bid cannot go from ${BID_STATUS_LABEL[before.status]} to ${BID_STATUS_LABEL[status]}`);
+  if (status === "READY_TO_SUBMIT") {
+    const problems = await readyProblems(id);
+    if (problems.length) throw new PartnerError(409, `Not ready to submit: ${problems.join("; ")}`, { problems });
+  }
   if (status === "SUBMITTED" && before._count.submissions === 0) throw new PartnerError(409, "Record the submission (the amount and when it went out) to mark the bid submitted");
   const data: Prisma.BidInvitationUpdateInput = { status };
   if (waitingOn !== undefined) data.waitingOn = clean(waitingOn);
@@ -318,6 +353,23 @@ export async function setBidStatus(id: string, status: BidStatus, waitingOn: str
   const after = await prisma.bidInvitation.update({ where: { id }, data, select: BID_SELECT });
   await recordAudit({ actorUserId, entityType: "BidInvitation", entityId: id, action: "bid_status", before: { status: before.status }, after: { status, waitingOn: data.waitingOn ?? null } });
   return presentBid(after);
+}
+
+/**
+ * What stops a GC opportunity from being Ready to submit: a checked
+ * (VERIFIED) proposal version on its project, and someone at the GC with an
+ * email to send it to. A legacy bid with no project needs only the recipient.
+ */
+export async function readyProblems(id: string): Promise<string[]> {
+  const bid = await prisma.bidInvitation.findUnique({ where: { id }, select: { bidProjectId: true, organizationId: true, contact: { select: { email: true } }, purchasingContact: { select: { email: true } } } });
+  if (!bid) return ["the bid was not found"];
+  const out: string[] = [];
+  if (bid.bidProjectId) {
+    const verified = await prisma.bidProposalVersion.count({ where: { bidProjectId: bid.bidProjectId, status: "VERIFIED", OR: [{ organizationId: null }, { organizationId: bid.organizationId }] } });
+    if (!verified) out.push("no checked proposal on the project yet");
+  }
+  if (!bid.contact?.email && !bid.purchasingContact?.email) out.push("no one at the GC with an email to send it to");
+  return out;
 }
 
 /** The inputs the scorer reads from the record; the five sliders come from the person. */
@@ -389,6 +441,7 @@ export async function decideBid(id: string, input: { decision: Exclude<BidDecisi
   if (input.decision === "NO_BID") {
     const after = await prisma.bidInvitation.update({ where: { id }, data: { decision: "NO_BID", decisionScore: score.score, decisionFactors: snapshot as Prisma.InputJsonValue, decisionReason: clean(input.reason), decidedByUserId: actorUserId, decidedAt: now, status: "CLOSED", outcome: "NO_BID", outcomeAt: now, outcomeNotes: clean(input.reason) }, select: BID_SELECT });
     await moveLeadStage(after.leadId, "lost", actorUserId, `Passed on ${after.number}`);
+    if (after.bidProjectId) await prisma.bidOpportunityScope.updateMany({ where: { bidInvitationId: id, status: { in: ["PENDING", "VERBAL"] } }, data: { status: "NO_BID", decidedAt: now } });
     await recordAudit({ actorUserId, entityType: "BidInvitation", entityId: id, action: "bid_decision", before: { decision: bid.decision, status: bid.status }, after: { decision: "NO_BID", score: score.score, recommendation: score.recommendation, reason: input.reason ?? null } });
     return presentBid(await prisma.bidInvitation.findUniqueOrThrow({ where: { id }, select: BID_SELECT }));
   }
@@ -404,6 +457,8 @@ export async function closeBid(id: string, input: CloseInput, actorUserId: strin
   const bid = await prisma.bidInvitation.findUnique({ where: { id }, select: BID_SELECT });
   if (!bid) throw new PartnerError(404, "Bid not found");
   if (bid.status === "CLOSED") throw new PartnerError(409, "The bid is already closed; reopen it to change the outcome");
+  // A GC opportunity on a bid project closes from its scopes (an award, a loss per scope) — never here.
+  if (bid.bidProjectId) throw new PartnerError(409, "This bid belongs to a project: record the award or the loss for each scope on the project page");
   const needs = closeRequires(input.outcome);
   if (needs.lossReason && !input.lossReason) throw new PartnerError(400, "lossReason: say why it was lost");
   if (needs.awardedAmount && !(input.awardedAmount && input.awardedAmount > 0)) throw new PartnerError(400, "awardedAmount: the awarded amount is needed to create the job");
@@ -466,13 +521,15 @@ export async function reopenBid(id: string, actorUserId: string, force = false) 
   if (bid.lead.jobs.length && !force) throw new PartnerError(409, "A job was created from this award; reopening leaves the job in place", { jobs: bid.lead.jobs.map((j) => j.jobNumber) });
   await prisma.bidInvitation.update({ where: { id }, data: { status: "INVITED", outcome: null, lossReason: null, winningContractor: null, winningPrice: null, outcomeAt: null, awardedAmount: null, decision: bid.decision === "NO_BID" ? "UNDECIDED" : bid.decision } });
   await moveLeadStage(bid.leadId, "open", actorUserId, `${bid.number} reopened`);
+  // A project opportunity's undecided-again scopes go back to Pending; won scopes keep their award.
+  if (bid.bidProjectId) await prisma.bidOpportunityScope.updateMany({ where: { bidInvitationId: id, status: { in: ["LOST", "WITHDRAWN", "NO_BID", "CANCELLED"] } }, data: { status: "PENDING", lossReason: null, decidedAt: null } });
   await recordAudit({ actorUserId, entityType: "BidInvitation", entityId: id, action: "bid_reopen", before: { outcome: bid.outcome }, after: { status: "INVITED", force } });
   // Read after the lead has moved, so the answer carries its new stage.
   return presentBid(await prisma.bidInvitation.findUniqueOrThrow({ where: { id }, select: BID_SELECT }));
 }
 
 /** The lead's stage follows the bid: Won, Lost, or the first open stage. Writes the history, the activity line and the audit the stage route would. */
-async function moveLeadStage(leadId: string, to: "won" | "lost" | "open", actorUserId: string, reason: string) {
+export async function moveLeadStage(leadId: string, to: "won" | "lost" | "open", actorUserId: string, reason: string) {
   const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { currentStageId: true } });
   if (!lead) return;
   const stage =

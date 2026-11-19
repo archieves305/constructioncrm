@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addWorkingDays, isWorkingDay, previousWorkingDay, workingDaysBetween } from "./working-days";
+import { addWorkingDays, isWorkingDay, previousWorkingDay, workingDaysBetween, onOrNextWorkingDay } from "./working-days";
 
 // 2026-10-12 is a Monday.
 describe("working days", () => {
@@ -26,5 +26,18 @@ describe("working days", () => {
     expect(workingDaysBetween("2026-10-12", "2026-10-16")).toBe(4);
     expect(workingDaysBetween("2026-10-12", "2026-10-19")).toBe(5);
     expect(workingDaysBetween("2026-10-19", "2026-10-12")).toBe(0);
+  });
+});
+
+describe("holidays (passed by the bid cadence only)", () => {
+  const thanksgiving = new Set(["2026-11-26"]);
+  it("skips a holiday when given one, and only then", () => {
+    expect(addWorkingDays("2026-11-25", 1)).toBe("2026-11-26");
+    expect(addWorkingDays("2026-11-25", 1, thanksgiving)).toBe("2026-11-27");
+    expect(workingDaysBetween("2026-11-24", "2026-11-30", thanksgiving)).toBe(3);
+    expect(isWorkingDay("2026-11-26", thanksgiving)).toBe(false);
+    expect(previousWorkingDay("2026-11-27", thanksgiving)).toBe("2026-11-25");
+    expect(onOrNextWorkingDay("2026-11-26", thanksgiving)).toBe("2026-11-27");
+    expect(onOrNextWorkingDay("2026-11-25", thanksgiving)).toBe("2026-11-25");
   });
 });

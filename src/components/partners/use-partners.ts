@@ -350,11 +350,11 @@ export function useChangeOwner(organizationId: string) {
 
 // ── Bids (Stage 3) ────────────────────────────────────────────────────────
 
-export type BidStatus = "TRACKING" | "INVITED" | "DECIDING" | "ESTIMATING" | "SUBMITTED" | "SHORTLISTED" | "CLOSED";
+export type BidStatus = "TRACKING" | "INVITED" | "DECIDING" | "ESTIMATING" | "READY_TO_SUBMIT" | "SUBMITTED" | "SHORTLISTED" | "CLOSED";
 export type BidOutcome = "AWARDED" | "LOST" | "NO_BID" | "CANCELLED" | "NO_DECISION" | "REBID";
 export type BidDecision = "UNDECIDED" | "BID" | "NO_BID";
 export type BidPlatform = "BUILDINGCONNECTED" | "PROCORE" | "PLANHUB" | "SMARTBID" | "CONSTRUCTCONNECT" | "TEXTURA" | "EMAIL" | "OTHER";
-export type LossReason = "PRICE" | "RELATIONSHIP" | "SCHEDULE" | "SCOPE" | "QUALIFICATION" | "BONDING" | "CAPACITY" | "COMPETITOR" | "UNKNOWN" | "OTHER";
+export type LossReason = "PRICE" | "RELATIONSHIP" | "SCHEDULE" | "SCOPE" | "QUALIFICATION" | "BONDING" | "CAPACITY" | "COMPETITOR" | "GC_LOST_PRIME" | "WITHDRAWN" | "UNKNOWN" | "OTHER";
 export type SubmissionKind = "ORIGINAL" | "REVISED" | "ALTERNATE" | "VALUE_ENGINEERING";
 export type SubmissionMethod = "PLATFORM" | "EMAIL" | "PORTAL" | "HAND" | "OTHER";
 export type SliderKey = "margin" | "capacity" | "competition" | "complexity" | "plansAndTerms";
@@ -475,6 +475,7 @@ export const BID_STATUS_TONE: Record<BidStatus, "neutral" | "info" | "warning" |
   INVITED: "info",
   DECIDING: "warning",
   ESTIMATING: "info",
+  READY_TO_SUBMIT: "warning",
   SUBMITTED: "info",
   SHORTLISTED: "success",
   CLOSED: "neutral",

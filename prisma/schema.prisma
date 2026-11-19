@@ -548,6 +548,9 @@ model User {
   bidIntakesResolved                BidIntake[]               @relation("BidIntakeResolvedBy")
   bidsEstimating                    BidInvitation[]           @relation("BidEstimator")
   bidSubmissionsMade                BidSubmission[]           @relation("BidSubmittedBy")
+  bidProjectsOwned                  BidProject[]              @relation("BidProjectOwner")
+  bidProjectsCreated                BidProject[]              @relation("BidProjectCreatedBy")
+  bidsAsPm                          BidInvitation[]           @relation("BidPm")
   roofMaterialPricesCreated         RoofMaterialPrice[]       @relation("RoofMaterialPriceCreatedBy")
   vendorComplianceOwnerOf           VendorSettings[]          @relation("VendorComplianceOwner")
   workflowTeamSlots                 JobWorkflowTeamMember[]   @relation("WorkflowTeamUser")
@@ -625,6 +628,7 @@ model ServiceCategory {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   parent             ServiceCategory?                  @relation("ServiceHierarchy", fields: [parentId], references: [id])
+  bidProjectScopes   BidProjectScope[]
   children           ServiceCategory[]                 @relation("ServiceHierarchy")
   leadServices       LeadService[]
   workflowTemplates  WorkflowTemplateServiceCategory[]
@@ -1070,14 +1074,17 @@ model Communication {
   createdByUserId   String?                @map("created_by_user_id")
   // Logged from a code-violation case; the lead's tab still lists it.
   violationCaseId   String?                @map("violation_case_id")
+  bidInvitationId   String?                @map("bid_invitation_id")
   createdAt         DateTime               @default(now()) @map("created_at")
 
   lead          Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
   createdBy     User?              @relation(fields: [createdByUserId], references: [id])
   violationCase CodeViolationCase? @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  bidInvitation BidInvitation?     @relation(fields: [bidInvitationId], references: [id], onDelete: SetNull)
 
   @@index([leadId])
   @@index([violationCaseId])
+  @@index([bidInvitationId])
   @@map("communications")
 }
 
@@ -1175,6 +1182,8 @@ model File {
   // the code list in lib/permit-intel/doc-types.ts. The file also carries the
   // permit's job and lead, so it shows on the job's Files tab.
   permitId              String?                  @map("permit_id")
+  bidProjectId          String?                  @map("bid_project_id")
+  sha256                String?
   permitDocType         String?                  @map("permit_doc_type")
   // The text read from a permit PDF (pdfjs), for the Permit Library's
   // full-text search; `searchVector` is generated from it by the database.
@@ -1182,28 +1191,32 @@ model File {
   searchVector          Unsupported("tsvector")? @map("search_vector")
   createdAt             DateTime                 @default(now()) @map("created_at")
 
-  lead                Lead?                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  job                 Job?                       @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  expense             JobExpense?                @relation(fields: [expenseId], references: [id], onDelete: SetNull)
-  laborPaymentRequest LaborPaymentRequest?       @relation(fields: [laborPaymentRequestId], references: [id], onDelete: SetNull)
-  laborPayment        LaborPayment?              @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
-  permit              JobPermit?                 @relation(fields: [permitId], references: [id], onDelete: SetNull)
-  uploadedBy          User                       @relation(fields: [uploadedByUserId], references: [id])
-  doorKnock           PropertyDoorKnock?         @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
-  task                Task?                      @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  violationCase       CodeViolationCase?         @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
-  violationItem       CodeViolationItem?         @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
-  generatedDocuments  GeneratedDocument[]
-  roofMeasurement     RoofMeasurement?
-  planDocument        PlanDocument?
-  bidSubmissions      BidSubmission[]
-  permitSubmissions   PermitSubmissionFile[]
-  correctionNotices   PermitCorrectionNotice[]
-  correctionItemFiles PermitCorrectionItemFile[]
-  formFillOutputs     PermitFormFill[]           @relation("FormFillOutput")
-  formFillFlattened   PermitFormFill[]           @relation("FormFillFlattened")
-  permitProducts      PermitProduct[]            @relation("PermitProductDocument")
-  assistItems         PermitAssistItem[]
+  lead                  Lead?                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  job                   Job?                       @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  expense               JobExpense?                @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  laborPaymentRequest   LaborPaymentRequest?       @relation(fields: [laborPaymentRequestId], references: [id], onDelete: SetNull)
+  laborPayment          LaborPayment?              @relation(fields: [laborPaymentId], references: [id], onDelete: SetNull)
+  permit                JobPermit?                 @relation(fields: [permitId], references: [id], onDelete: SetNull)
+  bidProject            BidProject?                @relation(fields: [bidProjectId], references: [id], onDelete: SetNull)
+  bidAwardEvidence      BidAward[]                 @relation("BidAwardEvidence")
+  bidProposalVersions   BidProposalVersion[]       @relation("BidProposalFile")
+  bidSubmissionEvidence BidSubmission[]            @relation("BidSubmissionEvidence")
+  uploadedBy            User                       @relation(fields: [uploadedByUserId], references: [id])
+  doorKnock             PropertyDoorKnock?         @relation(fields: [doorKnockId], references: [id], onDelete: SetNull)
+  task                  Task?                      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  violationCase         CodeViolationCase?         @relation(fields: [violationCaseId], references: [id], onDelete: SetNull)
+  violationItem         CodeViolationItem?         @relation(fields: [violationItemId], references: [id], onDelete: SetNull)
+  generatedDocuments    GeneratedDocument[]
+  roofMeasurement       RoofMeasurement?
+  planDocument          PlanDocument?
+  bidSubmissions        BidSubmission[]
+  permitSubmissions     PermitSubmissionFile[]
+  correctionNotices     PermitCorrectionNotice[]
+  correctionItemFiles   PermitCorrectionItemFile[]
+  formFillOutputs       PermitFormFill[]           @relation("FormFillOutput")
+  formFillFlattened     PermitFormFill[]           @relation("FormFillFlattened")
+  permitProducts        PermitProduct[]            @relation("PermitProductDocument")
+  assistItems           PermitAssistItem[]
 
   @@index([leadId])
   @@index([jobId])
@@ -1211,6 +1224,8 @@ model File {
   @@index([laborPaymentRequestId])
   @@index([laborPaymentId])
   @@index([permitId])
+  @@index([bidProjectId])
+  @@index([sha256])
   @@index([searchVector], type: Gin)
   @@index([doorKnockId])
   @@index([taskId])
@@ -1440,6 +1455,8 @@ model Job {
   // The estimate the price came from (one of the two kinds), when it did.
   sourceEstimateId       String?         @map("source_estimate_id")
   sourceRoofEstimateId   String?         @map("source_roof_estimate_id")
+  // The PlanHub award this job was created from (one job per award event).
+  sourceBidAwardId       String?         @unique @map("source_bid_award_id")
   depositRequired        Decimal         @default(0) @map("deposit_required") @db.Decimal(12, 2)
   depositReceived        Decimal         @default(0) @map("deposit_received") @db.Decimal(12, 2)
   depositReceivedDate    DateTime?       @map("deposit_received_date")
@@ -1483,6 +1500,7 @@ model Job {
   projectManager     User?         @relation("ProjectManager", fields: [projectManagerId], references: [id])
   sourceEstimate     Estimate?     @relation("JobSourceEstimate", fields: [sourceEstimateId], references: [id], onDelete: SetNull)
   sourceRoofEstimate RoofEstimate? @relation("JobSourceRoofEstimate", fields: [sourceRoofEstimateId], references: [id], onDelete: SetNull)
+  sourceBidAward     BidAward?     @relation(fields: [sourceBidAwardId], references: [id], onDelete: SetNull)
   salesRep           User?         @relation("SalesRep", fields: [salesRepId], references: [id])
 
   stageHistory       JobStageHistory[]
@@ -1814,19 +1832,19 @@ model VendorSettings {
 }
 
 model CrewAssignment {
-  id             String      @id @default(cuid())
-  jobId          String      @map("job_id")
-  crewId         String      @map("crew_id")
-  assignedDate   DateTime    @default(now()) @map("assigned_date")
-  installDate    DateTime?   @map("install_date")
+  id                String      @id @default(cuid())
+  jobId             String      @map("job_id")
+  crewId            String      @map("crew_id")
+  assignedDate      DateTime    @default(now()) @map("assigned_date")
+  installDate       DateTime?   @map("install_date")
   /// The crew's answer through a guest link: CONFIRMED | CANT_MAKE_IT | CHANGE_REQUESTED.
-  confirmation   String?     @map("confirmation")
-  confirmationAt DateTime?   @map("confirmation_at")
+  confirmation      String?     @map("confirmation")
+  confirmationAt    DateTime?   @map("confirmation_at")
   /// When the crew starts on the install day, minutes after midnight (office time).
-  startMinutes   Int?        @map("start_minutes")
+  startMinutes      Int?        @map("start_minutes")
   /// Who answered in the app (null when the answer came through a guest link).
-  confirmedByUserId String?  @map("confirmed_by_user_id")
-  guestLinks     GuestLink[]
+  confirmedByUserId String?     @map("confirmed_by_user_id")
+  guestLinks        GuestLink[]
 
   job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
   crew Crew @relation(fields: [crewId], references: [id])
@@ -3371,21 +3389,21 @@ model JobArea {
 // Singleton OT policy (IntakeSettings pattern). Defaults follow FLSA:
 // weekly-only overtime at 1.5x past 40h; no daily threshold.
 model LaborSettings {
-  id                  String   @id @default(cuid())
-  otWeeklyThreshold   Decimal  @default(40) @map("ot_weekly_threshold") @db.Decimal(5, 2)
-  otDailyThreshold    Decimal? @map("ot_daily_threshold") @db.Decimal(5, 2)
-  otMultiplier        Decimal  @default(1.5) @map("ot_multiplier") @db.Decimal(4, 2)
-  weekStartsOn        Int      @default(1) @map("week_starts_on")
+  id                  String         @id @default(cuid())
+  otWeeklyThreshold   Decimal        @default(40) @map("ot_weekly_threshold") @db.Decimal(5, 2)
+  otDailyThreshold    Decimal?       @map("ot_daily_threshold") @db.Decimal(5, 2)
+  otMultiplier        Decimal        @default(1.5) @map("ot_multiplier") @db.Decimal(4, 2)
+  weekStartsOn        Int            @default(1) @map("week_starts_on")
   // Where "email weekly hours" sends payroll reports. ADMIN-configured; the
   // field app can only trigger a send to this fixed address.
-  bookkeeperEmail     String?  @map("bookkeeper_email")
+  bookkeeperEmail     String?        @map("bookkeeper_email")
   // When true, payroll exports/emails only count hours on APPROVED logs.
-  payrollApprovedOnly Boolean  @default(false) @map("payroll_approved_only")
+  payrollApprovedOnly Boolean        @default(false) @map("payroll_approved_only")
   /// The kinds of job file a crew lead (or crew member) may open. An admin sets
   /// it; a single file can still be shown or hidden with File.crewVisible.
   crewFileCategories  FileCategory[] @default([PLAN_SET, PHOTOS, VIDEO, PERMIT, INSPECTION]) @map("crew_file_categories")
-  updatedByUserId     String?  @map("updated_by_user_id")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  updatedByUserId     String?        @map("updated_by_user_id")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
 
   @@map("labor_settings")
 }
@@ -5449,20 +5467,21 @@ model Organization {
   createdAt              DateTime              @default(now()) @map("created_at")
   updatedAt              DateTime              @updatedAt @map("updated_at")
 
-  owner          User?                 @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  createdBy      User                  @relation("OrganizationCreatedBy", fields: [createdByUserId], references: [id])
-  vendor         Vendor?               @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  trades         OrganizationTrade[]
-  contacts       Contact[]
-  interactions   Interaction[]
-  stageHistory   PartnerStageHistory[]
-  qualifications Qualification[]
-  leads          Lead[]
-  tasks          Task[]
-  jurisdictions  Jurisdiction[]
-  permitParties  PermitParty[]
-  bidInvitations BidInvitation[]
-  bidIntakes     BidIntake[]
+  owner               User?                 @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy           User                  @relation("OrganizationCreatedBy", fields: [createdByUserId], references: [id])
+  vendor              Vendor?               @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  bidProposalVariants BidProposalVersion[]
+  trades              OrganizationTrade[]
+  contacts            Contact[]
+  interactions        Interaction[]
+  stageHistory        PartnerStageHistory[]
+  qualifications      Qualification[]
+  leads               Lead[]
+  tasks               Task[]
+  jurisdictions       Jurisdiction[]
+  permitParties       PermitParty[]
+  bidInvitations      BidInvitation[]
+  bidIntakes          BidIntake[]
 
   @@index([stage])
   @@index([ownerUserId])
@@ -5502,19 +5521,24 @@ model Contact {
   isPrimary            Boolean     @default(false) @map("is_primary")
   isActive             Boolean     @default(true) @map("is_active")
   lastContactAt        DateTime?   @map("last_contact_at")
+  // Set by a bounce or a "no more email" request: drafts go to calls instead.
+  emailSuppressedAt    DateTime?   @map("email_suppressed_at")
+  suppressReason       String?     @map("suppress_reason")
   notes                String?     @db.Text
   createdByUserId      String      @map("created_by_user_id")
   createdAt            DateTime    @default(now()) @map("created_at")
   updatedAt            DateTime    @updatedAt @map("updated_at")
 
-  organization        Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy           User            @relation("ContactCreatedBy", fields: [createdByUserId], references: [id])
+  organization        Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy           User                     @relation("ContactCreatedBy", fields: [createdByUserId], references: [id])
   interactions        Interaction[]
   permitParties       PermitParty[]
   leads               Lead[]
   bidInvitations      BidInvitation[]
   bidIntakes          BidIntake[]
-  submissionsReceived BidSubmission[] @relation("BidSubmissionRecipient")
+  submissionsReceived BidSubmission[]          @relation("BidSubmissionRecipient")
+  bidPurchasing       BidInvitation[]          @relation("BidPurchasingContact")
+  bidRecipientRows    BidSubmissionRecipient[]
 
   @@index([organizationId])
   @@index([email])
@@ -5526,27 +5550,30 @@ model Contact {
 // Organization-scoped (a lead is optional, set when the touch is about a
 // bid), which is why it is not a Communication or an ActivityLog row.
 model Interaction {
-  id             String               @id @default(cuid())
-  organizationId String               @map("organization_id")
-  contactId      String?              @map("contact_id")
-  leadId         String?              @map("lead_id")
-  userId         String               @map("user_id")
-  kind           InteractionKind
-  direction      InteractionDirection @default(OUTBOUND)
-  outcome        InteractionOutcome   @default(NOT_APPLICABLE)
-  occurredAt     DateTime             @map("occurred_at")
-  summary        String               @db.Text
-  createdAt      DateTime             @default(now()) @map("created_at")
-  updatedAt      DateTime             @updatedAt @map("updated_at")
+  id              String               @id @default(cuid())
+  organizationId  String               @map("organization_id")
+  contactId       String?              @map("contact_id")
+  leadId          String?              @map("lead_id")
+  bidInvitationId String?              @map("bid_invitation_id")
+  userId          String               @map("user_id")
+  kind            InteractionKind
+  direction       InteractionDirection @default(OUTBOUND)
+  outcome         InteractionOutcome   @default(NOT_APPLICABLE)
+  occurredAt      DateTime             @map("occurred_at")
+  summary         String               @db.Text
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  contact      Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  user         User         @relation("InteractionUser", fields: [userId], references: [id])
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact       Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  lead          Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  bidInvitation BidInvitation? @relation(fields: [bidInvitationId], references: [id], onDelete: SetNull)
+  user          User           @relation("InteractionUser", fields: [userId], references: [id])
 
   @@index([organizationId, occurredAt])
   @@index([contactId])
   @@index([leadId])
+  @@index([bidInvitationId])
   @@map("interactions")
 }
 
@@ -5769,6 +5796,7 @@ enum BidStatus {
   INVITED
   DECIDING
   ESTIMATING
+  READY_TO_SUBMIT
   SUBMITTED
   SHORTLISTED
   CLOSED
@@ -5800,6 +5828,8 @@ enum BidLossReason {
   COMPETITOR
   UNKNOWN
   OTHER
+  GC_LOST_PRIME
+  WITHDRAWN
 }
 
 enum BidSubmissionKind {
@@ -5818,74 +5848,99 @@ enum BidSubmissionMethod {
 }
 
 model BidInvitation {
-  id                 String         @id @default(cuid())
-  leadId             String         @unique @map("lead_id")
-  organizationId     String         @map("organization_id")
-  contactId          String?        @map("contact_id")
-  number             String         @unique // BID-00001 from bid_invitation_number_seq
-  projectName        String         @map("project_name")
-  projectType        String?        @map("project_type")
-  scopeSummary       String?        @map("scope_summary") @db.Text
-  invitedAt          DateTime?      @map("invited_at")
-  bidDueAt           DateTime?      @map("bid_due_at")
-  siteWalkAt         DateTime?      @map("site_walk_at")
-  preBidMeetingAt    DateTime?      @map("pre_bid_meeting_at")
-  rfiDueAt           DateTime?      @map("rfi_due_at")
-  addendaDeadlineAt  DateTime?      @map("addenda_deadline_at")
-  interviewAt        DateTime?      @map("interview_at")
-  expectedAwardAt    DateTime?      @map("expected_award_at")
-  addendaCount       Int            @default(0) @map("addenda_count")
-  specsReceived      Boolean        @default(false) @map("specs_received")
-  estimatorUserId    String?        @map("estimator_user_id")
-  siteVisitRequired  Boolean        @default(false) @map("site_visit_required")
-  bondRequired       Boolean        @default(false) @map("bond_required")
-  prevailingWage     Boolean        @default(false) @map("prevailing_wage")
-  unionRequired      Boolean        @default(false) @map("union_required")
-  insuranceNotes     String?        @map("insurance_notes") @db.Text
-  scheduleNotes      String?        @map("schedule_notes") @db.Text
-  platform           BidPlatform    @default(EMAIL)
-  platformUrl        String?        @map("platform_url")
-  platformRef        String?        @map("platform_ref")
-  status             BidStatus      @default(INVITED)
+  id                      String         @id @default(cuid())
+  leadId                  String         @unique @map("lead_id")
+  organizationId          String         @map("organization_id")
+  contactId               String?        @map("contact_id")
+  number                  String         @unique // BID-00001 from bid_invitation_number_seq
+  projectName             String         @map("project_name")
+  projectType             String?        @map("project_type")
+  scopeSummary            String?        @map("scope_summary") @db.Text
+  invitedAt               DateTime?      @map("invited_at")
+  bidDueAt                DateTime?      @map("bid_due_at")
+  siteWalkAt              DateTime?      @map("site_walk_at")
+  preBidMeetingAt         DateTime?      @map("pre_bid_meeting_at")
+  rfiDueAt                DateTime?      @map("rfi_due_at")
+  addendaDeadlineAt       DateTime?      @map("addenda_deadline_at")
+  interviewAt             DateTime?      @map("interview_at")
+  expectedAwardAt         DateTime?      @map("expected_award_at")
+  addendaCount            Int            @default(0) @map("addenda_count")
+  specsReceived           Boolean        @default(false) @map("specs_received")
+  estimatorUserId         String?        @map("estimator_user_id")
+  siteVisitRequired       Boolean        @default(false) @map("site_visit_required")
+  bondRequired            Boolean        @default(false) @map("bond_required")
+  prevailingWage          Boolean        @default(false) @map("prevailing_wage")
+  unionRequired           Boolean        @default(false) @map("union_required")
+  insuranceNotes          String?        @map("insurance_notes") @db.Text
+  scheduleNotes           String?        @map("schedule_notes") @db.Text
+  platform                BidPlatform    @default(EMAIL)
+  platformUrl             String?        @map("platform_url")
+  platformRef             String?        @map("platform_ref")
+  status                  BidStatus      @default(INVITED)
   // "supplier quote", "sub pricing" — a note while ESTIMATING, never a state.
-  waitingOn          String?        @map("waiting_on")
-  decision           BidDecision    @default(UNDECIDED)
-  decisionScore      Int?           @map("decision_score") // CHECK 0..100
+  waitingOn               String?        @map("waiting_on")
+  decision                BidDecision    @default(UNDECIDED)
+  decisionScore           Int?           @map("decision_score") // CHECK 0..100
   // { weightsVersion, inputs, breakdown, reasons, concerns, gates, recommendation }
-  decisionFactors    Json?          @map("decision_factors")
-  decisionReason     String?        @map("decision_reason") @db.Text
-  decidedByUserId    String?        @map("decided_by_user_id")
-  decidedAt          DateTime?      @map("decided_at")
-  submittedAt        DateTime?      @map("submitted_at")
-  estimatingHours    Decimal?       @map("estimating_hours") @db.Decimal(6, 1)
-  outcome            BidOutcome?
-  lossReason         BidLossReason? @map("loss_reason")
-  winningContractor  String?        @map("winning_contractor")
-  winningPrice       Decimal?       @map("winning_price") @db.Decimal(12, 2)
-  outcomeNotes       String?        @map("outcome_notes") @db.Text
-  outcomeAt          DateTime?      @map("outcome_at")
-  awardedAmount      Decimal?       @map("awarded_amount") @db.Decimal(12, 2)
-  contractReceivedAt DateTime?      @map("contract_received_at")
+  decisionFactors         Json?          @map("decision_factors")
+  decisionReason          String?        @map("decision_reason") @db.Text
+  decidedByUserId         String?        @map("decided_by_user_id")
+  decidedAt               DateTime?      @map("decided_at")
+  submittedAt             DateTime?      @map("submitted_at")
+  estimatingHours         Decimal?       @map("estimating_hours") @db.Decimal(6, 1)
+  outcome                 BidOutcome?
+  lossReason              BidLossReason? @map("loss_reason")
+  winningContractor       String?        @map("winning_contractor")
+  winningPrice            Decimal?       @map("winning_price") @db.Decimal(12, 2)
+  outcomeNotes            String?        @map("outcome_notes") @db.Text
+  outcomeAt               DateTime?      @map("outcome_at")
+  awardedAmount           Decimal?       @map("awarded_amount") @db.Decimal(12, 2)
+  contractReceivedAt      DateTime?      @map("contract_received_at")
   // Set by an automated intake (Phase 5/6) until a person confirms it.
-  needsReview        Boolean        @default(false) @map("needs_review")
-  signalSource       String?        @map("signal_source")
-  createdByUserId    String         @map("created_by_user_id")
-  createdAt          DateTime       @default(now()) @map("created_at")
-  updatedAt          DateTime       @updatedAt @map("updated_at")
+  needsReview             Boolean        @default(false) @map("needs_review")
+  signalSource            String?        @map("signal_source")
+  // PlanHub bid projects: the project this GC opportunity belongs to (null = a legacy bid).
+  bidProjectId            String?        @map("bid_project_id")
+  primeStatus             BidPrimeStatus @default(UNKNOWN) @map("prime_status")
+  pmUserId                String?        @map("pm_user_id")
+  purchasingContactId     String?        @map("purchasing_contact_id")
+  // The cadence: the anchor override, a GC-requested date, a pause.
+  cadenceAnchorAt         DateTime?      @map("cadence_anchor_at")
+  requestedFollowUpAt     DateTime?      @map("requested_follow_up_at")
+  pausedUntil             DateTime?      @map("paused_until")
+  pauseScope              String?        @map("pause_scope") // email | all
+  pauseReason             String?        @map("pause_reason") @db.Text
+  nextActionAt            DateTime?      @map("next_action_at")
+  nextActionLabel         String?        @map("next_action_label")
+  lastMeaningfulContactAt DateTime?      @map("last_meaningful_contact_at")
+  createdByUserId         String         @map("created_by_user_id")
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
 
-  lead         Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  organization Organization    @relation(fields: [organizationId], references: [id])
-  contact      Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  estimator    User?           @relation("BidEstimator", fields: [estimatorUserId], references: [id], onDelete: SetNull)
-  decidedBy    User?           @relation("BidDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
-  createdBy    User            @relation("BidCreatedBy", fields: [createdByUserId], references: [id])
-  submissions  BidSubmission[]
-  intakes      BidIntake[]
+  lead              Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization      Organization          @relation(fields: [organizationId], references: [id])
+  contact           Contact?              @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  estimator         User?                 @relation("BidEstimator", fields: [estimatorUserId], references: [id], onDelete: SetNull)
+  decidedBy         User?                 @relation("BidDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  createdBy         User                  @relation("BidCreatedBy", fields: [createdByUserId], references: [id])
+  submissions       BidSubmission[]
+  intakes           BidIntake[]
+  bidProject        BidProject?           @relation(fields: [bidProjectId], references: [id], onDelete: SetNull)
+  pmUser            User?                 @relation("BidPm", fields: [pmUserId], references: [id], onDelete: SetNull)
+  purchasingContact Contact?              @relation("BidPurchasingContact", fields: [purchasingContactId], references: [id], onDelete: SetNull)
+  scopes            BidOpportunityScope[]
+  awards            BidAward[]
+  followUpActions   BidFollowUpAction[]
+  messages          BidMessage[]
+  interactions      Interaction[]
+  communications    Communication[]
 
+  @@unique([bidProjectId, organizationId])
   @@index([organizationId, status])
   @@index([status])
   @@index([bidDueAt])
   @@index([estimatorUserId])
+  @@index([bidProjectId])
   @@map("bid_invitations")
 }
 
@@ -5951,17 +6006,403 @@ model BidSubmission {
   exclusions           String?             @db.Text
   fileId               String?             @map("file_id")
   submittedByUserId    String              @map("submitted_by_user_id")
+  proposalVersionId    String?             @map("proposal_version_id")
+  evidenceFileId       String?             @map("evidence_file_id")
+  confirmedVia         String?             @map("confirmed_via") // manual | email | platform
   createdAt            DateTime            @default(now()) @map("created_at")
 
-  bidInvitation    BidInvitation @relation(fields: [bidInvitationId], references: [id], onDelete: Cascade)
-  estimate         Estimate?     @relation(fields: [estimateId], references: [id], onDelete: SetNull)
-  roofEstimate     RoofEstimate? @relation(fields: [roofEstimateId], references: [id], onDelete: SetNull)
-  recipientContact Contact?      @relation("BidSubmissionRecipient", fields: [recipientContactId], references: [id], onDelete: SetNull)
-  file             File?         @relation(fields: [fileId], references: [id], onDelete: SetNull)
-  submittedBy      User          @relation("BidSubmittedBy", fields: [submittedByUserId], references: [id])
+  bidInvitation    BidInvitation            @relation(fields: [bidInvitationId], references: [id], onDelete: Cascade)
+  estimate         Estimate?                @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+  roofEstimate     RoofEstimate?            @relation(fields: [roofEstimateId], references: [id], onDelete: SetNull)
+  recipientContact Contact?                 @relation("BidSubmissionRecipient", fields: [recipientContactId], references: [id], onDelete: SetNull)
+  file             File?                    @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  submittedBy      User                     @relation("BidSubmittedBy", fields: [submittedByUserId], references: [id])
+  proposalVersion  BidProposalVersion?      @relation(fields: [proposalVersionId], references: [id], onDelete: SetNull)
+  evidenceFile     File?                    @relation("BidSubmissionEvidence", fields: [evidenceFileId], references: [id], onDelete: SetNull)
+  recipients       BidSubmissionRecipient[]
 
   @@unique([bidInvitationId, version])
   @@map("bid_submissions")
+}
+
+// ── PlanHub bid projects (src/lib/bids) ────────────────────────────────────
+// One construction project KNU is bidding, above the per-GC BidInvitations
+// (one per project × GC, each still its own GC_BID lead). Scopes are the
+// trade packages; each GC opportunity carries its own subcontract status per
+// scope. Proposals are project-level and versioned — never edited.
+
+enum BidProjectStage {
+  OPEN
+  PRIME_AWARDED
+  POSTPONED
+  REBIDDING
+  CANCELLED
+  CLOSED
+}
+
+enum BidPrimeStatus {
+  UNKNOWN
+  PENDING
+  GC_AWARDED
+  GC_LOST
+  REBIDDING
+  CANCELLED
+}
+
+enum BidScopeStatus {
+  PENDING
+  VERBAL
+  AWARDED
+  EXECUTED
+  LOST
+  WITHDRAWN
+  NO_BID
+  CANCELLED
+}
+
+enum BidAwardKind {
+  VERBAL
+  WRITTEN
+  EXECUTED
+}
+
+enum BidProposalStatus {
+  EXTRACTING
+  REVIEW
+  VERIFIED
+  FAILED
+  SUPERSEDED
+}
+
+enum BidProposalLineKind {
+  BASE
+  ALTERNATE
+  ALLOWANCE
+  UNIT
+}
+
+enum BidFollowUpKind {
+  CALL
+  EMAIL
+  REVIEW
+  URGENT_CALL
+}
+
+enum BidFollowUpStatus {
+  PLANNED
+  RAISED
+  DONE
+  CANCELLED
+  SUPERSEDED
+}
+
+enum BidMessageStatus {
+  DRAFT
+  APPROVED
+  SENDING
+  SENT
+  FAILED
+  UNCERTAIN
+  CANCELLED
+}
+
+model BidProject {
+  id                   String          @id @default(cuid())
+  number               String          @unique // BP-00001 from bid_project_number_seq
+  name                 String
+  address1             String?         @map("address1")
+  address2             String?         @map("address2")
+  city                 String?
+  state                String?         @default("FL")
+  zipCode              String?         @map("zip_code")
+  county               String?
+  // normalizeAddressKey(address1, zip) — the duplicate check, never shown.
+  addressKey           String?         @map("address_key")
+  timeZone             String          @default("America/New_York") @map("time_zone")
+  source               BidPlatform     @default(PLANHUB)
+  // Partial unique (source, platform_ref) in the migration.
+  platformRef          String?         @map("platform_ref")
+  platformUrl          String?         @map("platform_url")
+  ownerName            String?         @map("owner_name")
+  projectType          String?         @map("project_type")
+  stage                BidProjectStage @default(OPEN)
+  stageReason          String?         @map("stage_reason") @db.Text
+  stageReviewAt        DateTime?       @map("stage_review_at")
+  ownerBidDueAt        DateTime?       @map("owner_bid_due_at") // GC-to-owner
+  expectedPrimeAwardAt DateTime?       @map("expected_prime_award_at")
+  expectedStartAt      DateTime?       @map("expected_start_at")
+  notes                String?         @db.Text
+  ownerUserId          String?         @map("owner_user_id")
+  createdByUserId      String          @map("created_by_user_id")
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  owner         User?             @relation("BidProjectOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy     User              @relation("BidProjectCreatedBy", fields: [createdByUserId], references: [id])
+  scopes        BidProjectScope[]
+  opportunities BidInvitation[]
+  proposals     BidProposal[]
+  files         File[]
+
+  @@index([stage])
+  @@index([addressKey])
+  @@index([ownerUserId])
+  @@map("bid_projects")
+}
+
+model BidProjectScope {
+  id                String   @id @default(cuid())
+  bidProjectId      String   @map("bid_project_id")
+  serviceCategoryId String   @map("service_category_id")
+  label             String
+  sortOrder         Int      @default(0) @map("sort_order")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  bidProject        BidProject            @relation(fields: [bidProjectId], references: [id], onDelete: Cascade)
+  serviceCategory   ServiceCategory       @relation(fields: [serviceCategoryId], references: [id])
+  opportunityScopes BidOpportunityScope[]
+  proposalLines     BidProposalLine[]
+
+  @@unique([bidProjectId, serviceCategoryId, label])
+  @@map("bid_project_scopes")
+}
+
+model BidOpportunityScope {
+  id              String         @id @default(cuid())
+  bidInvitationId String         @map("bid_invitation_id")
+  scopeId         String         @map("scope_id")
+  status          BidScopeStatus @default(PENDING)
+  quotedAmount    Decimal?       @map("quoted_amount") @db.Decimal(12, 2)
+  awardId         String?        @map("award_id")
+  lossReason      BidLossReason? @map("loss_reason")
+  notes           String?        @db.Text
+  decidedAt       DateTime?      @map("decided_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  bidInvitation BidInvitation   @relation(fields: [bidInvitationId], references: [id], onDelete: Cascade)
+  scope         BidProjectScope @relation(fields: [scopeId], references: [id], onDelete: Cascade)
+  award         BidAward?       @relation(fields: [awardId], references: [id], onDelete: SetNull)
+
+  @@unique([bidInvitationId, scopeId])
+  @@index([scopeId])
+  @@map("bid_opportunity_scopes")
+}
+
+// One award event: the scopes a GC awarded together. A WRITTEN / EXECUTED
+// award creates one job (Job.sourceBidAwardId, unique — a retry returns it).
+model BidAward {
+  id              String       @id @default(cuid())
+  bidInvitationId String       @map("bid_invitation_id")
+  kind            BidAwardKind
+  amount          Decimal      @db.Decimal(12, 2)
+  awardedAt       DateTime     @map("awarded_at")
+  evidenceFileId  String?      @map("evidence_file_id")
+  notes           String?      @db.Text
+  createdByUserId String       @map("created_by_user_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  bidInvitation BidInvitation         @relation(fields: [bidInvitationId], references: [id], onDelete: Cascade)
+  evidenceFile  File?                 @relation("BidAwardEvidence", fields: [evidenceFileId], references: [id], onDelete: SetNull)
+  scopes        BidOpportunityScope[]
+  job           Job?
+
+  @@index([bidInvitationId])
+  @@map("bid_awards")
+}
+
+model BidProposal {
+  id           String   @id @default(cuid())
+  bidProjectId String   @map("bid_project_id")
+  number       String? // the proposal number printed on the document
+  title        String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  bidProject BidProject           @relation(fields: [bidProjectId], references: [id], onDelete: Cascade)
+  versions   BidProposalVersion[]
+
+  @@index([bidProjectId])
+  @@map("bid_proposals")
+}
+
+model BidProposalVersion {
+  id               String            @id @default(cuid())
+  bidProposalId    String            @map("bid_proposal_id")
+  bidProjectId     String            @map("bid_project_id")
+  version          Int
+  fileId           String?           @map("file_id")
+  sha256           String?
+  status           BidProposalStatus @default(EXTRACTING)
+  extractAttempts  Int               @default(0) @map("extract_attempts")
+  extractStartedAt DateTime?         @map("extract_started_at")
+  extractError     String?           @map("extract_error") @db.Text
+  aiCallId         String?           @map("ai_call_id")
+  // { fields: { name: {value, source, confidence} }, conflicts: [...] } as the reader returned it.
+  extracted        Json?
+  proposalDate     DateTime?         @map("proposal_date")
+  validUntil       DateTime?         @map("valid_until")
+  currency         String            @default("USD")
+  total            Decimal?          @db.Decimal(12, 2)
+  // A bundle price below the sum of its scope lines: total = Σ BASE lines + adjustment.
+  bundleAdjustment Decimal?          @map("bundle_adjustment") @db.Decimal(12, 2)
+  inclusions       String?           @db.Text
+  exclusions       String?           @db.Text
+  alternates       String?           @db.Text
+  clarifications   String?           @db.Text
+  // A GC-specific variant (its own price or document); null = for every GC.
+  organizationId   String?           @map("organization_id")
+  verifiedByUserId String?           @map("verified_by_user_id")
+  verifiedAt       DateTime?         @map("verified_at")
+  createdByUserId  String            @map("created_by_user_id")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  proposal     BidProposal       @relation(fields: [bidProposalId], references: [id], onDelete: Cascade)
+  file         File?             @relation("BidProposalFile", fields: [fileId], references: [id], onDelete: SetNull)
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  lines        BidProposalLine[]
+  submissions  BidSubmission[]
+
+  @@unique([bidProposalId, version])
+  @@unique([bidProjectId, sha256])
+  @@index([status])
+  @@map("bid_proposal_versions")
+}
+
+model BidProposalLine {
+  id          String              @id @default(cuid())
+  versionId   String              @map("version_id")
+  scopeId     String?             @map("scope_id") // null = a bundle line with no split
+  kind        BidProposalLineKind @default(BASE)
+  description String?             @db.Text
+  amount      Decimal             @db.Decimal(12, 2)
+  sortOrder   Int                 @default(0) @map("sort_order")
+
+  version BidProposalVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  scope   BidProjectScope?   @relation(fields: [scopeId], references: [id], onDelete: SetNull)
+
+  @@index([versionId])
+  @@map("bid_proposal_lines")
+}
+
+model BidSubmissionRecipient {
+  id            String   @id @default(cuid())
+  submissionId  String   @map("submission_id")
+  contactId     String?  @map("contact_id")
+  emailSnapshot String?  @map("email_snapshot")
+  nameSnapshot  String?  @map("name_snapshot")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  submission BidSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  contact    Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([submissionId])
+  @@map("bid_submission_recipients")
+}
+
+// A slot of the follow-up cadence (src/lib/bids/cadence.ts). Written before
+// its task or draft; the unique key makes a second cron run a no-op.
+model BidFollowUpAction {
+  id              String            @id @default(cuid())
+  bidInvitationId String            @map("bid_invitation_id")
+  slotKey         String            @map("slot_key")
+  kind            BidFollowUpKind
+  reason          String // a code: intro_call | post_close | award_watch | requested | review_90 | reply_review | prime_awarded …
+  dueAt           DateTime          @map("due_at")
+  status          BidFollowUpStatus @default(PLANNED)
+  taskId          String?           @map("task_id")
+  messageId       String?           @map("message_id")
+  // What the planner saw: anchor, rule, inputs — "why this exists".
+  planInputs      Json?             @map("plan_inputs")
+  outcome         String?           @db.Text
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  bidInvitation BidInvitation @relation(fields: [bidInvitationId], references: [id], onDelete: Cascade)
+  message       BidMessage?   @relation("BidFollowUpMessage", fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@unique([bidInvitationId, slotKey])
+  @@index([status, dueAt])
+  @@map("bid_follow_up_actions")
+}
+
+model BidMessage {
+  id                String           @id @default(cuid())
+  bidInvitationId   String           @map("bid_invitation_id")
+  templateKey       String?          @map("template_key")
+  proposalVersionId String?          @map("proposal_version_id")
+  toContactIds      String[]         @default([]) @map("to_contact_ids")
+  toEmails          String[]         @default([]) @map("to_emails")
+  ccEmails          String[]         @default([]) @map("cc_emails")
+  subject           String
+  body              String           @db.Text
+  status            BidMessageStatus @default(DRAFT)
+  senderUserId      String?          @map("sender_user_id")
+  aiCallId          String?          @map("ai_call_id")
+  approvedByUserId  String?          @map("approved_by_user_id")
+  approvedAt        DateTime?        @map("approved_at")
+  sendAfter         DateTime?        @map("send_after")
+  sendStartedAt     DateTime?        @map("send_started_at")
+  sentByUserId      String?          @map("sent_by_user_id")
+  sentAt            DateTime?        @map("sent_at")
+  externalMessageId String?          @map("external_message_id")
+  communicationId   String?          @map("communication_id")
+  error             String?          @db.Text
+  cancelReason      String?          @map("cancel_reason") @db.Text
+  createdByUserId   String?          @map("created_by_user_id")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  bidInvitation BidInvitation       @relation(fields: [bidInvitationId], references: [id], onDelete: Cascade)
+  actions       BidFollowUpAction[] @relation("BidFollowUpMessage")
+
+  @@index([bidInvitationId, status])
+  @@index([status])
+  @@map("bid_messages")
+}
+
+model BidEmailTemplate {
+  id           String    @id @default(cuid())
+  key          String    @unique
+  name         String
+  subject      String
+  body         String    @db.Text
+  version      Int       @default(1)
+  active       Boolean   @default(true)
+  autoSendable Boolean   @default(false) @map("auto_sendable")
+  editedAt     DateTime? @map("edited_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("bid_email_templates")
+}
+
+model BidFollowUpSettings {
+  id                  String   @id @default("singleton")
+  // { introCallDays, steps: [{ days, kind }], repeatEveryDays, reviewAfterCalendarDays, primeAwardedEveryDays }
+  cadence             Json?
+  callHour            Int      @default(9) @map("call_hour")
+  draftHour           Int      @default(7) @map("draft_hour")
+  sendWindowStartHour Int      @default(8) @map("send_window_start_hour")
+  sendWindowEndHour   Int      @default(17) @map("send_window_end_hour")
+  escalateAfterDays   Int      @default(2) @map("escalate_after_days")
+  autoSendEnabled     Boolean  @default(false) @map("auto_send_enabled")
+  // { trade: { <serviceCategoryId>: cadence }, organization: { <orgId>: cadence } }
+  overrides           Json?
+  updatedByUserId     String?  @map("updated_by_user_id")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("bid_follow_up_settings")
+}
+
+model BusinessHoliday {
+  id        String   @id @default(cuid())
+  day       String   @unique // yyyy-MM-dd in APP_TIME_ZONE
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("business_holidays")
 }
 
 // ─── Shared AI layer (Stage 0 of Permit Intelligence) ────────────────────────

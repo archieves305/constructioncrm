@@ -77,7 +77,7 @@ export async function addSubmission(bidId: string, input: SubmissionInput, actor
       select: { id: true },
     });
     const data: Prisma.BidInvitationUpdateInput = { submittedAt: version === 1 ? submittedAt : undefined };
-    if (bid.status === "ESTIMATING" || bid.status === "INVITED" || bid.status === "DECIDING" || bid.status === "TRACKING") data.status = "SUBMITTED";
+    if (bid.status === "ESTIMATING" || bid.status === "READY_TO_SUBMIT" || bid.status === "INVITED" || bid.status === "DECIDING" || bid.status === "TRACKING") data.status = "SUBMITTED";
     if (bid.status === "SHORTLISTED") data.status = "SUBMITTED";
     if (input.estimatingHours !== undefined && input.estimatingHours !== null) data.estimatingHours = input.estimatingHours;
     await tx.bidInvitation.update({ where: { id: bidId }, data });

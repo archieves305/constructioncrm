@@ -61,7 +61,7 @@ const OUTCOME_LABEL: Record<(typeof INTERACTION_OUTCOMES)[number], string> = {
   NOT_APPLICABLE: "Not applicable",
 };
 
-const LOSS_LABEL: Record<(typeof BID_LOSS_REASONS)[number], string> = { PRICE: "Price", RELATIONSHIP: "Relationship", SCHEDULE: "Schedule", SCOPE: "Scope", QUALIFICATION: "Qualification", BONDING: "Bonding", CAPACITY: "Capacity", COMPETITOR: "Competitor", UNKNOWN: "Unknown", OTHER: "Other" };
+const LOSS_LABEL: Record<(typeof BID_LOSS_REASONS)[number], string> = { PRICE: "Price", RELATIONSHIP: "Relationship", SCHEDULE: "Schedule", SCOPE: "Scope", QUALIFICATION: "Qualification", BONDING: "Bonding", CAPACITY: "Capacity", COMPETITOR: "Competitor", GC_LOST_PRIME: "The GC lost the prime", WITHDRAWN: "We withdrew", UNKNOWN: "Unknown", OTHER: "Other" };
 const SUBMISSION_KIND_LABEL: Record<(typeof BID_SUBMISSION_KINDS)[number], string> = { ORIGINAL: "Original", REVISED: "Revised", ALTERNATE: "Alternate", VALUE_ENGINEERING: "Value engineering" };
 const SUBMISSION_METHOD_LABEL: Record<(typeof BID_SUBMISSION_METHODS)[number], string> = { PLATFORM: "Bid platform", EMAIL: "Email", PORTAL: "GC portal", HAND: "By hand", OTHER: "Other" };
 

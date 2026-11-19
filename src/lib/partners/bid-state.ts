@@ -6,13 +6,14 @@ import type { BidOutcome, BidPlatform, BidStatus } from "@/generated/prisma/enum
  * a note (`waitingOn`) or a new submission version — so the board columns
  * stay the seven below.
  */
-export const BID_STATUSES: readonly BidStatus[] = ["TRACKING", "INVITED", "DECIDING", "ESTIMATING", "SUBMITTED", "SHORTLISTED", "CLOSED"];
+export const BID_STATUSES: readonly BidStatus[] = ["TRACKING", "INVITED", "DECIDING", "ESTIMATING", "READY_TO_SUBMIT", "SUBMITTED", "SHORTLISTED", "CLOSED"];
 
 export const BID_STATUS_LABEL: Record<BidStatus, string> = {
   TRACKING: "Tracking",
   INVITED: "Invited",
   DECIDING: "Deciding",
   ESTIMATING: "Estimating",
+  READY_TO_SUBMIT: "Ready to submit",
   SUBMITTED: "Submitted",
   SHORTLISTED: "Shortlisted",
   CLOSED: "Closed",
@@ -23,6 +24,7 @@ export const BID_STATUS_HINT: Record<BidStatus, string> = {
   INVITED: "The GC asked us to bid",
   DECIDING: "Bid / no-bid under review",
   ESTIMATING: "Takeoff and pricing under way",
+  READY_TO_SUBMIT: "Priced and checked; not sent yet",
   SUBMITTED: "Our price is with the GC",
   SHORTLISTED: "Down to the last few",
   CLOSED: "Decided: awarded, lost, passed, cancelled",
@@ -32,7 +34,8 @@ export const BID_TRANSITIONS: Record<BidStatus, readonly BidStatus[]> = {
   TRACKING: ["INVITED", "DECIDING", "CLOSED"],
   INVITED: ["DECIDING", "ESTIMATING", "CLOSED"],
   DECIDING: ["ESTIMATING", "INVITED", "CLOSED"],
-  ESTIMATING: ["SUBMITTED", "DECIDING", "CLOSED"],
+  ESTIMATING: ["READY_TO_SUBMIT", "SUBMITTED", "DECIDING", "CLOSED"],
+  READY_TO_SUBMIT: ["SUBMITTED", "ESTIMATING", "CLOSED"],
   SUBMITTED: ["SHORTLISTED", "ESTIMATING", "CLOSED"],
   SHORTLISTED: ["SUBMITTED", "CLOSED"],
   CLOSED: ["INVITED"],
@@ -45,7 +48,7 @@ export function canTransition(from: BidStatus, to: BidStatus): boolean {
 export const BID_PLATFORM_LABEL: Record<BidPlatform, string> = { BUILDINGCONNECTED: "BuildingConnected", PROCORE: "Procore", PLANHUB: "PlanHub", SMARTBID: "SmartBid", CONSTRUCTCONNECT: "ConstructConnect", TEXTURA: "Textura", EMAIL: "Email", OTHER: "Other" };
 
 /** Open = still in play; a closed bid has an outcome. */
-export const OPEN_BID_STATUSES: readonly BidStatus[] = ["TRACKING", "INVITED", "DECIDING", "ESTIMATING", "SUBMITTED", "SHORTLISTED"];
+export const OPEN_BID_STATUSES: readonly BidStatus[] = ["TRACKING", "INVITED", "DECIDING", "ESTIMATING", "READY_TO_SUBMIT", "SUBMITTED", "SHORTLISTED"];
 
 export const BID_OUTCOME_LABEL: Record<BidOutcome, string> = {
   AWARDED: "Awarded",

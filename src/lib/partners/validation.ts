@@ -168,9 +168,9 @@ export const documentPatchSchema = z
 export const documentTypeSchema = z.object({ id: id.optional(), name: z.string().trim().min(2).max(120), category: z.enum(DOCUMENT_CATEGORIES), defaultValidityMonths: z.number().int().min(1).max(120).nullish(), isActive: z.boolean().optional(), sortOrder: z.number().int().min(0).max(1000).optional() });
 
 export const BID_PLATFORMS = ["BUILDINGCONNECTED", "PROCORE", "PLANHUB", "SMARTBID", "CONSTRUCTCONNECT", "TEXTURA", "EMAIL", "OTHER"] as const;
-export const BID_STATUSES_LIST = ["TRACKING", "INVITED", "DECIDING", "ESTIMATING", "SUBMITTED", "SHORTLISTED", "CLOSED"] as const;
+export const BID_STATUSES_LIST = ["TRACKING", "INVITED", "DECIDING", "ESTIMATING", "READY_TO_SUBMIT", "SUBMITTED", "SHORTLISTED", "CLOSED"] as const;
 export const BID_OUTCOMES = ["AWARDED", "LOST", "NO_BID", "CANCELLED", "NO_DECISION", "REBID"] as const;
-export const BID_LOSS_REASONS = ["PRICE", "RELATIONSHIP", "SCHEDULE", "SCOPE", "QUALIFICATION", "BONDING", "CAPACITY", "COMPETITOR", "UNKNOWN", "OTHER"] as const;
+export const BID_LOSS_REASONS = ["PRICE", "RELATIONSHIP", "SCHEDULE", "SCOPE", "QUALIFICATION", "BONDING", "CAPACITY", "COMPETITOR", "GC_LOST_PRIME", "WITHDRAWN", "UNKNOWN", "OTHER"] as const;
 export const BID_SUBMISSION_KINDS = ["ORIGINAL", "REVISED", "ALTERNATE", "VALUE_ENGINEERING"] as const;
 export const BID_SUBMISSION_METHODS = ["PLATFORM", "EMAIL", "PORTAL", "HAND", "OTHER"] as const;
 

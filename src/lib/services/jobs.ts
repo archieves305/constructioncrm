@@ -46,6 +46,12 @@ export type CreateJobOptions = {
   fromEstimate?: EstimateRef | null;
   /** Cost to freeze as the baseline, ahead of the estimate's own (an awarded bid's submission snapshot). */
   estimatedCost?: number;
+  /**
+   * A PlanHub award event (src/lib/bids/award.ts). One job per award, so a
+   * GC awarding two scopes separately gives the lead two jobs; a retry with
+   * the same award returns the job it already made.
+   */
+  bidAwardId?: string;
 };
 
 export async function createJobFromLead(leadId: string, userId: string, opts: CreateJobOptions = {}) {
@@ -59,8 +65,8 @@ export async function createJobFromLead(leadId: string, userId: string, opts: Cr
   if (!lead) throw new Error("Lead not found");
   const gcBid = lead.kind === "GC_BID";
 
-  // Check if job already exists for this lead
-  const existing = await prisma.job.findFirst({ where: { leadId } });
+  // A job already made for this award (or, without one, for this lead) is returned, never doubled.
+  const existing = await prisma.job.findFirst({ where: opts.bidAwardId ? { sourceBidAwardId: opts.bidAwardId } : { leadId } });
   if (existing) return existing;
 
   const wonStage = await prisma.jobStage.findFirst({ where: { name: "Won" } });
@@ -97,6 +103,7 @@ export async function createJobFromLead(leadId: string, userId: string, opts: Cr
       estimatedCostSnapshot: opts.estimatedCost ?? priced?.pricing.cost ?? null,
       sourceEstimateId: source?.kind === "GENERIC" ? source.id : null,
       sourceRoofEstimateId: source?.kind === "ROOF" ? source.id : null,
+      sourceBidAwardId: opts.bidAwardId ?? null,
       financingRequired: lead.financingNeeded,
       financingStatus: lead.financingNeeded ? "PENDING_APPLICATION" : "NOT_NEEDED",
     },

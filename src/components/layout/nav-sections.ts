@@ -1,6 +1,6 @@
 import type { ElementType } from "react";
 import type { RoleName } from "@/generated/prisma/client";
-import { BarChart3, BellRing, Briefcase, Building2, Calendar, CheckSquare, ClipboardCheck, ClipboardList, DollarSign, FileSignature, FolderLock, Gauge, Gavel, Hammer, Handshake, HardHat, Inbox, Landmark, LayoutDashboard, ListChecks, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Settings, Shield, Smartphone, Sparkles, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
+import { BarChart3, BellRing, Briefcase, Building2, FolderKanban, Calendar, CheckSquare, ClipboardCheck, ClipboardList, DollarSign, FileSignature, FolderLock, Gauge, Gavel, Hammer, Handshake, HardHat, Inbox, Landmark, LayoutDashboard, ListChecks, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Settings, Shield, Smartphone, Sparkles, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
 import { PARTNER_VIEW_ROLES } from "@/lib/partners/access";
 import { canWriteLeads } from "@/lib/access/roles";
 
@@ -82,6 +82,16 @@ export const navSections: NavSection[] = [
       { href: "/partners/intake", label: "Bid intake", icon: Inbox, roles: ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP"], hint: "Bid invitations that arrived by email, waiting for someone to create the bid or file them" },
       { href: "/partners/qualifications", label: "Qualifications", icon: ClipboardCheck, hint: "Prequalification applications with each GC: where each stands, what they still want, when it expires" },
       { href: "/partners/vault", label: "Document Vault", icon: FolderLock, hint: "KNU's own licences, certificates and company papers, versioned, with expiry alerts" },
+    ],
+  },
+  {
+    key: "planhub",
+    label: "PlanHub Bids",
+    icon: FolderKanban,
+    roles: PARTNER_VIEWERS,
+    items: [
+      { href: "/planhub", label: "Follow-ups", icon: ListChecks, match: "exact", hint: "Each GC you priced a job for, with its next call or email, deadlines, and who has decided" },
+      { href: "/planhub/projects", label: "Projects", icon: FolderKanban, hint: "The jobs being bid on PlanHub — one row per job, however many GCs bid it" },
     ],
   },
   {
