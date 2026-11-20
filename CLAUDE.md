@@ -599,7 +599,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-11-20 — Our own projects, Stage 2: the money (built + dev-QA'd on `owned-projects`, not committed)
+### 2026-11-20 — Our own projects, Stage 2: the money (deployed `d1c0633`)
 
 No migration.
 
@@ -614,7 +614,17 @@ No migration.
 - An "Our projects" tile on the dashboard.
 - The backfill script now exits explicitly (on prod its process outlived its work).
 
-Gate: typecheck clean, lint 5/21, 2240 tests, build clean. Dev QA: API 14/14, headless 22/22. Details: [features/owned-projects.md](docs/project-memory/features/owned-projects.md).
+Gate: typecheck clean, lint 5/21, 2240 tests, build clean. Dev QA: API 14/14, headless 22/22.
+
+**Deployed 2026-11-20 as `d1c0633`**: BUILD_ID `SPc9aMTE-WvIH1XqCpHoI` → `A1pNvzke4d2nhhAHdw7Sa`, no migration, smoke 307 ×2, journal clean, backup `postgres-2026-11-20-154640.dump`.
+
+Prod read-only, through the deployed loader:
+- JOB-00003 (closed): budget $144,200, spent + committed $160,667 → $16,467 over.
+- JOB-00014 (closed): no budget.
+- JOB-00022 (open): budget $342,200, $122,700 spent + committed → $219,500 under.
+- None has a purchase price yet, so no all-in cost or returns.
+
+Details: [features/owned-projects.md](docs/project-memory/features/owned-projects.md).
 
 ### 2026-11-20 — Our own projects (flips + rentals), Stage 1 (deployed `95f3aba`)
 

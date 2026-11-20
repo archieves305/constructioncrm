@@ -101,7 +101,7 @@ the board showed its cost as if it were a contract price.
 
 - `close_job` → Listed end to end in the app (unit-tested only).
 
-## Stage 2 — built + dev-QA'd 2026-11-20 on `owned-projects`, not committed
+## Stage 2 — deployed 2026-11-20 as `d1c0633` (BUILD_ID `A1pNvzke4d2nhhAHdw7Sa`)
 
 No migration.
 
