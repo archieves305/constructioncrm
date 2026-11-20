@@ -260,7 +260,7 @@ export default function LeadDetailPage() {
             Its stage follows the bid: Won on an award (which creates the job with progress billing), Lost when it closes any other way. Work it from the Bid tab.
           </Callout>
         )}
-        {stages && lead.kind !== "GC_BID" && (
+        {stages && lead.kind === "CUSTOMER" && (
           <StageStepper
             stages={stages}
             currentStageId={lead.currentStage.id}
@@ -331,7 +331,7 @@ export default function LeadDetailPage() {
           </Card>
 
           {/* A GC's estimator never gets the homeowner drip mail. */}
-          {lead.kind !== "GC_BID" && <NurtureCard leadId={id} />}
+          {lead.kind === "CUSTOMER" && <NurtureCard leadId={id} />}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Details</CardTitle>

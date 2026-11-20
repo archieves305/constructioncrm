@@ -3,6 +3,7 @@ import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
 import { jobsInvolvingUserWhere } from "./involvement";
 import { effectiveListScope, parseListScope, type ListScope } from "@/lib/lists/scope";
 import { overdueWhere } from "@/lib/calendar/status";
+import { parseJobView, type JobView } from "./stage-kinds";
 
 /**
  * The jobs-list `where`, built from query params in one pure function so the
@@ -44,6 +45,8 @@ export type JobListParams = {
    * asking for a closed stage, or for an address, should find the job.
    */
   excludeClosed?: boolean;
+  /** Client work, or our own projects (both, flips or rentals). Unset = every job (the pickers). */
+  view?: JobView;
 };
 
 export type JobListContext = {
@@ -72,6 +75,7 @@ export function parseJobListParams(searchParams: URLSearchParams): JobListParams
     involvesUserId: searchParams.get("involvesUserId") || undefined,
     serviceType: searchParams.get("serviceType") || undefined,
     excludeClosed: flag(searchParams.get("excludeClosed")),
+    view: parseJobView(searchParams.get("view")),
   };
 }
 
@@ -114,6 +118,11 @@ export function buildJobListWhere(params: JobListParams, ctx: JobListContext): P
   if (effectiveListScope(params.scope, ctx.user.role) === "mine") and.push(jobsInvolvingUserWhere(ctx.user.id));
   if (params.involvesUserId) and.push(jobsInvolvingUserWhere(params.involvesUserId));
   if (params.serviceType) and.push({ serviceType: params.serviceType });
+  if (params.view === "CLIENT") and.push({ jobType: { not: "OWNED_REHAB" } });
+  else if (params.view === "OWNED") and.push({ jobType: "OWNED_REHAB" });
+  // A flip is an owned job that is not a rental: an owned job with no purpose yet reads as a flip.
+  else if (params.view === "FLIP") and.push({ jobType: "OWNED_REHAB", OR: [{ ownedPurpose: "FLIP" }, { ownedPurpose: null }] });
+  else if (params.view === "RENTAL") and.push({ jobType: "OWNED_REHAB", ownedPurpose: "RENTAL" });
 
   if (params.workflowTrade) {
     and.push({ workflow: { modules: { some: { templateKey: params.workflowTrade, removedAt: null } } } });

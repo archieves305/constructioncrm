@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { WORKFLOW_SEED_GENERATIONS, WORKFLOW_TEMPLATE_SPECS } from "../../../prisma/seeds/workflows";
+import { WORKFLOW_SEED_GENERATIONS, WORKFLOW_TEMPLATE_SPECS, WORKFLOW_V2_SPECS } from "../../../prisma/seeds/workflows";
+import { CORE as CORE_V3 } from "../../../prisma/seeds/workflows/v3/core";
 import { CORE } from "../../../prisma/seeds/workflows/v2/core";
 import { ROOFING } from "../../../prisma/seeds/workflows/v2/roofing";
 import { INTERIOR_RENOVATION } from "../../../prisma/seeds/workflows/v2/interior-renovation";
@@ -48,17 +49,19 @@ const RECORD_GATES = new Set([
 describe("streamlined workflow templates", () => {
   it("are the newest generation of every seeded template", () => {
     expect(WORKFLOW_SEED_GENERATIONS.map((t) => [t.key, t.generations.map((g) => g.generation)])).toEqual([
-      ["core", [1, 2]],
+      ["core", [1, 2, 3]],
       ["roofing", [1, 2]],
       ["interior_renovation", [1, 2]],
       ["doors_windows", [1, 2]],
       ["code_violation", [1, 2]],
     ]);
-    expect(WORKFLOW_TEMPLATE_SPECS).toEqual([CORE, ROOFING, INTERIOR_RENOVATION, DOORS_WINDOWS, CODE_VIOLATION]);
+    expect(WORKFLOW_V2_SPECS).toEqual([CORE, ROOFING, INTERIOR_RENOVATION, DOORS_WINDOWS, CODE_VIOLATION]);
+    // Core moved on to generation 3 (the "Client job" toggle); the trades did not.
+    expect(WORKFLOW_TEMPLATE_SPECS).toEqual([CORE_V3, ROOFING, INTERIOR_RENOVATION, DOORS_WINDOWS, CODE_VIOLATION]);
   });
 
   it("define the approved number of steps", () => {
-    expect(WORKFLOW_TEMPLATE_SPECS.map((s) => [s.key, s.tasks.length])).toEqual([
+    expect(WORKFLOW_V2_SPECS.map((s) => [s.key, s.tasks.length])).toEqual([
       ["core", 18],
       ["roofing", 10],
       ["interior_renovation", 10],
@@ -270,7 +273,7 @@ describe("streamlined workflow templates", () => {
   // cases pin these versions from then on: if this fails after the prod
   // seed, the fix is a new generation, not a new hash.
   it("streamlined hashes match the seeded versions", () => {
-    expect(Object.fromEntries(WORKFLOW_TEMPLATE_SPECS.map((s) => [s.key, contentHash(s)]))).toEqual({
+    expect(Object.fromEntries(WORKFLOW_V2_SPECS.map((s) => [s.key, contentHash(s)]))).toEqual({
       core: "80716667b84401d9406988bb13081c92882da02c1cf71eaa54f5f2e80b67c785",
       roofing: "5793d80213f8cf21b2f9c40de303d0ec397e71c767fad80d9e2b0ebf8ec29980",
       interior_renovation: "394b60091780edd5dd83ccc5d11b3a87fab3ebd5ab846bcdef845fdc9017f879",

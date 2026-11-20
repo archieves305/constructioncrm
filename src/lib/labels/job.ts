@@ -6,7 +6,7 @@ import { formatAddressLine, type AddressInput } from "./address";
  * small mono hint and the search key.
  */
 
-export type CustomerInput = AddressInput & { fullName?: string | null; companyName?: string | null; kind?: "CUSTOMER" | "GC_BID" | null };
+export type CustomerInput = AddressInput & { fullName?: string | null; companyName?: string | null; kind?: "CUSTOMER" | "GC_BID" | "INTERNAL" | null };
 
 export type JobLabelInput = {
   jobNumber: string;

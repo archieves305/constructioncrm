@@ -15,6 +15,7 @@ import { CrewsPanel } from "@/components/jobs/crews-panel";
 import { StageHistoryList } from "@/components/jobs/stage-history-list";
 import { moneyStep } from "@/lib/jobs/money-step";
 import { StageStepper } from "@/components/shared/stage-stepper";
+import { jobKindOf, stagesFor } from "@/lib/jobs/stage-kinds";
 import { Progress } from "@/components/ui/progress";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
@@ -224,7 +225,7 @@ export default function JobDetailPage() {
         }
         badges={
           <Badge variant="outline" className="text-xs">
-            {job.jobType === "COST_PLUS" ? "Cost-plus" : job.jobType === "OWNED_REHAB" ? "Owned rehab" : "Fixed price"}
+            {job.jobType === "COST_PLUS" ? "Cost-plus" : job.jobType === "OWNED_REHAB" ? (job.ownedPurpose === "RENTAL" ? "Our rental" : "Our flip") : "Fixed price"}
           </Badge>
         }
         actions={
@@ -243,9 +244,11 @@ export default function JobDetailPage() {
                 <DropdownMenuItem onClick={() => router.push(`/leads/${job.lead.id}`)}>
                   <ExternalLink className="size-4" /> Open lead
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTab("money", "payments")}>
-                  <Wallet className="size-4" /> Record payment
-                </DropdownMenuItem>
+                {job.jobType !== "OWNED_REHAB" && (
+                  <DropdownMenuItem onClick={() => setTab("money", "payments")}>
+                    <Wallet className="size-4" /> Record payment
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => setTab("money", "estimates")}>
                   <FileText className="size-4" /> Estimates
                 </DropdownMenuItem>
@@ -283,7 +286,7 @@ export default function JobDetailPage() {
       >
         {stages && (
           <StageStepper
-            stages={stages}
+            stages={stagesFor(stages, jobKindOf(job))}
             currentStageId={job.currentStage.id}
             entityLabel={jobLabel(job).primary}
             disabled={changeStage.isPending}

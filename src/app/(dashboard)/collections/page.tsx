@@ -26,6 +26,7 @@ type CollectionJob = {
   depositRequired: string;
   depositReceived: string;
   balanceDue: string;
+  jobType?: string;
   finalPaymentReceived: boolean;
   currentStage: { name: string; isClosed?: boolean };
   lead: { fullName: string; primaryPhone: string; propertyAddress1?: string | null; propertyAddress2?: string | null; city: string };
@@ -121,7 +122,8 @@ export default function CollectionsPage() {
     enabled: allowed,
   });
 
-  const jobs: CollectionJob[] = jobsData?.data || [];
+  // Our own flips and rentals are never billed: nothing to collect, no deposit to ask for.
+  const jobs: CollectionJob[] = (jobsData?.data || []).filter((j) => j.jobType !== "OWNED_REHAB");
   const aging = financials?.aging;
   const progress = financials?.progress;
   // One row per open billable job from the shared cost calculation, worst projected margin first.

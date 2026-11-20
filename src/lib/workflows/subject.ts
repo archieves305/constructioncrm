@@ -1,6 +1,7 @@
 import type { Prisma, WorkflowPermitStatus, WorkflowTemplateKind } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { ScheduleContext } from "./schedule";
+import type { ScopeToggleState } from "./keys";
 
 /**
  * The "subject" a workflow runs on: a Job or a CodeViolationCase.
@@ -47,7 +48,23 @@ export type WorkflowSubject = {
     caseManagerId: string | null;
   };
   instance: WorkflowSubjectInstance | null;
+  /** One of our own flips or rentals: no customer, so Core's "Client job" toggle is forced off. */
+  ownedProject?: boolean;
 };
+
+/** Core's toggle that carries the customer (Core generation 3). */
+export const CUSTOMER_JOB_TOGGLE = "customer_job";
+
+/**
+ * The scope toggles a subject composes with: whatever was asked, with Core's
+ * "Client job" toggle set from what the job is. It is never a choice — an
+ * owned project has no customer whatever a dialog sent. A Core version
+ * without the toggle ignores it. Pure.
+ */
+export function togglesForSubject(subject: Pick<WorkflowSubject, "kind" | "ownedProject">, toggles: ScopeToggleState): ScopeToggleState {
+  if (subject.kind !== "job") return toggles;
+  return { ...toggles, core: { ...(toggles.core ?? {}), [CUSTOMER_JOB_TOGGLE]: !subject.ownedProject } };
+}
 
 /** What `createTask` gets from the subject. A case's tasks never carry `jobId`. */
 export type TaskLinks = { leadId: string; jobId?: string | null; violationCaseId?: string | null };
@@ -71,6 +88,7 @@ const JOB_SELECT = {
   jurisdiction: true,
   projectManagerId: true,
   salesRepId: true,
+  jobType: true,
 } satisfies Prisma.JobSelect;
 
 const CASE_SELECT = {
@@ -147,6 +165,7 @@ function fromJob(job: JobRow, instance: WorkflowSubjectInstance | null): Workflo
     dates: { targetStartDate: job.targetStartDate, complianceDeadline: null, hearingDate: null },
     people: { projectManagerId: job.projectManagerId, salesRepId: job.salesRepId, caseManagerId: null },
     instance,
+    ownedProject: job.jobType === "OWNED_REHAB",
   };
 }
 

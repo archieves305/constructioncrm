@@ -174,13 +174,14 @@ export async function getFinancialSummary(): Promise<FinancialSummary> {
   const profitability: JobProfitability[] = [];
 
   for (const j of jobs) {
+    // Our own flips and rentals are never billed; their "contract" is their cost.
+    if (j.jobType === "OWNED_REHAB") continue;
     const contract = Number(j.contractAmount);
     const collected = j.payments.reduce((s, p) => s + Number(p.amount), 0);
     totalContracted += contract;
     totalCollected += collected;
     totalOutstandingAR += Number(j.balanceDue);
 
-    if (j.jobType === "OWNED_REHAB") continue;
     const expensesTotal = j.expenses.reduce((s, e) => s + Number(e.amount), 0);
     const contractLaborCost = Number(j.laborCost ?? 0);
     const fieldLaborCost = fieldLaborByJob.get(j.id) ?? 0;

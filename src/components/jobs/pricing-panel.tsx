@@ -24,6 +24,7 @@ type MarginType = "PERCENT" | "FLAT";
 type Job = {
   id: string;
   jobType: JobType;
+  ownedPurpose?: "FLIP" | "RENTAL" | null;
   contractAmount: string;
   laborCost: string | null;
   marginType: MarginType | null;
@@ -35,6 +36,8 @@ export type SignedContractSummary = { id: string; contractNumber: string; signed
 export function PricingPanel({ job, signedContract }: { job: Job; signedContract?: SignedContractSummary | null }) {
   const qc = useQueryClient();
   const [jobType, setJobType] = useState<JobType>(job.jobType);
+  // Our own projects are a flip or a rental; each has its own stages.
+  const [purpose, setPurpose] = useState<"FLIP" | "RENTAL">(job.ownedPurpose === "RENTAL" ? "RENTAL" : "FLIP");
   const [contractAmount, setContractAmount] = useState(
     String(Number(job.contractAmount || 0)),
   );
@@ -68,6 +71,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
   if (prevJobId !== job.id) {
     setPrevJobId(job.id);
     setJobType(job.jobType);
+    setPurpose(job.ownedPurpose === "RENTAL" ? "RENTAL" : "FLIP");
     setContractAmount(String(Number(job.contractAmount || 0)));
     setLaborCost(job.laborCost ? String(Number(job.laborCost)) : "");
     setMarginType(job.marginType ?? "PERCENT");
@@ -81,6 +85,7 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
         // A signed contract owns the amount; only the other fields save.
         if (!signedContract) body.contractAmount = Number(contractAmount) || 0;
       } else if (jobType === "OWNED_REHAB") {
+        body.ownedPurpose = purpose;
         // When crew contracts own laborCost, don't overwrite it from here.
         if (!laborFromCrews) body.laborCost = Number(laborCost) || 0;
       } else {
@@ -102,7 +107,10 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["job", job.id] });
       qc.invalidateQueries({ queryKey: ["expenses", job.id] });
-      toast.success("Pricing updated");
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["workflow"] });
+      const kindChanged = jobType !== job.jobType || (jobType === "OWNED_REHAB" && purpose !== (job.ownedPurpose === "RENTAL" ? "RENTAL" : "FLIP"));
+      toast.success(kindChanged ? "Job type changed — its stages and workflow follow" : "Pricing updated");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -115,28 +123,33 @@ export function PricingPanel({ job, signedContract }: { job: Job; signedContract
       <CardContent className="space-y-3 text-sm">
         <Field label="Job type" labelClassName="text-xs">
           <Select
-            value={jobType}
-            onValueChange={(v: string | null) =>
-              v && setJobType(v as JobType)
-            }
+            value={jobType === "OWNED_REHAB" ? `OWNED_${purpose}` : jobType}
+            onValueChange={(v: string | null) => {
+              if (!v) return;
+              if (v === "OWNED_FLIP" || v === "OWNED_RENTAL") {
+                setJobType("OWNED_REHAB");
+                setPurpose(v === "OWNED_RENTAL" ? "RENTAL" : "FLIP");
+              } else setJobType(v as JobType);
+            }}
           >
             <SelectTrigger>
               <SelectValue>
                 {(v: string) =>
                   v === "COST_PLUS"
                     ? "Cost-plus"
-                    : v === "OWNED_REHAB"
-                      ? "Owned / Rehab (cost-only)"
-                      : "Fixed price"
+                    : v === "OWNED_FLIP"
+                      ? "Our flip (cost-only)"
+                      : v === "OWNED_RENTAL"
+                        ? "Our rental (cost-only)"
+                        : "Fixed price"
                 }
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="FIXED_PRICE">Fixed price</SelectItem>
               <SelectItem value="COST_PLUS">Cost-plus</SelectItem>
-              <SelectItem value="OWNED_REHAB">
-                Owned / Rehab (cost-only)
-              </SelectItem>
+              <SelectItem value="OWNED_FLIP">Our flip (cost-only)</SelectItem>
+              <SelectItem value="OWNED_RENTAL">Our rental (cost-only)</SelectItem>
             </SelectContent>
           </Select>
         </Field>

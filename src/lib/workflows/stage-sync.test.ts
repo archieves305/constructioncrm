@@ -51,4 +51,13 @@ describe("stageNameForWorkflow", () => {
   it("ignores trade steps and tasks with no workflow key", () => {
     expect(stageNameForWorkflow([{ key: "roofing:verify_deposit", status: "COMPLETED", activatedAt: at }, { key: null, status: "COMPLETED", activatedAt: at }])).toBeNull();
   });
+
+  it("our own projects end ready to sell or let, never at a payment stage", () => {
+    const closed = [done("complete_punch_list"), done("close_job")];
+    expect(stageNameForWorkflow(closed, "FLIP")).toBe("Listed");
+    expect(stageNameForWorkflow(closed, "RENTAL")).toBe("Ready to Rent");
+    expect(stageNameForWorkflow([done("submit_final_invoice"), ready("confirm_final_payment")], "FLIP")).toBeNull();
+    expect(stageNameForWorkflow([done("verify_deposit")], "RENTAL")).toBeNull();
+    expect(stageNameForWorkflow([done("precon_plan"), done("confirm_production_start")], "FLIP")).toBe("In Progress");
+  });
 });

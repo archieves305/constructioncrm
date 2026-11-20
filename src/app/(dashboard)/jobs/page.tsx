@@ -26,7 +26,7 @@ import type { ListScope } from "@/lib/lists/scope";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/shared/empty-state";
-import { DataTable, useListSort } from "@/components/shared/data-table";
+import { DataTable, useListSort, type Column } from "@/components/shared/data-table";
 import { JOB_SORT_DEFAULT, JOB_SORT_KEYS } from "@/lib/lists/sort";
 import { StagePillSelect } from "@/components/shared/stage-pill-select";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -34,7 +34,12 @@ import { TaskCountBadge } from "@/components/tasks/task-count-badge";
 import { PermitBadge } from "@/components/jobs/permit-badge";
 import { PermitStatusPill, WorkflowPhaseCell, tradesLabel, type JobWorkflowSummaryData } from "@/components/workflows/job-workflow-summary";
 import { useWorkflowTemplates } from "@/components/workflows/use-workflow";
-import { Briefcase, Workflow } from "lucide-react";
+import { Briefcase, Home, Plus, Workflow } from "lucide-react";
+import { useSession } from "@/lib/auth/session-client";
+import { canManageJobMoney } from "@/lib/money/access";
+import { jobKindOf, stagesFor, type JobView } from "@/lib/jobs/stage-kinds";
+import { NewOwnedProjectDialog } from "@/components/jobs/new-owned-project-dialog";
+import { OwnedBudgetLine, type OwnedCost } from "@/components/jobs/job-board-card";
 
 const ASSIGNABLE_ROLES = new Set(["ADMIN", "MANAGER", "SALES_REP"]);
 const UNASSIGN_VALUE = "__unassigned";
@@ -45,6 +50,8 @@ type JobRow = {
   title: string;
   serviceType: string;
   jobType: "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB";
+  ownedPurpose?: "FLIP" | "RENTAL" | null;
+  ownedCost?: OwnedCost;
   contractAmount: string;
   depositReceived: string;
   depositRequired: string;
@@ -95,6 +102,12 @@ export default function JobsPage() {
   const { scope, setScope, forced: scopeForced, ready: scopeReady } = useListScope();
   const { get: getUrl, setMany: setUrl } = useSearchParamState();
   const view: "table" | "board" = getUrl("view") === "board" ? "board" : "table";
+  // Client work or our own projects (flips and rentals): each has its own stages and figures.
+  const jobView: JobView = getUrl("kind") === "owned" ? "OWNED" : "CLIENT";
+  const owned = jobView === "OWNED";
+  const { data: session } = useSession();
+  const canStartProject = canManageJobMoney(session?.user?.role);
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [search, setSearch] = useState(initial.get("search") ?? "");
   const [stageId, setStageId] = useState(initial.get("stageId") ?? "");
   // Closed jobs stay out of the table until asked for (URL `closed=1`).
@@ -130,6 +143,8 @@ export default function JobsPage() {
   params.set("dir", jobSort.state.dir);
   params.set("withTaskCounts", "true");
   params.set("withWorkflow", "true");
+  params.set("view", jobView);
+  if (owned) params.set("withCost", "true");
   const workflowFilterCount =
     Number(Boolean(workflowTrade)) + Number(Boolean(permitFilter)) + Number(Boolean(phaseKey)) + WORKFLOW_TOGGLES.filter((t) => toggles[t.key]).length;
 
@@ -144,13 +159,13 @@ export default function JobsPage() {
     page: number;
     totalPages: number;
   }>({
-    queryKey: ["jobs", scope, search, stageId, showClosed, salesRepFilter, workflowTrade, permitFilter, phaseKey, toggles, page, jobSort.state.key, jobSort.state.dir],
+    queryKey: ["jobs", jobView, scope, search, stageId, showClosed, salesRepFilter, workflowTrade, permitFilter, phaseKey, toggles, page, jobSort.state.key, jobSort.state.dir],
     queryFn: () => fetchJson(`/api/jobs?${params.toString()}`),
     retry: retryServerErrors,
     enabled: scopeReady && view === "table",
   });
 
-  const { data: stages } = useQuery<{ id: string; name: string; stageOrder: number; isClosed?: boolean; isWon?: boolean; isLost?: boolean }[]>({
+  const { data: stages } = useQuery<{ id: string; name: string; stageOrder: number; kinds: string[]; isClosed?: boolean; isWon?: boolean; isLost?: boolean }[]>({
     queryKey: ["jobStages"],
     queryFn: () => fetchJson("/api/jobs/stages"),
     retry: retryServerErrors,
@@ -261,13 +276,33 @@ export default function JobsPage() {
         title="Jobs"
         description={
           view === "board"
-            ? `${scope === "mine" ? "Your jobs" : "All jobs"} — drag a job to move it to the next stage. Space picks a card up from the keyboard.`
+            ? `${owned ? "Our own flips and rentals" : scope === "mine" ? "Your jobs" : "All jobs"} — drag a job to move it to the next stage. Space picks a card up from the keyboard.`
             : jobsError
               ? "Jobs unavailable"
-              : `${data?.total ?? 0} ${showClosed ? "" : "open "}${scope === "mine" ? "jobs you're on" : "jobs"}`
+              : `${data?.total ?? 0} ${showClosed ? "" : "open "}${owned ? "projects of our own" : scope === "mine" ? "jobs you're on" : "jobs"}`
         }
         actions={
           <>
+          <SegmentedControl
+            ariaLabel="Kind of job"
+            value={jobView}
+            onValueChange={(v) => {
+              setUrl({ kind: v === "OWNED" ? "owned" : null });
+              setStageId("");
+              setSelected(new Set());
+              setPage(1);
+            }}
+            options={[
+              { value: "CLIENT", label: "Client jobs", icon: Briefcase },
+              { value: "OWNED", label: "Our projects", icon: Home },
+            ]}
+          />
+          {owned && canStartProject && (
+            <Button variant="brand" onClick={() => setNewProjectOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New project
+            </Button>
+          )}
           <SegmentedControl
             ariaLabel="View"
             value={view}
@@ -305,6 +340,10 @@ export default function JobsPage() {
                 contractAmount: j.contractAmount,
                 depositReceived: j.depositReceived,
                 balanceDue: j.balanceDue,
+                purpose: j.ownedPurpose === "RENTAL" ? "Rental" : "Flip",
+                budget: j.ownedCost?.budget ?? "",
+                spent: j.ownedCost?.committed ?? "",
+                underOver: j.ownedCost?.variance ?? "",
                 salesRep: j.salesRep
                   ? `${j.salesRep.firstName} ${j.salesRep.lastName}`
                   : "",
@@ -325,9 +364,18 @@ export default function JobsPage() {
                 { key: "customer", header: "Customer" },
                 { key: "serviceType", header: "Service" },
                 { key: "stage", header: "Stage" },
-                { key: "contractAmount", header: "Contract" },
-                { key: "depositReceived", header: "Deposit" },
-                { key: "balanceDue", header: "Balance" },
+                ...(owned
+                  ? [
+                      { key: "purpose" as const, header: "Kind" },
+                      { key: "budget" as const, header: "Budget" },
+                      { key: "spent" as const, header: "Spent + committed" },
+                      { key: "underOver" as const, header: "Under (+) / over (−)" },
+                    ]
+                  : [
+                      { key: "contractAmount" as const, header: "Contract" },
+                      { key: "depositReceived" as const, header: "Deposit" },
+                      { key: "balanceDue" as const, header: "Balance" },
+                    ]),
                 { key: "salesRep", header: "Sales Rep" },
                 { key: "scheduledDate", header: "Scheduled" },
                 { key: "createdAt", header: "Created" },
@@ -339,7 +387,7 @@ export default function JobsPage() {
                 { key: "overdueSteps", header: "Overdue steps" },
                 { key: "unassignedSteps", header: "Unassigned steps" },
               ]);
-              downloadCsv(`jobs-${scope}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+              downloadCsv(`${owned ? "our-projects" : "jobs"}-${scope}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
             }}
           >
             <Download className="mr-2 h-4 w-4" />
@@ -350,8 +398,10 @@ export default function JobsPage() {
         }
       />
 
+      <NewOwnedProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
+
       {view === "board" ? (
-        <JobsBoard />
+        <JobsBoard view={jobView} />
       ) : (
       <>
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -611,7 +661,8 @@ export default function JobsPage() {
           empty={<EmptyState icon={Briefcase} title="No jobs match" description="Try clearing a filter, or win a lead to start a job." />}
           selection={{ selected, onChange: setSelected, label: (job) => jobLabel(job).primary }}
           containerClassName="max-h-[calc(100dvh-16rem)]"
-          columns={[
+          // Our own projects: no sales rep, and the Customer column already says flip or rental.
+          columns={([
             {
               key: "property",
               header: "Property",
@@ -628,7 +679,9 @@ export default function JobsPage() {
               cell: (job) => (
                 <div className="flex items-center gap-2">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{job.lead.fullName}</div>
+                    <div className="truncate text-sm font-medium">
+                      {job.jobType === "OWNED_REHAB" ? (job.ownedPurpose === "RENTAL" ? "Our rental" : "Our flip") : job.lead.fullName}
+                    </div>
                   </div>
                   <TaskCountBadge open={job.taskCounts?.pending ?? 0} overdue={job.taskCounts?.overdue ?? 0} compact />
                 </div>
@@ -650,7 +703,7 @@ export default function JobsPage() {
               cell: (job) => (
                 <StagePillSelect
                   value={job.currentStageId}
-                  stages={stages ?? []}
+                  stages={stagesFor(stages ?? [], jobKindOf(job))}
                   onChange={(stageId) => changeStage.mutate({ jobId: job.id, stageId })}
                 />
               ),
@@ -663,6 +716,31 @@ export default function JobsPage() {
               className: "max-w-[200px]",
               cell: (job) => <WorkflowPhaseCell jobId={job.id} summary={job.workflow} />,
             },
+            ...(owned
+              ? ([
+            {
+              key: "budget",
+              header: "Budget",
+              headClassName: "text-right",
+              className: "text-right tabular-nums",
+              cell: (job) => (job.ownedCost?.budget != null ? `$${Math.round(job.ownedCost.budget).toLocaleString()}` : "—"),
+            },
+            {
+              key: "spent",
+              header: "Spent",
+              headClassName: "text-right",
+              className: "text-right tabular-nums",
+              cell: (job) => (job.ownedCost ? `$${Math.round(job.ownedCost.committed).toLocaleString()}` : "—"),
+            },
+            {
+              key: "underOver",
+              header: "Under / over",
+              headClassName: "text-right",
+              className: "text-right",
+              cell: (job) => <OwnedBudgetLine cost={job.ownedCost} compact />,
+            },
+                ] satisfies Column<JobRow>[])
+              : ([
             {
               key: "contract",
               header: "Contract",
@@ -693,6 +771,7 @@ export default function JobsPage() {
                 );
               },
             },
+                ] satisfies Column<JobRow>[])),
             {
               key: "permit",
               header: "Permit",
@@ -708,6 +787,7 @@ export default function JobsPage() {
                 );
               },
             },
+            ...(owned ? ([] satisfies Column<JobRow>[]) : ([
             {
               key: "balance",
               header: "Balance",
@@ -719,6 +799,7 @@ export default function JobsPage() {
                 <span className={Number(job.balanceDue) > 0 ? "font-medium" : "text-tone-success-fg"}>${Number(job.balanceDue).toLocaleString()}</span>
               ),
             },
+            ] satisfies Column<JobRow>[])),
             {
               key: "nextAction",
               header: "Next Action",
@@ -774,7 +855,7 @@ export default function JobsPage() {
                 </Select>
               ),
             },
-          ]}
+          ] satisfies Column<JobRow>[]).filter((c) => !owned || (c.key !== "service" && c.key !== "rep"))}
         />
       </div>
 

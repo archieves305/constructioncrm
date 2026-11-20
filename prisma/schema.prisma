@@ -171,6 +171,19 @@ enum JobType {
   OWNED_REHAB
 }
 
+/// Which stage list a job follows: client work, or one of our own projects (lib/jobs/stage-kinds.ts).
+enum JobKind {
+  CLIENT
+  FLIP
+  RENTAL
+}
+
+/// What an owned project (jobType OWNED_REHAB) is for.
+enum OwnedPurpose {
+  FLIP
+  RENTAL
+}
+
 enum MarginType {
   PERCENT
   FLAT
@@ -1403,6 +1416,8 @@ model JobStage {
   name       String   @unique
   stageOrder Int      @map("stage_order")
   isClosed   Boolean  @default(false) @map("is_closed")
+  /// The kinds of job that use this stage; a job only stands in a stage of its own kind.
+  kinds      JobKind[] @default([CLIENT])
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -1443,6 +1458,17 @@ model Job {
   title                  String
   serviceType            String          @map("service_type")
   jobType                JobType         @default(FIXED_PRICE) @map("job_type")
+  /// Owned projects only: a flip or a rental. Null on client jobs.
+  ownedPurpose           OwnedPurpose?   @map("owned_purpose")
+  /// Owned projects: what the property cost us.
+  purchasePrice          Decimal?        @map("purchase_price") @db.Decimal(12, 2)
+  /// Flips: expected value after the rehab.
+  afterRepairValue       Decimal?        @map("after_repair_value") @db.Decimal(12, 2)
+  /// Flips: the price it actually sold for, and when.
+  salePrice              Decimal?        @map("sale_price") @db.Decimal(12, 2)
+  saleDate               DateTime?       @map("sale_date")
+  /// Rentals: expected monthly rent.
+  monthlyRent            Decimal?        @map("monthly_rent") @db.Decimal(12, 2)
   laborCost              Decimal?        @map("labor_cost") @db.Decimal(12, 2)
   marginType             MarginType?     @map("margin_type")
   marginValue            Decimal?        @map("margin_value") @db.Decimal(12, 2)
@@ -5347,6 +5373,8 @@ model TakeoffMeasurement {
 enum LeadKind {
   CUSTOMER
   GC_BID
+  /// The property record behind one of our own projects: no customer, never on customer lists.
+  INTERNAL
 }
 
 enum OrganizationKind {

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { validateBody } from "@/lib/validation/body";
 import { recordAudit } from "@/lib/audit/record";
-import { changeJobStage } from "@/lib/services/jobs";
+import { changeJobStage, JobStageKindError } from "@/lib/services/jobs";
 import { logger } from "@/lib/logger";
 import { guardJobs } from "@/lib/access/records";
 
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
   if (!stage) return NextResponse.json({ error: "Stage not found" }, { status: 400 });
 
   let updated = 0;
+  const refused: string[] = [];
   for (const jobId of jobIds) {
     try {
       const job = await prisma.job.findUnique({
@@ -50,9 +51,14 @@ export async function POST(request: NextRequest) {
 
       updated++;
     } catch (err) {
+      // A flip cannot be moved into a client stage, and the other way round.
+      if (err instanceof JobStageKindError) {
+        refused.push(jobId);
+        continue;
+      }
       logger.exception(err, { where: "jobs.bulk-stage", jobId });
     }
   }
 
-  return NextResponse.json({ updated, requested: jobIds.length });
+  return NextResponse.json({ updated, requested: jobIds.length, refused: refused.length });
 }

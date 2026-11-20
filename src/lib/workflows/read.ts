@@ -5,12 +5,12 @@ import { TASK_LIST_INCLUDE } from "@/lib/tasks/include";
 import { taskVisibilityFilter, type VisibilityScope } from "@/lib/tasks/access";
 import { loadInstanceModules } from "./load";
 import { resolveToggles } from "./compose";
-import { fullKey, splitFullKey, type ScopeToggleState } from "./keys";
+import { CORE_MODULE_KEY, fullKey, splitFullKey, type ScopeToggleState } from "./keys";
 import { isLegacyStep, pinnedSteps } from "./plan-membership";
 import { unassignedRoles, loadRoleContext } from "./roles";
 import { canApplyWorkflow, canCatchUpWorkflow, canCoordinateWorkflow, canOverrideBlockingGate, canSetPermitStatus, type JobScope } from "./access";
 import { availableUpgrades } from "./versioning";
-import { loadSubject, type WorkflowSubject } from "./subject";
+import { CUSTOMER_JOB_TOGGLE, loadSubject, type WorkflowSubject } from "./subject";
 import { isPastDue } from "@/lib/calendar/status";
 
 /**
@@ -243,9 +243,11 @@ export async function readInstanceWorkflow(workflow: InstanceRow, subject: Workf
       removedAt: m.removedAt,
     })),
     team: workflow.team.map((t) => ({ role: t.role, user: t.user })),
+    // Core's "Client job" toggle follows the job type and is never edited here.
     toggles: modules
-      .filter((m) => m.definition.scopeToggles.length > 0)
-      .map((m) => ({ moduleKey: m.moduleKey, name: m.name, toggles: m.definition.scopeToggles, values: resolveToggles(m, subjectToggles) })),
+      .map((m) => ({ m, specs: m.definition.scopeToggles.filter((t) => !(m.moduleKey === CORE_MODULE_KEY && t.key === CUSTOMER_JOB_TOGGLE)) }))
+      .filter(({ specs }) => specs.length > 0)
+      .map(({ m, specs }) => ({ moduleKey: m.moduleKey, name: m.name, toggles: specs, values: resolveToggles(m, subjectToggles) })),
     phases: phaseList,
     tasks,
     progress: overall,

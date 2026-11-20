@@ -9,6 +9,8 @@ import { loadJobWorkflowSummaries } from "@/lib/workflows/summary";
 import { overdueWhere } from "@/lib/calendar/status";
 import { JOB_SORT_DEFAULT, JOB_SORT_KEYS, parseSort } from "@/lib/lists/sort";
 import { jobOrderBy } from "@/lib/lists/sort-order";
+import { canViewCompanyFinancials } from "@/lib/money/access";
+import { getJobCostRows } from "@/lib/services/job-cost";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -79,10 +81,28 @@ export async function GET(request: NextRequest) {
 
   const workflowByJob = withWorkflow ? await loadJobWorkflowSummaries(jobIds, now) : null;
 
+  // Our own projects are read by budget against spend, not by price: the
+  // shared cost calculation for each owned job on the page, for the roles
+  // that see company money.
+  const ownedIds = data.filter((j) => j.jobType === "OWNED_REHAB").map((j) => j.id);
+  const costByJob = new Map<string, { budget: number | null; spent: number; committed: number; variance: number | null }>();
+  if (searchParams.get("withCost") === "true" && ownedIds.length > 0 && canViewCompanyFinancials(session.user.role)) {
+    for (const r of await getJobCostRows({ id: { in: ownedIds } })) {
+      const s = r.summary;
+      costByJob.set(r.jobId, {
+        budget: s.estimatedCost,
+        spent: s.spent,
+        committed: s.committed,
+        variance: s.estimatedCost === null ? null : Math.round((s.estimatedCost - s.committed) * 100) / 100,
+      });
+    }
+  }
+
   const enriched = data.map((j) => ({
     ...j,
     ...(withTaskCounts && { taskCounts: taskCountsByJob[j.id] ?? { pending: 0, overdue: 0 } }),
     ...(workflowByJob && { workflow: workflowByJob.get(j.id) ?? null }),
+    ...(costByJob.has(j.id) && { ownedCost: costByJob.get(j.id) }),
   }));
 
   return NextResponse.json(forViewer(session.user.role, { data: enriched, total, page, pageSize, totalPages: Math.ceil(total / pageSize) }));

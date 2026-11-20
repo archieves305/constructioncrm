@@ -17,6 +17,9 @@ export type BoardJob = {
   title: string;
   serviceType: string;
   jobType?: "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB";
+  ownedPurpose?: "FLIP" | "RENTAL" | null;
+  /** Our own projects, for the roles that see company money: budget against what is spent and promised. */
+  ownedCost?: OwnedCost;
   contractAmount: string;
   depositReceived: string;
   depositRequired: string;
@@ -34,6 +37,25 @@ export type BoardJob = {
 };
 
 const money0 = (n: unknown) => `$${Math.round(Number(n)).toLocaleString("en-US")}`;
+
+export type OwnedCost = { budget: number | null; spent: number; committed: number; variance: number | null };
+
+/** "Under $4,200" / "Over $1,050" / "No budget": an owned project's position against its budget. */
+export function OwnedBudgetLine({ cost, compact = false }: { cost: OwnedCost | undefined; compact?: boolean }) {
+  if (!cost) return null;
+  if (cost.budget === null) {
+    return <span className="text-2xs text-muted-foreground">{money0(cost.committed)} spent · no budget</span>;
+  }
+  const over = (cost.variance ?? 0) < 0;
+  return (
+    <span className="flex items-center gap-1.5 text-2xs tabular-nums">
+      {!compact && <span className="text-muted-foreground">{money0(cost.committed)} of {money0(cost.budget)}</span>}
+      <span className={cn("rounded px-1 font-medium", over ? "bg-tone-danger-soft text-tone-danger-fg" : "bg-tone-success-soft text-tone-success-fg")}>
+        {over ? "Over" : "Under"} {money0(Math.abs(cost.variance ?? 0))}
+      </span>
+    </span>
+  );
+}
 
 export function daysInStage(job: BoardJob, now = new Date()): number | null {
   const since = job.stageHistory?.[0]?.changedAt ?? job.updatedAt;
@@ -56,6 +78,7 @@ export function JobBoardCard({ job, density = "comfortable" }: { job: BoardJob; 
   const person = job.projectManager ?? job.salesRep;
   const permit = job.permits?.[0]?.status ?? null;
   const label = jobLabel(job, { customer: false });
+  const owned = job.jobType === "OWNED_REHAB";
 
   return (
     <div className={compact ? "space-y-1" : "space-y-1.5"}>
@@ -63,13 +86,21 @@ export function JobBoardCard({ job, density = "comfortable" }: { job: BoardJob; 
         <p className={cn("min-w-0 truncate text-sm font-medium leading-tight text-foreground", label.placeholder && "italic")} title={label.primary}>
           {label.primary}
         </p>
-        <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{money0(job.contractAmount)}</span>
+        {/* An owned project's "contract" is only its cost so far: the budget line below says what matters. */}
+        {!owned && <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{money0(job.contractAmount)}</span>}
       </div>
-      {!compact && <p className="truncate text-xs text-muted-foreground">{job.lead.fullName}</p>}
+      {!compact && !owned && <p className="truncate text-xs text-muted-foreground">{job.lead.fullName}</p>}
+      {owned && <OwnedBudgetLine cost={job.ownedCost} compact={compact} />}
       <div className="flex flex-wrap items-center gap-1">
-        <Badge variant="outline" className="text-2xs">
-          {job.serviceType}
-        </Badge>
+        {owned ? (
+          <Badge variant="outline" className="border-brand/40 text-2xs text-brand">
+            {job.ownedPurpose === "RENTAL" ? "Rental" : "Flip"}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-2xs">
+            {job.serviceType}
+          </Badge>
+        )}
         {job.workflow ? <PermitStatusPill status={job.workflow.permitStatus} compact /> : permit && <PermitBadge status={permit} />}
         {compact && job.workflow && (
           <>

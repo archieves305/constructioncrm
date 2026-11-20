@@ -18,8 +18,10 @@ import { useSearchParamState } from "@/components/shared/use-search-param-state"
 import { useDebouncedValue } from "@/components/shared/use-debounced-value";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { buildStageToneMap, type StageLike } from "@/lib/ui/stage-colors";
+import { jobKindOf, stageFitsKind, stagesForView, JOB_KIND_LABEL, type JobView } from "@/lib/jobs/stage-kinds";
+import { toast } from "sonner";
 
-type Stage = StageLike & { id: string; isClosed: boolean };
+type Stage = StageLike & { id: string; isClosed: boolean; kinds: string[] };
 type JobsPayload = { data: BoardJob[]; total: number };
 type Assignee = { id: string; firstName: string; lastName: string };
 
@@ -31,7 +33,8 @@ const money0 = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
  * hid Measure Complete, Scope Finalized and Permit Corrections. Closed starts
  * collapsed so the live work has the room.
  */
-export function JobsBoard() {
+export function JobsBoard({ view = "CLIENT" }: { view?: JobView }) {
+  const owned = view !== "CLIENT";
   const router = useRouter();
   const { scope, setScope, forced, ready, density, setDensity } = useListScope();
   const { get, setMany } = useSearchParamState();
@@ -43,15 +46,16 @@ export function JobsBoard() {
   const { data: stages = [] } = useQuery<Stage[]>({ queryKey: ["jobStages"], queryFn: () => fetchJson("/api/jobs/stages") });
   const { data: users = [] } = useQuery<Assignee[]>({ queryKey: ["assignable-users"], queryFn: () => fetchJson("/api/users/assignable") });
 
-  const filters = useMemo(() => ({ scope, q, person, serviceType }), [scope, q, person, serviceType]);
+  const filters = useMemo(() => ({ view, scope, q, person, serviceType }), [view, scope, q, person, serviceType]);
   const queryKey = useMemo(() => ["jobs", "production-board", filters] as const, [filters]);
   const url = useMemo(() => {
-    const p = new URLSearchParams({ pageSize: "500", withTaskCounts: "true", withWorkflow: "true", scope });
+    const p = new URLSearchParams({ pageSize: "500", withTaskCounts: "true", withWorkflow: "true", scope, view });
+    if (owned) p.set("withCost", "true");
     if (q) p.set("search", q);
     if (person) p.set("involvesUserId", person);
     if (serviceType) p.set("serviceType", serviceType);
     return `/api/jobs?${p.toString()}`;
-  }, [scope, q, person, serviceType]);
+  }, [scope, q, person, serviceType, view, owned]);
 
   const { data: jobsData, isLoading } = useQuery<JobsPayload>({
     queryKey,
@@ -86,13 +90,18 @@ export function JobsBoard() {
     messages: { success: "Job moved", error: "Failed to move job" },
   });
 
+  // Each kind of job has its own stage list (lib/jobs/stage-kinds.ts).
+  const viewStages = useMemo(() => stagesForView(stages, view), [stages, view]);
+
   const columns = useMemo<KanbanColumnDef[]>(() => {
-    const tones = buildStageToneMap(stages);
-    return [...stages]
-      .sort((a, b) => a.stageOrder - b.stageOrder)
+    const tones = buildStageToneMap(viewStages);
+    return viewStages
       .map((s) => {
         const mine = jobs.filter((j) => j.currentStage.id === s.id);
-        const total = mine.reduce((sum, j) => sum + Number(j.contractAmount), 0);
+        // Client work adds up its contracts; our own projects add up what they have cost so far.
+        const total = owned
+          ? mine.reduce((sum, j) => sum + (j.ownedCost?.committed ?? 0), 0)
+          : mine.reduce((sum, j) => sum + Number(j.contractAmount), 0);
         const overdue = mine.reduce((sum, j) => sum + (j.taskCounts?.overdue ?? 0), 0);
         return {
           id: s.id,
@@ -103,12 +112,13 @@ export function JobsBoard() {
             mine.length > 0 ? (
               <>
                 {money0(total)}
+                {owned && " spent"}
                 {overdue > 0 && <span className="text-tone-danger-fg"> · {overdue} overdue</span>}
               </>
             ) : undefined,
         };
       });
-  }, [stages, jobs]);
+  }, [viewStages, jobs, owned]);
 
   const countByColumn = useMemo(() => {
     const m = new Map<string, number>();
@@ -130,10 +140,10 @@ export function JobsBoard() {
   return (
     <div>
       <BoardToolbar
-        boardId="production"
+        boardId={owned ? "production-owned" : "production"}
         columns={columns}
         countByColumn={countByColumn}
-        closedColumnIds={stages.filter((s) => s.isClosed).map((s) => s.id)}
+        closedColumnIds={viewStages.filter((s) => s.isClosed).map((s) => s.id)}
         scope={scope}
         onScopeChange={setScope}
         scopeForced={forced}
@@ -194,13 +204,22 @@ export function JobsBoard() {
         />
       ) : (
         <KanbanBoard<BoardJob>
-          boardId="production"
+          boardId={owned ? "production-owned" : "production"}
           columns={columns}
           items={jobs}
           isLoading={!ready || isLoading || stages.length === 0}
           getColumnId={(j) => j.currentStage.id}
           renderCard={(j, s) => <JobBoardCard job={j} density={s.density} />}
-          onMove={(id, toColumnId) => move.mutate({ id, toColumnId })}
+          onMove={(id, toColumnId) => {
+            // A rental never goes to "Listed", a flip never to "Leased".
+            const job = jobs.find((j) => j.id === id);
+            const stage = stages.find((s) => s.id === toColumnId);
+            if (job && stage && !stageFitsKind(stage, jobKindOf({ jobType: job.jobType ?? "FIXED_PRICE", ownedPurpose: job.ownedPurpose }))) {
+              toast.error(`"${stage.name}" is not a stage for a ${JOB_KIND_LABEL[jobKindOf({ jobType: job.jobType ?? "FIXED_PRICE", ownedPurpose: job.ownedPurpose })].toLowerCase()}`);
+              return;
+            }
+            move.mutate({ id, toColumnId });
+          }}
           onOpen={(j) => router.push(`/jobs/${j.id}`)}
           columnWidth={272}
           emptyLabel="No jobs here"

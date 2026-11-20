@@ -19,7 +19,7 @@ export type SearchHit = {
 
 export type SearchRows = {
   jobs: (JobLabelInput & { id: string; currentStage?: { name: string } | null })[];
-  leads: { id: string; kind?: "CUSTOMER" | "GC_BID"; fullName: string; companyName?: string | null; propertyAddress1: string; propertyAddress2?: string | null; city: string; primaryPhone?: string | null; currentStage?: { name: string } | null; bidInvitation?: { number: string; projectName: string; status: string } | null }[];
+  leads: { id: string; kind?: "CUSTOMER" | "GC_BID" | "INTERNAL"; fullName: string; companyName?: string | null; propertyAddress1: string; propertyAddress2?: string | null; city: string; primaryPhone?: string | null; currentStage?: { name: string } | null; bidInvitation?: { number: string; projectName: string; status: string } | null }[];
   cases: (CaseLabelInput & { id: string; status?: string | null })[];
   prospects: { id: string; propertyAddress1: string; city: string; ownerName?: string | null }[];
   /** Active open tasks; a dated one opens on the calendar's day, an undated one on the tasks page. */

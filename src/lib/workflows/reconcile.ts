@@ -13,7 +13,7 @@ import { completeSatisfiedGates } from "./gates";
 import { loadRoleContext } from "./roles";
 import { loadScheduleContext, sweepActivation } from "./activation";
 import { isCorrectionKey } from "./inspections";
-import { loadSubjectForInstance, taskLinksFor, writeSubjectFields } from "./subject";
+import { loadSubjectForInstance, taskLinksFor, togglesForSubject, writeSubjectFields } from "./subject";
 
 /**
  * Reconciliation: the workflow's shape changed after it was applied —
@@ -91,7 +91,7 @@ export type ReconcilePlan = {
 };
 
 type Instance = Prisma.JobWorkflowInstanceGetPayload<{
-  select: { id: true; jobId: true; violationCaseId: true; permitStatus: true; scopeToggles: true; appliedAt: true; modules: { select: { templateKey: true; templateVersionId: true; removedAt: true } } };
+  select: { id: true; jobId: true; violationCaseId: true; permitStatus: true; scopeToggles: true; appliedAt: true; job: { select: { jobType: true } }; modules: { select: { templateKey: true; templateVersionId: true; removedAt: true } } };
 }>;
 
 type Built = {
@@ -109,7 +109,7 @@ type Built = {
 async function loadInstance(instanceId: string): Promise<Instance> {
   const inst = await prisma.jobWorkflowInstance.findUnique({
     where: { id: instanceId },
-    select: { id: true, jobId: true, violationCaseId: true, permitStatus: true, scopeToggles: true, appliedAt: true, modules: { select: { templateKey: true, templateVersionId: true, removedAt: true } } },
+    select: { id: true, jobId: true, violationCaseId: true, permitStatus: true, scopeToggles: true, appliedAt: true, job: { select: { jobType: true } }, modules: { select: { templateKey: true, templateVersionId: true, removedAt: true } } },
   });
   if (!inst) throw new ReconcileError(404, "Workflow not found");
   return inst;
@@ -209,6 +209,8 @@ async function build(inst: Instance, change: ReconcileChange): Promise<Built> {
     if (incompatibleTrades(modules).length > 0) throw new ReconcileError(409, MIXED_GENERATION_MESSAGE);
   }
 
+  // Core's "Client job" toggle always follows what the job is.
+  if (inst.jobId) scopeToggles = togglesForSubject({ kind: "job", ownedProject: inst.job?.jobType === "OWNED_REHAB" }, scopeToggles);
   const plan = compose({ modules, permitStatus, scopeToggles });
   return { modules, permitStatus, scopeToggles, plan, label, drift, warnings: [...warnings, ...plan.warnings], moduleWrites };
 }

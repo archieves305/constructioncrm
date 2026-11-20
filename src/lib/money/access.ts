@@ -41,6 +41,12 @@ export const JOB_MONEY_FIELDS = [
   "laborCost",
   "marginType",
   "marginValue",
+  "ownedPurpose",
+  "purchasePrice",
+  "afterRepairValue",
+  "salePrice",
+  "saleDate",
+  "monthlyRent",
 ] as const;
 
 export function touchesJobMoney(body: Record<string, unknown>): boolean {

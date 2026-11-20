@@ -40,6 +40,10 @@ export async function POST(
   if (lead.kind === "GC_BID") {
     return NextResponse.json({ error: "This lead is a bid package; change the bid's status instead", hint: `/leads/${id}?tab=bid` }, { status: 409 });
   }
+  // The property record behind one of our own projects has no sales stages.
+  if (lead.kind === "INTERNAL") {
+    return NextResponse.json({ error: "This is one of our own projects; move its job instead" }, { status: 409 });
+  }
 
   const newStage = await prisma.leadStage.findUnique({ where: { id: stageId } });
   if (!newStage) return badRequest("Invalid stage");

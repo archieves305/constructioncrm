@@ -1,3 +1,5 @@
+import { jobKindOf } from "@/lib/jobs/stage-kinds";
+import { changeJobKind } from "@/lib/jobs/owned-project";
 import { NextRequest, NextResponse } from "next/server";
 import { forViewer } from "@/lib/access/crew-redact";
 import { prisma } from "@/lib/db/prisma";
@@ -110,6 +112,7 @@ export async function PATCH(
     "isRentalTurnover",
     "priorTenantName", "turnoverStartedAt", "turnoverCompletedAt",
     "jurisdiction",
+    "purchasePrice", "afterRepairValue", "salePrice", "saleDate", "monthlyRent",
   ];
 
   const updateData: Record<string, unknown> = {};
@@ -129,9 +132,26 @@ export async function PATCH(
     }
   }
 
+  for (const f of ["purchasePrice", "afterRepairValue", "salePrice", "monthlyRent"] as const) {
+    const v = updateData[f];
+    if (v === undefined || v === null || v === "") {
+      if (v === "") updateData[f] = null;
+      continue;
+    }
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) return badRequest(`${f} must be an amount of 0 or more`);
+    updateData[f] = n;
+  }
+  if (body.saleDate === null || body.saleDate === "") updateData.saleDate = null;
+  else if (updateData.saleDate instanceof Date && Number.isNaN(updateData.saleDate.getTime())) return badRequest("saleDate must be a date");
+  if (body.ownedPurpose !== undefined && body.ownedPurpose !== null && body.ownedPurpose !== "FLIP" && body.ownedPurpose !== "RENTAL") {
+    return badRequest("ownedPurpose must be FLIP or RENTAL");
+  }
+
   const existing = await prisma.job.findUnique({
     where: { id },
     select: {
+      ownedPurpose: true,
       jobType: true,
       depositReceived: true,
       billingMethod: true,
@@ -173,12 +193,26 @@ export async function PATCH(
     existing.jobType;
   const isRollup = rollsExpensesIntoContract(nextType);
 
+  // Client ↔ flip ↔ rental is more than a field: the stage list, the deposit
+  // and the customer's workflow steps follow it (lib/jobs/owned-project.ts).
+  const fromKind = jobKindOf(existing);
+  const toKind = jobKindOf({
+    jobType: nextType,
+    ownedPurpose: body.ownedPurpose !== undefined ? body.ownedPurpose : existing.ownedPurpose,
+  });
+  if (fromKind !== toKind) delete updateData.jobType;
+
   if (isRollup) {
     // Contract is computed from labor + expenses; never set directly.
     delete updateData.contractAmount;
   }
 
   await prisma.job.update({ where: { id }, data: updateData });
+  if (fromKind !== toKind) {
+    await changeJobKind(id, toKind, { id: session.user.id, role: session.user.role }, {
+      clientJobType: nextType === "COST_PLUS" ? "COST_PLUS" : "FIXED_PRICE",
+    });
+  }
 
   // The workflow follows the job: a moved target start shifts the steps
   // anchored on it; a new PM picks up the unassigned PM steps.

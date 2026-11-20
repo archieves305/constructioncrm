@@ -268,7 +268,7 @@ export function crewSubmissionsWhere(ctx: AttentionContext): Prisma.GuestSubmiss
 }
 
 export function depositsMissingWhere(ctx: AttentionContext): Prisma.JobWhereInput {
-  return { AND: [OPEN_JOB, jobScope(ctx), { depositRequired: { gt: 0 }, depositReceived: { lt: prisma.job.fields.depositRequired } }] };
+  return { AND: [OPEN_JOB, jobScope(ctx), { jobType: { not: "OWNED_REHAB" }, depositRequired: { gt: 0 }, depositReceived: { lt: prisma.job.fields.depositRequired } }] };
 }
 
 export function quietJobsWhere(ctx: AttentionContext): Prisma.JobWhereInput {

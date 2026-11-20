@@ -2,6 +2,7 @@ import type { TaskStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
 import { CORE_MODULE_KEY, fullKey } from "./keys";
+import { jobKindOf, REHAB_DONE_STAGE, stageFitsKind, type JobKind } from "@/lib/jobs/stage-kinds";
 
 /**
  * The job stage follows the workflow.
@@ -24,7 +25,7 @@ const core = (short: string) => fullKey(CORE_MODULE_KEY, short);
  * Checked from the end of the job backwards, so the furthest milestone wins.
  * "Done" is COMPLETED only: a skipped or retired step proves nothing.
  */
-export function stageNameForWorkflow(steps: StageStep[]): string | null {
+export function stageNameForWorkflow(steps: StageStep[], kind: JobKind = "CLIENT"): string | null {
   const byKey = new Map<string, StageStep>();
   for (const s of steps) if (s.key) byKey.set(s.key, s);
   const done = (short: string) => byKey.get(core(short))?.status === "COMPLETED";
@@ -34,15 +35,22 @@ export function stageNameForWorkflow(steps: StageStep[]): string | null {
     return Boolean(s && s.status !== "CANCELLED" && (s.activatedAt !== null || s.status === "COMPLETED"));
   };
 
-  if (done("close_job")) return "Closed";
-  if (done("submit_final_invoice") || reached("confirm_final_payment")) return "Final Payment Due";
+  // Our own projects: closing out the rehab makes the property ready to sell
+  // or let; the sale or the lease is moved by hand. They have no deposit or
+  // final payment, so those milestones never stand for a stage.
+  if (kind !== "CLIENT") {
+    if (done("close_job")) return REHAB_DONE_STAGE[kind];
+  } else {
+    if (done("close_job")) return "Closed";
+    if (done("submit_final_invoice") || reached("confirm_final_payment")) return "Final Payment Due";
+  }
   if (done("complete_punch_list") && reached("obtain_final_inspection") && !done("obtain_final_inspection")) return "Final Inspection";
   if (reached("complete_punch_list")) return "Punch List";
   if (done("confirm_production_start")) return "In Progress";
   if (done("confirm_permit_issued")) return "Permit Approved";
   if (done("submit_permit_application")) return "Permit Submitted";
   if (done("precon_plan")) return "Scope Finalized";
-  if (done("verify_deposit")) return "Financing Cleared";
+  if (kind === "CLIENT" && done("verify_deposit")) return "Financing Cleared";
   return null;
 }
 
@@ -56,7 +64,7 @@ export async function syncJobStageFromWorkflow(jobId: string, actorUserId: strin
   try {
     const job = await prisma.job.findUnique({
       where: { id: jobId },
-      select: { currentStage: { select: { stageOrder: true } }, workflow: { select: { id: true } } },
+      select: { jobType: true, ownedPurpose: true, currentStage: { select: { stageOrder: true } }, workflow: { select: { id: true } } },
     });
     if (!job?.workflow) return null;
 
@@ -64,11 +72,15 @@ export async function syncJobStageFromWorkflow(jobId: string, actorUserId: strin
       where: { workflowInstanceId: job.workflow.id, workflowTaskKey: { startsWith: `${CORE_MODULE_KEY}:` } },
       select: { workflowTaskKey: true, status: true, activatedAt: true },
     });
-    const name = stageNameForWorkflow(steps.map((s) => ({ key: s.workflowTaskKey, status: s.status, activatedAt: s.activatedAt })));
+    const kind = jobKindOf(job);
+    const name = stageNameForWorkflow(
+      steps.map((s) => ({ key: s.workflowTaskKey, status: s.status, activatedAt: s.activatedAt })),
+      kind,
+    );
     if (!name) return null;
 
-    const target = await prisma.jobStage.findFirst({ where: { name }, select: { id: true, stageOrder: true } });
-    if (!target || target.stageOrder <= job.currentStage.stageOrder) return null;
+    const target = await prisma.jobStage.findFirst({ where: { name }, select: { id: true, stageOrder: true, kinds: true } });
+    if (!target || !stageFitsKind(target, kind) || target.stageOrder <= job.currentStage.stageOrder) return null;
 
     // Lazy: services/jobs imports the task and workflow modules.
     const { changeJobStage } = await import("@/lib/services/jobs");

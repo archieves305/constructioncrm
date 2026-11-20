@@ -22,6 +22,7 @@ import {
   scheduleContextFor,
   taskLinkWhere,
   taskLinksFor,
+  togglesForSubject,
   writeSubjectFields,
   type TaskLinks,
   type WorkflowSubject,
@@ -170,7 +171,7 @@ export async function previewWorkflow(input: ApplyInput): Promise<WorkflowPrevie
   const ref = subjectRefOf(input);
   const subject = await loadSubjectOrThrow(prisma, ref);
   const modules = await loadModules(prisma, subject.kind, input.templateKeys, await pinnedModules(prisma, subject));
-  const plan = compose({ modules, permitStatus: input.permitStatus, scopeToggles: input.scopeToggles });
+  const plan = compose({ modules, permitStatus: input.permitStatus, scopeToggles: togglesForSubject(subject, input.scopeToggles) });
   const roleCtx = await loadRoleContext(prisma, { subject, instanceId: subject.instance?.id, teamOverride: input.team });
   const ctx: ScheduleContext = scheduleContextFor(subject, subject.instance?.appliedAt ?? now, { targetStartDate: input.targetStartDate });
 
@@ -369,7 +370,8 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
       }
     }
 
-    const plan = compose({ modules, permitStatus: input.permitStatus, scopeToggles: input.scopeToggles });
+    const scopeToggles = togglesForSubject(subject, input.scopeToggles);
+    const plan = compose({ modules, permitStatus: input.permitStatus, scopeToggles });
     const roleCtx = await loadRoleContext(prisma, { subject, instanceId: subject.instance?.id, teamOverride: input.team });
     const rolesUsed = Array.from(new Set(plan.tasks.map((t) => t.role)));
 
@@ -386,11 +388,11 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
             permitDeterminedAt: decided ? now : null,
             permitNotes: input.permit?.notes ?? null,
             permitDocumentFileId: input.permit?.documentFileId ?? null,
-            scopeToggles: input.scopeToggles as Prisma.InputJsonValue,
+            scopeToggles: scopeToggles as Prisma.InputJsonValue,
             appliedByUserId: input.actor.id,
             appliedAt: now,
           },
-          update: { scopeToggles: input.scopeToggles as Prisma.InputJsonValue },
+          update: { scopeToggles: scopeToggles as Prisma.InputJsonValue },
         });
         for (const [role, userId] of Object.entries(input.team ?? {}) as [WorkflowRole, string | null][]) {
           if (userId) {

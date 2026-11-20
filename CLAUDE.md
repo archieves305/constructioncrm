@@ -599,6 +599,32 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-11-20 — Our own projects (flips + rentals), Stage 1 (built + dev-QA'd on `owned-projects` worktree, not committed)
+
+"stages like Deposit Needed and Final Payment Due do not make sense" for the rentals and fix-and-flips KNU owns. Plan approved (`~/.claude/plans/i-need-to-adjust-flickering-treehouse.md`); Richard ruled: each kind gets its own stages, a New project button, budget by category + purchase / ARV / sale / rent, and a Client jobs | Our projects toggle.
+
+Migration `20261127120000_owned_projects` (additive):
+- `JobKind`, `job_stages.kinds`, `jobs.owned_purpose` plus purchase / ARV / sale / sale date / rent, `LeadKind.INTERNAL`;
+- the stage rows: flips and rentals start at Planning; a flip ends Listed → Under Contract → Sold, a rental Ready to Rent → Leased; Closed is order 20 and shared.
+
+Core generation 3 adds the `customer_job` toggle, forced from the job type (`togglesForSubject`). With it off, the contract, deposit, final-invoice and final-payment steps go.
+
+Other changes:
+- `changeJobStage` refuses another kind's stage.
+- Stage sync sends an owned `close_job` to Listed / Ready to Rent.
+- `POST /api/jobs/owned` creates an INTERNAL lead plus the job.
+- Changing the kind on Pricing goes through `changeJobKind`.
+- `/api/jobs?view=` and `withCost`.
+- Board, list and cards by kind.
+- Owned jobs are out of Collections, the financial totals and deposits-missing.
+- `scripts/owned-projects-2026-11.ts` brings existing owned jobs over.
+
+Gate: typecheck clean, lint 5/21, 2231 tests, build clean. Dev QA: API 26/26, headless 24/24 at 1440 / 400, SALES_REP 403, backfill on a staged job; dev DB restored (Core v3 seeded on dev).
+
+**Deploy carries the migration; then the workflow seed (dry run first) and the backfill dry run.**
+
+Details: [features/owned-projects.md](docs/project-memory/features/owned-projects.md).
+
 ### 2026-11-19 — PlanHub "Send to CRM" (built + dev-QA'd on `planhub-sync`, not deployed)
 
 Richard asked for a login bot that scrapes his PlanHub Saved Bid Board into the CRM.

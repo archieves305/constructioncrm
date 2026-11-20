@@ -5,7 +5,9 @@ import type { JobMoneyView } from "./access";
  * (`jobMoneyView`). Pure. The record keeps its shape: a hidden field is null
  * (or an empty list), and `moneyView` tells the page what to leave out.
  */
-const COST_FIELDS = ["laborCost", "marginType", "marginValue"] as const;
+// An owned project's purchase, resale and rent figures are the company's own
+// investment: shown only to the full money view, like cost.
+const COST_FIELDS = ["laborCost", "marginType", "marginValue", "purchasePrice", "afterRepairValue", "salePrice", "monthlyRent"] as const;
 const PRICE_FIELDS = [
   "contractAmount",
   "originalContractAmount",

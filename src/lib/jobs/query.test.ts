@@ -34,6 +34,15 @@ describe("buildJobListWhere", () => {
     expect(buildJobListWhere({}, admin)).toEqual({});
   });
 
+  it("splits client work from our own flips and rentals", () => {
+    expect(parseJobListParams(new URLSearchParams("view=OWNED")).view).toBe("OWNED");
+    expect(parseJobListParams(new URLSearchParams("view=bogus")).view).toBeUndefined();
+    expect(buildJobListWhere({ view: "CLIENT" }, admin)).toEqual({ jobType: { not: "OWNED_REHAB" } });
+    expect(buildJobListWhere({ view: "OWNED" }, admin)).toEqual({ jobType: "OWNED_REHAB" });
+    expect(buildJobListWhere({ view: "RENTAL" }, admin)).toEqual({ jobType: "OWNED_REHAB", ownedPurpose: "RENTAL" });
+    expect(buildJobListWhere({ view: "FLIP" }, admin)).toEqual({ jobType: "OWNED_REHAB", OR: [{ ownedPurpose: "FLIP" }, { ownedPurpose: null }] });
+  });
+
   it("keeps the classic filters and floors a sales rep to the jobs they are on", () => {
     const where = buildJobListWhere({ stageId: "s1", search: "smith" }, { user: { id: "rep", role: "SALES_REP" }, now });
     expect(where).toEqual({

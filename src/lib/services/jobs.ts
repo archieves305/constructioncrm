@@ -11,10 +11,11 @@ import { recomputeJobBalance } from "@/lib/services/job-pricing";
 import { syncInvoiceStatus } from "@/lib/services/invoices";
 import { applyEstimateToNewJob, autoWonEstimateFor, loadEstimatePricing } from "@/lib/estimates/job-from-estimate-load";
 import type { EstimateRef } from "@/lib/estimates/job-from-estimate";
+import { jobKindOf, NEXT_ACTION, stageFitsKind, type JobKind } from "@/lib/jobs/stage-kinds";
 
 let jobCounter: number | null = null;
 
-async function nextJobNumber(): Promise<string> {
+export async function nextJobNumber(): Promise<string> {
   if (jobCounter === null) {
     const last = await prisma.job.findFirst({ orderBy: { createdAt: "desc" }, select: { jobNumber: true } });
     jobCounter = last ? parseInt(last.jobNumber.replace("JOB-", ""), 10) : 0;
@@ -165,31 +166,26 @@ export async function createJobFromLead(leadId: string, userId: string, opts: Cr
   return job;
 }
 
+/** A stage that is not on the job's own list (a client stage on a flip, a sale stage on a client job). */
+export class JobStageKindError extends Error {
+  constructor(stageName: string, kind: JobKind) {
+    super(`"${stageName}" is not a stage for ${kind === "CLIENT" ? "a client job" : kind === "FLIP" ? "a flip" : "a rental"}`);
+    this.name = "JobStageKindError";
+  }
+}
+
 export async function changeJobStage(jobId: string, stageId: string, userId: string, reason?: string) {
-  const job = await prisma.job.findUnique({ where: { id: jobId }, select: { currentStageId: true, leadId: true } });
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: { currentStageId: true, leadId: true, jobType: true, ownedPurpose: true },
+  });
   if (!job) throw new Error("Job not found");
 
   const newStage = await prisma.jobStage.findUnique({ where: { id: stageId } });
   if (!newStage) throw new Error("Invalid stage");
-
-  // Determine next action based on stage
-  const nextActionMap: Record<string, string> = {
-    "Won": "Collect deposit",
-    "Deposit Needed": "Collect deposit",
-    "Financing Cleared": "Schedule measurement",
-    "Measure Complete": "Finalize scope",
-    "Scope Finalized": "Submit permit",
-    "Permit Submitted": "Follow up on permit",
-    "Permit Corrections": "Resolve permit corrections",
-    "Permit Approved": "Order materials",
-    "Materials Ordered": "Schedule installation",
-    "Scheduled": "Confirm crew and date",
-    "In Progress": "Monitor progress",
-    "Punch List": "Complete punch list items",
-    "Final Inspection": "Schedule inspection",
-    "Final Payment Due": "Collect final payment",
-    "Closed": "",
-  };
+  const kind = jobKindOf(job);
+  if (!stageFitsKind(newStage, kind)) throw new JobStageKindError(newStage.name, kind);
+  const nextActionMap = NEXT_ACTION;
 
   const [updated] = await Promise.all([
     prisma.job.update({
@@ -222,9 +218,12 @@ export async function changeJobStage(jobId: string, stageId: string, userId: str
   ]);
 
   if (newStage.isClosed) {
-    await sendReviewRequestIfNeeded(jobId, job.leadId, userId).catch((e) =>
-      console.error("sendReviewRequestIfNeeded failed", e),
-    );
+    // Our own projects have no customer to ask for a review.
+    if (kind === "CLIENT") {
+      await sendReviewRequestIfNeeded(jobId, job.leadId, userId).catch((e) =>
+        console.error("sendReviewRequestIfNeeded failed", e),
+      );
+    }
     // A corrective job for a code-violation case reached a closed stage.
     const { onJobCompleted } = await import("@/lib/violations/job-sync");
     await onJobCompleted(jobId, userId, "stage");
