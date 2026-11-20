@@ -599,6 +599,23 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-11-20 — Our own projects, Stage 2: the money (built + dev-QA'd on `owned-projects`, not committed)
+
+No migration.
+
+- `budgetVariance` on the cost summary.
+- Pure `owned-returns.ts`: all-in cost, a flip's expected and actual profit, a rental's gross yield. The cost-summary route returns them.
+- Owned job page:
+  - header cards: Budget / Spent + committed / Under–over / Profit or Yield;
+  - a Property card (purchase, ARV, sale, rent) in place of the customer and financing cards;
+  - the Money tab opens on Budget, without Payments, Invoices, Contract or Change orders.
+- One cost basis (`committed`) for the header and BudgetPanel; a by-category table on the Budget tab.
+- Overview says "Budget".
+- An "Our projects" tile on the dashboard.
+- The backfill script now exits explicitly (on prod its process outlived its work).
+
+Gate: typecheck clean, lint 5/21, 2240 tests, build clean. Dev QA: API 14/14, headless 22/22. Details: [features/owned-projects.md](docs/project-memory/features/owned-projects.md).
+
 ### 2026-11-20 — Our own projects (flips + rentals), Stage 1 (deployed `95f3aba`)
 
 "stages like Deposit Needed and Final Payment Due do not make sense" for the rentals and fix-and-flips KNU owns. Plan approved (`~/.claude/plans/i-need-to-adjust-flickering-treehouse.md`); Richard ruled: each kind gets its own stages, a New project button, budget by category + purchase / ARV / sale / rent, and a Client jobs | Our projects toggle.

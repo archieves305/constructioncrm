@@ -328,7 +328,38 @@ export type OwnerSummary = {
   activeJobs: number;
   /** Σ projected profit of open billable jobs that have an expected cost; the rest are counted, not guessed. */
   expectedGrossProfit: { total: number; jobs: number; jobsWithoutBaseline: number };
+  /** Our own open flips and rentals: budget against spent + promised, and what the flips should make. */
+  ownedProjects?: OwnedProjectsSummary;
 };
+
+export type OwnedProjectsSummary = {
+  count: number;
+  /** Σ budgets of those that have one. */
+  budget: number;
+  /** Σ spent + promised. */
+  committed: number;
+  /** How many are over their budget. */
+  over: number;
+  /** Σ expected profit of the flips with a purchase price and an ARV; the rest are counted, not guessed. */
+  flipProfit: { total: number; flips: number; flipsWithoutFigures: number };
+};
+
+/** The "Our projects" tile, from each owned job's cost row. Pure. */
+export function summariseOwnedProjects(
+  rows: { summary: { estimatedCost: number | null; committed: number; budgetVariance: number | null }; owned: { purpose: "FLIP" | "RENTAL"; expectedProfit: number | null } | null }[],
+): OwnedProjectsSummary {
+  const owned = rows.filter((r) => r.owned);
+  const flips = owned.filter((r) => r.owned!.purpose === "FLIP");
+  const measured = flips.filter((r) => r.owned!.expectedProfit !== null);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  return {
+    count: owned.length,
+    budget: r2(owned.reduce((s, r) => s + (r.summary.estimatedCost ?? 0), 0)),
+    committed: r2(owned.reduce((s, r) => s + r.summary.committed, 0)),
+    over: owned.filter((r) => (r.summary.budgetVariance ?? 0) < 0).length,
+    flipProfit: { total: r2(measured.reduce((s, r) => s + r.owned!.expectedProfit!, 0)), flips: measured.length, flipsWithoutFigures: flips.length - measured.length },
+  };
+}
 
 /** True when every figure on the strip is zero. */
 export function ownerSummaryIsEmpty(d: OwnerSummary): boolean {

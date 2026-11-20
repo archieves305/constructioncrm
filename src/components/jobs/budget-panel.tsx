@@ -25,6 +25,7 @@ import {
 import { Trash2, Plus, Upload, Download, Pencil, HardHat, Receipt, X } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { useConfirm } from "@/components/shared/confirm-provider";
+import { budgetByCategory } from "@/lib/budget/by-category";
 
 type Allocation = {
   id: string;
@@ -138,6 +139,9 @@ export function BudgetPanel({
     }
     return { totalBudget, linkedSpend };
   }, [lines]);
+
+  // Lines grouped by category (an uncategorised line is "Other"), with booked and promised spend.
+  const byCategory = budgetByCategory(lines.map((l) => ({ category: l.category, budget: Number(l.amount), actual: actualForLine(l), committed: openByLine.get(l.id) ?? 0 })));
 
   const variance = totalBudget - totalJobCost;
   const unbudgeted = totalJobCost - linkedSpend;
@@ -389,7 +393,7 @@ export function BudgetPanel({
           <div className="text-lg font-semibold">${totalBudget.toLocaleString()}</div>
         </CardContent></Card>
         <Card><CardContent className="p-3">
-          <div className="text-3xs uppercase text-muted-foreground">Spent (job cost)</div>
+          <div className="text-3xs uppercase text-muted-foreground" title="Paid out, plus labor contracts and vendor commitments not yet paid">Spent + committed</div>
           <div className="text-lg font-semibold">${totalJobCost.toLocaleString()}</div>
         </CardContent></Card>
         <Card><CardContent className="p-3">
@@ -401,6 +405,43 @@ export function BudgetPanel({
           <div className={`text-lg font-semibold ${unbudgeted > 0.005 ? "text-tone-warning-fg" : "text-muted-foreground"}`}>${unbudgeted.toLocaleString()}</div>
         </CardContent></Card>
       </div>
+
+      {/* By category: what each part of the work was budgeted, what is booked against it, and where it stands. */}
+      {byCategory.length > 1 && (
+        <Card>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <caption className="sr-only">Budget by category</caption>
+              <thead>
+                <tr className="border-b text-3xs uppercase text-muted-foreground">
+                  <th className="px-3 py-2 text-left font-medium">Category</th>
+                  <th className="px-3 py-2 text-right font-medium">Budget</th>
+                  <th className="px-3 py-2 text-right font-medium">Actual</th>
+                  <th className="px-3 py-2 text-right font-medium">Under / over</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byCategory.map((c) => {
+                  const v = c.budget - c.actual - c.committed;
+                  return (
+                    <tr key={c.category} className="border-b last:border-0">
+                      <td className="px-3 py-2">{c.category}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">${c.budget.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        ${c.actual.toLocaleString()}
+                        {c.committed > 0 && <span className="block text-2xs text-muted-foreground">+ ${c.committed.toLocaleString()} committed</span>}
+                      </td>
+                      <td className={`px-3 py-2 text-right font-medium tabular-nums ${v >= 0 ? "text-tone-success-fg" : "text-tone-danger-fg"}`}>
+                        {v >= 0 ? "Under" : "Over"} ${Math.abs(v).toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Actions */}
       <div className="flex flex-wrap items-center gap-2">

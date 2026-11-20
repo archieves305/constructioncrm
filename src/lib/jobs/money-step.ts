@@ -3,7 +3,7 @@
  * it. Payments stays a click away (and in the header menu); the panel that
  * opens is the one with work left in it.
  */
-export type MoneyPanel = "estimates" | "contract" | "invoices";
+export type MoneyPanel = "estimates" | "contract" | "invoices" | "budget";
 
 export type MoneyStep = { panel: MoneyPanel; title: string | null; body: string | null };
 
@@ -11,7 +11,8 @@ export function moneyStep(
   job: { jobType: string; contractAmount: number | string | null | undefined },
   contracts: { status: string }[],
 ): MoneyStep {
-  if (job.jobType === "OWNED_REHAB") return { panel: "invoices", title: null, body: null };
+  // Our own flips and rentals are never billed: they are read by budget against spend.
+  if (job.jobType === "OWNED_REHAB") return { panel: "budget", title: null, body: null };
   const amount = Number(job.contractAmount ?? 0);
   const signed = contracts.some((c) => c.status === "SIGNED");
   if (signed) return { panel: "invoices", title: null, body: null };

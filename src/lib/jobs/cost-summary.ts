@@ -76,6 +76,8 @@ export type CostSummary = {
   projectedMargin: number | null;
   /** True when commitments already exceed the estimated cost. */
   overBudget: boolean;
+  /** Estimated cost (the budget) less what is spent and promised: + under, − over. Null with no budget. */
+  budgetVariance: number | null;
   /** committed ÷ projectedCost; null with no estimate to measure against. */
   percentCostComplete: number | null;
   billedToDate: number;
@@ -151,6 +153,7 @@ export function computeCostSummary(i: CostSummaryInput): CostSummary {
     projectedProfit,
     projectedMargin,
     overBudget: estimatedCost !== null && committed > estimatedCost,
+    budgetVariance: estimatedCost === null ? null : round2(estimatedCost - committed),
     percentCostComplete,
     billedToDate: i.billedToDate,
     collected: i.collected,

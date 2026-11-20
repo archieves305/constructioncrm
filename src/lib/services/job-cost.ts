@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { formatAddressLine } from "@/lib/labels/address";
 import { computeCostSummary, signedEstimateCost, type CostSummary } from "@/lib/jobs/cost-summary";
 import { openCommitmentsByJob } from "@/lib/vendors/commitment-service";
+import { computeOwnedReturns, type OwnedReturns } from "@/lib/jobs/owned-returns";
 
 /**
  * The inputs of `computeCostSummary`, gathered for one job or many.
@@ -23,6 +24,8 @@ export type JobCostRow = {
   jobType: "FIXED_PRICE" | "COST_PLUS" | "OWNED_REHAB";
   closed: boolean;
   summary: CostSummary;
+  /** Our own projects only: all-in cost and what the flip or rental returns. */
+  owned: OwnedReturns | null;
 };
 
 const num = (d: unknown) => Number(d ?? 0);
@@ -45,6 +48,11 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
       originalContractAmount: true,
       estimatedCostSnapshot: true,
       laborCost: true,
+      ownedPurpose: true,
+      purchasePrice: true,
+      afterRepairValue: true,
+      salePrice: true,
+      monthlyRent: true,
       currentStage: { select: { isClosed: true } },
       lead: { select: { propertyAddress1: true, propertyAddress2: true, city: true } },
     },
@@ -91,14 +99,9 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
     if (cost !== null && !estimateBy.has(c.jobId)) estimateBy.set(c.jobId, cost);
   }
 
-  return jobs.map((j) => ({
-    jobId: j.id,
-    jobNumber: j.jobNumber,
-    title: j.title,
-    address: formatAddressLine(j.lead),
-    jobType: j.jobType,
-    closed: j.currentStage.isClosed,
-    summary: computeCostSummary({
+  const nullable = (d: unknown) => (d === null || d === undefined ? null : Number(d));
+  return jobs.map((j) => {
+    const summary = computeCostSummary({
       jobType: j.jobType,
       revisedContract: num(j.contractAmount),
       storedOriginalContract: j.originalContractAmount === null ? null : num(j.originalContractAmount),
@@ -115,8 +118,37 @@ export async function getJobCostRows(where: Prisma.JobWhereInput = {}): Promise<
       commitmentsOpen: commitmentsBy.get(j.id) ?? 0,
       billedToDate: billedBy.get(j.id) ?? 0,
       collected: paidBy.get(j.id) ?? 0,
-    }),
-  }));
+    });
+    return {
+      jobId: j.id,
+      jobNumber: j.jobNumber,
+      title: j.title,
+      address: formatAddressLine(j.lead),
+      jobType: j.jobType,
+      closed: j.currentStage.isClosed,
+      summary,
+      owned:
+        j.jobType === "OWNED_REHAB"
+          ? computeOwnedReturns({
+              purpose: j.ownedPurpose,
+              purchasePrice: nullable(j.purchasePrice),
+              afterRepairValue: nullable(j.afterRepairValue),
+              salePrice: nullable(j.salePrice),
+              monthlyRent: nullable(j.monthlyRent),
+              projectedCost: summary.projectedCost,
+              committed: summary.committed,
+            })
+          : null,
+    };
+  });
+}
+
+/** The job page's cost card: the summary, plus the returns on one of our own projects. */
+export type JobCostSummaryResponse = CostSummary & { owned: OwnedReturns | null };
+
+export async function getJobCostSummaryWithReturns(jobId: string): Promise<JobCostSummaryResponse | null> {
+  const [row] = await getJobCostRows({ id: jobId });
+  return row ? { ...row.summary, owned: row.owned } : null;
 }
 
 export async function getJobCostSummary(jobId: string): Promise<CostSummary | null> {

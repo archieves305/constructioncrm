@@ -38,6 +38,13 @@ describe("computeCostSummary", () => {
     expect(s.overBudget).toBe(false);
   });
 
+  it("says how far under or over the budget the job stands, counting what is promised", () => {
+    expect(computeCostSummary(base).budgetVariance).toBe(7_000); // 72k budget − 65k committed
+    expect(computeCostSummary({ ...base, budgetTotal: 50_000 }).budgetVariance).toBe(-15_000);
+    expect(computeCostSummary({ ...base, budgetTotal: null, estimateCost: null }).budgetVariance).toBeNull();
+    expect(computeCostSummary({ ...base, jobType: "OWNED_REHAB" }).budgetVariance).toBe(7_000);
+  });
+
   it("counts a labor contract when it is signed: the unpaid part is committed, not spent", () => {
     const s = computeCostSummary({ ...base, laborContracts: 40_000, laborPaid: 0 });
     expect(s.spent).toBe(25_000);

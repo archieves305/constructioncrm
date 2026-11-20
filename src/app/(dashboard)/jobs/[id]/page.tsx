@@ -69,6 +69,7 @@ import { canDeleteJob } from "@/lib/access/roles";
 import { DeleteJobDialog } from "@/components/jobs/delete-job-dialog";
 import { JobOverview } from "@/components/jobs/job-overview";
 import { CostSummaryCard, useJobCostSummary } from "@/components/jobs/cost-summary-card";
+import { OwnedPropertyCard } from "@/components/jobs/owned-property-card";
 import { canEditJobRecord, canManageJobMoney } from "@/lib/money/access";
 import { TeamPersonField } from "@/components/jobs/team-person-field";
 import { useJobWorkflow } from "@/components/workflows/use-workflow";
@@ -127,14 +128,9 @@ export default function JobDetailPage() {
   const signedContract = signedRow ? { id: signedRow.id, contractNumber: signedRow.contractNumber, signedAt: signedRow.signedAt ?? signedRow.updatedAt, contractAmount: signedRow.contractAmount } : null;
   const awaitingSignature = contracts.filter((c) => c.status === "SENT").length;
   // Money opens on the panel with work left in it (only when the URL has no ?sub).
+  const owned = job?.jobType === "OWNED_REHAB";
+  const canEditMoney = canManageJobMoney(session?.user.role);
   const moneyNext = moneyStep(job ?? { jobType: "FIXED_PRICE", contractAmount: 0 }, contracts);
-
-  const { data: budgetLines = [] } = useQuery<{ amount: string }[]>({
-    queryKey: ["budget", id],
-    queryFn: () => fetchJson(`/api/jobs/${id}/budget`),
-    enabled: Boolean(job) && moneyView === "full",
-  });
-  const totalBudget = budgetLines.reduce((s, l) => s + Number(l.amount), 0);
 
   const changeStage = useMutation({
     mutationFn: (stageId: string) =>
@@ -298,51 +294,44 @@ export default function JobDetailPage() {
 
       {/* Financial summary cards — the cost cards only for a full money view, none at all without one */}
       {moneyView === "none" || (job.jobType === "OWNED_REHAB" && moneyView !== "full") ? null : job.jobType === "OWNED_REHAB" ? (
-        <div className={`grid gap-4 mb-6 ${totalBudget > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                <DollarSign className="h-4 w-4" /> Labor contract
-              </div>
-              <div className="text-2xl font-bold">${Number(job.laborCost ?? 0).toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                <DollarSign className="h-4 w-4" /> Expenses
-              </div>
-              <div className="text-2xl font-bold">
-                ${Math.max(0, Number(job.contractAmount) - Number(job.laborCost ?? 0)).toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                <DollarSign className="h-4 w-4" /> Total job cost
-              </div>
-              <div className="text-2xl font-bold">${Number(job.contractAmount).toLocaleString()}</div>
-              <div className="text-2xs text-muted-foreground mt-1">Labor + all expenses spent</div>
-            </CardContent>
-          </Card>
-          {totalBudget > 0 && (
-            <Card>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                  <DollarSign className="h-4 w-4" /> Budget
-                </div>
-                <div className="text-2xl font-bold">${totalBudget.toLocaleString()}</div>
-                {(() => {
-                  const v = totalBudget - Number(job.contractAmount);
-                  return (
-                    <div className={`text-2xs mt-1 font-medium ${v >= 0 ? "text-tone-success-fg" : "text-tone-danger-fg"}`}>
-                      ${Math.abs(v).toLocaleString()} {v >= 0 ? "under budget" : "over budget"}
-                    </div>
-                  );
-                })()}
-              </CardContent>
-            </Card>
+        // Our own projects are read by budget against spend, from the same calculation as the Money tab.
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 mb-6">
+          <KpiCard
+            title="Budget"
+            value={costSummary?.estimatedCost == null ? "—" : `$${Math.round(costSummary.estimatedCost).toLocaleString()}`}
+            icon={DollarSign}
+            description={costSummary?.estimatedCost == null ? "No budget yet" : undefined}
+          />
+          <KpiCard
+            title="Spent + committed"
+            value={`$${Math.round(costSummary?.committed ?? 0).toLocaleString()}`}
+            icon={DollarSign}
+            description={costSummary ? `$${Math.round(costSummary.spent).toLocaleString()} paid out` : undefined}
+          />
+          <KpiCard
+            title={costSummary?.budgetVariance == null ? "Under / over" : costSummary.budgetVariance >= 0 ? "Under budget" : "Over budget"}
+            value={costSummary?.budgetVariance == null ? "—" : `$${Math.round(Math.abs(costSummary.budgetVariance)).toLocaleString()}`}
+            icon={DollarSign}
+            tone={costSummary?.budgetVariance == null ? undefined : costSummary.budgetVariance >= 0 ? "success" : "danger"}
+          />
+          {job.ownedPurpose === "RENTAL" ? (
+            <KpiCard
+              title="Gross yield"
+              value={costSummary?.owned?.grossYield == null ? "—" : `${(costSummary.owned.grossYield * 100).toFixed(1)}%`}
+              icon={DollarSign}
+              description={costSummary?.owned?.allIn == null ? "Add the purchase price" : `All-in $${Math.round(costSummary.owned.allIn).toLocaleString()}`}
+            />
+          ) : (
+            <KpiCard
+              title={costSummary?.owned?.actualProfit != null ? "Profit on the sale" : "Expected profit"}
+              value={(() => {
+                const p = costSummary?.owned?.actualProfit ?? costSummary?.owned?.expectedProfit ?? null;
+                return p === null ? "—" : `${p < 0 ? "-" : ""}$${Math.round(Math.abs(p)).toLocaleString()}`;
+              })()}
+              icon={DollarSign}
+              tone={(costSummary?.owned?.actualProfit ?? costSummary?.owned?.expectedProfit ?? 0) < 0 ? "danger" : undefined}
+              description={costSummary?.owned?.allIn == null ? "Add the purchase price and ARV" : `All-in $${Math.round(costSummary.owned.allIn).toLocaleString()}`}
+            />
           )}
         </div>
       ) : (
@@ -377,6 +366,9 @@ export default function JobDetailPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left column */}
         <div className="order-2 space-y-4 lg:order-1">
+          {owned ? (
+            <OwnedPropertyCard job={job} canEdit={canEditMoney} />
+          ) : (
           <ContactCard
             name={job.lead.fullName}
             nameHref={`/leads/${job.lead.id}`}
@@ -388,6 +380,7 @@ export default function JobDetailPage() {
             county={job.lead.county}
             propertyType={job.lead.propertyType}
           />
+          )}
 
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-sm">Team</CardTitle></CardHeader>
@@ -423,6 +416,7 @@ export default function JobDetailPage() {
             </CardContent>
           </Card>
 
+          {!owned && (
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-sm">Financing</CardTitle></CardHeader>
             <CardContent className="text-sm space-y-1">
@@ -435,6 +429,7 @@ export default function JobDetailPage() {
               )}
             </CardContent>
           </Card>
+          )}
 
           <PricingPanel job={job} signedContract={signedContract} />
           <RentalTurnoverPanel job={job} />
@@ -477,7 +472,9 @@ export default function JobDetailPage() {
             ];
             // Cost panels (expenses, budget, commitments, crew labor) only for a full money view.
             const COST_PANELS = new Set(["expenses", "budget", "commitments", "labor", "crew-pay"]);
-            const MONEY = moneyView === "full" ? MONEY_ALL : MONEY_ALL.filter((m) => !COST_PANELS.has(m.value));
+            // Our own projects have no customer to bill: no payments, invoices, contract or customer change orders.
+            const NOT_OWNED = new Set(["payments", "invoices", "contract", "change-orders"]);
+            const MONEY = (moneyView === "full" ? MONEY_ALL : MONEY_ALL.filter((m) => !COST_PANELS.has(m.value))).filter((m) => !owned || !NOT_OWNED.has(m.value));
             const moneyDefault = MONEY.some((m) => m.value === moneyNext.panel) ? moneyNext.panel : MONEY[0].value;
             const FIELD_ALL = [
               { value: "labor", label: "Labor" },
@@ -667,7 +664,7 @@ export default function JobDetailPage() {
 
             {(
               <TabsContent value="budget">
-                <BudgetPanel jobId={id} totalJobCost={job.jobType === "OWNED_REHAB" ? Number(job.contractAmount) : (costSummary?.committed ?? 0)} />
+                <BudgetPanel jobId={id} totalJobCost={costSummary?.committed ?? 0} />
               </TabsContent>
             )}
 

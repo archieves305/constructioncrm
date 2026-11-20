@@ -8,7 +8,7 @@ import { CASE_LABEL_SELECT, JOB_LABEL_SELECT, LEAD_LABEL_SELECT } from "@/lib/la
 import type { ListScope } from "@/lib/lists/scope";
 import { dashboardTaskWhere } from "@/lib/reports/dashboard-scope";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
-import { RESUBMIT_DUE_DAYS, BIDS_DUE_DAYS, UNCONTACTED_AFTER_HOURS, type OwnerSummary } from "./rows";
+import { RESUBMIT_DUE_DAYS, BIDS_DUE_DAYS, UNCONTACTED_AFTER_HOURS, summariseOwnedProjects, type OwnerSummary } from "./rows";
 import { deriveJobHealth } from "@/lib/jobs/health";
 import { getJobCostRows } from "@/lib/services/job-cost";
 
@@ -680,5 +680,6 @@ export async function loadOwnerSummary(ctx: AttentionContext): Promise<OwnerSumm
       jobs: measured.length,
       jobsWithoutBaseline: billable.length - measured.length,
     },
+    ownedProjects: summariseOwnedProjects(costRows),
   };
 }

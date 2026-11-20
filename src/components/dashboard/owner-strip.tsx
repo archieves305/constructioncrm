@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Briefcase, FileText, PhoneOff, TrendingUp, UserPlus, Wallet } from "lucide-react";
+import { Briefcase, FileText, Home, PhoneOff, TrendingUp, UserPlus, Wallet } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { CollapsibleSection } from "@/components/shared/collapsible-section";
 import { fetchJson } from "@/lib/fetch-json";
@@ -32,6 +32,7 @@ export function OwnerStrip({ scope }: { scope: ListScope }) {
   });
   if (!allowed || !data) return null;
   const gp = data.expectedGrossProfit;
+  const own = data.ownedProjects;
   if (ownerSummaryIsEmpty(data)) {
     return (
       <CollapsibleSection id="dashboard-company" title="Company at a glance">
@@ -41,7 +42,7 @@ export function OwnerStrip({ scope }: { scope: ListScope }) {
   }
   return (
     <CollapsibleSection id="dashboard-company" title="Company at a glance" summary={`${data.activeJobs} active job${data.activeJobs === 1 ? "" : "s"}, pipeline ${money(data.pipeline.value)}`}>
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+    <div className={`grid grid-cols-2 gap-2 md:grid-cols-3 ${own?.count ? "xl:grid-cols-7" : "xl:grid-cols-6"}`}>
       <KpiCard compact title="New leads today" value={data.newLeadsToday} icon={UserPlus} href={`/leads?scope=${scope}`} />
       <KpiCard
         compact
@@ -71,6 +72,21 @@ export function OwnerStrip({ scope }: { scope: ListScope }) {
         href="/collections"
         description={`${gp.jobs} job${gp.jobs === 1 ? "" : "s"} with an expected cost${gp.jobsWithoutBaseline ? `; ${gp.jobsWithoutBaseline} without one not counted` : ""}`}
       />
+      {own && own.count > 0 && (
+        <KpiCard
+          compact
+          title="Our projects"
+          value={`${money(own.committed)} of ${money(own.budget)}`}
+          icon={Home}
+          tone={own.over > 0 ? "danger" : undefined}
+          href="/jobs?kind=owned&scope=all"
+          description={[
+            `${own.count} open project${own.count === 1 ? "" : "s"}, spent + committed of budget`,
+            own.over > 0 ? `${own.over} over budget` : "all within budget",
+            own.flipProfit.flips > 0 ? `flips expected to make ${money(own.flipProfit.total)}` : null,
+          ].filter(Boolean).join(" · ")}
+        />
+      )}
     </div>
     </CollapsibleSection>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ATTENTION_KEYS, ATTENTION_ROWS, attentionHref, attentionRowsFor, canSeeAttentionRow, isAttentionKey, ownerSummaryIsEmpty, visibleAttention, type AttentionCount } from "./rows";
+import { ATTENTION_KEYS, ATTENTION_ROWS, attentionHref, attentionRowsFor, canSeeAttentionRow, isAttentionKey, ownerSummaryIsEmpty, summariseOwnedProjects, visibleAttention, type AttentionCount } from "./rows";
 
 const keys = (role: Parameters<typeof attentionRowsFor>[0]) => attentionRowsFor(role).map((r) => r.key);
 
@@ -68,5 +68,16 @@ describe("ownerSummaryIsEmpty", () => {
     expect(ownerSummaryIsEmpty({ ...zero, expectedGrossProfit: { total: 0, jobs: 0, jobsWithoutBaseline: 3 } })).toBe(true);
     expect(ownerSummaryIsEmpty({ ...zero, activeJobs: 1 })).toBe(false);
     expect(ownerSummaryIsEmpty({ ...zero, pipeline: { leads: 2, value: 0 } })).toBe(false);
+  });
+});
+
+describe("summariseOwnedProjects", () => {
+  const row = (estimatedCost: number | null, committed: number, purpose: "FLIP" | "RENTAL" | null, expectedProfit: number | null = null) => ({
+    summary: { estimatedCost, committed, budgetVariance: estimatedCost === null ? null : estimatedCost - committed },
+    owned: purpose ? { purpose, expectedProfit } : null,
+  });
+  it("adds up our own projects only, and counts flips it cannot value", () => {
+    const s = summariseOwnedProjects([row(50_000, 40_000, "FLIP", 90_000), row(20_000, 25_000, "RENTAL"), row(null, 5_000, "FLIP"), row(99_000, 1, null)]);
+    expect(s).toEqual({ count: 3, budget: 70_000, committed: 70_000, over: 1, flipProfit: { total: 90_000, flips: 1, flipsWithoutFigures: 1 } });
   });
 });

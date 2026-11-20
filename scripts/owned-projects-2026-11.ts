@@ -110,4 +110,9 @@ main()
     console.error(e);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  // updateTask leaves timers behind (notification hand-offs); without an
+  // explicit exit the process outlives its work (seen on prod 2026-11-20).
+  .finally(async () => {
+    await prisma.$disconnect();
+    process.exit();
+  });

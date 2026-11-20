@@ -5,17 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchJson, retryServerErrors } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
-import type { CostSummary } from "@/lib/jobs/cost-summary";
+import type { JobCostSummaryResponse } from "@/lib/services/job-cost";
 
 const money = (n: number) => { const r = Math.round(n); return `${r < 0 ? "-" : ""}$${Math.abs(r).toLocaleString("en-US")}`; };
 const pct = (f: number) => `${(f * 100).toFixed(1)}%`;
 
 export function useJobCostSummary(jobId: string, enabled = true) {
-  return useQuery<CostSummary>({
+  return useQuery<JobCostSummaryResponse>({
     enabled,
     // Under ["job", id]: payments, expenses, labor and contract changes all invalidate the job.
     queryKey: ["job", jobId, "cost-summary"],
-    queryFn: () => fetchJson<CostSummary>(`/api/jobs/${jobId}/cost-summary`),
+    queryFn: () => fetchJson<JobCostSummaryResponse>(`/api/jobs/${jobId}/cost-summary`),
     retry: retryServerErrors,
   });
 }
@@ -40,11 +40,13 @@ export function CostSummaryCard({
 
   if (isLoading) return <Skeleton className="mb-4 h-44 w-full" />;
   if (error || !s) return null;
+  // Our own flips and rentals: the estimated cost is their budget, and what matters is how far under or over it they are.
+  const owned = !s.billable;
 
   return (
     <Card className="mb-4">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Cost summary</CardTitle>
+        <CardTitle className="text-sm font-medium">{owned ? "Budget and spend" : "Cost summary"}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
@@ -59,10 +61,11 @@ export function CostSummaryCard({
           )}
           <dl className="space-y-1.5 text-sm">
             <Line
-              label="Estimated cost"
+              label={owned ? "Budget" : "Estimated cost"}
               value={s.estimatedCost === null ? "No budget yet" : money(s.estimatedCost)}
               sub={
-                s.estimatedCostSource === "budget" ? "From the job's budget"
+                owned ? (s.estimatedCostSource === "budget" ? "The rehab budget, plus approved change orders' cost" : s.estimatedCost === null ? undefined : "From the estimate — add a budget to refine it")
+                : s.estimatedCostSource === "budget" ? "From the job's budget"
                 : s.estimatedCostSource === "estimate" ? "From the signed estimate — add a budget to refine it"
                 : undefined
               }
@@ -92,6 +95,7 @@ export function CostSummaryCard({
             />
             <Line label="Remaining cost" value={money(s.remainingCost)} />
           </dl>
+          {owned && s.owned && <OwnedReturnsList s={s} />}
         </div>
 
         {s.billable && (
@@ -118,6 +122,44 @@ export function CostSummaryCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** One of our own projects: under or over the budget, what it all comes to, and what it returns. */
+function OwnedReturnsList({ s }: { s: JobCostSummaryResponse }) {
+  const r = s.owned!;
+  const v = s.budgetVariance;
+  return (
+    <dl className="space-y-1.5 text-sm">
+      <Line
+        label={v === null ? "Under / over budget" : v >= 0 ? "Under budget" : "Over budget"}
+        value={v === null ? "—" : money(Math.abs(v))}
+        sub={v === null ? "Add a budget to measure against" : "Budget less what is spent and promised"}
+        tone={v !== null && v < 0 ? "danger" : undefined}
+        strong
+      />
+      <Line
+        label="All-in cost"
+        value={r.allIn === null ? "—" : money(r.allIn)}
+        sub={r.allIn === null ? "Add the purchase price on the Property card" : `Purchase price + projected rehab · ${money(r.investedSoFar ?? 0)} in so far`}
+      />
+      {r.purpose === "FLIP" ? (
+        <>
+          <Line
+            label={r.actualProfit !== null ? "Profit on the sale" : "Expected profit"}
+            value={r.actualProfit !== null ? money(r.actualProfit) : r.expectedProfit === null ? "—" : money(r.expectedProfit)}
+            sub={r.actualProfit !== null ? "Sale price less all-in cost" : r.expectedMargin !== null ? `${pct(r.expectedMargin)} of the after-repair value` : "Needs the purchase price and the after-repair value"}
+            tone={(r.actualProfit ?? r.expectedProfit ?? 0) < 0 ? "danger" : undefined}
+          />
+        </>
+      ) : (
+        <Line
+          label="Gross yield"
+          value={r.grossYield === null ? "—" : pct(r.grossYield)}
+          sub={r.annualRent === null ? "Needs the purchase price and the expected rent" : `${money(r.annualRent)} a year in rent, before expenses`}
+        />
+      )}
+    </dl>
   );
 }
 

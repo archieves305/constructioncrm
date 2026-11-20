@@ -101,16 +101,53 @@ the board showed its cost as if it were a contract price.
 
 - `close_job` → Listed end to end in the app (unit-tested only).
 
-## Stage 2 (next)
+## Stage 2 — built + dev-QA'd 2026-11-20 on `owned-projects`, not committed
 
-- Budget variance in `computeCostSummary`, and `owned-returns.ts`: all-in cost, flip profit, rental yield.
-- One cost basis: the header cards and BudgetPanel should use `committed`, not `contractAmount`.
-- Category subtotals on the Budget tab.
-- On owned jobs:
-  - the Money tab opens on Budget with a Property card;
-  - Payments, Invoices and Contract are hidden;
-  - the job page's "Customer" card reads as a property card, and the Financing card is hidden.
-- A dashboard "Our projects" strip.
+No migration.
+
+### Calculations
+
+- `computeCostSummary.budgetVariance` = estimated cost (the budget) − committed: + under, − over, null with no budget.
+- Pure `lib/jobs/owned-returns.ts`:
+  - all-in = purchase price + projected cost;
+  - invested so far = purchase price + committed;
+  - a flip's expected profit = ARV − all-in (margin of ARV), and once sold, sale price − all-in;
+  - a rental's gross yield = rent × 12 ÷ all-in.
+  - A figure missing an input is null.
+- `getJobCostRows` carries `owned` (the returns) for owned jobs. `/api/jobs/[id]/cost-summary` returns `{ ...summary, owned }` (`getJobCostSummaryWithReturns`).
+
+### One cost basis
+
+- The owned header cards and BudgetPanel read the cost summary's `committed`, never `contractAmount`. The job page's own budget query is gone.
+- BudgetPanel's "Spent (job cost)" now reads "Spent + committed".
+
+### Owned job page
+
+- Header cards: Budget · Spent + committed · Under / Over budget · Expected profit, or Profit on the sale (a flip) / Gross yield (a rental).
+- `OwnedPropertyCard` replaces the customer and financing cards. It shows the address, purchase, ARV, sale price and date, and rent, and the money roles can edit them through the job PATCH.
+- The Money tab opens on Budget (`moneyStep`). Payments, Invoices, Contract and Change orders are hidden.
+- The "Budget and spend" card shows Under / Over budget, All-in cost, and Expected profit / Profit on the sale / Gross yield.
+
+### Budget tab
+
+- A "By category" table: budget, actual (allocations), committed, under / over; uncategorised lines go under "Other" (`lib/budget/by-category.ts`).
+
+### Overview and dashboard
+
+- Overview: an owned job reads "Budget" and shows how much is still free.
+- Dashboard owner strip: an "Our projects" tile (`summariseOwnedProjects`) with spent + committed of budget, how many are over, and the flips' expected profit. It links to `/jobs?kind=owned`.
+
+### Backfill script
+
+- `scripts/owned-projects-2026-11.ts` now exits explicitly. On prod the `--yes` run finished its work but its process never exited, because of timers left by `updateTask`.
+
+### Gate and dev QA
+
+- **Gate:** typecheck clean, lint 5/21, 2240 tests (+9), build clean.
+- **Dev QA:**
+  - API 14/14: budget 60,000; a 70,000 expense → over by 10,000 and all-in 320,000; sale 400,000 → profit 80,000; negative purchase price 400; rental yield 12.5 %; owner strip counts.
+  - Headless Chromium 22/22 at 1440 / 400 px; client jobs unchanged.
+  - Dev DB restored.
 
 ## Deploy (done 2026-11-20)
 

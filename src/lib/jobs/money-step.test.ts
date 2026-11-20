@@ -14,7 +14,7 @@ describe("moneyStep", () => {
     expect(moneyStep({ jobType: "FIXED_PRICE", contractAmount: 30000 }, [])).toEqual({ panel: "invoices", title: null, body: null });
     expect(moneyStep({ jobType: "FIXED_PRICE", contractAmount: 30000 }, [{ status: "VOID" }, { status: "DECLINED" }])).toEqual({ panel: "invoices", title: null, body: null });
   });
-  it("an owned rehab has no customer contract, so invoices", () => {
-    expect(moneyStep({ jobType: "OWNED_REHAB", contractAmount: 0 }, [])).toEqual({ panel: "invoices", title: null, body: null });
+  it("an owned project is never billed, so it opens on its budget", () => {
+    expect(moneyStep({ jobType: "OWNED_REHAB", contractAmount: 0 }, [])).toEqual({ panel: "budget", title: null, body: null });
   });
 });

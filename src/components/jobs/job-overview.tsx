@@ -202,9 +202,14 @@ export function JobOverview({ jobId, onNavigate }: { jobId: string; onNavigate: 
             </Row>
             )}
             {m.estimatedCost !== null && (
-              <Row label="Estimated cost">
+              <Row label={m.billable ? "Estimated cost" : "Budget"}>
                 <span className={m.overBudgetBy > 0 ? "text-tone-danger-fg" : undefined}>{money(m.estimatedCost)}</span>
-                {m.overBudgetBy > 0 && <span className="block text-xs text-tone-danger-fg">Costs are {money(m.overBudgetBy)} over it</span>}
+                {m.overBudgetBy > 0 ? (
+                  <span className="block text-xs text-tone-danger-fg">Costs are {money(m.overBudgetBy)} over it</span>
+                ) : !m.billable && m.cost !== null ? (
+                  // Our own projects: how much of the budget is still free.
+                  <span className="block text-xs text-tone-success-fg">{money(m.estimatedCost - m.cost)} under it</span>
+                ) : null}
               </Row>
             )}
             {m.projectedProfit !== null && (
@@ -319,7 +324,7 @@ function attentionRows(d: Overview): AttentionRow[] {
   }
   const m = d.money;
   if (m && m.overBudgetBy > 0) {
-    rows.push({ key: "over-budget", tone: "danger", title: `Costs are ${money(m.overBudgetBy)} over the estimated cost`, detail: `${money(m.cost ?? 0)} against ${money(m.estimatedCost ?? 0)}`, tab: "money", sub: "budget" });
+    rows.push({ key: "over-budget", tone: "danger", title: `Costs are ${money(m.overBudgetBy)} over the ${m.billable ? "estimated cost" : "budget"}`, detail: `${money(m.cost ?? 0)} against ${money(m.estimatedCost ?? 0)}`, tab: "money", sub: "budget" });
   }
   if (m && m.changeOrdersAwaiting.count > 0) {
     rows.push({
