@@ -599,7 +599,7 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
-### 2026-11-20 — Our own projects (flips + rentals), Stage 1 (built + dev-QA'd on `owned-projects` worktree, not committed)
+### 2026-11-20 — Our own projects (flips + rentals), Stage 1 (deployed `95f3aba`)
 
 "stages like Deposit Needed and Final Payment Due do not make sense" for the rentals and fix-and-flips KNU owns. Plan approved (`~/.claude/plans/i-need-to-adjust-flickering-treehouse.md`); Richard ruled: each kind gets its own stages, a New project button, budget by category + purchase / ARV / sale / rent, and a Client jobs | Our projects toggle.
 
@@ -621,7 +621,12 @@ Other changes:
 
 Gate: typecheck clean, lint 5/21, 2231 tests, build clean. Dev QA: API 26/26, headless 24/24 at 1440 / 400, SALES_REP 403, backfill on a staged job; dev DB restored (Core v3 seeded on dev).
 
-**Deploy carries the migration; then the workflow seed (dry run first) and the backfill dry run.**
+**Deployed 2026-11-20 as `95f3aba`** from a scratchpad clone (the main checkout held another session's work):
+- BUILD_ID `cpAHcZttrgwOUWVFDDb1e` → `SPc9aMTE-WvIH1XqCpHoI`; migration applied; smoke 307 ×2; journal clean; backup `postgres-2026-11-20-150844.dump`.
+- Workflow seed on prod: Core generation 3 created, v2 superseded; a re-run reported unchanged.
+- Backfill `--yes` on Richard's word, all three treated as flips:
+  - JOB-00003 and JOB-00014 (both Closed): deposits cleared.
+  - JOB-00022: Deposit Needed → Planning, the $200,000 deposit cleared, 2 customer steps stood down.
 
 Details: [features/owned-projects.md](docs/project-memory/features/owned-projects.md).
 

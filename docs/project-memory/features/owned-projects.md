@@ -26,7 +26,7 @@ the board showed its cost as if it were a contract price.
   - rent for a rental.
 - The Jobs board and list get a **Client jobs | Our projects** toggle.
 
-## Stage 1 — built + dev-QA'd 2026-11-20 on `owned-projects` (worktree), not committed
+## Stage 1 — deployed 2026-11-20 as `95f3aba`
 
 ### Kinds and stages
 
@@ -112,7 +112,10 @@ the board showed its cost as if it were a contract price.
   - the job page's "Customer" card reads as a property card, and the Financing card is hidden.
 - A dashboard "Our projects" strip.
 
-## Deploy
+## Deploy (done 2026-11-20)
+
+BUILD_ID `SPc9aMTE-WvIH1XqCpHoI`. Core generation 3 seeded on prod. Backfill applied to JOB-00003, JOB-00014 and JOB-00022, all treated as flips.
+
 
 1. `KNUCO_PUBLIC_URL=https://crm.careyos.com ./deploy.sh --yes` (carries the migration).
 2. Workflow seed: dry run, then the real run (Core generation 3 created, v2 superseded).
