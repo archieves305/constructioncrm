@@ -79,3 +79,11 @@ describe("renderEmailLayout", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 });
+
+describe("renderEmailLayout width", () => {
+  it("narrows to a phone screen and holds 600px in Outlook", () => {
+    const { html } = renderEmailLayout({ bodyHtml: "<p>x</p>", bodyText: "x", brand });
+    expect(html).toContain("width:100%;max-width:600px");
+    expect(html).toContain('<!--[if mso]><table role="presentation" width="600"');
+  });
+});

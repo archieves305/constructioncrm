@@ -803,6 +803,21 @@ now holds the App Store signing and an App Store Connect API key, so future
 builds and submits can run from a session (`npm run build:prod:ios --
 --non-interactive --auto-submit` in `mobile/`).
 
+### 2026-11-21 — Review-request email redesign (committed from an earlier session's uncommitted work, not deployed)
+
+Found uncommitted in the main checkout (dated 2026-11-04, no record of it):
+the email a customer gets when a job closes is now a branded thank-you
+(`lib/reviews/email.ts`, pure, escaped) with a "Leave a review" button when
+Admin → Branding → **Review link** is set (`EmailBrand.reviewUrl`, migration
+renamed `20261113…` → `20261128120000_email_brand_review_url` so it sorts after
+prod's; the dev `_prisma_migrations` row renamed to match), else it asks for a
+reply. `sendReviewRequestIfNeeded` skips GC bid jobs and opted-out leads, adds
+the unsubscribe link and reports failures through `reportDelivery`. Email
+shell: full width on a phone, 600 px in Outlook. Rebased onto `origin/main`
+cleanly. Gate: typecheck clean, lint 5/21, 2256 tests, build clean. Not looked
+at in a mail client. **Deploy carries the migration**; then set the Google
+review link under Admin → Branding.
+
 ### 2026-11-21 — Workflow steps become a checklist, never assigned (deployed `5331b5d`, prod steps unassigned)
 
 Richard: "I do not want the tasks automatically assigned to the users … a lot

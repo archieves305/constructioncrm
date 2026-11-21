@@ -16,6 +16,7 @@ export type EmailBrand = {
   primaryColor: string;
   signatureHtml: string | null;
   signatureText: string | null;
+  reviewUrl?: string | null;
 };
 
 let cache: { brand: EmailBrand; fetchedAt: number } | null = null;

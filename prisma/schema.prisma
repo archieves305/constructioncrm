@@ -2680,6 +2680,8 @@ model EmailBrand {
   primaryColor  String   @default("#1f2937") @map("primary_color")
   signatureHtml String?  @map("signature_html") @db.Text
   signatureText String?  @map("signature_text") @db.Text
+  /// The page a finished customer is sent to for a review; unset = the email asks for a reply.
+  reviewUrl     String?  @map("review_url")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("email_brand")

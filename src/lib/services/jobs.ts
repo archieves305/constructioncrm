@@ -5,6 +5,10 @@ import { createTask } from "@/lib/tasks/create";
 import { formatAddressLine } from "@/lib/labels/address";
 import { onInvoiceTransition } from "@/lib/tasks/auto-tasks";
 import { sendEmail, isEmailConfigured } from "@/lib/email/send";
+import { getEmailBrand } from "@/lib/email/brand";
+import { reportDelivery } from "@/lib/email/delivery-report";
+import { buildUnsubscribeUrl } from "@/lib/email/unsubscribe";
+import { renderReviewRequestEmail } from "@/lib/reviews/email";
 import { env } from "@/lib/env";
 import { logOutboundCommunication } from "@/lib/communications/log";
 import { recomputeJobBalance } from "@/lib/services/job-pricing";
@@ -287,7 +291,7 @@ async function spawnTasksFromTemplates(
   }
 }
 
-async function sendReviewRequestIfNeeded(
+export async function sendReviewRequestIfNeeded(
   jobId: string,
   leadId: string,
   userId: string,
@@ -301,14 +305,15 @@ async function sendReviewRequestIfNeeded(
   const [job, sender] = await Promise.all([
     prisma.job.findUnique({
       where: { id: jobId },
-      include: { lead: { select: { fullName: true, email: true, firstName: true, propertyAddress1: true, propertyAddress2: true, city: true } } },
+      include: { lead: { select: { kind: true, email: true, emailOptedOut: true, firstName: true, propertyAddress1: true, propertyAddress2: true, city: true } } },
     }),
     prisma.user.findUnique({
       where: { id: userId },
       select: { email: true },
     }),
   ]);
-  if (!job) return;
+  // A GC's bid package closes with no homeowner to ask.
+  if (!job || job.lead.kind !== "CUSTOMER") return;
 
   const request = await prisma.reviewRequest.create({
     data: {
@@ -319,13 +324,14 @@ async function sendReviewRequestIfNeeded(
     },
   });
 
-  if (job.lead.email && isEmailConfigured()) {
+  if (job.lead.email && !job.lead.emailOptedOut && isEmailConfigured()) {
     try {
-      const subject = `Quick favor? Share your experience with us`;
-      const html = `<p>Hi ${job.lead.firstName},</p>
-<p>Thanks for choosing us for your recent project${formatAddressLine(job.lead) ? ` at ${formatAddressLine(job.lead)}` : ""}. If you have a moment, we'd really appreciate an honest review — it helps other homeowners make informed decisions.</p>
-<p>Thank you!</p>`;
-      const text = `Hi ${job.lead.firstName}, thanks for choosing us for your recent project${formatAddressLine(job.lead) ? ` at ${formatAddressLine(job.lead)}` : ""}. If you have a moment, we'd appreciate a review.`;
+      const { subject, html, text } = renderReviewRequestEmail({
+        brand: await getEmailBrand(),
+        firstName: job.lead.firstName,
+        address: formatAddressLine(job.lead) || null,
+        unsubscribeUrl: buildUnsubscribeUrl(leadId),
+      });
       const emailResult = await sendEmail({
         to: job.lead.email,
         subject,
@@ -360,6 +366,13 @@ async function sendReviewRequestIfNeeded(
       });
     } catch (err) {
       console.error("review request email failed", err);
+      await reportDelivery({
+        source: "job.review-request",
+        attempted: 1,
+        sent: 0,
+        failures: [{ recipient: job.lead.email, reason: err instanceof Error ? err.message : String(err) }],
+        context: { jobId },
+      });
     }
   }
 }

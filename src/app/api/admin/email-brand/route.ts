@@ -41,6 +41,13 @@ const schema = z.object({
   primaryColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Must be a hex color like #1f2937"),
   signatureHtml: z.string().nullable().optional(),
   signatureText: z.string().nullable().optional(),
+  reviewUrl: z
+    .string()
+    .trim()
+    .regex(/^https:\/\/\S+$/, "Must be a full link starting with https://")
+    .nullable()
+    .optional()
+    .or(z.literal("")),
 });
 
 function blank(s: string | null | undefined): string | null {
@@ -77,6 +84,7 @@ export async function PUT(req: NextRequest) {
       primaryColor: data.primaryColor,
       signatureHtml: blank(data.signatureHtml),
       signatureText: blank(data.signatureText),
+      reviewUrl: blank(data.reviewUrl),
     },
     create: {
       id: "default",

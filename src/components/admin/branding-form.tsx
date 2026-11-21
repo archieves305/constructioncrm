@@ -26,6 +26,7 @@ type Brand = {
   primaryColor: string;
   signatureHtml: string | null;
   signatureText: string | null;
+  reviewUrl: string | null;
 };
 
 const empty: Brand = {
@@ -43,6 +44,7 @@ const empty: Brand = {
   primaryColor: "#1f2937",
   signatureHtml: null,
   signatureText: null,
+  reviewUrl: null,
 };
 
 export function BrandingForm() {
@@ -200,6 +202,21 @@ export function BrandingForm() {
               placeholder="Knu Construction&#10;2500 N Federal Highway..."
             />
           </Field>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Customer reviews</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            The &quot;Leave a review&quot; button in the email a customer gets when their job
+            closes. Find it in your Google Business Profile under &quot;Ask for reviews&quot;.
+            Left blank, the email asks the customer to reply instead.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <Label className="text-xs">Review link</Label>
+          <Input {...field("reviewUrl")} placeholder="https://g.page/r/.../review" />
         </CardContent>
       </Card>
 
