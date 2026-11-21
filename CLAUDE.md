@@ -854,7 +854,9 @@ cron dry run 2 open sent bids, nothing due; on Richard's "go" the wrapper
 `*/15 11-23 * * 1-5` UTC (covers 7 AM–6 PM ET in both EST and EDT; crontab copy
 `/home/knuco/crontab.bak-20261121-bids`), first run 200, raised 0. The backfill
 `--apply` **skipped BID-00001: its lead has no trade (no LeadService)**, so it
-stays a legacy bid; give the lead its trade (Drywall) and re-run to file it.
+stays a legacy bid. Then, on Richard's word, the lead got the top-level Drywall
+trade (one `LeadService` row, audited) and `--apply` filed it as **BP-00016**
+(Drywall EXECUTED, the $832,500 award linked to JOB-00009); re-run 0.
 
 ### 2026-11-21 — Review-request email redesign (deployed `50fec68`)
 
@@ -4206,7 +4208,7 @@ Notification Digests).
 
 > **PlanHub 1c (follow-up cadence) is on prod (`8cf3fee`), seeded, cron
 > installed (`*/15 11-23 * * 1-5` UTC).** Click-through: a submitted bid's Bid
-> tab → Follow-up card. BID-00001 stays legacy until its lead gets a trade.
+> tab → Follow-up card. BID-00001 is filed as project BP-00016.
 
 > **Workflow steps as a checklist is on prod (`5331b5d`, BUILD_ID
 > `qwVdNctRtIJJ8Y9G3F0NW`); the 266 auto-assigned untouched steps were cleared.**
