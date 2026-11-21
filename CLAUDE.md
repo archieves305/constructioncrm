@@ -615,6 +615,7 @@ Plan: `CC_ALLOCATOR_CRM_PHASE1_PLAN.md` (repo root, untracked) / cc-allocator `d
 - Rulings recorded (Richard): D-2 Bank of America pays customer jobs, own projects Seacoast or BofA; D-3/D-4 Elizabeth or Richard; D-5 closed jobs allowed.
 - Gate: typecheck clean, lint clean on the touched files, 2294 tests (+7), build clean. Dev QA (mail / AI keys blanked): API 26/26 (auth 401s, create + audit, replay, 409, concurrent race → one row, twin hold TWIN, status + missing, 400s, kind / closed / includeClosed / address on a closed job, labor-hold Approve 409, TWIN approve and LABOR reject 200); headless panel link, no page errors. Dev DB restored.
 - **Deploy carries the migration.** Holds made before it have no reason (prod had 0 pending), so they approve as before.
+- **Deployed 2026-11-21 as `ad6adf1`** from a fresh clone (the main checkout holds two untracked reports): BUILD_ID `iDCC7iiWiMUfLEpVjyB27` → `Dm64bJD2jI6u7dyEaf3SQ`, migration applied, smoke ok, journal clean, backup `postgres-2026-11-21-185747.dump`. On prod: both endpoints 401 without the key; the status endpoint answers; the job list gives 23 active, 32 with `includeClosed=1` (9 closed), kinds CLIENT / FLIP / RENTAL.
 
 ### 2026-11-20 — Our own projects, Stage 2: the money (deployed `d1c0633`)
 
