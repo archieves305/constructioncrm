@@ -632,6 +632,7 @@ Plan approved: `~/.claude/plans/on-the-workflow-for-jaunty-ritchie-…md`.
   - an Amex line recorded on the contract settles the open request;
   - locks; reconciliation clean.
 - **Deploy carries the migration; deploy the CRM first.** Until CC Allocator's half is live, the Paid from list says "unavailable".
+- **Deployed 2026-11-21:** CRM `0ad0978` (BUILD_ID `Dm64bJD2jI6u7dyEaf3SQ` → `pc4V3hxd20p1b5r0ebTNX`, migration applied, journal clean, backup `postgres-2026-11-21-195840.dump`), then CC Allocator PR #122 merged `37e49d8` and deployed (db push in sync). The account list answers with the CRM's key; it is empty until "Pays crews on" and the card job kinds are ticked in CC Allocator → Settings → Companies.
 
 ### 2026-11-21 — CC Allocator → CRM Phase 1, step 3: intake status, status endpoint, crew-payment holds (built + dev-QA'd on `allocator-status`, not deployed)
 
