@@ -179,6 +179,16 @@ enum JobKind {
 }
 
 /// What an owned project (jobType OWNED_REHAB) is for.
+/// Why the cc-allocator intake held a posting PENDING.
+enum ExpenseHoldReason {
+  /// Looks like a manual charge already on the job (same amount, ±3 days).
+  TWIN
+  /// Looks like a crew payment already on a labor contract, or pays a crew
+  /// with a labor contract on the job. Decided under Cost Reconciliation →
+  /// Crew payments, never by a plain Approve.
+  LABOR
+}
+
 enum OwnedPurpose {
   FLIP
   RENTAL
@@ -2277,6 +2287,9 @@ model JobExpense {
   coveredByLaborPaymentId String?        @map("covered_by_labor_payment_id")
   // A person confirmed it is a cost of its own, not a crew payment counted twice.
   laborClearedAt          DateTime?      @map("labor_cleared_at")
+  // Why the cc-allocator intake held this charge PENDING (null = not held by
+  // the intake). Kept after the hold is decided, as the record of why.
+  holdReason              ExpenseHoldReason? @map("hold_reason")
   createdAt               DateTime       @default(now()) @map("created_at")
   updatedAt               DateTime       @updatedAt @map("updated_at")
 

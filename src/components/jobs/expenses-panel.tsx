@@ -78,6 +78,9 @@ type Expense = {
   reviewNote: string | null;
   /** Set when this charge is the same money as a crew payment on a labor contract. */
   coveredByLaborPaymentId?: string | null;
+  /** Why the cc-allocator intake held it; LABOR is decided under Crew payments. */
+  holdReason?: "TWIN" | "LABOR" | null;
+  laborClearedAt?: string | null;
   createdBy: { firstName: string; lastName: string };
 };
 
@@ -1101,6 +1104,15 @@ export function ExpensesPanel({
                     )}
                     {pending && mayApprove && (
                       <>
+                        {e.holdReason === "LABOR" && !e.laborClearedAt ? (
+                          <Link
+                            href="/admin/job-cost-reconciliation"
+                            className="text-xs font-medium text-primary underline"
+                            title="This may be a crew payment already on a labor contract"
+                          >
+                            Decide under Crew payments
+                          </Link>
+                        ) : (
                         <Button
                           size="sm"
                           className="h-7"
@@ -1111,6 +1123,7 @@ export function ExpensesPanel({
                         >
                           Approve
                         </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"

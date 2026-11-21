@@ -599,6 +599,23 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-11-21 — CC Allocator → CRM Phase 1, step 3: intake status, status endpoint, crew-payment holds (built + dev-QA'd on `allocator-status`, not deployed)
+
+Plan: `CC_ALLOCATOR_CRM_PHASE1_PLAN.md` (repo root, untracked) / cc-allocator `docs/crm-job-costing/`. Steps 1–2 (cc-allocator) are on prod.
+- Migration `20261129120000_allocator_status` (additive): `ExpenseHoldReason` (`TWIN | LABOR`) + `job_expenses.hold_reason`, set by the intake when it holds a posting.
+- `POST /api/integrations/cc-allocator/expense`:
+  - a replay returns the stored status, hold reason and note;
+  - a unique-violation race is answered as a replay;
+  - a replay naming another job → 409 `external_id_conflict` with the job the CRM holds;
+  - an audit row `expense_posted_by_allocator` on create.
+- Key compare constant-time (`safeEqual`).
+- New `GET /api/integrations/cc-allocator/expenses?ids=` (≤ 200): status per externalId + `missing`. Pure `lib/integrations/cc-allocator/status.ts`.
+- Jobs endpoint: every job carries `kind` (CLIENT / FLIP / RENTAL, `jobKindOf`) and `closed`; the list adds closed jobs only with `includeClosed=1` (older cc-allocator unchanged); the address mode always returned closed jobs.
+- `POST /api/expenses/[id]/review` refuses Approve (409 `labor_hold`) on a `LABOR` hold not yet decided under Cost Reconciliation → Crew payments; Reject still works. The expenses panel shows "Decide under Crew payments" in place of Approve.
+- Rulings recorded (Richard): D-2 Bank of America pays customer jobs, own projects Seacoast or BofA; D-3/D-4 Elizabeth or Richard; D-5 closed jobs allowed.
+- Gate: typecheck clean, lint clean on the touched files, 2294 tests (+7), build clean. Dev QA (mail / AI keys blanked): API 26/26 (auth 401s, create + audit, replay, 409, concurrent race → one row, twin hold TWIN, status + missing, 400s, kind / closed / includeClosed / address on a closed job, labor-hold Approve 409, TWIN approve and LABOR reject 200); headless panel link, no page errors. Dev DB restored.
+- **Deploy carries the migration.** Holds made before it have no reason (prod had 0 pending), so they approve as before.
+
 ### 2026-11-20 — Our own projects, Stage 2: the money (deployed `d1c0633`)
 
 No migration.
@@ -4200,6 +4217,10 @@ Notification Digests).
   tools, and must match a zod schema. Document text goes in through
   `untrustedDocument`. What the model returns is a proposal a person confirms —
   never a status change, a sent message, a licence number or a signature.
+- **A cc-allocator posting is one row per `externalId`, on one job.** The
+  intake answers a repeat with the stored status and refuses a different job
+  (409); the job moves only in the CRM. A posting held `LABOR` is decided under
+  Cost Reconciliation → Crew payments, never by a plain Approve.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.

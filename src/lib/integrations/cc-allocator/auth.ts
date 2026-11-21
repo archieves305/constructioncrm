@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
+import { safeEqual } from "@/lib/integrations/work/auth";
 
 // Validates the Authorization header against CC_ALLOCATOR_API_KEY.
 // Returns null on success; otherwise the response to send back.
@@ -19,7 +20,7 @@ export function verifyCcAllocatorAuth(
   }
   const header = request.headers.get("authorization") || "";
   const provided = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!provided || provided !== expected) {
+  if (!provided || !safeEqual(provided, expected)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return null;

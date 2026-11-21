@@ -65,6 +65,19 @@ export async function POST(
   }
 
   const approving = parsed.data.decision === "APPROVE";
+  // A posting held as a possible crew payment is decided under Cost
+  // Reconciliation → Crew payments (same money / record / separate), which
+  // links or clears it. A plain Approve here counted it a second time
+  // (2188 Windtrace, 2026-10-14). Rejecting is still allowed.
+  if (approving && existing.holdReason === "LABOR" && !existing.laborClearedAt && !existing.coveredByLaborPaymentId) {
+    return NextResponse.json(
+      {
+        error: "This charge may be a crew payment already on a labor contract. Decide it under Cost Reconciliation → Crew payments.",
+        code: "labor_hold",
+      },
+      { status: 409 },
+    );
+  }
   const isRollup = rollsExpensesIntoContract(existing.job.jobType);
   const amount = Number(existing.amount);
   // Same rule as creation: rollup jobs ignore `billable` and recompute the

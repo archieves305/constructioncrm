@@ -12,13 +12,19 @@ import {
 } from "@/lib/services/job-pricing";
 import { findManualTwin, twinReviewNote, TWIN_WINDOW_DAYS } from "@/lib/expenses/reconcile";
 import { laborHoldNote } from "@/lib/expenses/labor-cover";
+import { recordAudit } from "@/lib/audit/record";
+import { ALLOCATOR_STATUS_SELECT, replayOutcome } from "@/lib/integrations/cc-allocator/status";
 
 // POST /api/integrations/cc-allocator/expense
 //
 // Idempotent on `externalId` — a retried POST with the same externalId
-// returns the prior expenseId with alreadyExists=true and does not
-// double-write. cc-allocator's worker passes its Transaction.id, so the
-// retry-on-network-blip path is safe.
+// returns the prior expense with alreadyExists=true and its current status
+// (PENDING / APPROVED / REJECTED, hold reason, note) and does not
+// double-write; two concurrent posts that race past the read are answered the
+// same way (unique violation → replay). A replay naming a different job is
+// refused 409 `external_id_conflict`: the CRM never moves a posted cost
+// silently. cc-allocator's worker passes its Transaction.id (card) or
+// `bank:<id>`, so the retry-on-network-blip path is safe.
 //
 // Mirrors the balance-update behavior of PATCH /api/expenses/[id]:
 //   - For non-COST_PLUS jobs, billable=true expenses increment
@@ -95,15 +101,9 @@ export async function POST(request: NextRequest) {
   // existing row instead of creating a duplicate.
   const existing = await prisma.jobExpense.findUnique({
     where: { externalId: input.externalId },
-    select: { id: true, jobId: true },
+    select: ALLOCATOR_STATUS_SELECT,
   });
-  if (existing) {
-    return NextResponse.json({
-      expenseId: existing.id,
-      jobId: existing.jobId,
-      alreadyExists: true,
-    });
-  }
+  if (existing) return replayResponse(existing, input.jobId);
 
   const job = await prisma.job.findUnique({
     where: { id: input.jobId },
@@ -154,7 +154,10 @@ export async function POST(request: NextRequest) {
   // One open commitment for that vendor on this job: the posting draws it down.
   const commitmentId = await autoCommitmentId(input.jobId, vendorId);
 
-  const created = await prisma.$transaction(async (tx) => {
+  const holdReason = twin ? "TWIN" : laborNote ? "LABOR" : null;
+  let created: { id: string; jobId: string };
+  try {
+  created = await prisma.$transaction(async (tx) => {
     const expense = await tx.jobExpense.create({
       data: {
         jobId: input.jobId,
@@ -171,6 +174,7 @@ export async function POST(request: NextRequest) {
         createdByUserId: CC_ALLOCATOR_SYSTEM_USER_ID,
         externalId: input.externalId,
         status,
+        holdReason,
         reviewNote: twin ? twinReviewNote(twin) : laborNote,
       },
       select: { id: true, jobId: true },
@@ -183,6 +187,14 @@ export async function POST(request: NextRequest) {
     }
     return expense;
   });
+  } catch (e) {
+    // A concurrent post of the same charge won the race: answer as a replay.
+    if (typeof e === "object" && e !== null && (e as { code?: string }).code === "P2002") {
+      const winner = await prisma.jobExpense.findUnique({ where: { externalId: input.externalId }, select: ALLOCATOR_STATUS_SELECT });
+      if (winner) return replayResponse(winner, input.jobId);
+    }
+    throw e;
+  }
 
   // recomputeCostPlusJob is tx-aware but reads its own data; running it
   // outside the transaction matches PATCH /api/expenses/[id]'s pattern.
@@ -193,12 +205,27 @@ export async function POST(request: NextRequest) {
     else if (balanceDelta !== 0) await recomputeJobBalance(input.jobId);
   }
 
+  await recordAudit({
+    actorUserId: CC_ALLOCATOR_SYSTEM_USER_ID,
+    entityType: "JobExpense",
+    entityId: created.id,
+    action: "expense_posted_by_allocator",
+    after: { externalId: input.externalId, jobId: input.jobId, amount: input.amount, type: input.type, billable: effectiveBillable, status, holdReason, movedContract: balanceDelta },
+  });
+
   return NextResponse.json({
     expenseId: created.id,
     jobId: created.jobId,
     alreadyExists: false,
     status,
+    holdReason,
+    note: twin ? twinReviewNote(twin) : laborNote,
     suspectedDuplicateOf: twin?.id ?? null,
     heldForCrewPayment: Boolean(laborNote),
   });
+}
+
+function replayResponse(existing: Parameters<typeof replayOutcome>[0], requestedJobId: string) {
+  const outcome = replayOutcome(existing, requestedJobId);
+  return NextResponse.json(outcome.body, { status: outcome.kind === "conflict" ? 409 : 200 });
 }
