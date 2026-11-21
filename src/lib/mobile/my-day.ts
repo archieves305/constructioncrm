@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { overdueWhere } from "@/lib/calendar/status";
 import { dayKey, endOfDayIn, localParts, startOfDayIn, weekdayOf } from "@/lib/time/zone";
 import { pushToUsers } from "./push-send";
@@ -42,7 +42,7 @@ export async function runMyDay(opts: { now?: Date; dryRun?: boolean; force?: boo
   let sent = 0;
   let skipped = 0;
   for (const { userId } of devices) {
-    const mine = { assignedUserId: userId, ...ACTIVE_OPEN_WHERE };
+    const mine = { assignedUserId: userId, ...TASK_WORK_WHERE };
     const [dueToday, overdue] = await Promise.all([
       prisma.task.count({ where: { ...mine, dueAt: { gte: startOfDayIn(day), lte: endOfDayIn(day) } } }),
       prisma.task.count({ where: { AND: [mine, overdueWhere(now)] } }),

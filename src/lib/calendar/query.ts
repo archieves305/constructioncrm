@@ -2,6 +2,7 @@ import type { Prisma, Priority, RoleName, TaskStatus } from "@/generated/prisma/
 import { taskVisibilityFilter, type VisibilityScope } from "@/lib/tasks/access";
 import { taskSearchWhere } from "@/lib/tasks/query";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
+import { NOT_WORKFLOW_STEP_WHERE } from "@/lib/workflows/state";
 import { APP_TIME_ZONE, diffDayKeys, endOfDayIn, isDayKey, startOfDayIn, type DayKey } from "@/lib/time/zone";
 import type { UsersSelection } from "./access";
 
@@ -96,8 +97,9 @@ export function buildCalendarWhere(
     { dueAt: { gte: rangeStart } },
     // …and starts on or before the last day (a span may start earlier).
     { OR: [{ scheduledStart: { lte: rangeEnd } }, { scheduledStart: null, dueAt: { lte: rangeEnd } }] },
-    // A Not-active workflow step is nobody's work yet.
-    { activatedAt: { not: null } },
+    // A Not-active workflow step is nobody's work yet, and a workflow step is
+    // never anyone's (2026-11-21) — it lives on the job's Workflow tab.
+    { activatedAt: { not: null }, ...NOT_WORKFLOW_STEP_WHERE },
   ];
 
   if (params.status?.length) and.push({ status: { in: params.status } });
@@ -120,7 +122,7 @@ export function buildUnscheduledWhere(
   scope?: VisibilityScope,
 ): Prisma.TaskWhereInput {
   const and: Prisma.TaskWhereInput[] = [
-    { status: { in: [...OPEN_TASK_STATUSES] }, activatedAt: { not: null }, dueAt: null },
+    { status: { in: [...OPEN_TASK_STATUSES] }, activatedAt: { not: null }, ...NOT_WORKFLOW_STEP_WHERE, dueAt: null },
     usersClause(sel, user),
   ];
   if (params.jobId) and.push({ jobId: params.jobId });

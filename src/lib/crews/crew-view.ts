@@ -5,7 +5,7 @@ import { formatAddressLine } from "@/lib/labels/address";
 import { toDbDate } from "@/lib/labor/dates";
 import { dayOfDate } from "@/lib/permits/alerts";
 import { addDayKeys, type DayKey } from "@/lib/time/zone";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { OPEN_TASK_STATUSES } from "@/lib/tasks/status";
 import type { z } from "zod";
 import type { crewJobCard, crewToday, crewWeek, crewWeekItem } from "@/lib/mobile-api/crew";
@@ -69,7 +69,7 @@ export async function loadCrewToday(viewer: Viewer, today: DayKey): Promise<z.in
       crewAssignments: { where: { installDate: dayRange(today, 1) }, select: { startMinutes: true } },
       dailyLogs: { where: { logDate: toDbDate(today) }, select: { status: true } },
       tasks: {
-        where: { assignedUserId: viewer.id, ...ACTIVE_OPEN_WHERE },
+        where: { assignedUserId: viewer.id, ...TASK_WORK_WHERE },
         select: { id: true, title: true, status: true, priority: true, dueAt: true },
         orderBy: [{ dueAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
         take: 20,

@@ -527,3 +527,31 @@ the job.
   team slot together (job PATCH); `team-mirror.ts` covers the other direction.
 - Deferred: contract before Won.
 
+## Steps are a checklist, never assigned (2026-11-21)
+
+Richard: auto-assigned steps flooded people's lists and went undone. Ruling:
+**template steps are never assigned**; the role is a label.
+
+- **Create**: `materializePlan` → `assignedUserId: null`; no Ready notices
+  (nothing to notify). `reassignUnresolved` is gone. `roles.ts` resolution
+  still serves `userForJobRole` (crew payment requests) and the
+  superintendent on a failed inspection's correction task.
+- **Refuse**: `updateTask` → 400 "Workflow steps are not assigned" when a
+  person is put on a key that `isTemplateStepKey` accepts, unless `internal`.
+  Correction keys (`:correction:`) are not template steps.
+- **Hide**: `NOT_WORKFLOW_STEP_WHERE` / `TASK_WORK_WHERE` in `state.ts`, used by
+  every people-facing task query (list, badge, calendar, rail, digests,
+  escalations, attention overdue rows, dashboard KPI, ⌘K, field, mobile).
+  `/api/tasks` returns steps only for `source=workflow`, an instance / phase /
+  module filter, or `waiting`. Job-level workflow views still read them.
+- **Rights**: `taskRightsFor` = owner rule, or the job's PM / case manager, or
+  a slot on the workflow's team; `permissions.canWorkSteps` mirrors it for the
+  tab. Gates: ADMIN / MANAGER to skip, as before.
+- **Notices**: `notifyTaskCompleted` returns early for a step; blocked still
+  goes out.
+- **Tab**: phases open by default (Collapse all / Expand all remounts them),
+  role label + target date per row, **N/A** button, select mode →
+  `POST /api/tasks/skip-steps` (one reason, per-step check, refusals listed).
+- **Prod clean-up**: `scripts/unassign-workflow-steps-2026-11.ts` (dry run;
+  `--yes`) clears the assignee on PENDING template steps only.
+

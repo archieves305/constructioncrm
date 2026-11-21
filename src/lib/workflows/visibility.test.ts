@@ -31,6 +31,13 @@ describe("taskRightsFor", () => {
     expect(await taskRightsFor({ id: "u-other", role: "SALES_REP" }, step)).toEqual({ canEdit: false });
   });
 
+  it("anyone on the workflow's team may work its steps — steps belong to nobody (2026-11-21)", async () => {
+    db.job.findUnique.mockResolvedValue({ projectManagerId: "u-pm", workflow: { team: [{ userId: "u-acct" }] }, fieldAssignments: [] });
+    expect(await taskRightsFor({ id: "u-acct", role: "MARKETING" }, step)).toEqual({ canEdit: true });
+    expect(await taskRightsFor({ id: "u-other", role: "MARKETING" }, step)).toEqual({ canEdit: false });
+    expect(await taskRightsFor({ id: "u-acct", role: "READ_ONLY" }, step)).toEqual({ canEdit: false });
+  });
+
   it("a case manager may work the steps of their case", async () => {
     db.codeViolationCase.findUnique.mockResolvedValue({ caseManagerId: "u-cm", workflow: { team: [] } });
     const caseStep = { ...step, jobId: null, violationCaseId: "c1" };

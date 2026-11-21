@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { NOT_WORKFLOW_STEP_WHERE } from "@/lib/workflows/state";
 import type { Prisma } from "@/generated/prisma/client";
 import { taskVisibilityFilter } from "@/lib/tasks/access";
 import { coerceUsersParam } from "./access";
@@ -50,7 +51,8 @@ describe("buildCalendarWhere", () => {
         { scheduledStart: null, dueAt: { lte: new Date("2026-10-05T03:59:59.999Z") } },
       ],
     });
-    expect(and[2]).toEqual({ activatedAt: { not: null } });
+    // Never a Not-active step, and never a workflow step (they live on the Workflow tab).
+    expect(and[2]).toEqual({ activatedAt: { not: null }, ...NOT_WORKFLOW_STEP_WHERE });
   });
 
   it("defaults to open statuses; includeCompleted drops the filter; an explicit status wins", () => {
@@ -88,7 +90,7 @@ describe("buildCalendarWhere", () => {
 describe("buildUnscheduledWhere", () => {
   it("is active + open + no due date, never an inactive step, scoped to the selection and the role", () => {
     const and = andOf(buildUnscheduledWhere(readUnscheduledParams(new URLSearchParams("users=all&jobId=j1")), { kind: "all" }, admin));
-    expect(and[0]).toEqual({ status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] }, activatedAt: { not: null }, dueAt: null });
+    expect(and[0]).toEqual({ status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] }, activatedAt: { not: null }, ...NOT_WORKFLOW_STEP_WHERE, dueAt: null });
     expect(and).toContainEqual({ jobId: "j1" });
     const mine = andOf(buildUnscheduledWhere(readUnscheduledParams(new URLSearchParams("")), coerceUsersParam("all", rep.role), rep));
     expect(mine).toContainEqual({ assignedUserId: "rep-1" });

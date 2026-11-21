@@ -1,11 +1,15 @@
 import type { Prisma, WorkflowRole } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { updateTask } from "@/lib/tasks/update";
-import { logger } from "@/lib/logger";
 import { loadSubject, loadSubjectForInstance, type WorkflowSubject } from "./subject";
 
 /**
  * Functional role → person, per subject.
+ *
+ * Workflow steps are NOT assigned from this (Richard, 2026-11-21: steps are a
+ * checklist on the job, not tasks in people's lists). The resolution is still
+ * used where one person is needed for a role on a job — the accountant who
+ * gets a crew payment request (`userForJobRole`) and the superintendent who
+ * gets a failed inspection's correction task.
  *
  * Order of resolution: an explicit team slot on the workflow, then the
  * subject's own fields for the roles it already has (a job's project manager
@@ -43,7 +47,7 @@ export function resolveAssignee(role: WorkflowRole, ctx: RoleContext): string | 
   return resolveRoleOwner(role, ctx) ?? ctx.caseManagerId ?? ctx.projectManagerId ?? null;
 }
 
-/** Roles used by the plan that no one fills themselves (their steps fall to the coordinator), in a stable order. */
+/** Roles used by the plan that no one fills themselves, in a stable order. */
 export function unassignedRoles(roles: Iterable<WorkflowRole>, ctx: RoleContext): WorkflowRole[] {
   const used = new Set(roles);
   return WORKFLOW_ROLES.filter((r) => used.has(r) && resolveRoleOwner(r, ctx) === null);
@@ -113,48 +117,4 @@ export async function userForJobRole(jobId: string, role: WorkflowRole, db: Db =
   if (role === "PROJECT_MANAGER" && job?.projectManagerId) return job.projectManagerId;
   if (role === "SALES_REP" && job?.salesRepId) return job.salesRepId;
   return def?.userId ?? null;
-}
-
-/**
- * After a team, PM or case-manager change: give every open, unassigned
- * workflow task whose role now resolves to someone an owner. Through
- * `updateTask`, so the timeline shows who was put on it.
- *
- * Only steps that are already active notify — a step still waiting on its
- * predecessors tells its owner when it becomes Ready, like any other step.
- * The active ones share one batch key so a PM set after apply gets "12
- * steps assigned to you on 12 Elm St", not twelve mails.
- */
-export async function reassignUnresolved(instanceId: string, actorUserId: string): Promise<number> {
-  const ctx = await loadRoleContext(prisma, { instanceId });
-  const open = await prisma.task.findMany({
-    where: {
-      workflowInstanceId: instanceId,
-      assignedUserId: null,
-      workflowRole: { not: null },
-      status: { in: ["PENDING", "IN_PROGRESS", "BLOCKED"] },
-    },
-    select: { id: true, workflowRole: true, activatedAt: true },
-  });
-  const resolved = open
-    .map((t) => ({ ...t, userId: resolveAssignee(t.workflowRole!, ctx) }))
-    .filter((t): t is typeof t & { userId: string } => Boolean(t.userId));
-  const activeCount = resolved.filter((t) => t.activatedAt).length;
-  const batch = { key: `wf-reassign:${instanceId}:${Date.now()}`, size: activeCount };
-  let n = 0;
-  for (const t of resolved) {
-    try {
-      await updateTask({
-        id: t.id,
-        input: { assignedUserId: t.userId },
-        actorUserId,
-        notify: t.activatedAt ? "after" : "none",
-        notifyBatch: batch,
-      });
-      n++;
-    } catch (err) {
-      logger.exception(err, { where: "workflows.reassignUnresolved", taskId: t.id });
-    }
-  }
-  return n;
 }

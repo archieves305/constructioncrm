@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { forViewer } from "@/lib/access/crew-redact";
 import { LEAD_LABEL_SELECT } from "@/lib/labels/select";
 import { prisma } from "@/lib/db/prisma";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
 import { buildJobListWhere, hasWorkflowFilter, parseJobListParams } from "@/lib/jobs/query";
 import { loadJobWorkflowSummaries } from "@/lib/workflows/summary";
@@ -55,13 +55,13 @@ export async function GET(request: NextRequest) {
     const [pendingTasks, overdueTasks] = await Promise.all([
       prisma.task.groupBy({
         by: ["jobId"],
-        where: { jobId: { in: jobIds }, ...ACTIVE_OPEN_WHERE },
+        where: { jobId: { in: jobIds }, ...TASK_WORK_WHERE },
         _count: { _all: true },
       }),
       prisma.task.groupBy({
         by: ["jobId"],
         where: {
-          AND: [{ jobId: { in: jobIds }, ...ACTIVE_OPEN_WHERE }, overdueWhere(now)],
+          AND: [{ jobId: { in: jobIds }, ...TASK_WORK_WHERE }, overdueWhere(now)],
         },
         _count: { _all: true },
       }),

@@ -11,7 +11,7 @@ import { completeSatisfiedGates, tickHeldFacts } from "./gates";
 import { CORE_MODULE_KEY, sourceKeyFor, type ScopeToggleState } from "./keys";
 import { loadInstanceModules, loadPublishedVersion, toComposeModule } from "./load";
 import { notifyTasksReady } from "./notify";
-import { loadRoleContext, resolveAssignee, unassignedRoles, type RoleContext } from "./roles";
+import { loadRoleContext, type RoleContext } from "./roles";
 import { activationDueAt, initialDueAt, type ScheduleContext } from "./schedule";
 import {
   allowedTemplateKinds,
@@ -172,7 +172,6 @@ export async function previewWorkflow(input: ApplyInput): Promise<WorkflowPrevie
   const subject = await loadSubjectOrThrow(prisma, ref);
   const modules = await loadModules(prisma, subject.kind, input.templateKeys, await pinnedModules(prisma, subject));
   const plan = compose({ modules, permitStatus: input.permitStatus, scopeToggles: togglesForSubject(subject, input.scopeToggles) });
-  const roleCtx = await loadRoleContext(prisma, { subject, instanceId: subject.instance?.id, teamOverride: input.team });
   const ctx: ScheduleContext = scheduleContextFor(subject, subject.instance?.appliedAt ?? now, { targetStartDate: input.targetStartDate });
 
   const existingKeys = new Set(
@@ -191,7 +190,7 @@ export async function previewWorkflow(input: ApplyInput): Promise<WorkflowPrevie
     phaseKey: t.phaseKey,
     title: t.title,
     role: t.role,
-    assigneeId: resolveAssignee(t.role, roleCtx),
+    assigneeId: null,
     dueAt: dueFor(t, ctx, now)?.toISOString() ?? null,
     initiallyActive: t.initiallyActive,
     blocking: t.blocking,
@@ -222,7 +221,7 @@ export async function previewWorkflow(input: ApplyInput): Promise<WorkflowPrevie
       plan.edges,
     ),
     rolesUsed,
-    unassignedRoles: unassignedRoles(rolesUsed, roleCtx),
+    unassignedRoles: [],
     potentialDuplicates,
     supersededTasks: ref.kind === "job" ? await findSupersededTasks(ref.jobId) : [],
     warnings: plan.warnings,
@@ -287,7 +286,9 @@ export async function materializePlan(
 
   for (const t of args.plan.tasks) {
     if (idByKey.has(t.key)) continue;
-    const assignedUserId = resolveAssignee(t.role, args.roleCtx);
+    // Steps are never assigned (Richard, 2026-11-21): the role is a label
+    // on the Workflow tab, not a task in someone's list.
+    const assignedUserId = null;
     const row = await createTask(
       {
         title: t.title,
@@ -319,7 +320,6 @@ export async function materializePlan(
     );
     idByKey.set(t.key, row.id);
     created.push(row.id);
-    if (t.initiallyActive && assignedUserId) activated.push(row.id);
   }
 
   // Only the plan's own keys take part in the edge diff; tasks that left the
@@ -373,8 +373,6 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
     const scopeToggles = togglesForSubject(subject, input.scopeToggles);
     const plan = compose({ modules, permitStatus: input.permitStatus, scopeToggles });
     const roleCtx = await loadRoleContext(prisma, { subject, instanceId: subject.instance?.id, teamOverride: input.team });
-    const rolesUsed = Array.from(new Set(plan.tasks.map((t) => t.role)));
-
     const result = await prisma.$transaction(
       async (tx) => {
         await writeSubjectFields(tx, subject, { targetStartDate: input.targetStartDate, jurisdiction: input.jurisdiction });
@@ -441,7 +439,7 @@ export async function applyWorkflow(input: ApplyInput): Promise<ApplyResult> {
       created: result.mat.created.length,
       existing: result.mat.existing,
       modules: plan.modules.map((m) => m.moduleKey),
-      unassignedRoles: unassignedRoles(rolesUsed, roleCtx),
+      unassignedRoles: [],
       warnings: plan.warnings,
       activated: result.mat.activated,
       taskCount: plan.tasks.length,

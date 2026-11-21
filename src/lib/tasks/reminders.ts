@@ -12,7 +12,7 @@ import { reportDelivery, type DeliveryFailure } from "@/lib/email/delivery-repor
 import { recordTaskEvent } from "./events";
 import { taskUrlForRole } from "./links";
 import { resolveRecipients, type Candidate } from "./recipients";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { isDeliveryTakenOver, loadNotificationSettings } from "@/lib/notifications/settings";
 import { renderTaskReminderEmail, type CustomReminderItem, type ReminderItem, type ScheduleChangeItem, type StartingItem } from "./task-email";
 
@@ -156,7 +156,7 @@ const TASK_SELECT = {
 export async function loadDueReminders(todayEnd: Date): Promise<ReminderTask[]> {
   return prisma.task.findMany({
     where: {
-      ...ACTIVE_OPEN_WHERE,
+      ...TASK_WORK_WHERE,
       remindAt: { not: null, lte: todayEnd },
       remindedAt: null,
     },
@@ -176,7 +176,7 @@ export async function loadScheduleChanges(since: Date): Promise<ScheduleChange[]
     where: {
       type: { in: ["DUE_CHANGED", "SCHEDULE_CHANGED"] },
       createdAt: { gte: since },
-      task: { ...ACTIVE_OPEN_WHERE, assignedUserId: { not: null } },
+      task: { ...TASK_WORK_WHERE, assignedUserId: { not: null } },
     },
     select: {
       taskId: true,
@@ -247,7 +247,7 @@ export async function runMorningDigest(now: Date = new Date()): Promise<DigestRu
   const [dueTasks, reminderTasks, changes, starts] = await Promise.all([
     prisma.task.findMany({
       where: {
-        ...ACTIVE_OPEN_WHERE,
+        ...TASK_WORK_WHERE,
         assignedUserId: { not: null },
         dueAt: { not: null, lte: todayEnd },
       },

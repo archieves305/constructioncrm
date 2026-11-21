@@ -145,8 +145,14 @@ describe("notifyTaskCompleted", () => {
     expect(call.body).toContain("Completed by Mike M");
   });
 
-  it("on a workflow step the applier (raiser) is dropped; the owner still hears", async () => {
+  it("a completed workflow step tells nobody — it is shown on the Workflow tab (2026-11-21)", async () => {
     db.task.findUnique.mockResolvedValue(task({ workflowTaskKey: "core:frame", createdByUserId: "u-applier" }));
+    await mod.notifyTaskCompleted({ taskId: "t1", actorUserId: "u-a" });
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("a correction task from a failed inspection still reports its completion; the raiser is dropped, the owner hears", async () => {
+    db.task.findUnique.mockResolvedValue(task({ workflowTaskKey: "core:final:correction:1", createdByUserId: "u-applier" }));
     taskAudience.mockResolvedValue([
       { userId: "u-a", reason: "assignee" },
       { userId: "u-applier", reason: "assignor" },

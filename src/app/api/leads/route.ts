@@ -1,7 +1,7 @@
 import { leadIdsWithPhone } from "@/lib/leads/phone";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { getSession } from "@/lib/auth/helpers";
 import { unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createLeadSchema, leadIssuesMessage } from "@/lib/validators/lead";
@@ -51,14 +51,14 @@ export async function GET(request: NextRequest) {
     const [pendingTasks, overdueTasks] = await Promise.all([
       prisma.task.groupBy({
         by: ["leadId"],
-        where: { leadId: { in: leadIds }, ...ACTIVE_OPEN_WHERE },
+        where: { leadId: { in: leadIds }, ...TASK_WORK_WHERE },
         _count: { _all: true },
       }),
       prisma.task.groupBy({
         by: ["leadId"],
         where: {
           leadId: { in: leadIds },
-          ...ACTIVE_OPEN_WHERE,
+          ...TASK_WORK_WHERE,
           dueAt: { lt: now },
         },
         _count: { _all: true },

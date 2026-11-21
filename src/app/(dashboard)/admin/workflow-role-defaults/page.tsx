@@ -13,8 +13,9 @@ import { useRoleDefaults, useSaveRoleDefaults } from "@/components/workflows/use
 
 /**
  * Company-wide fallback assignee per functional role. A job's own team slots
- * and its PM / sales rep fields win over these; this is who gets "Permit
- * coordinator" steps when nobody was named on the job.
+ * and its PM / sales rep fields win over these. Since 2026-11-21 workflow
+ * steps are never assigned; these name the person for role-based work that
+ * still goes to someone (crew payment requests, inspection corrections).
  */
 export default function WorkflowRoleDefaultsPage() {
   const { data: session } = useSession();
@@ -30,7 +31,7 @@ export default function WorkflowRoleDefaultsPage() {
     <div>
       <PageHeader
         title="Workflow Roles"
-        description="Who picks up each functional role when a job's team does not name someone. Project manager and sales rep default to the job's own fields first."
+        description="Who fills each role when a job's team names nobody — used for crew payment requests (Accounting) and failed-inspection corrections (Superintendent). Workflow steps are not assigned to anyone; they are a checklist on the job."
         actions={
           canEdit ? (
             <Button variant="brand" disabled={Object.keys(draft).length === 0 || save.isPending} onClick={() => save.mutate(draft, { onSuccess: () => setDraft({}) })}>

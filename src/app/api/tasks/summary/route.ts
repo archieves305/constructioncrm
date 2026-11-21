@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized } from "@/lib/auth/helpers";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { summarizeTasks } from "@/lib/tasks/summary";
 
 /**
@@ -15,7 +15,7 @@ export async function GET() {
   if (!session?.user) return unauthorized();
 
   const rows = await prisma.task.findMany({
-    where: { assignedUserId: session.user.id, ...ACTIVE_OPEN_WHERE },
+    where: { assignedUserId: session.user.id, ...TASK_WORK_WHERE },
     select: { dueAt: true, status: true },
   });
 

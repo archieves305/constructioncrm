@@ -21,6 +21,7 @@ import {
 import { notify, type NotifyBatch, type NotifySubject } from "@/lib/notifications/notify";
 import type { Signals } from "@/lib/notifications/kinds";
 import { paths } from "@/lib/notifications/links";
+import { isTemplateStepKey } from "@/lib/workflows/state";
 
 /**
  * Task notifications: the producer side of notifications v2, with the
@@ -323,6 +324,9 @@ export async function notifyTaskCompleted(input: {
 }): Promise<void> {
   const task = await loadTask(input.taskId);
   if (!task) return;
+  // A workflow step belongs to nobody (2026-11-21): ticking it off is shown on
+  // the job's Workflow tab and timeline, not mailed. A blocked step still is.
+  if (isTemplateStepKey(task.workflowTaskKey)) return;
 
   const audience: Candidate[] = await taskAudience(input.taskId);
 

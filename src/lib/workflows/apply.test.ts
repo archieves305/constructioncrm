@@ -81,7 +81,8 @@ describe("materializePlan", () => {
     const active = rows.filter((r) => r.activatedAt);
     expect(active.map((r) => r.workflowTaskKey)).toContain("core:review_contract");
     expect(active.map((r) => r.workflowTaskKey)).not.toContain("core:determine_permit_requirement");
-    expect(rows.find((r) => r.workflowTaskKey === "core:review_contract")!.assignedUserId).toBe("u-pm");
+    // Steps are never assigned (2026-11-21): the role is a label, the PM is not handed the step.
+    expect(rows.every((r) => r.assignedUserId === null)).toBe(true);
 
     createTask.mockClear();
     const again = await materializePlan(tx, args(tx, plan));
@@ -138,7 +139,7 @@ describe("materializePlan — violation case", () => {
       expect(input.jobId).toBeUndefined();
       expect(input.sourceKey).toBe(`wf:w1:${input.workflow.taskKey}`);
       expect(input.workflow.taskKey.startsWith("code_violation:")).toBe(true);
-      if (input.workflow.role === "CASE_MANAGER") expect(input.assignedUserId).toBe("u-cm");
+      expect(input.assignedUserId).toBeNull();
     }
     createTask.mockClear();
     const second = await materializePlan(tx, { ...caseArgs, roleCtx: caseCtx });

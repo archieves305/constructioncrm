@@ -519,8 +519,8 @@ function ApplyWorkflowBody({
             <Label className="text-xs">Team</Label>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {isCase
-                ? "Empty slots fall back to the case manager (and the linked job's PM), then the company defaults."
-                : "Empty slots fall back to the job's PM and sales rep, then the company defaults."}
+                ? "The people on the case's team can complete and skip its steps. Steps are not handed to anyone as tasks."
+                : "The people on the job's team can complete and skip its steps. Steps are not handed to anyone as tasks; the PM and sales rep named here become the job's own."}
             </p>
             <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
               {roles.map((role) => {
@@ -687,15 +687,10 @@ function TradeCard({
 /** The composed plan before anything is created. Shared with the violation intake's review step. */
 export function WorkflowPreviewPanel({
   preview,
-  users,
 }: {
   preview: WorkflowPreviewData;
   users: { id: string; firstName: string; lastName: string }[];
 }) {
-  const name = (id: string | null) => {
-    const u = id ? users.find((x) => x.id === id) : null;
-    return u ? `${u.firstName} ${u.lastName}`.trim() : "Unassigned";
-  };
   const waiting = preview.tasks.filter((t) => !t.initiallyActive && !t.exists);
   const active = preview.tasks.filter((t) => t.initiallyActive && !t.exists);
   return (
@@ -779,7 +774,7 @@ export function WorkflowPreviewPanel({
               <li key={t.key} className="flex justify-between gap-2">
                 <span className="truncate">{t.title}</span>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {name(t.assigneeId)}
+                  {WORKFLOW_ROLE_LABEL[t.role]}
                   {t.dueAt ? ` · ${format(new Date(t.dueAt), "MMM d")}` : ""}
                 </span>
               </li>

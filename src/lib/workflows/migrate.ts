@@ -11,7 +11,7 @@ import { readChecklist } from "./evidence";
 import { fullKey, type ScopeToggleState } from "./keys";
 import { loadInstanceModules, loadPublishedVersion, toComposeModule } from "./load";
 import { ENGINE_SKIP_PREFIX, MIGRATION_SKIP_REASON, SCOPE_SKIP_REASON } from "./reconcile";
-import { loadRoleContext, resolveAssignee } from "./roles";
+import { loadRoleContext } from "./roles";
 import { addBusinessDaysFrom, atDueHour } from "./schedule";
 import { loadSubjectForInstance, scheduleContextFor, taskLinksFor } from "./subject";
 
@@ -500,11 +500,7 @@ export async function migrateInstance(args: {
       notify: "none",
       internal: { ...quiet, definition: { ...r.refresh.definition, deactivate: r.reinstate } },
     });
-    const assignee = r.assignRole ? resolveAssignee(r.assignRole, roleCtx) : null;
-    if (assignee && assignee !== idByKey.get(r.key)?.assignedUserId) {
-      // Its own write: a role default pointing at someone inactive must not stop the migration.
-      await updateTask({ id: r.id, input: { assignedUserId: assignee }, actorUserId: actor, notify: "none", internal: quiet }).catch(() => undefined);
-    }
+    // Steps are not assigned by role any more (2026-11-21); `assignRole` is kept for the plan's tests only.
     await recordTaskEvent({ taskId: r.id, actorUserId: actor, type: "RECONCILED", body: "updated to the streamlined workflow" });
   }
   for (const r of plan.rehome) {

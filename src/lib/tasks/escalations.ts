@@ -11,7 +11,7 @@ import { daysOverdue } from "./due-dates";
 import { recordTaskEvent } from "./events";
 import { taskUrlForRole } from "./links";
 import { managerCandidates, resolveRecipients, type Candidate } from "./recipients";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { renderTaskEscalationEmail, type EscalationItem, type TaskEmailNote } from "./task-email";
 
 /**
@@ -99,7 +99,7 @@ export async function runEscalations(now: Date = new Date()): Promise<Escalation
 
   const tasks = await prisma.task.findMany({
     where: {
-      ...ACTIVE_OPEN_WHERE,
+      ...TASK_WORK_WHERE,
       assignedUserId: { not: null },
       dueAt: { lt: today },
     },

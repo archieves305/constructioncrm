@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { fromDbDate, isIsoDate, toDbDate, addDays } from "@/lib/labor/dates";
 import { taskVisibilityFilter } from "@/lib/tasks/access";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { overdueWhere } from "@/lib/calendar/status";
 import { jobsInvolvingUserWhere } from "@/lib/jobs/involvement";
 
@@ -68,14 +68,14 @@ export async function GET(request: NextRequest) {
     ? await Promise.all([
         prisma.task.groupBy({
           by: ["jobId"],
-          where: { AND: [{ jobId: { in: jobIds }, ...ACTIVE_OPEN_WHERE }, scope] },
+          where: { AND: [{ jobId: { in: jobIds }, ...TASK_WORK_WHERE }, scope] },
           _count: { _all: true },
         }),
         prisma.task.groupBy({
           by: ["jobId"],
           where: {
             AND: [
-              { jobId: { in: jobIds }, ...ACTIVE_OPEN_WHERE },
+              { jobId: { in: jobIds }, ...TASK_WORK_WHERE },
               overdueWhere(new Date()),
               scope,
             ],

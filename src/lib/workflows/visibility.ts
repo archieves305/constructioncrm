@@ -74,7 +74,9 @@ export async function jobScopeFor(jobId: string): Promise<JobScope | null> {
  * office roles, the assignee, the raiser. A workflow adds a relationship on
  * top: whoever coordinates the job or case (its project manager or case
  * manager, whatever their login role) may work any step of it, not only the
- * ones assigned to them. The Workflow tab has always offered them Complete
+ * ones assigned to them. Anyone holding a slot on the workflow's team may
+ * too — steps are never assigned, so ownership alone would leave them to the
+ * office. The Workflow tab has always offered them Complete
  * and Skip; the task API used to refuse, because it asked only about
  * ownership. Both now ask this.
  *
@@ -89,5 +91,8 @@ export async function taskRightsFor(
   // Read-only is read-only, whatever the person's relationship to the job.
   if (user.role === "READ_ONLY" || !task.workflowInstanceId) return { canEdit: false };
   const scope = await subjectScopeForTask(task);
-  return { canEdit: Boolean(scope && canCoordinateWorkflow(user, scope)) };
+  if (!scope) return { canEdit: false };
+  // Steps belong to nobody (2026-11-21), so the people on the workflow's team
+  // work them, alongside whoever coordinates the job or case.
+  return { canEdit: canCoordinateWorkflow(user, scope) || (scope.teamUserIds ?? []).includes(user.id) };
 }

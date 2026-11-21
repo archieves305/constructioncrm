@@ -1,7 +1,6 @@
 import type { CodeViolationStatus, Prisma, RoleName } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { parseDueAt } from "@/lib/tasks/dates";
-import { reassignUnresolved } from "@/lib/workflows/roles";
 import type { UpdateCaseBody } from "@/lib/validators/violation";
 import { auditCase } from "./audit";
 import { notifyCaseAssigned } from "./notify";
@@ -41,8 +40,6 @@ export async function updateCase(id: string, body: UpdateCaseBody, actor: Actor)
   if (changed.caseManagerId) {
     await recordCaseEvent(prisma, { caseId: id, actorUserId: actor.id, type: "ASSIGNED", fromValue: before.caseManagerId, toValue: updated.caseManagerId });
     await auditCase({ actorUserId: actor.id, entityType: "CodeViolationCase", entityId: id, action: "violation_assign", before: { caseManagerId: before.caseManagerId }, after: { caseManagerId: updated.caseManagerId } });
-    const inst = await prisma.jobWorkflowInstance.findUnique({ where: { violationCaseId: id }, select: { id: true } });
-    if (inst) await reassignUnresolved(inst.id, actor.id);
     if (updated.caseManagerId) await notifyCaseAssigned(id, updated.caseManagerId, actor.id);
   }
   const rest = Object.fromEntries(Object.entries(changed).filter(([k]) => k !== "caseManagerId"));
@@ -64,8 +61,6 @@ export async function assignCases(caseIds: string[], caseManagerId: string | nul
     await prisma.codeViolationCase.update({ where: { id }, data: { caseManagerId } });
     await recordCaseEvent(prisma, { caseId: id, actorUserId: actor.id, type: "ASSIGNED", fromValue: before.caseManagerId, toValue: caseManagerId });
     await auditCase({ actorUserId: actor.id, entityType: "CodeViolationCase", entityId: id, action: "violation_assign", before, after: { caseManagerId } });
-    const inst = await prisma.jobWorkflowInstance.findUnique({ where: { violationCaseId: id }, select: { id: true } });
-    if (inst) await reassignUnresolved(inst.id, actor.id);
     if (caseManagerId) await notifyCaseAssigned(id, caseManagerId, actor.id);
     n++;
   }

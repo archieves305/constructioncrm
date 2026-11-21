@@ -243,6 +243,23 @@ describe("updateTask — workflow steps", () => {
   };
   const eventTypes = () => recordTaskEvent.mock.calls.map((c) => (c[0] as { type: string }).type);
 
+  it("refuses to hand a workflow step to a person (2026-11-21); clearing and engine carries are allowed", async () => {
+    db.task.findUnique.mockResolvedValue({ ...step, assignedUserId: null });
+    await expect(updateTask({ id: "t1", input: { assignedUserId: "u-frank" }, actorUserId: "u-jo", actorRole: "ADMIN" })).rejects.toMatchObject({ status: 400, hint: "assignedUserId" });
+    expect(db.task.update).not.toHaveBeenCalled();
+    db.task.findUnique.mockResolvedValue(step);
+    await updateTask({ id: "t1", input: { assignedUserId: null }, actorUserId: "u-jo", actorRole: "ADMIN", notify: "none" });
+    db.task.findUnique.mockResolvedValue({ ...step, assignedUserId: null });
+    await updateTask({ id: "t1", input: { assignedUserId: "u-frank" }, actorUserId: "u-jo", notify: "none", internal: { quiet: true } });
+    expect(db.task.update).toHaveBeenCalledTimes(2);
+  });
+
+  it("a correction task from a failed inspection can still be given to someone", async () => {
+    db.task.findUnique.mockResolvedValue({ ...step, workflowTaskKey: "core:final:correction:1", assignedUserId: null });
+    await updateTask({ id: "t1", input: { assignedUserId: "u-frank" }, actorUserId: "u-jo", actorRole: "ADMIN", notify: "none" });
+    expect(db.task.update).toHaveBeenCalledTimes(1);
+  });
+
   it("refuses to skip a step without a reason", async () => {
     db.task.findUnique.mockResolvedValue(step);
     await expect(updateTask({ id: "t1", input: { status: "CANCELLED" }, actorUserId: "u-jo", actorRole: "OFFICE_STAFF" })).rejects.toMatchObject({

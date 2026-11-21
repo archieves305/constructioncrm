@@ -67,3 +67,29 @@ export const ACTIVE_OPEN_WHERE = {
   status: { in: [...OPEN_TASK_STATUSES] },
   activatedAt: { not: null },
 } satisfies Prisma.TaskWhereInput;
+
+/** The mark inside a correction task's `workflowTaskKey` (`inspections.ts` CORRECTION_MARK). */
+export const STEP_CORRECTION_MARK = ":correction:";
+
+/** A template step: a workflow key that is not a correction. Never assigned (2026-11-21). */
+export function isTemplateStepKey(key: string | null | undefined): boolean {
+  return typeof key === "string" && !key.includes(STEP_CORRECTION_MARK);
+}
+
+/**
+ * Not a workflow template step (a correction task is not one). Steps are a checklist on the job's Workflow tab and
+ * belong to nobody (Richard, 2026-11-21: assigned steps buried people in
+ * tasks they never did), so they stay out of every surface that means
+ * "someone's work": task lists and badges, the calendar, digests, overdue
+ * counts and escalations. A manual task added to a phase is still work.
+ * Job-level workflow views (progress, health, the jobs list's workflow
+ * filters) keep reading the steps.
+ */
+export const NOT_WORKFLOW_STEP_WHERE = {
+  // A failed inspection's correction task carries a workflow key with this
+  // mark; it is real work raised by an event and keeps its owner.
+  NOT: { AND: [{ workflowTaskKey: { not: null } }, { NOT: { workflowTaskKey: { contains: STEP_CORRECTION_MARK } } }] },
+} satisfies Prisma.TaskWhereInput;
+
+/** Open, active and someone's work — `ACTIVE_OPEN_WHERE` without the workflow steps. */
+export const TASK_WORK_WHERE = { ...ACTIVE_OPEN_WHERE, ...NOT_WORKFLOW_STEP_WHERE } satisfies Prisma.TaskWhereInput;

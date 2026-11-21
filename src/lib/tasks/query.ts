@@ -2,6 +2,7 @@ import type { Prisma, RoleName } from "@/generated/prisma/client";
 import { taskVisibilityFilter, type VisibilityScope } from "./access";
 import { OPEN_TASK_STATUSES } from "./status";
 import { overdueWhere } from "@/lib/calendar/status";
+import { NOT_WORKFLOW_STEP_WHERE } from "@/lib/workflows/state";
 import { endOfDayIn, isDayKey, startOfDayIn } from "@/lib/time/zone";
 
 /**
@@ -101,8 +102,13 @@ export function buildTaskListWhere(
     if (params[key]) where[key] = params[key];
   }
 
+  // Workflow steps are a checklist on the job, not anyone's work
+  // (2026-11-21): a list shows them only when asked — "Workflow steps", or a
+  // view of one workflow or phase, or the steps still waiting.
+  const asksForSteps = params.source === "workflow" || Boolean(params.waiting || params.workflowInstanceId || params.phaseKey || params.moduleKey);
   if (params.source === "manual") where.workflowTaskKey = null;
   else if (params.source === "workflow") where.workflowTaskKey = { not: null };
+  else if (!asksForSteps) Object.assign(where, NOT_WORKFLOW_STEP_WHERE);
   if (params.workflowInstanceId) where.workflowInstanceId = params.workflowInstanceId;
   if (params.phaseKey) where.workflowPhaseKey = params.phaseKey;
   if (params.moduleKey) where.workflowModuleKey = params.moduleKey;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RoleName } from "@/generated/prisma/client";
 import { buildTaskListWhere, readTaskListParams } from "./query";
+import { NOT_WORKFLOW_STEP_WHERE } from "@/lib/workflows/state";
 
 const admin = { id: "admin-1", role: "ADMIN" as const };
 const rep = { id: "rep-1", role: "SALES_REP" as const };
@@ -100,13 +101,13 @@ describe("buildTaskListWhere — workflow filters", () => {
     expect(first("")).toMatchObject({ activatedAt: { not: null } });
     expect(first("includeInactive=1")).not.toHaveProperty("activatedAt");
     expect(first("status=PENDING")).toMatchObject({ status: "PENDING", activatedAt: { not: null } });
-    expect(first("status=PENDING&includeInactive=1")).toEqual({ status: "PENDING" });
+    expect(first("status=PENDING&includeInactive=1")).toEqual({ status: "PENDING", ...NOT_WORKFLOW_STEP_WHERE });
   });
 
   it("ready / waiting / blocked are exclusive shortcuts", () => {
-    expect(first("ready=1")).toEqual({ status: "PENDING", activatedAt: { not: null } });
+    expect(first("ready=1")).toEqual({ status: "PENDING", activatedAt: { not: null }, ...NOT_WORKFLOW_STEP_WHERE });
     expect(first("waiting=1")).toEqual({ status: "PENDING", activatedAt: null });
-    expect(first("blocked=1")).toEqual({ status: "BLOCKED" });
+    expect(first("blocked=1")).toEqual({ status: "BLOCKED", ...NOT_WORKFLOW_STEP_WHERE });
   });
 
   it("source, instance, phase and module narrow the list", () => {
@@ -118,6 +119,13 @@ describe("buildTaskListWhere — workflow filters", () => {
       workflowPhaseKey: "core:setup",
       workflowModuleKey: "core",
     });
+  });
+
+  it("leaves workflow steps out unless the list asks for them (2026-11-21)", () => {
+    const hides = (qs: string) => JSON.stringify(first(qs).NOT) === JSON.stringify(NOT_WORKFLOW_STEP_WHERE.NOT);
+    for (const qs of ["", "assignedUserId=me", "overdue=1", "jobId=j1", "ready=1"]) expect(hides(qs)).toBe(true);
+    expect(first("source=manual")).toMatchObject({ workflowTaskKey: null });
+    for (const qs of ["source=workflow", "workflowInstanceId=w1", "phaseKey=core:setup", "waiting=1"]) expect(hides(qs)).toBe(false);
   });
 
   it("an own-only role's scope widens to the jobs they are on", () => {

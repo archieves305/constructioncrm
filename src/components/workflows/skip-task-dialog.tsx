@@ -21,8 +21,11 @@ export function SkipTaskDialog({
   onConfirm,
   pending,
   canOverrideGate,
+  bulk,
 }: {
   task: WorkflowTaskItem | null;
+  /** Several steps at once ("Select steps that don't apply"); `task` is then ignored. */
+  bulk?: { count: number; gates: number } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (reason: string) => void;
@@ -34,26 +37,35 @@ export function SkipTaskDialog({
     if (!o) setReason("");
     onOpenChange(o);
   };
-  const gateLocked = Boolean(task?.blocking) && !canOverrideGate;
+  const gateLocked = !bulk && Boolean(task?.blocking) && !canOverrideGate;
   const dependents = task?._count?.dependents ?? 0;
 
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Skip this step?</DialogTitle>
+          <DialogTitle>{bulk ? `Skip ${bulk.count} step${bulk.count === 1 ? "" : "s"}?` : "Skip this step?"}</DialogTitle>
           <DialogDescription>
-            “{task?.title}” will be marked Skipped. It stays in the workflow with your reason, and anything waiting on it can proceed.
+            {bulk
+              ? "They will be marked Skipped with your reason. They stay in the workflow, and anything waiting on them can proceed."
+              : `“${task?.title}” will be marked Skipped. It stays in the workflow with your reason, and anything waiting on it can proceed.`}
           </DialogDescription>
         </DialogHeader>
-        {task?.blocking && (
+        {bulk && bulk.gates > 0 && (
+          <Callout tone={canOverrideGate ? "warning" : "danger"} title={`${bulk.gates} of them ${bulk.gates === 1 ? "is a blocking gate" : "are blocking gates"}`}>
+            {canOverrideGate
+              ? "Skipping a gate releases the steps held behind it."
+              : "Only an admin or manager can skip a blocking step — those will be left open; the rest are skipped."}
+          </Callout>
+        )}
+        {!bulk && task?.blocking && (
           <Callout tone={gateLocked ? "danger" : "warning"} title={gateLocked ? "This is a blocking gate" : "This is a blocking gate"}>
             {gateLocked
               ? "Only an admin or manager can skip a blocking step. Ask them, or complete it."
               : `Skipping it releases ${dependents > 0 ? `${dependents} step${dependents === 1 ? "" : "s"}` : "the steps"} held behind it.`}
           </Callout>
         )}
-        <Field label="Why is this step being skipped?" id="skip-reason" labelClassName="text-xs">
+        <Field label={bulk ? "Why don't these steps apply?" : "Why is this step being skipped?"} id="skip-reason" labelClassName="text-xs">
           <Textarea
             id="skip-reason"
             autoFocus
@@ -76,7 +88,7 @@ export function SkipTaskDialog({
             Cancel
           </Button>
           <Button disabled={!reason.trim() || pending || gateLocked} onClick={() => { onConfirm(reason.trim()); setReason(""); }}>
-            {pending ? "Skipping…" : "Skip step"}
+            {pending ? "Skipping…" : bulk ? `Skip ${bulk.count}` : "Skip step"}
           </Button>
         </div>
       </DialogContent>

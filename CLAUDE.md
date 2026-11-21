@@ -803,6 +803,49 @@ now holds the App Store signing and an App Store Connect API key, so future
 builds and submits can run from a session (`npm run build:prod:ios --
 --non-interactive --auto-submit` in `mobile/`).
 
+### 2026-11-21 — Workflow steps become a checklist, never assigned (built + dev-QA'd on `workflow-checklist`, not deployed)
+
+Richard: "I do not want the tasks automatically assigned to the users … a lot
+of tasks and a lot of noise and then the users do not complete the tasks";
+keep the workflow visible so people see the whole scope and can skip what does
+not apply. Plan approved
+(`~/.claude/plans/on-the-workflow-for-jaunty-ritchie-of-02ae5b93-2e65-4ee3-b46e-b62810eb4784.md`);
+rulings: **never assign steps**; unassign the untouched ones on prod. Built:
+`materializePlan` creates steps with no assignee (preview `assigneeId` null,
+`unassignedRoles` empty); `reassignUnresolved`, its five callers (role-default
+save, job PM / rep PATCH, job / case team edit, case-manager change) and
+`scripts/assign-unowned-steps-2026-10.ts` removed; migrate no longer resolves
+owners by role; `updateTask` 400s an assignee on a template step.
+`NOT_WORKFLOW_STEP_WHERE` / `TASK_WORK_WHERE` / `isTemplateStepKey`
+(`lib/workflows/state.ts`) applied to `/api/tasks` (steps only with
+`source=workflow`, an instance / phase / module, or `waiting`), the summary
+badge, calendar + Unscheduled rail (hence Today widget, field day, digest
+agenda), old morning digest, escalations, attention "Overdue tasks" / "Overdue
+by person", dashboard overdue KPI, jobs / leads / prospects task counts, job
+overview, field home, crew view, mobile My day, ⌘K. Job-level workflow views
+(progress, health, jobs-list workflow filters, delayed jobs) still read steps.
+`taskRightsFor` + `permissions.canWorkSteps` add the workflow's team.
+Completion notices dropped for steps. Workflow tab: every phase open with
+Collapse all, role labels instead of people (no picker on a step), **N/A** on
+each open step, "Select steps that don't apply" → one reason → new
+`POST /api/tasks/skip-steps` (per-step `taskRightsFor`, gates still ADMIN /
+MANAGER, audit `workflow_steps_skip`); owner warnings removed; team / apply /
+Workflow Roles copy rewritten (role defaults now serve crew payment requests
+and inspection corrections only). New
+`scripts/unassign-workflow-steps-2026-11.ts` (dry run by default; PENDING
+template steps only — in-progress, blocked and corrections keep their owner;
+audit `workflow_steps_unassign`). No migration. Gate: typecheck clean, lint
+5/21, 2244 tests (+5), build clean. Dev QA (mail / AI keys blanked): API 14/14
+(apply → 24 steps, 0 assigned, 0 notification rows, 0 mail; My tasks, the
+job's task list and the Everyone calendar unchanged; assign 400; admin skips
+3 + a gate), unassign script on dev 44 → re-run 0 with no notifications;
+SALES_REP with a team slot starts and skips a step, is refused the gate, and
+gets 403 on a job he is not on; headless Chromium 11/11 at 1440 / 400 px
+(phases open, N/A, select → Skip 2, Collapse all, no page errors). Dev DB
+restored. Not exercised: a failed inspection's correction task end to end
+(unit-tested). **After the deploy: the unassign script's dry run on prod,
+shown to Richard; `--yes` only on his word.**
+
 ### 2026-10-30 — CareyOS Work integration endpoints (built + dev-QA'd on `feat/work-integration`, not deployed)
 
 CareyOS Work (new app, `~/work`, work.careyos.com — the Monday.com replacement;
@@ -3817,9 +3860,19 @@ Notification Digests).
   references it — bump the version. Own-only roles see tasks on jobs where
   they are PM, field-assigned or hold a team slot. Every open count uses
   `ACTIVE_OPEN_WHERE` (open **and** activated).
-- **Who may work a workflow step**: its owner or raiser, an office role, or
-  whoever coordinates its job or case (`taskRightsFor` — the job's PM, the
-  case manager). Skipping a blocking gate and overriding evidence stay
+- **Workflow steps belong to nobody** (Richard, 2026-11-21): a template step
+  is created with no assignee, `updateTask` refuses to give one a person
+  (400; engine `internal` calls excepted), and its role is only a label. Steps
+  are a checklist on the job's Workflow tab and stay out of every "someone's
+  work" surface — task lists, badges, calendar, digests, overdue counts,
+  escalations, ⌘K — through `NOT_WORKFLOW_STEP_WHERE` / `TASK_WORK_WHERE`
+  (`lib/workflows/state.ts`). A new people-facing task query uses
+  `TASK_WORK_WHERE`, never bare `ACTIVE_OPEN_WHERE`. A correction task from a
+  failed inspection is not a step (`isTemplateStepKey`) and keeps its owner.
+  A completed step mails nobody; a blocked one still tells the PM.
+- **Who may work a workflow step**: an office role, whoever coordinates its
+  job or case (the job's PM, the case manager), or anyone holding a slot on
+  the workflow's team (`taskRightsFor`, `permissions.canWorkSteps`). Skipping a blocking gate and overriding evidence stay
   ADMIN/MANAGER. A record gate (deposit, final payment, permit closed, fines)
   completes itself once the record is on file; "Corrective work complete"
   and "Close case" never do.
@@ -4053,6 +4106,13 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **Workflow steps as a checklist (never assigned) is on branch
+> `workflow-checklist`, not deployed; no migration.** After Richard's push +
+> deploy: `scripts/unassign-workflow-steps-2026-11.ts` dry run on prod → show
+> him the per-person / per-job counts → `--yes` on his word. Click-through: a
+> job → Workflow (every phase open, N/A, Select steps that don't apply); /tasks
+> and the calendar carry no steps.
 
 > **Plan takeoff → roofing estimate is on prod (`31ea283`, BUILD_ID
 > `uOQQcpC96ddOs9xGzu4Fx`).** Click-through: a roofing

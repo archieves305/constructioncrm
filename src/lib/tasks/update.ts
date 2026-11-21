@@ -14,6 +14,7 @@ import { checkEvidence, mergeChecklist, readChecklist } from "@/lib/workflows/ev
 import { activationDueAt, initialDueAt } from "@/lib/workflows/schedule";
 import { loadScheduleContext } from "@/lib/workflows/activation";
 import { canOverrideBlockingGate } from "@/lib/workflows/access";
+import { isTemplateStepKey } from "@/lib/workflows/state";
 
 /**
  * The one way a task changes.
@@ -213,6 +214,12 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
 
   const assigneeChanged =
     input.assignedUserId !== undefined && input.assignedUserId !== existing.assignedUserId;
+  // Workflow steps are a checklist on the job, never someone's task
+  // (Richard, 2026-11-21). Engine callers (`internal`) may still carry an
+  // owner across a migration; nobody else may hand a step to a person.
+  if (assigneeChanged && input.assignedUserId && isTemplateStepKey(existing.workflowTaskKey) && !args.internal) {
+    throw new TaskUpdateError(400, "Workflow steps are not assigned — complete or skip them on the job's Workflow tab", "assignedUserId");
+  }
   if (assigneeChanged && input.assignedUserId) {
     // A dispatcher dragging a card onto a lane must land it on someone who
     // still works here; a deactivated user's row would take the task and

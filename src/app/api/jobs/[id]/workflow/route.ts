@@ -8,7 +8,6 @@ import { readJobWorkflow } from "@/lib/workflows/read";
 import { jobScopeFor, visibilityScopeFor } from "@/lib/workflows/visibility";
 import { canApplyWorkflow, canCoordinateWorkflow, canSetPermitStatus } from "@/lib/workflows/access";
 import { determinePermit, reconcileScope, ReconcileError } from "@/lib/workflows/reconcile";
-import { reassignUnresolved } from "@/lib/workflows/roles";
 import { mirrorTeamToJob } from "@/lib/workflows/team-mirror";
 import type { WorkflowRole } from "@/generated/prisma/client";
 import { tickHeldFacts } from "@/lib/workflows/gates";
@@ -64,7 +63,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           await prisma.jobWorkflowTeamMember.deleteMany({ where: { instanceId: instance.id, role } });
         }
       }
-      const reassigned = await reassignUnresolved(instance.id, user.id);
       // The PM / sales rep slots are the job's PM / sales rep — keep the job's own fields in step.
       const job = await mirrorTeamToJob({ jobId: id, team: body.team, actorUserId: user.id });
       // A PM named on the team ticks "Project manager set on the job" wherever a step lists it.
@@ -77,7 +75,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         before: before,
         after: body.team,
       });
-      result.team = { reassigned, job };
+      result.team = { reassigned: 0, job };
     }
     if (body.permit !== undefined) {
       result.permit = await determinePermit({

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Route, Users, Landmark, ShieldAlert } from "lucide-react";
+import { Route, Users, Landmark, SkipForward, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -78,6 +78,13 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
   const [addPhaseKey, setAddPhaseKey] = useState<string | null>(null);
   const [reconcile, setReconcile] = useState<ReconcileMode | null>(null);
   const [catchUpPhase, setCatchUpPhase] = useState<WorkflowPhaseItem | null>(null);
+  // Every phase starts open so the whole scope reads at a glance; the toggle remounts them.
+  const [allOpen, setAllOpen] = useState(true);
+  const [openGen, setOpenGen] = useState(0);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkSkipOpen, setBulkSkipOpen] = useState(false);
+  const [bulkPending, setBulkPending] = useState(false);
 
   // `?apply=1` (from the post-Won toast) opens the dialog once, then clears itself.
   const wantsApply = searchParams.get("apply") === "1";
@@ -156,8 +163,8 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
           title={isCase ? "No workflow on this case yet" : "No workflow on this job yet"}
           description={
             isCase
-              ? "Apply the code-violation workflow to generate every step from intake to agency-confirmed closure, with owners, due dates and the permit branch."
-              : "Apply Core Construction plus the trades on this job to generate every step in order, with owners, due dates and the permit branch."
+              ? "Apply the code-violation workflow to lay out every step from intake to agency-confirmed closure, with target dates and the permit branch."
+              : "Apply Core Construction plus the trades on this job to lay out every step in order, with target dates and the permit branch. Steps are a checklist here — nobody gets them as tasks."
           }
           action={
             canApply ? (
@@ -184,7 +191,6 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
   const phasesDone = livePhases.filter((p) => p.progress.total > 0 && p.progress.done + p.progress.skipped === p.progress.total).length;
   const workingOn = livePhases.filter((p) => p.progress.ready + p.progress.inProgress + p.progress.blocked > 0);
   const team = data.team ?? [];
-  const unassigned = data.unassignedRoles ?? [];
   const isBase = (kind: string) => kind === "CORE" || kind === "VIOLATION";
 
   const chips: { key: Exclude<Chip, null>; label: string; n: number; tone: string }[] = [
@@ -220,8 +226,45 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
       },
     );
 
+  // Steps belong to nobody: the workflow's team and its coordinators work them.
+  // A manual task added to a phase keeps the ordinary owner rule.
+  const canWorkSteps = data.permissions.canWorkSteps ?? data.permissions.canCoordinate;
   const mayEditRow = (t: WorkflowTaskItem) =>
-    Boolean(user && canEditTask(user, { assignedUserId: t.assignedUserId, createdByUserId: t.createdByUserId })) || data.permissions.canCoordinate;
+    t.workflowTaskKey
+      ? canWorkSteps
+      : Boolean(user && canEditTask(user, { assignedUserId: t.assignedUserId, createdByUserId: t.createdByUserId })) || data.permissions.canCoordinate;
+
+  const toggleSelected = (id: string) =>
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
+  const selectedGates = Array.from(selected).filter((id) => tasksById.get(id)?.blocking).length;
+  const skipSelected = async (reason: string) => {
+    setBulkPending(true);
+    try {
+      const r = await fetchJson<{ done: number; refused: { id: string; reason: string }[] }>("/api/tasks/skip-steps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selected), reason }),
+      });
+      if (r.refused.length > 0) toast.warning(`${r.done} skipped · ${r.refused.length} left open — ${r.refused[0]!.reason}`);
+      else toast.success(`${r.done} step${r.done === 1 ? "" : "s"} skipped`);
+      setBulkSkipOpen(false);
+      stopSelecting();
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't skip those steps");
+    } finally {
+      setBulkPending(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -373,46 +416,53 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
             {inst.permitNotes ? ` · ${inst.permitNotes}` : ""}
           </p>
         )}
-        {unassigned.length > 0 && (
-          <Callout
-            tone="warning"
-            className="mt-3"
-            icon={ShieldAlert}
-            title={
-              progress.unassigned > 0
-                ? `${progress.unassigned} step${progress.unassigned === 1 ? " needs" : "s need"} an owner now`
-                : "Some later steps have no owner yet"
-            }
-            action={
-              data.permissions.canCoordinate ? (
-                <Button size="sm" variant="outline" className="h-7 bg-white text-xs" onClick={() => setTeamOpen(true)}>
-                  Assign roles
-                </Button>
-              ) : undefined
-            }
-          >
-            No one is set for: {unassigned.map((r) => WORKFLOW_ROLE_LABEL[r]).join(", ")}.
-          </Callout>
-        )}
       </div>
 
       {/* Phases */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-xs text-muted-foreground"
+          onClick={() => {
+            setAllOpen((o) => !o);
+            setOpenGen((g) => g + 1);
+          }}
+        >
+          {allOpen ? <ChevronsDownUp className="size-3.5" /> : <ChevronsUpDown className="size-3.5" />}
+          {allOpen ? "Collapse all" : "Expand all"}
+        </Button>
+        {canWorkSteps && inst.status !== "COMPLETED" &&
+          (selecting ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{selected.size} selected</span>
+              <Button size="sm" variant="outline" className="h-7 text-xs" disabled={selected.size === 0} onClick={() => setBulkSkipOpen(true)}>
+                <SkipForward className="size-3.5" /> Skip selected…
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={stopSelecting}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setSelecting(true)}>
+              <SkipForward className="size-3.5" /> Select steps that don&apos;t apply
+            </Button>
+          ))}
+      </div>
       <div className="space-y-2">
         {(data.phases ?? []).map((phase) => {
           const rows = phase.taskIds.map((id) => tasksById.get(id)).filter((t): t is WorkflowTaskItem => Boolean(t));
           const visible = rows.filter(matches);
           // The chips count the current workflow; the earlier version's rows stay out of a filtered view.
           if (chip && (visible.length === 0 || phase.legacy)) return null;
-          // Open what someone can act on; a phase that is finished, or still waiting, stays folded.
-          const actionable = phase.progress.ready + phase.progress.inProgress + phase.progress.blocked > 0;
           let n = 0;
           return (
             <PhaseSection
-              key={phase.key}
+              key={`${phase.key}:${openGen}`}
               phase={phase}
               visibleCount={visible.length}
-              defaultOpen={actionable && !phase.legacy}
-              forceOpen={Boolean(chip)}
+              defaultOpen={allOpen && !phase.legacy}
+              forceOpen={Boolean(chip) || selecting}
               onAddTask={data.permissions.canCoordinate && !phase.legacy ? () => setAddPhaseKey(phase.key) : undefined}
               onCatchUp={data.permissions.canCatchUp && !phase.legacy && phase.moduleKey !== "other" ? () => setCatchUpPhase(phase) : undefined}
             >
@@ -423,7 +473,10 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
                   index={(n += 1)}
                   users={users}
                   canEdit={!phase.legacy && mayEditRow(t)}
-                  canCoordinate={!phase.legacy && data.permissions.canCoordinate}
+                  canCoordinate={!phase.legacy && canWorkSteps}
+                  selecting={selecting && !phase.legacy}
+                  selected={selected.has(t.id)}
+                  onToggleSelect={() => toggleSelected(t.id)}
                   onOpen={() => setOpenTaskId(t.id)}
                   onUpdate={(patch) => rowUpdate(t, patch)}
                   onSkip={() => setSkipTarget(t)}
@@ -458,6 +511,15 @@ export function WorkflowPanel({ subject }: { subject: WorkflowSubjectRef }) {
         onConfirm={(reason) =>
           skipTarget && update.mutate({ id: skipTarget.id, patch: { status: "CANCELLED", skipReason: reason } as UpdatePatch }, { onSuccess: () => setSkipTarget(null) })
         }
+      />
+      <SkipTaskDialog
+        task={null}
+        bulk={{ count: selected.size, gates: selectedGates }}
+        open={bulkSkipOpen}
+        onOpenChange={setBulkSkipOpen}
+        pending={bulkPending}
+        canOverrideGate={data.permissions.canOverrideGate}
+        onConfirm={(reason) => void skipSelected(reason)}
       />
       <CatchUpDialog subject={subject} phase={catchUpPhase} open={Boolean(catchUpPhase)} onOpenChange={(o) => !o && setCatchUpPhase(null)} />
       <CompleteTaskDialog

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { overdueWhere } from "@/lib/calendar/status";
 import { getSession, unauthorized, forbidden } from "@/lib/auth/helpers";
 import { canViewWorkflowReports, workflowHealthScope } from "@/lib/workflows/access";
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       prisma.lead.groupBy({ by: ["assignedUserId"], _count: { id: true }, where: leadWhere }),
       prisma.task.count({
         where: {
-          AND: [overdueWhere(new Date()), ACTIVE_OPEN_WHERE, dashboardTaskWhere({ scope, userId: session.user.id })],
+          AND: [overdueWhere(new Date()), TASK_WORK_WHERE, dashboardTaskWhere({ scope, userId: session.user.id })],
         },
       }),
     ]);

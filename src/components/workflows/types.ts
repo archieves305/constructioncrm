@@ -143,7 +143,7 @@ export type JobWorkflowData = {
     createdAt: string;
     lead?: LeadLabel | null;
   };
-  permissions: { canApply: boolean; canSetPermit: boolean; canCoordinate: boolean; canOverrideGate: boolean; canCatchUp?: boolean };
+  permissions: { canApply: boolean; canSetPermit: boolean; canCoordinate: boolean; canOverrideGate: boolean; canCatchUp?: boolean; canWorkSteps?: boolean };
   instance: {
     id: string;
     status: JobWorkflowStatus;

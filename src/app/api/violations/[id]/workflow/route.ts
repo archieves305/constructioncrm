@@ -8,7 +8,6 @@ import { readCaseWorkflow } from "@/lib/workflows/read";
 import { visibilityScopeFor } from "@/lib/workflows/visibility";
 import { canApplyWorkflow, canCoordinateWorkflow, canSetPermitStatus } from "@/lib/workflows/access";
 import { determinePermit, reconcileScope, ReconcileError } from "@/lib/workflows/reconcile";
-import { reassignUnresolved } from "@/lib/workflows/roles";
 import { toJobScope } from "@/lib/violations/access";
 import { requireCase } from "@/lib/violations/route-helpers";
 import type { WorkflowRole } from "@/generated/prisma/client";
@@ -55,9 +54,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           await prisma.jobWorkflowTeamMember.deleteMany({ where: { instanceId: instance.id, role } });
         }
       }
-      const reassigned = await reassignUnresolved(instance.id, user.id);
       await recordAudit({ actorUserId: user.id, entityType: "JobWorkflowInstance", entityId: instance.id, action: "workflow_team_changed", before, after: body.team });
-      result.team = { reassigned };
+      result.team = { reassigned: 0 };
     }
     if (body.permit !== undefined) {
       result.permit = await determinePermit({ instanceId: instance.id, status: body.permit.status, notes: body.permit.notes ?? null, documentFileId: body.permit.documentFileId ?? null, jurisdiction: body.permit.jurisdiction, actor: user });

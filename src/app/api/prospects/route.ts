@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession, unauthorized, badRequest } from "@/lib/auth/helpers";
 import { createProspectSchema } from "@/lib/validators/prospect";
 import { Prisma } from "@/generated/prisma/client";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { guardLeadCreate } from "@/lib/access/records";
 
 // Shape returned for prospect lists/cards: core fields + knock count + latest
@@ -65,12 +65,12 @@ export async function GET(request: NextRequest) {
   const [open, overdue] = await Promise.all([
     prisma.task.groupBy({
       by: ["prospectId"],
-      where: { prospectId: { in: ids }, ...ACTIVE_OPEN_WHERE },
+      where: { prospectId: { in: ids }, ...TASK_WORK_WHERE },
       _count: { _all: true },
     }),
     prisma.task.groupBy({
       by: ["prospectId"],
-      where: { prospectId: { in: ids }, ...ACTIVE_OPEN_WHERE, dueAt: { lt: now } },
+      where: { prospectId: { in: ids }, ...TASK_WORK_WHERE, dueAt: { lt: now } },
       _count: { _all: true },
     }),
   ]);

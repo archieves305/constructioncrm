@@ -20,7 +20,7 @@ import { APP_TIME_ZONE, dayKey, diffDayKeys, startOfDayIn } from "@/lib/time/zon
 import { vendorsNeedingDocuments } from "@/lib/vendors/compliance-load";
 import { violationVisibilityFilter } from "@/lib/violations/access";
 import { OPEN_CASE_STATUSES } from "@/lib/violations/rules";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { ACTIVE_OPEN_WHERE, TASK_WORK_WHERE } from "@/lib/workflows/state";
 import {
   ATTENTION_LIST_LIMIT,
   PERMIT_EXPIRING_DAYS,
@@ -96,7 +96,7 @@ export function qualificationsExpiringWhere(ctx: AttentionContext): Prisma.Quali
 }
 
 export function overdueTasksWhere(ctx: AttentionContext): Prisma.TaskWhereInput {
-  return { AND: [overdueWhere(ctx.now), ACTIVE_OPEN_WHERE, dashboardTaskWhere({ scope: ctx.scope, userId: ctx.user.id })] };
+  return { AND: [overdueWhere(ctx.now), TASK_WORK_WHERE, dashboardTaskWhere({ scope: ctx.scope, userId: ctx.user.id })] };
 }
 
 /** A workflow inspection step blocked by a failed result, or the open correction task of an inspection no step carried. */
@@ -222,7 +222,7 @@ async function delayedJobs(ctx: AttentionContext) {
  * Always company-wide: it is the manager's view of who is behind.
  */
 async function overdueByPerson(ctx: AttentionContext) {
-  const where = { AND: [overdueWhere(ctx.now), ACTIVE_OPEN_WHERE] };
+  const where = { AND: [overdueWhere(ctx.now), TASK_WORK_WHERE] };
   const groups = await prisma.task.groupBy({ by: ["assignedUserId"], where, _count: { _all: true }, _min: { dueAt: true } });
   const users = await prisma.user.findMany({ where: { id: { in: groups.map((g) => g.assignedUserId).filter((x): x is string => !!x) } }, select: { id: true, firstName: true, lastName: true, isActive: true } });
   const name = new Map(users.map((u) => [u.id, `${u.firstName} ${u.lastName}${u.isActive ? "" : " (inactive)"}`]));

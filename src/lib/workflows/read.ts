@@ -94,6 +94,9 @@ function permissionsFor(user: Viewer, subjectScope: JobScope) {
     canCoordinate: canCoordinateWorkflow(user, subjectScope),
     canOverrideGate: canOverrideBlockingGate(user.role),
     canCatchUp: canCatchUpWorkflow(user, subjectScope),
+    /** Complete / skip steps: whoever coordinates, plus the workflow's team (steps belong to nobody). Mirrors `taskRightsFor`. */
+    canWorkSteps:
+      user.role !== "READ_ONLY" && (canCoordinateWorkflow(user, subjectScope) || (subjectScope.teamUserIds ?? []).includes(user.id)),
   };
 }
 

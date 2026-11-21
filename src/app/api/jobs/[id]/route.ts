@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { forViewer } from "@/lib/access/crew-redact";
 import { prisma } from "@/lib/db/prisma";
 import { rescheduleTargetStart } from "@/lib/workflows/reschedule";
-import { reassignUnresolved } from "@/lib/workflows/roles";
 import { parseDueAt } from "@/lib/tasks/dates";
 import { getSession, unauthorized, forbidden, badRequest } from "@/lib/auth/helpers";
 import { redactJobMoney } from "@/lib/money/redact";
@@ -238,7 +237,6 @@ export async function PATCH(
           await prisma.jobWorkflowTeamMember.deleteMany({ where: { instanceId: wf.id, role } });
         }
       }
-      await reassignUnresolved(wf.id, session.user.id);
     }
   }
   // A PM or a start date now on the job may be a checklist line some step was waiting to have ticked.

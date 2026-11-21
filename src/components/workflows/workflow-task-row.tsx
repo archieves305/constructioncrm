@@ -3,6 +3,7 @@
 import { format, isToday } from "date-fns";
 import { CheckSquare, Lock, MessageSquare, MoreHorizontal, Paperclip, ShieldAlert, Play, RotateCcw, SkipForward, Eye, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import {
 import { AssigneePicker } from "@/components/tasks/assignee-picker";
 import type { UpdatePatch, UserOption } from "@/components/tasks/types";
 import { WORKFLOW_ROLE_LABEL } from "@/lib/workflows/role-labels";
+import { isTemplateStepKey } from "@/lib/workflows/state";
 import { cn } from "@/lib/utils";
 import { deriveTaskState, isOpenState, WORKFLOW_STATE_LABEL, WORKFLOW_STATE_PILL } from "./status";
 import type { WorkflowTaskItem } from "./types";
@@ -21,8 +23,10 @@ import { isPastDue } from "@/lib/calendar/status";
 
 /**
  * One step in a phase. Everything a coordinator needs at a glance — state,
- * owner, due, what it waits on, what it needs — with inline edits for owner
- * and date and a menu for the state moves that need a dialog.
+ * role, due, what it waits on, what it needs — with an inline date edit and a
+ * menu for the state moves that need a dialog. Workflow steps belong to
+ * nobody (2026-11-21): they show the role that usually does them, never a
+ * person; only a manual task added to a phase has an owner.
  */
 export function WorkflowTaskRow({
   task,
@@ -35,6 +39,9 @@ export function WorkflowTaskRow({
   onSkip,
   onComplete,
   onQuickComplete,
+  selecting,
+  selected,
+  onToggleSelect,
 }: {
   task: WorkflowTaskItem;
   index: number;
@@ -48,6 +55,10 @@ export function WorkflowTaskRow({
   onComplete: () => void;
   /** Completes in one click; only offered when the step has nothing left to tick and no gate. */
   onQuickComplete?: () => void;
+  /** "Select steps that don't apply": a tick box on each open step. */
+  selecting?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const state = deriveTaskState(task);
   const open = isOpenState(state);
@@ -73,6 +84,13 @@ export function WorkflowTaskRow({
         state === "COMPLETED" || state === "SKIPPED" ? "bg-surface-subtle/60" : "bg-white",
       )}
     >
+      {selecting && (
+        <span className="flex w-5 shrink-0 justify-center">
+          {open && isStep && canCoordinate ? (
+            <Checkbox checked={Boolean(selected)} onCheckedChange={() => onToggleSelect?.()} aria-label={`Select ${task.title}`} />
+          ) : null}
+        </span>
+      )}
       <span className="w-6 shrink-0 text-right text-2xs tabular-nums text-muted-foreground">{index}</span>
       <Badge
         className={cn("h-5 shrink-0 border-0 px-1.5 text-3xs font-medium", WORKFLOW_STATE_PILL[state])}
@@ -142,10 +160,21 @@ export function WorkflowTaskRow({
             <Check className="size-3.5" /> {oneClick ? "Done" : "Complete…"}
           </Button>
         )}
+        {open && isStep && canCoordinate && !selecting && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 px-2 text-2xs text-muted-foreground"
+            title="This step doesn't apply to this job — skip it with a reason"
+            onClick={onSkip}
+          >
+            <SkipForward className="size-3.5" /> N/A
+          </Button>
+        )}
         {notActive ? (
-          // A waiting step is not anyone's to schedule yet: say who it goes to, nothing to edit.
-          <span className="w-[140px] truncate text-right text-2xs text-muted-foreground">
-            {task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : "No owner yet"}
+          // A waiting step has nothing to schedule yet; its target date is shown, not edited.
+          <span className="w-[132px] truncate text-right text-2xs text-muted-foreground">
+            {due ? `target ${format(due, "MMM d")}` : "waiting"}
           </span>
         ) : (
         <>
@@ -175,13 +204,15 @@ export function WorkflowTaskRow({
             </button>
           )}
         </div>
-        <AssigneePicker
-          size="sm"
-          className="h-7 w-[140px] text-2xs"
-          value={task.assignedTo?.id ?? null}
-          users={users}
-          onChange={(id) => canEdit && onUpdate({ assignedUserId: id })}
-        />
+        {!isTemplateStepKey(task.workflowTaskKey) && (
+          <AssigneePicker
+            size="sm"
+            className="h-7 w-[140px] text-2xs"
+            value={task.assignedTo?.id ?? null}
+            users={users}
+            onChange={(id) => canEdit && onUpdate({ assignedUserId: id })}
+          />
+        )}
         </>
         )}
         <DropdownMenu>
@@ -210,7 +241,7 @@ export function WorkflowTaskRow({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onSkip}>
-                  <SkipForward className="size-4" /> Skip step…
+                  <SkipForward className="size-4" /> Doesn&apos;t apply — skip…
                 </DropdownMenuItem>
               </>
             )}

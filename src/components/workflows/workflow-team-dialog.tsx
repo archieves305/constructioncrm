@@ -52,7 +52,7 @@ export function WorkflowTeamDialog({
         <DialogHeader>
           <DialogTitle>Workflow team</DialogTitle>
           <DialogDescription>
-            Each role&apos;s steps go to the person named here. Empty slots fall back to the job&apos;s PM and sales rep, then the company defaults.
+            The people on this team can complete and skip the workflow&apos;s steps — nobody is handed them as tasks. The project manager and sales rep named here become the job&apos;s own.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">

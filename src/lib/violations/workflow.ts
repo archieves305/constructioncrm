@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db/prisma";
 import { applyWorkflow, previewWorkflow, WorkflowApplyError, type ApplyInput } from "@/lib/workflows/apply";
 import { compose } from "@/lib/workflows/compose";
 import { loadPublishedVersion, toComposeModule } from "@/lib/workflows/load";
-import { loadRoleContext, resolveAssignee, unassignedRoles } from "@/lib/workflows/roles";
 import { auditCase } from "./audit";
 import { ViolationError } from "./errors";
 import { recordCaseEvent } from "./events";
@@ -78,9 +77,7 @@ export async function previewTemplateForIntake(input: { templateKey: string; per
   const mod = toComposeModule(v);
   if (mod.kind !== "VIOLATION") throw new ViolationError(400, `"${input.templateKey}" is not a violation template`);
   const plan = compose({ modules: [mod], permitStatus: input.permitStatus, scopeToggles: { [input.templateKey]: input.scopeToggles } });
-  const base = await loadRoleContext(prisma, { teamOverride: input.team });
-  const roleCtx = { ...base, caseManagerId: input.caseManagerId };
-  const tasks = plan.tasks.map((t) => ({ key: t.key, phaseKey: t.phaseKey, title: t.title, role: t.role, assigneeId: resolveAssignee(t.role, roleCtx), blocking: t.blocking, initiallyActive: t.initiallyActive, dueAt: null as string | null, exists: false }));
+  const tasks = plan.tasks.map((t) => ({ key: t.key, phaseKey: t.phaseKey, title: t.title, role: t.role, assigneeId: null as string | null, blocking: t.blocking, initiallyActive: t.initiallyActive, dueAt: null as string | null, exists: false }));
   const rolesUsed = Array.from(new Set(plan.tasks.map((t) => t.role)));
   return {
     modules: plan.modules,
@@ -97,7 +94,7 @@ export async function previewTemplateForIntake(input: { templateKey: string; per
     },
     estimatedBusinessDays: 0,
     rolesUsed,
-    unassignedRoles: unassignedRoles(rolesUsed, roleCtx),
+    unassignedRoles: [] as WorkflowRole[],
     potentialDuplicates: [] as { taskId: string; title: string; matchesKey: string }[],
     supersededTasks: [] as { taskId: string; title: string }[],
     warnings: plan.warnings,

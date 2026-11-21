@@ -2,7 +2,7 @@ import type { JobMoneyView } from "@/lib/money/access";
 import { prisma } from "@/lib/db/prisma";
 import { isPastDue } from "@/lib/calendar/status";
 import { APP_TIME_ZONE, dayKey, diffDayKeys, addDayKeys, endOfDayIn } from "@/lib/time/zone";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { loadJobWorkflowSummaries } from "@/lib/workflows/summary";
 import { getJobCostSummary } from "@/lib/services/job-cost";
 import { deriveJobHealth, type JobHealth } from "./health";
@@ -83,7 +83,7 @@ export async function loadJobOverview(jobId: string, now: Date = new Date()) {
   ] = await Promise.all([
     loadJobWorkflowSummaries([jobId], now),
     prisma.task.findMany({
-      where: { jobId, ...ACTIVE_OPEN_WHERE },
+      where: { jobId, ...TASK_WORK_WHERE },
       orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
       select: {
         id: true, title: true, status: true, dueAt: true, allDay: true, blockedReason: true,

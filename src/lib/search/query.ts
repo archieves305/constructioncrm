@@ -5,7 +5,7 @@ import { prospectVisibilityWhere } from "@/lib/prospects/access";
 import { taskVisibilityFilter, type VisibilityScope } from "@/lib/tasks/access";
 import { taskSearchWhere } from "@/lib/tasks/query";
 import { buildViolationListWhere, parseViolationListParams } from "@/lib/violations/query";
-import { ACTIVE_OPEN_WHERE } from "@/lib/workflows/state";
+import { TASK_WORK_WHERE } from "@/lib/workflows/state";
 import { canViewVendors } from "@/lib/vendors/access";
 import { canViewPartners } from "@/lib/partners/access";
 import { buildContactListWhere, buildOrgListWhere } from "@/lib/partners/query";
@@ -51,7 +51,7 @@ export function buildSearchWheres(q: string, ctx: SearchContext): SearchWheres {
         },
       ],
     },
-    tasks: { AND: [ACTIVE_OPEN_WHERE, taskSearchWhere(search), taskVisibilityFilter(ctx.user, ctx.scope)] },
+    tasks: { AND: [TASK_WORK_WHERE, taskSearchWhere(search), taskVisibilityFilter(ctx.user, ctx.scope)] },
     vendors: canViewVendors(ctx.user.role)
       ? {
           OR: [
