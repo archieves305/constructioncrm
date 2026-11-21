@@ -803,7 +803,7 @@ now holds the App Store signing and an App Store Connect API key, so future
 builds and submits can run from a session (`npm run build:prod:ios --
 --non-interactive --auto-submit` in `mobile/`).
 
-### 2026-11-21 — Review-request email redesign (committed from an earlier session's uncommitted work, not deployed)
+### 2026-11-21 — Review-request email redesign (deployed `50fec68`)
 
 Found uncommitted in the main checkout (dated 2026-11-04, no record of it):
 the email a customer gets when a job closes is now a branded thank-you
@@ -815,8 +815,11 @@ reply. `sendReviewRequestIfNeeded` skips GC bid jobs and opted-out leads, adds
 the unsubscribe link and reports failures through `reportDelivery`. Email
 shell: full width on a phone, 600 px in Outlook. Rebased onto `origin/main`
 cleanly. Gate: typecheck clean, lint 5/21, 2256 tests, build clean. Not looked
-at in a mail client. **Deploy carries the migration**; then set the Google
-review link under Admin → Branding.
+at in a mail client. Richard pushed and deployed from `!` (fresh clone, 363 s,
+exit 0): BUILD_ID `qwVdNctRtIJJ8Y9G3F0NW` → `OyafDK_FnV_hy0I7fRLtv`, migration
+applied (`email_brand.review_url` nullable), smoke 307 ×2, journal clean,
+backup `postgres-2026-11-21-152237.dump`. Next: Richard sets the Google review
+link under Admin → Branding → Customer reviews.
 
 ### 2026-11-21 — Workflow steps become a checklist, never assigned (deployed `5331b5d`, prod steps unassigned)
 
