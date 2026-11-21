@@ -803,7 +803,7 @@ now holds the App Store signing and an App Store Connect API key, so future
 builds and submits can run from a session (`npm run build:prod:ios --
 --non-interactive --auto-submit` in `mobile/`).
 
-### 2026-11-21 — Workflow steps become a checklist, never assigned (built + dev-QA'd on `workflow-checklist`, not deployed)
+### 2026-11-21 — Workflow steps become a checklist, never assigned (deployed `5331b5d`, prod steps unassigned)
 
 Richard: "I do not want the tasks automatically assigned to the users … a lot
 of tasks and a lot of noise and then the users do not complete the tasks";
@@ -843,8 +843,13 @@ SALES_REP with a team slot starts and skips a step, is refused the gate, and
 gets 403 on a job he is not on; headless Chromium 11/11 at 1440 / 400 px
 (phases open, N/A, select → Skip 2, Collapse all, no page errors). Dev DB
 restored. Not exercised: a failed inspection's correction task end to end
-(unit-tested). **After the deploy: the unassign script's dry run on prod,
-shown to Richard; `--yes` only on his word.**
+(unit-tested). Richard pushed and deployed from `!` (a fresh clone in /tmp,
+the main checkout being dirty; 428 s, exit 0): BUILD_ID `A1pNvzke4d2nhhAHdw7Sa`
+→ `qwVdNctRtIJJ8Y9G3F0NW`, no pending migrations, smoke 307 ×2, journal clean,
+backup `postgres-2026-11-21-145149.dump`. Unassign dry run on prod: 266
+untouched steps (Lisette 136, Richard 78, Erica 33, Elizabeth 18, Jorge 1)
+across 13 jobs + 3 cases; 1 in-progress step kept. Richard: "go" → `--yes`
+unassigned 266, failed 0; re-run 0.
 
 ### 2026-10-30 — CareyOS Work integration endpoints (built + dev-QA'd on `feat/work-integration`, not deployed)
 
@@ -4107,12 +4112,10 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **Workflow steps as a checklist (never assigned) is on branch
-> `workflow-checklist`, not deployed; no migration.** After Richard's push +
-> deploy: `scripts/unassign-workflow-steps-2026-11.ts` dry run on prod → show
-> him the per-person / per-job counts → `--yes` on his word. Click-through: a
-> job → Workflow (every phase open, N/A, Select steps that don't apply); /tasks
-> and the calendar carry no steps.
+> **Workflow steps as a checklist is on prod (`5331b5d`, BUILD_ID
+> `qwVdNctRtIJJ8Y9G3F0NW`); the 266 auto-assigned untouched steps were cleared.**
+> Click-through: a job → Workflow (every phase open, N/A, Select steps that
+> don't apply); /tasks and the calendar carry no steps.
 
 > **Plan takeoff → roofing estimate is on prod (`31ea283`, BUILD_ID
 > `uOQQcpC96ddOs9xGzu4Fx`).** Click-through: a roofing
