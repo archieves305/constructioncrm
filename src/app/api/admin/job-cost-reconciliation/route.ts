@@ -57,6 +57,9 @@ export async function GET() {
     orderBy: { decidedAt: "desc" },
   });
   const ackByExt = new Map(acks.map((a) => [a.externalId, a]));
+  // Lines taken as crew payments (crew mode) are held on a labor payment, not an
+  // expense: they are in the CRM, counted once on the crew's labor contract.
+  const crewLines = await prisma.laborPayment.findMany({ where: { allocatorExternalId: { not: null } }, select: { id: true, allocatorExternalId: true } });
 
   // cc-allocator's side, with CRM job numbers attached where the id resolves.
   let allocatorOut: Record<string, unknown> = { configured: false };
@@ -64,7 +67,10 @@ export async function GET() {
   if (allocator.configured && allocator.ok) {
     const classes = classifyAllocatorPostings(
       allocator.data.postings,
-      externalRows.map((r) => ({ id: r.id, externalId: r.externalId as string, status: r.status })),
+      [
+        ...externalRows.map((r) => ({ id: r.id, externalId: r.externalId as string, status: r.status })),
+        ...crewLines.map((c) => ({ id: c.id, externalId: c.allocatorExternalId as string, status: "APPROVED" as const })),
+      ],
       new Set(ackByExt.keys()),
     );
     const jobIds = Array.from(new Set([...classes.missingInCrm, ...classes.acknowledged, ...classes.neverPosted, ...classes.heldPending].map((p) => p.crmJobId).filter((x): x is string => Boolean(x))));

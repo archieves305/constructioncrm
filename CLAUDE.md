@@ -623,7 +623,15 @@ Plan approved: `~/.claude/plans/on-the-workflow-for-jaunty-ritchie-…md`.
   - a crew payment's bare date is pinned to noon UTC (it showed the day before).
 - **Gate:** typecheck clean, lint clean on the touched files, 2301 tests (+14), build clean.
 - **Dev QA** (stand-in CC Allocator, mail blanked): API 27/27, headless dialog + rows at 1440 / 400 px, no page errors. Dev DB restored.
-- **Deploy carries the migration.** The Paid from list stays "unavailable" until CC Allocator ships `/api/internal/crm-accounts` (the CC Allocator half).
+- **Cost Reconciliation** treats a crew-linked line as present: matched against `labor_payments.allocator_external_id`, never "missing" / "never posted".
+- **End-to-end QA with the CC Allocator half** (`feat/crm-crew-payments`, both apps local), 22/22:
+  - account list rules (customer job = BofA only; flip = BofA, Seacoast and the Amex on Equifirst);
+  - Paid from through CC Allocator;
+  - a Zelle line pre-fills the CRM payment; opening the drawer writes nothing;
+  - link → CRM leg → payment linked, no expense;
+  - an Amex line recorded on the contract settles the open request;
+  - locks; reconciliation clean.
+- **Deploy carries the migration; deploy the CRM first.** Until CC Allocator's half is live, the Paid from list says "unavailable".
 
 ### 2026-11-21 — CC Allocator → CRM Phase 1, step 3: intake status, status endpoint, crew-payment holds (built + dev-QA'd on `allocator-status`, not deployed)
 
