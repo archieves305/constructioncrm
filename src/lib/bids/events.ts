@@ -27,7 +27,12 @@ export async function opportunityOwnerId(bidId: string, fallbackUserId: string):
 }
 
 /** Raise one follow-up action and its task (a half-hour call window from `dueAt`), once per slot. Returns false when the slot was already raised. */
-export async function raiseActionTask(input: { bidId: string; slotKey: string; kind: "CALL" | "REVIEW" | "URGENT_CALL"; reason: string; dueAt: Date; title: string; description: string; priority: "MEDIUM" | "HIGH" | "URGENT"; actorUserId: string | null; planInputs?: Record<string, unknown>; assigneeUserId?: string | null }): Promise<boolean> {
+export async function raiseActionTask(input: {
+  bidId: string; slotKey: string; kind: "CALL" | "EMAIL" | "REVIEW" | "URGENT_CALL"; reason: string; dueAt: Date; title: string; description: string;
+  priority: "MEDIUM" | "HIGH" | "URGENT"; actorUserId: string | null; planInputs?: Record<string, unknown>; assigneeUserId?: string | null;
+  /** An email slot's draft, made once the slot is claimed and before its task; returns the BidMessage id. */
+  makeMessage?: (ownerId: string | null) => Promise<string>;
+}): Promise<boolean> {
   const bid = await prisma.bidInvitation.findUnique({ where: { id: input.bidId }, select: { leadId: true, organizationId: true } });
   if (!bid) return false;
   try {
@@ -37,11 +42,12 @@ export async function raiseActionTask(input: { bidId: string; slotKey: string; k
     throw e;
   }
   const owner = input.assigneeUserId || (await opportunityOwnerId(input.bidId, input.actorUserId ?? ""));
+  const messageId = input.makeMessage ? await input.makeMessage(owner || null) : null;
   const task = await createTask(
     { title: input.title, description: input.description, priority: input.priority, scheduledStart: input.dueAt, dueAt: new Date(input.dueAt.getTime() + 30 * 60_000), allDay: false, assignedUserId: owner || null, createdByUserId: owner || input.actorUserId || "", leadId: bid.leadId, source: "auto", sourceKey: bidTaskKey(input.bidId, input.slotKey) },
     { actorUserId: input.actorUserId, notify: "after" },
   );
-  await prisma.bidFollowUpAction.update({ where: { bidInvitationId_slotKey: { bidInvitationId: input.bidId, slotKey: input.slotKey } }, data: { status: "RAISED", taskId: task.id } });
+  await prisma.bidFollowUpAction.update({ where: { bidInvitationId_slotKey: { bidInvitationId: input.bidId, slotKey: input.slotKey } }, data: { status: "RAISED", taskId: task.id, messageId } });
   await prisma.bidInvitation.update({ where: { id: input.bidId }, data: { nextActionAt: input.dueAt, nextActionLabel: input.title } });
   return true;
 }

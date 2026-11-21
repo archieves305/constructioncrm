@@ -1,6 +1,7 @@
 "use client";
 
 import { introCallsLine, type IntroCallToast } from "@/components/bids/intro-call-toast";
+import { FollowUpCard } from "@/components/bids/follow-up-card";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -65,6 +66,7 @@ export function BidPanel({ bidId }: { bidId: string }) {
       <DatesCard bid={b} />
       <DecisionCard bid={b} />
       <SubmissionsCard bid={b} onSubmit={() => setSubmitting(true)} />
+      <FollowUpCard bidId={b.id} />
       {!open && <OutcomeCard bid={b} />}
       {p.canManage && <BidFormDialog open={editing} onOpenChange={setEditing} editing={b} onSaved={() => undefined} />}
       {p.canManage && <SubmissionDialog open={submitting} onOpenChange={setSubmitting} bid={b} />}

@@ -33,6 +33,7 @@ export const ATTENTION_KEYS = [
   "qualifications-expiring",
   "company-docs-expiring",
   "bids-due",
+  "bid-follow-ups-due",
   "bids-awaiting-decision",
   "leads-uncontacted",
   "estimates-outstanding",
@@ -209,6 +210,13 @@ export const ATTENTION_ROWS: readonly AttentionRowDef[] = [
     label: "Bids due this week",
     description: `Open bid packages due within ${BIDS_DUE_DAYS} days, or past due, that have not been submitted.`,
     tone: "danger",
+    roles: PRODUCTION,
+  },
+  {
+    key: "bid-follow-ups-due",
+    label: "Bid follow-ups due",
+    description: "Calls and drafted emails the bid cadence raised after a bid went out, due today or late. Logging the call, or sending the email, closes them.",
+    tone: "warning",
     roles: PRODUCTION,
   },
   {

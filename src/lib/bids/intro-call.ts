@@ -36,7 +36,7 @@ export type IntroCallPlan = { dueAt: Date; dueDay: DayKey; title: string; descri
 
 const money = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
-function contactLine(c: IntroCallContact): string {
+export function contactLine(c: IntroCallContact): string {
   const reach = [c.phone && `office ${c.phone}`, c.mobile && `mobile ${c.mobile}`, !c.phone && !c.mobile && c.email && `email ${c.email} (no phone on file)`].filter(Boolean).join(", ");
   return `- ${c.name}${c.title ? `, ${c.title}` : ""}${reach ? ` — ${reach}` : " — no phone or email on file"}`;
 }

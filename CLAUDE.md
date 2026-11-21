@@ -803,6 +803,49 @@ now holds the App Store signing and an App Store Connect API key, so future
 builds and submits can run from a session (`npm run build:prod:ios --
 --non-interactive --auto-submit` in `mobile/`).
 
+### 2026-11-21 — PlanHub Stage 1c: the follow-up cadence (built + dev-QA'd on `planhub-1c`, not deployed)
+
+"start on 1c". Branch from `origin/main` with the never-pushed intro-call commit
+(`ac7c030`, 2026-11-19) cherry-picked first. No migration — 1a had created every
+1c table. Pure `lib/bids/cadence.ts` (anchor = a set date, else the GC's sub
+deadline, else the submission when it went late; +5 business days email, +10
+call, +20 email, then every 15 alternating, ×4; holidays from `BusinessHoliday`;
+a GC-requested day drops the earlier steps and adds a call; expected award +1
+business day a call; email / all pauses; review after 90 calendar days with no
+meaningful contact; only the latest overdue touch is raised, earlier ones
+SUPERSEDED; no email address → the email step is a call) and
+`lib/bids/templates.ts` (four templates, merge-only from records — an unknown
+clause is reworded, never invented; seeded create-only by `prisma/seed-bids.ts`).
+`lib/bids/follow-ups.ts`: `runBidFollowUps` (SUBMITTED / SHORTLISTED bids with
+a submission; call / review → task via `raiseActionTask`, email → a `BidMessage`
+draft + task; closed bids' open follow-ups cancelled), `logBidCall` (closes the
+due call, and when SPOKE the due email too with its draft; a named day becomes
+the next follow-up), `logBidReply` (inbound Communication, drafts withdrawn,
+emails paused until the named day or 15 business days), `setBidNextAction`
+(date / pause / resume / anchor), drafts edit / mark sent (from Outlook) /
+send (only with `BID_EMAIL_SEND_ENABLED=1`, off — SPF) / discard, every sent
+email a Communication + Interaction on the lead. `bidfu:` task close hook in
+`updateTask`; a closing bid (`syncOpportunity`, legacy `closeBid`) cancels its
+follow-ups. Routes: `POST /api/cron/bid-follow-ups` (`?dryRun=1`),
+`GET|POST /api/bids/[id]/follow-ups`, `PATCH|POST /api/bid-messages/[id]`.
+Follow-up card on the lead's Bid tab (anchor, next, coming up, drafts, Log call
+/ Log reply / Next date or pause); attention row `bid-follow-ups-due`. The
+existing "My follow-ups" queue now orders on the cadence's next action. Not
+built (Phase 2 per the plan): the AI-worded draft (merge only), the tighter
+cadence after GC_AWARDED (the urgent call exists), escalations, settings /
+template editors, notification kinds (tasks notify as tasks). Gate: typecheck
+clean, lint 5/21, 2280 tests (+17), build clean. Dev QA (mail / AI blanked) on
+the QA PlanHub bids: API 34/34 (dry run writes nothing; an old bid raises one
+touch, 2 superseded; no email → call; a draft with no unfilled field; second
+run 0; send refused while off; mark sent closes task + slot, logs the email;
+spoken call closes the due email and withdraws its draft; past day 400; reply
+pauses emails; pause all closes open follow-ups; 0 notification rows), task
+completed on /tasks → slot DONE, SALES_REP 404 on another's bid (card, call,
+draft), headless Chromium 10/10 at 1440 / 400 px. Dev DB restored. **After the
+deploy: `prisma/seed-bids.ts` on prod (it was never run — holidays, settings,
+templates), then the backfill dry run, then the cron wrapper
+`crm-cron/bid-follow-ups.sh` at `*/15 12-23 * * 1-5` (UTC) and a dry run.**
+
 ### 2026-11-21 — Review-request email redesign (deployed `50fec68`)
 
 Found uncommitted in the main checkout (dated 2026-11-04, no record of it):
@@ -4011,6 +4054,13 @@ Notification Digests).
   partner pages (scorecard, analytics) is for `canViewPartnerMoney` roles and
   counts jobs active in the window. An account's `lastContactAt` only moves
   forward (`advanceLastContact`).
+- **A bid's follow-ups come from the cadence, never from a person's memory**
+  (`lib/bids/cadence.ts`, pure): one BidFollowUpAction per slot key (unique), so
+  a run raises each slot once; only the latest overdue touch is raised. A
+  draft is filled from records only (`templates.ts`) and leaves the CRM only
+  when a person sends it (or marks it sent from Outlook) — the cron never
+  sends. Silence never closes a bid. A `bidfu:` task closed anywhere settles
+  its slot; a closing bid cancels its open follow-ups.
 - **A bid's status is the master; its lead's stage only mirrors Won and
   Lost** (`lib/partners/bids.ts`). A `GC_BID` lead is never moved through the
   lead stage route (409) and never fires the lead event; an award creates the
@@ -4143,6 +4193,12 @@ Notification Digests).
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **PlanHub 1c (follow-up cadence) is on `planhub-1c`, not deployed; no
+> migration.** After Richard's push + deploy: run `prisma/seed-bids.ts` on prod,
+> the bid backfill dry run (`scripts/backfill-bid-projects-2026-11.ts`, `--yes`
+> on his word), install the `bid-follow-ups` cron wrapper and run it with
+> `?dryRun=1` first. Click-through: a submitted bid's Bid tab → Follow-up card.
 
 > **Workflow steps as a checklist is on prod (`5331b5d`, BUILD_ID
 > `qwVdNctRtIJJ8Y9G3F0NW`); the 266 auto-assigned untouched steps were cleared.**

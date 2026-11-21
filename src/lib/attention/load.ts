@@ -16,7 +16,7 @@ import { getJobCostRows } from "@/lib/services/job-cost";
 const QUALIFICATION_EXPIRING_DAYS = 90;
 /** A vault document this close to its expiry — the same window the vault alerts use. */
 const VAULT_EXPIRING_DAYS = 30;
-import { APP_TIME_ZONE, dayKey, diffDayKeys, startOfDayIn } from "@/lib/time/zone";
+import { APP_TIME_ZONE, dayKey, diffDayKeys, endOfDayIn, startOfDayIn } from "@/lib/time/zone";
 import { vendorsNeedingDocuments } from "@/lib/vendors/compliance-load";
 import { violationVisibilityFilter } from "@/lib/violations/access";
 import { OPEN_CASE_STATUSES } from "@/lib/violations/rules";
@@ -63,6 +63,16 @@ export function partnerFollowUpsWhere(ctx: AttentionContext): Prisma.TaskWhereIn
   return {
     AND: [
       { organizationId: { not: null }, sourceKey: { startsWith: "org:" }, status: { in: [...OPEN_TASK_STATUSES] }, activatedAt: { not: null } },
+      dashboardTaskWhere({ scope: ctx.scope, userId: ctx.user.id }),
+    ],
+  };
+}
+
+/** Open bid follow-up tasks (the cadence's `bidfu:` slots) due by the end of today. */
+export function bidFollowUpsDueWhere(ctx: AttentionContext): Prisma.TaskWhereInput {
+  return {
+    AND: [
+      { sourceKey: { startsWith: "bidfu:" }, status: { in: [...OPEN_TASK_STATUSES] }, dueAt: { lte: endOfDayIn(dayKey(ctx.now, APP_TIME_ZONE)) } },
       dashboardTaskWhere({ scope: ctx.scope, userId: ctx.user.id }),
     ],
   };
@@ -310,6 +320,7 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "deposits-missing": (ctx) => prisma.job.count({ where: depositsMissingWhere(ctx) }),
   "quiet-jobs": (ctx) => prisma.job.count({ where: quietJobsWhere(ctx) }),
   "partner-follow-ups": (ctx) => prisma.task.count({ where: partnerFollowUpsWhere(ctx) }),
+  "bid-follow-ups-due": (ctx) => prisma.task.count({ where: bidFollowUpsDueWhere(ctx) }),
   "qualifications-expiring": (ctx) => prisma.qualification.count({ where: qualificationsExpiringWhere(ctx) }),
   // Company-wide, so Mine and All agree: the vault belongs to no one account.
   "company-docs-expiring": async (ctx) => (await expiringVaultDocuments(ctx.now)).length,
@@ -622,6 +633,23 @@ const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionCon
     (await overBudgetJobs(ctx)).slice(0, take).map(({ row, over }) =>
       item(row.jobId, { primary: row.address || row.title, secondary: row.title, code: row.jobNumber, placeholder: false }, `${money(row.summary.committed)} committed against ${money(row.summary.estimatedCost)} expected — ${money(over)} over`, null, `/jobs/${row.jobId}?tab=money&sub=budget`),
     ),
+  "bid-follow-ups-due": async (ctx) => {
+    const rows = await prisma.task.findMany({
+      where: bidFollowUpsDueWhere(ctx),
+      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+      take,
+      select: { id: true, title: true, dueAt: true, leadId: true, assignedTo: { select: { firstName: true, lastName: true } } },
+    });
+    return rows.map((t) =>
+      item(
+        t.id,
+        { primary: t.title, secondary: null, code: null, placeholder: false },
+        [t.dueAt ? (t.dueAt < ctx.now ? `was due ${day(t.dueAt)}` : `due ${day(t.dueAt)}`) : null, t.assignedTo ? `${t.assignedTo.firstName} ${t.assignedTo.lastName}` : "unassigned"].filter(Boolean).join(" · "),
+        t.dueAt,
+        t.leadId ? `/leads/${t.leadId}?tab=bid` : `/tasks?task=${t.id}`,
+      ),
+    );
+  },
   "partner-follow-ups": async (ctx) => {
     const rows = await prisma.task.findMany({
       where: partnerFollowUpsWhere(ctx),

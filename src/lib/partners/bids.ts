@@ -484,6 +484,8 @@ export async function closeBid(id: string, input: CloseInput, actorUserId: strin
   if (mirror === "won") job = await awardBid(after, actorUserId);
   else if (mirror === "lost") await moveLeadStage(after.leadId, "lost", actorUserId, `${after.number}: ${input.outcome.toLowerCase().replace("_", " ")}`);
   await settlePartnerFollowUps(bid.organizationId, actorUserId, "A bid closed");
+  const { cancelOpenFollowUps } = await import("@/lib/bids/follow-ups");
+  await cancelOpenFollowUps(id, `the bid closed (${input.outcome.toLowerCase().replace("_", " ")})`, actorUserId);
   return { bid: presentBid(await prisma.bidInvitation.findUniqueOrThrow({ where: { id }, select: BID_SELECT })), job };
 }
 

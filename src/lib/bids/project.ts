@@ -247,6 +247,9 @@ export async function syncOpportunity(bidId: string, actorUserId: string, opts: 
     await prisma.bidInvitation.update({ where: { id: bidId }, data: { status: "CLOSED", outcome: result.outcome, lossReason: result.lossReason, outcomeAt: new Date(), awardedAmount: result.outcome === "AWARDED" ? awarded : null, nextActionAt: null, nextActionLabel: null } });
     await moveLeadStage(bid.leadId, result.outcome === "AWARDED" ? "won" : "lost", actorUserId, `${bid.number}: ${result.outcome.toLowerCase().replace("_", " ")}`);
     await recordAudit({ actorUserId, entityType: "BidInvitation", entityId: bidId, action: "bid_outcome", before: { status: bid.status, outcome: bid.outcome }, after: { outcome: result.outcome, lossReason: result.lossReason, awardedAmount: awarded, from: "scopes" } });
+    // Nothing left to chase: the open follow-up calls and unsent drafts go with it.
+    const { cancelOpenFollowUps } = await import("./follow-ups");
+    await cancelOpenFollowUps(bidId, `the bid closed (${result.outcome.toLowerCase().replace("_", " ")})`, actorUserId);
   } else if (!result.closed && bid.status === "CLOSED") {
     const status = bid._count.submissions ? "SUBMITTED" : "INVITED";
     await prisma.bidInvitation.update({ where: { id: bidId }, data: { status, outcome: null, lossReason: null, outcomeAt: null, awardedAmount: null } });

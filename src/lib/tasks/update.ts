@@ -412,6 +412,10 @@ export async function updateTask(args: UpdateTaskArgs): Promise<UpdateTaskResult
     } else if (existing.sourceKey.startsWith("labor-contract-task:")) {
       const { onScheduleTaskClosed } = await import("@/lib/labor/schedule-task-link");
       await onScheduleTaskClosed(id, task.status);
+    } else if (existing.sourceKey.startsWith("bidfu:")) {
+      // A bid follow-up (lib/bids): its cadence slot is done, or dropped with its draft.
+      const { onFollowUpTaskClosed } = await import("@/lib/bids/follow-ups");
+      await onFollowUpTaskClosed(existing.sourceKey, task.status);
     }
   }
 
