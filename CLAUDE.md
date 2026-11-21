@@ -803,7 +803,7 @@ now holds the App Store signing and an App Store Connect API key, so future
 builds and submits can run from a session (`npm run build:prod:ios --
 --non-interactive --auto-submit` in `mobile/`).
 
-### 2026-11-21 — PlanHub Stage 1c: the follow-up cadence (built + dev-QA'd on `planhub-1c`, not deployed)
+### 2026-11-21 — PlanHub Stage 1c: the follow-up cadence (deployed `8cf3fee`)
 
 "start on 1c". Branch from `origin/main` with the never-pushed intro-call commit
 (`ac7c030`, 2026-11-19) cherry-picked first. No migration — 1a had created every
@@ -845,6 +845,16 @@ draft), headless Chromium 10/10 at 1440 / 400 px. Dev DB restored. **After the
 deploy: `prisma/seed-bids.ts` on prod (it was never run — holidays, settings,
 templates), then the backfill dry run, then the cron wrapper
 `crm-cron/bid-follow-ups.sh` at `*/15 12-23 * * 1-5` (UTC) and a dry run.**
+Richard pushed and deployed from `!` (fresh clone, 390 s, exit 0): BUILD_ID
+`OyafDK_FnV_hy0I7fRLtv` → `iDCC7iiWiMUfLEpVjyB27`, no migration, smoke 307 ×2,
+journal clean, backup `postgres-2026-11-21-155554.dump`. On prod: `seed-bids.ts`
+(4 templates created; the 22 holidays and the settings row were already there);
+cron dry run 2 open sent bids, nothing due; on Richard's "go" the wrapper
+`crm-cron/bid-follow-ups.sh` went on the knuco crontab at
+`*/15 11-23 * * 1-5` UTC (covers 7 AM–6 PM ET in both EST and EDT; crontab copy
+`/home/knuco/crontab.bak-20261121-bids`), first run 200, raised 0. The backfill
+`--apply` **skipped BID-00001: its lead has no trade (no LeadService)**, so it
+stays a legacy bid; give the lead its trade (Drywall) and re-run to file it.
 
 ### 2026-11-21 — Review-request email redesign (deployed `50fec68`)
 
@@ -4194,11 +4204,9 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **PlanHub 1c (follow-up cadence) is on `planhub-1c`, not deployed; no
-> migration.** After Richard's push + deploy: run `prisma/seed-bids.ts` on prod,
-> the bid backfill dry run (`scripts/backfill-bid-projects-2026-11.ts`, `--yes`
-> on his word), install the `bid-follow-ups` cron wrapper and run it with
-> `?dryRun=1` first. Click-through: a submitted bid's Bid tab → Follow-up card.
+> **PlanHub 1c (follow-up cadence) is on prod (`8cf3fee`), seeded, cron
+> installed (`*/15 11-23 * * 1-5` UTC).** Click-through: a submitted bid's Bid
+> tab → Follow-up card. BID-00001 stays legacy until its lead gets a trade.
 
 > **Workflow steps as a checklist is on prod (`5331b5d`, BUILD_ID
 > `qwVdNctRtIJJ8Y9G3F0NW`); the 266 auto-assigned untouched steps were cleared.**
