@@ -599,6 +599,32 @@ The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
 
+### 2026-11-21 — Crew payments, one posting: CRM half (built + dev-QA'd on `crew-payment-link`, not deployed)
+
+Plan approved: `~/.claude/plans/on-the-workflow-for-jaunty-ritchie-…md`.
+- **Why.** Richard records crew payments in the CRM first. The same money then arrived from CC Allocator as a job expense, and a person reconciled each one under Cost Reconciliation → Crew payments.
+- **Rulings:**
+  - the CRM never posts to QuickBooks; CC Allocator posts the real bank / Amex line once and **links** it to the CRM crew payment;
+  - a bank account names its company; the Amex books to KNU for customer jobs and Equifirst for flips / rentals;
+  - D-2 bank rule;
+  - accepted trade-off: a Zelle reaches QuickBooks when its bank line arrives.
+- **Migration** `20261130120000_labor_payment_allocator_link` (additive): `labor_payments.paid_from_key` / `paid_from_label` / `allocator_external_id` (unique) / `allocator_linked_at` / `allocator_line_date` / `allocator_line_amount`.
+- **Matching rules** (pure `lib/labor/allocator-link.ts`): candidates = same money within 3 days (exact amount, or the crew named in the payee with a close amount), never another account; `soleCandidate`, `openRequestFor`, `linkProblem`, `quickBooksState`. DB side in `allocator-link-run.ts`.
+- **Endpoints:**
+  - new `GET /api/integrations/cc-allocator/crew-payments` (`?jobId=` summary; `?amount&date&payee&account` candidates + `prefill`);
+  - expense intake **crew mode** (`crewPayment.laborPaymentId` links / `laborContractId` creates + settles the open request; never a job expense; replays and races idempotent; a line already an expense → 409);
+  - the status endpoint lists `crewPayments`;
+  - `GET /api/jobs/[id]/paid-from-accounts` (reads CC Allocator's `/api/internal/crm-accounts?jobKind=`, bearer `CC_ALLOCATOR_RECON_KEY`; empty with the reason when unreachable);
+  - payment POST takes paid-from;
+  - new `PATCH /api/labor-payments/[id]` (paid-from until linked; unlink); DELETE reports the line going back.
+- **Dialog and rows.** Record payment has **Paid from** (fills Method: card → CARD, bank → ACH). Each payment row shows "from …", "Not in QuickBooks yet" / "In QuickBooks · line <date>" (+ a differing line amount) and Unlink.
+- **Fixes:**
+  - Cost Reconciliation "record" now copies paid-from and settles the open request;
+  - a crew payment's bare date is pinned to noon UTC (it showed the day before).
+- **Gate:** typecheck clean, lint clean on the touched files, 2301 tests (+14), build clean.
+- **Dev QA** (stand-in CC Allocator, mail blanked): API 27/27, headless dialog + rows at 1440 / 400 px, no page errors. Dev DB restored.
+- **Deploy carries the migration.** The Paid from list stays "unavailable" until CC Allocator ships `/api/internal/crm-accounts` (the CC Allocator half).
+
 ### 2026-11-21 — CC Allocator → CRM Phase 1, step 3: intake status, status endpoint, crew-payment holds (built + dev-QA'd on `allocator-status`, not deployed)
 
 Plan: `CC_ALLOCATOR_CRM_PHASE1_PLAN.md` (repo root, untracked) / cc-allocator `docs/crm-job-costing/`. Steps 1–2 (cc-allocator) are on prod.
@@ -4218,6 +4244,10 @@ Notification Digests).
   tools, and must match a zod schema. Document text goes in through
   `untrustedDocument`. What the model returns is a proposal a person confirms —
   never a status change, a sent message, a licence number or a signature.
+- **A crew payment is posted to QuickBooks only by CC Allocator, from the real
+  bank or card line, and that line is linked to the CRM `LaborPayment`
+  (`allocatorExternalId`), never added as a job expense** (`lib/labor/allocator-link*.ts`).
+  The CRM never posts to QuickBooks. Paid-from names come from CC Allocator.
 - **A cc-allocator posting is one row per `externalId`, on one job.** The
   intake answers a repeat with the stored status and refuses a different job
   (409); the job moves only in the CRM. A posting held `LABOR` is decided under

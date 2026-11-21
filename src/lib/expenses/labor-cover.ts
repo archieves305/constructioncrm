@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
+import { openRequestFor } from "@/lib/labor/allocator-link";
+import { settleRequestOnPayment } from "@/lib/labor/payment-requests";
 import { recordAudit } from "@/lib/audit/record";
 import { recomputeCostPlusJob, recomputeJobBalance, rollsExpensesIntoContract } from "@/lib/services/job-pricing";
 import {
@@ -171,10 +173,10 @@ export async function recordAsLaborPayment(expenseId: string, laborContractId: s
   const e = await loadExpense(expenseId);
   const bad = refuse(e);
   if (bad) return bad;
-  const contract = await prisma.laborContract.findUnique({ where: { id: laborContractId }, select: { ...LABOR_CONTRACT_NAME_SELECT, job: { select: { leadId: true } } } });
+  const contract = await prisma.laborContract.findUnique({ where: { id: laborContractId }, select: { ...LABOR_CONTRACT_NAME_SELECT, job: { select: { leadId: true } }, paymentRequests: { where: { status: "REQUESTED" }, select: { id: true, amount: true, status: true } } } });
   if (!contract) return { ok: false, status: 404, error: "Labor contract not found" };
   if (contract.jobId !== e!.jobId) return { ok: false, status: 400, error: "The labor contract is on a different job" };
-  const full = await prisma.jobExpense.findUnique({ where: { id: e!.id }, select: { paidMethod: true } });
+  const full = await prisma.jobExpense.findUnique({ where: { id: e!.id }, select: { paidMethod: true, paidFrom: true } });
   const payment = await prisma.laborPayment.create({
     data: {
       laborContractId: contract.id,
@@ -183,6 +185,7 @@ export async function recordAsLaborPayment(expenseId: string, laborContractId: s
       method: full?.paidMethod ?? null,
       reference: e!.externalId ? "Bank posting" : "Job expense",
       notes: `Recorded from the ${e!.externalId ? "bank posting" : "expense"} ${e!.incurredDate.toISOString().slice(0, 10)}: ${(e!.vendor ?? "").slice(0, 120)}`,
+      paidFromLabel: full?.paidFrom?.slice(0, 120) || null,
       createdByUserId: actorUserId,
     },
   });
@@ -191,6 +194,9 @@ export async function recordAsLaborPayment(expenseId: string, laborContractId: s
   await recordAudit({ actorUserId, entityType: "LaborPayment", entityId: payment.id, action: "create", after: { laborContractId: contract.id, amount: e!.amount, fromExpenseId: e!.id } });
   const note = `Recorded as a payment of $${e!.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} to ${name} on its labor contract — counted there, not here.`;
   await rejectAsCovered(e!, payment.id, note, actorUserId, "recorded_as_payment");
+  // The crew's open payment request for this money is answered too (one, close in amount).
+  const requestId = openRequestFor(e!.amount, contract.paymentRequests.map((r) => ({ id: r.id, amount: Number(r.amount), status: r.status })));
+  if (requestId) await settleRequestOnPayment(requestId, payment.id, actorUserId);
   return { ok: true, expenseId: e!.id, laborPaymentId: payment.id };
 }
 

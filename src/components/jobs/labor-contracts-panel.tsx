@@ -49,6 +49,7 @@ import { CrewContact } from "./crew-contact";
 import { CrewLinks } from "./crew-links";
 import { attachCompletionPhotos, CompletionPhotoPicker, CompletionPhotosButton, type CompletionPhoto } from "./completion-photos";
 import { fetchJson } from "@/lib/fetch-json";
+import { quickBooksState } from "@/lib/labor/allocator-link";
 import { useConfirm } from "@/components/shared/confirm-provider";
 import { Field } from "@/components/ui/field";
 
@@ -70,7 +71,16 @@ type LaborPayment = {
   reference: string | null;
   notes: string | null;
   photos?: CompletionPhoto[];
+  /** The bank account or card it was paid from (CC Allocator's names). */
+  paidFromKey?: string | null;
+  paidFromLabel?: string | null;
+  /** The CC Allocator bank / card line that carried it to QuickBooks, once linked. */
+  allocatorExternalId?: string | null;
+  allocatorLineDate?: string | null;
+  allocatorLineAmount?: string | null;
 };
+
+type PaidFromAccount = { key: string; label: string; kind: "bank" | "card"; companyName: string };
 
 type LaborChangeOrder = {
   id: string;
@@ -350,6 +360,8 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
   const [payMethod, setPayMethod] = useState<(typeof METHODS)[number] | "">("");
   const [payReference, setPayReference] = useState("");
   const [payNotes, setPayNotes] = useState("");
+  // The bank account or card it was paid from; CC Allocator links its line to this payment later.
+  const [payFromKey, setPayFromKey] = useState("");
   // The payment request being answered, when the dialog was opened from one.
   const [payRequest, setPayRequest] = useState<PaymentRequestRow | null>(null);
   // Optional completion photos, stored on the payment once it is saved.
@@ -360,6 +372,15 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
   const canRecord = canManageJobMoney(session?.user.role);
   // The job's project manager may send crew links too (the server checks: canRunGuestLinks).
   const canSendLinks = Boolean(session?.user.id && jobPmId && session.user.id === jobPmId);
+  // Read when the Record payment dialog opens: CC Allocator's accounts for this job's kind.
+  const { data: paidFrom } = useQuery<{ accounts: PaidFromAccount[]; unavailable: string | null }>({
+    queryKey: ["paid-from-accounts", jobId],
+    queryFn: () => fetchJson(`/api/jobs/${jobId}/paid-from-accounts`),
+    enabled: Boolean(payingContract) && canRecord,
+    staleTime: 5 * 60_000,
+  });
+  const paidFromAccounts = paidFrom?.accounts ?? [];
+  const pickedFrom = paidFromAccounts.find((a) => a.key === payFromKey) ?? null;
 
   const openPay = (c: LaborContract, request: PaymentRequestRow | null = null) => {
     setPayAmount(request ? String(Number(request.amount)) : "");
@@ -367,6 +388,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
     setPayMethod("");
     setPayReference("");
     setPayNotes(request?.note ?? "");
+    setPayFromKey("");
     setPayRequest(request);
     setPayPhotos([]);
     setPayingContract(c);
@@ -396,6 +418,8 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
             reference: payReference || null,
             notes: payNotes || null,
             requestId: payRequest?.id ?? null,
+            paidFromKey: pickedFrom?.key ?? null,
+            paidFromLabel: pickedFrom ? `${pickedFrom.label} (${pickedFrom.companyName})` : null,
           }),
         },
       );
@@ -429,11 +453,22 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
 
   const removePayment = useMutation({
     mutationFn: (id: string) =>
-      fetchJson(`/api/labor-payments/${id}`, { method: "DELETE" }),
+      fetchJson<{ unlinkedLine: string | null }>(`/api/labor-payments/${id}`, { method: "DELETE" }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
+      toast.success(r?.unlinkedLine ? "Payment deleted — its bank or card line goes back to CC Allocator for review" : "Payment deleted");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const unlinkLine = useMutation({
+    mutationFn: (id: string) =>
+      fetchJson(`/api/labor-payments/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unlinkAllocatorLine: true }) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["labor-contracts", jobId] });
-      toast.success("Payment deleted");
+      toast.success("Line unlinked — it goes back to CC Allocator for review");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   // Change-order dialog
@@ -1111,6 +1146,48 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                                 · {p.notes}
                               </span>
                             )}
+                            {p.paidFromLabel && (
+                              <span className="text-muted-foreground">from {p.paidFromLabel}</span>
+                            )}
+                            {(() => {
+                              const qb = quickBooksState({
+                                paidFromKey: p.paidFromKey ?? null,
+                                allocatorExternalId: p.allocatorExternalId ?? null,
+                                allocatorLineDate: p.allocatorLineDate ? new Date(p.allocatorLineDate) : null,
+                                allocatorLineAmount: p.allocatorLineAmount != null ? Number(p.allocatorLineAmount) : null,
+                                amount: Number(p.amount),
+                              });
+                              if (qb.kind === "none") return null;
+                              if (qb.kind === "waiting")
+                                return (
+                                  <Badge variant="outline" className="text-3xs" title={qb.text}>
+                                    Not in QuickBooks yet
+                                  </Badge>
+                                );
+                              return (
+                                <span className="inline-flex items-center gap-1">
+                                  <Badge variant="secondary" className="text-3xs" title="Posted once by CC Allocator from the bank or card line, and linked here">
+                                    {qb.text}
+                                  </Badge>
+                                  {qb.differs && (
+                                    <span className="text-tone-warning-fg">line ${Number(p.allocatorLineAmount).toLocaleString()}</span>
+                                  )}
+                                  {canRecord && (
+                                    <button
+                                      type="button"
+                                      className="text-muted-foreground underline hover:text-foreground"
+                                      disabled={unlinkLine.isPending}
+                                      onClick={async () => {
+                                        if (await confirmAction({ title: "Unlink the bank or card line?", description: "The line goes back to CC Allocator for review. QuickBooks keeps what CC Allocator posted.", confirmLabel: "Unlink" }))
+                                          unlinkLine.mutate(p.id);
+                                      }}
+                                    >
+                                      Unlink
+                                    </button>
+                                  )}
+                                </span>
+                              );
+                            })()}
                             <CompletionPhotosButton
                               photos={p.photos ?? []}
                               target={{ laborPaymentId: p.id }}
@@ -1123,7 +1200,7 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                             className="rounded p-1 text-muted-foreground hover:text-destructive"
                             title="Delete payment"
                             onClick={async () => {
-                              if (await confirmAction({ title: "Delete this crew payment?", description: "What is still owed on the contract goes back up by this amount.", confirmLabel: "Delete", tone: "danger" }))
+                              if (await confirmAction({ title: "Delete this crew payment?", description: p.allocatorExternalId ? "What is still owed on the contract goes back up by this amount. Its bank or card line goes back to CC Allocator for review; QuickBooks keeps what CC Allocator posted." : "What is still owed on the contract goes back up by this amount.", confirmLabel: "Delete", tone: "danger" }))
                                 removePayment.mutate(p.id);
                             }}
                           >
@@ -1307,6 +1384,41 @@ export function LaborContractsPanel({ jobId, projectManagerId: jobPmId = null }:
                 />
               </Field>
             </div>
+            <Field label="Paid from" labelClassName="text-xs">
+              <Select
+                value={payFromKey || "__none"}
+                onValueChange={(v: string | null) => {
+                  const key = v && v !== "__none" ? v : "";
+                  setPayFromKey(key);
+                  const acct = paidFromAccounts.find((a) => a.key === key);
+                  // A card payment is a card payment; a bank one defaults to a transfer (Zelle / ACH) unless a check or wire was chosen.
+                  if (acct?.kind === "card") setPayMethod("CARD");
+                  else if (acct?.kind === "bank" && (payMethod === "" || payMethod === "CARD")) setPayMethod("ACH");
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="—">
+                    {(v: string) => {
+                      const a = paidFromAccounts.find((x) => x.key === v);
+                      return a ? `${a.label} · ${a.companyName}` : "— not specified —";
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">— not specified —</SelectItem>
+                  {paidFromAccounts.map((a) => (
+                    <SelectItem key={a.key} value={a.key}>
+                      {a.label} · {a.companyName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-2xs text-muted-foreground">
+                {paidFrom?.unavailable
+                  ? `Accounts unavailable: ${paidFrom.unavailable}. The payment can still be recorded.`
+                  : "Not posted from here: CC Allocator posts the bank or card line to QuickBooks once and links it to this payment."}
+              </p>
+            </Field>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Method" labelClassName="text-xs">
                 <Select

@@ -2128,6 +2128,18 @@ model LaborPayment {
   notes           String?        @db.Text
   createdByUserId String         @map("created_by_user_id")
   createdAt       DateTime       @default(now()) @map("created_at")
+  // The bank account or card it was paid from, as CC Allocator names it
+  // (`bank:<id>` / `card:<id>:<companyId>` + a label). Used to match the bank
+  // or card line later; the CRM never posts to QuickBooks itself.
+  paidFromKey     String?        @map("paid_from_key")
+  paidFromLabel   String?        @map("paid_from_label")
+  // The CC Allocator bank / card line that carried this money to QuickBooks
+  // (its CRM externalId: a Transaction id or `bank:<id>`). Set when CC
+  // Allocator links the line; such a payment is never also a job expense.
+  allocatorExternalId String?    @unique @map("allocator_external_id")
+  allocatorLinkedAt   DateTime?  @map("allocator_linked_at")
+  allocatorLineDate   DateTime?  @map("allocator_line_date")
+  allocatorLineAmount Decimal?   @map("allocator_line_amount") @db.Decimal(12, 2)
 
   laborContract   LaborContract        @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
   createdBy       User                 @relation(fields: [createdByUserId], references: [id])

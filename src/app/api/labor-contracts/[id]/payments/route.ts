@@ -6,6 +6,7 @@ import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 import { settleRequestOnPayment } from "@/lib/labor/payment-requests";
 import { recordAudit } from "@/lib/audit/record";
 import { expensesTwinningPayment } from "@/lib/expenses/labor-cover";
+import { parseDueAt } from "@/lib/tasks/dates";
 
 const METHODS = [
   "CHECK",
@@ -25,6 +26,9 @@ const createSchema = z.object({
   notes: z.string().max(2000).nullable().optional(),
   /** The payment request this payment answers; recording it closes the request and its task. */
   requestId: z.string().nullable().optional(),
+  /** The bank account or card it was paid from, as CC Allocator names it (GET /api/jobs/[id]/paid-from-accounts). */
+  paidFromKey: z.string().max(200).regex(/^(bank|card):/).nullable().optional(),
+  paidFromLabel: z.string().max(120).nullable().optional(),
 });
 
 // POST /api/labor-contracts/[id]/payments — record a payment made to the crew.
@@ -57,10 +61,13 @@ export async function POST(
     data: {
       laborContractId: id,
       amount: parsed.data.amount,
-      paidDate: parsed.data.paidDate ? new Date(parsed.data.paidDate) : new Date(),
+      // A bare day is pinned to noon UTC so it shows as that day in Florida (midnight UTC read as the evening before).
+      paidDate: parsed.data.paidDate ? parseDueAt(parsed.data.paidDate) : new Date(),
       method: parsed.data.method ?? null,
       reference: parsed.data.reference?.trim() || null,
       notes: parsed.data.notes?.trim() || null,
+      paidFromKey: parsed.data.paidFromKey || null,
+      paidFromLabel: parsed.data.paidFromKey ? parsed.data.paidFromLabel?.trim() || null : null,
       createdByUserId: session.user.id,
     },
   });
@@ -79,7 +86,7 @@ export async function POST(
     const req = await prisma.laborPaymentRequest.findUnique({ where: { id: parsed.data.requestId }, select: { laborContractId: true } });
     if (req?.laborContractId === id) await settleRequestOnPayment(parsed.data.requestId, payment.id, session.user.id);
   }
-  await recordAudit({ actorUserId: session.user.id, entityType: "LaborPayment", entityId: payment.id, action: "create", after: { laborContractId: id, amount: parsed.data.amount, requestId: parsed.data.requestId ?? null } });
+  await recordAudit({ actorUserId: session.user.id, entityType: "LaborPayment", entityId: payment.id, action: "create", after: { laborContractId: id, amount: parsed.data.amount, requestId: parsed.data.requestId ?? null, paidFrom: parsed.data.paidFromLabel ?? null } });
 
   // The same money may already be on the job from the bank feed; the panel
   // asks the person to count it once (lib/expenses/labor-cover.ts).

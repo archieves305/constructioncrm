@@ -9,7 +9,8 @@ import { ALLOCATOR_STATUS_SELECT, allocatorExpenseStatus, parseStatusIds } from 
 // its status (PENDING = held for a person, APPROVED = counted on the job,
 // REJECTED = not counted), why the intake held it, the note and whether a crew
 // payment carries the money. `missing` lists ids the CRM does not hold (never
-// posted, or the expense was deleted here). Read-only; at most 200 ids.
+// posted, or the expense was deleted here). Lines taken as crew payments are
+// listed under `crewPayments`. Read-only; at most 200 ids.
 // CC Allocator → CRM Phase 1, step 3 (cc-allocator mirrors it in step 4).
 export async function GET(request: NextRequest) {
   const authFail = verifyCcAllocatorAuth(request);
@@ -22,9 +23,15 @@ export async function GET(request: NextRequest) {
     where: { externalId: { in: parsed.ids } },
     select: ALLOCATOR_STATUS_SELECT,
   });
-  const found = new Set(rows.map((r) => r.externalId));
+  // Lines taken as crew payments (crew mode) are on a labor payment, not an expense.
+  const crew = await prisma.laborPayment.findMany({
+    where: { allocatorExternalId: { in: parsed.ids } },
+    select: { id: true, allocatorExternalId: true, allocatorLinkedAt: true, laborContract: { select: { jobId: true } } },
+  });
+  const found = new Set([...rows.map((r) => r.externalId), ...crew.map((c) => c.allocatorExternalId)]);
   return NextResponse.json({
     expenses: rows.map(allocatorExpenseStatus),
+    crewPayments: crew.map((c) => ({ externalId: c.allocatorExternalId as string, laborPaymentId: c.id, jobId: c.laborContract.jobId, linkedAt: c.allocatorLinkedAt?.toISOString() ?? null })),
     missing: parsed.ids.filter((id) => !found.has(id)),
   });
 }

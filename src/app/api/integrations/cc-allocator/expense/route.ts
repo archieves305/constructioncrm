@@ -14,6 +14,7 @@ import { findManualTwin, twinReviewNote, TWIN_WINDOW_DAYS } from "@/lib/expenses
 import { laborHoldNote } from "@/lib/expenses/labor-cover";
 import { recordAudit } from "@/lib/audit/record";
 import { ALLOCATOR_STATUS_SELECT, replayOutcome } from "@/lib/integrations/cc-allocator/status";
+import { crewPaymentForExternalId, takeCrewPaymentLine } from "@/lib/labor/allocator-link-run";
 
 // POST /api/integrations/cc-allocator/expense
 //
@@ -81,6 +82,19 @@ const inputSchema = z.object({
   paidMethod: z.enum(METHODS).optional(),
   paidFrom: z.string().max(120).nullable().optional(),
   billable: z.boolean(),
+  // Crew mode (crew payments, one posting): the line IS a crew payment. It is
+  // linked to the CRM crew payment (`laborPaymentId`) or recorded on the crew's
+  // labor contract (`laborContractId`, settling `requestId` or the one open
+  // request close in amount) — never created as a job expense.
+  crewPayment: z
+    .object({
+      laborPaymentId: z.string().min(1).nullable().optional(),
+      laborContractId: z.string().min(1).nullable().optional(),
+      requestId: z.string().min(1).nullable().optional(),
+    })
+    .refine((c) => Boolean(c.laborPaymentId) !== Boolean(c.laborContractId), "crewPayment needs exactly one of laborPaymentId or laborContractId")
+    .nullable()
+    .optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -96,6 +110,42 @@ export async function POST(request: NextRequest) {
     );
   }
   const input = parsed.data;
+
+  // A line CC Allocator already sent as a crew payment answers the same way,
+  // whichever mode the retry uses.
+  const crewReplay = await crewPaymentForExternalId(input.externalId);
+  if (crewReplay || input.crewPayment) {
+    if (!crewReplay) {
+      const asExpense = await prisma.jobExpense.findUnique({ where: { externalId: input.externalId }, select: ALLOCATOR_STATUS_SELECT });
+      if (asExpense)
+        return NextResponse.json(
+          { error: "external_id_conflict", message: "The CRM already holds this line as a job expense. Decide it under Cost Reconciliation → Crew payments.", expenseId: asExpense.id, existingJobId: asExpense.jobId },
+          { status: 409 },
+        );
+    }
+    const res = await takeCrewPaymentLine({
+      externalId: input.externalId,
+      jobId: input.jobId,
+      amount: input.amount,
+      incurredDate: new Date(input.incurredDate),
+      paidMethod: input.paidMethod ?? null,
+      paidFrom: input.paidFrom ?? null,
+      vendor: input.vendor ?? null,
+      laborPaymentId: input.crewPayment?.laborPaymentId ?? null,
+      laborContractId: input.crewPayment?.laborContractId ?? null,
+      requestId: input.crewPayment?.requestId ?? null,
+    });
+    if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.status });
+    return NextResponse.json({
+      kind: "crew_payment",
+      laborPaymentId: res.laborPaymentId,
+      jobId: input.jobId,
+      expenseId: null,
+      alreadyExists: res.alreadyExists,
+      created: res.created,
+      requestSettled: res.requestSettled,
+    });
+  }
 
   // Idempotency: a prior POST with the same externalId returns the
   // existing row instead of creating a duplicate.
