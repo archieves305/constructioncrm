@@ -30,8 +30,13 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 0000000000000. 🔴 **AI Field Inspector** — assessment + plan approved
    2026-11-25 (`CAREYOS_AI_FIELD_INSPECTOR_DESIGN.md`, rulings in its §18 taken
    as recommended). **Phase 1 (inspect → AI findings with boxes → human review →
-   punch items → accept) built + dev-QA'd 2026-11-25 on `field-inspector`, not
-   merged, not deployed**: migration `20261201120000_field_inspector`,
+   punch items → accept) built + dev-QA'd 2026-11-25, merged and DEPLOYED
+   2026-11-25 as `adf2091`** (BUILD_ID `pc4V3hxd20p1b5r0ebTNX` →
+   `nFuyDJGO4YPt6pyHsJvyj`, migration applied, smoke 307 ×2, journal clean,
+   backup `postgres-2026-11-25-133139.dump`; cron `inspection-analysis.sh`
+   every minute, crontab copy `/home/knuco/crontab.bak-20261125-inspector`).
+   **Pilot: Richard on JOB-00022.** `INSPECTOR_ENABLED=1` is Richard's step
+   (the env write was refused to the session): migration `20261201120000_field_inspector`,
    `src/lib/inspector/*`, `/api/quality-inspections/*`, `/field-inspections`,
    job Field → Inspections, phone `inspect/*`, AI pool
    `AI_INSPECTOR_MONTHLY_MAX_USD`, off unless `INSPECTOR_ENABLED=1`. Notes:
@@ -4310,12 +4315,11 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **AI Field Inspector Phase 1 is built on branch `field-inspector`, not merged,
-> not deployed (carries a migration).** Next: Richard reads the starter look-for
-> lists (`src/lib/inspector/catalog.ts` TRADES) and names the pilot; merge →
-> deploy → cron wrapper `inspection-analysis.sh` every minute → `INSPECTOR_ENABLED=1`
-> → TestFlight build; then Phase 1b (PDF report + an eval set from KNU's own
-> photos) before Phase 2 (contractor links).
+> **AI Field Inspector Phase 1 is on prod (`adf2091`), cron installed; pilot is
+> Richard on JOB-00022.** Check `INSPECTOR_ENABLED=1` is in `/etc/knuco/env`
+> (Richard's step) and the TestFlight build with the inspect screens is
+> installed. Next: Phase 1b (PDF report + an eval set from his JOB-00022
+> photos and verdicts) before Phase 2 (contractor links).
 
 > **PlanHub 1c (follow-up cadence) is on prod (`8cf3fee`), seeded, cron
 > installed (`*/15 11-23 * * 1-5` UTC).** Click-through: a submitted bid's Bid

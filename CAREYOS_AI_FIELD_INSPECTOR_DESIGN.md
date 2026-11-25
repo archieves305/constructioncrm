@@ -473,7 +473,7 @@ and the phone shows each photo's state.
 
 ## 18. Decisions for Richard [deliverable 24]
 
-**Ruled 2026-11-25: 1–10 as recommended ("go with your recommendations"). 11 (pilot) open.**
+**Ruled 2026-11-25: 1–10 as recommended ("go with your recommendations"); 11: the pilot is Richard on JOB-00022.**
 
 Naming change while building: routes and tables are `quality-*` (`/api/quality-inspections`, `/field-inspections`), never `/api/inspections`, which is the permit inspection.
 

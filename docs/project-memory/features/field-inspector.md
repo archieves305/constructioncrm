@@ -94,6 +94,15 @@ in `src/lib/mobile-api` (`qualityInspectionView` …).
 - QA rows left on dev: INS-00001 (open, mixed review), INS-00002 (accepted, 3 punch
   items completed on JOB-00008), INS-00003 (a rep's quick inspection).
 
+## Deployed 2026-11-25
+
+`adf2091`, BUILD_ID `pc4V3hxd20p1b5r0ebTNX` → `nFuyDJGO4YPt6pyHsJvyj`, migration
+`20261201120000_field_inspector` applied, smoke 307 ×2, journal clean, backup
+`postgres-2026-11-25-133139.dump`. Cron `/home/knuco/crm-cron/inspection-analysis.sh`
+every minute (crontab copy `/home/knuco/crontab.bak-20261125-inspector`), first run
+`{"enabled":false,"ran":0}`. `INSPECTOR_ENABLED=1` left to Richard (the session's env
+write was refused). Pilot: Richard on JOB-00022 (an owned flip → retail bar by default).
+
 ## Deploy notes
 
 Carries the migration. After the deploy: `INSPECTOR_ENABLED=1` in `/etc/knuco/env`
