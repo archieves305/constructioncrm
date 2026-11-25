@@ -96,6 +96,23 @@ export default function AppLayout() {
         name="outbox"
         options={{ headerShown: true, title: "Waiting to send", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
       />
+      {/* the AI Field Inspector: each screen sets its own title */}
+      <Stack.Screen
+        name="inspect/new"
+        options={{ headerShown: true, title: "New inspection", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="inspect/[id]"
+        options={{ headerShown: true, title: "Inspection", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="inspect/area"
+        options={{ headerShown: true, title: "Area", headerBackTitle: "Rooms", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
+      <Stack.Screen
+        name="inspect/finding"
+        options={{ headerShown: true, title: "Photo", headerBackTitle: "Back", headerStyle: { backgroundColor: t.card }, headerTintColor: t.text }}
+      />
       <Stack.Screen
         name="quick"
         options={{
