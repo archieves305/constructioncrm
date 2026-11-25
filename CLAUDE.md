@@ -38,7 +38,7 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    **Pilot: Richard on JOB-00022.** `INSPECTOR_ENABLED=1` set on prod
    2026-11-25 (copy `/etc/knuco/env.bak-20261125-inspector`); TestFlight build 19
    carries the inspect screens. **Phase 1b (report PDF + evaluation scripts) built +
-   dev-QA'd 2026-11-25 on `field-inspector-1b`, not deployed, no migration.** Migration `20261201120000_field_inspector`,
+   dev-QA'd 2026-11-25, deployed 2026-11-25 as `5bd3b7d`** (BUILD_ID `nFuyDJGO4YPt6pyHsJvyj` → `H6mbt4-Fuj9uxVl3-eDcF`, no migration, smoke 307 ×2, journal clean, backup `postgres-2026-11-25-142726.dump`). Migration `20261201120000_field_inspector`,
    `src/lib/inspector/*`, `/api/quality-inspections/*`, `/field-inspections`,
    job Field → Inspections, phone `inspect/*`, AI pool
    `AI_INSPECTOR_MONTHLY_MAX_USD`, off unless `INSPECTOR_ENABLED=1`. Notes:
@@ -4338,8 +4338,7 @@ Notification Digests).
 
 > **AI Field Inspector Phase 1 is on prod (`adf2091`), switched on, TestFlight
 > build 19 submitted; pilot is Richard on JOB-00022.** Phase 1b (report PDF +
-> eval scripts) is on `main`, not deployed, no migration. After the deploy: open
-> an inspection → Report (PDF). Once Richard has reviewed real JOB-00022
+> eval scripts) deployed as `5bd3b7d`: open an inspection → Report (PDF). Once Richard has reviewed real JOB-00022
 > inspections: export the set on the droplet, copy it to the Mac, run both models
 > (`scripts/eval/inspector/README.md`), then choose the default model. Then Phase 2
 > (contractor links).

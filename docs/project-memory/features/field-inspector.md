@@ -110,7 +110,7 @@ Carries the migration. After the deploy: `INSPECTOR_ENABLED=1` in `/etc/knuco/en
 `x-cron-secret`) on the knuco crontab every minute. Then a TestFlight build for the
 phone screens.
 
-## Phase 1b — report + evaluation (built + dev-QA'd 2026-11-25 on `field-inspector-1b`, not deployed)
+## Phase 1b — report + evaluation (deployed 2026-11-25 as `5bd3b7d`, BUILD_ID `H6mbt4-Fuj9uxVl3-eDcF`)
 
 No migration.
 
