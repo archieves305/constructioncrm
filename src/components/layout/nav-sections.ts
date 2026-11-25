@@ -1,6 +1,6 @@
 import type { ElementType } from "react";
 import type { RoleName } from "@/generated/prisma/client";
-import { BarChart3, BellRing, Briefcase, Building2, FolderKanban, Calendar, CheckSquare, ClipboardCheck, ClipboardList, DollarSign, FileSignature, FolderLock, Gauge, Gavel, Hammer, Handshake, HardHat, Inbox, Landmark, LayoutDashboard, ListChecks, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, Settings, Shield, Smartphone, Sparkles, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
+import { BarChart3, BellRing, Briefcase, Building2, FolderKanban, Calendar, CheckSquare, ClipboardCheck, ClipboardList, DollarSign, FileSignature, FolderLock, Gauge, Gavel, Hammer, Handshake, HardHat, Inbox, Landmark, LayoutDashboard, ListChecks, MapPin, MessageSquare, Repeat, Route, Ruler, Scale, ScanSearch, Settings, Shield, Smartphone, Sparkles, Store, UserCheck, Users, UsersRound, Zap } from "lucide-react";
 import { PARTNER_MANAGE_ROLES, PARTNER_VIEW_ROLES } from "@/lib/partners/access";
 import { canWriteLeads } from "@/lib/access/roles";
 
@@ -104,6 +104,7 @@ export const navSections: NavSection[] = [
     items: [
       { href: "/field", label: "Field Mode", icon: HardHat, hint: "The crew-lead view: today's jobs, daily logs and tasks" },
       { href: "/field-logs", label: "Daily Logs", icon: ClipboardList },
+      { href: "/field-inspections", label: "Field inspections", icon: ScanSearch, roles: ["ADMIN", "MANAGER", "OFFICE_STAFF", "SALES_REP", "READ_ONLY"], hint: "AI Field Inspector: photograph the work, confirm what the AI finds, raise punch items, accept the work" },
       { href: "/crews", label: "Crews", icon: Hammer, roles: ["ADMIN", "MANAGER"] },
       { href: "/personnel", label: "Personnel", icon: Users },
     ],

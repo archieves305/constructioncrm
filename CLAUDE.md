@@ -27,6 +27,15 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 
 ## 3. Active Workstreams
 
+0000000000000. 🔴 **AI Field Inspector** — assessment + plan approved
+   2026-11-25 (`CAREYOS_AI_FIELD_INSPECTOR_DESIGN.md`, rulings in its §18 taken
+   as recommended). **Phase 1 (inspect → AI findings with boxes → human review →
+   punch items → accept) built + dev-QA'd 2026-11-25 on `field-inspector`, not
+   merged, not deployed**: migration `20261201120000_field_inspector`,
+   `src/lib/inspector/*`, `/api/quality-inspections/*`, `/field-inspections`,
+   job Field → Inspections, phone `inspect/*`, AI pool
+   `AI_INSPECTOR_MONTHLY_MAX_USD`, off unless `INSPECTOR_ENABLED=1`. Notes:
+   [features/field-inspector.md](docs/project-memory/features/field-inspector.md).
 000000000000. 🔴 **KNU Field — iOS / Android app** — plan approved 2026-11-08
    (`CAREYOS_MOBILE_APP_PLAN.md`, build log at its end). Expo SDK 58 app in
    `mobile/` (own package; `deploy.sh` skips `/mobile/` and `/.claude/`),
@@ -598,6 +607,28 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-11-25 — AI Field Inspector: assessment, plan, Phase 1 (built + dev-QA'd on `field-inspector`, not deployed)
+
+Richard pasted a 34-section brief; the assessment + plan went to
+`CAREYOS_AI_FIELD_INSPECTOR_DESIGN.md`; "go with your recommendations, start
+phase 1". Built (details in the feature doc): schema (quality inspections, areas,
+photos, analyses, findings; `File.qualityInspectionId`,
+`FieldIssue.qualityFindingId`), pure `lib/inspector` (catalog with a starter
+look-for list per trade for Richard to read, flat prompt v2, the API's resize
+rule for boxes, de-duplication, accept blockers, rights), claimed analysis queue
+with a minute cron, routes under `/api/quality-*`, shared `createFieldIssue`,
+attention row, web list / review page / job tab, phone screens on the outbox lane
+`insp:<id>`, AI monthly pools in `runAiCall`. **Found while building: I first put
+the new routes under `/api/inspections`, overwriting the permit-inspection list and
+record routes the phone uses; restored from git before anything ran against them,
+everything renamed `quality-*`** (and the job sub-tab `quality-inspections`, since
+`sub=inspections` redirects to Permits). Real-model QA on public-domain defect
+photos: 6 photos in 17–23 s for $0.10, boxes on target, injected instruction
+ignored. API 25/25 + SALES_REP 6/6 + CREW_LEAD 9/9; headless Chromium clean.
+Gate: typecheck clean, lint 5/21, 2330 tests, build clean; app typecheck clean,
+65 tests. `mobile/node_modules` was empty in this checkout — `npm ci` there.
+Dev QA rows INS-00001…3 left on dev; john.rep reset to SALES_REP.
 
 ### 2026-11-21 — Crew payments, one posting: CRM half (built + dev-QA'd on `crew-payment-link`, not deployed)
 
@@ -3906,6 +3937,10 @@ lives outside the app folder; unset = `./uploads`),
 `MAILERSEND_INBOUND_SECRET` (signing secret of the MailerSend inbound route
 that forwards bid invitations; unset = `/api/integrations/mailersend/inbound`
 503s, pasting on Bid intake still works),
+`INSPECTOR_ENABLED` (default `0`; `1` turns the AI Field Inspector's routes on),
+`INSPECTOR_MODEL` (default `claude-sonnet-5-5`), `INSPECTOR_CLOSER_MODEL`
+(default `claude-opus-5-5`), `AI_INSPECTOR_MONTHLY_MAX_USD` (default `50`; the
+inspector's own monthly pool, left out of `AI_MONTHLY_MAX_USD`),
 `ANTHROPIC_API_KEY` (shared AI layer `src/lib/ai`; unset = every AI action
 503s "AI is not set up"), `AI_MODEL` (default `claude-opus-5-5`),
 `AI_MAX_USD_PER_SUBJECT` (default `5`), `AI_MONTHLY_MAX_USD` (default `100`),
@@ -4261,11 +4296,26 @@ Notification Digests).
   intake answers a repeat with the stored status and refuses a different job
   (409); the job moves only in the CRM. A posting held `LABOR` is decided under
   Cost Reconciliation → Crew payments, never by a plain Approve.
+- **An AI Field Inspector finding moves nothing until a person confirms it**
+  (`lib/inspector`): crews never see a proposed finding, the AI's confidence or
+  its area verdicts; only office roles and the job's PM confirm, dismiss (with a
+  reason) or raise punch items; acceptance is a person's act, refused while a
+  photo is being read or a finding is unreviewed, and over an open item only by
+  ADMIN / MANAGER with a reason. A missing or unclear view is never acceptance.
+  Inspections are "quality inspections" in code — never mixed with permit
+  inspections. Photos are never altered; boxes are separate, in stored pixels.
 - **cc-allocator owns money that actually moved**; the CRM owns job costing
   including costs that have not moved yet. Expenses with an `externalId` are
   cc-allocator's record — ADMIN-only to delete here, and better fixed there.
 
 ## 10. Next Prompt
+
+> **AI Field Inspector Phase 1 is built on branch `field-inspector`, not merged,
+> not deployed (carries a migration).** Next: Richard reads the starter look-for
+> lists (`src/lib/inspector/catalog.ts` TRADES) and names the pilot; merge →
+> deploy → cron wrapper `inspection-analysis.sh` every minute → `INSPECTOR_ENABLED=1`
+> → TestFlight build; then Phase 1b (PDF report + an eval set from KNU's own
+> photos) before Phase 2 (contractor links).
 
 > **PlanHub 1c (follow-up cadence) is on prod (`8cf3fee`), seeded, cron
 > installed (`*/15 11-23 * * 1-5` UTC).** Click-through: a submitted bid's Bid

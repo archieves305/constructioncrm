@@ -4,9 +4,9 @@ import type { ZodType } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
-import { aiCaps, aiClient, AiError, defaultModel } from "./client";
+import { aiCaps, aiClient, AiError, defaultModel, poolMonthlyMax } from "./client";
 import { inputHash } from "./hash";
-import { capMessage, capProblem, monthStart, supportsServerFallback } from "./policy";
+import { capMessage, capProblem, monthStart, poolFor, POOLED_SUBJECT_TYPES, supportsServerFallback } from "./policy";
 import { estimateCostUsd, usageFrom } from "./pricing";
 import { UNTRUSTED_RULE } from "./untrusted";
 
@@ -49,8 +49,13 @@ export async function spentOnSubject(subjectType: string, subjectId: string): Pr
   return agg._sum.costUsd ?? 0;
 }
 
-export async function spentThisMonth(now: Date = new Date()): Promise<number> {
-  const agg = await prisma.aiCall.aggregate({ where: { createdAt: { gte: monthStart(now) } }, _sum: { costUsd: true } });
+/**
+ * Spent since the start of the office-time month: in one pool (a pooled
+ * subject type), or app-wide with every pooled subject type left out.
+ */
+export async function spentThisMonth(now: Date = new Date(), poolSubjectType: string | null = null): Promise<number> {
+  const subjectType = poolSubjectType ? poolSubjectType : { notIn: [...POOLED_SUBJECT_TYPES] };
+  const agg = await prisma.aiCall.aggregate({ where: { createdAt: { gte: monthStart(now) }, subjectType }, _sum: { costUsd: true } });
   return agg._sum.costUsd ?? 0;
 }
 
@@ -71,9 +76,10 @@ export async function runAiCall<T>(spec: AiCallSpec<T>): Promise<AiCallResult<T>
 
   const client = aiClient();
   const caps = aiCaps();
-  const [spentSubject, spentMonth] = await Promise.all([spentOnSubject(spec.subjectType, spec.subjectId), spentThisMonth()]);
-  const problem = capProblem({ spentSubject, spentMonth, maxSubject: caps.maxSubject, maxMonth: caps.maxMonth });
-  if (problem) throw new AiError(capMessage(problem), 429, "cap");
+  const pool = poolFor(spec.subjectType);
+  const [spentSubject, spentMonth] = await Promise.all([spentOnSubject(spec.subjectType, spec.subjectId), spentThisMonth(new Date(), pool?.subjectType ?? null)]);
+  const problem = capProblem({ spentSubject, spentMonth, maxSubject: caps.maxSubject, maxMonth: pool ? poolMonthlyMax(pool.envName) : caps.maxMonth });
+  if (problem) throw new AiError(capMessage({ ...problem, pool }), 429, "cap");
 
   const started = Date.now();
   const base = { ...subject, purpose: spec.purpose, promptVersion: spec.promptVersion, model, inputHash: hash, requestedByUserId: spec.userId ?? null };

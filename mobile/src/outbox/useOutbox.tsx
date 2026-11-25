@@ -53,6 +53,8 @@ export function OutboxProvider({ children }: { children: ReactNode }) {
       if (op.kind === "issue.create" || op.targetId.startsWith("issue:")) void qc.invalidateQueries({ queryKey: ["issues"] });
       if (op.targetId.startsWith("log:")) void qc.invalidateQueries({ queryKey: ["dailyLog"] });
       if (op.kind === "lead.note") void qc.invalidateQueries({ queryKey: ["leadNotes"] });
+      // an inspection, its areas, photos and reviews all travel in the lane "insp:<id>"
+      if (op.targetId.startsWith("insp:")) void qc.invalidateQueries({ queryKey: ["qualityInspection"] });
       if (op.targetId.startsWith("lead:")) {
         void qc.invalidateQueries({ queryKey: ["lead"] });
         void qc.invalidateQueries({ queryKey: ["leads"] });

@@ -146,6 +146,13 @@ const schema = z.object({
   AI_MODEL: z.string().default("claude-opus-5-5"),
   AI_MAX_USD_PER_SUBJECT: z.coerce.number().positive().default(5),
   AI_MONTHLY_MAX_USD: z.coerce.number().positive().default(100),
+  // AI Field Inspector (CAREYOS_AI_FIELD_INSPECTOR_DESIGN.md). Off unless "1".
+  // Its calls have their own monthly pool and are left out of
+  // AI_MONTHLY_MAX_USD, so a busy inspection week never stops permit work.
+  INSPECTOR_ENABLED: z.string().default("0"),
+  INSPECTOR_MODEL: z.string().default("claude-sonnet-5-5"),
+  INSPECTOR_CLOSER_MODEL: z.string().default("claude-opus-5-5"),
+  AI_INSPECTOR_MONTHLY_MAX_USD: z.coerce.number().positive().default(50),
 });
 
 const parsed = schema.safeParse(process.env);

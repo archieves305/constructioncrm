@@ -20,6 +20,7 @@ vi.mock("@/generated/prisma/client", () => ({ Prisma: { DbNull: "DbNull" } }));
 vi.mock("./client", () => ({
   AiError: AiErrorMock,
   aiCaps: () => caps,
+  poolMonthlyMax: () => 50,
   defaultModel: () => "claude-opus-5-5",
   aiClient: () => ({ beta: { messages: { parse: sdk.parse } } }),
 }));
@@ -47,7 +48,7 @@ const answer = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 const spent = (subject: number, month: number) => {
-  db.aiCall.aggregate.mockImplementation(({ where }: { where: { subjectType?: string } }) => Promise.resolve({ _sum: { costUsd: where.subjectType ? subject : month } }));
+  db.aiCall.aggregate.mockImplementation(({ where }: { where: { subjectId?: string } }) => Promise.resolve({ _sum: { costUsd: where.subjectId ? subject : month } }));
 };
 
 beforeEach(() => {
@@ -94,6 +95,18 @@ describe("runAiCall", () => {
     spent(0, 100);
     await expect(runAiCall(spec)).rejects.toMatchObject({ status: 429, code: "cap", message: expect.stringContaining("month") });
     expect(sdk.parse).not.toHaveBeenCalled();
+  });
+
+  it("holds a pooled subject type to its own month and leaves it out of the app-wide one", async () => {
+    spent(0, 60);
+    await expect(runAiCall({ ...spec, subjectType: "inspection", subjectId: "i1" })).rejects.toMatchObject({ status: 429, message: expect.stringContaining("AI_INSPECTOR_MONTHLY_MAX_USD") });
+    const monthWhere = (db.aiCall.aggregate.mock.calls as [{ where: Record<string, unknown> }][]).map((c) => c[0].where).find((w: Record<string, unknown>) => !w.subjectId);
+    expect(monthWhere).toMatchObject({ subjectType: "inspection" });
+    db.aiCall.aggregate.mockClear();
+    spent(0, 0);
+    await runAiCall(spec).catch(() => undefined);
+    const appWhere = (db.aiCall.aggregate.mock.calls as [{ where: Record<string, unknown> }][]).map((c) => c[0].where).find((w: Record<string, unknown>) => !w.subjectId);
+    expect(appWhere).toMatchObject({ subjectType: { notIn: ["inspection"] } });
   });
 
   it("records a refusal, a cut-off and a schema mismatch as FAILED and returns nothing", async () => {

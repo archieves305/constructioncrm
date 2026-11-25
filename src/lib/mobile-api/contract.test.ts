@@ -341,3 +341,29 @@ describe("phone leads contract", () => {
     for (const t of logContactRequest.shape.direction.options) expect(Object.values(CommunicationDirection)).toContain(t);
   });
 });
+
+describe("quality inspection contract (AI Field Inspector)", () => {
+  it("parses what GET /api/quality-inspections/[id] sends", async () => {
+    const { qualityInspectionView } = await import("./index");
+    const view: import("@/lib/inspector/service").InspectionView = {
+      id: "i1", number: "INS-00001", kind: "COMPLETION", kindLabel: "Contractor completion", status: "OPEN", phase: "review", phaseLabel: "Findings to review",
+      title: null, job: { id: "j1", label: "7 Won Way", secondary: "Pat", code: "JOB-00008" }, laborContract: { id: "c1", name: "Crew A" }, addressText: null, scopeText: null,
+      qualityProfile: "standard", startedBy: "A B", createdAt: new Date(), acceptedAt: null, acceptedBy: null, acceptOverride: null,
+      areas: [{ id: "a1", name: "Kitchen", trade: "painting", tradeLabel: "Painting", verdict: "issues_found", summary: "s", photosNeeded: ["x"], photoCount: 1, openFindings: 1 }],
+      photos: [{ id: "p1", fileId: "f1", url: "/api/files/f1", areaId: "a1", role: "ORIGINAL", width: 2000, height: 1500, quality: "ok", takenAt: new Date(), state: "done" }],
+      failedAnalyses: [], pendingAnalyses: 0, aiCostUsd: 0.01,
+      findings: [{ id: "x1", areaId: "a1", photoId: "p1", relatedPhotoIds: [], source: "AI", kind: "OBSERVED", trade: "painting", tradeLabel: "Painting", title: "t", evidence: "e", severity: "MINOR", confidence: 0.8, action: null, physicalCheck: null, boxes: [{ x1: 1, y1: 2, x2: 3, y2: 4 }], review: "PROPOSED", edited: false, dismissReason: null, reviewNote: null, reviewedBy: null, reviewedAt: null, resolved: false, punch: null }],
+      blockers: { hard: [], overridable: [] },
+      rights: { canView: true, canSeeProposed: true, canAddPhotos: true, canEdit: true, canReview: true, canOverride: false },
+    };
+    expect(qualityInspectionView.safeParse(JSON.parse(JSON.stringify(view))).success).toBe(true);
+  });
+
+  it("the phone's start and review requests are ones the CRM accepts", async () => {
+    const { QUALITY_KINDS, QUALITY_DISMISS_REASONS } = await import("./index");
+    const { INSPECTION_KINDS } = await import("@/lib/inspector/catalog");
+    const { DISMISS_REASONS } = await import("@/lib/inspector/state");
+    expect([...QUALITY_KINDS].sort()).toEqual([...INSPECTION_KINDS].sort());
+    expect([...QUALITY_DISMISS_REASONS]).toEqual([...DISMISS_REASONS]);
+  });
+});

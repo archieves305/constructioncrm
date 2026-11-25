@@ -17,6 +17,9 @@ import { guardJob } from "@/lib/access/records";
 import { canEnterJobCosts, getCostGrants, COST_DENIED_MESSAGE } from "@/lib/expenses/permissions";
 import { canManageJobMoney, MONEY_DENIED_MESSAGE } from "@/lib/money/access";
 import { parseTakenAt } from "@/lib/files/taken-at";
+import { imageSize } from "@/lib/inspector/image-size";
+import { inspectorEnabled, InspectorError, scopeFor } from "@/lib/inspector/service";
+import { kickAfterUpload, queuePhoto } from "@/lib/inspector/analyze";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -189,7 +192,34 @@ export async function POST(request: NextRequest) {
       jobId = permit.jobId;
       leadId = permit.job.leadId;
     }
-    if (!leadId && !taskId) return badRequest("leadId is required");
+    // A photo in an AI Field Inspection: it takes the inspection's job (and
+    // lead) when it has one; a Quick inspection's photo lives on the
+    // inspection alone until it is attached to a job.
+    const inspectionIdRaw = form.get("qualityInspectionId");
+    const qualityInspectionId = typeof inspectionIdRaw === "string" && inspectionIdRaw ? inspectionIdRaw : null;
+    let inspectionAreaId: string | null = null;
+    if (qualityInspectionId) {
+      if (!inspectorEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      let scoped;
+      try {
+        scoped = await scopeFor(session.user, qualityInspectionId);
+      } catch (err) {
+        if (err instanceof InspectorError) return NextResponse.json({ error: err.message }, { status: err.status });
+        throw err;
+      }
+      if (!scoped.rights.canAddPhotos) return forbidden();
+      if (!file.type.startsWith("image/")) return badRequest("inspection photos must be images");
+      const areaRaw = form.get("qualityAreaId");
+      if (typeof areaRaw === "string" && areaRaw) {
+        const area = await prisma.qualityInspectionArea.findFirst({ where: { id: areaRaw, inspectionId: qualityInspectionId }, select: { id: true } });
+        if (!area) return badRequest("area not found on this inspection");
+        inspectionAreaId = area.id;
+      }
+      jobId = scoped.insp.jobId;
+      leadId = jobId ? (await prisma.job.findUniqueOrThrow({ where: { id: jobId }, select: { leadId: true } })).leadId : null;
+      taskId = null;
+    }
+    if (!leadId && !taskId && !qualityInspectionId) return badRequest("leadId is required");
 
     if (file.size === 0) return badRequest("file is empty");
     // A video is a job (or customer) file only: never a receipt, a crew
@@ -209,7 +239,7 @@ export async function POST(request: NextRequest) {
       ? FileCategory.VIDEO
       : expenseId
       ? FileCategory.RECEIPT
-      : laborPaymentRequestId || laborPaymentId
+      : laborPaymentRequestId || laborPaymentId || qualityInspectionId
         ? FileCategory.PHOTOS
         : typeof categoryRaw === "string" && categoryRaw in FileCategory
         ? (categoryRaw as FileCategory)
@@ -225,6 +255,8 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     // the type comes from the file name; the bytes must agree with it
     if (!contentMatchesType(file.type, buffer.subarray(0, 8192))) return badRequest(`${file.name} is not a real ${file.type} file`);
+    const inspectionSize = qualityInspectionId ? imageSize(buffer) : null;
+    if (qualityInspectionId && !inspectionSize) return badRequest("Use a JPEG, PNG or WebP photo for an inspection");
     const stored = await saveFile(buffer, file.name);
 
     const record = await prisma.file.create({
@@ -246,6 +278,7 @@ export async function POST(request: NextRequest) {
         laborPaymentId,
         permitId,
         permitDocType,
+        qualityInspectionId,
         takenAt: file.type.startsWith("image/") ? parseTakenAt(form.get("takenAt")) : null,
         // Before / during / after, from the phone's photo screen.
         phase: file.type.startsWith("image/") ? photoPhase(form.get("phase")) : null,
@@ -254,6 +287,16 @@ export async function POST(request: NextRequest) {
     });
     // a permit PDF's text is read once, after the answer, for the Permit Library's search
     if (permitId && file.type === "application/pdf") after(() => indexPermitFileText(record.id));
+    if (qualityInspectionId && inspectionSize) {
+      const photo = await prisma.qualityInspectionPhoto.create({
+        data: { inspectionId: qualityInspectionId, areaId: inspectionAreaId, fileId: record.id, width: inspectionSize.width, height: inspectionSize.height },
+        select: { id: true },
+      });
+      await queuePhoto(qualityInspectionId, inspectionAreaId, photo.id, session.user.id);
+      // the area's batch waits a few seconds for more shots, then is read
+      after(() => kickAfterUpload(qualityInspectionId));
+      return NextResponse.json({ ...(await presentFiles([record]))[0], inspectionPhotoId: photo.id }, { status: 201 });
+    }
     if (taskId) {
       await recordTaskEvent({ taskId, actorUserId: session.user.id, type: "EVIDENCE_ATTACHED", toValue: record.id, body: record.fileName });
     }

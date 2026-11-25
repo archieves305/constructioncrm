@@ -95,6 +95,7 @@ export default function JobScreen() {
         </View>
       </View>
 
+      <Button label="Inspect the work" onPress={() => router.push({ pathname: "/inspect/new", params: { jobId: j.id, label: addressLine(j.lead) ?? j.jobNumber } })} />
       <View style={{ flexDirection: "row", gap: 10 }}>
         <View style={{ flex: 1 }}>
           <Button

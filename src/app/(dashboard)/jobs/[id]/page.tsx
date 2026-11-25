@@ -1,5 +1,6 @@
 "use client";
 
+import { JobInspectionsPanel } from "@/components/inspector/job-inspections-panel";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RecordRecent } from "@/components/shared/record-recent";
@@ -481,6 +482,7 @@ export default function JobDetailPage() {
               { value: "crews", label: "Crews" },
               { value: "daily-logs", label: "Daily logs" },
               { value: "photos", label: "Photos" },
+              { value: "quality-inspections", label: "Inspections" },
             ];
             const FIELD = moneyView === "full" ? FIELD_ALL : FIELD_ALL.filter((f) => !COST_PANELS.has(f.value));
             const overdueTasks = jobTasks.filter(
@@ -643,6 +645,10 @@ export default function JobDetailPage() {
 
             <TabsContent value="photos">
               <JobPhotoGallery jobId={id} />
+            </TabsContent>
+
+            <TabsContent value="quality-inspections">
+              <JobInspectionsPanel jobId={id} />
             </TabsContent>
 
             <TabsContent value="tasks">

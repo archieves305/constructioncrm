@@ -277,6 +277,15 @@ export function crewSubmissionsWhere(ctx: AttentionContext): Prisma.GuestSubmiss
   return { status: "PENDING", job: jobScope(ctx) };
 }
 
+/** Open inspections with a finding the AI proposed and nobody has decided; "mine" = started by me or on a job I manage. */
+export function inspectionsToReviewWhere(ctx: AttentionContext): Prisma.QualityInspectionWhereInput {
+  return {
+    status: "OPEN",
+    findings: { some: { review: "PROPOSED" } },
+    ...(ctx.scope === "mine" ? { OR: [{ startedByUserId: ctx.user.id }, { job: { projectManagerId: ctx.user.id } }] } : {}),
+  };
+}
+
 export function depositsMissingWhere(ctx: AttentionContext): Prisma.JobWhereInput {
   return { AND: [OPEN_JOB, jobScope(ctx), { jobType: { not: "OWNED_REHAB" }, depositRequired: { gt: 0 }, depositReceived: { lt: prisma.job.fields.depositRequired } }] };
 }
@@ -317,6 +326,7 @@ const COUNTERS: Record<AttentionKey, (ctx: AttentionContext) => Promise<number>>
   "pending-expenses": (ctx) => prisma.jobExpense.count({ where: pendingExpensesWhere(ctx) }),
   "logs-awaiting": (ctx) => prisma.dailyLog.count({ where: logsAwaitingWhere(ctx) }),
   "crew-submissions": (ctx) => prisma.guestSubmission.count({ where: crewSubmissionsWhere(ctx) }),
+  "inspections-to-review": (ctx) => prisma.qualityInspection.count({ where: inspectionsToReviewWhere(ctx) }),
   "deposits-missing": (ctx) => prisma.job.count({ where: depositsMissingWhere(ctx) }),
   "quiet-jobs": (ctx) => prisma.job.count({ where: quietJobsWhere(ctx) }),
   "partner-follow-ups": (ctx) => prisma.task.count({ where: partnerFollowUpsWhere(ctx) }),
@@ -539,6 +549,17 @@ const LISTERS: Record<Exclude<AttentionKey, "overdue-tasks">, (ctx: AttentionCon
     });
     const what: Record<string, string> = { CREW_PHOTOS: "sent photos", CREW_PAYMENT: "requested a payment", INSTALL_CONFIRM: "answered the install day" };
     return rows.map((r) => item(r.id, jobLabel(r.job), `${r.link.recipientName ?? "A crew"} ${what[r.purpose] ?? "sent something"}`, r.createdAt, `/crew-submissions?id=${r.id}`));
+  },
+  "inspections-to-review": async (ctx) => {
+    const rows = await prisma.qualityInspection.findMany({
+      where: inspectionsToReviewWhere(ctx),
+      orderBy: { createdAt: "asc" },
+      take,
+      select: { id: true, number: true, addressText: true, createdAt: true, job: { select: JOB_LABEL_SELECT }, _count: { select: { findings: { where: { review: "PROPOSED" } } } } },
+    });
+    return rows.map((r) =>
+      item(r.id, r.job ? jobLabel(r.job) : { primary: r.addressText ?? r.number, secondary: null, code: r.number, placeholder: !r.addressText }, `${r.number} · ${r._count.findings} finding${r._count.findings === 1 ? "" : "s"} to review`, r.createdAt, `/field-inspections/${r.id}`),
+    );
   },
   "deposits-missing": async (ctx) => {
     const rows = await prisma.job.findMany({

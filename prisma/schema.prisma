@@ -599,12 +599,15 @@ model User {
   permitAssistDecisions PermitAssistItem[] @relation("PermitAssistItemDecidedBy")
 
   /// Phone notifications from the KNU Field app (CAREYOS_MOBILE_APP_PLAN.md §D.4).
-  pushEnabled              Boolean           @default(true) @map("push_enabled")
-  mobileDevices            MobileDevice[]    @relation("MobileDeviceOwner")
-  mobileDevicesRevoked     MobileDevice[]    @relation("MobileDeviceRevokedBy")
-  usageEvents              UsageEvent[]
-  guestLinksCreated        GuestLink[]       @relation("GuestLinkCreatedBy")
-  guestSubmissionsReviewed GuestSubmission[] @relation("GuestSubmissionReviewedBy")
+  pushEnabled                Boolean                    @default(true) @map("push_enabled")
+  mobileDevices              MobileDevice[]             @relation("MobileDeviceOwner")
+  mobileDevicesRevoked       MobileDevice[]             @relation("MobileDeviceRevokedBy")
+  usageEvents                UsageEvent[]
+  guestLinksCreated          GuestLink[]                @relation("GuestLinkCreatedBy")
+  qualityInspectionsStarted  QualityInspection[]        @relation("QualityInspectionStartedBy")
+  qualityInspectionsAccepted QualityInspection[]        @relation("QualityInspectionAcceptedBy")
+  qualityFindingsReviewed    QualityInspectionFinding[] @relation("QualityFindingReviewedBy")
+  guestSubmissionsReviewed   GuestSubmission[]          @relation("GuestSubmissionReviewedBy")
 
   @@map("users")
 }
@@ -1206,6 +1209,8 @@ model File {
   // the code list in lib/permit-intel/doc-types.ts. The file also carries the
   // permit's job and lead, so it shows on the job's Files tab.
   permitId              String?                  @map("permit_id")
+  /// A photo taken in an AI Field Inspection (Phase 1): shows with the job's files and the inspection.
+  qualityInspectionId   String?                  @map("quality_inspection_id")
   bidProjectId          String?                  @map("bid_project_id")
   sha256                String?
   permitDocType         String?                  @map("permit_doc_type")
@@ -1241,9 +1246,12 @@ model File {
   formFillFlattened     PermitFormFill[]           @relation("FormFillFlattened")
   permitProducts        PermitProduct[]            @relation("PermitProductDocument")
   assistItems           PermitAssistItem[]
+  qualityInspection     QualityInspection?         @relation(fields: [qualityInspectionId], references: [id], onDelete: SetNull)
+  qualityPhoto          QualityInspectionPhoto?
 
   @@index([leadId])
   @@index([jobId])
+  @@index([qualityInspectionId])
   @@index([expenseId])
   @@index([laborPaymentRequestId])
   @@index([laborPaymentId])
@@ -1422,14 +1430,14 @@ model DashboardMetricSnapshot {
 // ─── CRM 2.0: Jobs + Production ─────────────────────────────────────────────
 
 model JobStage {
-  id         String   @id @default(cuid())
-  name       String   @unique
-  stageOrder Int      @map("stage_order")
-  isClosed   Boolean  @default(false) @map("is_closed")
+  id         String    @id @default(cuid())
+  name       String    @unique
+  stageOrder Int       @map("stage_order")
+  isClosed   Boolean   @default(false) @map("is_closed")
   /// The kinds of job that use this stage; a job only stands in a stage of its own kind.
   kinds      JobKind[] @default([CLIENT])
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   jobs          Job[]
   historyFrom   JobStageHistory[] @relation("JobFromStage")
@@ -1572,6 +1580,7 @@ model Job {
   customerContracts  CustomerContract[]
   notificationRows   Notification[]
   guestLinks         GuestLink[]
+  qualityInspections QualityInspection[]
   guestSubmissions   GuestSubmission[]
 
   @@index([leadId])
@@ -1931,6 +1940,7 @@ model LaborContract {
   tasks                LaborContractTask[]
   paymentRequests      LaborPaymentRequest[]
   guestLinks           GuestLink[]
+  qualityInspections   QualityInspection[]
 
   @@index([jobId])
   @@index([vendorId])
@@ -2119,27 +2129,27 @@ model GeneratedDocument {
 }
 
 model LaborPayment {
-  id              String         @id @default(cuid())
-  laborContractId String         @map("labor_contract_id")
-  amount          Decimal        @db.Decimal(12, 2)
-  paidDate        DateTime       @default(now()) @map("paid_date")
-  method          PaymentMethod?
-  reference       String?
-  notes           String?        @db.Text
-  createdByUserId String         @map("created_by_user_id")
-  createdAt       DateTime       @default(now()) @map("created_at")
+  id                  String         @id @default(cuid())
+  laborContractId     String         @map("labor_contract_id")
+  amount              Decimal        @db.Decimal(12, 2)
+  paidDate            DateTime       @default(now()) @map("paid_date")
+  method              PaymentMethod?
+  reference           String?
+  notes               String?        @db.Text
+  createdByUserId     String         @map("created_by_user_id")
+  createdAt           DateTime       @default(now()) @map("created_at")
   // The bank account or card it was paid from, as CC Allocator names it
   // (`bank:<id>` / `card:<id>:<companyId>` + a label). Used to match the bank
   // or card line later; the CRM never posts to QuickBooks itself.
-  paidFromKey     String?        @map("paid_from_key")
-  paidFromLabel   String?        @map("paid_from_label")
+  paidFromKey         String?        @map("paid_from_key")
+  paidFromLabel       String?        @map("paid_from_label")
   // The CC Allocator bank / card line that carried this money to QuickBooks
   // (its CRM externalId: a Transaction id or `bank:<id>`). Set when CC
   // Allocator links the line; such a payment is never also a job expense.
-  allocatorExternalId String?    @unique @map("allocator_external_id")
-  allocatorLinkedAt   DateTime?  @map("allocator_linked_at")
-  allocatorLineDate   DateTime?  @map("allocator_line_date")
-  allocatorLineAmount Decimal?   @map("allocator_line_amount") @db.Decimal(12, 2)
+  allocatorExternalId String?        @unique @map("allocator_external_id")
+  allocatorLinkedAt   DateTime?      @map("allocator_linked_at")
+  allocatorLineDate   DateTime?      @map("allocator_line_date")
+  allocatorLineAmount Decimal?       @map("allocator_line_amount") @db.Decimal(12, 2)
 
   laborContract   LaborContract        @relation(fields: [laborContractId], references: [id], onDelete: Cascade)
   createdBy       User                 @relation(fields: [createdByUserId], references: [id])
@@ -2271,39 +2281,39 @@ enum ExpenseStatus {
 }
 
 model JobExpense {
-  id                      String         @id @default(cuid())
-  jobId                   String         @map("job_id")
-  type                    JobExpenseType @default(OTHER)
+  id                      String             @id @default(cuid())
+  jobId                   String             @map("job_id")
+  type                    JobExpenseType     @default(OTHER)
   // The payee as it arrived (typed, or the bank memo). `vendorId` is the match.
   vendor                  String?
-  vendorId                String?        @map("vendor_id")
+  vendorId                String?            @map("vendor_id")
   // The commitment this expense draws down, if any.
-  commitmentId            String?        @map("commitment_id")
-  description             String?        @db.Text
-  amount                  Decimal        @db.Decimal(12, 2)
-  incurredDate            DateTime       @default(now()) @map("incurred_date")
-  paidMethod              PaymentMethod? @map("paid_method")
-  paidFrom                String?        @map("paid_from")
-  billable                Boolean        @default(false)
-  createdByUserId         String         @map("created_by_user_id")
+  commitmentId            String?            @map("commitment_id")
+  description             String?            @db.Text
+  amount                  Decimal            @db.Decimal(12, 2)
+  incurredDate            DateTime           @default(now()) @map("incurred_date")
+  paidMethod              PaymentMethod?     @map("paid_method")
+  paidFrom                String?            @map("paid_from")
+  billable                Boolean            @default(false)
+  createdByUserId         String             @map("created_by_user_id")
   // Idempotency key for upstream integrations (cc-allocator sends txn.id).
   // Nullable so manually-created expenses are unaffected.
-  externalId              String?        @unique @map("external_id")
+  externalId              String?            @unique @map("external_id")
   // Set when this expense was posted automatically by a payroll payment;
   // such expenses are excluded from cost-plus contract rollups (the labor
   // cost already flows through the field-labor stream until paid).
-  payrollPaymentId        String?        @map("payroll_payment_id")
+  payrollPaymentId        String?            @map("payroll_payment_id")
   // Set when this charge is the same money as a payment already recorded on a
   // crew's labor contract (lib/expenses/labor-cover.ts). Such a row is
   // REJECTED — the labor payment carries the cost — and never moves money.
-  coveredByLaborPaymentId String?        @map("covered_by_labor_payment_id")
+  coveredByLaborPaymentId String?            @map("covered_by_labor_payment_id")
   // A person confirmed it is a cost of its own, not a crew payment counted twice.
-  laborClearedAt          DateTime?      @map("labor_cleared_at")
+  laborClearedAt          DateTime?          @map("labor_cleared_at")
   // Why the cc-allocator intake held this charge PENDING (null = not held by
   // the intake). Kept after the hold is decided, as the record of why.
   holdReason              ExpenseHoldReason? @map("hold_reason")
-  createdAt               DateTime       @default(now()) @map("created_at")
-  updatedAt               DateTime       @updatedAt @map("updated_at")
+  createdAt               DateTime           @default(now()) @map("created_at")
+  updatedAt               DateTime           @updatedAt @map("updated_at")
 
   status           ExpenseStatus @default(APPROVED)
   approvedByUserId String?       @map("approved_by_user_id")
@@ -3431,9 +3441,10 @@ model JobArea {
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
 
-  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job          Job                     @relation(fields: [jobId], references: [id], onDelete: Cascade)
   laborEntries DailyLaborEntry[]
   photos       FieldPhoto[]
+  qualityAreas QualityInspectionArea[]
 
   @@unique([jobId, name])
   @@index([jobId])
@@ -3736,16 +3747,19 @@ model FieldIssue {
   raisedByUserId   String         @map("raised_by_user_id")
   resolvedAt       DateTime?      @map("resolved_at")
   resolvedByUserId String?        @map("resolved_by_user_id")
+  /// The confirmed inspection finding this punch item was raised from (AI Field Inspector).
+  qualityFindingId String?        @unique @map("quality_finding_id")
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
 
-  job        Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  dailyLog   DailyLog?    @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
-  task       Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  assignedTo User?        @relation("FieldIssueAssignedTo", fields: [assignedUserId], references: [id])
-  raisedBy   User         @relation("FieldIssueRaisedBy", fields: [raisedByUserId], references: [id])
-  resolvedBy User?        @relation("FieldIssueResolvedBy", fields: [resolvedByUserId], references: [id])
-  photos     FieldPhoto[]
+  qualityFinding QualityInspectionFinding? @relation(fields: [qualityFindingId], references: [id], onDelete: SetNull)
+  job            Job                       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  dailyLog       DailyLog?                 @relation(fields: [dailyLogId], references: [id], onDelete: SetNull)
+  task           Task?                     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  assignedTo     User?                     @relation("FieldIssueAssignedTo", fields: [assignedUserId], references: [id])
+  raisedBy       User                      @relation("FieldIssueRaisedBy", fields: [raisedByUserId], references: [id])
+  resolvedBy     User?                     @relation("FieldIssueResolvedBy", fields: [resolvedByUserId], references: [id])
+  photos         FieldPhoto[]
 
   @@index([jobId, status])
   @@index([assignedUserId, status])
@@ -7542,4 +7556,233 @@ model PlanhubSnapshot {
 
   @@index([createdAt])
   @@map("planhub_snapshots")
+}
+
+// ─── AI Field Inspector (Phase 1) ───────────────────────────────────────────
+// A person photographs work room by room; the AI proposes findings with boxes
+// on the photos; a person confirms or dismisses each one, and confirmed ones
+// become ordinary punch items (FieldIssue PUNCH). Nothing the AI says moves a
+// record until a person confirms it. Design: CAREYOS_AI_FIELD_INSPECTOR_DESIGN.md,
+// notes: docs/project-memory/features/field-inspector.md. Named "quality" to
+// keep it apart from permit inspections (JobPermitInspection) and the retired
+// `Inspection` table.
+
+enum QualityInspectionKind {
+  TRADE
+  INTERIOR
+  EXTERIOR
+  TURNOVER
+  MAINTENANCE
+  COMPLETION
+  PROGRESS
+  PRE_CONCEALMENT
+  WARRANTY
+  QUICK
+}
+
+/// OPEN while it is being shot and reviewed; ACCEPTED by a person; CLOSED without acceptance.
+/// Analysing / reviewing / corrections are derived on read (lib/inspector/state.ts).
+enum QualityInspectionStatus {
+  OPEN
+  ACCEPTED
+  CLOSED
+}
+
+enum QualityAnalysisStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+/// What the evidence shows: seen, suspected, a documentation gap, a scope gap,
+/// something only a physical check can settle, or something photos cannot settle.
+enum QualityFindingKind {
+  OBSERVED
+  SUSPECTED
+  DOCUMENTATION
+  SCOPE
+  PHYSICAL_CHECK
+  CANNOT_DETERMINE
+}
+
+enum QualitySeverity {
+  CRITICAL
+  MAJOR
+  MINOR
+  COSMETIC
+}
+
+enum QualityReview {
+  PROPOSED
+  CONFIRMED
+  DISMISSED
+}
+
+model QualityInspection {
+  id               String                  @id @default(cuid())
+  number           String                  @unique // INS-00001 from quality_inspection_number_seq
+  kind             QualityInspectionKind
+  status           QualityInspectionStatus @default(OPEN)
+  title            String?
+  /// Optional: a Quick Inspection may stand on an address alone and be attached later.
+  jobId            String?                 @map("job_id")
+  laborContractId  String?                 @map("labor_contract_id")
+  addressText      String?                 @map("address_text")
+  scopeText        String?                 @map("scope_text") @db.Text
+  /// rental | retail | standard | luxury | maintenance (lib/inspector/profiles.ts)
+  qualityProfile   String                  @default("standard") @map("quality_profile")
+  startedByUserId  String                  @map("started_by_user_id")
+  acceptedByUserId String?                 @map("accepted_by_user_id")
+  acceptedAt       DateTime?               @map("accepted_at")
+  /// The reason given when accepted over an open blocker (ADMIN / MANAGER only).
+  acceptOverride   String?                 @map("accept_override") @db.Text
+  closedAt         DateTime?               @map("closed_at")
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+
+  job           Job?                        @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  laborContract LaborContract?              @relation(fields: [laborContractId], references: [id], onDelete: SetNull)
+  startedBy     User                        @relation("QualityInspectionStartedBy", fields: [startedByUserId], references: [id])
+  acceptedBy    User?                       @relation("QualityInspectionAcceptedBy", fields: [acceptedByUserId], references: [id])
+  areas         QualityInspectionArea[]
+  photos        QualityInspectionPhoto[]
+  analyses      QualityInspectionAnalysis[]
+  findings      QualityInspectionFinding[]
+  files         File[]
+
+  @@index([jobId])
+  @@index([status, createdAt])
+  @@index([startedByUserId])
+  @@map("quality_inspections")
+}
+
+model QualityInspectionArea {
+  id           String   @id @default(cuid())
+  inspectionId String   @map("inspection_id")
+  jobAreaId    String?  @map("job_area_id")
+  name         String
+  trade        String?
+  sortOrder    Int      @default(0) @map("sort_order")
+  /// looks_complete | issues_found | cannot_tell — the AI's latest word on the area
+  verdict      String?
+  summary      String?  @db.Text
+  /// Extra photos the AI asked for: string[]
+  photosNeeded Json     @default("[]") @map("photos_needed")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  inspection QualityInspection           @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  jobArea    JobArea?                    @relation(fields: [jobAreaId], references: [id], onDelete: SetNull)
+  photos     QualityInspectionPhoto[]
+  analyses   QualityInspectionAnalysis[]
+  findings   QualityInspectionFinding[]
+
+  @@unique([inspectionId, name])
+  @@map("quality_inspection_areas")
+}
+
+model QualityInspectionPhoto {
+  id           String   @id @default(cuid())
+  inspectionId String   @map("inspection_id")
+  areaId       String?  @map("area_id")
+  fileId       String   @unique @map("file_id")
+  /// ORIGINAL | CORRECTION | BEFORE
+  role         String   @default("ORIGINAL")
+  width        Int
+  height       Int
+  /// ok | blurry | dark | too_far | obstructed — from the analysis
+  quality      String?
+  analysisId   String?  @map("analysis_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  inspection QualityInspection          @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  area       QualityInspectionArea?     @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  file       File                       @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  analysis   QualityInspectionAnalysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  findings   QualityInspectionFinding[]
+
+  @@index([inspectionId, areaId])
+  @@map("quality_inspection_photos")
+}
+
+/// One AI look at an area's photos. Claimed before it runs; a run cut off by a
+/// restart is taken up again once stale (the minute cron). `notBefore` lets a
+/// few photos taken together go in one call.
+model QualityInspectionAnalysis {
+  id                String                @id @default(cuid())
+  inspectionId      String                @map("inspection_id")
+  areaId            String?               @map("area_id")
+  status            QualityAnalysisStatus @default(QUEUED)
+  /// "closer" = the more capable model, asked for by a person
+  mode              String                @default("standard")
+  notBefore         DateTime              @default(now()) @map("not_before")
+  attempts          Int                   @default(0)
+  startedAt         DateTime?             @map("started_at")
+  finishedAt        DateTime?             @map("finished_at")
+  aiCallId          String?               @map("ai_call_id")
+  model             String?
+  costUsd           Float?                @map("cost_usd")
+  durationMs        Int?                  @map("duration_ms")
+  error             String?
+  requestedByUserId String?               @map("requested_by_user_id")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  inspection QualityInspection          @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  area       QualityInspectionArea?     @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  photos     QualityInspectionPhoto[]
+  findings   QualityInspectionFinding[]
+
+  @@index([status, notBefore])
+  @@index([inspectionId])
+  @@map("quality_inspection_analyses")
+}
+
+model QualityInspectionFinding {
+  id               String             @id @default(cuid())
+  inspectionId     String             @map("inspection_id")
+  areaId           String?            @map("area_id")
+  photoId          String?            @map("photo_id")
+  /// Other photos showing the same thing: photo ids.
+  relatedPhotoIds  Json               @default("[]") @map("related_photo_ids")
+  /// AI | PERSON
+  source           String             @default("AI")
+  analysisId       String?            @map("analysis_id")
+  kind             QualityFindingKind
+  trade            String?
+  title            String
+  evidence         String             @db.Text
+  severity         QualitySeverity
+  /// 0–1, the AI's own; null for a person's finding
+  confidence       Float?
+  action           String?            @db.Text
+  /// The physical check photos cannot replace, if any.
+  physicalCheck    String?            @map("physical_check") @db.Text
+  /// [{x1,y1,x2,y2}] in pixels of the stored photo; [] = not placed on the photo
+  boxes            Json               @default("[]")
+  review           QualityReview      @default(PROPOSED)
+  /// A person changed the AI's wording, severity or boxes when confirming.
+  edited           Boolean            @default(false)
+  /// false_positive | not_this_contractor | out_of_scope | duplicate | other
+  dismissReason    String?            @map("dismiss_reason")
+  reviewNote       String?            @map("review_note") @db.Text
+  reviewedByUserId String?            @map("reviewed_by_user_id")
+  reviewedAt       DateTime?          @map("reviewed_at")
+  /// Marked fixed by a person (else its punch item's completion says so).
+  resolvedAt       DateTime?          @map("resolved_at")
+  resolvedByUserId String?            @map("resolved_by_user_id")
+  /// What the AI said, kept unchanged for audit and the eval.
+  aiOriginal       Json?              @map("ai_original")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  inspection QualityInspection          @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  area       QualityInspectionArea?     @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  photo      QualityInspectionPhoto?    @relation(fields: [photoId], references: [id], onDelete: SetNull)
+  analysis   QualityInspectionAnalysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  reviewedBy User?                      @relation("QualityFindingReviewedBy", fields: [reviewedByUserId], references: [id])
+  fieldIssue FieldIssue?
+
+  @@index([inspectionId, review])
+  @@map("quality_inspection_findings")
 }

@@ -903,3 +903,118 @@ export * from "./query-status";
 export * from "./status";
 export * from "./quick-done";
 export * from "./crew";
+
+// ---------------------------------------------------------------------------
+// AI Field Inspector (GET /api/quality-inspections[/id]). Not permit inspections.
+// What the phone reads of an inspection; the CRM sends more (it is ignored).
+// ---------------------------------------------------------------------------
+
+export const QUALITY_KINDS = ["QUICK", "COMPLETION", "TURNOVER", "INTERIOR", "EXTERIOR", "TRADE", "PROGRESS", "MAINTENANCE", "PRE_CONCEALMENT", "WARRANTY"] as const;
+export const QUALITY_SEVERITIES = ["CRITICAL", "MAJOR", "MINOR", "COSMETIC"] as const;
+export const QUALITY_DISMISS_REASONS = ["false_positive", "not_this_contractor", "out_of_scope", "duplicate", "other"] as const;
+
+const qualityBox = z.object({ x1: z.number(), y1: z.number(), x2: z.number(), y2: z.number() });
+
+export const qualityInspectionView = z.object({
+  id: z.string(),
+  number: z.string(),
+  kind: z.enum(QUALITY_KINDS),
+  kindLabel: z.string(),
+  status: z.enum(["OPEN", "ACCEPTED", "CLOSED"]),
+  phase: z.string(),
+  phaseLabel: z.string(),
+  job: z.object({ id: z.string(), label: z.string(), secondary: z.string().nullable(), code: z.string().nullable() }).nullable(),
+  laborContract: z.object({ id: z.string(), name: z.string() }).nullable(),
+  addressText: z.string().nullable(),
+  areas: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      trade: z.string().nullable(),
+      tradeLabel: z.string().nullable(),
+      verdict: z.string().nullable(),
+      summary: z.string().nullable(),
+      photosNeeded: z.array(z.string()),
+      photoCount: z.number(),
+      openFindings: z.number(),
+    }),
+  ),
+  photos: z.array(
+    z.object({
+      id: z.string(),
+      fileId: z.string(),
+      url: z.string(),
+      areaId: z.string().nullable(),
+      width: z.number(),
+      height: z.number(),
+      quality: z.string().nullable(),
+      state: z.enum(["waiting", "analysing", "failed", "done"]),
+    }),
+  ),
+  findings: z.array(
+    z.object({
+      id: z.string(),
+      areaId: z.string().nullable(),
+      photoId: z.string().nullable(),
+      source: z.string(),
+      kind: z.string(),
+      tradeLabel: z.string(),
+      title: z.string(),
+      evidence: z.string(),
+      severity: z.enum(QUALITY_SEVERITIES),
+      confidence: z.number().nullable(),
+      action: z.string().nullable(),
+      physicalCheck: z.string().nullable(),
+      boxes: z.array(qualityBox),
+      review: z.enum(["PROPOSED", "CONFIRMED", "DISMISSED"]),
+      resolved: z.boolean(),
+      punch: z.object({ id: z.string(), status: z.string(), taskId: z.string().nullable() }).nullable(),
+    }),
+  ),
+  failedAnalyses: z.array(z.object({ id: z.string(), areaId: z.string().nullable(), error: z.string().nullable() })),
+  pendingAnalyses: z.number(),
+  blockers: z.object({ hard: z.array(z.string()), overridable: z.array(z.string()) }),
+  rights: z.object({ canView: z.boolean(), canSeeProposed: z.boolean(), canAddPhotos: z.boolean(), canEdit: z.boolean(), canReview: z.boolean(), canOverride: z.boolean() }),
+});
+export type QualityInspectionDto = z.infer<typeof qualityInspectionView>;
+
+export const qualityInspectionList = z.object({
+  inspections: z.array(
+    z.object({
+      id: z.string(),
+      number: z.string(),
+      kindLabel: z.string(),
+      status: z.enum(["OPEN", "ACCEPTED", "CLOSED"]),
+      phase: z.string(),
+      phaseLabel: z.string(),
+      place: z.string(),
+      contractor: z.string().nullable(),
+      createdAt: z.string(),
+      photos: z.number(),
+      toReview: z.number(),
+      open: z.number(),
+    }),
+  ),
+});
+
+export const qualityStartOptions = z.object({
+  defaultProfile: z.string(),
+  areas: z.array(z.object({ id: z.string(), name: z.string() })),
+  contracts: z.array(z.object({ id: z.string(), name: z.string(), lines: z.number() })),
+  trades: z.array(z.object({ key: z.string(), label: z.string() })),
+});
+
+/** POST /api/quality-inspections from the phone (a phone-made id, so a resend finds it). */
+export const startQualityInspectionRequest = z.object({
+  id: z.string(),
+  kind: z.enum(QUALITY_KINDS),
+  jobId: z.string().nullable(),
+  laborContractId: z.string().nullable(),
+  addressText: z.string().nullable(),
+});
+
+/** PATCH /api/quality-findings/[id] from the phone. */
+export const reviewQualityFindingRequest = z.object({
+  op: z.enum(["confirm", "dismiss", "resolve"]),
+  dismissReason: z.enum(QUALITY_DISMISS_REASONS).optional(),
+});

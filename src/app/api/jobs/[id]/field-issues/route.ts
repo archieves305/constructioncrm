@@ -1,13 +1,10 @@
-import { isCrewRole } from "@/lib/access/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { validateBody } from "@/lib/validation/body";
 import { requireJobFieldAccess } from "@/lib/labor/route-helpers";
-import { recordAudit } from "@/lib/audit/record";
-import { createTask } from "@/lib/tasks/create";
 import { withIdempotency } from "@/lib/api/idempotency";
-import { userForJobRole } from "@/lib/workflows/roles";
+import { createFieldIssue, FIELD_ISSUE_INCLUDE } from "@/lib/field-issues/create";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -19,15 +16,6 @@ const ISSUE_TYPES = [
   "INSPECTION_REMINDER",
   "PUNCH",
 ] as const;
-
-const TYPE_LABELS: Record<string, string> = {
-  OFFICE_FOLLOW_UP: "Field",
-  CO_REVIEW: "Field: CO review",
-  SAFETY: "Field: Safety",
-  MATERIAL_REQUEST: "Field: Materials",
-  INSPECTION_REMINDER: "Field: Inspection",
-  PUNCH: "Punch",
-};
 
 /** A phone-made id (same form as field photos' client ids), so a resend finds the issue it already made. */
 const CLIENT_ID_RE = /^[a-z][a-z0-9]{19,31}$/;
@@ -87,11 +75,7 @@ export async function POST(request: NextRequest, context: Context) {
     if (d.id) {
       const existing = await prisma.fieldIssue.findUnique({
         where: { id: d.id },
-        include: {
-          raisedBy: { select: { id: true, firstName: true, lastName: true } },
-          assignedTo: { select: { id: true, firstName: true, lastName: true } },
-          task: { select: { id: true, status: true } },
-        },
+        include: FIELD_ISSUE_INCLUDE,
       });
       if (existing) {
         if (existing.jobId !== jobId || existing.raisedByUserId !== ctx.session.user.id) {
@@ -101,67 +85,21 @@ export async function POST(request: NextRequest, context: Context) {
       }
     }
 
-    // A material request nobody was named for goes to whoever buys for the job
-    // (the Purchasing slot, else the company default), not into an unowned task.
-    // A problem a crew lead reports with nobody named goes to the job's PM
-    // (purchasing first for materials): a crew never leaves it unowned.
-    const crewRaised = isCrewRole(ctx.session.user.role);
-    const assignedUserId =
-      d.assignedUserId ||
-      (d.type === "MATERIAL_REQUEST" ? await userForJobRole(jobId, "PURCHASING") : null) ||
-      (crewRaised ? ctx.job.projectManagerId : null);
-
-    const issue = await prisma.$transaction(async (tx) => {
-      const created = await tx.fieldIssue.create({
-        data: {
-          ...(d.id ? { id: d.id } : {}),
-          jobId,
-          dailyLogId: d.dailyLogId || null,
-          type: d.type,
-          title: d.title,
-          description: d.description || null,
-          priority: d.priority,
-          assignedUserId,
-          dueAt: d.dueAt ? new Date(d.dueAt) : null,
-          raisedByUserId: ctx.session.user.id,
-        },
-      });
-
-      // Through the shared creator so the task gets its CREATED/ASSIGNED
-      // timeline rows and the assignee is actually told. Mail is deferred past
-      // the response, i.e. after this transaction commits.
-      const task = await createTask(
-        {
-          jobId,
-          dailyLogId: d.dailyLogId || null,
-          title: `[${TYPE_LABELS[d.type]}] ${d.title}`,
-          description: d.description || null,
-          priority: d.priority,
-          assignedUserId,
-          createdByUserId: ctx.session.user.id,
-          dueAt: d.dueAt ? new Date(d.dueAt) : null,
-          source: "field_issue",
-        },
-        { db: tx, actorUserId: ctx.session.user.id },
-      );
-      return tx.fieldIssue.update({
-        where: { id: created.id },
-        data: { taskId: task.id },
-        include: {
-          raisedBy: { select: { id: true, firstName: true, lastName: true } },
-          assignedTo: { select: { id: true, firstName: true, lastName: true } },
-          task: { select: { id: true, status: true } },
-        },
-      });
-    });
-
-    await recordAudit({
-      actorUserId: ctx.session.user.id,
-      entityType: "FieldIssue",
-      entityId: issue.id,
-      action: "create",
-      after: { jobId, type: issue.type, title: issue.title },
-    });
+    const issue = await createFieldIssue(
+      {
+        id: d.id,
+        jobId,
+        dailyLogId: d.dailyLogId || null,
+        type: d.type,
+        title: d.title,
+        description: d.description || null,
+        priority: d.priority,
+        assignedUserId: d.assignedUserId || null,
+        dueAt: d.dueAt ? new Date(d.dueAt) : null,
+      },
+      { id: ctx.session.user.id, role: ctx.session.user.role },
+      ctx.job,
+    );
 
     return NextResponse.json(issue, { status: 201 });
   });

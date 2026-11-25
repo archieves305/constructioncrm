@@ -19,6 +19,12 @@ export function aiCaps(): { maxSubject: number; maxMonth: number } {
   return { maxSubject: env.AI_MAX_USD_PER_SUBJECT, maxMonth: env.AI_MONTHLY_MAX_USD };
 }
 
+/** A pooled subject type's own monthly allowance (policy.ts MONTHLY_POOLS). */
+export function poolMonthlyMax(envName: string): number {
+  if (envName === "AI_INSPECTOR_MONTHLY_MAX_USD") return env.AI_INSPECTOR_MONTHLY_MAX_USD;
+  return env.AI_MONTHLY_MAX_USD;
+}
+
 /** Every failure of the layer, with the status a route should answer. The message is safe to show. */
 export class AiError extends Error {
   constructor(message: string, readonly status: number, readonly code: "not_configured" | "cap" | "refused" | "cut_off" | "schema" | "auth" | "rate_limited" | "upstream") {

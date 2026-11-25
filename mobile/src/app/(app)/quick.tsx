@@ -6,7 +6,8 @@ import { TOUCH, useTheme } from "@/ui/theme";
 import { useSession } from "@/auth/session";
 import { isCrewRole, isForeman } from "@/lib/crew";
 
-const ACTIONS: { icon: keyof typeof Ionicons.glyphMap; label: string; when: string; href?: "/photo" | "/problem" | "/new-task" | "/voice-task" | "/issue/new" | "/log-pick" | "/log-pick?next=files" | "/log-pick?next=video" | "/materials" }[] = [
+const ACTIONS: { icon: keyof typeof Ionicons.glyphMap; label: string; when: string; href?: "/inspect/new" | "/photo" | "/problem" | "/new-task" | "/voice-task" | "/issue/new" | "/log-pick" | "/log-pick?next=files" | "/log-pick?next=video" | "/materials" }[] = [
+  { icon: "scan-outline", label: "Inspect the work", when: "", href: "/inspect/new" },
   { icon: "camera-outline", label: "Take photo", when: "", href: "/photo" },
   { icon: "videocam-outline", label: "Add video", when: "", href: "/log-pick?next=video" },
   { icon: "checkbox-outline", label: "New task", when: "", href: "/new-task" },
@@ -20,6 +21,7 @@ const ACTIONS: { icon: keyof typeof Ionicons.glyphMap; label: string; when: stri
 /** The crew mode's Add sheet: the few things done from a site, biggest first. */
 const CREW_ACTIONS: typeof ACTIONS = [
   { icon: "camera-outline", label: "Take photo", when: "", href: "/photo" },
+  { icon: "scan-outline", label: "Inspect the work", when: "", href: "/inspect/new" },
   { icon: "warning-outline", label: "Report a problem", when: "", href: "/problem" },
   { icon: "cube-outline", label: "Request materials", when: "", href: "/materials" },
   { icon: "videocam-outline", label: "Add video", when: "", href: "/log-pick?next=video" },

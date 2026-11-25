@@ -21,6 +21,9 @@ import {
   crewToday,
   crewWeek,
   planSheetList,
+  qualityInspectionList,
+  qualityInspectionView,
+  qualityStartOptions,
   jobList,
   taskDetail,
   taskList,
@@ -37,6 +40,20 @@ import { api, ApiError } from "./client";
  * exactly the same thing under the same key.
  */
 export const q = {
+  /** AI Field Inspector: one inspection (polled while photos are being read). */
+  qualityInspection: (id: string) =>
+    queryOptions({ queryKey: ["qualityInspection", id], queryFn: () => api(`/api/quality-inspections/${id}`, { schema: qualityInspectionView }) }),
+  /** A job's inspections, or the person's own open ones. */
+  qualityInspections: (jobId?: string) =>
+    queryOptions({
+      queryKey: ["qualityInspection", "list", jobId ?? "mine"],
+      queryFn: () => api(jobId ? `/api/quality-inspections?jobId=${jobId}` : "/api/quality-inspections?status=OPEN&mine=1", { schema: qualityInspectionList }),
+    }),
+  qualityOptions: (jobId?: string) =>
+    queryOptions({
+      queryKey: ["qualityInspection", "options", jobId ?? "none"],
+      queryFn: () => api(`/api/quality-inspections/options${jobId ? `?jobId=${jobId}` : ""}`, { schema: qualityStartOptions }),
+    }),
   /** Today, as /field/day reads it: the day's items, done ones included. */
   today: (day = dayKey()) =>
     queryOptions({
