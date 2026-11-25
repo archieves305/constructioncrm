@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Camera, Check, Loader2, Pencil, RotateCcw, Search, Square, Wrench, X } from "lucide-react";
+import { Camera, Check, FileText, Loader2, Pencil, RotateCcw, Search, Square, Wrench, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { QueryState } from "@/components/shared/query-state";
 import { JobPicker } from "@/components/shared/job-picker";
@@ -198,9 +198,15 @@ function Actions({ d, unpunched, onDone }: { d: InspectionView; unpunched: numbe
     onSuccess: () => { toast.success("Closed"); onDone(); },
     onError: (e) => toast.error((e as Error).message),
   });
-  if (!d.rights.canReview) return null;
+  const report = (
+    <Button variant="outline" nativeButton={false} render={<a href={`/api/quality-inspections/${d.id}/report`} target="_blank" rel="noreferrer" />}>
+      <FileText className="size-4" /> Report (PDF)
+    </Button>
+  );
+  if (!d.rights.canReview) return report;
   return (
     <>
+      {report}
       {unpunched ? (
         <Button variant="outline" disabled={!d.job || punch.isPending} title={d.job ? undefined : "Attach a job first"} onClick={() => punch.mutate()}>
           <Wrench className="size-4" /> Raise {unpunched} punch item{unpunched === 1 ? "" : "s"}

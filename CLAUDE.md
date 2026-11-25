@@ -35,8 +35,10 @@ Details: [architecture.md](docs/project-memory/architecture.md).
    `nFuyDJGO4YPt6pyHsJvyj`, migration applied, smoke 307 ×2, journal clean,
    backup `postgres-2026-11-25-133139.dump`; cron `inspection-analysis.sh`
    every minute, crontab copy `/home/knuco/crontab.bak-20261125-inspector`).
-   **Pilot: Richard on JOB-00022.** `INSPECTOR_ENABLED=1` is Richard's step
-   (the env write was refused to the session): migration `20261201120000_field_inspector`,
+   **Pilot: Richard on JOB-00022.** `INSPECTOR_ENABLED=1` set on prod
+   2026-11-25 (copy `/etc/knuco/env.bak-20261125-inspector`); TestFlight build 19
+   carries the inspect screens. **Phase 1b (report PDF + evaluation scripts) built +
+   dev-QA'd 2026-11-25 on `field-inspector-1b`, not deployed, no migration.** Migration `20261201120000_field_inspector`,
    `src/lib/inspector/*`, `/api/quality-inspections/*`, `/field-inspections`,
    job Field → Inspections, phone `inspect/*`, AI pool
    `AI_INSPECTOR_MONTHLY_MAX_USD`, off unless `INSPECTOR_ENABLED=1`. Notes:
@@ -612,6 +614,25 @@ Details: [architecture.md](docs/project-memory/architecture.md).
 The SSO cutover is **done and verified**; jgarcia's role is **decided**.
 
 ## 4. Session Log (latest — full history in [session-history.md](docs/project-memory/session-history.md))
+
+### 2026-11-25 — AI Field Inspector Phase 1b: report PDF + evaluation (built + dev-QA'd on `field-inspector-1b`, not deployed)
+
+Same day, after `INSPECTOR_ENABLED=1` went on prod (session, on Richard's word;
+restart needs `sudo -n systemctl restart knuco`) and TestFlight build 19 was submitted
+from a clean clone (404 KB upload). No migration.
+- **Report**: `GET /api/quality-inspections/[id]/report` + "Report (PDF)" on the
+  review page. Pure `buildReport`: confirmed findings only, whoever asks; photos
+  boxed and numbered; draft band while open; disclaimer near the top.
+- **Eval**: pure `lib/inspector/eval.ts` (matching + precision / recall / box hit /
+  severity / per trade); `scripts/eval/inspector/` export (droplet, read-only, out of
+  the repo) and runner (`runAiCall` subject `inspection_eval`, plan-only without
+  `--yes`, cached re-runs), README.
+- **Found rendering**: react-pdf drops or overlays an unbreakable block that moves
+  pages when it sits in a View with later siblings or has flowing children with
+  margins — fixed-size block, absolute children, rendered in a fragment.
+- Dev QA: reports read page by page; route 200 / attachment / 404 / 307, SALES_REP
+  off the job 404, flag off 404; eval on the dev set Sonnet $0.09, Opus $0.21, re-run
+  $0. Gate: typecheck clean, lint 5/21, 2344 tests (+14), build clean.
 
 ### 2026-11-25 — AI Field Inspector: assessment, plan, Phase 1 (built + dev-QA'd on `field-inspector`, not deployed)
 
@@ -4315,11 +4336,13 @@ Notification Digests).
 
 ## 10. Next Prompt
 
-> **AI Field Inspector Phase 1 is on prod (`adf2091`), cron installed; pilot is
-> Richard on JOB-00022.** Check `INSPECTOR_ENABLED=1` is in `/etc/knuco/env`
-> (Richard's step) and the TestFlight build with the inspect screens is
-> installed. Next: Phase 1b (PDF report + an eval set from his JOB-00022
-> photos and verdicts) before Phase 2 (contractor links).
+> **AI Field Inspector Phase 1 is on prod (`adf2091`), switched on, TestFlight
+> build 19 submitted; pilot is Richard on JOB-00022.** Phase 1b (report PDF +
+> eval scripts) is on `main`, not deployed, no migration. After the deploy: open
+> an inspection → Report (PDF). Once Richard has reviewed real JOB-00022
+> inspections: export the set on the droplet, copy it to the Mac, run both models
+> (`scripts/eval/inspector/README.md`), then choose the default model. Then Phase 2
+> (contractor links).
 
 > **PlanHub 1c (follow-up cadence) is on prod (`8cf3fee`), seeded, cron
 > installed (`*/15 11-23 * * 1-5` UTC).** Click-through: a submitted bid's Bid

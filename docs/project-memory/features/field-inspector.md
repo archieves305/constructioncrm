@@ -89,8 +89,7 @@ in `src/lib/mobile-api` (`qualityInspectionView` …).
 - Not run on a phone (the screens typecheck and pass the app's tests; needs a
   TestFlight build). Not run with real KNU photos or by Richard.
 - No push when an analysis finishes (the phone polls every 3–4 s while open).
-- PDF report and the evaluation set: Phase 1b. Contractor links / SMS / compare
-  call: Phase 2.
+- Contractor links / SMS / compare call: Phase 2.
 - QA rows left on dev: INS-00001 (open, mixed review), INS-00002 (accepted, 3 punch
   items completed on JOB-00008), INS-00003 (a rep's quick inspection).
 
@@ -110,3 +109,43 @@ Carries the migration. After the deploy: `INSPECTOR_ENABLED=1` in `/etc/knuco/en
 `crm-cron/inspection-analysis.sh` (POST `/api/cron/inspection-analysis` with
 `x-cron-secret`) on the knuco crontab every minute. Then a TestFlight build for the
 phone screens.
+
+## Phase 1b — report + evaluation (built + dev-QA'd 2026-11-25 on `field-inspector-1b`, not deployed)
+
+No migration.
+
+- **Report PDF**: `GET /api/quality-inspections/[id]/report` (`?download=1` saves),
+  "Report (PDF)" on the review page for everyone who can see the inspection. Pure
+  `lib/inspector/report.ts` (`buildReport`): **CONFIRMED findings only, whoever
+  asks** — no AI confidence, verdicts or cost; each photo printed once with its
+  findings boxed and numbered, worst first; status Open / Punch item open / Fixed;
+  "added by the inspector" for a person's finding; a draft band while open (with
+  the count of findings not yet reviewed); accepted-by and any override reason;
+  the `DISCLAIMER` near the top. `report-load.ts` reads through `readInspection`
+  (same 404s), prints JPEG / PNG (a WebP prints "Photo not available"); letterhead
+  email only if it is @knuconstruction.com, else `COMPANY.email` (the stored brand
+  row carries NewCoast's). Renderer `lib/pdf/quality-inspection-report.tsx`.
+- **react-pdf lessons (found rendering)**: an unbreakable (`wrap={false}`) block
+  that moves to the next page is dropped or laid over the footer when it sits in a
+  View with siblings after it, or has flowing children with margins. The photo
+  block is a fixed-size View with everything inside absolutely placed, rendered in
+  a fragment; the area heading rides inside its first photo's block.
+  `minPresenceAhead` did not keep a heading with the photo.
+- **Evaluation**: pure `lib/inspector/eval.ts` (one-to-one matching on a shared
+  photo by box overlap or title, precision / recall / F1, repeated false alarms vs
+  dismissed findings, box hit at IoU ≥ 0.3, severity agreement, per trade);
+  `scripts/eval/inspector/` (`export-set.ts` read-only, refuses an output folder
+  inside the repo, areas wait until nothing is PROPOSED; `run-eval.ts` replays the
+  live pipeline — batches of 6, `planAnswer` — through `runAiCall` subject type
+  `inspection_eval`, plan-only without `--yes`, re-runs cached; README).
+- **Checked on dev**: reports for INS-00001…3 read page by page (boxes on target,
+  headings never alone at a page foot, nothing proposed printed); route 200 inline
+  / attachment, 404 unknown id, 307 signed out, SALES_REP off the job 404, flag off
+  404. Eval: export 3 areas / 6 photos, Sonnet $0.09 and Opus $0.21 on the dev set,
+  re-run $0 (cached). The dev scores mean nothing (QA reviews dismissed real
+  defects). Gate: typecheck clean, lint 5/21, 2344 tests (+14), build clean.
+- **Not done**: the button not clicked in a browser; no report on the phone (the
+  app's in-app browser has no cookie — Phase 2 can add a share); report photos are
+  the stored 2,000 px copies (≈0.5 MB each).
+- **Next**: after Richard's JOB-00022 inspections are reviewed, export on the
+  droplet, copy to the Mac, run both models; choose the default model from it.
